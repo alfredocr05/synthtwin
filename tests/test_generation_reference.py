@@ -216,11 +216,13 @@ BRANCH_CASES = (
 # 2b.2 added, split out when the second would have passed the provenance
 # guard's byte cap (G14.2). The order of this tuple is its sorted order too.
 SECOND_BRANCH_CASES = (
-    # THE TWO CASES OF LANDING 2b.3'S REPAIR PASS: an accidental value at
-    # midnight moved off a column that publishes none, and bare dates beside
-    # moments at local midnight on a real offset, whose ranks with a published
-    # instant settle their form and offset before the rotation.
-    "accidental_midnight",
+    # LANDING 2b.3'S REPAIR PASS left one case in this file, and landing 2b.6
+    # withdrew it: an accidental value at midnight was moved off a column
+    # publishing a count of nought, and no column publishes that nought any
+    # more, because a reader able to tell it from a suppressed count of one had
+    # been told that count. Its neighbour -- bare dates beside moments at local
+    # midnight on a real offset, whose ranks with a published instant settle
+    # their form and offset before the rotation -- is in the first file.
     # THE REST OF LANDING 2b.2'S MARKS AND NOTATIONS, frozen at the
     # integration of landings 2b.1 to 2b.5 once the branch cases had a file
     # with room: the apostrophe with the minus sign, U+2019 with the trailing
@@ -307,7 +309,6 @@ SEEDS = {
     "partial_midnight": 127,
     "midnight_two_offsets": 128,
     "midnight_bare_offsets": 129,
-    "accidental_midnight": 130,
     "grouped_charges": 124,
     "grouped_decimal_comma": 125,
     "spaced_brackets": 126,
@@ -1222,11 +1223,6 @@ def _ends_alone(column, parsed):
     return fixed
 
 
-def _accidental_midnight_kept(column):
-    """The repair pass withdrawn: an accidental value at midnight is never moved off."""
-    return False
-
-
 def _days_on_either_clock(column):
     """Landing 2b.3's shared-clock rule withdrawn: counted in days on either clock."""
     if column.get("all_at_midnight", False):
@@ -1787,15 +1783,6 @@ CASE_MUTANTS = {
         "ranks are written as the day before and at T02:00:00+02:00",
         attribute="instant_offsets",
         replacement=_ends_alone,
-        outcome=CHANGES_THE_CELLS,
-    ),
-    "accidental_midnight": Mutant(
-        branch="the repair pass of landing 2b.3, which moves an accidental "
-        "value at midnight one precision step off a column publishing "
-        "n_at_midnight 0; the mutant keeps it, and the twin reads back with "
-        "a count of one",
-        attribute="moves_off_midnight",
-        replacement=_accidental_midnight_kept,
         outcome=CHANGES_THE_CELLS,
     ),
     "leap_second_endpoint": Mutant(

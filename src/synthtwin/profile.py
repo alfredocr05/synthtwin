@@ -635,6 +635,18 @@ _BELOW_THE_FLOOR = "one-group-size-below-the-floor"
 # one every blank group reaches the floor, so this count is written
 # there rather than emptied (contract 5 C5-S13).
 _ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
+# A count whose GROUP AND ITS COMPLEMENT are both at the floor, or
+# nothing at all -- written `null`, never nought (landing 2b.6).
+# `n_at_midnight` is the one field of this kind. Nought cannot stand for
+# "not published" here the way it does above, because a reader who can
+# tell a real nought from a suppressed count has been told the
+# suppressed count: 400 moments at noon publish nought, the same 400
+# with ONE moved to midnight published one, and that single difference
+# was the whole of what separated the two documents. So the two states
+# are one, and the field is absent for both. The rule itself -- both
+# sides at the floor, and the floor never below two -- is invariant D15,
+# checked with the invariants where the floor is in hand.
+_BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
 # which carries members of this package's own published vocabulary and
@@ -1089,8 +1101,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # (plan P4-D39): a count standing in for it is refused.
     ("columns", _EACH, "all_at_midnight"): _FLAG,
     # ...and how many parsed cells stood at midnight, a group on both
-    # sides of the floor or nothing at all (landing 2b.3).
-    ("columns", _EACH, "n_at_midnight"): _ZERO_OR_AT_THE_FLOOR,
+    # sides of the floor or nothing at all (landing 2b.3). "Nothing at
+    # all" is written `null` since landing 2b.6, and it covers a real
+    # nought too: see `_BOTH_SIDES_OR_UNAVAILABLE`.
+    ("columns", _EACH, "n_at_midnight"): _BOTH_SIDES_OR_UNAVAILABLE,
     ("columns", _EACH, "earliest"): _MOMENT_TEXT,
     ("columns", _EACH, "latest"): _MOMENT_TEXT,
     ("columns", _EACH, "earliest_utc_offset"): _OFFSET,
@@ -1671,6 +1685,19 @@ def _leaf_is_published(
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         return value == 0 or value >= context.floor
+    if kind == _BOTH_SIDES_OR_UNAVAILABLE:
+        # A count, or nothing at all written `null`. The SHAPE is all
+        # this guard can ask: whether the group and its complement both
+        # reach the floor needs the column's parsed count beside it, so
+        # the rule itself is invariant D15. What is refused here is the
+        # thing that made the count disclosive in the first place -- a
+        # nought standing for "not published" -- because nought is no
+        # longer a value this field takes at all.
+        if value is None:
+            return True
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value >= parsing.MIDNIGHT_DISCLOSURE_FLOOR
     if kind == _STAND_IN_NUMBER:
         # One of the three stand-in numbers this package publishes, and
         # no other number. A number of the table cannot stand here.

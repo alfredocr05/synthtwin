@@ -12405,8 +12405,6 @@ def _datetime_content(
     notes = notes + marked
     if snapping:
         ordinals = _snapped_to_midnight(facts, ordinals, offsets)
-    elif _moves_off_midnight(facts):
-        ordinals = _nudged_off_midnight(facts, ordinals, offsets)
     # The spellings ANY column publishes among its absent cells, so that
     # no cell this run writes wears one (review item P4-DATE-F2). Its own
     # column's alone was enough while every stamp wore a `T`; once a cell
@@ -13330,19 +13328,20 @@ def _midnight_count_notes(
     Guarantees: accepts the column, its facts and the parsed cells
     written; returns at most one deviation. No I/O of any kind.
     """
-    if facts.n_at_midnight <= 0 or facts.all_at_midnight:
+    counted = facts.n_at_midnight
+    if counted is None or counted <= 0 or facts.all_at_midnight:
         return []
     found = 0
     for cell in cells:
         if parsing.clock_at_midnight(cell, contract.FORMAT_ISO_MIXED):
             found = found + 1
-    if found == facts.n_at_midnight:
+    if found == counted:
         return []
     return [
         _deviation(
             column.name,
             "n_at_midnight",
-            f"{facts.n_at_midnight} values at midnight",
+            f"{counted} values at midnight",
             f"{found} of the twin's values stand at midnight",
             "The values the published ladder pins left too little room "
             "between them to move every one of these values onto a "
@@ -13439,131 +13438,13 @@ def _snaps_to_midnight(facts: contract.DatetimeFacts) -> bool:
     Guarantees: accepts loaded datetime facts; returns a bool.
     Determinism: a function of the facts. Raises nothing. No I/O.
     """
+    counted = facts.n_at_midnight
     return (
         facts.resolution == "datetime"
         and _ordinal_space(facts) == "datetime"
-        and facts.n_at_midnight > 0
+        and counted is not None
+        and counted > 0
     )
-
-
-def _moves_off_midnight(facts: contract.DatetimeFacts) -> bool:
-    """Whether a column's accidental values at midnight are moved off (repair pass).
-
-    A column of moments counted in seconds that publishes `n_at_midnight`
-    of nought. At a floor of one that nought says no value stood at
-    midnight, and a twin interpolated to the minute put one or two there
-    by chance, so it read back with a count of 1 or 2 (measured on 1,200
-    minute stamps, seed 4). At a higher floor nought also covers a count
-    below the floor, which a twin holding none still meets.
-
-    Guarantees: accepts loaded datetime facts; returns a bool.
-    Determinism: a function of the facts. Raises nothing. No I/O.
-    """
-    return (
-        facts.resolution == "datetime"
-        and _ordinal_space(facts) == "datetime"
-        and facts.n_at_midnight == 0
-        and not facts.all_at_midnight
-    )
-
-
-def _nudged_off_midnight(
-    facts: contract.DatetimeFacts, ordinals: "list[int]", offsets: "list[str]"
-) -> "list[int]":
-    """Move every accidental midnight one precision step off (repair pass).
-
-    In rank order, a rank the published tail does not pin
-    (`_ranks_the_tail_pins`) whose cell is written at midnight on its own
-    wall clock, cut to the precision (`_written_at_midnight`), moves one
-    step later where that stays below the next rank's instant, else one
-    step earlier where that stays above the previous rank's, else stays.
-    No two ranks come to share an instant and no rank passes another, so
-    the count of values and every rung read off a pinned rank are as
-    before; no word is drawn.
-
-    Guarantees: accepts the facts, one instant per rank in seconds on the
-    column's clock and one offset per rank; returns the instants moved.
-    Linear. Determinism: a function of the three. Raises nothing. No I/O.
-    """
-    parsed = len(ordinals)
-    moved = [value for value in ordinals]
-    step = 60 if facts.time_precision == "minute" else 1
-    pinned = _ranks_the_tail_pins(parsed)
-    for rank in range(parsed):
-        if pinned[rank]:
-            continue
-        shift = 0
-        if facts.datetimes_read_at == "utc":
-            shift = _offset_seconds(offsets[rank])
-        if not _written_at_midnight(moved[rank], shift, step):
-            continue
-        if rank + 1 < parsed and moved[rank] + step < moved[rank + 1]:
-            moved[rank] = moved[rank] + step
-        elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
-            moved[rank] = moved[rank] - step
-    return _runs_moved_off_midnight(facts, moved, offsets, step)
-
-
-def _runs_moved_off_midnight(
-    facts: contract.DatetimeFacts,
-    moved: "list[int]",
-    offsets: "list[str]",
-    step: int,
-) -> "list[int]":
-    """Move each run of ranks still written at midnight out of it together.
-
-    INTEGRATION REPAIR OF LANDING 2b.3. The pass above moves one rank a
-    whole step and only where it passes no neighbour, and on dense stamps
-    no rank can: 1,000 minute stamps between 23:00 and 00:59 put eight
-    ranks two to thirteen seconds apart inside the one written minute
-    `00:00`, one of them a rung's rank, and the twin wrote eight cells at
-    midnight against a table holding none.
-
-    So, in rank order, each maximal run of consecutive ranks still written
-    at midnight moves as one: every rank of it to the first instant of the
-    next written step on its own clock, where the rank after the run stands
-    at or after all of them; else every rank to the last second before its
-    written midnight, where the rank before the run stands at or before
-    all of them; else the run stays. The ranks keep their order and the
-    run keeps one written value, so the count of written values does not
-    grow; a rung's rank inside the run moves with it, by less than one
-    step of the precision.
-
-    Guarantees: accepts the facts, the instants after the pass above, one
-    offset per rank and the step; returns the instants moved. Linear.
-    Determinism: a function of the four. Raises nothing. No I/O.
-    """
-    parsed = len(moved)
-    shifts = [0 for _rank in range(parsed)]
-    if facts.datetimes_read_at == "utc":
-        for rank in range(parsed):
-            shifts[rank] = _offset_seconds(offsets[rank])
-    rank = 0
-    while rank < parsed:
-        if not _written_at_midnight(moved[rank], shifts[rank], step):
-            rank = rank + 1
-            continue
-        end = rank
-        while end + 1 < parsed and _written_at_midnight(
-            moved[end + 1], shifts[end + 1], step
-        ):
-            end = end + 1
-        later = [
-            moved[place] - ((moved[place] + shifts[place]) % step) + step
-            for place in range(rank, end + 1)
-        ]
-        earlier = [
-            moved[place] - ((moved[place] + shifts[place]) % step) - 1
-            for place in range(rank, end + 1)
-        ]
-        if end + 1 >= parsed or max(later) <= moved[end + 1]:
-            for place in range(rank, end + 1):
-                moved[place] = later[place - rank]
-        elif rank == 0 or min(earlier) >= moved[rank - 1]:
-            for place in range(rank, end + 1):
-                moved[place] = earlier[place - rank]
-        rank = end + 1
-    return moved
 
 
 def _rung_rank(percent: int, parsed: int) -> int:
@@ -13762,7 +13643,8 @@ def _snapped_to_midnight(
     for rank in range(parsed):
         if not pinned[rank]:
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
-    owed = facts.n_at_midnight
+    counted = facts.n_at_midnight
+    owed = 0 if counted is None else counted
     free: list[int] = []
     for rank in range(parsed):
         # A rank between two pinned ranks holding one value has nowhere
@@ -25728,7 +25610,8 @@ def _apart_at_least(
     stepped = _forced_apart(
         [low - step for low in lows], [high + step for high in highs]
     )
-    moved = facts.n_at_midnight + 2 * (len(_PCT) - 2)
+    counted = facts.n_at_midnight
+    moved = (0 if counted is None else counted) + 2 * (len(_PCT) - 2)
     pinned_lows, pinned_highs = _widened_for_midnight(ladder, lows, highs, held)
     return max(stepped - moved, _forced_apart(pinned_lows, pinned_highs))
 

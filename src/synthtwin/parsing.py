@@ -2895,6 +2895,26 @@ MISSING_CLASSES = (
     MISSING_WITHHELD,
 )
 
+# THE SMALLEST GROUP A COUNT OF VALUES AT MIDNIGHT MAY NAME, on either
+# side of itself, whatever the run's own smallest group size is
+# (landing 2b.6; the owner's twin definition, clause 3).
+#
+# One is not a group. A count of one names the one person who holds the
+# value, and a count leaving exactly one off midnight names the one
+# person who does not -- and at the default smallest group size of one
+# both used to be published. Measured on 400 moments a day apart at
+# noon, described once as they stood and once with a single row moved to
+# midnight: the two descriptions differed in `n_at_midnight: 0 -> 1` and
+# in nothing else anywhere, so a reader holding the other 399 values
+# read that row's time of day off the difference.
+#
+# It lives here because the producer, the loader and the document guard
+# each hold the rule to the same number, and a floor written out three
+# times is a floor that disagrees with itself. The counts stage 3 raises
+# for the older facts raise past this one; this is the floor below which
+# no run may go.
+MIDNIGHT_DISCLOSURE_FLOOR = 2
+
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
 PRECISION_MONTH = "month"

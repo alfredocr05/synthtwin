@@ -48,7 +48,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
-        "n_at_midnight": 0,
+        "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 12,
         "n_distinct_folded": 12,
@@ -596,7 +596,7 @@
           "(withheld)": 2
         },
         "missing_by_source": {},
-        "n_at_midnight": 0,
+        "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 14,
         "n_distinct_folded": 14,
@@ -3382,7 +3382,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
-        "n_at_midnight": 0,
+        "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 24,
         "n_distinct_folded": 24,
@@ -3542,7 +3542,7 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
-        "n_at_midnight": 0,
+        "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 12,
         "n_distinct_folded": 12,

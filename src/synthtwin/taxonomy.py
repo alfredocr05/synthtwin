@@ -7087,7 +7087,7 @@ def _all_at_midnight(
     counted = _midnight_count(
         format_name, resolution, reading, sources, offsets, settings
     )
-    return counted > 0 and counted == len(sources)
+    return counted is not None and counted == len(sources)
 
 
 def _midnight_count(
@@ -7097,7 +7097,7 @@ def _midnight_count(
     sources: "list[str]",
     offsets: "dict[str, int]",
     settings: Settings,
-) -> int:
+) -> "int | None":
     """How many parsed cells of a column of moments stand at midnight.
 
     A column only PARTLY at midnight -- a date stored as the date plus
@@ -7107,7 +7107,29 @@ def _midnight_count(
     2 (landing 2b.3). A count is published instead, floored on BOTH
     sides: at least the smallest group size stood at midnight and at
     least that many did not, or every parsed cell did and the parsed
-    cells reach it; anything else is `0`, which names nothing.
+    cells reach it.
+
+    THE FLOOR ON EITHER SIDE IS NEVER BELOW TWO, AND WHAT IS NOT
+    PUBLISHED IS `None` RATHER THAN NOUGHT (landing 2b.6, the owner's
+    twin definition clause 3). Measured on the reviewer's own shape: 400
+    moments a day apart at noon, described twice, the second time with
+    zero-based row 31 moved to midnight. Both documents loaded, and the
+    ONLY difference between them anywhere was `n_at_midnight: 0 -> 1`, so
+    a reader holding the other 399 values learned that row's time of day.
+    A count of one names one person, and so does a count leaving exactly
+    one off midnight, which is why `parsing.MIDNIGHT_DISCLOSURE_FLOOR`
+    bounds both sides.
+
+    Nought had been this field's own word for "nothing is published", and
+    that is what made the singleton visible: suppressing a count of one
+    into a nought a reader can tell from a real nought suppresses
+    nothing. So the two are ONE state now -- the count is absent, written
+    `null` -- and a genuine nought is not published either. The cost is
+    named rather than hidden: a column no value of which stood at
+    midnight publishes no count, so its twin is held to none (the
+    move-off rule of landing 2b.3's repair pass is withdrawn with the
+    nought that bought it) and the quality report lists the field instead
+    of checking it.
 
     Asked of each cell's LOCAL text, as `parsing.clock_at_midnight`
     answers it: a whole date of an `iso-mixed` column counts, and a
@@ -7125,19 +7147,21 @@ def _midnight_count(
     Determinism: a function of the six. Raises nothing. No I/O of any kind.
     """
     if resolution != RESOLUTION_DATETIME or len(sources) == 0:
-        return 0
+        return None
     if reading != READ_AT_LOCAL and parsing.MISSING_WITHHELD in offsets:
-        return 0
+        return None
     counted = 0
     for value in sources:
         if parsing.clock_at_midnight(value, format_name):
             counted = counted + 1
     floor = settings.small_cell_floor
+    if floor < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+        floor = parsing.MIDNIGHT_DISCLOSURE_FLOOR
     if counted == len(sources):
-        return counted if counted >= floor else 0
+        return counted if counted >= floor else None
     if counted >= floor and len(sources) - counted >= floor:
         return counted
-    return 0
+    return None
 
 
 # The joint ISO reading's own name, used where a rule has to tell it

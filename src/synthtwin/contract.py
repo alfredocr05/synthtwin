@@ -1135,10 +1135,11 @@ INVARIANTS = {
         "back no offset"
     ),
     "D15": (
-        "the count of values at midnight is nought, or at least the "
-        "smallest group size on both sides of it, or every value, and it "
-        "is every value exactly where the column is said to stand at "
-        "midnight"
+        "the count of values at midnight is not published at all, or it "
+        "is every value, or it is a group of at least the smallest group "
+        "size -- and never fewer than two -- leaving at least that many "
+        "off midnight; and it is every value exactly where the column is "
+        "said to stand at midnight"
     ),
     "D16": (
         "a column mixing whole dates with moments counts at least as many "
@@ -1803,9 +1804,14 @@ class DatetimeFacts:
     resolution_mix: "dict[str, int]"
     datetime_separators: "dict[str, int]"
     all_at_midnight: bool
-    # How many parsed cells stood at midnight, or 0 where either side of
-    # the count falls below the floor (landing 2b.3, invariant D15).
-    n_at_midnight: int = 0
+    # How many parsed cells stood at midnight, or `None` where the count
+    # is not published at all (landing 2b.3, invariant D15; the
+    # unavailable state is landing 2b.6's). Either side of the count
+    # below the floor -- and the floor here is never below two, because a
+    # count of one names one person -- leaves this absent rather than
+    # nought, so that a reader cannot tell a column holding no midnight
+    # from one holding a single one.
+    n_at_midnight: "int | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2861,6 +2867,25 @@ def _whole(value: object, key: str, where: str, least: int) -> int:
             key, where, f"{value}", f"a whole number of {least} or more"
         )
     return value
+
+
+def _whole_or_nothing(value: object, key: str, where: str) -> "int | None":
+    """A whole number of nought or more, or nothing at all.
+
+    `null` is this format's spelling of "not published" for a count
+    whose group and whose complement are both held to a floor, and
+    `n_at_midnight` is the field of that kind (landing 2b.6). NOUGHT IS
+    NOT THAT SPELLING and this helper exists to keep the two apart: a
+    field that says "nothing here" with a nought has told every reader
+    who can tell that nought from a real one exactly what it withheld.
+
+    Guarantees: accepts the value, its key and where it stands; returns
+    the whole number, or `None` where the document writes `null`. Raises
+    ProfileError for anything else. No I/O of any kind.
+    """
+    if value is None:
+        return None
+    return _whole(value, key, where, 0)
 
 
 def _bounded(
@@ -5826,7 +5851,9 @@ def _datetime_facts(
             where, floor, resolution, clock, n_present - unparsed,
             earliest, latest, ladder, offsets, earliest_offset, latest_offset,
         )
-    at_midnight = _whole(mapping["n_at_midnight"], "n_at_midnight", where, 0)
+    at_midnight = _whole_or_nothing(
+        mapping["n_at_midnight"], "n_at_midnight", where
+    )
     _counted_at_midnight(
         where, floor, resolution, clock, n_present - unparsed, midnight,
         at_midnight, offsets,
@@ -5875,12 +5902,13 @@ def _counted_at_midnight(
     clock: str,
     parsed: int,
     midnight: bool,
-    counted: int,
+    counted: "int | None",
     offsets: "dict[str, int]",
 ) -> None:
     """D15: the count of values at midnight is one a producer can write.
 
-    Nought names nothing. Otherwise it is at most the parsed cells, at
+    ABSENT NAMES NOTHING, and nought is not a value this field takes at
+    all (landing 2b.6). Otherwise it is at most the parsed cells, at
     least the floor, and either every parsed cell or leaves at least the
     floor off midnight, so neither side of the count is a group smaller
     than the floor. It is every parsed cell EXACTLY where the column is
@@ -5890,15 +5918,30 @@ def _counted_at_midnight(
     on a column that writes no clock, or on the shared clock where an
     offset is held back.
 
+    THE FLOOR HERE IS NEVER BELOW TWO, whatever the run's own smallest
+    group size is (`parsing.MIDNIGHT_DISCLOSURE_FLOOR`), because one is
+    not a group: a count of one names the person who holds the value and
+    a count one short of every value names the person who does not.
+    Measured on 400 moments a day apart at noon, described once as they
+    stood and once with a single row moved to midnight -- the two
+    documents differed in `n_at_midnight: 0 -> 1` and in nothing else
+    anywhere, so the difference WAS that person's time of day. Both
+    publish no count now, which is why nought had to stop being this
+    field's word for silence: a silence a reader can tell from a real
+    nought is not silence.
+
     Guarantees: accepts the facts already read; returns nothing. Raises
     ProfileError for D15. No I/O of any kind.
     """
-    if counted == 0:
+    least = floor
+    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    if counted is None:
         if midnight:
             raise _broken(
                 "D15",
                 where,
-                "no value is counted at midnight",
+                "no count of the values at midnight is published",
                 "every value is said to stand at midnight",
             )
         return
@@ -5923,19 +5966,19 @@ def _counted_at_midnight(
             f"{counted} values are counted at midnight",
             f"{parsed} of the column's values were read as dates",
         )
-    if counted < floor:
+    if counted < least:
         raise _broken(
             "D15",
             where,
             f"{counted} values are counted at midnight",
-            f"the smallest group size is {floor}",
+            f"a published count names at least {least} of them",
         )
-    if counted < parsed and parsed - counted < floor:
+    if counted < parsed and parsed - counted < least:
         raise _broken(
             "D15",
             where,
             f"{parsed - counted} values are counted off midnight",
-            f"the smallest group size is {floor}",
+            f"a published count leaves at least {least} of them",
         )
     if (counted == parsed) != midnight:
         raise _broken(
@@ -6077,12 +6120,19 @@ def _stands_at_midnight(
             f"the dates are published at '{resolution}' on the '{clock}' "
             f"clock",
         )
-    if parsed < floor:
+    least = floor
+    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+        # THE SAME FLOOR THE COUNT IS HELD TO (landing 2b.6). Saying
+        # "every value" of a column of one value is a count of one said
+        # in words, and D15 would refuse the count beside it, so the two
+        # are held to one number rather than left to contradict.
+        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    if parsed < least:
         raise _broken(
             "D14",
             where,
             f"all {parsed} values are said to stand at midnight",
-            f"the smallest group size is {floor}",
+            f"a column saying so holds at least {least} of them",
         )
     for moment, offset in ((earliest, earliest_offset), (latest, latest_offset)):
         keys: "tuple[str, ...]" = (offset,)

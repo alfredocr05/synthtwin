@@ -4230,12 +4230,6 @@ def _datetime_content(column):
             for rank in range(parsed)
         ]
         ordinals = snapped_to_midnight(column, ordinals, shifts)
-    elif moves_off_midnight(column):
-        shifts = [
-            offset_form(offsets[rank])[1] if column["datetimes_read_at"] == "utc" else 0
-            for rank in range(parsed)
-        ]
-        ordinals = nudged_off_midnight(column, ordinals, shifts)
     holes = set(column.get("missing_by_source", {}))
     content = []
     for rank in range(parsed):
@@ -4355,59 +4349,8 @@ def snaps_to_midnight(column):
     return (
         column["resolution"] == "datetime"
         and ordinal_space(column) == "datetime"
-        and column.get("n_at_midnight", 0) > 0
+        and (column.get("n_at_midnight") or 0) > 0
     )
-
-
-def moves_off_midnight(column):
-    """Whether accidental values at midnight are moved off (repair pass of landing
-    2b.3): a column of moments counted in seconds publishing n_at_midnight 0."""
-    return (
-        column["resolution"] == "datetime"
-        and ordinal_space(column) == "datetime"
-        and column.get("n_at_midnight", 0) == 0
-        and not column.get("all_at_midnight", False)
-    )
-
-
-def nudged_off_midnight(column, ordinals, shifts):
-    """Written from the statement: in rank order, each rank the tail does not
-    pin whose written cell is at midnight moves one precision step later
-    where that stays below the next rank's instant, else one step earlier
-    where that stays above the previous rank's, else stays."""
-    parsed = len(ordinals)
-    moved = list(ordinals)
-    step = 60 if column["time_precision"] == "minute" else 1
-    pinned = ranks_the_tail_pins(parsed)
-    for rank in range(parsed):
-        if pinned[rank] or not written_at_midnight(moved[rank], shifts[rank], step):
-            continue
-        if rank + 1 < parsed and moved[rank] + step < moved[rank + 1]:
-            moved[rank] += step
-        elif rank >= 1 and moved[rank] - step > moved[rank - 1]:
-            moved[rank] -= step
-    # INTEGRATION REPAIR: each run of consecutive ranks still written at
-    # midnight moves as one -- to the first instant of the next written
-    # step where the rank after the run stands at or after all of it, else
-    # to the last second before its midnight where the rank before stands
-    # at or before all of it, else stays. Pinned ranks move with the run.
-    rank = 0
-    while rank < parsed:
-        if not written_at_midnight(moved[rank], shifts[rank], step):
-            rank += 1
-            continue
-        end = rank
-        while end + 1 < parsed and written_at_midnight(moved[end + 1], shifts[end + 1], step):
-            end += 1
-        run = range(rank, end + 1)
-        later = [moved[k] - (moved[k] + shifts[k]) % step + step for k in run]
-        earlier = [moved[k] - (moved[k] + shifts[k]) % step - 1 for k in run]
-        if end + 1 >= parsed or max(later) <= moved[end + 1]:
-            moved[rank:end + 1] = later
-        elif rank == 0 or min(earlier) >= moved[rank - 1]:
-            moved[rank:end + 1] = earlier
-        rank = end + 1
-    return moved
 
 
 def rung_rank(percent, parsed):
@@ -4539,7 +4482,7 @@ def snapped_to_midnight(column, ordinals, shifts):
     for rank in range(parsed):
         if not pinned[rank]:
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
-    owed = column["n_at_midnight"]
+    owed = column["n_at_midnight"] or 0
     free = []
     for rank in range(parsed):
         if pinned[rank] or lows[rank] == highs[rank]:
@@ -7366,7 +7309,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         # ...and the count of values at midnight (landing 2b.3), which a
         # case states only where its column is partly at midnight.
         if "n_at_midnight" not in block:
-            block["n_at_midnight"] = parsed if block["all_at_midnight"] else 0
+            block["n_at_midnight"] = parsed if block["all_at_midnight"] else None
     if block["n_missing"]:
         block["missing_by_class"] = dict(block["missing_by_class"])
         block["missing_by_class"]["(withheld)"] = block["n_missing"]
@@ -9545,7 +9488,7 @@ def _pooled_marks():
         n_unparsed=0, utc_offsets={"(none)": 24},
         resolution_mix={"iso-datetime": 24},
         datetime_separators={"upper_t": 14, "(withheld)": 10},
-        all_at_midnight=False, n_at_midnight=0,
+        all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
@@ -9588,7 +9531,7 @@ def _slashed_pool():
         n_unparsed=0, utc_offsets={"(withheld)": 10},
         resolution_mix={"slashed-iso-datetime": 10},
         datetime_separators={"(withheld)": 10},
-        all_at_midnight=False, n_at_midnight=0,
+        all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
@@ -9773,48 +9716,6 @@ def _midnight_bare_offsets():
             "offset that instant stands at midnight under before the rotation spends "
             "the rest. Settling only the two ends, which wrote rung ranks as the day "
             "before and moments at T02:00:00+02:00, is this case's mutant."
-        ),
-        "column": column,
-        "rows": 24,
-        "identifier_declared": False,
-    }
-
-
-def _accidental_midnight():
-    column = _universal(
-        "column_1", "datetime", "datetime", "data", "ok",
-        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
-        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
-        format="iso-datetime", resolution="datetime", time_precision="minute",
-        subsecond_digits=0, datetimes_read_at="local",
-        earliest="2024-05-08 05:08:00", latest="2024-05-11 17:38:00",
-        earliest_utc_offset="(none)", latest_utc_offset="(none)",
-        date_percentiles={
-            "min": "2024-05-08 05:08:00",
-            "p01": "2024-05-08 05:08:00",
-            "p05": "2024-05-08 07:58:00",
-            "p10": "2024-05-08 11:48:00",
-            "p25": "2024-05-08 22:18:00",
-            "p50": "2024-05-09 20:48:00",
-            "p75": "2024-05-10 18:58:00",
-            "p90": "2024-05-11 06:28:00",
-            "p95": "2024-05-11 10:18:00",
-            "p99": "2024-05-11 13:58:00",
-            "max": "2024-05-11 17:38:00",
-        },
-        n_unparsed=0, utc_offsets={"(none)": 24},
-        resolution_mix={"iso-datetime": 24},
-        datetime_separators={"space": 24},
-        all_at_midnight=False, n_at_midnight=0,
-    )
-    return {
-        "why": (
-            "the repair pass of landing 2b.3. Twenty-four moments to the minute, none "
-            "at midnight, published with n_at_midnight 0 at a floor of one: the "
-            "interpolation lands one rank within the first minute of a day, and that "
-            "rank moves one step later, below the next rank's instant, so the twin "
-            "holds no value at midnight either. Keeping the accidental midnight, which "
-            "read back as a count of one, is this case's mutant."
         ),
         "column": column,
         "rows": 24,
@@ -10092,12 +9993,13 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "midnight_mixed_forms": _midnight_mixed_forms,
     "partial_midnight": _partial_midnight,
     "midnight_two_offsets": _midnight_two_offsets,
-    # The two cases of landing 2b.3's repair pass: bare dates beside moments at
-    # local midnight on a real offset, whose published instants settle their form
-    # and offset first, and an accidental midnight moved off a column that
-    # publishes none.
+    # The case of landing 2b.3's repair pass that survives: bare dates beside
+    # moments at local midnight on a real offset, whose published instants settle
+    # their form and offset first. Its neighbour, an accidental midnight moved off
+    # a column publishing a nought, went with the nought at landing 2b.6: no
+    # column publishes a count of values at midnight of nought any more, so there
+    # is no rule left for a case to pin.
     "midnight_bare_offsets": _midnight_bare_offsets,
-    "accidental_midnight": _accidental_midnight,
     # The spellings of a number landing 2b.2 publishes and freezes.
     "grouped_charges": _grouped_charges,
     "grouped_decimal_comma": _grouped_decimal_comma,
@@ -10584,23 +10486,6 @@ GIVEN_WORDS = {
         15170548298862574888, 18078340560188216414, 17961755548169570166,
         1709256287998433444, 2601830613986780518, 16802502615291089435,
         5371919591216636188, 10726450709361837683, 10163254344864448410,
-    ),
-    "accidental_midnight": (
-        8361547462881463300, 1439470239444836477, 5643624778869385107,
-        7508891442020028448, 13896387288569281756, 8419329016146831055,
-        174944720312643723, 9347709944107655906, 13190512531707830664,
-        8329392936970135, 7677624977632361876, 14028837922008868156,
-        12881720920323991545, 3217557313667879248, 17647314000776884646,
-        8849343174259228008, 8835445705277311622, 6284314475291354904,
-        14462896666750929133, 14736108205338084834, 801973022718808252,
-        8073300596020938055, 11246973995395875921, 15416282733469397854,
-        7010410552110536197, 3087890539577173792, 2597332005715184120,
-        947460919357300690, 10949984764149715151, 6322083284058942417,
-        3489198260462900218, 17113399566349669660, 4529163520384161002,
-        4645199681965722341, 8559493826951877565, 12565258668630052830,
-        15684492838078002813, 10158249447416264913, 8778210800349277997,
-        2350165068184227762, 17009699058798045745, 14049494365643690194,
-        1297445315951002519, 5661899464629933938, 15148421627120523707,
     ),
     "grouped_charges": (
         14485363227759379260, 14496546446215838655, 17877404087858154871,

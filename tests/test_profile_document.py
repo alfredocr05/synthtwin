@@ -315,8 +315,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # blocks, ten keys. Read as a diff of the two documents against 53bb012:
 # nothing else moved, no count, statistic, label, role or spelling of any
 # column.
+# RE-RECORDED 2026-09-15 (landing 2b.6), and the cause is ONE KEY of one
+# column block: `n_at_midnight` on the demonstration table's column of
+# dates went from `0` to `null`. A published nought could not be told
+# from a count suppressed for naming one person, and being able to tell
+# them apart IS being told that count -- measured on 400 moments a day
+# apart at noon against the same 400 with a single row moved to
+# midnight, whose two descriptions differed in that key and nowhere
+# else. Nothing else about the document moved, and the twin's own bytes
+# did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
 GOLDEN_SHA256 = (
-    "34f5993148b69fde828112f05c954dba9a45590b4abc490e2c07f96acb8a4768"
+    "9b23a3acb5673f75293ab660a4fb2e6f10d6e1ff0697927efe4b3d1e5c1e9241"
 )
 
 

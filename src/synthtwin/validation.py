@@ -534,9 +534,28 @@ _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "moments name as a whole"
 )
 _NOT_CHECKABLE_NO_MIDNIGHT_COUNT = (
-    "the description counts no values at midnight, because none stood "
-    "there or because too few stood there, or too few did not, for the "
-    "count to be published, so it asks no file for a number of them"
+    "the description publishes no count of the values at midnight, "
+    "because too few stood there, or too few did not, for a count to be "
+    "published without naming a single person, so it asks no file for a "
+    "number of them"
+)
+# WHAT A FILE HOLDS WHEN ITS OWN COUNT IS NOT PUBLISHABLE (landing 2b.6).
+# The description publishes a count of at least two that leaves at least
+# two off midnight. A checked file whose OWN description withholds that
+# count holds none, one, or all but one -- and not one of those three can
+# be the published number, so this is a MISS and not a closed gate.
+#
+# Reading it as a closed gate is a defect this landing nearly shipped: a
+# file with every one of 480 published values at midnight moved to 12:00
+# re-described as withholding its count, and the check came back WITHHELD
+# while the file had plainly missed the obligation.
+#
+# It is said WITHOUT A NUMBER on purpose. Which of the three the file
+# holds is a fact about a single row of it, and this report is written to
+# be readable by somebody holding no copy of the file at all.
+_COUNT_OUTSIDE_THE_BAND = (
+    "a count too near nought, or too near every value, for a description "
+    "to publish"
 )
 # THE COUNT OF DIFFERENT NUMBERS WAS A LISTING UNTIL 2026-09-04, and
 # the sentence it carried is kept here as the record of what changed:
@@ -11823,7 +11842,7 @@ def _datetime_checks(
         ]
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor)
-    checks = checks + _midnight_checks(column, facts, block, floor)
+    checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(column, facts, block)
     return checks
 
@@ -11936,7 +11955,6 @@ def _midnight_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
-    floor: int = 1,
 ) -> "list[Check]":
     """Midnight, held where the description publishes it (landing 2b.3).
 
@@ -11963,24 +11981,36 @@ def _midnight_checks(
         checks += [
             _exact(name, "datetime.all_at_midnight", "midnight.all", "true", shown)
         ]
-    # ...AND A PUBLISHED NOUGHT AT A FLOOR OF ONE, which is exact there
-    # (integration repair of landing 2b.3). Above that floor nought also
-    # covers a count below it and asks a file nothing. Unchecked, a twin of
-    # dense minute stamps holding eight cells at `00:00` against a table
-    # holding none passed, and described again it said eight.
-    if facts.n_at_midnight > 0 or (
-        floor <= 1 and not facts.all_at_midnight and column.n_present > 0
-    ):
+    # ...AND NOWHERE ELSE SINCE LANDING 2b.6. A published nought used to
+    # be checked at a floor of one, where it was exact; there is no
+    # published nought any more, because a reader able to tell a real
+    # nought from a suppressed count of one has been told that count
+    # (the owner's twin definition, clause 3). The field is absent on
+    # both, and `_datetime_listings` lists it instead of checking it.
+    counted = facts.n_at_midnight
+    if counted is not None and counted > 0:
         seen = _count_at(block, "n_at_midnight")
-        checks += [
-            _exact(
-                name,
-                "datetime.n_at_midnight",
-                "midnight.count",
-                _shown_count(facts.n_at_midnight),
-                None if seen is None else _shown_count(seen),
-            )
-        ]
+        if seen is None:
+            checks += [
+                Check(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    MISSED,
+                    _shown_count(counted),
+                    _COUNT_OUTSIDE_THE_BAND,
+                )
+            ]
+        else:
+            checks += [
+                _exact(
+                    name,
+                    "datetime.n_at_midnight",
+                    "midnight.count",
+                    _shown_count(counted),
+                    _shown_count(seen),
+                )
+            ]
     return checks
 
 
@@ -12352,10 +12382,12 @@ def _datetime_distinct_window(
     lows, highs = _rank_windows(facts, dated)
     separate = _ranks_forced_apart(lows, highs)
     step = _precision_step(facts)
+    at_midnight = facts.n_at_midnight
     if (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and not _counts_in_days(facts)
-        and facts.n_at_midnight > 0
+        and at_midnight is not None
+        and at_midnight > 0
     ):
         # A COLUMN WHOSE RANKS ARE MOVED ONTO A MIDNIGHT (landing 2b.3):
         # at most `n_at_midnight` moved, one pinned at each interior rung
@@ -12366,7 +12398,7 @@ def _datetime_distinct_window(
         stepped = _ranks_forced_apart(
             [low - step for low in lows], [high + step for high in highs]
         )
-        moved = facts.n_at_midnight + 2 * (len(_LADDER_KEYS) - 2)
+        moved = at_midnight + 2 * (len(_LADDER_KEYS) - 2)
         pinned_lows, pinned_highs = _widened_for_midnight(facts, dated)
         separate = max(
             stepped - moved, _ranks_forced_apart(pinned_lows, pinned_highs)
@@ -13483,15 +13515,13 @@ def _listings(
                             _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT,
                         )
                     ]
-                # ...and not where `_midnight_checks` checks the nought,
-                # at a floor of one on a column with present cells not
-                # wholly at midnight (integration repair of landing
-                # 2b.3): one obligation is checked or listed, never both.
-                if facts.n_at_midnight <= 0 and not (
-                    smallest <= 1
-                    and not facts.all_at_midnight
-                    and column.n_present > 0
-                ):
+                # ...and LISTED wherever the description publishes no
+                # count at all, which since landing 2b.6 covers a column
+                # no value of which stood at midnight as well as one
+                # whose count either side of the floor would have named a
+                # single person: one obligation is checked or listed,
+                # never both.
+                if facts.n_at_midnight is None or facts.n_at_midnight <= 0:
                     listings += [
                         Listing(
                             column.name,

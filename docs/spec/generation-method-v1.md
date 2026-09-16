@@ -3955,28 +3955,19 @@ rather than passing it off as an outcome the description asked for.
   what the tail publishes changes that set and not the construction. A
   count the two passes cannot reach is a deviation of `n_at_midnight`.
 
-- **A column counted in seconds that publishes `n_at_midnight` of nought
-  has an accidental value at midnight moved off** (repair pass of
-  landing 2b.3). In rank order, a rank step 1 above does not pin whose
-  written cell stands at midnight moves one precision step later where
-  that stays below the next rank's instant, else one step earlier where
-  that stays above the previous rank's, else stays; no word is drawn and
-  no two ranks come to share an instant. At a floor of one the nought
-  says no value stood at midnight, and a twin interpolated to the minute
-  put one there by chance and read back with a count of one.
-
-  Then each maximal run of consecutive ranks still written at midnight
-  moves as one (integration repair of landing 2b.3), pinned ranks
-  included: every rank of the run to the first instant of the next
-  written step on its own clock, where the rank after the run stands at
-  or after all of them; else every rank to the last second before its
-  written midnight, where the rank before the run stands at or before
-  all of them; else the run stays. The ranks keep their order and the
-  run keeps one written value; a rung's rank inside it moves by less
-  than one step of the precision. 1,000 minute stamps between 23:00 and
-  00:59 put eight ranks seconds apart inside the written minute `00:00`,
-  one of them a rung's rank, so no rank could move alone, and the twin
-  wrote eight such cells against a table holding none.
+- **A column publishing no count of values at midnight is moved
+  nowhere** (landing 2b.6). The repair pass of landing 2b.3 moved an
+  accidental value at midnight off a column publishing `n_at_midnight`
+  of nought, and the integration repair moved each dense run of such
+  ranks out together; both are WITHDRAWN, because the nought they served
+  is withdrawn. A nought a reader can tell from a suppressed count of
+  one is that count: 400 moments a day apart at noon, and the same 400
+  with a single row moved to midnight, published `0` and `1` and were
+  otherwise identical documents. So the field is absent on both, the
+  construction owes such a column nothing, and its twin may hold a value
+  at midnight that the real column did not — a fidelity cost named here
+  rather than paid in silence, and the one clause 3 of the owner's twin
+  definition requires.
 
   The two endpoint cells carry the marks of ranks `0` and `P - 1`, like
   any other rank.
@@ -7659,8 +7650,9 @@ pooled-spelling case; then the month-span case of plan P4-D4.3,
 then the long-tail, clock, affixed and joined cases of residual
 R-P4-17, then the exponent case of G10.5 revision 5, and then the
 midnight-day and mixed-mark cases of plan P4-D39), and
-`tests/reference/generation-branch-vectors-2.json` carries the seventeen
-it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added. This sentence carried the
+`tests/reference/generation-branch-vectors-2.json` carries the sixteen
+it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added,
+less the one landing 2b.6 withdrew with the rule it pinned. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
 next case has an obvious place to be recorded. All three are written by
@@ -7693,8 +7685,11 @@ they were, and the twelve are the third file, at 141003 bytes. Five more
 cases then froze the marks and notations of a negative landing 2b.2 had
 left to round trips for want of room, at eleven rows each, because at
 twenty-two rows the five carried the file 873 bytes past the cap. The
-third file now holds 245567 bytes, which leaves no room for another
-case of this size: the next one opens a fourth file.
+third file held 245567 bytes with seventeen cases, which left no room
+for another of that size. Landing 2b.6 withdrew `accidental_midnight`
+with the nought it pinned, so it holds sixteen cases and 239643 bytes;
+that is room bought by a rule going away, not by shortening a proof, and
+the next case of the usual size still opens a fourth file.
 
 Serialization: `json.dumps(document, indent=2, sort_keys=True,
 allow_nan=False)` plus a terminal newline — the same canonical form the
@@ -7828,7 +7823,6 @@ case passed, which is the failure the count exists to prevent:
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
-| `accidental_midnight` | G7.5's move of an accidental value at midnight: twenty-four `local` moments to the minute published with `n_at_midnight: 0`, one of whose interpolated ranks lands in the first minute of a day and moves one step later |
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
@@ -8188,14 +8182,20 @@ onto midnight: its mutant keeps the interpolated instants.
 counts the column in days, which reads a rung at 23:00 as the day
 before.
 
-**Why the thirty-first and the thirty-second exist** (the repair pass of
-landing 2b.3, 2026-09-15). Its skeptic found two rules no case reached:
-regenerated after the rules changed, both committed files were
-byte-identical. `midnight_bare_offsets` pins the settling of the ranks
-whose instant the published tail fixes: its mutant settles the two ends
-alone, and rung ranks are written as the day before and at
-`T02:00:00+02:00`. `accidental_midnight` pins the move off an accidental
-value at midnight: its mutant keeps it.
+**Why the thirty-first exists** (the repair pass of landing 2b.3,
+2026-09-15). Its skeptic found two rules no case reached: regenerated
+after the rules changed, both committed files were byte-identical.
+`midnight_bare_offsets` pins the settling of the ranks whose instant the
+published tail fixes: its mutant settles the two ends alone, and rung
+ranks are written as the day before and at `T02:00:00+02:00`.
+
+**And why the thirty-second was WITHDRAWN** (landing 2b.6).
+`accidental_midnight` pinned the move off an accidental value at
+midnight on a column publishing `n_at_midnight` of nought. No column
+publishes that nought any more, so there is no rule left for a case to
+pin and the case went with it rather than being left to freeze a branch
+nothing reaches. Withdrawing a case is recorded here because a case that
+quietly disappears is a branch that quietly stops being checked.
 
 ### G14.4 What the vectors do NOT freeze
 

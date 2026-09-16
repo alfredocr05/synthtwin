@@ -3601,7 +3601,7 @@ ISO reading below may still claim the column.
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
 | `datetime_separators` | object | `lower_t`, `space`, `upper_t` or `(withheld)` → count | how many parsed cells wrote each mark between the day and the clock, under the floor; `{}` where `resolution` is not `datetime` |
 | `all_at_midnight` | boolean | — | `true` where every parsed cell of a datetime column names exactly midnight on its own wall clock, the parsed cells reach the floor, and on the `utc` clock no offset is pooled |
-| `n_at_midnight` | integer ≥ 0 | — | how many parsed cells name exactly midnight on their own wall clock, where at least the floor did and at least the floor did not, or every parsed cell did and they reach the floor; `0` otherwise |
+| `n_at_midnight` | integer ≥ 2, or `null` | — | how many parsed cells name exactly midnight on their own wall clock, where at least the floor — never fewer than two — did and at least that many did not, or every parsed cell did and they reach that floor; `null` otherwise, a real nought included (landing 2b.6) |
 
 **Four closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -3830,10 +3830,15 @@ and `+02:00` in summer at midnight is a column at midnight. It is
 **C6-25c (`n_at_midnight`, landing 2b.3).** Every datetime block
 carries `n_at_midnight`: how many parsed cells name exactly midnight on
 their own wall clock, by C6-25b's test, published where at least
-`small_cell_floor` did and at least that many did not, or where every
-parsed cell did and they number at least `small_cell_floor`; `0`
-everywhere else, including every column whose `resolution` is not
-`datetime` and every `utc` column pooling an offset. It is every parsed
+`small_cell_floor` — never fewer than two — did and at least that many
+did not, or where every parsed cell did and they number at least that
+floor; `null` everywhere else, a real nought included, and including
+every column whose `resolution` is not `datetime` and every `utc`
+column pooling an offset. NOUGHT IS NOT A VALUE OF THIS FIELD (landing
+2b.6): a reader who can tell a published nought from a suppressed count
+of one has been told that count, so the two are ONE absent state, and a
+count of one — or one leaving a single value off midnight — is never
+published. It is every parsed
 cell exactly where `all_at_midnight` is `true`. D15 holds the count.
 
 **The census and both midnight facts are EXACT-OBSERVABLE** (plan
@@ -4079,11 +4084,15 @@ in `00:00:00`, and on the `utc` clock the map pools no offset under
 canonical form drops the fraction, so a loader can refuse a `true` no
 column could carry and cannot confirm one (producer obligation MN-P).
 
-**Invariant D15 (the count at midnight, landing 2b.3).**
-`n_at_midnight` is `0`, or it is at most `n_present - n_unparsed`, at
-least the floor, and either every parsed cell or leaves at least the
-floor off midnight. It is not `0` only where `resolution` is `datetime`
-and, on the `utc` clock, the map pools no offset. It equals
+**Invariant D15 (the count at midnight, landing 2b.3; the floor of two
+and the absent state, landing 2b.6).** `n_at_midnight` is absent —
+written `null` — or it is at most `n_present - n_unparsed`, at least
+the floor, and either every parsed cell or leaves at least the floor off
+midnight. THE FLOOR HERE IS NEVER BELOW TWO, whatever
+`small_cell_floor` is, because one is not a group: a count of one names
+the person who holds the value, and a count one short of every value
+names the person who does not. It is present only where `resolution` is
+`datetime` and, on the `utc` clock, the map pools no offset. It equals
 `n_present - n_unparsed` exactly where `all_at_midnight` is `true`, so
 the statement and the count cannot disagree; below the floor both are
 empty, and the statement's own floor is not contradicted.
@@ -4127,9 +4136,10 @@ and a space on a slashed stamp. A column on the `local` clock whose
 is written as its day with a midnight clock at the column's
 `time_precision` and `subsecond_digits`; a column counted in seconds
 that publishes `n_at_midnight` above nought has that many of its
-cells moved onto a midnight of its own wall clock (landing 2b.3), and
-one that publishes nought has an accidental value at midnight moved one
-step of its precision off (repair pass of landing 2b.3). The rule is scoped to twin CSV cells
+cells moved onto a midnight of its own wall clock (landing 2b.3). No
+column publishes a nought there any more, so the move of an accidental
+value at midnight off a column publishing one is withdrawn with the
+nought that bought it (landing 2b.6). The rule is scoped to twin CSV cells
 and does not touch the profile's own canonical serialization: a
 published instant stays space-separated whatever mark the cells
 carry.
@@ -8246,7 +8256,7 @@ it answers to.
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
-| D15 | `n_at_midnight` is `0`, or at most `n_present - n_unparsed`, at least the floor, and every parsed cell or at least the floor short of it; not `0` only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
+| D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
@@ -8410,7 +8420,7 @@ document, never the table it describes.
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of cells whose mark too few shared | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
 | MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight on its own wall clock, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
-| NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it |
+| NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it, and a column publishing nothing there may hold none, one, or all but one |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
@@ -10486,8 +10496,9 @@ column exactly the column's own member; on an `iso-mixed` column
 exactly `iso-date` and `iso-datetime`. No other key set conforms.
 **`datetime_separators` keys — 3**, plus the pooled key (6.6.2, D12):
 `lower_t`, `space`, `upper_t`; and `(withheld)`.
-**`all_at_midnight`** is a boolean, and **`n_at_midnight`** a count
-(landing 2b.3), on the `datetime` block alone.
+**`all_at_midnight`** is a boolean, and **`n_at_midnight`** a count of
+two or more or else `null` (landing 2b.3; the absent state and the floor
+of two, landing 2b.6), on the `datetime` block alone.
 
 ### 14.7 Numeric spelling
 

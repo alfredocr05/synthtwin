@@ -784,8 +784,17 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # `decimal_plus: {}` -- six blocks, twelve keys, and nothing else moved
 # when the two documents were diffed against 53bb012. The twin digest below
 # HELD: the twin's bytes are identical.
+# RE-RECORDED 2026-09-15 (landing 2b.6), and the cause is ONE KEY of one
+# column block: `n_at_midnight` on the demonstration table's column of
+# dates (this file describes the same fixed table) went from `0` to `null`. A published nought could not be told
+# from a count suppressed for naming one person, and being able to tell
+# them apart IS being told that count -- measured on 400 moments a day
+# apart at noon against the same 400 with a single row moved to
+# midnight, whose two descriptions differed in that key and nowhere
+# else. Nothing else about the document moved, and the twin's own bytes
+# did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
 GOLDEN_DESCRIPTION_SHA256 = (
-    "f08c4e89993cab504c451630282ac90ef37fe6095747bf400db04ddd19a3b6c2"
+    "6696dbef39112c5606fe922a7827d5757522bc99cc054a9c1060fc496d3fdd20"
 )
 
 

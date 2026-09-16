@@ -201,6 +201,37 @@ def counted_past_the_values(_column: str) -> Change:
     return change
 
 
+def one_value_at_midnight(_column: str) -> Change:
+    """Publish a count of values at midnight of exactly one (D15, landing 2b.6).
+
+    The reviewer's own shape said as a document: a count of one names the
+    one person who holds the value, so the loader refuses it however low
+    the run's smallest group size is.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 1
+    return change
+
+
+def all_but_one_at_midnight(_column: str) -> Change:
+    """Publish a count leaving exactly one value off midnight (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block["n_at_midnight"] = parsed - 1
+        block["all_at_midnight"] = False
+    return change
+
+
+def nought_at_midnight(_column: str) -> Change:
+    """Publish a nought, which stopped being a value of this field (D15)."""
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["n_at_midnight"] = 0
+    return change
+
+
 def lower_a_finer_rung(_column: str, _rung: str) -> Change:
     """Push one rung of the finer ladder below the one before it.
 
@@ -922,6 +953,23 @@ def battery() -> list[Mutation]:
         Mutation(
             "D15", "a count of values at midnight on a column that writes no clock",
             edit("recorded_on", n_at_midnight=12),
+        ),
+        # THE DISCLOSURE FLOOR, landing 2b.6. One is not a group: a count
+        # of one names the person holding the value, and a count one short
+        # of every value names the person who does not. Nought is refused
+        # with them, because a nought a reader can tell from a suppressed
+        # singleton IS that singleton.
+        Mutation(
+            "D15", "a count of values at midnight that names one person",
+            one_value_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a count leaving exactly one value off midnight",
+            all_but_one_at_midnight("logged_at"),
+        ),
+        Mutation(
+            "D15", "a nought where the count is simply not published",
+            nought_at_midnight("logged_at"),
         ),
         Mutation(
             "D16", "whole dates counted beside offsets only moments carry",
