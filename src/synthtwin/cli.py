@@ -692,7 +692,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "only for the columns you name. It reaches a column read as "
             "PLAIN NUMBERS, and a column whose numbers each wear one "
             "shared unit or currency mark, such as '795,64 EUR' or "
-            "'37,5 %': there the number inside the mark is read and "
+            "'37,5 %%': there the number inside the mark is read and "
             "written your way and the mark itself is copied exactly. "
             "It does NOT reach a cell holding two numbers with a "
             "separator between them, because there synthtwin cannot "

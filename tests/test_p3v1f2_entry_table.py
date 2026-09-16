@@ -3950,7 +3950,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-zero-led-comment", "counts.n_all_digits"),
             ("one-worded-comment", "counts.n_code_alphabet"),
             ("one-contradicted-comment", "counts.n_contradictory"),
-            ("marked-comment", "counts.n_not_numeric"),
+            # `marked` writes the floor's worth of `na`, which landing
+            # 2b.8 made a published absence word on a column publishing
+            # no value (plan P4-D85), so it no longer moves this count;
+            # blanking the column does, measured.
+            ("blanked-comment", "counts.n_not_numeric"),
             ("one-bracketed-comment", "counts.n_numeric"),
             ("one-overflowed-comment", "counts.n_out_of_range"),
             ("marked-comment", "distinct.n_distinct"),

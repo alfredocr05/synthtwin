@@ -329,21 +329,20 @@ def test_the_loader_refuses_a_key_that_is_no_word_of_its_own(
     folder = tmp_path / "refusal"
     _first, _second, _written, _twin, _real = _round_trip(folder, cells)
 
-    from synthtwin import profile as producer
-
     written = folder / "real-profile.json"
     document = json.loads(written.read_text(encoding="utf-8"))
     block = document["columns"][0]
     # One key moved from this package's word to a word of the table's.
     count = block["missing_by_source"].pop("NA")
     block["missing_by_source"]["pending review"] = count
-    edited = folder / "edited.json"
+    from tests import fixtures
+
     # WRITTEN THE WAY THE PRODUCER WRITES, so that the canonical-form
     # check passes and this reaches the rule under test. Dumped any
     # other way the loader refuses the BYTES before it reads a key, and
     # the test would pass while proving nothing about the publication
     # class.
-    edited.write_text(producer.serialize(document), encoding="utf-8")
+    edited = fixtures.write_profile(folder, "edited.json", document)
 
     with pytest.raises(errors.ProfileError) as refusal:
         contract.load_profile(f"{edited}")

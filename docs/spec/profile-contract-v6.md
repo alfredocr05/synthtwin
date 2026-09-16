@@ -9856,6 +9856,7 @@ now a bare delegation.
 | `field_widths` | as on `count` and `continuous` above |
 | `empty_bins`, `empty_edges` | as on `count` and `continuous` above |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above |
+| `wide_runs` | as on `count` and `continuous` above |
 | `n_rows` (echo) | as on `count` and `continuous` above |
 
 ### 9.4a The joined role: `joined_numbers`

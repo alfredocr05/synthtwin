@@ -367,6 +367,7 @@ def test_the_loader_refuses_a_decision_naming_a_spelling_that_was_never_publishe
         if hasattr(fixtures, "canonical_text")
         else json.dumps(document, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     with pytest.raises(errors.ProfileError) as caught:
         contract.load_profile(str(edited))
@@ -468,7 +469,9 @@ def _refused(folder: pathlib.Path, document: dict, tag: str) -> str:
     """Write a hand-edited description, load it, return the refusal."""
     edited = folder / f"{tag}.json"
     edited.write_text(
-        json.dumps(document, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+        json.dumps(document, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
     with pytest.raises(errors.ProfileError) as caught:
         contract.load_profile(str(edited))

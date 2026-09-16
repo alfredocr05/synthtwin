@@ -1098,8 +1098,15 @@ def _numeric_classes(
 # deviation on the cells and a MISS on the cores. The row now says
 # which terms those are, in the words the registry's authorization
 # rests on. No other row is touched and the head prose is untouched.
+#
+# MOVED 2026-09-16 AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.10, and it
+# LOWERS nothing: ONE ROW added, `| `wide_runs` | as on `count` and
+# `continuous` above |`, carrying the delegation phrase character for
+# character. Landing 2b.7 disposed `wide_runs` in the numeric table and
+# left the affixed cores without the delegation, so the fact reached the
+# cores nowhere. No other row is touched and the head prose is untouched.
 AFFIXED_REGION_DIGEST = (
-    "cfd7462595d96e5b9d112a896288e017ece0805999dfd8f922524cf20398c5de"
+    "039f92e50566e6c131304a8ae46a5c195d5b88c085b2c9b5f194f70fadbc56ea"
 )
 
 

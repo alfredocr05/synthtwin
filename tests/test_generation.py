@@ -992,6 +992,11 @@ def test_a_domain_too_small_refuses_generation_before_anything_is_built(
         rows = document["n_rows"]
         block["n_present"] = rows
         block["n_missing"] = 0
+        # Since landing 2b.8 a free-text column publishing nothing still
+        # accounts for its blank and pooled cells (plan P4-D85), and C5-N3
+        # holds them to `n_missing`, so they go to nought with it.
+        block["n_missing_blank"] = 0
+        block["n_missing_withheld"] = 0
         block["missing_by_class"] = {
             key: 0 for key in block["missing_by_class"]
         }

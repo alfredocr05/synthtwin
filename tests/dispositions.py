@@ -363,6 +363,14 @@ PLAN4_REGIONS = {
     ),
     # ...and the landing that made the mark an obligation and added the
     # notation of a negative and the count of signed decimals beside it.
+    # ...and the landing that published whether a column's wide runs of
+    # figures are its own values' text (landing 2b.7, whose part called
+    # itself 2b.13). Its fact is disposed here and not in P4-D41's region,
+    # whose words it never carried.
+    "wide-runs": (
+        "### P4-D90 The canonical spelling of a wide whole number is "
+        "published and checked (landing 2b.13, 2026-09-16)"
+    ),
     "number-spellings": (
         "### P4-D41 How a number's grouping and sign are written "
         "(landing 2b.2, 2026-09-15)"
@@ -485,7 +493,6 @@ FACTS_OUTSIDE_THE_CONTRACT_MATRIX = (
     ("numeric", "group_separator"),
     ("numeric", "negative_form"),
     ("numeric", "decimal_plus"),
-    ("numeric", "wide_runs"),
     ("numeric", "negative_notations"),
     ("numeric", "thousands_marks"),
     ("datetime", "datetime_separators"),
@@ -868,8 +875,8 @@ REGISTRY += (
         "numeric",
         "wide_runs",
         EXACT_OBSERVABLE,
-        plan_words="whether the column's wide runs are their own values' text",
-        plan_region="number-spellings",
+        plan_words="`wide_runs`, one word of three on every numeric block",
+        plan_region="wide-runs",
         aliases=(),
     ),
     # THE TWO MIXED CONVENTIONS (landing 2b.7). EXACT-OBSERVABLE for the reason

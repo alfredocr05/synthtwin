@@ -6300,6 +6300,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "c77762fee0dde92f",
         "c7e0f8e0778dead9",
         "c7ecc8c6dd1fd1a1",
+        "c80a2657b3e98af3",
         "c81742c4ca5a42eb",
         "c836bd81ff7b616b",
         "c84fe13532c4283b",
@@ -8347,7 +8348,7 @@ COUNTED: "dict[str, int]" = {
     "docs/plans/phase-4-columns.md": 2306,
     "docs/spec/profile-contract-v4.md": 966,
     "docs/spec/profile-contract-v5.md": 319,
-    "docs/spec/profile-contract-v6.md": 2759,
+    "docs/spec/profile-contract-v6.md": 2760,
     "docs/spec/generation-method-v1.md": 1216,
     "docs/spec/validation-method-v1.md": 271,
 }
@@ -8356,7 +8357,7 @@ COUNTED: "dict[str, int]" = {
 # `dispositions.judgment` separates.
 JUDGMENT: "dict[str, str]" = {
     "authorizations": "feb364d9c4bbdcae",
-    "bindings": "c2a050c73198a4bc",
+    "bindings": "574949fc507850b5",
     "classes": "84db791028bad3a1",
     "reports": "8726c800d2c56eee",
 }
