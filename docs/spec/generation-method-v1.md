@@ -2918,6 +2918,33 @@ sign band ends at the edge it would have to cross. `empty_bins` is
 REPORT-ONLY on that measurement (contract 7.11), so `synthtwin
 validate` LISTS the fact rather than holding a file to it.
 
+### G6.8 A count column that publishes every spelling is written as them
+
+**THE FACT THIS SECTION SERVES IS `number_spellings`** (contract 7.13,
+plan P4-D123, landing 2b.18 part 2), which a `count` block names only
+where one number was written more than one way — `7`, `07`, `007` — and
+every spelling cleared the floor and two cells. It then names every cell
+read as a number with its own spelling.
+
+**THE RULE.** Where the census names anything, the numbers of the
+column's content list are that census and nothing else: each spelling
+written as many times as it counts, ordered by the whole number it
+writes and then by the spelling itself, so `0`, `7`, `07`, `007`. G5's
+strata and G6.1 to G6.7 are not taken for those cells, and the
+stragglers of G10.3 follow them exactly as they follow the numbers G5
+and G6 would have written. The words G4.3 budgets for the column are
+still drawn, so the stream every later column reads does not move.
+
+**WHY THIS IS NOT A SHORTCUT.** Every statistic the block publishes beside
+the census — the ladder, the moments, the styles, the pad and field
+widths, `n_zero`, `n_distinct_values` — was computed from exactly the
+cells the census names, so writing the census writes a column holding
+every one of them. Measured on a 500-row column of `0`, `7`, `07` and
+`007` at three source and generate seeds: before, the twin held six or
+eight spellings for four, two to four of them spellings the table
+never wrote; after, the four spellings at their published counts on
+every run, with both files passing their description.
+
 ## G6A. Affixed-number columns (`affixed_number`)
 
 Added by Phase 4; like G7A this section was written after the
@@ -4793,6 +4820,84 @@ leading segment answer plausibly and wrongly.
   ORDINARY TEXT, and only of one** (landing 2b.4). A held-back level the
   class debt of G8.3a gives a numeric class must read as that class, so
   for it the number property turns round and G8.3a states the rest.
+- **And it is NO NUMERIC CLASS AT ALL, not merely no finite number**
+  (landing 2b.8, plan P4-D72). The property was asked as "does this read
+  as a NUMBER", which is one of the four classes of G10.2, so the other
+  two walked through it: a spelling of the census form `%%@%%%` that is
+  a well-formed number too large for binary64, `47E807`, was accepted
+  for a level owing ordinary text, and a sign inside accounting
+  parentheses, `(-1)`, was accepted the same way. A column of
+  `12e400`-style values beside four text levels came back with
+  twenty-seven out-of-range cells against a published twenty-five and
+  eighteen text against twenty, three checks missed and the table
+  passing its own description. The class partition is the whole point of
+  G10.2, so the question asked of a text stand-in is the partition's
+  own: it must read as ordinary text under the column's grammar AND
+  under the other one, exactly as the number property is already asked
+  twice.
+
+**THE LOWER-CASE KEY** (contract C6-31a, plan P4-D121). A census key
+carrying `&` names the cells of one form whose every letter was lower
+case, and a stand-in written in it fills each `&` from the lower-case
+alphabet at the position and by the arithmetic a `@` is filled: the
+step taken apart leftmost first, twenty-six to a letter place. Every
+cell already written settles the census under the key the census counts
+it under — its lower-case key where every letter of it is lower case
+and the census names that key, and the form as `@` writes it
+otherwise — which is the recount's own reading, so a debt is never
+paid by a cell the validator files elsewhere. The probe of G8.3a that
+asks whether a form's spellings read as numbers fills `&` with `e` as it
+fills `@` with `E`, so `1.1e6` written in lower case keeps its number
+reading under the key `%.%&%`.
+
+### G8.3b The shape a stand-in the census owes no form takes
+
+**THE RULE THE NEUTRAL SPELLING GAVE WAY TO** (plan P4-D122, landing
+2b.18 part 2, the carried item of landing 2b.12). A stand-in the census
+owes no form was `group-N`, and on a long tail that is most of them: a
+code column of 2,000 rows at a floor of twenty, `4-F` beside `12-AB` and
+longer, published three forms and none for its commonest shape `%-@`,
+whose few spellings the small-supply rule of contract C6-31 withholds,
+and its twin's mean cell length was 9.907 against the real 7.204, with
+both files passing.
+
+1. **The shape.** The spellings a label column publishes — each level's
+   variants, or its label where it lists none — are tallied by the shape
+   each wears and the rows that wrote it: the written form, with `&` in
+   every letter place where every letter of the spelling is lower case.
+   A shape reading as a number (G8.3a's reading) is passed over, and so
+   is a shape the census names in either case. The shape covering the
+   most rows is taken, ties to its own spelling ascending; none left
+   means no shape, and every stand-in owed no form is `group-N` as
+   before.
+2. **Its supply**, counted as G8.3 counts any form's.
+3. **The places it covers.** The places owed no form are ranked largest
+   first and then by place, and the first `supply` of them are covered;
+   the rows of the rest are the rows missed.
+4. **The trade.** While any row is missed, each place paying a named
+   form is offered once, largest first and then by place: for an offer
+   of `k` rows, two or more, places owed no form are taken from the END
+   of that ranking — smallest first — each smaller than `k` and no
+   larger than what is still to be matched, until they sum to `k` with
+   two or more of them. The trade stands where they do, where the named
+   form has spellings for the extra places, and where the rows missed
+   then FALL; the named form is paid exactly the rows it was paid
+   before. Each offer costs twice the number of places against a budget
+   of `2^22`, and the offers stop when it is spent.
+5. **The walk.** Each covered place takes the shape's next spelling
+   under the same cursor, collision skips and neutrality tests a named
+   form's walk uses; a place past the supply, or one whose shape is
+   spent, takes `group-N`.
+
+**WHY THE LARGEST PLACES.** The published labels are the column's
+commonest values, so the held-back values most like them are the most
+repeated ones, and a shape of 260 spellings covers a thousand rows only
+if it is spent on the groups that write many rows each. Measured on the
+carried column at two source seeds: the length mix of the twin equals
+the real column's exactly, `{3: 988, 5: 306, 9: 350, 19: 356}`, mean and
+spread identical to three decimals. Without the trade the shape's 257
+spellings covered 257 of the 919 rows owed no form, all of them single
+rows, and the other 662 were `group-N`.
 
 ### G8.3a The classes the held-back levels owe
 
@@ -4820,11 +4925,133 @@ number when it is one under that reading.
    owing the most that the size does not overpay and that can still
    supply a spelling. A number's supply is how many numbers step 3 can
    still give.
-2. **Which form each paying level wears.** The census forms whose first
-   filling (`_filled_form` at step zero) reads as a class are settled
-   over that class's levels ALONE, by G8.3's arrangement, with each
-   form's supply counted by the walk of step 3 for numbers and by
-   G8.3's own walk for the other two classes. A level given no form
+
+   **AN ARRANGEMENT THAT STRANDS A FORM DEBT IS NOT TAKEN** (landing
+   2b.13, Codex item 5 of landing 2b.4). The split settles CELLS and
+   step 2 settles the forms INSIDE it, so an arrangement paying every
+   class exactly can still make a form debt impossible. Readings `5.1`
+   and `5.3` on eleven rows each beside `ab-cd` on twenty, with `5.2`
+   on four rows, `8` on one and two words held back: five cells must be
+   numbers and four of them must wear `%.%`, and the held-back sizes 4,
+   1, 3 and 2 were split 3+2 — which makes five exactly and four not at
+   all — so the twin wrote TWENTY-SEVEN cells of `%.%` against a
+   published twenty-six and `synthtwin validate` exited 3 while the
+   table passed. The source's own 4+1 meets both.
+
+   So an exact arrangement is accepted only where, inside each class,
+   the forms reading as that class can themselves be settled exactly
+   over that class's sizes by the same reachable-sums arithmetic, both
+   debt orders, each form's supply taken as the number of sizes. Where
+   they cannot, another exact arrangement is tried — each pass
+   forbidding one more of the places the refused arrangement spent, so
+   the passes reach genuinely different subsets — up to eight passes,
+   and the FIRST exact arrangement stands where none of them can. A
+   form owing more cells than the whole class covers is unpayable under
+   every split and is not asked, so an arrangement is never refused for
+   failing to do the impossible. The supply is COUNTED rather than
+   walked because this asks only whether the arithmetic exists; the
+   walk of step 3 still reports whatever the supply then refuses, so
+   preferring an arithmetically possible arrangement can never be worse
+   than taking the first one blind.
+2. **Which form each paying level wears.** The census forms whose
+   spellings read as a class are settled over that class's levels
+   ALONE, by G8.3's arrangement, with each form's supply counted by the
+   walk of step 3 for numbers and by G8.3's own walk for the other two
+   classes.
+
+   **WHICH CLASS A FORM READS AS is its first filling (`_filled_form`
+   at step zero) — and, where that reads as no numeric class, its
+   EXPONENT filling as well** (landing 2b.13, Codex item 7 of landing
+   2b.4). `_filled_form` puts `A` in the first letter place, so
+   `%.%@%`, the form of `1.1e6`, fills to `0.0A0` and read as TEXT: the
+   form went to the word debt and never to the number debt, and the
+   four held-back cells of a column publishing `1.1e6` and `1.2e6` on
+   twenty-two rows were written `1`, with the census naming `%.%@%`
+   twenty-six times, the twin wearing it twenty-two, and `synthtwin
+   validate` exiting 3 while the table passed. The exponent filling
+   puts `0` in every figure place and `E` in every letter place; where
+   it reads as a NUMBER the form reads as a number. Only NUMBER is
+   answered this way — the other two classes are constructed outright
+   by G10.3 — and a form whose letter places would have to DIFFER is
+   answered exactly as before, which is the stated limit of the rule.
+
+   **A NUMBER FORM HAS TWO SUPPLIES, and the walk takes the second
+   where the first is empty** (same landing). Step 3 spells a PLAIN
+   decimal, whose form is `%.%` and never `%.%@%`, so a form the ladder
+   cannot spell has ladder supply nought and would be settled over no
+   level at all. Its supply is therefore the LARGER of the ladder's and
+   its own filling's, and a level owing such a form that step 3 cannot
+   spell takes the form's own walk instead, which wears the form and
+   reads as a number, so it meets the census and the class count
+   together. The number's LOCATION is still nothing the
+   description places, and the report says so in those words.
+
+   **AND THAT WALK IS HELD TO THE PUBLISHED NUMBERS' OWN ENDS**
+   (landing 2b.13 repair, plan P4-D92). Step 3's ladder is BUILT from
+   the published numbers and steps from them, so what it writes sits in
+   or beside the span the column is known to hold. The form's own walk
+   is no ladder: it fills the form's figure places by plain counting
+   and lands wherever the counting lands. Unbounded it wrote `9.6E6`
+   for every held-back cell of a column holding `1.1e6` to `1.3e6`, at
+   seven generate seeds — the census met exactly, twenty-six of
+   twenty-six, while the twin's numbers took mean 2,450,000 and
+   greatest 9,600,000 against the table's 1,173,077 and 1,300,000, a
+   spread 42.9 times the table's, and `synthtwin validate` fell from 3
+   to 0. That column publishes no ladder, least or greatest of its own,
+   so NO obligation could ever catch it.
+
+   So a spelling of the form's own walk is refused where its VALUE lies
+   outside the ends, and the supply is counted under the same bound it
+   is spent under — counted loosely, the form is settled over a level
+   the walk then cannot cover, and the shortfall is reported as a
+   missing spelling rather than as the bound really refusing it.
+
+   **THE ENDS ARE THE PUBLISHED VALUES, NOT THE LADDER'S RUNGS**
+   (landing 2b.15, plan P4-D100). The ends are the smallest and the
+   largest VALUE the column published, read by the same grammar the
+   column is read with, whether or not step 3 can step from the
+   spelling that carries it. Asking the LADDER for them — which is
+   built from plain decimals alone — left a column whose every
+   published number wears an exponent, a grouping mark or a leading
+   plus with no ends at all, so every spelling of its form was refused
+   and four cells of a census of twenty-six went unpaid, at twin
+   validate 3 against the table's 0 and at seven generate seeds, on all
+   three of those spellings alike. Such a column DOES publish numbers —
+   1,100,000 to 1,300,000, stated in its own description — and what it
+   lacks is a rung to step FROM, which settles the walk of step 3 and
+   says nothing about how large a made-up number may be. Nothing here
+   places that number: the ladder still cannot step, and the report
+   still tells the reader the location is invented and that a statistic
+   computed over it means nothing about the table. The bound only holds
+   it inside the magnitudes the column is known to hold. Where the
+   column published NO number at all there are no ends of any kind, so
+   every spelling is refused, the debt stands, and the report line and
+   the exit code announcing it stand with it.
+
+   A shortfall a reader can see is not exchanged for a larger one
+   nothing can check WHERE THIS VERSION CAN TELL THE TWO APART, which
+   is where the CANDIDATE leaves the published ends. It cannot tell
+   them apart where the HELD-BACK LEVEL lies outside those ends
+   (landing 2b.15 repair, plan P4-D101). Nothing below the floor
+   reaches this walk, so a level smaller or larger than every number
+   the column published is indistinguishable here from one inside the
+   span, and the stand-in is written from inside the span either way.
+   Measured at three generate seeds on a column publishing 5,000,000
+   and 8,800,000 with 1,100,000 held back on four rows: the census is
+   met twenty-six of twenty-six and validate exits 0 where the unpaid
+   twin exited 3, and the twin's mean moves from 2.8 per cent low to
+   17.9 per cent high while its spread moves from 11.6 per cent high to
+   34.0 per cent low. That cost is NAMED here rather than claimed away;
+   it is not paid by choosing a different spelling, which was measured
+   and refused; and the report says over those cells that where between
+   the published ends they fall is this version's own choice. Only
+   NUMBER is bounded this way; the
+   other two classes are constructed outright by G10.3 and mean
+   magnitudes no envelope covers. The rule above is not withdrawn by
+   this — a column publishing the same census beside PLAIN spellings
+   has ends, and its form debt is met in full from inside them.
+
+   A level given no form
    wears none the census names, because a spelling of a named form counts
    toward that form and a level settled without it would overpay it. A form
    whose spellings read as a numeric class is then taken out of the
@@ -4928,6 +5155,30 @@ number when it is one under that reading.
    census pools the few `%%.%` above them, and `label_numbers` below --
    the narrow walk runs short and the pool rule writes them as before.
 
+   **A whole-number tier where the published places cannot pay**
+   (landing 2b.8, plan P4-D70). The tiers above are the counts of places
+   a PUBLISHED number was written with. Where every published number
+   carried a decimal AND the census NAMES the form those places write,
+   every candidate of the only tier there is is stepped past for wearing
+   a named form, so the tier is empty and a class debt goes unpaid:
+   readings published `5.1` and `5.3`, whose census names `%.%` and
+   pools nothing, beside a held-back `7`, wrote two cells the table
+   holds as numbers as words instead -- twenty-five numeric against a
+   published twenty-seven, two checks missed, and the table passing its
+   own description. So where the finished walk has left the number debt
+   unpaid, steps 2 and 3 are taken AGAIN with a last tier of no places
+   at all, and that answer is kept only where it covers more of the debt
+   than the published places did. A whole number wears no form (a cell
+   of figures alone carries one kind and has no form at all), so it can
+   never overpay the census; and because the tier is last and a tier is
+   taken up only once the one before it has ended, a column whose own
+   places still pay never reaches it. That is what keeps a column of
+   `d.d` readings writing `d.d` -- an integer there passes the census
+   and breaks a check written against the table's own spelling, which is
+   the first goal -- and it is why the tier is asked for by the DEBT and
+   not by the supply: a supply counted before the walk says how many
+   numbers exist, not how many this column may wear.
+
    A level whose form has no number left keeps its class without the
    form. A level that finds no number at all is written as G8.3's
    neutral label, and the report names the shortfall with the reason
@@ -4940,6 +5191,33 @@ number when it is one under that reading.
    step those forms write; a level wearing no named form takes those
    places first and whole numbers after them; the report says that
    nothing published places them.
+
+   **And where it published a number this walk cannot step from**
+   (landing 2b.8, plan P4-D71). The ladder is built from the PLAIN
+   decimals among the published spellings, so a column publishing
+   `1.1e6` and `1.2e6`, or a grouped `12,345`, or a leading-plus `+5`,
+   has an unanchored ladder although it published numbers. The report
+   said of such a column that it "published no number at all", which is
+   false on its face: the reader checks the description, finds the
+   numbers, and stops believing the report. The two cases are told apart
+   and the second says what is true -- every number this column
+   published is written in a way this version cannot step from -- with
+   the location invented either way. **WHAT THE REPORT SAYS OF THOSE
+   NUMBERS MOVED WITH THE RULE** (landing 2b.15 repair, plan P4-D101).
+   Step 2's bound now holds them between the smallest and the largest
+   number the column published, so the sentence saying they count
+   upward from the smallest step this column's forms write is true only
+   where that span spells none of them; it states both cases, and it
+   carries the clause the placed sentence carries -- a made-up number
+   can equal one the table held back and is worked out from the
+   published numbers alone. Placing those numbers is not done
+   here: building the anchors from the exponent, grouped and
+   leading-plus spellings was measured at landing 2b.4's integration and
+   withdrawn, because the leading-plus column then lost `n_numeric` and
+   `n_not_numeric` to a counted-but-unnamed empty pool, and trading a
+   class count for a location is the wrong direction under the first
+   goal. What this section now forbids is the false sentence, not the
+   invented location.
 4. **Out of range and contradictory** levels take G10.3's
    constructions, `ke999` and `(-k)` with `k` advancing on every
    refusal, or their form's own spellings, held to the same refusals.
@@ -5031,6 +5309,19 @@ of G9.2 produces:**
 When a positional constraint rejects a character, the enumeration puts
 the first character of the same alphabet that meets that constraint in
 its place, in the alphabet's own order.
+
+**THE LEADING NOUGHT OF A PUBLISHED LAYOUT, and why it is not a
+constraint this list has to bend** (contract 7.12, landing 2b.18, plan
+P4-D120). A record number written to a published layout may open with
+the figure nought where that layout's leading mark says the source's
+own cell did — the zero fill of a `%08d` record number. The
+constraints above are about the space and the four characters a
+spreadsheet reads as the start of a formula, and the nought is neither,
+so nothing here is lowered: what changes is that G9.6's figures band no
+longer forbids a leading nought where the census published one. A
+layout whose own leading mark IS one of those four characters is given
+up rather than written, since every one of its spellings would open
+with it.
 
 **The ONE construction outside the first constraint, and why it is
 outside it** (P2-C2-F6). A fold-collision partner built by G9.3 may
@@ -5625,7 +5916,17 @@ any that could not be met:
    given one; otherwise the SHORTEST length at or above its band's
    shortest -- one figure, a minus and a figure, a figure, a point and a
    figure -- at which its band still has a number with no leading zero
-   to give; in the code band only the numbers whose exponent is nought
+   to give AND WHOSE FORM THE CENSUS DOES NOT NAME (landing 2b.8, plan
+   P4-D73: step 7 settles a named form over the number groups EXACTLY,
+   so its cells are spoken for, and every number of the wide band four
+   characters long is written `%%.%` -- a column publishing that form on
+   199 cells settled those 199 and then gave forty-eight groups the
+   census owed nothing a length of four, so the twin wore it on 247
+   cells and failed its own description while the table passed. Where no
+   length inside the published ends escapes the named forms the first
+   length with room stands, the census is missed, and the report names
+   it, exactly as step 3b already states); in
+   the code band only the numbers whose exponent is nought
    count as given, so a column needing more of them lengthens them
    instead of raising them by a power of ten (landing 2b.4, repair). A
    number group carrying an end spends one spelling of its own band and
@@ -5999,8 +6300,79 @@ for.
    BOTH a blood-pressure column's four forms and a column whose census
    asks for lengths its average does not want.
 
+   **THE FORM IS SETTLED BEFORE THE LENGTHS ARE WALKED, AND THE GROUP
+   THAT WEARS ONE HOLDS ITS FORM'S LENGTH** (landing 2b.8, plan
+   P4-D75). The budget above is kept exactly as it is, and the order it
+   is asked in is what changes. Step 5's walk toward the published
+   average parks nearly every group on the middle length; the offer
+   then ran against that budget, so a form of any OTHER length was
+   refused for all but a handful of groups, and the budget — a rule
+   written to spend the average's slack on the census — was spending
+   the census on the average instead. So which form each group would
+   wear is settled FIRST, by this same offer asked with a budget no
+   column can spend, and that group's length and word count are then
+   HELD through step 5 exactly as a number's own length is held by step
+   3a. The published average is carried by the groups no form spoke
+   for. The walk's own offer then costs the budget nothing, because the
+   group already stands at the form's length and a swap of no
+   characters is always afforded — which is why the sentences above
+   still govern it and a test still pins them.
+
+   **AND A FORM IS OFFERED ONLY TO A GROUP OF THE BAND IT IS WRITTEN
+   IN** (landing 2b.8, plan P4-D75), on exactly the ground that a form
+   is offered only to a group of the class it reads as. A form's band
+   is the band its own first filling recounts into: `%%%-@` fills to
+   `000-A`, which the code alphabet holds, and `%%/@` fills to `00/A`,
+   which it does not, because the slash is not one of that alphabet's
+   characters. The walk already refuses such a candidate and misses the
+   census instead, so asking for it spent the form's debt on a cell
+   that could never be written.
+
+   **What the two together were measured to do.** On 800 rows of
+   `%%%-@@@`-style codes at the default floor, whose census publishes
+   FORTY forms of four lengths across both bands: before, the walk put
+   777 of 791 groups at length five and the twin missed ALL FORTY
+   forms, 405 cells short, writing `?!!!#` and `R---3` out of the
+   fallback alphabet while `synthtwin validate` exited 3 and the table
+   itself passed. With the lengths held, the asks covered all 715 cells
+   the census owes, but 350 of them went to groups whose band their
+   form could not be written in — 354 cells, which was the whole
+   remaining shortfall. With both rules the twin wears every one of the
+   forty forms at its published count and validates with nothing
+   missed, on three seeds, and so does a column of REDCap `arm-record`
+   identifiers, which missed its largest form before.
+
    A space survives into a form unchanged, so the form's own word count
-   must equal the group's either way. The debt is over cells and a
+   is fixed by the form, and a group can only wear one by being written
+   with that many words. **THE SETTLING ASK EXCHANGES THE PACKED WORD
+   COUNT THE SAME WAY IT EXCHANGES THE PACKED LENGTH** (landing 2b.8
+   repair), and the walk's own ask does not. At the settling ask a
+   group's word count is no more fixed than its length, so a form of
+   another word count is offered -- but ONLY where the group can still
+   stand in the class and alphabet cell the packing gave it while
+   holding that many words, because those two counts are EXACT and the
+   census may not be paid with them. A GROUP CARRYING A PUBLISHED END
+   IS NEVER REWORDED: `words.min` and `words.max` are EXACT-OBSERVABLE
+   and those two groups are what make them facts a recount confirms.
+   The group is then held to the form's word count through step 5, so
+   the walk's later ask agrees with the settling one.
+
+   **Why the order alone was not enough** (review of landing 2b.8,
+   finding 1). Holding the form's LENGTH freed one of the two packed
+   numbers the census was being refused for, and the packed WORD COUNT
+   was still holding the other. Measured on 800 rows of one-word codes
+   mixed with multi-word prose, whose census publishes `@%%`, `@%%%`
+   and `@%%%%`: the packing gives those code groups TWO words, because
+   it spends `words.mean` exactly as it spends the average length, and
+   every published form of the column holds ONE. The settling ask made
+   626 asks and won 1; the twin missed ALL THREE published forms, 320
+   of 800 cells short, and `synthtwin validate` exited 3 while the
+   table passed. With the count exchanged as well, that column meets
+   every published form at four draws of the shape, and a column of
+   sentences beside one-word tags stops missing its census, its word
+   clamp and `words.mean` together.
+
+   The debt is over cells and a
    group covers its own number of them, so the walk settles the form
    owing the most cells, ties broken by the form's own spelling.
 
@@ -6016,8 +6388,17 @@ for.
    column the free-text promise was written for.
 
    **A FORM IS OFFERED ONLY TO A GROUP OF THE CLASS IT READS AS**
-   (landing 2b.4). A form's class is the class its first filling reads
-   as. An ask a group could never meet still spent the form's debt and
+   (landing 2b.4). A form's class HERE is the class its FIRST filling
+   reads as, and that is deliberately narrower than G8.3a's, which since
+   landing 2b.13 asks the exponent filling as well. The asymmetry is
+   named rather than left to be found: G8.3a settles the held-back
+   levels of a column of LABELS, where a form the census names is owed
+   by a known number of cells and the walk can be told to wear it,
+   while this step packs a free-text column's groups against the class
+   and alphabet counts at the same time, and widening which forms count
+   as numbers here moves that packing. Widening it was not measured, so
+   it was not done. An ask a group could never meet still spent the
+   form's debt and
    the length budget, so a column of readings beside comments owing
    forty-four cells of `%.%` gave that form to one group. Ordinary text
    is offered the text forms by the walk above. **A number's form is
@@ -6167,6 +6548,125 @@ packing rule applying here IN FULL — both margins and the shape search
   at ANY length — one character cannot be both a whole number and
   outside the figures — the facts cannot all hold and G12 refuses
   generation before any cell is built** (review item P2-C5-F4);
+- **each cell is written to its PUBLISHED LAYOUT where the column
+  publishes one** (contract 7.12, landing 2b.18, plan P4-D120). The
+  census of layouts says what KIND of character stood at each position
+  of a record number, and until this rule existed the construction
+  above did not read it: a column of UUIDs published its layout and its
+  twin still wrote `A----------------------------------J`, matching 0
+  of its own 800 rows while both files passed their own description at
+  exit 0. The rule is this. The census counts CELLS and this walk
+  spends GROUPS, and every cell of a group carries the same spelling,
+  so taking a layout lowers that layout's remaining count by the whole
+  group. **Before any cell is spelled, the census is SPREAD over the
+  identities by the smooth weighted rotation** that spends a datetime
+  column's separator census (plan P4-D39). The identities are visited
+  with the ones carrying a published length END first, then by the
+  number of cells they cover, LARGEST FIRST, then in walk order. Each
+  visit considers the layouts that still have at least as many cells
+  left as the group covers, whose length the group's own window holds,
+  and which the group's class and band can wear at all -- read off the
+  layout's own first 64 fillings (or all of them where it has fewer)
+  with every guard below but freeness. Every layout the group's family
+  can wear has its published count times the group's size added to
+  that family's running credit, the candidate with the most credit is
+  preferred -- the earliest in sorted order on a tie -- and the
+  family's total times the group's size is taken back from it. Credit
+  is kept per family (class and band), so a layout one family cannot
+  wear is never poured into another. LARGEST FIRST is what keeps the
+  census payable: a group covering three cells needs a layout with
+  three left, and the singletons visited last can pay whatever a
+  larger group left behind. The walk then offers each group its
+  preferred layout first and every other published layout in sorted
+  order after it, each only where its remaining count covers the group
+  and its length fits the slot, and at most 4,096 fillings of one
+  layout are read for one offer. **A GROUP THE OFFER CANNOT SERVE IS
+  OFFERED A MIX OF THE COLUMN'S OWN KINDS** (plan P4-D128) -- a pooled
+  cell, a cell of a layout too few to name, a cell of a layout the
+  census took back. The KINDS are the placeholders `%`, `@` and `&` the
+  named layouts use between them, in that order; with fewer than two,
+  or on a census carrying a hexadecimal mark, nothing is mixed. The
+  BASES are the named layouts holding no `!`, in sorted order, each read
+  only where the group's window holds its length. The `j`-th MIX of a
+  base puts one kind in each of its figure and letter places, read off
+  `j` spread over the number of mixes (the kinds' count to the power of
+  the places) by the stepping below and taken apart leftmost first; its
+  marks and spaces are the base's own. Sixteen mixes are read in all for
+  one group, each base's `j` counted on from where that base's reading
+  stopped: a mix the census NAMES is stepped over, because its cell would
+  be counted into a published layout the column owes exactly; a mix no
+  slot of this class and band can wear, by the 64-filling test above, is
+  stepped over; and the first mix with a free filling that passes every
+  guard below is taken. Only a group no mix serves keeps the walk above,
+  unchanged, so a column publishing no layout is written exactly as it
+  was, byte for byte. **Why, measured:** 800 random eight-character codes
+  of capitals and figures at a floor of eleven pooled 448 cells, the
+  walk wrote them `A-----2S`, and `[A-Z0-9]{8}` matched 800 real cells
+  and 352 twin cells; with the mixes it matches 800 of 800. **Why the spread, measured:** the
+  walk reaches the values written once before the values written more
+  often, and taking the first layout with room left gave a two-system
+  key -- `REC` and seven figures beside `E` and six, 800 rows,
+  identities recurring one to three times -- a one-letter layout of
+  217 singletons and nothing else against the real column's 71
+  singletons, 34 doubles and 26 triples; with the rotation it is 67,
+  27 and 32, so code counting visits per record system meets both
+  systems recurring.
+  **A layout is filled from a COUNTER and never from a reading**, by
+  the mixed-radix arithmetic of G8.3's own form fill, leftmost first,
+  so consecutive spellings differ in their leading characters rather
+  than their trailing ones — which is what stops a column of record
+  numbers coming out as the near-consecutive walk `10000020`,
+  `10000021`, … that landing 2b.18 measured. **The step is spread
+  around the layout's room by a stride coprime to it, the exact golden
+  section of the room in whole numbers** — `(isqrt(5 * room * room) -
+  room) // 2`, walked up to the first value sharing no factor with the
+  room (plan P4-D128). G8.3's stride is the room times 61803 over
+  100000, which on a room that is a power of ten ends in noughts, and
+  the fill reads the low figures of the product first: measured on 800
+  thirteen-figure codes, 44.8 per cent of the twin's figures were
+  noughts against 11.4 per cent of the table's; a section taken to
+  sixty-four bits does the same on a hexadecimal room, 57 per cent on
+  800 UUIDs. **Each layout's walk starts at its own step**: the k-th
+  named layout in sorted order at `1 + k * 4096`, and a mix, when first
+  read, at `1 + m * 4096` where `m` counts the walks already started.
+  Not at nought, which is the all-nought, all-`A` filling; and not all
+  at one step, because a filling's trailing characters follow the step
+  whatever the room, so two layouts walked from one step end alike. **AND A CELL IS WRITTEN
+  TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT LAYOUT**, asked of the
+  census's own reader: `%%%%` filled at a step whose leading figure is
+  nought spells `0123`, whose layout is `!%%%` and not `%%%%`, so such
+  a filling is stepped over rather than written. Without that guard a
+  column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33 four-figure
+  cells with a leading nought — a zero-filled spelling its source never
+  wrote. The length ends need no separate rule: a layout is one mark
+  per character, so the shortest cell's layout is `min_length` marks
+  long and the longest cell's is `max_length`, and the slot pinned to
+  an end has a layout of exactly its length to take. **The four class
+  counts and the two alphabet counts are kept across this rule and not
+  traded for it**: a candidate the shipped classifier does not read
+  back as its slot's class, or the shipped alphabet readers do not
+  recount into its slot's band, and a candidate that reads as a date
+  under `parsing.DATE_FORMATS`, is stepped over. **`!` IS THE ONE
+  PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A NOUGHT**, and it is the
+  zero fill of NC-9 — the `%08d` a reader loses when a spreadsheet or
+  a statistics package reads `01586982` as 1586982. Every `!` is
+  written a nought, and a filling whose next figure is also a nought is
+  stepped over by the recount guard, because that cell is one nought
+  deeper (plan P4-D126). The mark stands only where the whole cell is
+  figures, so it can name no text anybody chose. **WHAT IS NOT WRITTEN BACK IS A LITERAL RUN** — a record
+  prefix, or `ABC-` in front of a study number — because a literal run
+  is a fragment of every value in its column, which contract invariants
+  I3 and F3 forbid; it waits for the owner's ruling on clause 3, and
+  until then the twin writes the layout's own alphabet in its place;
+- **a fold-collision partner wears no layout**, and that is a named
+  limit rather than an oversight. A partner is its parent's spelling
+  with a case flipped or an edge space added (G9.3), and an edge space
+  is a character no layout carries, so a column publishing fewer folded
+  identities than raw spellings meets its census from its identities
+  alone and the recount names whatever is left. The census is not
+  traded for the folded count, nor the folded count for the census:
+  both are attempted and the shortfall is MEASURED off the finished
+  cells;
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
@@ -6237,11 +6737,28 @@ with the join and de-duplication consequence in the person's own words.
 
 ### G10.1 Absent cells
 
-Exactly `n_missing` cells per column, each written as the EMPTY text —
-no space, no marker, no spelling of any kind — and placed by the
-arrangement of G4.2. `missing_by_class` and `missing_by_source` are
-REPORT-ONLY: the real table's absent-value spellings and classes are
-named in the report and are not reproduced (R-P2-2). An empty cell
+Exactly `n_missing` cells per column, placed by the arrangement of
+G4.2. Each published `missing_by_source` spelling is written at exactly
+its published count, character for character, and every other absent
+cell — the blank count, the withheld remainder and the cells a judged
+pass put there — is written as the EMPTY text (contract C6-115 and
+C6-116, plan P4-D6.1). `missing_by_class` is REPORT-ONLY.
+
+**THIS PARAGRAPH SAID THE OPPOSITE UNTIL LANDING 2b.8, AND THE CODE
+HAD BEEN RIGHT FOR A VERSION.** It read "each written as the EMPTY
+text — no space, no marker, no spelling of any kind", citing residual
+R-P2-2, which plan P4-D6.1 closed when version 6 began reproducing the
+spellings. A method sentence that describes a rule the product retired
+is a defect of this document, so it is corrected here rather than
+footnoted.
+
+**A SPELLING OF NOTHING BUT SPACE IS WRITTEN LIKE ANY OTHER** (plan
+P4-D74, contract C6-125). One space, two spaces, a tab and a no-break
+space are keys of that map since C6-125, and the twin writes each at
+its count. No construction can collide with one: every walk that
+INVENTS a spelling refuses anything the reader's own vocabulary calls
+absent, and the empty spelling is a member of it, so a whitespace-only
+candidate is refused before it is claimed (G9.4, G10.4). An empty cell
 re-profiles as `(blank)`, which is what makes `n_present` and
 `n_missing` EXACT-OBSERVABLE.
 
@@ -7688,7 +8205,17 @@ count at the walk's own lengths, G9.5's packing rule reaches its wider
 reading and lengthens a free group so that an exact count can be met —
 an exact count outranks an approximated average, and that precedence is
 stated there. A lengthened group can put the achieved middle length, or
-the achieved average, outside the ends computed above. **The bound is
+the achieved average, outside the ends computed above. **SO CAN A GROUP
+WHOSE LENGTH AND WORD COUNT ARE HELD FOR A PUBLISHED FORM** by G9.5
+step 7, which is the same case reaching here by the other road: the
+census is EXACT and these three averages are APPROXIMATED, so the
+census is paid first and the walk carries what is left with the groups
+no form spoke for (landing 2b.8 repair). Measured on 1,000 rows of
+telephone numbers written in two conventions, whose census names one
+form on 532 cells: the twin wears that form on exactly 532 cells, and
+its achieved average length is 12.934 against a published 12.936 where
+this window is 0.002 wide -- so the census is met to the cell and
+`length.mean` is reported MISSED. **The bound is
 not widened to swallow that.** The measurement is made against these
 ends every run, the miss is reported as an approximated fact the twin
 did not hold, and G12.1's rule that a measurement outside its own bound
@@ -8127,7 +8654,18 @@ the move off an accidental value at midnight (landing 2b.3's repair), and
 three for the spellings of a number landing 2b.2 publishes (plan P4-D41),
 and five for the marks and notations of a negative those three left
 unfrozen (plan P4-D41, frozen at the integration of landings 2b.1 to
-2b.5).
+2b.5), and one for the two mixed-convention censuses of a column's
+negative notations and thousands marks (landing 2b.7, plan P4-D65.2),
+and one for the LAYOUT of a record number (contract section
+7.12, landing 2b.18), whose three identifier cases all publish an empty
+census, so the whole layout rule could have been withdrawn with every
+committed byte unchanged, and three for the lower-case key of a form
+census, the shape a stand-in owed no form takes, and the census of
+spellings of a count column (landing 2b.18 part 2), which no earlier
+case reaches, and one for a layout census's zero fill two noughts deep,
+its interior space and the mixes that write its pool (landing 2b.18's
+repair pass), which `identifier_layout` reaches none of.
+
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
 rewrote the placement rule of G7.3 — the nine interior rungs pinned to
@@ -8165,10 +8703,13 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All forty are required.** The
-first nine are the first committed file, the next fourteen the second,
-and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
-2b.4 added -- the third
+**All forty-five are required.** Landing 2b.6 withdrew one of the
+cases named above, `accidental_midnight`, with the rule it pinned, so
+forty-six are named and forty-five stand (counted at the integration of
+landings 2b.6 to 2b.8, 2026-09-16). The
+first nine are the first committed file, the next twenty the second,
+and the last sixteen -- the cases the carried landings 2b.2, 2b.3 and
+2b.4 added, less the one landing 2b.6 withdrew -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -8190,6 +8731,11 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
+| `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over five groups of four rows and forty single rows. The stand-ins owed no form wear `&-` with the case kept, and one group of four trades with four single rows so the shape's supply covers every row owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
+| `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |
+| `identifier_layout_mixes` | G9.6's zero fill, space and MIXES (plans P4-D126 to P4-D128): a declared identifier of forty-seven nine-character cells publishing `{"!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14}`. The eleven fills are written `00` and seven figures, the next figure never a nought; the space stands as a mark; and the fourteen pooled cells are written to mixes of figures and capitals over the two places of `@%-------`, the first base in sorted order, whose mix `@%` is named and stepped over, so they are written `%%`, `%@` and `@@`. Nine characters wide because this oracle reads no date, and no date format is nine figures or four and four around a space. Its mutant withdraws the mixes and the fourteen cells move; withdrawing the fill or the space stops the oracle at the recount of 7.12, and reading the named mix moves the cells |
+| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST from step one, spread by the exact golden section of the room — `L30816`, `W60632`, `H01458` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |

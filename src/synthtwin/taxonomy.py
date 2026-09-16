@@ -530,6 +530,25 @@ NUMERIC_STYLES = (
 KEYS_THAT_CARRY_NO_VALUE = (
     "all_whole_numbers",
     "length",
+    # THE LAYOUT CENSUS IS ADMITTED ON THE SAME CHECKED PROPERTY THE
+    # FORM CENSUS IS, and not on a judgement (landing 2b.18, plan
+    # P4-D120). A layout is TEXT, which is what this list exists to
+    # keep out, so it is admitted only because every figure and every
+    # letter of a cell is replaced before the key is built -- by one of
+    # six placeholders, `%` `!` `@` `&` `~` `^`, none of which a cell
+    # that HAS a layout may contain -- and because
+    # `profile._is_layout_form` refuses any key holding anything but
+    # those six and fifteen named marks, whatever built it. What is
+    # published is what KIND of character stood at each position and
+    # where the marks between them fell; what is not published is which
+    # character it was.
+    #
+    # WITHOUT THIS ENTRY the census is silently replaced by
+    # `(withheld)` before the publication guard ever sees it, which is
+    # what this list does to every key it does not name. That is the
+    # right default and it is why the entry is written here with its
+    # reason rather than added quietly.
+    "layout_forms",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -4440,6 +4459,28 @@ def _missing_maps(
     than the floor is pooled rather than named, so `n_missing_blank` is
     either zero or at least the floor (C5-N4).
 
+    AND BLANK MEANS THE EMPTY SPELLING, NOTHING ELSE (plan P4-D74,
+    contract C6-125). A cell holding one space, two spaces, a tab or a
+    no-break space is not a cell that holds nothing: it holds a mark
+    somebody's writer put there, which the reader of the real table
+    meets. This function counted every such cell in `n_missing_blank`
+    and lost its characters, so the twin wrote an empty cell where the
+    table wrote a space and no published fact could tell the two files
+    apart. Measured on a 500-row column of readings: 315 absent cells,
+    177 of them holding a space, two spaces or a no-break space, all
+    published as `n_missing_blank: 315` and all written empty -- while
+    `pandas.to_numeric` runs on the twin and raises on the table, and a
+    reader handed `na.strings=c("","NA")` finds levels on the table the
+    twin does not have.
+
+    A whitespace-only spelling is therefore an ordinary key from here
+    on, stored character for character and held to the floor like every
+    other spelling, and `n_missing_blank` counts the cells that held the
+    EMPTY spelling alone. The class map is unchanged and still reads
+    such a cell as `(blank)`, because the REASON it is absent is that
+    nothing meaningful was written there; contract 5.4.4 is where the
+    two questions are stated apart.
+
     THE ROLE IS NOT CONSULTED HERE. This function used to hold half of
     the publication rule as well -- an early return that emptied
     `missing_by_source` for a role that publishes nothing, which is why
@@ -4473,7 +4514,10 @@ def _missing_maps(
     exact: dict[str, int] = {}
     blank = 0
     for spelling, _name in missing:
-        if not parsing.trimmed(spelling):
+        # THE EMPTY SPELLING AND NO OTHER (P4-D74). A cell of spaces
+        # wears a spelling; the docstring above says what counting it
+        # as blank cost.
+        if spelling == "":
             blank = blank + 1
             continue
         if spelling in exact:
@@ -5717,6 +5761,244 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
+def layout_census(
+    present: "list[str]", floor: int, raw_distinct: int
+) -> dict[str, int]:
+    """The census of LAYOUTS a column's present cells hold, under the floor.
+
+    THE COUNT, AND ONLY THE COUNT. This is every rule of contract C6-130
+    that is about one layout on its own -- the line, the small supply, the
+    fill depth that is too rare, the pool -- and none of the rules of
+    C6-131b that are about what a reader can work out from the census as
+    a WHOLE. It is a function of its own, and public, because the
+    validator recounts a file with it (validation method V3, plan
+    P4-D124): a recount run through the whole-census rules would take
+    decisions about the MEASURED file's cells that the description never
+    took about the real ones, and a conforming twin whose made-up cells
+    left exactly one cell off its named layouts would be told it had lost
+    a layout it held at the published count.
+
+    The rules, each one the disclosure rule and not a preference:
+
+    - a layout is NAMED at the line, which is the floor or TWO, whichever
+      is larger: no count of one is ever published (plan P4-D124);
+    - a layout whose possible spellings number fewer than the column's
+      different values plus the floor is not named, because a layout with
+      a small supply names the values it describes;
+    - a ZERO-FILLED layout of two or more fill noughts that either rule
+      refuses is counted under the layout one nought SHALLOWER
+      (`parsing.layout_shallower`), deepest first, so a fill depth too
+      rare to name still counts where it is true -- a cell filled with
+      three noughts was filled with at least two -- rather than falling
+      out of the census (plan P4-D126);
+    - any other layout under the line goes to the `(withheld)` pool where
+      the floor is above one, and the pool is written only where it
+      reaches two; at a floor of one there is no pool (C5-S13), and such a
+      layout, like a small-supply one and like a cell with no layout at
+      all, is counted nowhere.
+
+    Guarantees: accepts the present cells, the floor and the column's
+    different-spelling count; returns named layouts and possibly
+    `(withheld)`, each at least two. Determinism: a function of the
+    arguments alone; keys in sorted order. Raises TypeError for a cell
+    that is not text. No I/O of any kind.
+    """
+    convention = parsing.layout_convention(present)
+    counts: dict[str, int] = {}
+    deepest = 0
+    for value in present:
+        layout = parsing.layout_form(value, convention)
+        if not layout:
+            # A CELL WITH NO LAYOUT IS COUNTED NOWHERE, and it is not
+            # pooled either: `(withheld)` means a group too small to
+            # name, and a cell this census does not describe is not a
+            # small group.
+            continue
+        deepest = max(deepest, parsing.layout_fill(layout))
+        if layout in counts:
+            counts[layout] = counts[layout] + 1
+            continue
+        counts[layout] = 1
+    line = max(floor, 2)
+    room_needed = raw_distinct + floor
+    depth = deepest
+    while depth >= 2:
+        for layout in sorted(counts):
+            if parsing.layout_fill(layout) != depth:
+                continue
+            if (
+                counts[layout] >= line
+                and parsing.layout_room(layout) >= room_needed
+            ):
+                continue
+            shallower = parsing.layout_shallower(layout)
+            counts[shallower] = (
+                counts[shallower] if shallower in counts else 0
+            ) + counts[layout]
+            del counts[layout]
+        depth = depth - 1
+    pooled = 0
+    census: dict[str, int] = {}
+    for layout in sorted(counts):
+        if parsing.layout_room(layout) < room_needed:
+            continue
+        if counts[layout] >= line:
+            census[layout] = counts[layout]
+            continue
+        if floor >= 2:
+            pooled = pooled + counts[layout]
+    if pooled >= 2:
+        census[SUPPRESSED_LABEL] = pooled
+    return census
+
+
+def _layout_forms(cells: _Cells) -> dict[str, int]:
+    """How many present cells wore each LAYOUT, under the floor (7.12).
+
+    THE FACT THAT LETS A RECORD NUMBER KEEP ITS SHAPE. A declared
+    identifier publishes no value, so before this census its twin had
+    only two lengths and two alphabet counts to work from -- and it
+    wrote `A----------------------------------J` for a UUID, `A------J`
+    for `NYC-2033`, and `10000020` for `02254257`. Measured on eight
+    hundred rows at two source seeds: the column's own pattern matched
+    800 real cells and 0 twin cells, and both files passed their own
+    description at exit 0, so nothing named it.
+
+    A layout says what KIND of character stood at each position -- a
+    figure, a letter of one case, a hexadecimal character -- and never
+    which one. `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` says a UUID and
+    says nothing whatever about WHICH UUID. The rules about one layout
+    at a time are `layout_census`'s.
+
+    AND NO COMPLEMENT OF ONE, which is the rule this function adds over
+    the whole census (contract C6-131b, plan P4-D124). A reader holds
+    three totals beside the census -- `n_present`, `n_code_alphabet` and,
+    in a plain column, `n_all_digits` -- and subtracting from each the
+    named layouts it covers counts the cells that wear no named layout.
+    Where any of those differences is exactly ONE the census says that
+    one row of the table is unlike every other, which the disclosure rule
+    forbids as it forbids a count of one. MEASURED before this rule, on
+    799 record numbers beside one `REC 123456`: the census published
+    `{"@@@%%%%%%%": 799}` against 800 present cells. So, until no
+    difference is one:
+
+    - where the difference against `n_present` is one and the pool is
+      written, the pool is not written, which makes it one plus the pool;
+    - otherwise the smallest named layout that no shallower named layout
+      stands behind -- the earliest in sorted order on a tie -- is no
+      longer named, and joins the pool where the floor is above one. Only
+      such a layout can be taken back, because a deeper fill counted
+      under a shallower one would otherwise move into it and leave the
+      difference where it was; for the two alphabet totals it is the
+      smallest such layout those totals cover.
+
+    Each step raises the difference by at least two or ends the rule, so
+    it ends. What it costs is stated, not hidden: a column in which
+    exactly one cell wears no named layout, and whose only named layout
+    is the one taken back, publishes no layout at all.
+
+    Guarantees: accepts a tally of one column; returns a mapping from
+    layouts, plus possibly `(withheld)`, to counts summing to at most
+    the column's present cells. Determinism: the answer depends only on
+    the tally, and the keys are built in sorted order. Raises nothing.
+    No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    census = layout_census(cells.present, floor, cells.raw_distinct)
+    pooled = 0
+    if SUPPRESSED_LABEL in census:
+        pooled = census[SUPPRESSED_LABEL]
+    named: dict[str, int] = {}
+    for layout in sorted(census):
+        if layout != SUPPRESSED_LABEL:
+            named[layout] = census[layout]
+    written_pool = pooled >= 2
+    plain = parsing.layout_convention(cells.present) == parsing.LAYOUT_PLAIN
+    totals = [
+        (cells.code_alphabet, _LAYOUT_CODE_MARKS),
+        (cells.all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
+    ]
+    while named:
+        taken = ""
+        for total, marks in totals:
+            covered = _layout_cells_within(named, marks)
+            if covered >= 1 and total - covered == 1:
+                taken = _layout_to_take_back(named, marks)
+                break
+        if not taken:
+            named_cells = _layout_cells_within(named, "")
+            left = len(cells.present) - named_cells
+            if written_pool:
+                left = left - pooled
+            if left != 1:
+                break
+            if written_pool:
+                written_pool = False
+                continue
+            taken = _layout_to_take_back(named, "")
+        if floor >= 2:
+            pooled = pooled + named[taken]
+        del named[taken]
+    published: dict[str, int] = {}
+    for layout in sorted(named):
+        published[layout] = named[layout]
+    if written_pool and pooled >= 2:
+        published[SUPPRESSED_LABEL] = pooled
+    return published
+
+
+# The characters a layout key may hold for every cell wearing it to lie
+# inside one of the two alphabets `n_code_alphabet` and `n_all_digits`
+# count: the code alphabet is letters, figures, the hyphen and the
+# underscore, and a cell of figures alone wears only `%` and `!`.
+_LAYOUT_CODE_MARKS = "%@&~^!-_"
+_LAYOUT_FIGURE_MARKS = "%!"
+
+
+def _layout_within(layout: str, marks: str) -> bool:
+    """Whether every character of a key is one of ``marks``; "" is any."""
+    if not marks:
+        return True
+    for character in layout:
+        if character not in marks:
+            return False
+    return True
+
+
+def _layout_cells_within(named: "dict[str, int]", marks: str) -> int:
+    """How many cells the named layouts made only of ``marks`` count."""
+    counted = 0
+    for layout in sorted(named):
+        if _layout_within(layout, marks):
+            counted = counted + named[layout]
+    return counted
+
+
+def _layout_to_take_back(named: "dict[str, int]", marks: str) -> str:
+    """The smallest named layout of ``marks`` with no shallower one named.
+
+    The earliest in sorted order on a tie. There always is one where any
+    layout of ``marks`` is named, because the shallowest named layout of
+    a fill has nothing named behind it and is made of the same marks.
+    """
+    best = ""
+    for layout in sorted(named):
+        if not _layout_within(layout, marks):
+            continue
+        behind = parsing.layout_shallower(layout)
+        covered = False
+        while behind:
+            if behind in named:
+                covered = True
+                break
+            behind = parsing.layout_shallower(behind)
+        if covered:
+            continue
+        if not best or named[layout] < named[best]:
+            best = layout
+    return best
+
+
 def _shape_forms(cells: _Cells) -> dict[str, int]:
     """How many present cells wore each written form, under the floor.
 
@@ -5749,9 +6031,17 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     I/O of any kind.
     """
     counts: dict[str, int] = {}
+    # HOW MANY CELLS OF EACH FORM WROTE EVERY LETTER LOWER CASE (plan
+    # P4-D121, audit LTM-6). Counted beside the form rather than folded
+    # into it, because a case-split FORM would shatter a mixed column
+    # into keys the floor then pools: the decision below is taken per
+    # form, once the whole count is known.
+    lower: dict[str, int] = {}
     withheld = 0
     for value in cells.present:
         form = parsing.shape_form(value)
+        if form and parsing.is_lower_case_text(value):
+            lower[form] = (lower[form] if form in lower else 0) + 1
         if not form:
             # A CELL WITH NO FORM IS NOT COUNTED AT ALL, and it is not
             # pooled either. `(withheld)` means ONE thing everywhere in
@@ -5817,17 +6107,103 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # the values wearing any one form, so the test errs toward
     # refusing -- the safe direction.
     room_needed = cells.raw_distinct + cells.settings.small_cell_floor
+    floor = cells.settings.small_cell_floor
     published_counts: dict[str, int] = {}
     for form in sorted(counts):
         if parsing.form_room(form) < room_needed:
             continue
-        if counts[form] >= cells.settings.small_cell_floor:
+        lowered = lower[form] if form in lower else 0
+        # NO LOWER-CASE KEY ON A COLUMN WHOSE VALUES FOLD ONTO EACH
+        # OTHER, and the test is over two PUBLISHED counts, so an
+        # absence it causes is one a reader predicts, and so tells
+        # them nothing. Such a column's twin writes values that differ from one
+        # another only in case or edge spacing -- the partners of G9.3
+        # and the made-up variants of G8.2 -- and a case flip of a
+        # lower-case value is not lower case, so it settles the form's own
+        # key and never the lower-case one. Measured on 240 cells, 200
+        # `a-b` and twenty `x00` beside twenty `X00`: named apart, the
+        # twin's partners came out `A-a` and missed three keys by
+        # thirty-three cells, where the case-blind census it had before
+        # is met (plan P4-D121).
+        if cells.raw_distinct != len(cells.folded_counts):
+            lowered = 0
+        split = _lower_case_split(
+            form, counts[form], lowered, floor, room_needed
+        )
+        if split:
+            for key in sorted(split):
+                if key == SUPPRESSED_LABEL:
+                    withheld = withheld + split[key]
+                    continue
+                published_counts[key] = split[key]
+            continue
+        if counts[form] >= floor:
             published_counts[form] = counts[form]
             continue
         withheld = withheld + counts[form]
     if withheld:
         published_counts[SUPPRESSED_LABEL] = withheld
     return published_counts
+
+
+def _lower_case_split(
+    form: str, count: int, lowered: int, floor: int, room_needed: int
+) -> "dict[str, int]":
+    """How one form's cells are named when its lower-case cells are apart.
+
+    THE CASE CONVENTION, CARRIED UNDER THE DISCLOSURE RULE (plan
+    P4-D121, audit LTM-6). A form's letter mark said "a letter" and the
+    twin wrote a capital, so a column of lower-case codes came back in
+    capitals on every row -- measured on 800 cells `e9z-1i1`: a
+    case-sensitive pattern matched 800 real cells and 0 twin cells,
+    and both files passed. The fact that was missing is how many cells
+    of a form wrote every letter lower case, and it is published here
+    by naming a SECOND KEY of that form, `&` in every letter place.
+
+    WHAT IS NAMED, and each branch is the disclosure rule and not a
+    preference. ``lowered`` is how many of the form's ``count`` cells
+    wrote every letter lower case and ``rest`` the others; the line is
+    the floor or TWO, whichever is larger, because no count of one is
+    ever published and no pair of keys may leave a count of one to be
+    worked out from them.
+
+    - ``lowered`` under the line, or the lower-case key's own supply
+      below what the small-supply rule asks of any key: the form is
+      named as it always was, blind to case. This answers {} and the
+      caller writes the form exactly as before, byte for byte.
+    - ``lowered`` at or over the line and nothing else: the lower-case
+      key alone.
+    - both at or over the line: both keys, the form's own key then
+      counting the cells that were NOT all lower case.
+    - ``rest`` under the floor: the lower-case key, and the rest go to
+      the pool, where a group too small to name always goes -- and the
+      pool names no form, so it says nothing about which.
+    - ``rest`` at the floor but under two, which is a floor of one and
+      a single cell: nothing can be pooled at that floor and a count of
+      one may not stand beside its complement, so the form is named
+      blind to case as before.
+
+    A reader of a case-blind key therefore is shown nothing about case:
+    it is written where the lower-case cells were too few to name, where
+    they were none, and where the rest were exactly one.
+
+    Guarantees: returns {} or a mapping of the keys to name, the pooled
+    key included where the rest are pooled. Raises nothing. No I/O.
+    """
+    line = max(floor, 2)
+    lower_key = parsing.lower_case_form(form)
+    if not lower_key or lowered < line:
+        return {}
+    if parsing.form_room(lower_key) < room_needed:
+        return {}
+    rest = count - lowered
+    if rest == 0:
+        return {lower_key: lowered}
+    if rest >= line:
+        return {lower_key: lowered, form: rest}
+    if rest < floor:
+        return {lower_key: lowered, SUPPRESSED_LABEL: rest}
+    return {}
 
 
 def _comma_remarks(cells: _Cells) -> "list[Note]":
@@ -5872,6 +6248,84 @@ def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
         if reading == parsing.COMMA_EITHER:
             unsettled = unsettled + 1
     return unsettled, settled
+
+
+# The longest figure string the spelling census below reads as one
+# number: fifteen figures is the widest whole number binary64 holds
+# exactly, so every spelling it names is a number this format carries.
+_SPELLING_FIGURES = 15
+
+
+def _number_spellings(cells: _Cells) -> dict[str, int]:
+    """Every spelling of a column that wrote one number more than one way.
+
+    THE FACT A CODE COLUMN OF MIXED PADDING LOST (plan P4-D123; the
+    audit's missed item, numbers and codes). A column of coded answers
+    written `7`, `07`, `007` and `0` -- how an export that zero-fills
+    some cells and not others writes a code -- was described as a count,
+    and a count publishes how many cells wore each field width and how
+    many were padded, but never WHICH number wore which. Its twin came
+    back `7`, `007`, `0`, `00`, `07` and `05`: seven spellings for four,
+    three of them spellings the real column never had, and both files
+    passed. Nothing published could say otherwise.
+
+    WHAT IS PUBLISHED, and only here. A census of the column's spellings
+    with how many cells wrote each, under four conditions, every one of
+    them the disclosure rule or the reading this census is for:
+
+    - every cell read as a number is written in figures alone, at most
+      fifteen of them, so every key is a whole number this format holds;
+    - at least two of those spellings are ONE NUMBER, which is what the
+      census is for -- a column writing each number one way is already
+      described by its field widths, and publishes `{}` here;
+    - EVERY spelling is written by at least the smallest group size and
+      at least two cells. The census is all or nothing, as the value
+      histogram is: a spelling too rare to name is never pooled, because
+      beside the named ones a pool's count would be the complement of a
+      number anybody can add up, and a count of one is never published;
+    - and the spellings are no more than a set of categories may hold in
+      a table this size, so a long column of counts is never turned into
+      a list of every value it holds.
+
+    A column with no such census publishes `{}`, and that absence says
+    only that one of the four did not hold -- no count of anybody.
+
+    Guarantees: a function of the tally alone; keys in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    written: dict[str, int] = {}
+    numbers = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        numbers = numbers + 1
+        text = cell.text
+        if len(text) > _SPELLING_FIGURES or not parsing.is_digit_text(text):
+            return {}
+        written[text] = (written[text] if text in written else 0) + 1
+    if numbers < 1:
+        return {}
+    line = max(cells.settings.small_cell_floor, 2)
+    seen: dict[str, int] = {}
+    twice = False
+    for spelling in sorted(written):
+        if written[spelling] < line:
+            return {}
+        bare = _figures_unfilled(spelling)
+        if bare in seen:
+            twice = True
+        seen[bare] = 1
+    if not twice or len(written) > _categorical_ceiling(cells):
+        return {}
+    return {spelling: written[spelling] for spelling in sorted(written)}
+
+
+def _figures_unfilled(spelling: str) -> str:
+    """A figure string with its leading noughts taken off, `0` at least."""
+    start = 0
+    while start < len(spelling) - 1 and spelling[start] == "0":
+        start = start + 1
+    return spelling[start:]
 
 
 def _padded_cells(cells: _Cells) -> int:
@@ -11616,6 +12070,13 @@ def _identifier_verdict(
             ),
             "n_all_digits": cells.all_digits,
             "n_code_alphabet": cells.code_alphabet,
+            # WHAT A RECORD NUMBER LOOKS LIKE, with no value attached
+            # to it (7.12, plan P4-D120). The five facts above say how
+            # long the values are and which alphabet they came from,
+            # and between them they said nothing about their SHAPE --
+            # which is why a column of UUIDs published every fact it
+            # had and its twin matched none of its own rows.
+            "layout_forms": _layout_forms(cells),
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review
@@ -11792,6 +12253,12 @@ def _numeric_verdict(
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
     details = _numeric_details(cells, whole_everywhere)
+    if role == ROLE_COUNT:
+        # EVERY SPELLING, WHERE ONE NUMBER WAS WRITTEN MORE THAN ONE WAY
+        # (plan P4-D123, the audit's missed item on mixed padding). The
+        # count role alone: a column holding a negative is not a column
+        # of codes written `007` beside `7`.
+        details["number_spellings"] = _number_spellings(cells)
     # A spread larger than this file format can hold is a fact the
     # profile records in a field of its own, and it is also a fact the
     # person running the tool has to be told in words: without this
@@ -11974,8 +12441,48 @@ def _publication_class_applied(
         # into every other key that could carry a value.
         counted["spellings"] = []
         withheld += [counted]
-    no_spellings: dict[str, int] = {}
-    return _counts_only(details), no_spellings, withheld, 0, 0
+    # ...AND THE SPELLINGS OF ABSENCE ARE NOT VALUES OF THE TABLE, so
+    # the ones drawn from synthtwin's OWN vocabulary stay (plan P4-D85).
+    # The map was emptied whole, which threw away the one thing here
+    # that was never anybody's data: `NA`, `N/A` and `NULL` are words
+    # this package ships, identical in every installation, and C6-31
+    # says in terms that the published vocabulary "contains no text
+    # from any table". Emptying them cost the twin its holes and cost
+    # the description its own readability -- a 500-row free-text column
+    # with 174 `NA`/`N/A` cells published `n_missing: 275` and named no
+    # spelling, so the table it was written from was re-described as
+    # holding 399 present cells against the published 225 and MISSED
+    # both presence counts: the real table failing its own description,
+    # loudly, on the plainest run there is.
+    #
+    # WHAT DOES NOT COME BACK IS A PERSON'S OWN WORD, and the reason is
+    # that a LOADER CANNOT CHECK IT. A declaration is recorded as a
+    # count and never as text (C5-17), so a document naming
+    # `Not documented` here could not be told from one naming a value of
+    # the column, and the rule this format can enforce is the one it
+    # states: a key of a nothing-publishing column names a member of the
+    # published vocabulary. A declared spelling of the person's own
+    # words stays in the pooled remainder, which is the narrowing this
+    # decision takes deliberately rather than a gap it missed.
+    # THE CELLS THE CLASS WITHHOLDS ARE NOT ADDED TO THE POOLED
+    # REMAINDER, and that is a rule rather than an oversight. The
+    # remainder is what the FLOOR held back, and a description written
+    # at a floor of one holds nothing back because there is no group
+    # below one (C5-S13, enforced by the publication guard and by the
+    # loader). A spelling this class withholds is withheld for another
+    # reason entirely, at every floor, so counting it there would make a
+    # floor-one description claim a floor-one description cannot make
+    # and would be refused by synthtwin's own guard before it was
+    # written. Those cells stay exactly where they were before this
+    # decision: counted in `n_missing`, and accounted for by nothing.
+    # C6-126 states the consequence at its true size -- on such a column
+    # the three accounted numbers do not exceed `n_missing` rather than
+    # coming to it.
+    vocabulary: dict[str, int] = {}
+    for spelling in sorted(by_source):
+        if parsing.names_a_published_word(spelling):
+            vocabulary[spelling] = by_source[spelling]
+    return _counts_only(details), vocabulary, withheld, n_blank, n_withheld
 
 
 def profile_column(

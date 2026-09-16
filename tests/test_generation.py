@@ -1683,7 +1683,20 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
     alphabet, because the separator is a space, so meeting the count
     means giving the code alphabet to groups that hold one word --
     which the packing can only do if it is told that rule. The cost is
-    the average word count, which is approximated, and it is named.
+    an APPROXIMATED fact, and it is named.
+
+    WHICH approximated fact it costs MOVED, and this gate is written
+    over the invariant rather than over the one that used to pay
+    (landing 2b.8 repair). The column publishes a census -- `@@@%` on
+    20 cells and `@@@%%` on 40 -- and until the settling ask of G9.5
+    step 7 was freed of the PACKED WORD COUNT, the groups that could
+    wear those forms were refused them. The twin missed THREE facts:
+    the census itself, the word clamp, and `words.mean` at 2.033
+    against a published 3.0. It now meets all three exactly and misses
+    ONE approximated fact, `length.p50` at 11.5 against 17.5. So the
+    assertion below is the STRONGER one: the exact count is met, the
+    word average is met too, and whatever approximated fact the packing
+    costs is still named rather than passed over in silence.
     """
     folder = tmp_path / "sentences"
     folder.mkdir(parents=True, exist_ok=True)
@@ -1709,7 +1722,12 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
         if deviation.column == "comment"
     }
     assert "n_code_alphabet" not in named
-    assert "words" in named
+    # THE EXACT COUNT IS MET AND ITS COST IS NAMED, which is the gate.
+    # `words.mean` is no longer the fact this costs -- it is met
+    # exactly now -- so naming it here would pin the weaker outcome.
+    assert named, "the packing costs an approximated fact and must name it"
+    for met in ("words", "words.mean", "shape_forms"):
+        assert met not in named, met
 
 
 def test_an_unheld_column_meets_its_whole_and_fraction_counts(

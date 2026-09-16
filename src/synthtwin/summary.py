@@ -325,6 +325,23 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
     return lines
 
 
+def _shown_spelling(spelling: str) -> str:
+    """One absent-value spelling, shown so a reader can tell it apart.
+
+    A SPELLING MADE ONLY OF SPACE IS WRITTEN OUT CHARACTER BY CHARACTER
+    (plan P4-D74). Since contract C6-125 a whitespace-only spelling is
+    an ordinary key of `missing_by_source`, and the display boundary
+    leaves a space alone -- rightly, for a value inside a sentence. Here
+    it would print `  (30)`, where a reader cannot tell one space from
+    two, or a space from a no-break space, in the one line the report
+    has to tell them apart in. Every other spelling crosses the ordinary
+    boundary, exactly as before.
+    """
+    if spelling and not parsing.trimmed(spelling):
+        return parsing.spelled_out(spelling)
+    return _text_of(spelling)
+
+
 def _missing_spelling_words(
     column: dict[str, object], floor: int
 ) -> list[str]:
@@ -358,7 +375,7 @@ def _missing_spelling_words(
         ]
     for spelling in sorted(sources):
         counted = _count_of(sources[spelling])
-        spellings += [f"{_text_of(spelling)} ({counted})"]
+        spellings += [f"{_shown_spelling(spelling)} ({counted})"]
     pooled = _count_of(column["n_missing_withheld"])
     if pooled:
         spellings += [
@@ -1189,9 +1206,17 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
       can be one of the labels of a column of categories only when at
       least `small_cell_floor` rows share it;
     * a column that publishes nothing at all -- record numbers, free
-      text, numbers no format can hold -- still publishes nothing, in
-      either direction, and now in every field of its block rather than
-      in the fields somebody remembered. A value named with
+      text, numbers no format can hold -- publishes no VALUE of the
+      table, in either direction, and now in every field of its block
+      rather than in the fields somebody remembered. What it does
+      publish, since plan P4-D85, is which of SYNTHTWIN'S OWN words its
+      absent cells were spelled with: `NA`, `N/A`, `NULL` and the rest
+      of the closed vocabulary are this package's words and no table's,
+      so naming them discloses nothing of the column and lets the twin
+      write the holes the table wrote. A column that publishes no value of
+      the table publishes none of the person's own spellings either
+      way, declared or not, because no loader holding one document
+      could tell one from a value of the column. A value named with
       `--keep-value` used to travel out of a declared identifier column
       as the `candidate` of a sentinel verdict, which is the one
       remaining way a spelling could leave a column declared precisely
@@ -1298,7 +1323,11 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
         ]
     lines += [
         "    A column that publishes nothing -- record numbers, free",
-        "    text -- still publishes nothing either way.",
+        "    text -- names no value of yours either way. Where its empty",
+        "    cells were spelled with one of synthtwin's own words, such",
+        "    as NA, it says which word and how many, because that word",
+        "    is synthtwin's and not your table's; a spelling of your own",
+        "    it never names.",
     ]
     return (
         lines

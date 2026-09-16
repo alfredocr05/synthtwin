@@ -399,6 +399,20 @@ def _padded_code_table() -> str:
     return fixtures.single_column_table("code", values)
 
 
+def _spelled_code_table() -> str:
+    """A count column writing one number more than one way (P4-D123).
+
+    THE CENSUS OF SPELLINGS HAD NO FIXTURE PUBLISHING ONE, and a count
+    column publishes it only where two spellings write one number and
+    every spelling clears the floor: `7`, `07` and `0`, fourteen cells
+    each, are the smallest such column here.
+    """
+    values = []
+    for index in range(42):
+        values += [("7", "07", "0")[index % 3]]
+    return fixtures.single_column_table("answer", values)
+
+
 def _quarter_table() -> str:
     """A datetime column whose values name QUARTERS rather than instants.
 
@@ -553,6 +567,7 @@ def runs(
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
+
         (
             "headerless",
             fixtures.rows_to_csv(
@@ -693,7 +708,17 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     """
     checked: set[str] = set()
     listed: set[str] = set()
-    for name, described, twin in runs:
+    # THE CENSUS OF SPELLINGS IS REACHED BY ONE MORE MEASURED FILE, and
+    # only here (contract 7.13, landing 2b.18 part 2). No fixture of the
+    # coverage identity writes one number two ways, and adding one there
+    # would owe a red case for every subcheck a count column files; the
+    # binding asked HERE is only that the fact is filed at all, so the
+    # twin of `_spelled_code_table` is measured beside the others.
+    spelled = _described(tmp_path, _spelled_code_table(), None, stem="spelled")
+    spelled_twin = rendering.twin_csv(generation.generate(spelled, SEED))
+    for name, described, twin in runs + [
+        ("spelled-codes", spelled, spelled_twin)
+    ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
             checked.add(check.fact)
@@ -3946,6 +3971,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("repeated-record_code", "length.max"),
             ("blanked-record_code", "presence.n_missing"),
             ("digits-record_code", "type.all_whole_numbers"),
+            # THE LAYOUT CENSUS (contract 7.12, landing 2b.18). Writing
+            # the column in figures alone moves every cell off the
+            # published layout `@%%%%%`, whose leading mark is a
+            # letter, so the census goes MISSED -- which is what shows
+            # this subcheck can fail at all.
+            ("digits-record_code", "forms.published.@%%%%%"),
         ),
         "recorded_on": (
             ("emptied-recorded_on", "axes.quality_state"),
@@ -5368,6 +5399,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # on the same terms, and for the same reason only the widths the
     # fixtures publish need a row here (P4-D14).
     ("numeric", "pads.published.5"): "numeric.pad_widths",
+
     # The census of WHOLE-NUMBER field widths (P4-D30) has NO row here
     # and needs none: it is REPORT-ONLY, so the validator LISTS it
     # whole rather than filing an executable subcheck per width, and a
@@ -5378,6 +5410,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # form, so its subcheck names are decided by the description in
     # the same way the two width censuses are (P4-D18). Only the forms
     # the fixtures actually publish need a row.
+    # The census of LAYOUTS does the same on the identifier role
+    # (contract 7.12, landing 2b.18, plan P4-D120): one subcheck per
+    # published layout, named by the layout itself, so only the layout
+    # the every-role fixture's declared column actually publishes needs
+    # a row here.
+    ("identifier", "forms.published.@%%%%%"): "identifier.layout_forms",
     ("free_text", "forms.published.%%%%-%"): "free_text.shape_forms",
     ("label", "forms.published.@%%"): "label.shape_forms",
     ("label", "forms.published.@%%.%"): "label.shape_forms",

@@ -9077,6 +9077,20 @@ def _numeric_content(
     layout = plan.layout
     if not isinstance(facts, contract.NumericFacts) or layout is None:
         raise _wrong_facts(column.name)
+    if facts.number_spellings:
+        # A COUNT COLUMN THAT PUBLISHES EVERY SPELLING IS WRITTEN AS THEM
+        # (method G6.8, plan P4-D123). The census names every cell read
+        # as a number with its own spelling, so it IS the column's
+        # numbers: each spelling is written as many times as the census
+        # says, in the order of the number it spells and then of the
+        # spelling, and the rows are made random by G4.2 as every other
+        # content list is. Nothing is drawn for them, and every statistic
+        # published beside the census was computed from exactly these
+        # cells. The words G4.3 budgets for the numbers are still drawn,
+        # so the stream a later column reads does not move.
+        return _numeric_tail(
+            column, facts, layout, _spelled_census(facts.number_spellings), []
+        )
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
     if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
@@ -9141,6 +9155,41 @@ def _numeric_content(
     # value a thousandth outside a stretch is written back inside it
     # at one width and not at another.
     notes = notes + _gap_notes(column, facts, cells)
+    return _numeric_tail(column, facts, layout, cells, notes)
+
+
+def _spelled_census(census: "dict[str, int]") -> "list[str]":
+    """Every spelling of a count census, as many times as it was written.
+
+    In the order of the number each spells, and then of the spelling, so
+    `0`, `7`, `07`, `007`: a function of the census alone (G6.8).
+    """
+    order = sorted(
+        [(_census_number(spelling), spelling) for spelling in census]
+    )
+    cells: "list[str]" = []
+    for pair in order:
+        spelling = pair[1]
+        cells += [spelling for _each in range(census[spelling])]
+    return cells
+
+
+def _census_number(spelling: str) -> int:
+    """The whole number a census spelling of figures writes."""
+    number = 0
+    for character in spelling:
+        number = number * 10 + (ord(character) - ord("0"))
+    return number
+
+
+def _numeric_tail(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    cells: "list[str]",
+    notes: "list[Deviation]",
+) -> "tuple[list[str], list[Deviation]]":
+    """The cells after the numbers: out of range, contradictory, text."""
     used: dict[str, int] = {cell: 1 for cell in cells}
     if column.n_out_of_range:
         cells = cells + _class_spellings(
@@ -15187,6 +15236,10 @@ def _label_content(
     holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
+    # ASKED WHILE `cells` HOLDS THE PUBLISHED SPELLINGS ALONE, before any
+    # stand-in joins them, so the answer is about what the DESCRIPTION
+    # published and not about what the twin went on to write.
+    unspellable = _published_an_unspellable_number(cells, comma)
     classes: "dict[int, str]" = {}
     written_as: "dict[int, str]" = {}
     asked: "dict[int, str]" = {}
@@ -15220,10 +15273,20 @@ def _label_content(
         shared = ["" for _each in sizes]
         for step in range(len(wordy)):
             shared[wordy[step]] = settled[step]
+    # THE SHAPE A STAND-IN TAKES WHERE THE CENSUS OWES IT NONE (landing
+    # 2b.18 part 2, plan P4-D122; the carried item of landing 2b.12),
+    # and the rows it is spent on.
+    level_shape = _published_level_shape(facts, comma)
+    shaped_places: "dict[int, int]" = {}
+    if level_shape:
+        shared, shaped_places = _level_shape_spent(
+            sizes, shared, level_shape, written_as, used, owners, holes
+        )
     # Each form's place in its own supply, carried across the whole
     # column so no spelling is walked twice.
     walked: "dict[str, int]" = {}
     shaped = 0
+    kept = 0
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -15232,15 +15295,18 @@ def _label_content(
             form = asked[place]
         else:
             number, label = _made_up_label(
-                number, used, owners, form, plan.all_holes, walked
+                number, used, owners, form, plan.all_holes, walked,
+                level_shape if place in shaped_places else "",
             )
+            if not form and level_shape and _level_key(label) == level_shape:
+                kept = kept + 1
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
         # its supply is spent or every spelling of it is refused, and
         # this counted the ASKING -- so a report said thirty-three
         # stand-ins were written in a published form when five of them
         # were `group-N`.
-        if form and parsing.shape_form(label) == form:
+        if form and parsing.census_form(label, facts.shape_forms) == form:
             shaped = shaped + 1
         cells = cells + [label for _row in range(size)]
     if facts.suppressed_levels:
@@ -15259,6 +15325,17 @@ def _label_content(
                 f"{facts.suppressed_levels} labels made up in their place, "
                 f"{shaped} of them written in a form this column published"
             )
+        if kept and not shaped:
+            made = (
+                f"{facts.suppressed_levels} labels made up in their place, "
+                f"{kept} of them written in the shape of a label this "
+                f"column published"
+            )
+        elif kept:
+            made = (
+                f"{made}, and {kept} more in the shape of a label this "
+                f"column published"
+            )
         reason = _HELD_BACK_REASON
         if numbers_made:
             made = (
@@ -15270,9 +15347,16 @@ def _label_content(
                     f"{made}, and {shaped} of them written in a form this "
                     f"column published"
                 )
+            if kept:
+                made = (
+                    f"{made}, and {kept} in the shape of a label this "
+                    f"column published"
+                )
             reason = _HELD_BACK_NUMBERS_REASON
             if unplaced:
                 reason = _HELD_BACK_UNPLACED_REASON
+                if unspellable:
+                    reason = _HELD_BACK_UNSPELLED_REASON
         notes += [
             _deviation(
                 column.name,
@@ -15318,25 +15402,100 @@ def _class_stand_ins(
     the few `%%.%` above it -- the narrow walk has nothing to write, and
     the second walk writes them as before.
     """
-    trial_used = dict(used)
-    trial_owners = dict(owners)
-    trial_short: "list[int]" = []
-    narrow = _class_stand_ins_walked(
-        column, written, sizes, owing, debts, trial_used, trial_owners,
-        holes, decimal_comma, trial_short, floor, True,
+    taken_used = dict(used)
+    taken_owners = dict(owners)
+    taken_short: "list[int]" = []
+    bounded = True
+    answer = _class_stand_ins_walked(
+        column, written, sizes, owing, debts, taken_used, taken_owners,
+        holes, decimal_comma, taken_short, floor, True,
     )
-    if len(narrow[1]) == len(narrow[0]):
-        for spelling in trial_used:
-            used[spelling] = trial_used[spelling]
-        for fold in trial_owners:
-            owners[fold] = trial_owners[fold]
-        if short is not None:
-            short += trial_short
-        return narrow
-    return _class_stand_ins_walked(
-        column, written, sizes, owing, debts, used, owners, holes,
-        decimal_comma, short, floor, False,
-    )
+    if len(answer[1]) != len(answer[0]):
+        bounded = False
+        taken_used = dict(used)
+        taken_owners = dict(owners)
+        taken_short = []
+        answer = _class_stand_ins_walked(
+            column, written, sizes, owing, debts, taken_used, taken_owners,
+            holes, decimal_comma, taken_short, floor, False,
+        )
+    # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
+    # 2b.8, Codex item 6 of landing 2b.4). The shortfall shows at WRITE
+    # time and not at the split: the split gives the number class groups
+    # whose sizes make its debt exactly, and only then does the census
+    # rule refuse every candidate of the one tier the published places
+    # offer, so those groups fall back to words with the class count
+    # missed. Asked here rather than at the split because that is where
+    # the answer is known -- a supply counted before the walk says how
+    # many numbers exist, not how many this column may wear.
+    if debts[_OWED_NUMBER] > 0:
+        paid = _numbers_paid(sizes, answer[0], answer[1])
+        if paid < debts[_OWED_NUMBER]:
+            wider_used = dict(used)
+            wider_owners = dict(owners)
+            wider_short: "list[int]" = []
+            wider = _class_stand_ins_walked(
+                column, written, sizes, owing, debts, wider_used,
+                wider_owners, holes, decimal_comma, wider_short, floor,
+                bounded, True,
+            )
+            if _numbers_paid(sizes, wider[0], wider[1]) > paid:
+                answer = wider
+                taken_used = wider_used
+                taken_owners = wider_owners
+                taken_short = wider_short
+    for spelling in taken_used:
+        used[spelling] = taken_used[spelling]
+    for fold in taken_owners:
+        owners[fold] = taken_owners[fold]
+    if short is not None:
+        short += taken_short
+    return answer
+
+
+def _class_supply(
+    ladder: "_Ladder",
+    sizes: "tuple[int, ...]",
+    debts: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+) -> "dict[str, int]":
+    """How many held-back groups each class could still be given a spelling.
+
+    A number's supply is how many numbers the walk of G8.3a step 3 can
+    still give, counted with no census rule asked -- which is how the
+    class split counts every number there is -- and the other two
+    classes can always be written.
+    """
+    supply: "dict[str, int]" = {}
+    for name in _OWED_CLASSES:
+        supply[name] = len(sizes)
+        if name == _OWED_NUMBER and debts[name] > 0:
+            supply[name] = _ladder_room(
+                ladder, name, len(sizes), {}, used, owners, holes,
+                decimal_comma,
+            )
+    return supply
+
+
+def _numbers_paid(
+    sizes: "tuple[int, ...]",
+    classes: "dict[int, str]",
+    written_as: "dict[int, str]",
+) -> int:
+    """How many cells of the number debt a finished walk actually paid.
+
+    The groups the split gave the number class AND the walk then found a
+    spelling for. A group left without one falls back to G8.3's neutral
+    label, so its cells pay nothing however the split counted them.
+    """
+    paid = 0
+    for place in classes:
+        if classes[place] == _OWED_NUMBER and place in written_as:
+            paid = paid + sizes[place]
+    return paid
 
 
 def _class_stand_ins_walked(
@@ -15352,6 +15511,7 @@ def _class_stand_ins_walked(
     short: "list[int] | None",
     floor: int,
     bounded: bool,
+    whole_tier: bool = False,
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
     """One walk of `_class_stand_ins`, narrow where ``bounded`` says.
 
@@ -15397,15 +15557,29 @@ def _class_stand_ins_walked(
         and _form_reading(form, decimal_comma) == parsing.NUMBER
     ]
     ladder = _number_ladder(written, decimal_comma, number_forms)
-    supply: "dict[str, int]" = {}
-    for name in _OWED_CLASSES:
-        supply[name] = len(sizes)
-        if name == _OWED_NUMBER and debts[name] > 0:
-            supply[name] = _ladder_room(
-                ladder, name, len(sizes), {}, used, owners, holes,
-                decimal_comma,
-            )
-    classes = _class_split(sizes, debts, supply)
+    # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8,
+    # Codex item 6 of landing 2b.4). A number wearing no named form walks
+    # the counts of places the published numbers were written with. Where
+    # every published number carried a decimal AND the census NAMES the
+    # form those places write, every candidate of that tier is stepped
+    # past for wearing a named form, so the tier is empty and a class
+    # debt goes unpaid: readings published `5.1` and `5.3`, whose census
+    # names `%.%` and pools nothing, wrote two cells the table holds as
+    # numbers as words instead -- twenty-five numeric against a published
+    # twenty-seven, two checks missed, and the table passing.
+    #
+    # A whole number wears no form at all (a cell of figures alone
+    # carries one kind, and `parsing.shape_form` answers "" for it), so
+    # it can never overpay the census. It is the LAST tier, and a tier is
+    # taken up only once the one before it has ended. `_class_stand_ins`
+    # asks for it only where the finished walk left the number debt
+    # unpaid, which is the "where the debts require it" of G8.3a.
+    if whole_tier and ladder.anchored and 0 not in ladder.tiers:
+        ladder = dataclasses.replace(ladder, tiers=ladder.tiers + (0,))
+    supply = _class_supply(
+        ladder, sizes, debts, used, owners, holes, decimal_comma
+    )
+    classes = _class_split(sizes, debts, supply, owing, decimal_comma)
     missing = 0
     # A CLASS THE SPLIT COULD NOT PAY BECAUSE ITS SUPPLY RAN OUT is a
     # shortfall of supply, not of the partition: every spelling of the
@@ -15440,9 +15614,23 @@ def _class_stand_ins_walked(
         room: "dict[str, int]" = {}
         for form in sorted(mine_forms):
             if name == _OWED_NUMBER:
-                room[form] = _ladder_room(
-                    ladder, form, len(sub), named, used, owners, holes,
-                    decimal_comma,
+                # A NUMBER FORM HAS TWO SUPPLIES, and counting only the
+                # first gave the form to nobody (landing 2b.13, Codex
+                # item 7). The ladder spells a PLAIN decimal, so a form
+                # the ladder cannot spell -- `%.%@%`, whose spellings
+                # carry an exponent -- has ladder room nought, and
+                # `_shared_out` then settles it over no group at all.
+                # Its own filling is the other supply, and the walk
+                # below takes it where the ladder has nothing.
+                room[form] = max(
+                    _ladder_room(
+                        ladder, form, len(sub), named, used, owners,
+                        holes, decimal_comma,
+                    ),
+                    _usable_room(
+                        form, len(sub), used, owners, holes,
+                        parsing.NUMBER, decimal_comma, ladder,
+                    ),
                 )
             else:
                 room[form] = _usable_room(
@@ -15471,6 +15659,23 @@ def _class_stand_ins_walked(
                         ladder, form, cursor, named, used, owners, holes,
                         decimal_comma,
                     )
+                    if not found:
+                        # THE FORM'S OWN FILLING, WHERE THE LADDER
+                        # CANNOT SPELL IT (landing 2b.13, Codex item 7).
+                        # `_units_spelled` writes a plain decimal, whose
+                        # form is `%.%` and never `%.%@%`, so a number
+                        # group owing an exponent form was stepped past
+                        # every candidate and fell through to the
+                        # unformed walk, which wrote `1`. The form's own
+                        # walk writes `9.6E6`, which wears the form AND
+                        # reads as a number, so it meets the census and
+                        # the class count together. Its LOCATION is
+                        # still nothing the description places, which
+                        # `_HELD_BACK_UNSPELLED_REASON` already says.
+                        found = _class_form_stand_in(
+                            form, parsing.NUMBER, walked, used, owners,
+                            holes, decimal_comma, ladder,
+                        )
                 if not found:
                     found = _next_on_ladder(
                         ladder, _OWED_NUMBER, cursor, named, used, owners,
@@ -15857,7 +16062,11 @@ def _forms_owed(
             continue
         owing[form] = facts.shape_forms[form]
     for cell in written:
-        form = parsing.shape_form(cell)
+        # COUNTED UNDER THE KEY THE CENSUS COUNTS IT UNDER, which is a
+        # lower-case key for a lower-case cell where one is named (plan
+        # P4-D121) -- the recount's own reading, so a debt is never
+        # paid by a cell the validator files elsewhere.
+        form = parsing.census_form(cell, facts.shape_forms)
         if form not in owing:
             continue
         if owing[form] > 0:
@@ -16059,8 +16268,13 @@ def _settled_by_sums(
     names: "list[str]",
     supply: "dict[str, int]",
     biggest_first: bool,
+    avoid: "tuple[int, ...]" = (),
 ) -> "list[str] | None":
     """An arrangement settling every debt exactly, or None.
+
+    ``avoid`` names places this pass may not give to any debt, which is
+    how `_class_split` reaches a different exact arrangement than the
+    one whose form debts it could not settle (landing 2b.13).
 
     Each debt in turn, largest first, takes an exact subset of the
     sizes still going spare. `_subset_making` answers which sizes make
@@ -16074,8 +16288,8 @@ def _settled_by_sums(
     where the debts are settled one at a time, which is the shape a
     real column has.
     """
-    spare = [sizes[place] for place in places]
-    where = list(places)
+    spare = [sizes[place] for place in places if place not in avoid]
+    where = [place for place in places if place not in avoid]
     taken: "dict[int, str]" = {}
     ordered = sorted([(0 - owing[form], form) for form in names])
     if not biggest_first:
@@ -16117,6 +16331,13 @@ def _subset_making(
     Both rules together make the chain strictly decreasing in slot, so
     a slot cannot repeat -- which is the property the caller needs and
     the one it did not have.
+
+    THE PLACES A REFUSED ARRANGEMENT SPENT ARE FORBIDDEN BY THE CALLER
+    and not here (landing 2b.13 repair). `_settled_by_sums` drops them
+    from `spare` before this is asked, so the retry of G8.3a step 1
+    reaches a different subset by being handed different sizes. A
+    second, unreachable way of saying the same thing stood here until
+    a review mutated it and watched every test stay green.
     """
     if total < 1:
         return []
@@ -16256,8 +16477,12 @@ def _usable_room(
     holes: "tuple[str, ...]",
     reads_as: str = parsing.NOT_A_NUMBER,
     decimal_comma: bool = False,
+    ladder: "_Ladder | None" = None,
 ) -> int:
     """How many spellings of one form this walk could still write.
+
+    ``ladder``, where given, holds the spellings to the published
+    numbers' own ends, exactly as the spending walk is held (P4-D92).
 
     ``reads_as`` is the class the spellings must read as, which is text
     everywhere but the class debt of method G8.3a.
@@ -16290,6 +16515,15 @@ def _usable_room(
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+            continue
+        # COUNTED UNDER THE SAME BOUND THE WALK SPENDS UNDER (landing
+        # 2b.13 repair, plan P4-D92). A supply counted without the
+        # envelope and spent with it settles the form over a group the
+        # walk then cannot pay, which is a shortfall reported as a
+        # missing spelling rather than as the bound it really is.
+        if ladder is not None and not _within_the_published_ends(
+            candidate, ladder, decimal_comma
+        ):
             continue
         usable = usable + 1
     return usable
@@ -16333,6 +16567,12 @@ def _filled_form(form: str, step: int) -> str:
     """
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
+    # LTM-6). The census names `&` in every letter place of a form whose
+    # cells wrote every letter lower case, and the step is taken apart
+    # exactly as it is for `@` -- same positions, same arithmetic -- so
+    # the only thing that moves is the case the letter is written in.
+    lower = "abcdefghijklmnopqrstuvwxyz"
     spelling = ""
     place = _stepped_around(step, _form_room(form))
     for character in form:
@@ -16342,6 +16582,10 @@ def _filled_form(form: str, step: int) -> str:
             continue
         if character == parsing.SHAPE_LETTER:
             spelling = spelling + letters[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.SHAPE_LOWER:
+            spelling = spelling + lower[place % 26]
             place = place // 26
             continue
         spelling = spelling + character
@@ -16362,7 +16606,10 @@ def _form_room(form: str) -> int:
     for character in form:
         if character == parsing.SHAPE_DIGIT:
             room = room * 10
-        elif character == parsing.SHAPE_LETTER:
+        elif (
+            character == parsing.SHAPE_LETTER
+            or character == parsing.SHAPE_LOWER
+        ):
             room = room * 26
     return room
 
@@ -16497,7 +16744,7 @@ def _text_debt(facts: "contract.TextFacts") -> "dict[str, int]":
 
 def _settle(owing: "dict[str, int]", spelling: str, cells: int) -> None:
     """Take one group's cells off the debt of the form it wears."""
-    form = parsing.shape_form(spelling)
+    form = parsing.census_form(spelling, owing)
     if form not in owing:
         return
     owing[form] = max(0, owing[form] - cells)
@@ -16513,6 +16760,8 @@ def _wanted_form(
     budget: "list[int]",
     covering: int = 1,
     reads: "str | None" = None,
+    stands: "str | None" = None,
+    rewords: "tuple[int, int] | None" = None,
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -16523,6 +16772,24 @@ def _wanted_form(
     that cannot wear it spent that form's debt and the length budget on
     an ask that could never be met, so a column of readings beside
     comments owing forty-four cells of `%.%` gave the form to one group.
+
+    ``stands``, where given, is the ALPHABET BAND the packing put this
+    group in, and a form whose spellings do not recount into that band
+    is not offered either (landing 2b.8, plan P4-D75). THE SAME
+    ARGUMENT AS ``reads``, ONE STEP OVER: the walk already refuses such
+    a candidate -- `_reads_in_band` is asked of every one, and the
+    census is missed instead -- so asking for it spends the debt on a
+    cell that can never be written. A form's band is the band its own
+    first filling recounts into: `%%%-@` fills to `000-A`, which the
+    code alphabet holds, while `%%/@` fills to `00/A`, which it does
+    not, because the slash is not one of its characters.
+
+    MEASURED, on 800 rows of `%%%-@@@`-style codes publishing forty
+    forms across both bands: 350 of the 706 asks went to groups whose
+    band their form could not be written in, covering 354 cells -- and
+    354 was the twin's whole shortfall against the census. The asks
+    covered every one of the 715 cells owed and the walk then threw a
+    half of them away.
 
     A FORM FIXES A LENGTH -- every cell that wore one was exactly as
     long as it -- so which lengths a group may be offered is the whole
@@ -16555,8 +16822,29 @@ def _wanted_form(
     there is no slack the form is not offered and `_form_notes` says
     which counts went unmet.
 
-    A space survives into a form unchanged, so the form's own word
-    count must equal the group's either way.
+    A SPACE SURVIVES INTO A FORM UNCHANGED, so a form's word count is
+    fixed by the form and a group can only wear one by being written
+    with that many words. ``rewords``, where given, is the CLASS AND
+    BAND cell the packing put this group in, and it says that the
+    group's own word count is still open -- that this is the settling
+    ask of `_form_lengths` and not the walk's -- so a form of another
+    word count may be offered, but ONLY where the group can still stand
+    in that cell holding the form's own words. Absent, the packed count
+    must equal the form's, which is what the walk's own ask means.
+
+    WHY THE COUNT IS OPEN EXACTLY WHERE THE LENGTH IS (landing 2b.8
+    repair, review finding 1). The order this rule turns round was
+    holding TWO packed numbers against the census, not one: the length,
+    which `_UNSPENDABLE` frees, and the word count, which it did not.
+    A notes column of one-word codes beside multi-word prose is packed
+    with its code groups at TWO words -- the packing spends the
+    published `words.mean` the same way it spends the average length --
+    and every published form of it holds ONE. Measured on 800 such
+    rows: 626 settling asks, 1 won, every refusal this clause; the twin
+    missed ALL THREE published forms, 320 of 800 cells short, and
+    `synthtwin validate` exited 3 while the table passed. A group whose
+    words are exchanged is held to the form's count by ``worded``, so
+    the walk's later ask agrees with this one.
 
     The debt is over CELLS and a group covers its own number of them,
     so the walk chooses only WHERE to settle: the form owing the most
@@ -16569,9 +16857,21 @@ def _wanted_form(
         if owing[form] < 1:
             continue
         if _form_words(form) != max(words, 1):
-            continue
+            if rewords is None:
+                continue
+            # The exchange is permitted only while the group can still
+            # answer for the class and alphabet counts it was packed
+            # for, which are EXACT and may not be spent on the census.
+            if not _stands_in(
+                len(form), _form_words(form), rewords[0], rewords[1]
+            ):
+                continue
         if reads is not None and (
             parsing.classify_number(_filled_form(form, 0)) != reads
+        ):
+            continue
+        if stands is not None and not _reads_in_band(
+            _filled_form(form, 0), stands
         ):
             continue
         if carrier:
@@ -16604,11 +16904,23 @@ def _form_asks(
     longest: int,
     budget: "list[int]",
     kinds: "list[int] | None" = None,
+    bands: "list[int] | None" = None,
+    rewording: bool = False,
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
 
     ``kinds``, where given, is each group's class, and a group is offered
     only forms whose spellings read as that class (`_wanted_form`).
+    ``bands`` is each group's alphabet band, and a group is offered only
+    forms whose spellings recount into it, on the same ground.
+
+    ``rewording`` says this is the SETTLING ask of `_form_lengths`,
+    where neither the group's length nor its word count is fixed yet,
+    so a form of another word count may be offered to a group that can
+    stand in its own class and band holding that many words. A GROUP
+    CARRYING A PUBLISHED END IS NEVER REWORDED: `words.min` and
+    `words.max` are EXACT-OBSERVABLE and the two carriers are what make
+    them facts a recount can confirm.
 
     WHY THE ORDER IS THE WHOLE RULE, and it is the lesson `_shared_out`
     already carries for a label column's stand-ins (review round 1
@@ -16643,6 +16955,13 @@ def _form_asks(
         reads: "str | None" = None
         if kinds is not None:
             reads = _reads_as(_CLASSES[kinds[place]])
+        stands: "str | None" = None
+        if bands is not None:
+            stands = _BANDS[bands[place]]
+        rewords: "tuple[int, int] | None" = None
+        if rewording and kinds is not None and bands is not None:
+            if place not in carriers:
+                rewords = (kinds[place], bands[place])
         if reads == parsing.NUMBER:
             # A NUMBER'S FORM IS SETTLED EXACTLY by `_number_forms`, and
             # the caller writes that answer in; offering it here as well
@@ -16658,6 +16977,8 @@ def _form_asks(
             spare,
             groups[place],
             reads,
+            stands,
+            rewords,
         )
         asks[place] = form
         if form:
@@ -16734,7 +17055,19 @@ def _is_a_usable_stand_in(
         return False
     if reads_as != parsing.NOT_A_NUMBER:
         return _reads_as_its_class(candidate, reads_as, decimal_comma)
-    if parsing.classify_number(candidate) == parsing.NUMBER:
+    # A TEXT STAND-IN MUST READ AS NO NUMERIC CLASS AT ALL, not merely as
+    # no finite number (landing 2b.8, Codex item 8 of landing 2b.4). This
+    # asked only whether the candidate was a NUMBER, so the two other
+    # numeric classes walked straight through it: a column whose census
+    # named `%%@%%%` had `47E807` -- a well-formed number too large for
+    # binary64 -- written twice for a group that owed ORDINARY TEXT, and
+    # the twin came back with twenty-seven out-of-range cells against a
+    # published twenty-five and eighteen text against twenty, with three
+    # checks missed and the table passing its own description. The
+    # contradictory construction `(-1)` was accepted here for the same
+    # reason. The class each stand-in owes is the whole point of G10.2's
+    # partition, so the question asked here is the partition's own.
+    if parsing.classify_number(candidate) != parsing.NOT_A_NUMBER:
         return False
     # ...AND NOT A NUMBER UNDER THE OTHER GRAMMAR EITHER (review round
     # 5 of landing L8, item 1). A column declared `--decimal-comma` is
@@ -16752,7 +17085,7 @@ def _is_a_usable_stand_in(
         parsing.classify_number(
             parsing.written_with_a_decimal_comma(candidate)
         )
-        == parsing.NUMBER
+        != parsing.NOT_A_NUMBER
     ):
         return False
     for name in parsing.DATE_FORMATS:
@@ -16764,6 +17097,239 @@ def _is_a_usable_stand_in(
     return candidate[0] not in "=+-@"
 
 
+def _level_key(spelling: str) -> str:
+    """The shape one published spelling wears, its case kept (P4-D122).
+
+    `parsing.shape_form` of the spelling, with `&` in every letter place
+    where every letter of it is lower case -- the key the census would
+    give it if it named that shape -- and "" for a spelling with no form.
+    """
+    form = parsing.shape_form(spelling)
+    if form and parsing.is_lower_case_text(spelling):
+        lower = parsing.lower_case_form(form)
+        if lower:
+            return lower
+    return form
+
+
+def _published_level_shape(
+    facts: "contract.LabelFacts", decimal_comma: bool = False
+) -> str:
+    """The shape a held-back label takes where the census owes it none.
+
+    THE CARRIED ITEM OF LANDING 2b.12, CLOSED (plan P4-D122). A code
+    column at a floor of twenty wrote `group-288` for every held-back
+    code the census owed no form, and those were the column's commonest
+    codes: 2,000 cells of a digit, a hyphen and a letter, `4-F`, whose
+    form `%-@` has too few spellings to be named (C6-31 small supply).
+    The real column's mean cell length was 7.204 and the twin's 9.907,
+    with both files passing and nothing said.
+
+    WHAT IS ALREADY PUBLISHED SAYS WHAT THEY LOOKED LIKE. The labels a
+    column publishes are written byte for byte, so the shape of each is
+    a published fact already -- `4-F` beside `7-B` says a figure, a
+    hyphen and a capital, and it says it without this rule. The shape
+    worn by the most published rows is what a stand-in owed no named
+    form is written in, with its case: every letter lower case where the
+    spellings wearing it were.
+
+    A SHAPE THE CENSUS NAMES IS NEVER TAKEN, in either case, because a
+    stand-in written in it would be counted there and overpay a count
+    the settlement above already met exactly. A shape no published
+    spelling wears, or a column whose published spellings have no form,
+    answers "" and the stand-in is the neutral spelling as before.
+
+    Guarantees: a function of the published levels and the census
+    alone; ties between shapes go to the key's own spelling ascending.
+    Raises nothing. No I/O of any kind.
+    """
+    rows: "dict[str, int]" = {}
+    for entry in facts.levels:
+        spellings = entry.variants
+        if not spellings:
+            spellings = {entry.label: entry.count}
+        for spelling in sorted(spellings):
+            key = _level_key(spelling)
+            if not key:
+                continue
+            rows[key] = (rows[key] if key in rows else 0) + spellings[spelling]
+    best = ""
+    for key in sorted(rows):
+        if _form_reading(key, decimal_comma) != parsing.NOT_A_NUMBER:
+            # A SHAPE THAT READS AS A NUMBER IS NOT ONE A WORD CAN WEAR:
+            # every spelling of it is refused a text stand-in, so it
+            # would cost the walk its supply and buy nothing.
+            continue
+        blind = parsing.shape_form(_filled_form(key, 0))
+        if (
+            key in facts.shape_forms
+            or blind in facts.shape_forms
+            or parsing.lower_case_form(blind) in facts.shape_forms
+        ):
+            continue
+        if not best or rows[key] > rows[best]:
+            best = key
+    return best
+
+
+def _level_shape_spent(
+    sizes: "tuple[int, ...]",
+    shared: "list[str]",
+    level_shape: str,
+    fixed: "dict[int, str]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+) -> "tuple[list[str], dict[int, int]]":
+    """Which stand-ins the published labels' shape is spent on (P4-D122).
+
+    THE SHAPE HAS A SUPPLY, AND IT IS SPENT ON ROWS. The census's own
+    settlement meets the named forms from the LARGEST held-back groups
+    first, so on a long tail the groups it owes nothing are the ones
+    written once -- and a shape of a figure, a hyphen and a letter holds
+    260 spellings, which a thousand single rows run through at once.
+    Measured on the carried column: 257 spellings covered 257 of 919
+    rows owed no form, and the other 662 were `group-N`.
+
+    SO A LARGE GROUP PAYING A NAMED FORM TRADES PLACES WITH SINGLE ROWS
+    THAT SUM TO IT EXACTLY. The named form is paid the same number of
+    cells either way -- that count is exact and stays exact -- and the
+    shape then covers a group of many rows with one spelling instead of
+    one row. The published labels are the column's COMMONEST values, so
+    the held-back values most like them are the most repeated ones, and
+    that is who now wears their shape.
+
+    THE RULE, in the order it is taken, a function of the description
+    alone. The shape's supply is counted as `_usable_room` counts any
+    form's. The places owed no form are ranked largest first, then by
+    place, and the first `supply` of them are covered; the rows of the
+    rest are the rows the shape misses. The places paying a named form
+    are offered once each, largest first and then by place, while any
+    row is missed: for an offered place of `k` rows (two or more) the
+    places owed no form are taken from the END of that ranking --
+    smallest first -- each smaller than `k` and no larger than what is
+    still to be matched, until they sum to `k` exactly with at least
+    two of them. The trade is made only where it does, where the named
+    form has the spellings for the extra places, and where the rows the
+    shape misses then FALL. Places a class debt settled (``fixed``) are
+    never moved. Each offer costs twice the number of places against a
+    budget of `_LEVEL_SHAPE_WORK`, and the offers stop when it is spent.
+
+    WHICH PLACES WEAR IT is answered too, because the walk writes the
+    stand-ins in place order and not in size order: the covered places
+    are the first `supply` owed no form, largest first, and a place past
+    them takes the neutral spelling rather than a spelling one of them
+    needed. Measured before this was returned, a group of nineteen rows
+    was written `group-1` while a single row wore the shape.
+
+    Guarantees: returns a new list and the covered places; every named
+    form is assigned exactly the rows it was before. Raises nothing. No
+    I/O of any kind.
+    """
+    arranged = list(shared)
+    covered_places: "dict[int, int]" = {}
+    free = [
+        place for place in range(len(sizes))
+        if place not in fixed and not arranged[place]
+    ]
+    supply = _usable_room(level_shape, len(free), used, owners, holes)
+    if supply < 1 or not free:
+        return arranged, covered_places
+    taken: "dict[str, int]" = {}
+    for place in range(len(sizes)):
+        if place in fixed or not arranged[place]:
+            continue
+        name = arranged[place]
+        taken[name] = (taken[name] if name in taken else 0) + 1
+    rooms: "dict[str, int]" = {}
+    offered = sorted(
+        [
+            (0 - sizes[place], place) for place in range(len(sizes))
+            if place not in fixed and arranged[place]
+        ]
+    )
+    work = _LEVEL_SHAPE_WORK
+    for pair in offered:
+        place = pair[1]
+        size = sizes[place]
+        if size < 2:
+            continue
+        # A BOUNDED AMOUNT OF WORK, stated rather than imposed: each
+        # offer re-ranks the places, which costs twice their number, and
+        # past the budget the arrangement reached so far stands. A tail
+        # of a thousand held-back levels is settled well inside it; a
+        # tail of a hundred thousand makes twenty offers and stops.
+        work = work - 2 * len(sizes)
+        if work < 0:
+            break
+        owed = sorted(
+            [
+                (0 - sizes[other], other) for other in range(len(sizes))
+                if other not in fixed and not arranged[other]
+            ]
+        )
+        before = _rows_past(owed, sizes, supply)
+        if before == 0:
+            break
+        chosen: "list[int]" = []
+        left = size
+        for back in range(len(owed)):
+            other = owed[len(owed) - 1 - back][1]
+            if sizes[other] <= left and sizes[other] < size:
+                chosen += [other]
+                left = left - sizes[other]
+                if left == 0:
+                    break
+        if left != 0 or len(chosen) < 2:
+            continue
+        name = arranged[place]
+        if name not in rooms:
+            rooms[name] = _usable_room(name, len(sizes), used, owners, holes)
+        if taken[name] - 1 + len(chosen) > rooms[name]:
+            continue
+        trial = list(arranged)
+        trial[place] = ""
+        for other in chosen:
+            trial[other] = name
+        after = _rows_past(
+            sorted(
+                [
+                    (0 - sizes[other], other) for other in range(len(sizes))
+                    if other not in fixed and not trial[other]
+                ]
+            ),
+            sizes,
+            supply,
+        )
+        if after >= before:
+            continue
+        arranged = trial
+        taken[name] = taken[name] - 1 + len(chosen)
+    owed_last = sorted(
+        [
+            (0 - sizes[other], other) for other in range(len(sizes))
+            if other not in fixed and not arranged[other]
+        ]
+    )
+    for pair in owed_last[:supply]:
+        covered_places[pair[1]] = 1
+    return arranged, covered_places
+
+
+# How many place-visits the trade pass of `_level_shape_spent` may spend.
+_LEVEL_SHAPE_WORK = 1 << 22
+
+
+def _rows_past(
+    ranked: "list[tuple[int, int]]", sizes: "tuple[int, ...]", supply: int
+) -> int:
+    """The rows of the places ranked past a shape's supply (P4-D122)."""
+    rows = 0
+    for pair in ranked[supply:]:
+        rows = rows + sizes[pair[1]]
+    return rows
+
+
 def _made_up_label(
     number: int,
     used: "dict[str, int]",
@@ -16771,6 +17337,7 @@ def _made_up_label(
     form: str,
     holes: "tuple[str, ...]",
     walked: "dict[str, int]",
+    level_shape: str = "",
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -16797,6 +17364,12 @@ def _made_up_label(
     `_is_a_usable_stand_in` asks them, because a spelling built to look
     like a code no longer has them for free.
     """
+    if not form and level_shape:
+        # OWED NO NAMED FORM, IT WEARS THE SHAPE OF THE COLUMN'S OWN
+        # PUBLISHED LABELS (plan P4-D122), walked with the same cursor
+        # and the same refusals a named form is. Where that supply is
+        # spent the neutral spelling below stands, as before.
+        form = level_shape
     if form:
         # THE FORM'S CURSOR IS CARRIED ACROSS STAND-INS, and the
         # counter for the neutral spelling is NOT TOUCHED here (review
@@ -16881,6 +17454,14 @@ _SIGN_POSITIVE_BIT = 4
 # takes the one-pass walk instead: the size of the list times the debt.
 _CLASS_SUM_WORK = 1 << 24
 
+# HOW MANY DIFFERENT EXACT CLASS ARRANGEMENTS ARE TRIED before the
+# first one stands (landing 2b.13, Codex item 5 of landing 2b.4). Each
+# pass forbids one more of the places the refused arrangement spent, so
+# the passes reach genuinely different subsets; the bound is here
+# because a column of many held-back levels must not spend unbounded
+# arithmetic on an arrangement the report would name either way.
+_CLASS_RETRIES = 8
+
 # WHY A HELD-BACK GROUP COUNT IS MISSED, in the two cases there are
 # (method G12). Each is one fixed sentence, chosen by what happened
 # and never written at the place that emits it.
@@ -16928,6 +17509,71 @@ _HELD_BACK_UNPLACED_REASON = (
     "smallest step this column's forms write, and a statistic computed "
     "over them means nothing about your table."
 )
+
+# ...AND THE SAME SHORTFALL WHERE THE COLUMN DID PUBLISH A NUMBER, but
+# not one this walk can step from (landing 2b.8, Codex item 7 of landing
+# 2b.4). The ladder is built from the PLAIN decimals among the published
+# spellings -- an optional minus, figures, at most one point -- so a
+# column publishing `1.1e6` and `1.2e6`, or a grouped `12,345`, or a
+# leading-plus `+5`, has an unanchored ladder although it published two
+# numbers on twenty-two rows. The sentence above then told the reader
+# that the column "published no number at all", which is false on its
+# face and is the kind of sentence this repository treats as a defect
+# rather than a nuance: the reader checks the description, finds the
+# numbers, and stops believing the report. This one says what is true --
+# the numbers are published and the walk cannot spell them -- and the
+# location is invented either way.
+# AND THE SENTENCE MOVED WITH THE RULE (landing 2b.15 repair, plan
+# P4-D101). While the bound refused every spelling of such a column,
+# "they count upward from the smallest step this column's forms write"
+# was true: the cells came out `1`. P4-D100 holds them between the
+# smallest and the largest number the column published instead, and on
+# the column that rule is for they come out `5.0E6` -- so the old
+# sentence became false about the very cells it describes, which is the
+# defect this constant exists to prevent rather than a nuance. It now
+# states BOTH cases, and carries the clause `_HELD_BACK_NUMBERS_REASON`
+# already carries: a made-up number can equal a held-back one and is
+# still worked out from the published numbers alone.
+_HELD_BACK_UNSPELLED_REASON = (
+    "Those labels covered too few rows to publish, so the twin "
+    "keeps their number and their sizes but not the labels. Where "
+    "they were numbers the twin writes numbers in their place -- but "
+    "every number this column published is written in a way this "
+    "version cannot step from, such as an exponent, a grouping mark "
+    "or a leading plus, so nothing in the description says where the "
+    "made-up ones lie. They are held between the smallest and the "
+    "largest number this column published, where a form of theirs "
+    "spells one there, and they count upward from the smallest step "
+    "this column's forms write where it does not. A made-up number "
+    "can equal one your table held back, but it is worked out from "
+    "the published numbers alone and from no fact about the held-back "
+    "one, and where between those ends it falls is this version's own "
+    "choice, so a statistic computed over these cells is not a fact "
+    "about your table."
+)
+
+
+def _published_an_unspellable_number(
+    written: "list[str]", decimal_comma: bool
+) -> bool:
+    """Whether a published spelling is a number the ladder cannot step from.
+
+    True where some published cell reads as a number under the column's
+    own grammar and NONE of the numbers it published is a plain decimal,
+    which is the one shape `_plain_units` reads. That is the difference
+    between a column that published no number and a column whose every
+    published number is spelled in a way this version cannot walk.
+    """
+    numbers = 0
+    plain = 0
+    for cell in written:
+        read = _read_in_grammar(cell, decimal_comma)
+        if parsing.classify_number(read) != parsing.NUMBER:
+            continue
+        numbers = numbers + 1
+        if _plain_units(read) is not None:
+            plain = plain + 1
+    return numbers > 0 and plain == 0
 
 
 def _reads_as_its_class(
@@ -17007,10 +17653,75 @@ def _classes_owed(
 
 
 def _form_reading(form: str, decimal_comma: bool) -> str:
-    """The class a published form's spellings read as, read off its first."""
-    return parsing.classify_number(
+    """The class a published form's spellings read as.
+
+    THE FIRST FILLING IS NOT THE ONLY ONE, and reading only it threw
+    away a column's published numbers (landing 2b.13, Codex item 7 of
+    landing 2b.4). `_filled_form` puts `A` in the first letter place, so
+    `%.%@%` -- the form of `1.1e6` -- fills to `0.0A0`, which reads as
+    TEXT. The form was therefore offered to the word debt and never to
+    the number debt, and the four held-back cells of a column publishing
+    `1.1e6` and `1.2e6` on twenty-two rows were written `1`: the census
+    named `%.%@%` twenty-six times, the twin wore it twenty-two, and
+    `synthtwin validate` exited 3 while the table itself passed.
+
+    SO THE EXPONENT FILLING IS ASKED TOO. A letter place holding `E` is
+    what makes a form of figures and one letter a number, and the same
+    form's own walk (`_class_form_stand_in`) reaches such a spelling at
+    its second step -- `9.6E6` -- so the class this answers is one the
+    walk can really write. Asked ONLY where the first filling reads as
+    no numeric class at all, so no form already settled moves, and only
+    NUMBER is answered: a form is not talked into the out-of-range or
+    contradictory debts, whose spellings G10.3 constructs outright.
+
+    THE LIMIT IS STATED RATHER THAN LEFT TO BE FOUND. One probe fills
+    EVERY letter place with `E`, so a form whose letter places would
+    have to differ -- `@%@`, which no filling makes a number anyway --
+    is answered exactly as before. A form of two letter places that
+    needs `E` in one of them is not reached, and is written as text as
+    it was before this rule.
+    """
+    reading = parsing.classify_number(
         _read_in_grammar(_filled_form(form, 0), decimal_comma)
     )
+    if reading != parsing.NOT_A_NUMBER:
+        return reading
+    exponent = _exponent_filling(form)
+    if exponent and parsing.classify_number(
+        _read_in_grammar(exponent, decimal_comma)
+    ) == parsing.NUMBER:
+        return parsing.NUMBER
+    return reading
+
+
+def _exponent_filling(form: str) -> str:
+    """One filling of a form wearing `E` in every letter place, or "".
+
+    The probe of `_form_reading`: every figure mark takes `0`, every
+    letter mark takes `E`, and every other character stands as itself,
+    because the marks ARE the form. Empty where the form holds no letter
+    mark at all, which is the ordinary case and costs one scan.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE, on the same ground
+    `_filled_form` does not: the form is built by replacing every figure
+    and letter of a cell before it is published, and the characters put
+    back here are two constants of this module.
+    """
+    if parsing.SHAPE_LETTER not in form and parsing.SHAPE_LOWER not in form:
+        return ""
+    spelled = ""
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            spelled = spelled + "0"
+        elif character == parsing.SHAPE_LETTER:
+            spelled = spelled + "E"
+        elif character == parsing.SHAPE_LOWER:
+            # `1.1e6` written in lower case has the key `%.%&%`, and its
+            # probe is the lower-case exponent (plan P4-D121).
+            spelled = spelled + "e"
+        else:
+            spelled = spelled + character
+    return spelled
 
 
 def _plain_units(spelling: str) -> "tuple[int, int] | None":
@@ -17078,11 +17789,22 @@ class _Ladder:
     number, and `published` every published number, all as whole numbers
     of the finest decimal place any published number was written with,
     which is `places`. `signs` holds the signs those numbers have, as
-    bits. `anchored` is False where no number was published at all.
+    bits. `anchored` is False where no number the walk can STEP FROM was
+    published at all.
     `tiers` are the counts of decimal places a number wearing no named
     form may be written at, finest first: every count a published number
     was written with, or -- where none was published -- the places of
     the forms still owed and then none at all.
+
+    `least` and `greatest` are the smallest and the largest VALUE the
+    column published, and `spanned` is False where it published no
+    number at all (landing 2b.15, plan P4-D100). They are not the
+    ladder's ends and they do not move its walk: a number spelled with
+    an exponent, a grouping mark or a leading plus has a value this
+    module can read and a spelling `_plain_units` cannot step from, so
+    it is absent from `lowest`, `highest` and `published` and present
+    here. What they are for is the BOUND of G8.3a step 2, which asks
+    only how large a made-up number may be.
     """
 
     lowest: int
@@ -17092,6 +17814,9 @@ class _Ladder:
     anchored: bool
     published: "dict[int, int]"
     tiers: "tuple[int, ...]"
+    least: float
+    greatest: float
+    spanned: bool
 
 
 def _number_ladder(
@@ -17117,6 +17842,13 @@ def _number_ladder(
     """
     seen: "dict[str, int]" = {}
     parsed: "list[tuple[int, int]]" = []
+    # EVERY PUBLISHED NUMBER'S VALUE, whether or not the walk can step
+    # from its spelling (landing 2b.15, plan P4-D100). `_plain_units`
+    # reads one shape and the column may have published another, so the
+    # two lists part company exactly where landing 2b.13 left the debt
+    # unpayable: an exponent, a grouped number or a leading plus is a
+    # magnitude the description states and a rung the ladder lacks.
+    span: "list[float]" = []
     for cell in written:
         if cell in seen:
             continue
@@ -17124,10 +17856,21 @@ def _number_ladder(
         read = _read_in_grammar(cell, decimal_comma)
         if parsing.classify_number(read) != parsing.NUMBER:
             continue
+        size = parsing.parse_number(read)
+        if size is not None:
+            span += [size]
         units = _plain_units(read)
         if units is None:
             continue
         parsed += [units]
+    least = 0.0
+    greatest = 0.0
+    for step in range(len(span)):
+        if step == 0 or span[step] < least:
+            least = span[step]
+        if step == 0 or span[step] > greatest:
+            greatest = span[step]
+    spanned = len(span) > 0
     if not parsed:
         places = 0
         for form in forms:
@@ -17135,7 +17878,10 @@ def _number_ladder(
         tiers: "tuple[int, ...]" = (0,)
         if places > 0:
             tiers = (places, 0)
-        return _Ladder(0, 0, places, _SIGN_POSITIVE_BIT, False, {}, tiers)
+        return _Ladder(
+            0, 0, places, _SIGN_POSITIVE_BIT, False, {}, tiers,
+            least, greatest, spanned,
+        )
     places = max([pair[1] for pair in parsed])
     counted: "dict[int, int]" = {}
     for pair in parsed:
@@ -17159,7 +17905,8 @@ def _number_ladder(
         else:
             signs = signs | _SIGN_POSITIVE_BIT
     return _Ladder(
-        lowest, highest, places, signs, True, published, finest_first
+        lowest, highest, places, signs, True, published, finest_first,
+        least, greatest, spanned,
     )
 
 
@@ -17464,7 +18211,7 @@ def _next_on_ladder(
             if state == _LADDER_SKIP:
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
-            form = parsing.shape_form(candidate)
+            form = parsing.census_form(candidate, named)
             if name == _OWED_NUMBER:
                 if form in named:
                     continue
@@ -17525,12 +18272,168 @@ def _ladder_room(
     return usable
 
 
+def _within_the_published_ends(
+    candidate: str, ladder: "_Ladder", decimal_comma: bool
+) -> bool:
+    """Whether a made-up number lies between the published numbers' ends.
+
+    THE BOUND THE FORM'S OWN WALK DID NOT HAVE (landing 2b.13 repair,
+    plan P4-D92). Step 3's ladder is built out of the published numbers
+    and steps from them -- the gaps between the two ends first, then
+    outward a step at a time -- so every number it writes sits in or
+    beside the span the column is known to hold. The form's own walk of
+    step 2 is not a ladder at all: it fills the form's figure places by
+    counting, so the first spelling it reaches that reads as a number is
+    whatever the counting arrives at, with nothing whatever to do with
+    the column's magnitudes.
+
+    MEASURED, on the reviewer's own column. Thirty `alpha` cells beside
+    `1.1e6` and `1.2e6` on eleven rows each and `1.3e6` on four: the
+    form's own walk wrote `9.6E6` for all four held-back cells at every
+    one of seven generate seeds. The census was then met exactly -- and
+    the twin's numbers had mean 2,450,000 and maximum 9,600,000 against
+    the table's 1,173,077 and 1,300,000, a spread 42.9 times the
+    table's against the 5.9 times it replaced. `synthtwin validate`
+    exited 0 on that twin where it had exited 3, so the one signal a
+    reader had was spent buying the census count.
+
+    A twin whose statistics are wrong is not a twin, and the ruling
+    that its statistics are reliable ranks with the ruling that code
+    runs unchanged. So the value is asked as well as the form: outside
+    the published ends the spelling is refused, the form goes unpaid,
+    and the report line and the exit code that announce the shortfall
+    STAND. A detectable miss is not traded for an undetectable one.
+
+    Asked of the number class alone. An out-of-range or contradictory
+    stand-in is built by G10.3 outright and means a magnitude no
+    envelope covers.
+
+    AND THE ENDS ARE VALUES, NOT RUNGS (landing 2b.15, plan P4-D100).
+    P4-D92 asked the LADDER for the ends, and the ladder is built from
+    plain decimals alone, so a column whose every published number wears
+    an exponent, a grouping mark or a leading plus had no ends and every
+    spelling of its form was refused -- the debt standing at four cells
+    on a census of twenty-six, twin validate 3 against the table's 0, at
+    seven generate seeds. That column does publish numbers: 1,100,000 to
+    1,300,000, stated in the description and read by this module's own
+    parser. What it does not publish is a rung to STEP from, which is a
+    fact about the walk of step 3 and not about how large a made-up
+    number may be. So the bound asks `least` and `greatest`, which every
+    published number reaches. Nothing here places the number -- the
+    ladder still cannot step, `unplaced` still answers from `anchored`,
+    and `_HELD_BACK_UNSPELLED_REASON` still tells the reader the
+    location is invented. The bound only keeps it inside the magnitudes
+    the column is known to hold, which is all P4-D92 ever asked of it.
+
+    Where the column published NO number at all there are still no ends
+    of any kind, and every spelling is still refused.
+    """
+    value = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
+    if value is None:
+        return False
+    if not ladder.anchored:
+        if not ladder.spanned:
+            return False
+        if value < ladder.least:
+            return False
+        return value <= ladder.greatest
+    scale = float(_ten_to(ladder.places))
+    if value < float(ladder.lowest) / scale:
+        return False
+    return value <= float(ladder.highest) / scale
+
+
+def _settles_its_forms(
+    taken: "dict[int, str]",
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    decimal_comma: bool,
+) -> bool:
+    """Whether each class's own form debts can still be settled exactly.
+
+    THE SPLIT SETTLES CELLS AND THE FORMS ARE SETTLED INSIDE IT, so an
+    arrangement that meets every class exactly can still make a form debt
+    impossible (landing 2b.13, Codex item 5 of landing 2b.4). MEASURED,
+    on the reviewer's own column: readings `5.1` and `5.3` on eleven
+    rows each beside `ab-cd` on twenty, with `5.2` on four rows, `8` on
+    one and two words held back. Five cells must be numbers and four of
+    them must wear `%.%`. The held-back sizes are 4, 1, 3 and 2, and
+    `_class_split` took 3+2 -- which makes five exactly and cannot make
+    four at all -- so the twin wrote TWENTY-SEVEN cells of `%.%` against
+    a published twenty-six, and `synthtwin validate` exited 3 while the
+    table passed. The source's own 4+1 meets both.
+
+    So the same arithmetic that settles the classes is asked of the
+    forms BEFORE the arrangement is accepted: inside each class, the
+    forms reading as that class are settled over that class's sizes by
+    `_settled_by_sums`, both debt orders, with every form's supply taken
+    as the number of sizes. A class whose forms cannot be settled that
+    way refuses the arrangement and `_class_split` tries another.
+
+    A DEBT NO ARRANGEMENT COULD PAY DOES NOT VETO ONE. A form owing more
+    cells than the whole class covers is unpayable under every split --
+    the published cells owe the rest of it -- so it is not asked, and an
+    arrangement is not refused for failing to do the impossible.
+
+    The supply is counted as the number of sizes rather than walked,
+    which is deliberate: this asks whether the ARITHMETIC exists, and
+    the walk that follows still reports whatever the supply then
+    refuses. Preferring an arithmetically possible arrangement can
+    therefore never be worse than taking the first one blind.
+    """
+    for name in _OWED_CLASSES:
+        reads = _owed_reading(name)
+        mine = [
+            place
+            for place in range(len(sizes))
+            if place in taken and taken[place] == name
+        ]
+        if not mine:
+            continue
+        sub = tuple([sizes[place] for place in mine])
+        covered = 0
+        for size in sub:
+            covered = covered + size
+        wanted = {
+            form: owing[form]
+            for form in sorted(owing)
+            if owing[form] > 0
+            and owing[form] <= covered
+            and _form_reading(form, decimal_comma) == reads
+        }
+        if not wanted:
+            continue
+        order = sorted([(0 - sub[step], step) for step in range(len(sub))])
+        spots = [pair[1] for pair in order]
+        room = {form: len(sub) for form in sorted(wanted)}
+        names = [form for form in sorted(wanted)]
+        settled: "list[str] | None" = None
+        for biggest_first in (True, False):
+            settled = _settled_by_sums(
+                sub, spots, wanted, names, room, biggest_first
+            )
+            if settled is not None:
+                break
+        if settled is None:
+            return False
+    return True
+
+
 def _class_split(
     sizes: "tuple[int, ...]",
     debts: "dict[str, int]",
     supply: "dict[str, int]",
+    owing: "dict[str, int] | None" = None,
+    decimal_comma: bool = False,
 ) -> "dict[int, str]":
     """Which held-back groups pay which class debt, before any form.
+
+    ``owing`` is the census's remaining form debt. Given, an arrangement
+    is accepted only where `_settles_its_forms` says each class can
+    still settle the forms that read as it; otherwise another exact
+    arrangement is tried, up to `_CLASS_RETRIES`, and the FIRST one
+    stands where none of them can. Absent, the first stands as it always
+    did, which is what every caller outside method G8.3a wants.
 
     THE CLASS COMES FIRST because it decides how every cell parses: a
     group owed as a number that is written as a word crashes code on the
@@ -17548,17 +18451,41 @@ def _class_split(
     order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
     places = [pair[1] for pair in order]
     largest = max([debts[name] for name in names])
+    first: "dict[int, str] | None" = None
     if len(places) * largest <= _CLASS_SUM_WORK:
         for biggest_first in (True, False):
-            settled = _settled_by_sums(
-                sizes, places, debts, names, dict(supply), biggest_first
-            )
-            if settled is not None:
-                return {
+            avoid: "tuple[int, ...]" = ()
+            for _again in range(_CLASS_RETRIES):
+                settled = _settled_by_sums(
+                    sizes, places, debts, names, dict(supply),
+                    biggest_first, avoid,
+                )
+                if settled is None:
+                    break
+                taken_now = {
                     place: settled[place]
                     for place in range(len(sizes))
                     if settled[place]
                 }
+                # THE FIRST EXACT ARRANGEMENT IS THE FALLBACK, so a
+                # column whose forms no arrangement settles is written
+                # exactly as it was before this rule.
+                if first is None:
+                    first = taken_now
+                if owing is None or _settles_its_forms(
+                    taken_now, sizes, owing, decimal_comma
+                ):
+                    return taken_now
+                spent = [
+                    place
+                    for place in range(len(sizes))
+                    if settled[place] and place not in avoid
+                ]
+                if not spent:
+                    break
+                avoid = avoid + (spent[0],)
+    if first is not None:
+        return first
     left = {name: debts[name] for name in names}
     spare = {name: supply[name] for name in names}
     taken: "dict[int, str]" = {}
@@ -17598,7 +18525,7 @@ def _straggler_stand_in(
         candidate = _contradictory_spelling(counters[name])
         if name == _OWED_OUT_OF_RANGE:
             candidate = _out_of_range_spelling(counters[name], False)
-        if parsing.shape_form(candidate) in named:
+        if parsing.census_form(candidate, named) in named:
             continue
         if candidate in used or parsing.folded(candidate) in owners:
             continue
@@ -17618,12 +18545,20 @@ def _class_form_stand_in(
     owners: "dict[str, str]",
     holes: "tuple[str, ...]",
     decimal_comma: bool,
+    ladder: "_Ladder | None" = None,
 ) -> str:
     """A spelling of one published form that reads as one numeric class.
 
     The form walk of `_made_up_label`, asked for a class other than
     text, and answering "" rather than a neutral spelling where the form
     has none left -- the caller then settles the class without the form.
+
+    AND, FOR A NUMBER, HELD TO THE PUBLISHED NUMBERS' OWN ENDS (landing
+    2b.13 repair, plan P4-D92). ``ladder`` given, a spelling is refused
+    where its VALUE lies outside the span the published numbers cover,
+    so this walk can never buy a census count with a number the column
+    is not known to hold. The out-of-range and contradictory classes
+    pass no ladder and are unbounded, which is what those classes mean.
     """
     room = min(_form_room(form), _STAND_IN_STEPS)
     if form not in walked:
@@ -17634,6 +18569,10 @@ def _class_form_stand_in(
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
+            continue
+        if ladder is not None and not _within_the_published_ends(
+            candidate, ladder, decimal_comma
+        ):
             continue
         return candidate
     return ""
@@ -18181,6 +19120,39 @@ def _laid_identifiers(
     states: dict[str, list[int]] = {
         name: [facts.min_length, 0, 0] for name in families
     }
+    # THE PUBLISHED LAYOUTS, AND WHAT IS LEFT OF EACH (7.12, plan
+    # P4-D120). Empty on every column that publishes no layout, which
+    # is what makes this landing move no byte on a column it does not
+    # describe: `_layout_identifier` answers None at once and the walk
+    # below is the walk this module always had.
+    quotas: dict[str, int] = {}
+    steps: dict[str, int] = {}
+    convention = _layout_convention(facts)
+    for layout in _named_layouts(facts):
+        quotas[layout] = facts.layout_forms[layout]
+        # EACH LAYOUT'S WALK STARTS AT ITS OWN STEP (plan P4-D128): the
+        # k-th layout in sorted order at `1 + k * _LAYOUT_STEPS`. Not at
+        # nought, because step nought is the all-nought, all-`A` filling,
+        # and on a census of many small layouts that was a large share of
+        # the column -- 36 per cent of the figures of 800 random codes at
+        # a floor of one were noughts against 10 per cent of the table's.
+        # And not all at one step, because the trailing characters of a
+        # filling follow the step's golden fraction whatever the room, so
+        # two layouts walked from the same step end alike: `REC` and
+        # seven figures beside `E` and six came back `MBL8574256` beside
+        # `Q457425`.
+        steps[layout] = 1 + len(steps) * _LAYOUT_STEPS
+    # WHICH LAYOUT EACH GROUP IS OFFERED FIRST, settled before any cell
+    # is spelled (7.12, plan P4-D120). See `_layout_preferences`: the
+    # census is spread over the groups by the smooth weighted rotation,
+    # so no layout is bound to how often its record numbers repeat.
+    preferred = _layout_preferences(
+        facts, families, kinds, bands, groups, windows, carriers, folded,
+        convention,
+    )
+    stand_ins = _layout_stand_in_bases(facts)
+    admitted: dict[str, bool] = {}
+    mixed: dict[str, int] = {}
     short = [0 for _cell in range(len(_CLASSES) * width)]
     supply = [0 for _cell in range(len(_CLASSES) * width)]
     spellings: list[str] = []
@@ -18213,6 +19185,30 @@ def _laid_identifiers(
             continue
         letter = asks[index] and band != _BAND_DIGITS
         spelling: str | None = None
+        # THE CELL IS WRITTEN TO ITS PUBLISHED LAYOUT WHERE THERE IS
+        # ONE (7.12, plan P4-D120), and to the walk below where there
+        # is not. The layout is offered BEFORE the length pins because
+        # a layout IS a length: a slot pinned to an end is offered only
+        # layouts of exactly that length, so the pin is kept by the
+        # offer rather than in spite of it.
+        laid = _layout_identifier(
+            kind, band, windows[index], convention, quotas, steps,
+            groups[index], used, letter, preferred[index],
+        )
+        if laid is None and stand_ins:
+            # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
+            # cells too few to name, the cells of a layout the census
+            # took back -- WEARS A LAYOUT OF THE COLUMN'S OWN KINDS
+            # (plan P4-D128), and only where there is none does it fall
+            # to the walk below. See `_layout_stand_in`.
+            laid = _layout_stand_in(
+                kind, band, windows[index], convention, facts, stand_ins,
+                steps, used, admitted, mixed,
+            )
+        if laid is not None:
+            _claim(laid, used)
+            spellings += [laid]
+            continue
         if index == carriers[0]:
             spelling = _pinned_identifier(
                 kind, band, facts, facts.min_length, used, letter,
@@ -18240,6 +19236,655 @@ def _laid_identifiers(
     if repeated or len(set(spellings)) < total:
         notes = notes + _repeat_notes(column)
     return _grouped(groups, spellings), notes, short, supply
+
+
+# -- writing a record number to its PUBLISHED LAYOUT (7.12, G9.6) -----
+#
+# THE HALF THAT MAKES THE CENSUS WORTH PUBLISHING. `layout_forms` says
+# what KIND of character stood at each position of a record number, and
+# until this walk existed the generator did not read it: a column of
+# UUIDs published its layout and its twin still wrote
+# `A----------------------------------J`, matching 0 of its own 800
+# rows. The census is written BACK here, and the twin's cells are held
+# to it by the same recount the form census is held to.
+#
+# WHAT IS DELIBERATELY NOT HERE. A literal run -- a hospital's own
+# record prefix, `ABC-` in front of a study number -- is a fragment of
+# every value in its column, which contract invariants I3 and F3
+# forbid, and it waits for the owner's ruling on clause 3 (landing
+# 2b.15). Every OTHER degree of freedom a record number has is fixed by
+# the census this walk reads: the length, the position of every figure
+# and letter, the case, the alphabet and the leading nought.
+
+
+# How many spellings of one layout this walk will try before it gives
+# the layout up. A UUID layout holds 16**32 of them, and a walk that
+# insisted on finding a usable one could spend an unbounded time on a
+# description the loader accepted. It is the bound `_STAND_IN_STEPS`
+# puts on the form census's own walk, for the same reason.
+_LAYOUT_STEPS = 4096
+
+
+def _named_layouts(facts: contract.IdentifierFacts) -> "list[str]":
+    """The layouts this column published, in the order they are offered.
+
+    Sorted, so which layout a group is offered first is a function of
+    the description and of nothing else. The pooled key is not one of
+    them: `(withheld)` names no layout, so there is nothing to write a
+    cell to, and a walk that treated it as one would write the string
+    `(withheld)` into a twin.
+    """
+    named: list[str] = []
+    for layout in sorted(facts.layout_forms):
+        if layout == contract.WITHHELD:
+            continue
+        named += [layout]
+    return named
+
+
+def _layout_convention(facts: contract.IdentifierFacts) -> str:
+    """Which alphabet convention this column's layouts were built under.
+
+    READ OFF THE PUBLISHED KEYS AND OFF NOTHING ELSE, because that is
+    all a generator has: a hexadecimal mark appears in a column's
+    layouts exactly when the producer decided the whole column was
+    written in hexadecimal, so one such mark anywhere in the census
+    settles it, and a census with none is a plain one. The producer's
+    own rule is all-or-nothing over the column (7.12), so the two
+    cannot disagree.
+
+    It is needed because the census's own reader has to be asked
+    whether a finished cell wears the layout it was written to, and
+    that reader takes the convention as its second argument.
+    """
+    for layout in sorted(facts.layout_forms):
+        if layout == contract.WITHHELD:
+            continue
+        for character in layout:
+            if character == parsing.LAYOUT_LOWER_HEX:
+                return parsing.LAYOUT_HEX_LOWER
+            if character == parsing.LAYOUT_UPPER_HEX:
+                return parsing.LAYOUT_HEX_UPPER
+    return parsing.LAYOUT_PLAIN
+
+
+def _layout_holds_a_letter(layout: str) -> bool:
+    """Whether EVERY spelling of one layout holds a character with a case.
+
+    Only the two case placeholders guarantee it. A hexadecimal mark does
+    not: `~` stands for one of sixteen characters, ten of which are
+    figures, so a layout of hexadecimal marks alone can be filled
+    without a letter and the fold-collision ask cannot rely on it.
+    """
+    for character in layout:
+        if character == parsing.LAYOUT_UPPER:
+            return True
+        if character == parsing.LAYOUT_LOWER:
+            return True
+    return False
+
+
+def _filled_layout(layout: str, step: int) -> str:
+    """One spelling of one published layout, stepped by ``step``.
+
+    THE LAYOUT SAYS THE SHAPE AND THE STEP SAYS WHICH ONE, exactly as
+    `_filled_form` does for the form census. Every `%` takes a figure,
+    every `@` an upper-case letter, every `&` a lower-case one, every
+    `~` or `^` a hexadecimal character of the case its mark names, and
+    every mark stands as itself. The step is taken apart into those
+    positions by plain mixed-radix arithmetic, LEFTMOST FIRST, so
+    consecutive steps differ in the leading characters rather than in
+    the trailing ones -- which is what keeps a column of record numbers
+    from coming out as a near-consecutive walk, the shape LTM-5
+    measured (`10000020`, `10000021`, ...).
+
+    `!` TAKES THE FIGURE NOUGHT AND SPENDS NO STEP, because that is
+    what the mark says: that character of a cell written in figures
+    alone WAS a nought of its zero fill. It is the fill of NC-9 -- the
+    `%08d` a reader loses when pandas or R reads `01586982` as
+    1586982 -- and it is the one place in this module where a made-up
+    whole number may open with a nought. It can name no text anybody
+    chose, because the census only ever writes it where the whole cell
+    is figures. The figure after the fill must not be a nought, or the
+    cell would recount one nought deeper, and `_fits_its_slot` steps
+    over such a filling.
+
+    THE STEP IS SPREAD BY `_layout_stepped`, not by `_stepped_around`
+    (plan P4-D128). The older stride is the room times 61803 over
+    100000, and on a room that is a power of ten that stride ends in
+    noughts, so its low figures -- which this arithmetic hands to the
+    LEFTMOST positions -- were the step's own and mostly nought.
+    Measured on 800 thirteen-figure codes: 44.8 per cent of the twin's
+    figures were noughts against 11.4 per cent of the table's.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE. The layout was built by
+    replacing every figure and every letter of a cell before it was
+    published, and the characters put back here come off the step,
+    which is a count of made-up values and not a reading of anything.
+    """
+    figures = "0123456789"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    lower_hex = "0123456789abcdef"
+    upper_hex = "0123456789ABCDEF"
+    spelling = ""
+    place = _layout_stepped(step, parsing.layout_room(layout))
+    for character in layout:
+        if character == parsing.LAYOUT_DIGIT:
+            spelling = spelling + figures[place % 10]
+            place = place // 10
+            continue
+        if character == parsing.LAYOUT_UPPER:
+            spelling = spelling + upper[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.LAYOUT_LOWER:
+            spelling = spelling + lower[place % 26]
+            place = place // 26
+            continue
+        if character == parsing.LAYOUT_LOWER_HEX:
+            spelling = spelling + lower_hex[place % 16]
+            place = place // 16
+            continue
+        if character == parsing.LAYOUT_UPPER_HEX:
+            spelling = spelling + upper_hex[place % 16]
+            place = place // 16
+            continue
+        if character == parsing.LAYOUT_LEADING_ZERO:
+            spelling = spelling + "0"
+            continue
+        spelling = spelling + character
+    return spelling
+
+
+def _layout_stepped(step: int, room: int) -> int:
+    """``step`` moved around a layout's ``room`` so every position varies.
+
+    The rule of `_stepped_around` -- a stride coprime to the room is a
+    bijection on it, so no two steps below the room collide -- with the
+    stride taken as the golden section of the room EXACTLY, in whole
+    numbers, rather than to five figures. Five figures leave the stride
+    ending in noughts wherever the room is a power of ten, and the
+    filling reads the low figures of the product first (plan P4-D128);
+    a section taken to a fixed number of bits does the same on a room
+    that is a power of two, which a hexadecimal layout's always is. The
+    exact section -- the whole part of the room times the square root of
+    five, less the room, halved -- has no such run on any room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max((_whole_root(5 * room * room) - room) // 2, 1)
+    while _shares_a_factor(stride, room):
+        stride = stride + 1
+    return (step * stride) % room
+
+
+def _whole_root(number: int) -> int:
+    """The whole part of the square root of a whole number at least one.
+
+    Newton's step on whole numbers, started above the root, which falls
+    to the root and stops there. Written out because this module takes
+    from `math` only the names its offline policy enumerates.
+    """
+    guess = 1
+    while guess * guess < number:
+        guess = guess * 2
+    while True:
+        better = (guess + number // guess) // 2
+        if better >= guess:
+            return guess
+        guess = better
+
+
+def _layout_spelling(
+    kind: str,
+    band: str,
+    layout: str,
+    convention: str,
+    steps: "dict[str, int]",
+    used: "dict[str, int]",
+) -> "str | None":
+    """The next free spelling of one layout that keeps its slot's family.
+
+    EVERY GUARD THE ORDINARY WALK APPLIES IS APPLIED HERE. A layout
+    fixes what a cell LOOKS like and settles nothing about what the
+    contract's own readers make of it, so a candidate is taken only
+    where the shipped classifier reads it back as this slot's class and
+    the shipped alphabet readers recount it into this slot's band. That
+    is what keeps the four class counts and the two alphabet counts
+    EXACT-OBSERVABLE across this walk rather than trading them for the
+    census: a hexadecimal layout can be filled to twelve figures, which
+    is a different band from the one the packing gave the slot, and such
+    a filling is stepped over rather than written.
+
+    None says this layout has nothing left to offer this slot, and the
+    caller then offers the next layout, and finally falls back to the
+    walk this module always had.
+
+    ``steps`` is per layout and is carried between calls, so a column's
+    walk over one layout is ONE walk rather than one per value.
+    """
+    room = parsing.layout_room(layout)
+    ceiling = min(room, _LAYOUT_STEPS)
+    tried = 0
+    while tried < ceiling:
+        candidate = _filled_layout(layout, steps[layout])
+        steps[layout] = steps[layout] + 1
+        tried = tried + 1
+        opening = candidate[:1]
+        if opening == _SPACE or opening in _FORMULA_LEADERS:
+            # A LAYOUT WHOSE LEADING MARK IS ONE A SPREADSHEET READS AS
+            # THE START OF A FORMULA IS GIVEN UP AT ONCE, not stepped
+            # through. The opening character of a layout's spelling is
+            # the layout's own leading mark wherever that mark is not a
+            # placeholder, so every one of its spellings opens the same
+            # way and no step can rescue it. G9.1's bar stands here as
+            # it stands everywhere else in this module.
+            return None
+        if not _free(candidate, used):
+            continue
+        if _fits_its_slot(kind, band, layout, convention, candidate):
+            return candidate
+    return None
+
+
+def _fits_its_slot(
+    kind: str, band: str, layout: str, convention: str, candidate: str
+) -> bool:
+    """Whether one filling of a layout may stand in a slot, freeness aside.
+
+    Every guard of `_layout_spelling` but the one about what the column
+    has already written, and it is a function of its own so that the
+    walk and the admission test of `_layout_admits` ask ONE predicate
+    and cannot drift apart.
+    """
+    if parsing.classify_number(candidate) != _reads_as(kind):
+        return False
+    if not _reads_in_band(candidate, band):
+        return False
+    if parsing.is_missing_text(candidate):
+        return False
+    if _reads_as_a_date(candidate):
+        return False
+    if parsing.layout_form(candidate, convention) != layout:
+        # THE CELL MUST RECOUNT INTO THE LAYOUT IT WAS WRITTEN TO,
+        # and this is the guard that makes the census a census
+        # rather than a decoration. A layout is filled from a
+        # counter, and a counter has no idea what the census's own
+        # reader will make of what it wrote: `%%%%` filled at a step
+        # whose leading figure is nought spells `0123`, which is a
+        # cell written in figures alone and led by a nought -- so
+        # its layout is `!%%%`, a layout this column may never have
+        # published at all. MEASURED, before this guard existed: a
+        # column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33
+        # of its 320 four-character cells with a leading nought, so
+        # the twin held a zero-filled four-figure spelling the
+        # source never wrote and the census went MISSED at exit 3.
+        #
+        # Asked of the census's OWN reader rather than restated, for the
+        # reason the loader and the publication guard ask it: three
+        # readings of one rule is how a producer, a loader and a guard
+        # come to disagree.
+        return False
+    return True
+
+
+# How many fillings of one layout, counted from its first, the admission
+# test reads before it says a family cannot take that layout at all. It
+# is a PREFERENCE that reads it, never a refusal: a layout the test turns
+# down is still offered by the walk once the preferred one has failed,
+# so a short test can cost the spread of a census and never a cell.
+_LAYOUT_ADMISSION_STEPS = 64
+
+
+def _layout_admits(
+    kind: str, band: str, layout: str, convention: str
+) -> bool:
+    """Whether a slot of one class and one band can wear one layout at all.
+
+    Read off the layout's own opening fillings, with every guard of
+    `_fits_its_slot` and nothing about what the column has written. A
+    layout of figures alone can never stand in a slot the packing gave
+    a letter, and one holding a letter mark can never stand in the
+    figures band; the preference pass below spreads a census only over
+    the layouts a slot could take, because spreading it over the others
+    would hand the slot a layout it must then give back.
+    """
+    ceiling = min(parsing.layout_room(layout), _LAYOUT_ADMISSION_STEPS)
+    for step in range(ceiling):
+        candidate = _filled_layout(layout, step)
+        opening = candidate[:1]
+        if opening == _SPACE or opening in _FORMULA_LEADERS:
+            return False
+        if _fits_its_slot(kind, band, layout, convention, candidate):
+            return True
+    return False
+
+
+def _layout_preferences(
+    facts: contract.IdentifierFacts,
+    families: "list[str]",
+    kinds: "list[str]",
+    bands: "list[str]",
+    groups: "tuple[int, ...]",
+    windows: "list[tuple[int, int | None]]",
+    carriers: "tuple[int, int]",
+    folded: int,
+    convention: str,
+) -> "list[str]":
+    """Which published layout each group is offered FIRST (7.12, G9.6).
+
+    THE CENSUS IS SPREAD OVER THE GROUPS, NOT POURED INTO THEM. The walk
+    lays groups out in the order the multiplicity map and the packing
+    fix, and that order runs from the values written once to the values
+    written most often; a walk taking the first layout with room left
+    gave one layout every singleton and the other every repeat.
+    MEASURED on a two-system key written `REC` and seven figures beside
+    `E` and six, 800 rows, identities repeating one to three times: the
+    real column's one-letter layout held 71 singletons, 34 doubles and
+    26 triples, and the twin's held 217 singletons and nothing else --
+    so code counting visits per record system met a system where nobody
+    ever came back.
+
+    THE RULE. The groups are visited with the two carrying a published
+    length END first, then by the number of cells they cover, largest
+    first, then in walk order. Each visit takes, among the layouts that
+    still have at least as many cells left as the group covers, whose
+    length the group's own window holds and which `_layout_admits` says
+    the group's class and band can wear, the one the SMOOTH WEIGHTED
+    ROTATION names: every layout the family can wear has its published
+    count times the group's size added to its running credit, the
+    candidate with the most credit is taken -- the earliest in sorted
+    order on a tie -- and the family's total times the group's size is
+    taken back from it. The credit is kept per FAMILY, because two
+    families wear different layouts and one family's credit growing on
+    a layout it cannot wear would later pour that layout into the other.
+    Largest first is what keeps the census PAYABLE: a group covering
+    three cells needs a layout with three left, and the singletons that
+    come last can pay any remainder a larger group left behind.
+
+    Only IDENTITIES are visited; a slot the fold-collision partners take
+    wears no layout (G9.3). '' says a group has no preference, and the
+    walk then offers the layouts in sorted order as it always did. The
+    rotation draws no random word.
+    """
+    total = len(groups)
+    reach = total
+    if 1 <= folded < total:
+        reach = folded
+    named = _named_layouts(facts)
+    remaining: dict[str, int] = {}
+    for layout in named:
+        remaining[layout] = facts.layout_forms[layout]
+    preferred = ["" for _group in range(total)]
+    if not named:
+        return preferred
+    visits: list[tuple[int, int, int]] = []
+    for index in range(reach):
+        pinned = index == carriers[0] or (
+            index == carriers[1] and facts.max_length > facts.min_length
+        )
+        visits += [(0 if pinned else 1, -groups[index], index)]
+    credits: dict[str, dict[str, int]] = {}
+    wearable: dict[str, list[str]] = {}
+    for _pinned, _size, index in sorted(visits):
+        family = families[index]
+        if family not in wearable:
+            worn: list[str] = []
+            for layout in named:
+                if _layout_admits(
+                    kinds[index], bands[index], layout, convention
+                ):
+                    worn += [layout]
+            wearable[family] = worn
+            credits[family] = {layout: 0 for layout in worn}
+        covering = groups[index]
+        weight = 0
+        for layout in wearable[family]:
+            weight = weight + facts.layout_forms[layout]
+        best = ""
+        best_credit = 0
+        for layout in wearable[family]:
+            if remaining[layout] < covering:
+                continue
+            if len(layout) < windows[index][0]:
+                continue
+            ceiling = windows[index][1]
+            if ceiling is not None and len(layout) > ceiling:
+                continue
+            credit = (
+                credits[family][layout]
+                + facts.layout_forms[layout] * covering
+            )
+            if best == "" or credit > best_credit:
+                best = layout
+                best_credit = credit
+        if best == "":
+            continue
+        for layout in wearable[family]:
+            credits[family][layout] = (
+                credits[family][layout]
+                + facts.layout_forms[layout] * covering
+            )
+        credits[family][best] = credits[family][best] - weight * covering
+        remaining[best] = remaining[best] - covering
+        preferred[index] = best
+    return preferred
+
+
+def _layout_identifier(
+    kind: str,
+    band: str,
+    window: "tuple[int, int | None]",
+    convention: str,
+    quotas: "dict[str, int]",
+    steps: "dict[str, int]",
+    covering: int,
+    used: "dict[str, int]",
+    letter: bool,
+    preferred: str,
+) -> "str | None":
+    """One record number written to a published layout, or None (7.12).
+
+    THE CENSUS COUNTS CELLS AND THIS WALK SPENDS GROUPS, and the rule
+    that settles them is stated rather than left to the arithmetic:
+    a group covers a fixed number of cells -- its own size, which the
+    multiplicity map fixes before any spelling exists -- and taking a
+    layout lowers that layout's remaining count by the whole group. A
+    group is offered FIRST the layout `_layout_preferences` spread to
+    it, and then every other published layout IN SORTED ORDER; each
+    offer is made only where the layout's remaining count is at least
+    as large as the group covers and its length is one the group's own
+    slot may hold.
+
+    WHERE GROUPS REPEAT IT CAN STILL FALL SHORT, which the preference
+    pass makes rare rather than impossible: a layout owing two cells
+    cannot be paid by a group covering three. What is NOT done is
+    splitting a group across two layouts -- every cell of a group
+    carries the same spelling, so the group wears one layout or none --
+    and what is not done either is trading a class or an alphabet count
+    for a layout. A shortfall is left to be MEASURED off the finished
+    cells by the recount, which is what names it in the twin's own
+    report.
+
+    THE LENGTH ENDS ARE MET BY THE CENSUS ITSELF wherever every cell
+    has a layout, and that is a property rather than a hope: a layout is
+    one mark per character, so the shortest cell's layout is
+    `min_length` marks long and the longest cell's is `max_length`. The
+    slot pinned to an end therefore has a layout of exactly its length
+    to take, and where the floor held that layout back the slot falls
+    through to `_pinned_identifier` and keeps the end as it always did.
+
+    ``letter`` is the fold-collision ask of G9.3 step 1, and it stays an
+    ASK here as it is everywhere else: a layout guaranteeing a character
+    with a case is offered first, and where none fits, the ordinary
+    offer is taken rather than the slot being spent.
+    """
+    offered: list[str] = []
+    if preferred != "":
+        offered += [preferred]
+    for layout in sorted(quotas):
+        if layout != preferred:
+            offered += [layout]
+    for asking in ((True, False) if letter else (False,)):
+        for layout in offered:
+            if quotas[layout] < covering:
+                continue
+            if len(layout) < window[0]:
+                continue
+            if window[1] is not None and len(layout) > window[1]:
+                continue
+            if asking and not _layout_holds_a_letter(layout):
+                continue
+            found = _layout_spelling(
+                kind, band, layout, convention, steps, used
+            )
+            if found is None:
+                continue
+            quotas[layout] = quotas[layout] - covering
+            return found
+    return None
+
+
+# How many made-up layouts one group is offered, over every base, before
+# it falls back to the walk. Bounded because a family whose band no mix
+# of a column's kinds can wear would otherwise read every mix of every
+# base, and the answer to that is the walk anyway.
+_LAYOUT_STAND_IN_TRIES = 16
+
+
+def _layout_stand_in_bases(
+    facts: contract.IdentifierFacts,
+) -> "list[tuple[str, str]]":
+    """The named layouts a stand-in may be made from, with their kinds.
+
+    A base is a named layout written in the PLAIN convention with no zero
+    fill; beside each is the string of case-and-figure placeholders the
+    column's named layouts use between them. Nothing is offered where
+    that string holds fewer than two kinds, because every mix of one
+    kind is the base itself, which is named. A hexadecimal census offers
+    nothing either: its one mark already stands for figures and letters
+    alike, so there is no other mix of it to make.
+    """
+    kinds = ""
+    for layout in _named_layouts(facts):
+        for character in layout:
+            if character not in (
+                parsing.LAYOUT_DIGIT,
+                parsing.LAYOUT_UPPER,
+                parsing.LAYOUT_LOWER,
+            ):
+                continue
+            if character not in kinds:
+                kinds = kinds + character
+    if len(kinds) < 2 or _layout_convention(facts) != parsing.LAYOUT_PLAIN:
+        return []
+    ordered = ""
+    for character in (
+        parsing.LAYOUT_DIGIT, parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER
+    ):
+        if character in kinds:
+            ordered = ordered + character
+    bases: list[tuple[str, str]] = []
+    for layout in _named_layouts(facts):
+        if parsing.LAYOUT_LEADING_ZERO in layout:
+            continue
+        bases += [(layout, ordered)]
+    return bases
+
+
+def _layout_mix(base: str, kinds: str, step: int) -> str:
+    """The ``step``-th mix of ``kinds`` over the kind places of ``base``.
+
+    Every place of the base holding a figure or a case letter takes one
+    of ``kinds``, read off the step spread around the number of mixes by
+    `_layout_stepped`; every other character stands as itself, so the
+    length, the marks and the spaces are the base's own.
+    """
+    places = 0
+    for character in base:
+        if character in kinds:
+            places = places + 1
+    mixes = len(kinds) ** places
+    code = _layout_stepped(step, mixes)
+    built = ""
+    for character in base:
+        if character not in kinds:
+            built = built + character
+            continue
+        built = built + kinds[code % len(kinds)]
+        code = code // len(kinds)
+    return built
+
+
+def _layout_stand_in(
+    kind: str,
+    band: str,
+    window: "tuple[int, int | None]",
+    convention: str,
+    facts: contract.IdentifierFacts,
+    bases: "list[tuple[str, str]]",
+    steps: "dict[str, int]",
+    used: "dict[str, int]",
+    admitted: "dict[str, bool]",
+    mixed: "dict[str, int]",
+) -> "str | None":
+    """A group no named layout serves, written to a layout of its own kinds.
+
+    THE CELLS A CENSUS DOES NOT NAME STILL LOOK LIKE THE COLUMN (plan
+    P4-D128). Before this, every such group fell to the walk of G9.2, and
+    the walk writes `A-----5V`: on 800 random eight-character codes of
+    capitals and figures at a floor of eleven, 565 cells were pooled, and
+    the pattern `[A-Z0-9]{8}` matched 800 real cells and 235 twin cells.
+
+    THE RULE. The bases of `_layout_stand_in_bases` are read in sorted
+    order, each only where its length is one the group's own slot may
+    hold. For each, up to `_LAYOUT_STAND_IN_TRIES` mixes in all are read,
+    counted on from where that base's own reading stopped: a mix the
+    census NAMES is stepped over, because a cell written to it would be
+    counted into a published layout the column owes exactly; a mix whose
+    first sixty-four fillings no slot of this class and band can wear
+    (`_layout_admits`) is stepped over; and the first mix with a free
+    filling that recounts into it is taken. None where no mix serves, and
+    the caller falls back to the walk.
+
+    NOTHING IS PUBLISHED OR OWED BY IT. The mix is made from the kinds the
+    census already names, a cell written to it recounts into no named
+    layout, and the pool it stands in for bounds a count rather than
+    binding one, so the recount of every published layout is untouched.
+    """
+    census = facts.layout_forms
+    tried = 0
+    for base, kinds in bases:
+        if len(base) < window[0]:
+            continue
+        if window[1] is not None and len(base) > window[1]:
+            continue
+        if base not in mixed:
+            mixed[base] = 0
+        while tried < _LAYOUT_STAND_IN_TRIES:
+            mix = _layout_mix(base, kinds, mixed[base])
+            mixed[base] = mixed[base] + 1
+            tried = tried + 1
+            if mix in census:
+                continue
+            asked = f"{kind} {band} {mix}"
+            if asked not in admitted:
+                admitted[asked] = _layout_admits(kind, band, mix, convention)
+            if not admitted[asked]:
+                continue
+            if mix not in steps:
+                # A MIX'S WALK STARTS AT ITS OWN STEP too, the next one
+                # after every layout already started, for the reason the
+                # named layouts' do: a mix is read for a few cells at
+                # most, so mixes walked from one step would share their
+                # trailing characters -- and counted from nought, every
+                # stand-in opened `A00A00AA`.
+                steps[mix] = 1 + len(steps) * _LAYOUT_STEPS
+            found = _layout_spelling(kind, band, mix, convention, steps, used)
+            if found is not None:
+                return found
+    return None
 
 
 def _moved_to(order: "list[int]", place: int) -> int:
@@ -19695,6 +21340,7 @@ def _text_cells(
         facts.length.maximum,
         budget,
         kinds,
+        bands,
     )
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
@@ -19742,6 +21388,7 @@ def _text_cells(
                 budget,
                 groups[index],
                 _reads_as(kind),
+                band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
         spelling = _made_up_cell(
@@ -20114,9 +21761,18 @@ def _text_plan(
             fixed = _number_lengths(
                 facts, groups, lengths, kinds, bands, carriers
             )
+            # ...AND A GROUP OF TEXT WEARING A PUBLISHED FORM HOLDS THAT
+            # FORM'S LENGTH THE SAME WAY (method G9.5 step 7, plan
+            # P4-D75). The census is EXACT and the average is
+            # APPROXIMATED, so the average is carried by the groups no
+            # form spoke for -- and not, as it was, by refusing the
+            # forms a walk toward the average had already priced out.
+            fixed, worded = _held_for_the_census(
+                facts, groups, lengths, counts, kinds, bands, carriers, fixed
+            )
             if fixed:
                 lengths, counts, notes = _text_shape(
-                    column, facts, groups, carriers, fixed
+                    column, facts, groups, carriers, fixed, worded
                 )
                 if reach:
                     lengths = _lengthened(
@@ -20135,9 +21791,12 @@ def _text_plan(
         groups, lengths, counts, kinds, bands, carriers, line
     )
     fixed = _number_lengths(facts, groups, lengths, kinds, bands, carriers)
+    fixed, worded = _held_for_the_census(
+        facts, groups, lengths, counts, kinds, bands, carriers, fixed
+    )
     if fixed:
         lengths, counts, notes = _text_shape(
-            column, facts, groups, carriers, fixed
+            column, facts, groups, carriers, fixed, worded
         )
     return lengths, counts, kinds, bands, carriers, notes
 
@@ -20528,6 +22187,68 @@ def _number_forms(
     return chosen
 
 
+def _number_form_at(
+    band: str, length: int, census: "dict[str, int] | None" = None
+) -> str:
+    """The written form every number of one band and length wears.
+
+    One band and one length write ONE form: `-%` and `%%@%` in the code
+    band, `%.%` and `%%.%` in the wide band, and no form at all in the
+    figures, where a cell of figures alone carries one kind only and
+    `parsing.shape_form` answers "" for it.
+    """
+    spelled = _number_at(band, length, 0)
+    if spelled is None:
+        return ""
+    return parsing.census_form(spelled, census if census is not None else {})
+
+
+def _unasked_number_length(
+    band: str,
+    shortest: int,
+    longest: int,
+    taken: "dict[str, int]",
+    named: "dict[str, int]",
+) -> int:
+    """The length a number group wearing no settled form is written at.
+
+    The shortest length at or above its band's own shortest at which the
+    band still has a number with no leading zero to give -- and, since
+    landing 2b.8, whose form the census does NOT NAME.
+
+    WHY THE SECOND CLAUSE (Codex item 4 of landing 2b.4). `_number_forms`
+    settles a named form over the number groups EXACTLY, so every cell of
+    that form is already spoken for; but the length rule knew nothing of
+    the census, and every number of the wide band four characters long is
+    written `%%.%`. A column of 800 rows of one-word comments beside
+    readings written `10.4` published `%%.%` on 199 cells, had those 199
+    settled exactly, and then gave forty-eight groups the census owed
+    nothing a length of four -- so the twin wore `%%.%` on 247 cells
+    against the published 199 and failed its own description while the
+    table passed. A group the census owes nothing now steps over the
+    lengths whose form it would overpay.
+
+    Where no length inside the published ends escapes the named forms,
+    the first length with room stands, exactly as it did before: the
+    census is then missed and the report names it, which is the outcome
+    G9.5 step 3b already states for a column no exchange can settle.
+    """
+    length = max(_NUMBER_SHORTEST[band], shortest)
+    spare = 0
+    while length < longest:
+        key = f"{band}/{length}"
+        spent = taken[key] if key in taken else 0
+        if spent < _plain_number_room(band, length):
+            if not spare:
+                spare = length
+            if _number_form_at(band, length, named) not in named:
+                return length
+        length = length + 1
+    if spare:
+        return spare
+    return min(length, longest)
+
+
 def _number_lengths(
     facts: contract.TextFacts,
     groups: "tuple[int, ...]",
@@ -20556,6 +22277,13 @@ def _number_lengths(
     shortest = facts.length.minimum
     longest = facts.length.maximum
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
+    # THE FORMS THE CENSUS NAMES. A group `_number_forms` settled wears
+    # its form and covers that form's debt; a group it settled nothing for
+    # must not wear one of them by accident of its length (landing 2b.8).
+    named: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form != contract.WITHHELD:
+            named[form] = 1
     taken: "dict[str, int]" = {}
     fixed: "dict[int, int]" = {}
     # A NUMBER CARRYING AN END SPENDS A SPELLING OF ITS LENGTH TOO (landing
@@ -20578,18 +22306,136 @@ def _number_lengths(
             fixed[place] = len(worn[place])
             continue
         band = _BANDS[bands[place]]
-        length = max(_NUMBER_SHORTEST[band], shortest)
-        while length < longest:
-            key = f"{band}/{length}"
-            spent = taken[key] if key in taken else 0
-            if spent < _plain_number_room(band, length):
-                break
-            length = length + 1
-        length = min(length, longest)
+        length = _unasked_number_length(band, shortest, longest, taken, named)
         key = f"{band}/{length}"
         taken[key] = (taken[key] if key in taken else 0) + 1
         fixed[place] = length
     return fixed
+
+
+# A LENGTH BUDGET THAT CANNOT BITE. `_form_asks` is asked twice: once
+# here, to find out WHICH form each group would wear so its length can be
+# held for it, and once in the walk, against the average's real budget.
+# The first asking must not be narrowed by that budget -- holding the
+# length is the whole point of it -- so it is handed a budget no column
+# can spend, and the walk's own asking is the one the budget governs.
+_UNSPENDABLE = 1 << 62
+
+
+def _form_lengths(
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+) -> "tuple[dict[int, int], dict[int, int]]":
+    """The length of every group of TEXT that wears a census form (G9.5 step 7).
+
+    THE CENSUS IS EXACT AND THE AVERAGE IS APPROXIMATED, and until this
+    rule the order of the two was the wrong way round (landing 2b.8,
+    plan P4-D75). A form FIXES a length, so a group can only wear one by
+    being written at that form's length -- and the lengths were settled
+    FIRST, by the walk of step 5 toward the published average, which
+    parks nearly every group on the middle length. The form offer then
+    ran against a budget of ONE CHARACTER over the whole column, so a
+    form of any other length was refused for all but a handful of
+    groups. Measured on 800 rows of `%%%-@@@`-style codes: the census
+    publishes FORTY forms of lengths four to seven, the walk put 777 of
+    791 groups at length five, and the twin missed ALL FORTY of them --
+    405 cells short, written `?!!!#` and `R---3` out of the fallback
+    alphabet, with `synthtwin validate` exiting 3 while the table itself
+    passed.
+
+    THE BUDGET IS NOT WITHDRAWN, AND THAT IS DELIBERATE. It was measured
+    and ratified (review round 2 finding 9) and it is what keeps a
+    blood-pressure column's four forms together with a column whose
+    census asks for lengths its average does not want; a test pins it
+    directly. What changes is the ORDER. The form a group would wear is
+    settled here, BEFORE the lengths are walked, and that group's length
+    and word count are then HELD -- exactly as `_number_lengths` already
+    holds a number's own length -- so the published average is carried
+    by the groups no form spoke for. The walk's own offer then costs the
+    budget nothing at all, because the group is already standing at the
+    form's length and a swap of no characters is always afforded.
+
+    WHICH form each group wears is decided by `_form_asks` ITSELF rather
+    than by a rule written twice, so the two askings cannot disagree:
+    the order (largest group first), the debt, the word agreement and
+    the class are one function's answer, and only the budget differs.
+
+    Only groups of ORDINARY TEXT are settled here. A number's form is
+    settled exactly by `_number_forms` and its length by
+    `_number_lengths`, and paying it twice would overpay the census.
+
+    A group is held to a form's length ONLY WHERE IT CAN STILL STAND IN
+    THE CLASS AND BAND THE PACKING GAVE IT, because those counts are
+    exact and the census may not be paid with them. That guard is what
+    also keeps `_lengthened` from moving the group afterwards: it steps
+    a group up only until its cell is permitted, and this one's already
+    is.
+    """
+    owing = _text_debt(facts)
+    if not owing:
+        return {}, {}
+    asks = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        [_UNSPENDABLE, _UNSPENDABLE],
+        kinds,
+        bands,
+        True,
+    )
+    held: "dict[int, int]" = {}
+    worded: "dict[int, int]" = {}
+    for place in range(len(groups)):
+        form = asks[place]
+        if not form or place in carriers:
+            continue
+        if _CLASSES[kinds[place]] != _CLASS_TEXT:
+            continue
+        words = _form_words(form)
+        if not _stands_in(len(form), words, kinds[place], bands[place]):
+            continue
+        held[place] = len(form)
+        worded[place] = words
+    return held, worded
+
+
+def _held_for_the_census(
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+    fixed: "dict[int, int]",
+) -> "tuple[dict[int, int], dict[int, int]]":
+    """The number rule's fixed lengths, with the census's added to them.
+
+    The two never name the same group -- `_number_lengths` settles the
+    groups that read as numbers and `_form_lengths` those that read as
+    text -- so the merge is a union and the number rule keeps any group
+    both could claim.
+    """
+    shaped, worded = _form_lengths(
+        facts, groups, lengths, counts, kinds, bands, carriers
+    )
+    together = dict(fixed)
+    kept: "dict[int, int]" = {}
+    for place in sorted(shaped):
+        if place in together:
+            continue
+        together[place] = shaped[place]
+        kept[place] = worded[place]
+    return together, kept
 
 
 def _text_families(
@@ -20790,12 +22636,22 @@ def _text_shape(
     groups: "tuple[int, ...]",
     carriers: "tuple[int, int]",
     fixed: "dict[int, int] | None" = None,
+    worded: "dict[int, int] | None" = None,
 ) -> "tuple[list[int], list[int], list[Deviation]]":
     """The length and the word count of every group (G9.5 steps 4 and 5).
 
-    ``fixed`` names the groups whose length the number rule already
-    settled (`_number_lengths`): each keeps that length and one word, and
-    the walks below spend the published averages on the other groups.
+    ``fixed`` names the groups whose length was already settled -- by the
+    number rule (`_number_lengths`) or by the census of written forms
+    (`_form_lengths`) -- and the walks below spend the published averages
+    on the other groups.
+
+    ``worded`` gives those groups their word counts, where one of them
+    holds more than a single word. A number holds one word always, so
+    the number rule passes none; a CENSUS FORM may hold several, because
+    a space survives into a form unchanged (`%%% @@`), and giving such a
+    group one word would write a cell that cannot wear the form it was
+    fixed for. Absent, every fixed group takes one word, which is what
+    the number rule alone meant.
 
     ``carriers`` names the two groups that carry the published ends --
     the first takes the shortest length and the smallest word count, the
@@ -20818,6 +22674,10 @@ def _text_shape(
     ones: "dict[int, int] | None" = None
     if fixed is not None:
         ones = {place: 1 for place in sorted(fixed)}
+        if worded is not None:
+            for place in sorted(worded):
+                if place in ones:
+                    ones[place] = worded[place]
     lengths = _walked(
         groups,
         facts.length.minimum,
@@ -24644,7 +26504,7 @@ def _form_notes(
             # case was counted as a present cell and a conforming twin
             # was accused (review round 2 finding 11).
             continue
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census)
         if not form:
             continue
         if form in counted:

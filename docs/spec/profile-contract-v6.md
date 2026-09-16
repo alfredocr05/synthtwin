@@ -281,7 +281,7 @@ named clause gives the rule.
 | **the published vocabulary** | the closed list of TWENTY-THREE members C6-31 fixes: eighteen text spellings synthtwin reads as "no value", three stand-in numbers it judges, and two calendar placeholders it judges. It is synthtwin's own, it is the same in every installation, and it contains no text from any table | C6-31 |
 | **the exact-spelling member** | the one member of the published vocabulary matched by raw byte equality with the cell, rather than after trimming and case folding | C6-31, C6-32 |
 | **a calendar placeholder** | one of the two built-in dates a description may judge as meaning "no value", by the same rule that judges the three stand-in numbers | C6-31, C6-33 through C6-35 |
-| **a nothing-publishing column** | a column whose publication class permits no value of the table anywhere in its block: `role` in `numeric_unrepresentable`, `identifier` or `free_text`, or `structural_role` `identifier` whatever the role. The term is BINARY — a column either is one or is not — and the role `empty` does not by itself make a column one | C6-50, C6-51, C6-52 |
+| **a nothing-publishing column** | a column whose publication class permits no value of the table anywhere in its block: `role` in `numeric_unrepresentable`, `identifier` or `free_text`, or `structural_role` `identifier` whatever the role. The term is BINARY — a column either is one or is not — and the role `empty` does not by itself make a column one. It bars the TABLE's text and not this format's own: such a column still names which members of the published vocabulary its absent cells were spelled with (C6-126) | C6-50, C6-51, C6-52, C6-126 |
 | **the affix pair** | the exact prefix text and suffix text that every counted cell of an `affixed_number` column wears around its number | C6-4, C6-5 |
 | **the core** | the substring of an affixed cell that the number classifier reads as a number, chosen longest-then-leftmost | C6-4 |
 
@@ -2657,7 +2657,7 @@ guess is what fails silently.
 | `n_missing` | integer ≥ 0 | ≤ `n_rows` | how many cells hold no value | EXACT-OBSERVABLE |
 | `missing_by_class` | object | exactly six keys, section 5.4 | absent cells by the reason each was counted absent | REPORT-ONLY |
 | `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, except a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder), which the twin writes empty |
-| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held nothing, or nothing but space — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
+| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
 | `n_missing_withheld` | integer ≥ 0 | — | how many absent cells of this column wore a spelling — or a blankness — that fewer than `small_cell_floor` cells of the column shared, pooled together and unnamed | REPORT-ONLY, bound by the same sum identity |
 | `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds | set per role group, section 9 |
 | `n_distinct_folded` | integer ≥ 0 | ≤ `n_distinct` | how many different FOLDED identities it holds | set per role group, section 9 |
@@ -2996,6 +2996,24 @@ form that shows itself (2.4).
 `n_missing_blank` and `n_missing_withheld`, fields of their own beside
 it, and 5.4.4 says why the split matters.
 
+**C6-125 (a spelling of nothing but space is a spelling).** A cell
+holding one space, two spaces, a tab or a no-break space held
+something: a mark the file carries, which the reader of that file
+meets. Such a cell is therefore keyed here under its exact characters,
+held to the floor like every other spelling, and the twin writes it
+back (C6-115). Only the EMPTY spelling — no characters at all — is
+counted in `n_missing_blank`, and it is never a key of this map, since
+a document naming it both ways would count one cell twice in N3.
+
+Until this clause, `n_missing_blank` held both, and the spelling was
+lost: a 500-row column of readings whose 315 absent cells included 177
+holding a space, two spaces or a no-break space published
+`n_missing_blank: 315`, and its twin wrote 315 empty cells. Nothing the
+description published could tell the two files apart, while
+`pandas.to_numeric` runs on the twin and raises on the table, and a
+reader handed `na.strings=c("","NA")` finds levels on the table that
+the twin does not have — which is the first goal failing silently.
+
 **Invariant N3 (the source accounting closes).** On a column that is
 not a nothing-publishing column (6.10):
 
@@ -3004,10 +3022,30 @@ sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld
     == n_missing
 ```
 
-On a nothing-publishing column, `missing_by_source` is `{}`,
-`n_missing_blank` is 0 and `n_missing_withheld` is 0, whatever
-`n_missing` is. Naming a spelling there would publish a value out of a
-column that publishes none.
+**On a nothing-publishing column the same three numbers are an UPPER
+BOUND rather than a total** (C6-126):
+
+```
+sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld
+    <= n_missing
+```
+
+Such a column used to publish `{}` with both counts at 0 whatever
+`n_missing` was, on the reasoning that naming a spelling there would
+publish a value out of a column that publishes none. That reasoning is
+right about the TABLE's text and wrong about this format's own: `NA`,
+`N/A` and `NULL` are members of the published vocabulary, which C6-31
+fixes as containing no text from any table, so naming one discloses
+nothing of the column. The bound is an inequality rather than a total
+because the cells whose spelling is NONE of synthtwin's own words are
+withheld by the class and counted by nothing — they are not added to
+`n_missing_withheld`, since that remainder is what the FLOOR held back
+and a description written at a floor of one holds nothing back (S13).
+What the old rule cost is measured at C6-126.
+
+**And no key of the map is the empty spelling** (C6-125). Cells that
+held nothing at all are `n_missing_blank`; a key of no characters would
+count them a second time and the sum above would no longer close.
 
 **Invariant N4.** Every value of `missing_by_source` is at least
 `small_cell_floor`, with no exemption, and `n_missing_blank` is 0 or at
@@ -3025,10 +3063,17 @@ is the other map the table keys, and a rule that finds this format's
 fields by searching a document for names must stop reading a key as a
 name inside both.
 
-**Invariant N6.** `n_missing_blank` and `n_missing_withheld` are 0 on
-exactly the nothing-publishing columns. That class is a function of
-`role` and `structural_role`, both of which every block publishes, so a
-consumer can decide it from the document alone.
+**Invariant N6.** A consumer decides whether a column is
+nothing-publishing from `role` and `structural_role`, both of which
+every block publishes, and NEVER from a count reading zero.
+
+**The two absence counts stopped signalling the class** (C6-126). They
+were 0 on exactly the nothing-publishing columns, which let a consumer
+infer the class from the zeros; since such a column accounts for its
+absent cells like any other, both counts now mean on it exactly what
+they mean everywhere else. The inference path is withdrawn rather than
+narrowed, and the sentence above is what replaces it: the class is
+published outright, so nothing needs to be inferred from a nought.
 
 **Invariant N7 (producer).** A `missing_by_source` key is the source
 spelling character for character. A loader holds one document and never
@@ -3040,7 +3085,18 @@ is the spelling a cell wore.
 `n_missing_blank` is not the same number as
 `missing_by_class["(blank)"]`, and neither replaces the other. The
 class count is pooled when the CLASS falls below the floor; the field
-is pooled when the SPELLING — here, blankness — falls below it. A
+is pooled when the SPELLING — here, blankness — falls below it.
+
+**They also answer two different questions about space, and C6-125 is
+where that shows.** The CLASS asks why a cell is absent, and a cell of
+nothing but space is absent for the blank reason, so it reads
+`(blank)`. The FIELD asks what was written, and a space was written, so
+that cell is keyed in `missing_by_source` and is not in
+`n_missing_blank`. A column of forty absent cells, twenty-five of them
+empty and fifteen holding one space, publishes
+`missing_by_class["(blank)"]: 40`, `n_missing_blank: 25` and
+`missing_by_source: {" ": 15}` — three numbers that disagree only if a
+reader takes the first two to be answers to one question. A
 column can therefore publish a class count of zero and a blank count of
 forty, or the reverse, and both readings are correct about different
 questions. Both are published, in two fields, because a field that
@@ -3384,10 +3440,11 @@ method's own construction table states
 to `n_distinct`. M2: its keys weighted by its values sum to
 `n_present`.
 
-**Invariant U4.** This role is a nothing-publishing column, so
-`missing_by_source` is `{}`, `n_missing_blank` and `n_missing_withheld`
-are `0`, and every `sentinel_verdicts` entry has
-`candidate == "(withheld)"` (N3, V2).
+**Invariant U4.** This role is a nothing-publishing column, so every
+key of `missing_by_source` names a member of the published vocabulary
+and no spelling of the table stands there, the two absence counts stand
+inside N3's upper bound, and every `sentinel_verdicts` entry has
+`candidate == "(withheld)"` (N3, V2, C6-126).
 
 **Invariant U5.** `min_length <= max_length`.
 
@@ -4529,10 +4586,19 @@ consumer off the role name.
 | `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`; published only when EVERY bin clears the floor | REPORT-ONLY |
 | `empty_bins` | array | C6-122 to C6-123 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-123a to C6-123b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
+| `number_spellings` | object | section 7.13 | on a `count` block ALONE: every spelling of a column that wrote one number more than one way, with how many cells wrote it; `{}` on every other `count` block | EXACT-OBSERVABLE |
 
 Thirty-one keys. Every one is present in every block of these two
 roles — this format has no optional keys — and every key not listed
-here or in section 5.1 is FORBIDDEN on them (section 6.11).
+here or in section 5.1 is FORBIDDEN on them (section 6.11). A `count`
+block carries thirty-two keys: these and `number_spellings`, which is
+that role's alone and forbidden on `continuous` (section 7.13).
+
+**THE NUMERAL WAS STALE AGAIN, AND IS CORRECTED AGAIN** (landing 2b.18
+part 2). It read "twenty-six" while `contract.NUMERIC_KEYS` held
+twenty-eight — `negative_form` and `decimal_plus` arrived at landing
+2b.2 and this sentence did not move — and the guard below had been red
+on it since.
 
 **THE NUMERAL WAS STALE AND IS BOUND TO THE TABLE NOW.** It read
 "eighteen" while the table held twenty-four, and the same drift was in
@@ -4825,10 +4891,11 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — six, beyond the universal keys of section 5.1:
+**Added keys** — seven, beyond the universal keys of section 5.1:
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
+| `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -4836,7 +4903,21 @@ exists to reproduce.
 | `n_code_alphabet` | integer ≥ 0 | ≤ `n_present` | present cells drawn from the code alphabet, after trimming |
 | `n_distinct_by_occurrences` | multiplicity map | section 5.3 | how many different RAW present values covered one row, two rows, … |
 
-None of the six is this role's alone except `all_whole_numbers`. A
+**`layout_forms` IS THIS ROLE'S ALONE, AND IT IS THE KEY THAT SAYS
+WHAT A RECORD NUMBER LOOKS LIKE** (section 7.12). The six beside it
+give the two length ends and the two alphabet counts, and between them
+they say nothing about the SHAPE of a value — which is why a column of
+UUIDs published every fact this role had and its twin still wrote
+`A----------------------------------J`. Measured at two source seeds
+and two generate seeds: the column's pattern matched 800 real cells
+and 0 twin cells, and `synthtwin validate` exited 0 on the twin and 0
+on the table, so no line of either report named it. It is NOT
+`shape_forms`
+under another name: that census belongs to the five label roles, is
+forbidden here by C6-31b, stops at twenty-four characters and marks a
+letter without its case, and each of those three would lose a UUID.
+
+None of the other six is this role's alone except `all_whole_numbers`. A
 `numeric_unrepresentable` block carries `min_length` and `max_length`
 over a DIFFERENT population, under the rule stated at that role;
 `n_all_digits` and `n_code_alphabet` stand on this role and on
@@ -4861,15 +4942,40 @@ string.
 values sum to `n_distinct`, and its keys read as numbers and weighted
 by its values sum to `n_present`.
 
-**Invariant I3 (this block publishes nothing of the table).**
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both `0`, and every `sentinel_verdicts` entry
-has `candidate == "(withheld)"` (N3, V2). It is a property of the
-whole BLOCK: no value of the column, no spelling of one and no
-fragment of one stands anywhere in it. What is published is the role,
+**Invariant I3 (this block publishes nothing of the table).** Every
+key of `missing_by_source` names a member of the published vocabulary
+(C6-126), the two absence counts stand inside N3's upper bound, and
+every `sentinel_verdicts` entry has `candidate == "(withheld)"`
+(N3, V2). It is a property of the whole BLOCK: no value of the column,
+no spelling of one and no fragment of one stands anywhere in it — and a
+vocabulary member is none of those three, being this package's own word
+and the same in every installation. What is published is the role,
 the counts, the shortest and longest length, whether every value is a
-whole number, how many cells are all digits or all code alphabet, and
-the shape of repetition — lengths and counts, never values.
+whole number, how many cells are all digits or all code alphabet, the
+shape of repetition, and the census of LAYOUTS (7.12) — lengths and
+counts, never values.
+
+**THE LAYOUT CENSUS STANDS INSIDE I3, AND IT IS THE ONE KEY OF THIS
+BLOCK A READER COULD MISTAKE FOR A FRAGMENT**, so the ground is
+written here rather than left to 7.12. A layout carries one mark per
+character saying what KIND of character stood at each position —
+`~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` says a record number was
+written as a UUID and says nothing whatever about WHICH UUID. Every
+figure and every letter of the cell is replaced before the key is
+built, and the marks that remain are this contract's own closed list,
+the same in every installation. So no value of the column, no spelling
+of one and no fragment of one stands in a key, which is exactly what
+this invariant requires of the whole block.
+
+**AND A LITERAL RUN IS A FRAGMENT AND IS NOT PUBLISHED** (landing
+2b.15, landing 2b.18). A constant run of letters shared by a whole
+column — a hospital's own record prefix, or `ABC-` in front of a study
+number — is a character-for-character fragment of every value in that
+column, which this invariant and F3 forbid. It is a POPULATION-wide
+fragment rather than any one person's, which is what makes it a
+question for the owner rather than a settled refusal; until that ruling
+it is not published and this version's twin writes the layout's own
+alphabet in its place.
 
 **Invariant I4.** `min_length >= 1`. A present cell of length zero is
 a blank, and a blank is absent.
@@ -4963,12 +5069,13 @@ is a number. Likewise `words.min <= words.mean <= words.max`.
 **Invariant F2.** M1 and M2 bind `n_distinct_by_occurrences`, exactly
 as I2 states them.
 
-**Invariant F3 (this block publishes nothing of the table).**
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both `0`, and every `sentinel_verdicts` entry
-has `candidate == "(withheld)"` (N3, V2). As at I3 this binds the
-whole BLOCK, not any one field: no value, no spelling of one and no
-fragment of one stands anywhere in it.
+**Invariant F3 (this block publishes nothing of the table).** Every
+key of `missing_by_source` names a member of the published vocabulary
+(C6-126), the two absence counts stand inside N3's upper bound, and
+every `sentinel_verdicts` entry has `candidate == "(withheld)"`
+(N3, V2). As at I3 this binds the whole BLOCK, not any one field: no
+value, no spelling of one and no fragment of one stands anywhere in
+it.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
@@ -5021,12 +5128,66 @@ is ordered so that the two cannot be run together.
 **C6-49.** Three roles publish no value of the table anywhere in
 their block — `numeric_unrepresentable`, `identifier` and `free_text`
 — and so does any column whose `structural_role` is `identifier`,
-whatever its role. On those columns, and only those,
-`missing_by_source` is empty, `n_missing_blank` and
-`n_missing_withheld` are both zero, and every sentinel candidate
-reads `(withheld)`. **This is a property of the whole BLOCK, not of
-any one field: it is what stops the next field somebody adds from
-being the one that leaks.**
+whatever its role. On those columns, and only those, every sentinel
+candidate reads `(withheld)` and `missing_by_source` is confined to the
+published vocabulary by C6-126. **This is a property of the whole
+BLOCK, not of any one field: it is what stops the next field somebody
+adds from being the one that leaks.**
+
+**C6-126 (such a column still says which of SYNTHTWIN'S OWN words its
+holes wore).** Every key of `missing_by_source` on a nothing-publishing
+column names a member of the published vocabulary — the comparison
+being C6-32's one operation, so a folded member is named after trimming
+and case folding and the exact-spelling member byte for byte — and a
+key naming no member is refused. Both absence counts are written as on
+any other column and N3's sum closes. A spelling of NOTHING BUT SPACE
+names the empty member and is admitted on that ground, which is the
+same key every other column may carry (C6-125).
+
+**Why a member of the vocabulary is not a value of the table.** It is
+this package's own word, fixed in the closed list C6-31 states,
+identical in every installation, and C6-31 says in terms that the
+vocabulary "contains no text from any table". A column publishing
+`{"NA": 174}` says that 174 of its cells were spelled with a word
+synthtwin ships. It does not say what any value of that column is, and
+no reader can rebuild a row from it.
+
+**What the empty map cost, measured.** A 500-row free-text column whose
+absent cells were 101 blanks and 174 `NA`/`N/A` published `n_missing:
+275`, named no spelling, and put both absence counts at 0. Three things
+followed. The twin wrote 275 EMPTY cells where the table wrote 101, so
+`df[df.note != "NA"]` dropped 174 rows of the table and none of the
+twin. The description could not be read back: re-describing the very
+table it was written from found 399 present cells against the published
+225 and reported BOTH presence counts MISSED at exit 3 — the real table
+failing its own description, on a run with no options typed at all.
+And a reader could infer the publication class from the two zeros,
+which is the inference N6 now withdraws. With the vocabulary named,
+that column publishes `{"N/A": 95, "NA": 79}` with `n_missing_blank:
+101`, its twin writes each spelling at its published count, and both
+validations return 0.
+
+**A COLUMN THAT PUBLISHES NO VALUE OF THE TABLE PUBLISHES NONE OF THE
+PERSON'S OWN SPELLINGS EITHER WAY, declared or not, and the reason is
+what a LOADER can check.** A
+declaration is recorded as a count and never as text (C5-17), so no
+document distinguishes `Not documented` declared from `Not documented`
+written in a cell. A rule admitting declared spellings here could be
+obeyed by a producer and not checked by any consumer, and this format
+does not write rules of that kind.
+
+**Those cells are counted by NOTHING, and that is why N3 is an
+inequality here.** They are not added to `n_missing_withheld`: that
+remainder is what the FLOOR held back, and a description written at a
+floor of one holds nothing back (S13), so a class withholding recorded
+there would make a floor-one document claim what S13 forbids. This is
+exactly where such cells stood before this clause, so nothing regresses;
+what changes is that the format now SAYS they are unaccounted instead of
+implying by a closed sum that there are none. The cost is stated rather
+than discovered: a person who declares a word of their own on a
+free-text or declared identifier column gets a twin whose holes for
+that word are blank, and a reader of that description can tell how many
+such cells there were by subtraction but never what they said.
 
 **The term is BINARY.** A column either is a nothing-publishing
 column or it is not. There is no third state and no partial one, and
@@ -5263,6 +5424,7 @@ rather than a list of its own, so the two cannot part again.
 | `value_histogram` | | | | | | | | | ● | ● | ● | | | | |
 | `empty_bins` | | | | | | | | | ● | ● | ● | | | | |
 | `empty_edges` | | | | | | | | | ● | ● | ● | | | | |
+| `number_spellings` | | | | | | | | | ● | | | | | | |
 | `affix_prefix` | | | | | | | | | | | ● | | | | |
 | `affix_variants` | | | | | | | | | | | ● | | | | |
 | `n_core_distinct` | | | | | | | | | | | ● | | | | |
@@ -5281,6 +5443,7 @@ rather than a list of its own, so the two cannot part again.
 | `min_length` | | ● | | | | | | | | | | ● | | | |
 | `max_length` | | ● | | | | | | | | | | ● | | | |
 | `all_whole_numbers` | | | | | | | | | | | | ● | | | |
+| `layout_forms` | | | | | | | | | | | | ● | | | |
 | `length` | | | | | | | | | | | | | ● | | |
 | `words` | | | | | | | | | | | | | ● | | |
 | `n_all_digits` | | | | | | | | | | | | ● | ● | | |
@@ -5303,14 +5466,31 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Ninety-seven rows, one hundred and eighty-six marked cells**,
+**Ninety-nine rows, one hundred and eighty-eight marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
-`time_of_day` 5, `count` 31, `continuous` 31, `affixed_number` 41,
-`identifier` 6, `free_text` 6, `joined_numbers` 8,
+`time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
+`identifier` 7, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**THE COUNTS WERE STALE AGAIN AND ARE CORRECTED AGAIN** (landing
+2b.18). They were `Eighty-seven rows, one hundred and sixty-six marked
+cells` while the matrix held ninety and one hundred and seventy-three
+BEFORE this landing's own row was added, and the per-role breakdown was
+short on four roles at once — `datetime` 15 against 16, `count` and
+`continuous` 26 against 28, `affixed_number` 36 against 38. This
+landing added `layout_forms` to the `idn` column, which made the
+sentence wrong in a new way as well as an old one, so both are repaired
+here and the numbers above are taken from the matrix by
+`tests/test_p4d18_role_topology.py` rather than counted by hand.
+
+**AND RESTATED AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.8**
+(2026-09-16). Landing 2b.6 added four keys to `datetime` and marked none
+of them here, landing 2b.7 added three rows to the numeric columns, and
+landing 2b.18 added `layout_forms` and `number_spellings`; the merged
+matrix marks all nine, and the numbers above are its own.
 
 **THE PER-ROLE COUNTS WERE STALE AND ARE CORRECTED HERE**, which is
 recorded rather than quietly repaired. The total has been right at
@@ -5723,12 +5903,17 @@ refused rather than read.
 | `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
-| `affix_variants[].numbers` | object | AF13 | the thirty-one keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
+| `affix_variants[].numbers` | object | AF13 | the thirty-one keys of a `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
 **The block is sixty-three keys**: the twenty-two universal keys of
-section 5.1 and the forty-one above — a `count` block's thirty-one
-additions plus this role's own ten. The matrix of section 6.11 marks
-exactly those forty-one cells in its `afx` column. There is no
+section 5.1 and the forty-one above — a `continuous` block's thirty-one
+additions plus this role's own ten; a `count` block's own thirty-second,
+`number_spellings`, is not among them. The matrix of section 6.11 marks
+exactly those forty-one cells in its `afx` column. (These numerals
+read fifty-eight, thirty-six and twenty-six until landing 2b.18's
+second part, two keys behind the loader since landing 2b.2, and were
+restated from the loader's merged tuples at the integration of
+landings 2b.6 to 2b.8.) There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -8006,6 +8191,53 @@ mark — appear in it.** That line is what keeps four region names from
 publishing a census nobody can use while a procedure code `J1200`
 keeps one.
 
+**A FORM KEY MAY CARRY ITS CASE, AND THE CENSUS DECIDES WHERE** (landing
+2b.18, plan P4-D121, audit LTM-6). The written form of a cell marks
+every letter `@` whatever its case, and a twin reading only that wrote
+capitals: a column of 800 lower-case codes `e9z-1i1` came back
+`Y6O-7P3` on every row, a case-sensitive pattern matched 800 real
+cells and 0 twin cells, and both files passed. So the census may name,
+beside or instead of a form, that form's **LOWER-CASE KEY** — the form
+with `&` in every letter place — counting the cells of the form whose
+every letter was lower case. Per form, with `L` those cells, `R` the
+rest, and the LINE the larger of `small_cell_floor` and two:
+
+- `L` under the line, or the lower-case key's own supply short of the
+  small-supply bound of C6-31c's test (a lower-case letter is one of
+  twenty-six), or the column's `n_distinct` differing from its
+  `n_distinct_folded`: the form is named blind to case, exactly as
+  before this clause;
+- `L` at the line and `R` nought: the lower-case key alone, counting `L`;
+- `L` and `R` both at the line: both keys, the form's own key counting
+  `R`;
+- `R` under the floor: the lower-case key, and `R` pooled into
+  `(withheld)`;
+- `R` at the floor but under two — a single cell at a floor of one —:
+  the form named blind to case.
+
+**WHY THE CASE IS PER FORM AND NOT PER POSITION.** A mark per letter
+in its own case — `Ab12` against `aB12` — splits a mixed column into
+forms the floor then pools, so a column publishing a form today would
+publish none. Counting the all-lower-case cells of a form beside it
+keeps every form a column had and adds only a count.
+
+**WHY NO LOWER-CASE KEY ON A COLUMN WHOSE VALUES FOLD TOGETHER.** Its
+twin writes values that differ only in case or edge spacing — the
+partners of the generation method's G9.3 and the made-up variants of
+G8.2 — and a case flip of a lower-case value is not lower case, so it
+settles the form's own key and never the lower-case one. Measured on 240
+cells, 200 `a-b` beside twenty `x00` and twenty `X00`: named apart,
+the twin missed three keys by thirty-three cells. The test reads two
+PUBLISHED counts, so the absence it causes is one a reader predicts, and so
+tells them nothing.
+
+**WHAT A READER GAINS, AND WHAT STAYS OUT.** The count of cells of a
+form whose letters were all lower case, where enough of them share it
+to name — and nothing about any one cell. Cells mixing the two cases
+are counted under the form's own key and the twin writes them in
+capitals; a pattern testing for upper case alone then matches more twin
+cells than real ones, which is this clause's stated limit.
+
 **C6-31b (where it lives, and what it holds).** A `constant`,
 `binary`, `categorical`, `long_tail_labels` or `free_text` block
 carries `shape_forms` as a key of the BLOCK. It is REQUIRED on those
@@ -8071,7 +8303,8 @@ opposite of each. The census is the intersection, not a judgement.
 
 **C6-31d (key grammar, checked as a CLOSED ALPHABET).** A key is
 either exactly `(withheld)` or a written form: at least one character,
-at most twenty-four, every one of which is one of the two PLACEHOLDERS
+at most twenty-four, every one of which is one of the three PLACEHOLDERS
+— `%`, `@`, and `&` in a lower-case key, never `@` and `&` in one key —
 or one of the thirteen marks C6-31a names, AND CARRYING AT LEAST TWO
 OF THE THREE KINDS. A loader CHECKS this key by key and refuses the
 document otherwise, rather than trusting that the producer built the
@@ -8094,11 +8327,14 @@ This is what makes the key safe on `free_text`, whose F3 promises that
 no fragment of a value stands anywhere in the block.
 
 **C6-31e (invariants).** **SF1.** Every NAMED form's count is at least
-`small_cell_floor`. **SF3.**
+`small_cell_floor`; a LOWER-CASE key's count, and the count of the
+form's own key where it stands beside one, is at least two as well.
+**SF3.**
 Every count is at least 1, and the sum of all counts, `(withheld)`
 included, is at most `n_present` — at most, and not exactly, because
 the formless cells C6-31b excludes are present cells this census does
-not count.
+not count. **SF5.** A lower-case key is named only on a column whose
+`n_distinct` equals its `n_distinct_folded`.
 
 **Disposition: EXACT-OBSERVABLE**, on the same terms as the two width
 censuses and against a recount identity of the same shape: cells of the
@@ -8127,8 +8363,9 @@ leading segment answer plausibly and wrongly. A person developing
 against the twin then finds all three at once against the real file.
 
 **THE FORM IS FILLED FROM A COUNTER AND NEVER FROM A READING.** Every
-`%` of the form takes a figure and every `@` takes a letter, both taken
-off a step that counts stand-ins; every other character of the form
+`%` of the form takes a figure, every `@` a capital letter and every
+`&` of a lower-case key a lower-case letter, all taken off a step that
+counts stand-ins; every other character of the form
 stands as itself. The form was built by removing every figure and
 letter before it was published, so nothing put back can be a fragment
 of any value.
@@ -8165,16 +8402,30 @@ character a spreadsheet reads as the start of a formula. A candidate
 failing any of them is stepped past, as is one already used in the
 column, raw or folded.
 
-**Where the census OWES THIS STAND-IN NO FORM the stand-in is
-`group-1`, `group-2`, … exactly as before.** Three ways that happens,
+**Where the census OWES THIS STAND-IN NO FORM, it wears the SHAPE OF
+THE COLUMN'S OWN PUBLISHED LABELS** (landing 2b.18, plan P4-D122, the
+carried item of landing 2b.12). Three ways a stand-in is owed no form,
 and none of them is "a role that does not carry the key" — all four
 label roles carry it (6.11, C6-31b). The census may be empty; it may
 name only forms the published cells have already settled; or the
 arrangement may deliberately leave THIS place neutral, because
 settling a debt exactly can require a size to go unspent. **So C6-D18
-does not say every suppressed level wears a form**, and a reader must
-not take it that way: it says a stand-in the census owes a form to is
-written in it.
+does not say every suppressed level wears a CENSUS form**: it says a
+stand-in the census owes a form to is written in it, and one owed none
+is written in the shape the published labels wear. That shape is a
+published fact already, because the labels are written byte for byte:
+the shape worn by the most published rows, with `&` where every
+spelling wearing it was lower case, provided the census names it in
+neither case and it reads as no number. Its spellings are spent on the
+LARGEST places the census owes nothing, and a large place paying a
+named form trades with single rows summing to it exactly where that
+lets the shape cover more rows — the named form keeps its count either
+way (generation method G8.3b). Measured on the carried column, a code
+column of `4-F` beside `12-AB` and longer at a floor of twenty: the
+real mean cell length 7.204 against the twin's 9.907 before, and
+7.204 against 7.204 after, with the length mix exact. **Where no
+published label has such a shape, or its supply is spent, the stand-in
+is `group-1`, `group-2`, … exactly as before.**
 
 **WHICH MADE-UP SPELLINGS OF A PUBLISHED LABEL KEEP ITS FORM IS THE
 LEVEL'S OWN FACT.** A made-up spelling of a PUBLISHED label must fold
@@ -8207,6 +8458,333 @@ to keep the form than the supply can spell is met as far as the supply
 goes, and the twin's own report names the rest; no producer writes such
 a description, because a source that spelled those groups had the
 spellings to do it.
+
+---
+
+<!-- a7h: the layout of a record number -->
+
+### 7.12 `layout_forms`
+
+**C6-127 (what a layout is).** The **layout** of a cell is that cell
+with every FIGURE and every LETTER replaced by ONE MARK SAYING WHAT
+KIND OF CHARACTER STOOD THERE, and every other character required to
+be one of FIFTEEN MARKS this contract names, standing as itself. A
+UUID `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-hexadecimal
+column has the layout `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site
+code `NYC-7480` has `@@@-%%%%`; a record number `REC4972605` has
+`@@@%%%%%%%`; a national number `657 240 7282` has `%%% %%% %%%%`;
+and `00282669`, being figures alone with a fill of two noughts, has
+`!!%%%%%%`.
+
+**THE SIX PLACEHOLDERS**: `%` a figure, `@` an upper-case letter, `&`
+a lower-case letter, `~` a lower-hexadecimal character, `^` an
+upper-hexadecimal character, and `!` A NOUGHT OF THE ZERO FILL OF A
+CELL WRITTEN IN FIGURES ALONE IN A PLAIN COLUMN.
+
+**THE ZERO FILL IS EVERY NOUGHT, NOT ONLY THE FIRST (plan P4-D126).**
+It is every nought standing before the first other figure of a cell
+written in figures alone, the LAST character of the cell excepted, so
+`0` has the layout `%` and `000` has `!!%`; and it is marked only in a
+PLAIN column (C6-128), where a figure is a figure and a leading nought
+is a fill somebody wrote. A key holding `!` is therefore a run of `!`
+followed by at least one `%` and nothing else. Marking only the first
+nought said a cell was filled and not how far: measured on 800 cells of
+`%08d` over 1 to 499,999, the real column opened `00` on 800 cells and
+the twin on 78, and `len(x.lstrip('0')) <= 5` counted 158 real cells
+against 1. How many noughts fill a cell is how many decades short of its
+width the number was — a census of magnitudes under the floor, never a
+value.
+
+**THE FIFTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
+`#` `*` `(` `)` `[` `]` `+` `,` `{` `}`. They are the thirteen of
+C6-31a and the two BRACES, which are here because a braced GUID —
+`{B8B6D8FE-442E-3D43-7204-E52DB2221A58}`, which is how common database
+and runtime exports write one — wears them, and a closed list that
+omitted them would give that column no layout at all while appearing
+to describe it.
+
+**AND ONE SPACE BETWEEN TWO OTHER CHARACTERS (plan P4-D127)**, which
+stands as itself. A national number written in groups wears it, and a
+census that refused it gave that column no layout at all: measured, 800
+real cells of `657 240 7282` matched `\d{3} \d{3} \d{4}` and 0 twin
+cells did, both files at exit 0. What the space was kept out for is
+prose, and prose is kept out by the rest of the rule: a space may not
+open or close a cell or a key and may not stand beside another space,
+and no other space character is admitted.
+
+**A CELL HOLDING ANYTHING ELSE HAS NO LAYOUT AT ALL** — a space that
+opens or closes it or stands beside another, a letter of another
+alphabet, a mark this list leaves out, a placeholder, a cell longer
+than SIXTY-FOUR characters, and a cell made of marks alone. The limit is sixty-four because the widest identifier
+scheme in ordinary use is a braced GUID at thirty-eight. The last two
+exclusions are each a PROPERTY and not a preference: between them they
+are what makes "no cell that HAS a layout can be spelled the same as
+any layout" true, in any column and in any table, which is the same
+guarantee C6-31a's two placeholders buy the form census.
+
+**C6-128 (the alphabet convention is the COLUMN's, and never one
+cell's).** A column is hexadecimal exactly where every letter of every
+cell this census describes is one of `abcdef` in EITHER case, and at
+least one letter appears anywhere; its figures and letters then take
+`~` where at least as many of those letters are lower case as upper,
+and `^` where more are upper, and a cell written in the other case
+wears the same marks. Every other column is PLAIN, and its letters take
+`@` or `&` according to their own case.
+
+**THE CASE DECIDES THE MARK AND NEVER WHETHER A COLUMN IS HEXADECIMAL
+(plan P4-D125).** It did: a column whose letters appeared in both cases
+was plain, and one upper-case UUID among 799 lower-case ones then gave
+every UUID its own mask of figures and letters — 800 layouts of one cell
+each, the mask of one person's identifier on the page — and at a floor
+of eleven a census of nothing but its pool, whose twin wrote
+`A----...J` on every row. A cell in the minority case is not counted
+apart, so nothing about it is published; what that costs is the case of
+those cells, which the twin writes in the column's case.
+
+**THE RULE IS ALL-OR-NOTHING OVER THE COLUMN, AND THAT WAS MEASURED
+RATHER THAN ASSUMED.** A hexadecimal mark decided character by
+character gives eight hundred braced GUIDs eight hundred different
+layouts, not one of which reaches two cells, because a figure is
+ambiguous between the two cases — so a floored census publishes
+nothing at all for the very column the mark was introduced for. On a
+column of site codes `BOS-1234` it gives three layouts, because `B` is
+a hexadecimal letter and `O` is not. Decided once for the column, each
+of those two publishes exactly one layout covering 800 of 800.
+
+**C6-129 (where it lives, and what it holds).** An `identifier` block
+carries `layout_forms` as a key of the BLOCK. It is REQUIRED on that
+ONE role, written even when empty, and FORBIDDEN on the other
+FOURTEEN; section 6.11's matrix is the authority and this clause
+restates it. It maps a layout to the number of present cells written
+in it, with the pooled key `(withheld)` for the layouts too few cells
+share to name (C6-130).
+
+**IT IS NOT `shape_forms` UNDER ANOTHER NAME.** That census belongs to
+the five label roles, is forbidden on this one by C6-31b, stops at
+twenty-four characters where a UUID is thirty-six, and marks a letter
+without its case — and each of those three alone would lose a UUID.
+C6-31a's limit is a judgement about where a fact stops being about a
+code and starts being about a sentence; it is right for those roles,
+it does not reach this one, where no run of prose arrives because the
+column is a record number by its owner's declaration, and it is left
+exactly where it was.
+
+**THE LENGTH CENSUS RIDES IN THIS KEY.** A layout is one mark per
+character and is therefore exactly as long as its cell, so the census
+of layouts IS the census of lengths. A column mixing a ten-character
+and a seven-character system publishes `{"@@@%%%%%%%": 573,
+"@%%%%%%": 227}`, which carries the length mix `{10: 573, 7: 227}`
+that `min_length` and `max_length` cannot: those two give only the
+ends. Nothing separate is published for it and nothing separate can
+drift out of step with it.
+
+**A KEY OF ONE KIND IS A KEY HERE, and that is a difference from
+C6-31a rather than an oversight.** `@@@@@` is refused there because
+`length` and the two alphabet counts already say five letters. On this
+role they do not, and `%%%%%%%` beside `%%%%%%%%%%` is exactly the
+fact the two length ends lose.
+
+**C6-130 (the line, the small supply, the fill, and the pool).** A
+layout is named only where at least THE LINE of cells share it: the
+larger of `small_cell_floor` and TWO, because no count of one is ever
+published (plan P4-D124). At a floor above one a layout under the line
+is counted into the `(withheld)` remainder, and the remainder is written
+only where it holds at least two cells; at a floor of one there is no
+remainder (C5-S13) and such a layout is counted nowhere. Measured
+before the line was two: 800 random codes of capitals and figures
+published 56 layouts of one cell each, and a UUID column with one
+upper-case row published 800. **AND A LAYOUT WHOSE POSSIBLE SPELLINGS
+NUMBER FEWER THAN `n_distinct` PLUS THE FLOOR IS NOT NAMED EITHER**,
+because a layout with a small supply NAMES the values it describes:
+`%-` has exactly ten cells that could have worn it, so a column
+holding nine of them often enough to publish would hand a reader the
+tenth. The test is over PUBLISHED facts only — the supply is a
+property of the KEY, and `n_distinct` and the floor are already on the
+page — so a reader can work out which layouts this rule refuses, and
+an absence they can predict tells them nothing.
+
+**A FILL DEPTH TOO RARE TO NAME IS COUNTED ONE NOUGHT SHALLOWER
+(plan P4-D126).** A layout of two or more fill noughts that the line or
+the small supply refuses gives its cells to the layout with one fewer
+`!` — `!!!%%%%%` to `!!%%%%%%` — deepest first, which is a true statement
+about them: a cell filled with three noughts was filled with at least
+two. The step stops at one nought. A reader of the census reads a cell
+the same way: under its own layout where that is named, and otherwise
+under the nearest shallower named one.
+
+**A SMALL-SUPPLY LAYOUT IS DROPPED AND NOT POOLED.** Pooling it would
+write a `(withheld)` key into a description made at a smallest group
+size of one, where there is no group below the floor for anything to
+be held back into, and C5-S13 refuses such a document. A cell with NO
+LAYOUT AT ALL is likewise counted NOWHERE — not named and not pooled —
+because `(withheld)` means one thing in this format, a group too small
+to name, and a cell this census does not describe is not a small
+group.
+
+**What that costs, stated plainly.** A column of very short codes
+publishes little or nothing. Measured: a column holding `007` beside
+`7` publishes `%%%` and nothing else, because `%` has ten spellings
+and `!%%` a hundred. That is this contract's disclosure rule working
+as written, and a reader must not read the absence as a defect.
+
+**C6-131b (no count of one by subtraction, plan P4-D124).** A reader
+holds three totals beside the census — `n_present`, `n_code_alphabet`,
+and in a plain column `n_all_digits` — and subtracting from each the
+named layouts inside its alphabet counts the cells that wear no named
+layout. **NO SUCH DIFFERENCE IS ONE** where any named layout lies inside
+that alphabet, because a difference of one says that one row of the
+table is unlike every other, which the disclosure rule forbids as it
+forbids a count of one. Measured before this clause: 799 record numbers
+beside one `REC 123456` published `{"@@@%%%%%%%": 799}` against 800
+present cells. The producer applies it until no difference is one:
+where the difference against `n_present` is one and the pool is written,
+the pool is not written; otherwise the smallest named layout that no
+shallower named layout stands behind — the earliest in sorted order on
+a tie, and for an alphabet total the smallest inside that alphabet — is
+no longer named, and joins the pool at a floor above one. **What it
+costs, stated plainly:** a column in which exactly one cell wears no
+named layout, and whose only named layout is the one taken back,
+publishes no layout at all — `REC` and seven figures on 799 rows beside
+one `TMP-42` publish `{}` and the twin is written by the enumeration.
+
+**C6-131 (invariants).** **LF1.** Every NAMED layout's count is at
+least the line: `small_cell_floor`, and never under two. **LF2.** The
+`(withheld)` count, where written, is at least two. **LF3.** Every count
+is at least 1, and the sum of all counts, `(withheld)` included, is at
+most `n_present` — at most, because a cell this census does not
+describe has no layout and is counted nowhere. **LF4.** That sum is not
+exactly one less than `n_present`. **LF5.** Where a named layout is made
+only of placeholders, `-` and `_`, the named layouts so made do not count
+exactly one cell fewer than `n_code_alphabet`; and on a census carrying
+no hexadecimal mark, where a named layout is made only of `%` and `!`,
+the named layouts so made do not count exactly one cell fewer than
+`n_all_digits`. **LF6.** Every key is written under one convention: no
+`~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!`.
+
+**C6-132 (the binding generation rule).** Where the column publishes a
+layout, the twin writes its cells to it. The census counts CELLS and
+the generator spends GROUPS, and every cell of a group carries the
+same spelling, so a group wears one layout or none. The census is
+SPREAD over the identities by a smooth weighted rotation, largest
+group first, so that no layout is bound to how often its values recur;
+each group is then offered the layout the rotation gave it and every
+other published layout after it, each only where the remaining count
+covers the group and the length fits the group's own slot. **A GROUP NO
+NAMED LAYOUT SERVES — a pooled cell, a cell too few to name, a cell of a
+layout C6-131b took back — IS WRITTEN TO A MIX OF THE COLUMN'S OWN KINDS
+(plan P4-D128)**: the figures and case letters the named layouts use
+between them, placed over the figure and letter positions of a named
+plain layout with no fill, never a mix the census names, so it is
+counted into no published layout. Measured before the mixes: 800 random
+eight-character codes of capitals and figures at a floor of eleven
+pooled 448 cells, the twin wrote them `A-----2S`, and `[A-Z0-9]{8}`
+matched 800 real cells and 352 twin cells. A group no mix serves either
+is written by the enumeration that always wrote it, so a column
+publishing no layout keeps its cells byte for byte. The disposition is EXACT-OBSERVABLE against the recount identity
+below, and method section G9.6 states the construction.
+
+**A CELL IS WRITTEN TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT
+LAYOUT.** A layout is filled from a counter, and a counter does not
+know what this census's own reader will make of what it wrote: `%%%%`
+filled at a step whose leading figure is nought spells `0123`, whose
+layout is `!%%%`. Measured, before that requirement was written: a
+column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33 of its 320
+four-character cells with a leading nought — a zero-filled four-figure
+spelling its source never wrote.
+
+**THE RECOUNT IDENTITY.** A person who opens the twin and reads the
+layout off each cell, under every rule of C6-130, finds for every NAMED
+layout at least its published count and at most that count plus the
+pooled remainder. The pooled key names no layout, so it bounds rather
+than binds, exactly as it does at 7.9. **THE RECOUNT DOES NOT APPLY
+C6-131b** (plan P4-D124): that clause takes decisions about which of a
+file's OWN layouts it may name, and a conforming file whose made-up
+cells left one cell off its named layouts would otherwise have a layout
+it holds at the published count taken back and be told it missed it.
+
+**`!` IS THE ONE PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A
+NOUGHT**, and the mark is confined to cells written in figures alone,
+so it can carry no text anybody chose: it is a writer's field width,
+the zero fill a reader loses when a spreadsheet or a statistics
+package reads `01586982` as 1586982. A run of noughts INSIDE a cell
+that is not figures alone — the `000123` of `S23-000123` — is not
+marked, and its twin writes those places from the figures.
+
+**AND A LITERAL RUN IS NOT PUBLISHED.** A constant run of letters
+shared by a whole column is a character-for-character fragment of
+every value in that column, which invariants I3 and F3 forbid. It is a
+population-wide fragment rather than any one person's, which is what
+makes it a question for the owner rather than a settled refusal; until
+that ruling this census names no literal and the twin writes the
+layout's own alphabet in its place.
+
+---
+
+<!-- a7i: the spellings of a count column -->
+
+### 7.13 `number_spellings`
+
+**C6-133 (what it holds).** A `count` block carries `number_spellings`
+as a key of the BLOCK. It is REQUIRED on that ONE role, written even
+when empty, and FORBIDDEN on the other fourteen — `continuous` among
+them, and every block reusing the numeric key set inside `affixed_number`,
+`joined_numbers` and `numbers_with_labels`; section 6.11's matrix is the
+authority and this clause restates it. It maps a SPELLING — the cell's
+own text, `007` — to the number of cells that wrote it.
+
+**WHY IT EXISTS** (landing 2b.18, plan P4-D123; the audit of numbers and
+codes, its missed item on mixed padding). A column of coded answers
+written `7` 115 times, `07` 119, `007` 123 and `0` 143 was described as a
+count, and a count publishes how many cells wore each field width and
+how many were padded — never WHICH number wore which. Its twin came back
+`7` 178, `007` 123, `0` 80, `00` 63, `07` 55 and `05` 1: six spellings for
+four, two of them spellings the real column never wrote, and both files
+passed. No published fact could have said otherwise.
+
+**C6-134 (when it names anything, and the disclosure line).** The census
+is ALL OR NOTHING. It names every spelling with its count exactly where
+ALL of these hold, and is `{}` otherwise:
+
+- every cell read as a number is written in figures alone, one to
+  fifteen of them — so every key is a whole number this format holds;
+- at least two of those spellings write ONE number, which is the only
+  thing the census is for: a column writing each number one way is
+  already described by its field widths;
+- EVERY spelling is written by at least the larger of `small_cell_floor`
+  and two cells. A spelling too rare to name is never pooled, because
+  beside the named ones a pool's count would be the complement of
+  numbers anybody can add up, and a count of one is never published;
+- and the spellings number no more than the categorical ceiling of the
+  table, so a long column of counts is never turned into a list of every
+  value it holds.
+
+An empty census says only that one of the four did not hold, and no
+count of anybody.
+
+**THE ROLE DOES NOT MOVE.** The column stays `count`, its ladder, moments
+and widths stand beside the census, and no column is routed by its
+shape — review item P1-R6-F7's policy, reaffirmed by amendment A-P4-60,
+which measured routing padded figures to codes and withdrew it. What
+moves is one published fact on the columns that write a number two ways.
+
+**C6-135 (invariants).** **SC1.** Every named spelling's count is at
+least `small_cell_floor` and at least two. **SC2.** A census naming any
+spelling sums to `n_numeric`, holds two keys writing one number, and
+names no more spellings than the categorical ceiling. **SC3.** Its
+spellings of nought count exactly `n_zero`.
+
+**C6-136 (the binding generation rule).** Where the census names
+anything, the twin's numbers ARE the census: each spelling written as
+many times as it counts, in the order of the number it spells and then
+of the spelling, the rows made random by the placement every content
+list takes. Nothing is drawn for them, and every statistic published
+beside the census was computed from exactly these cells, so the ladder,
+the moments, the styles and the widths all hold. Generation method G6.8
+states it.
+
+**Disposition: EXACT-OBSERVABLE.** A person who opens the twin and
+counts each spelling finds exactly its published count; the census
+pools nothing, so no key is a window.
 
 ---
 
@@ -8362,10 +8940,10 @@ and it names eight: `missing_by_class`, `utc_offsets`,
 |---|---|---|
 | N1 | `missing_by_class` carries exactly SIX keys — `(blank)`, `(date-sentinel)`, `(declared-missing)`, `(numeric-sentinel)`, `(text-code)`, `(withheld)` — always all six, on every column block of every role, and their six values sum to `n_missing` | yes |
 | N2 | each `missing_by_class` value other than `(withheld)` is 0 or at least `small_cell_floor`: a class counting between 1 and the floor is pooled into `(withheld)` and reads 0 here. `(withheld)` is exempt — the remainder the named counts were pooled out of, and one remainder pools several classes | yes |
-| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`; on a nothing-publishing column `missing_by_source == {}` and both counts are 0, whatever `n_missing` is | yes |
+| N3 | on a column that is not a nothing-publishing column, `sum(missing_by_source.values()) + n_missing_blank + n_missing_withheld == n_missing`; on a nothing-publishing column the same three are an upper bound, `<= n_missing`, and every key additionally names a member of the published vocabulary (C6-126). No key of the map is the empty spelling (C6-125), which would count a blank cell twice | yes |
 | N4 | every value of `missing_by_source` is at least `small_cell_floor`, with no exemption, and `n_missing_blank` is 0 or at least the floor. `n_missing_withheld` is bounded in neither direction, for N2's reason | yes |
 | N5 | no key of `missing_by_source` carries a first-party meaning — not the six class words nor any other name this format uses (`n_missing_withheld`, `n_sentinel_candidates_unpublished` among them), because a cell can say those too: such a key means cells of the table held that text. `levels[].variants` is the other map the TABLE keys | reading |
-| N6 | `n_missing_blank` and `n_missing_withheld` are 0 on exactly the nothing-publishing columns; that class is a function of `role` and `structural_role`, which every block publishes | yes |
+| N6 | the nothing-publishing class is decided from `role` and `structural_role`, which every block publishes, and never from a count reading zero: since C6-126 both absence counts mean the same thing on every column | reading |
 | N7 | a `missing_by_source` key is the source spelling character for character | producer |
 
 ### 8.4 The declaration records — K
@@ -8506,7 +9084,7 @@ supplied a different test would refuse different files.
 | U1 | `n_whole + n_fraction + n_whole_unknown == n_present` | yes |
 | U2 | `n_positive + n_negative + n_sign_unknown == n_present` | yes |
 | U3 | M1 and M2 hold of `n_distinct_by_occurrences`: its values sum to `n_distinct`, and its keys weighted by its values sum to `n_present` | yes |
-| U4 | the role is a nothing-publishing column, so `missing_by_source` is `{}`, `n_missing_blank` and `n_missing_withheld` are `0`, and every `sentinel_verdicts` entry has `candidate == "(withheld)"` (N3, V2) | yes |
+| U4 | the role is a nothing-publishing column, so every key of `missing_by_source` names a member of the published vocabulary, both absence counts stand inside N3's upper bound, and every `sentinel_verdicts` entry has `candidate == "(withheld)"` (N3, V2, C6-126) | yes |
 | U5 | `min_length <= max_length` | yes |
 | U-P | `min_length` and `max_length` are measured over the NUMERIC-LOOKING cells only, each a count of characters of the cell's text as the file spells it; U5 bounds the two against each other and reaches no further | producer |
 
@@ -8646,12 +9224,33 @@ stated in full at section 7.9.
 
 | id | statement |
 |---|---|
-| SF1 | every NAMED form's count is at least `small_cell_floor` |
+| SF1 | every NAMED form's count is at least `small_cell_floor`, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well |
 | SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere |
+| SF5 | a lower-case key is named only where `n_distinct` equals `n_distinct_folded` |
+| LF1 | every NAMED layout's count is at least the line: `small_cell_floor`, and never under two |
+| LF2 | the `(withheld)` count, where written, is at least two |
+| LF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell this census does not describe has no layout and is counted nowhere |
+| LF4 | the sum of all counts is not exactly one less than `n_present` (C6-131b) |
+| LF5 | where a named layout lies inside the code alphabet, the named layouts inside it do not count exactly one cell fewer than `n_code_alphabet`; and on a census with no hexadecimal mark, where a named layout is figures alone, those do not count exactly one cell fewer than `n_all_digits` (C6-131b) |
+| LF6 | every key is written under one convention: no `~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!` |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
 C6-31d is a refusal and not an invariant: the loader checks the key
 before it reads the count.
+
+### 8.x The census of spellings of a count column — SC
+
+Binding on the one role that carries `number_spellings`, `count`, and
+stated in full at section 7.13.
+
+| id | statement |
+|---|---|
+| SC1 | every spelling the census names was written by at least `small_cell_floor` cells and by at least two |
+| SC2 | a census naming any spelling names every cell read as a number, so its counts sum to `n_numeric`; at least two of its keys write one number; and it names no more spellings than the categorical ceiling |
+| SC3 | its spellings of nought count exactly `n_zero` cells |
+
+A key that is not one to fifteen figures and nothing else is a refusal
+and not an invariant, and `(withheld)` is never a key of this census.
 
 ### 8.x The resolution mix — RM
 
@@ -8711,6 +9310,8 @@ document, never the table it describes.
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
+| SC-P | where a count column writes one number more than one way, every cell read as a number is written in figures alone, every spelling clears the line of 7.13 and the spellings are within the ceiling, `number_spellings` names every spelling with its count, and it is `{}` otherwise | SC1 to SC3 check a census that is published; none can see a census that should have been and was not |
+| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required; nor can any of LF1 to LF6 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 
@@ -8858,6 +9459,7 @@ reproduces the recorded spellings there as on any other column.
 | `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: every point-free cell of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — must be the figures its own value writes, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
 | `pad_widths` | EXACT-OBSERVABLE against a recount identity of the same shape as `fraction_widths`: recounted padded cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value. A named width is honoured by PADDING and never by adjusting the value — `000123` and `123` read back as the same number — so no rung, endpoint or statistic is ever spent to reach one. Where a width is named the leading-zero family is spent on it, because every further spelling of a value is one figure wider; raw `n_distinct` then falls to its own two-sided envelope under the authorization owner decision 11 already carries, "only where even those cannot supply" |
 | `fraction_widths` | EXACT-OBSERVABLE against a recount identity of the same shape: recounted cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value — exact where nothing pooled, windowed where something did. Widths are met by value adjustment inside the value-construction stage, so a pinned cell counts toward a width only when its value already fits it |
+| `number_spellings` | EXACT-OBSERVABLE, on `count` alone: every published spelling is recounted on the measured file and must number exactly its published count. The census pools nothing, so no key is a window (section 7.13) |
 | `field_widths` | REPORT-ONLY, and 7.10 carries the measurement the class was chosen on. Unlike `pad_widths`, a named width here is a fact about the VALUE and not only about the spelling — an unpadded cell is exactly as wide as its value — so it can be met only by the value-construction stage, and that stage places values by the ladder. `docs/spec/generation-method-v1.md` G6.6 takes the census as a constraint on the figure count of each stratum's value, within the half unit G5.4's integer rule already spends; where a width has no such value to reach it, the twin's report names the shortfall with the count it reached and `synthtwin validate` LISTS the census rather than holding the file to it |
 | `empty_bins` | REPORT-ONLY, and 7.11 carries the measurement the class was chosen on. The value stage READS it — `docs/spec/generation-method-v1.md` G6.7 moves any stratum that landed in a named stretch to the nearer of the two values `empty_edges` names for that stretch, and no further past it than one bin — and on the two-cluster columns it was built against that took the cells landing in a named stretch from 4–6 of 300 to none at forty seeds of forty. It is not exact because a column whose other published facts leave no room beside a stretch cannot always be moved out of it: 119 of 1600 runs over forty described columns still wrote one such cell, and each is named in the twin's own report while `synthtwin validate` LISTS the fact rather than holding the file to it |
 | `empty_edges` | REPORT-ONLY, and 7.11a carries the measurement. It is the fact the value stage actually walks from: `empty_bins` names bins, and a bin is a thirty-second of the column's reach, so the empty bins lie strictly INSIDE the stretch the source really leaves empty and a cell moved to a bin edge was still in the source's own gap. The pairs name the two real values each stretch lies between. Measured over three two-cluster witnesses at forty seeds each: cells inside a source's own gap fell from one per column per seed, 15.7–23.0 units from a real value, to NONE — 0 of 12,000 on each. It is REPORT-ONLY for the same reason `empty_bins` is, and the shortfall it can still have is the one the bins carry at residual R-P4-140 |
@@ -9161,6 +9763,7 @@ not modeled, exactly as a two-humped numeric column's valley is not.
 | `min_length`, `max_length`, `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
+| `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout |
 
 Two shapes a real table produces used to cost `all_whole_numbers`, and
 neither does now (Phase 3 plan P3-D8.1, owner decision 1). A length
@@ -9795,7 +10398,7 @@ this document, and the battery the plan requires turns red on it.
 | `columns[].name`, `columns[].position` | the column's own name exactly as written — the file's own text wherever `header_source` is `file` — and its one-based place in the schema | floor-free |
 | the universal counts (5.1) | `n_present`, `n_missing`, `n_distinct`, `n_distinct_folded`, `n_numeric`, `n_not_numeric`, `n_out_of_range`, `n_contradictory`, `n_sentinel_candidates_unpublished`, `n_missing_blank`, `n_missing_withheld` — counts, never a value | floor-free EXCEPT the two absence counts: `n_missing_blank` is `0` or at least the floor, and the blank cells below it are counted in `n_missing_withheld`, which is itself a pooled residue |
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
-| `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; empty on a nothing-publishing column |
+| `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; on a nothing-publishing column confined to members of the published vocabulary (C6-126), which are synthtwin's own words and no table's |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
 | labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |

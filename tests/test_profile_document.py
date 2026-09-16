@@ -363,8 +363,34 @@ def test_nothing_that_varies_between_runs_is_written(
 # only landing 2b.6's keys moved: the four written-form censuses of
 # `recorded_on`, its `n_at_midnight` null, and the `-999` spellings of
 # the `reading` decision. No other key, count or value moved.
+# RE-RECORDED 2026-09-16 (landing 2b.12, plan P4-D85), and ONE LINE of
+# the document moved: `comment`, the free-text column, publishes
+# `n_missing_blank: 160` where it published 0. Read as a diff of the two
+# documents against the base commit, that line is the WHOLE of the
+# difference -- no count, statistic, label, role or spelling of any
+# column changed, and `missing_by_source` on that column is still `{}`,
+# because every one of its 160 absent cells held nothing at all and a
+# blank is not a spelling. What moved is the rule, not the cells: a
+# column that publishes no value of the table now accounts for its
+# absent cells like any other, so the count that was zeroed by its CLASS
+# reads what the column holds.
+# RE-RECORDED 2026-09-16 (landing 2b.18 part 2, plan P4-D123): the two
+# `count` blocks, `visits` and `reading`,
+# each gained the census `number_spellings: {}` the contract now requires
+# on that role (section 7.13). Read as a diff of the two documents against
+# 2e2ec8f, those two lines are the whole of the difference: neither
+# column writes one number more than one way, so both censuses are empty,
+# and no count, statistic, label, role, form or spelling of any column
+# moved.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), measured both ways on the harness that reproduces each
+# side's committed digest. Against the tree before the merge only
+# landing 2b.8's keys moved: `number_spellings` on the two `count`
+# blocks and `n_missing_blank` 0 to 160 on the free-text column. Against
+# landing 2b.8's own tree only landings 2b.6's and 2b.7's keys moved, as
+# recorded above. Nothing else in the document moved.
 GOLDEN_SHA256 = (
-    "77d2795859decefd846bdfd7de518b315a3c0a5730f0a6f1caf827c5a4776460"
+    "a34371eb72330b9250e423cb8215d9ccd2de41f2b76abc9f45653582586a6734"
 )
 
 

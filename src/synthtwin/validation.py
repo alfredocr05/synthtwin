@@ -2317,15 +2317,34 @@ def _core_rescue_not_recorded(kept: int) -> str:
 
 
 def _publishes_no_source_accounting(column: contract.ColumnBlock) -> bool:
-    """Whether this column's publication class empties its accounting.
+    """Whether this column's publication class narrows its accounting.
 
-    Contract 5 section 6.10 as carried, and its C5-N6: on a column whose
-    role publishes no value of the table -- free text, declared
-    identifiers, record numbers, numbers this format cannot represent --
-    `missing_by_source` is empty and both new counts are zero, whatever
-    made the cells absent. The class is derivable from two fields every
-    block publishes, so "this column publishes no source accounting" is
-    always tellable from "this column had nothing to account for".
+    Contract 6.10: a column whose role publishes no value of the table
+    -- free text, declared identifiers, record numbers, numbers this
+    format cannot represent -- is decided from two fields every block
+    publishes, so "this column publishes no value" is always tellable
+    from "this column had nothing to account for".
+
+    WHAT SUCH A COLUMN EMPTIED IS NARROWER SINCE PLAN P4-D85, and this
+    docstring said the old rule. It said `missing_by_source` is empty
+    and both absence counts are zero whatever made the cells absent.
+    That is no longer true and was the defect LTM-2 named: such a column
+    now names the members of synthtwin's OWN published vocabulary its
+    holes wore -- `NA`, `N/A`, `NULL` -- and counts its blanks like any
+    other column. What it still publishes none of is a spelling of the
+    PERSON'S own, declared or not, because no loader holding one
+    document could tell one from a value of the column, and those cells
+    are counted by nothing (C6-126).
+
+    The answer this returns is unchanged, because the question it is
+    asked is about the CLASS and not about the cells: the one caller
+    uses it to decide whether the count-against-count test can be relied
+    on for a column, and on such a column it still cannot be relied on
+    in general -- a person's own declared word leaves holes no key
+    accounts for. Where the word is one of synthtwin's own the test
+    would now pass on its own, so skipping it is conservative rather
+    than necessary, which is the honest description of what this
+    decides.
     """
     if column.structural_role == "identifier":
         return True
@@ -7795,7 +7814,7 @@ def _role_checks(
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
-        return _identifier_checks(column, facts, block, mine)
+        return _identifier_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
         return _unrepresentable_checks(column, facts, block)
     return []
@@ -9234,6 +9253,21 @@ def _numeric_checks(
     """A column of counts or of continuous values."""
     name = column.name
     checks: list[Check] = []
+    # EVERY SPELLING A COUNT COLUMN PUBLISHES, recounted exactly (7.13,
+    # plan P4-D123). The census is all or nothing and pools nothing, so
+    # each spelling is a point and not a window: a file holding `07`
+    # where the table held `007` misses both lines, which is the defect
+    # the census was published to close.
+    if facts.number_spellings:
+        checks = checks + _form_checks(
+            name,
+            "numeric.number_spellings",
+            facts.number_spellings,
+            block,
+            floor,
+            "number_spellings",
+            "spellings",
+        )
     # HOW MANY DIFFERENT NUMBERS THE TWIN HOLDS (amendment A-P4-55).
     # Recounted from the re-description, like every other fact of this
     # block, and compared EXACTLY: the owner ruled the count an
@@ -13962,6 +13996,8 @@ def _form_checks(
     census: "dict[str, int]",
     block: "dict[str, object]",
     floor: int,
+    census_key: str = "shape_forms",
+    named: str = "forms",
 ) -> "list[Check]":
     """The census of written forms, recounted on the measured file.
 
@@ -13973,7 +14009,7 @@ def _form_checks(
     nothing, and the fact that lets a held-back value have a stand-in
     shaped like one would be published and never checked.
     """
-    measured = _map_at(block, "shape_forms")
+    measured = _map_at(block, census_key)
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
@@ -13985,7 +14021,7 @@ def _form_checks(
             _floor_governed(
                 name,
                 fact,
-                f"forms.published.{form}",
+                f"{named}.published.{form}",
                 census[form],
                 measured,
                 form,
@@ -14215,6 +14251,8 @@ def _identifier_checks(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
     block: "dict[str, object]",
+    cells: "list[str]",
+    floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
     """A column the person declared to hold record numbers."""
@@ -14246,6 +14284,36 @@ def _identifier_checks(
             None if found_truth is None else _shown_truth(found_truth),
         )
     ]
+    # THE LAYOUT CENSUS IS CHECKED BEFORE THE CORNER AND INSIDE IT
+    # (7.12, plan P4-D120). Owner decision 6's corner is about
+    # DISTINCTNESS -- a published length range that cannot supply as
+    # many different values as the column has rows -- and it lowers
+    # exactly the three distinctness facts. What a cell LOOKS like is
+    # untouched by it: a twin whose identifiers repeat still writes
+    # every one of them to a published layout, so the census is owed
+    # there exactly as it is owed anywhere, and putting this check
+    # after the early return would have quietly excused it.
+    #
+    # AND THE CENSUS IS RECOUNTED OFF THE CELLS, NOT READ OFF THE FILE'S
+    # OWN DESCRIPTION (plan P4-D124). That description applies the
+    # whole-census rule of C6-131b -- no layout census may leave exactly
+    # one cell over against a total -- and that rule takes decisions
+    # about the MEASURED file's own cells. A twin whose made-up cells
+    # happened to leave one cell off its named layouts would have a
+    # layout it holds at the published count taken back, and be told it
+    # MISSED. `taxonomy.layout_census` is every rule of C6-130 about one
+    # layout at a time, which is exactly what a recount of one published
+    # layout needs, and nothing it prints is more than the file holds.
+    present = [cell for cell in cells if parsing.trimmed(cell)]
+    recounted: "dict[str, object]" = {
+        "layout_forms": taxonomy.layout_census(
+            present, floor, len(set(present))
+        )
+    }
+    checks = checks + _form_checks(
+        name, "identifier.layout_forms", facts.layout_forms, recounted,
+        floor, "layout_forms",
+    )
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).

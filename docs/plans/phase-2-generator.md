@@ -636,7 +636,10 @@ A-P4-48); `mean`, `std`, `skew` APPROXIMATED with fixed formula and
 two-sided bound; `n_distinct` and `n_distinct_folded` EXACT-OBSERVABLE
 using the spellings of owner decision 7, falling back to the two-sided
 envelope only where even those cannot supply the count, which the report
-then names.
+then names. `number_spellings`, on `count` alone, EXACT-OBSERVABLE: every
+spelling it names is recounted on the measured file and must number
+exactly its published count, the census pooling nothing (contract
+section 7.13, landing 2b.18 part 2, plan P4-D123).
 
 **Label roles (categorical, binary, constant)**: `levels` (normalized
 label and count), `suppressed_levels`, `suppressed_level_counts`,
@@ -683,7 +686,15 @@ APPROXIMATED with two-sided bounds.
 
 **Identifier**: `min_length`, `max_length`, `all_whole_numbers`,
 `n_all_digits`, `n_code_alphabet` EXACT-OBSERVABLE in every case, since
-owner decision 6 keeps the length. **In that decision's infeasible
+owner decision 6 keeps the length. `layout_forms` EXACT-OBSERVABLE
+against the recount identity contract section 7.12 states, on the same
+terms as the form census on the label roles: a layout recounted on the
+measured file numbers at least its published count and at most that
+count plus the pooled `(withheld)` value. It is owed INSIDE owner
+decision 6's infeasible corner as well as outside it, because that
+corner lowers three DISTINCTNESS facts and says nothing about what a
+cell looks like — a twin whose record numbers repeat still writes every
+one of them to a published layout (landing 2b.18, plan P4-D120). **In that decision's infeasible
 corner, THREE distinctness facts are REPORT-ONLY, not one**
 (P2-R4-F4, and the same gap found independently in an implementer
 probe): raw `n_distinct`, `n_distinct_folded`, and

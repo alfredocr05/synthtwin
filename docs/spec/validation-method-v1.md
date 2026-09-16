@@ -790,10 +790,16 @@ places:
   from 2026-08-17, and V2.4-A9 below is the correction. The walk
   returns keys, which is V2.4-A7's correction.)*
 - **The per-column structural test is not asked where the publication
-  class empties the source accounting.** On a nothing-publishing column
+  class empties the source accounting.** ~~On a nothing-publishing column
   `missing_by_source` is empty, `n_missing_blank` is zero and
   `n_missing_withheld` is zero because of the CLASS and not because of
-  the cells, and contract 5's C5-N6 makes the two cases tellable apart
+  the cells~~ *(amended by contract C6-126, plan P4-D85: such a column
+  names the members of the published vocabulary its holes wore and
+  closes N3's sum like any other, so the class empties nothing and the
+  structural test is asked of it as of every column. What the class
+  still empties is a spelling of the PERSON'S own words, which stays in
+  the pooled remainder and is what the head count answers for)*, and
+  contract 5's C5-N6 makes the two cases tellable apart
   from `role` and `structural_role`. A count-against-count test has
   nothing to read there; asking it anyway called every declared hole of
   such a column unattributable even where the word is in the settings
@@ -1604,6 +1610,36 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   its `n_distinct_by_occurrences` names groups. Then `n_distinct`,
   `n_distinct_folded` and `n_distinct_by_occurrences` are REPORT-ONLY
   for that column, and nothing else is.
+
+  **THE LOWER-CASE KEY OF A FORM CENSUS AND THE CENSUS OF SPELLINGS
+  OF A COUNT COLUMN** (contract C6-31a and section 7.13, landing 2b.18
+  part 2, plans P4-D121 and P4-D123) are recounted by the same producer
+  the description was made with, so the file is read the way the table
+  was: a cell whose every letter is lower case is counted under its
+  form's lower-case key where the description names one, and under the
+  form otherwise, each named key numbering at least its published count
+  and at most that count plus the pooled remainder. A count column's
+  published spellings are each recounted EXACTLY, subcheck
+  `spellings.published.<spelling>`, because that census pools nothing.
+  Neither is lowered in this corner, which reaches neither role.
+
+  **`layout_forms` IS NOT LOWERED HERE, AND THE CHECK STANDS BEFORE
+  THE CORNER AS WELL AS INSIDE IT** (contract 7.12, landing 2b.18,
+  plan P4-D120). This corner is about DISTINCTNESS — a published
+  length range that cannot supply as many different values as the
+  column has rows — and it lowers exactly the three facts named above.
+  What a cell LOOKS like is untouched by it: a twin whose record
+  numbers repeat still writes every one of them to a published layout.
+  So the census is recounted on the measured file wherever the column
+  publishes one, on the same terms 7.9's form census is recounted —
+  each named layout numbering at least its published count and at most
+  that count plus the pooled remainder — and filing that check after
+  the corner's early return would have quietly excused it. **The recount
+  is taken off the measured cells by every rule of contract C6-130 and
+  NOT by C6-131b** (plan P4-D124): that clause decides which of a file's
+  own layouts its description may name, and a conforming file whose
+  made-up cells left one cell off its named layouts would have a layout
+  it holds at the published count taken back and be reported MISSED.
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells

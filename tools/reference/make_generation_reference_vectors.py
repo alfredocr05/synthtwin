@@ -3501,6 +3501,10 @@ WITHHELD = "(withheld)"
 # which is the whole point of an oracle.
 SHAPE_DIGIT = "%"
 SHAPE_LETTER = "@"
+# The lower-case letter of a census key (contract C6-31a, landing 2b.18
+# part 2): a key the census names for the cells of one form whose every
+# letter was lower case, and never a mark `written_form` writes.
+SHAPE_LOWER = "&"
 SHAPE_MARKS = "-./_:#*()[]+,"
 
 
@@ -3575,9 +3579,30 @@ def form_room(form):
     for character in form:
         if character == SHAPE_DIGIT:
             room *= 10
-        elif character == SHAPE_LETTER:
+        elif character in (SHAPE_LETTER, SHAPE_LOWER):
             room *= 26
     return room
+
+
+def all_letters_lower(text):
+    """Whether a cell holds an ASCII letter and no upper-case one."""
+    lower = any("a" <= character <= "z" for character in text)
+    upper = any("A" <= character <= "Z" for character in text)
+    return lower and not upper
+
+
+def census_form(text, census):
+    """The census key one cell is counted under -- contract C6-31a.
+
+    Its written form, blind to case; or, where every letter of the cell
+    is lower case and the census names the form with `&` in every letter
+    place, that key.
+    """
+    form = written_form(text)
+    if not form or SHAPE_LETTER not in form or not all_letters_lower(text):
+        return form
+    lower = form.replace(SHAPE_LETTER, SHAPE_LOWER)
+    return lower if lower in census else form
 
 
 def shares_a_factor(one, other):
@@ -3617,6 +3642,11 @@ def filled_form(form, step):
         elif character == SHAPE_LETTER:
             built += letters[place % 26]
             place //= 26
+        elif character == SHAPE_LOWER:
+            # A lower-case key is filled in lower case, at the same
+            # positions and by the same arithmetic (landing 2b.18 part 2).
+            built += letters[place % 26].lower()
+            place //= 26
         else:
             built += character
     return built
@@ -3630,7 +3660,7 @@ def forms_owed(census, written):
             continue
         owing[form] = census[form]
     for cell in written:
-        form = written_form(cell)
+        form = census_form(cell, census)
         if form in owing and owing[form] > 0:
             owing[form] -= 1
     return owing
@@ -3644,13 +3674,45 @@ def neediest_form(owing):
     return ordered[0][1] if ordered else ""
 
 
-def usable_room(form, wanted, seen, folds, reads=None):
+def within_the_published_ends(candidate, ladder):
+    """Whether a made-up number lies between the published numbers' ends.
+
+    Method G8.3a step 2's bound on the form's OWN walk (P4-D92).  Step 3
+    steps from the published numbers, so what it writes sits in or beside
+    the span the column holds; the form's own walk fills figure places by
+    counting and lands wherever the counting lands.  Unbounded it wrote
+    `9.6E6` for a column holding 1.1e6 to 1.3e6 -- meeting the census and
+    taking the twin's mean to 2,450,000 against 1,173,077, with validate
+    falling from 3 to 0.  So the VALUE is asked too.
+
+    THE ENDS ARE VALUES AND NOT RUNGS (P4-D100).  Asking the LADDER for
+    them left a column whose every published number wears an exponent or
+    a leading plus with no ends at all, so every spelling of its form was
+    refused and four cells of a twenty-six census went unpaid.  Such a
+    column does publish numbers; what it lacks is a rung to step from,
+    which bears on the walk of step 3 and not on how large a made-up
+    number may be.  So the span of the published VALUES bounds it, and
+    only a column publishing no number at all has no ends.
+    """
+    if not ladder["anchored"]:
+        if not ladder["spanned"]:
+            return False
+        return ladder["least"] <= float(candidate) <= ladder["greatest"]
+    scale = float(10 ** ladder["places"])
+    return (
+        ladder["lowest"] / scale <= float(candidate) <= ladder["highest"] / scale
+    )
+
+
+def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     """How many spellings of one form a stand-in could still wear, up to
     ``wanted`` -- method section G8.3's supply rule.
 
     A spelling already written, raw or folded, is not supply, and nor is
     one the neutrality tests refuse.  ``reads`` is the numeric class the
-    spelling must read as (G8.3a); None is ordinary text.
+    spelling must read as (G8.3a); None is ordinary text.  ``ladder``,
+    where given, holds the count to the published ends (P4-D92), so the
+    supply is counted under the bound the walk spends under.
     """
     room = min(form_room(form), STAND_IN_STEPS)
     usable = 0
@@ -3665,6 +3727,8 @@ def usable_room(form, wanted, seen, folds, reads=None):
                 continue
         elif not usable_of_class(candidate, reads):
             continue
+        if ladder is not None and not within_the_published_ends(candidate, ladder):
+            continue
         usable += 1
     return usable
 
@@ -3675,6 +3739,12 @@ SHARE_OUT_PLACES = 256
 SHARE_OUT_NODES = 20000
 STAND_IN_STEPS = 4096
 
+# How many different exact class arrangements G8.3a step 1 tries before
+# the first one stands (landing 2b.13).  Each pass forbids one more of
+# the places the refused arrangement spent, so the passes reach
+# genuinely different subsets.
+CLASS_RETRIES = 8
+
 
 def subset_making(spare, total, most):
     """Which slots of ``spare`` sum to ``total`` in at most ``most`` parts.
@@ -3682,6 +3752,11 @@ def subset_making(spare, total, most):
     Reachable sums, each size offered against the sums reached WITHOUT
     it, and a sum once reached never rewritten -- the two rules that make
     the chain read back strictly decreasing in slot.
+
+    The places a refused arrangement spent are forbidden by the CALLER:
+    `settled_by_sums` drops them from ``spare`` before asking this, so
+    the retry of G8.3a step 1 reaches a different subset by being handed
+    different sizes.
     """
     if total < 1:
         return []
@@ -3707,10 +3782,15 @@ def subset_making(spare, total, most):
     return picked
 
 
-def settled_by_sums(sizes, places, owing, names, supply, biggest_first):
-    """Every debt settled by an exact subset in turn, or None -- G8.3."""
-    spare = [sizes[place] for place in places]
-    where = list(places)
+def settled_by_sums(sizes, places, owing, names, supply, biggest_first, avoid=()):
+    """Every debt settled by an exact subset in turn, or None -- G8.3.
+
+    ``avoid`` names places this pass may not give to any debt, which is
+    how class_split reaches a different exact arrangement than the one
+    whose form debts it could not settle (G8.3a step 1, landing 2b.13).
+    """
+    spare = [sizes[place] for place in places if place not in avoid]
+    where = [place for place in places if place not in avoid]
     taken = {}
     if biggest_first:
         ordered = sorted((-owing[name], name) for name in names)
@@ -3841,7 +3921,9 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
     return greedily(sizes, places, owing, seen, folds, supplied)
 
 
-def invented_levels(used, sizes, census=None, written=(), placed=None):
+def invented_levels(
+    used, sizes, census=None, written=(), placed=None, level_shape=""
+):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
     WHICH SIZE TAKES WHICH FORM IS SETTLED FIRST, by `shared_out`, over
@@ -3873,6 +3955,11 @@ def invented_levels(used, sizes, census=None, written=(), placed=None):
     shared = ["" for _ in sizes]
     for step, place in enumerate(wordy):
         shared[place] = settled[step]
+    covered = set()
+    if level_shape:
+        shared, covered = level_shape_spent(
+            sizes, shared, level_shape, placed or {}, seen, folds
+        )
     produced = []
     walked = {}
     number = 0
@@ -3881,6 +3968,8 @@ def invented_levels(used, sizes, census=None, written=(), placed=None):
             produced.append((placed[place], size))
             continue
         form = shared[place]
+        if not form and place in covered:
+            form = level_shape
         candidate = None
         if form:
             room = min(form_room(form), STAND_IN_STEPS)
@@ -3950,8 +4039,49 @@ LONGEST_FROZEN_NUMBER = 7
 
 
 def form_reading(form):
-    """The class one published form's spellings read as, read off its first."""
-    return notation_reading(filled_form(form, 0))[0]
+    """The class one published form's spellings read as -- G8.3a step 2.
+
+    THE FIRST FILLING IS NOT THE ONLY ONE.  filled_form puts `A` in the
+    first letter place, so `%.%@%` -- the form of `1.1e6` -- fills to
+    `0.0A0`, which reads as TEXT, and the form was offered to the word
+    debt and never to the number debt.  Where the first filling reads as
+    no numeric class, the EXPONENT filling is asked as well: a letter
+    place holding `E` is what makes a form of figures and one letter a
+    number, and the form's own walk reaches such a spelling.  Only
+    NUMBER is answered this way; the other two classes are constructed
+    outright by G10.3.
+    """
+    reading = notation_reading(filled_form(form, 0))[0]
+    if reading != NOTATION_TEXT:
+        return reading
+    exponent = exponent_filling(form)
+    if exponent and notation_reading(exponent)[0] == NOTATION_NUMBER:
+        return NOTATION_NUMBER
+    return reading
+
+
+def exponent_filling(form):
+    """One filling of a form wearing `E` in every letter place, or "".
+
+    Every figure mark takes `0`, every letter mark takes `E`, and every
+    other character stands as itself.  Empty where the form holds no
+    letter mark, which is the ordinary case.  A form whose letter places
+    would have to DIFFER is answered exactly as before, which is the
+    stated limit of the rule.
+    """
+    if SHAPE_LETTER not in form and SHAPE_LOWER not in form:
+        return ""
+    built = ""
+    for character in form:
+        if character == SHAPE_DIGIT:
+            built += "0"
+        elif character == SHAPE_LETTER:
+            built += "E"
+        elif character == SHAPE_LOWER:
+            built += "e"
+        else:
+            built += character
+    return built
 
 
 def usable_of_class(candidate, reads):
@@ -4022,12 +4152,21 @@ def form_places(form):
 def number_ladder(written, forms):
     """The published numbers a label column steps its made-up ones from."""
     parsed = []
+    # EVERY PUBLISHED NUMBER'S VALUE, stepped from or not (P4-D100).  The
+    # exact reader above already settles each cell's class, and its value
+    # is the same reading; `plain_units` answers for the SPELLINGS the
+    # walk of step 3 can step from, which is the narrower question.
+    span = []
     for cell in dict.fromkeys(written):
         if notation_reading(cell)[0] != NOTATION_NUMBER:
             continue
+        span.append(float(decimal_to_fraction(cell.strip())))
         units = plain_units(cell)
         if units is not None:
             parsed.append(units)
+    ends = {"least": min(span) if span else 0.0,
+            "greatest": max(span) if span else 0.0,
+            "spanned": bool(span)}
     if not parsed:
         places = max([form_places(form) for form in forms] + [0])
         # A NUMBER WEARING NO NAMED FORM takes those places and then whole
@@ -4035,7 +4174,7 @@ def number_ladder(written, forms):
         tiers = (places, 0) if places > 0 else (0,)
         return {"lowest": 0, "highest": 0, "places": places,
                 "signs": {"positive"}, "anchored": False, "published": set(),
-                "tiers": tiers}
+                "tiers": tiers, **ends}
     places = max(pair[1] for pair in parsed)
     values = [value * 10 ** (places - own) for value, own in parsed]
     signs = set()
@@ -4046,7 +4185,7 @@ def number_ladder(written, forms):
     tiers = tuple(sorted({own for _value, own in parsed}, reverse=True))
     return {"lowest": min(values), "highest": max(values), "places": places,
             "signs": signs, "anchored": True, "published": set(values),
-            "tiers": tiers}
+            "tiers": tiers, **ends}
 
 
 def sign_held(value, signs):
@@ -4178,7 +4317,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
             if state == "skip":
                 continue
             candidate = units_spelled(units, places)
-            form = written_form(candidate)
+            form = census_form(candidate, named)
             if name == OWED_NUMBER:
                 if form in named:
                     continue
@@ -4245,19 +4384,88 @@ def forms_within_the_unasked_supply(
     return answer
 
 
-def class_split(sizes, debts, supply):
-    """Which held-back sizes pay which class debt -- G8.3a step 1."""
+def settles_its_forms(taken, sizes, owing):
+    """Whether each class's own form debts can still be settled exactly.
+
+    THE SPLIT SETTLES CELLS AND THE FORMS ARE SETTLED INSIDE IT, so an
+    arrangement paying every class exactly can still make a form debt
+    impossible (G8.3a step 1, landing 2b.13).  Readings `5.1` and `5.3`
+    on eleven rows each, `5.2` on four and `8` on one: five cells must
+    be numbers and four of them must wear `%.%`, and the sizes 3+2 make
+    five exactly and four not at all, while the source's own 4+1 meets
+    both.
+
+    A form owing more cells than the whole class covers is unpayable
+    under every split, so it is not asked: an arrangement is not refused
+    for failing to do the impossible.  Each form's supply is taken as
+    the number of sizes, because this asks whether the ARITHMETIC
+    exists and the walk still reports whatever the supply refuses.
+    """
+    for name in OWED_CLASSES:
+        reads = owed_reading(name)
+        mine = [place for place in range(len(sizes)) if taken.get(place) == name]
+        if not mine:
+            continue
+        sub = [sizes[place] for place in mine]
+        covered = sum(sub)
+        wanted = {
+            form: owing[form] for form in sorted(owing)
+            if 0 < owing[form] <= covered and form_reading(form) == reads
+        }
+        if not wanted:
+            continue
+        spots = [pair[1] for pair in sorted((-sub[step], step) for step in range(len(sub)))]
+        room = {form: len(sub) for form in sorted(wanted)}
+        names = sorted(wanted)
+        settled = None
+        for biggest_first in (True, False):
+            settled = settled_by_sums(sub, spots, wanted, names, room, biggest_first)
+            if settled is not None:
+                break
+        if settled is None:
+            return False
+    return True
+
+
+def class_split(sizes, debts, supply, owing=None):
+    """Which held-back sizes pay which class debt -- G8.3a step 1.
+
+    ``owing`` is the census's remaining form debt.  Given, an
+    arrangement is accepted only where settles_its_forms says each class
+    can still settle the forms reading as it; otherwise another exact
+    arrangement is tried, up to CLASS_RETRIES, each pass forbidding one
+    more of the places the refused arrangement spent.  The FIRST exact
+    arrangement stands where none of them can, so a column whose forms
+    no arrangement settles is written exactly as it was before the rule.
+    """
     names = [name for name in OWED_CLASSES if debts[name] > 0]
     if not names:
         return {}
     places = [pair[1] for pair in sorted((-size, place) for place, size in enumerate(sizes))]
+    first = None
     if len(places) * max(debts[name] for name in names) <= CLASS_SUM_WORK:
         for biggest_first in (True, False):
-            settled = settled_by_sums(
-                sizes, places, debts, names, dict(supply), biggest_first
-            )
-            if settled is not None:
-                return {place: name for place, name in enumerate(settled) if name}
+            avoid = ()
+            for _again in range(CLASS_RETRIES):
+                settled = settled_by_sums(
+                    sizes, places, debts, names, dict(supply), biggest_first, avoid
+                )
+                if settled is None:
+                    break
+                taken_now = {place: name for place, name in enumerate(settled) if name}
+                if first is None:
+                    first = taken_now
+                if owing is None or settles_its_forms(taken_now, sizes, owing):
+                    return taken_now
+                spent = [
+                    place for place in range(len(sizes))
+                    if settled[place] and place not in avoid
+                ]
+                if not spent:
+                    break
+                avoid = avoid + (spent[0],)
+    if first is not None:
+        return first
     left = {name: debts[name] for name in names}
     spare = {name: supply[name] for name in names}
     taken = {}
@@ -4283,18 +4491,50 @@ def class_stand_ins(column, written, used, sizes, census):
     stands where every paying size found a spelling; only otherwise may
     the census pool buy a wider number.
     """
+    bounded = True
     placed, debts, classes = class_stand_ins_walked(
         column, written, used, sizes, census, True
     )
-    if len(placed) == len(classes):
-        return placed, debts
-    placed, debts, _classes = class_stand_ins_walked(
-        column, written, used, sizes, census, False
-    )
+    if len(placed) != len(classes):
+        bounded = False
+        placed, debts, classes = class_stand_ins_walked(
+            column, written, used, sizes, census, False
+        )
+    # AND A THIRD WALK WHERE THE NUMBER DEBT IS STILL UNPAID (landing
+    # 2b.8).  The shortfall shows at WRITE time and not at the split: the
+    # split gives the number class sizes that make its debt exactly, and
+    # only then does the census rule refuse every candidate of the one
+    # tier the published places offer, so those sizes fall back to words
+    # with the class count missed.  The walk is taken again with a
+    # whole-number tier after the published places, and kept only where
+    # it covers more of the debt.
+    if debts[OWED_NUMBER] > 0:
+        paid = numbers_paid(sizes, classes, placed)
+        if paid < debts[OWED_NUMBER]:
+            wider, wider_debts, wider_classes = class_stand_ins_walked(
+                column, written, used, sizes, census, bounded, True
+            )
+            if numbers_paid(sizes, wider_classes, wider) > paid:
+                return wider, wider_debts
     return placed, debts
 
 
-def class_stand_ins_walked(column, written, used, sizes, census, bounded):
+def numbers_paid(sizes, classes, placed):
+    """How many cells of the number debt a finished walk actually paid.
+
+    The sizes the split gave the number class AND the walk then found a
+    spelling for.  A size left without one takes G8.3's neutral label,
+    so its cells pay nothing however the split counted them.
+    """
+    return sum(
+        sizes[place] for place in classes
+        if classes[place] == OWED_NUMBER and place in placed
+    )
+
+
+def class_stand_ins_walked(
+    column, written, used, sizes, census, bounded, whole_tier=False
+):
     """One walk of class_stand_ins, narrow where ``bounded`` says."""
     seen = set(used)
     folds = {folded(text) for text in used}
@@ -4309,12 +4549,21 @@ def class_stand_ins_walked(column, written, used, sizes, census, bounded):
         if owing[form] > 0 and form_reading(form) == NOTATION_NUMBER
     ]
     ladder = number_ladder(written, number_forms)
+    # A WHOLE-NUMBER TIER, WHERE THE CALLER ASKED FOR ONE (landing 2b.8).
+    # Where every published number carried a decimal AND the census names
+    # the form those places write, every candidate of that tier is
+    # stepped past for wearing a named form, so the tier is empty and a
+    # class debt goes unpaid.  A whole number wears no form at all, so it
+    # can never overpay the census.  It is the LAST tier, and a tier is
+    # taken up only once the one before it has ended.
+    if whole_tier and ladder["anchored"] and 0 not in ladder["tiers"]:
+        ladder = dict(ladder, tiers=ladder["tiers"] + (0,))
     supply = {name: len(sizes) for name in OWED_CLASSES}
     if debts[OWED_NUMBER] > 0:
         supply[OWED_NUMBER] = ladder_room(
             ladder, OWED_NUMBER, len(sizes), set(), seen, folds
         )
-    classes = class_split(sizes, debts, supply)
+    classes = class_split(sizes, debts, supply, owing)
     placed = {}
     cursor = {}
     counters = {}
@@ -4332,7 +4581,17 @@ def class_stand_ins_walked(column, written, used, sizes, census, bounded):
         room = {}
         for form in sorted(mine_forms):
             if name == OWED_NUMBER:
-                room[form] = ladder_room(ladder, form, len(sub), named, seen, folds)
+                # A NUMBER FORM HAS TWO SUPPLIES (landing 2b.13).  The
+                # ladder spells a PLAIN decimal, so a form the ladder
+                # cannot spell -- `%.%@%`, whose spellings carry an
+                # exponent -- has ladder room nought and shared_out
+                # settles it over no level at all.  Its own filling is
+                # the other supply, and the walk below takes it where
+                # the ladder has nothing.
+                room[form] = max(
+                    ladder_room(ladder, form, len(sub), named, seen, folds),
+                    usable_room(form, len(sub), seen, folds, reads, ladder),
+                )
             else:
                 room[form] = usable_room(form, len(sub), seen, folds, reads)
         forms_of = ["" for _ in sub]
@@ -4349,6 +4608,32 @@ def class_stand_ins_walked(column, written, used, sizes, census, bounded):
             if name == OWED_NUMBER:
                 if form:
                     found = next_on_ladder(ladder, form, cursor, named, seen, folds)
+                    if not found:
+                        # THE FORM'S OWN FILLING, WHERE THE LADDER
+                        # CANNOT SPELL IT (landing 2b.13).  units_spelled
+                        # writes a plain decimal, whose form is `%.%` and
+                        # never `%.%@%`, so a number level owing an
+                        # exponent form was stepped past every candidate
+                        # and fell through to the unformed walk, which
+                        # wrote `1`.  The form's own walk writes a spelling
+                        # that wears the form AND reads as a number -- and,
+                        # since P4-D92, one lying between the published
+                        # numbers' own ends, so a census count is never
+                        # bought with a magnitude the column is not known
+                        # to hold.  Where no plain number was published
+                        # there are no ends and the debt simply stands.
+                        room_left = min(form_room(form), STAND_IN_STEPS)
+                        walked.setdefault(form, 0)
+                        while walked[form] < room_left:
+                            trial = filled_form(form, walked[form])
+                            walked[form] += 1
+                            if trial in seen or folded(trial) in folds:
+                                continue
+                            if usable_of_class(trial, reads) and (
+                                within_the_published_ends(trial, ladder)
+                            ):
+                                found = trial
+                                break
                 if not found:
                     found = next_on_ladder(
                         ladder, OWED_NUMBER, cursor, named, seen, folds, needed, pool,
@@ -4374,7 +4659,7 @@ def class_stand_ins_walked(column, written, used, sizes, census, bounded):
                             trial = f"{counters[name]}e999"
                         else:
                             trial = f"(-{counters[name]})"
-                        if written_form(trial) in named:
+                        if census_form(trial, named) in named:
                             continue
                         if trial in seen or folded(trial) in folds:
                             continue
@@ -4557,6 +4842,154 @@ def spare_label_group(level, keeping):
     return best
 
 
+def level_key(spelling):
+    """The shape one published spelling wears, its case kept.
+
+    Its written form, with `&` in every letter place where every letter
+    of the spelling is lower case; "" where it has no form.
+    """
+    form = written_form(spelling)
+    if form and SHAPE_LETTER in form and all_letters_lower(spelling):
+        return form.replace(SHAPE_LETTER, SHAPE_LOWER)
+    return form
+
+
+def published_level_shape(column):
+    """The shape a held-back label owed no named form is written in.
+
+    Method G8.3b (landing 2b.18 part 2).  The shapes the published
+    spellings wear -- a level's variants, or its label where it has none
+    -- are tallied by the rows that wrote them; a shape reading as a
+    number is passed over, and so is any shape the census names blind to
+    case or in lower case; the one covering the most rows is taken, ties
+    to its own spelling ascending.  "" where none is left.
+    """
+    census = column.get("shape_forms") or {}
+    rows = {}
+    for level in column["levels"]:
+        spellings = level["variants"] or {level["label"]: level["count"]}
+        for spelling in sorted(spellings):
+            key = level_key(spelling)
+            if key:
+                rows[key] = rows.get(key, 0) + spellings[spelling]
+    best = ""
+    for key in sorted(rows):
+        if form_reading(key) != NOTATION_TEXT:
+            continue
+        blind = written_form(filled_form(key, 0))
+        if (
+            key in census
+            or blind in census
+            or blind.replace(SHAPE_LETTER, SHAPE_LOWER) in census
+        ):
+            continue
+        if not best or rows[key] > rows[best]:
+            best = key
+    return best
+
+
+# The held-back sizes and the named form's debt of the frozen case
+# `level_shape_stand_ins`: five groups of four rows and forty single rows,
+# of which the census owes thirty-four to `@@@@-@@`.
+LEVEL_SHAPE_SIZES = (1,) * 40 + (4,) * 5
+LEVEL_SHAPE_DEBT = 34
+LEVEL_SHAPE_ROWS = 11 + sum(LEVEL_SHAPE_SIZES)
+
+# How many place-visits the trade pass may spend -- method G8.3b.
+LEVEL_SHAPE_WORK = 1 << 22
+
+
+def rows_past(ranked, sizes, supply):
+    """The rows of the places ranked past a shape's supply."""
+    return sum(sizes[place] for _size, place in ranked[supply:])
+
+
+def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
+    """Where the published labels' shape is spent -- method G8.3b.
+
+    The shape's supply is counted as usable_room counts any form's.  The
+    places owed no form, ranked largest first and then by place, are
+    covered up to that supply, and the rows past it are the rows missed.
+    Each place paying a named form is offered once, largest first and
+    then by place, while any row is missed and while the work budget
+    lasts (each offer costs twice the number of places): for an offer of
+    ``k`` rows, two or more, places owed no form are taken from the END
+    of that ranking, each smaller than ``k`` and no larger than what is
+    left to match, until they sum to ``k`` exactly with two or more of
+    them; the trade stands where the named form has the spellings for
+    the extra places and the rows missed then fall.
+    """
+    arranged = list(shared)
+    free = [
+        place for place in range(len(sizes))
+        if place not in fixed and not arranged[place]
+    ]
+    supply = usable_room(level_shape, len(free), seen, folds)
+    if supply < 1 or not free:
+        return arranged, set()
+    taken = {}
+    for place in range(len(sizes)):
+        if place in fixed or not arranged[place]:
+            continue
+        taken[arranged[place]] = taken.get(arranged[place], 0) + 1
+    rooms = {}
+    offered = sorted(
+        (-sizes[place], place) for place in range(len(sizes))
+        if place not in fixed and arranged[place]
+    )
+    work = LEVEL_SHAPE_WORK
+    for _negative, place in offered:
+        size = sizes[place]
+        if size < 2:
+            continue
+        work -= 2 * len(sizes)
+        if work < 0:
+            break
+        owed = sorted(
+            (-sizes[other], other) for other in range(len(sizes))
+            if other not in fixed and not arranged[other]
+        )
+        before = rows_past(owed, sizes, supply)
+        if before == 0:
+            break
+        chosen = []
+        left = size
+        for _other_size, other in reversed(owed):
+            if sizes[other] <= left and sizes[other] < size:
+                chosen.append(other)
+                left -= sizes[other]
+                if left == 0:
+                    break
+        if left != 0 or len(chosen) < 2:
+            continue
+        name = arranged[place]
+        if name not in rooms:
+            rooms[name] = usable_room(name, len(sizes), seen, folds)
+        if taken[name] - 1 + len(chosen) > rooms[name]:
+            continue
+        trial = list(arranged)
+        trial[place] = ""
+        for other in chosen:
+            trial[other] = name
+        after = rows_past(
+            sorted(
+                (-sizes[other], other) for other in range(len(sizes))
+                if other not in fixed and not trial[other]
+            ),
+            sizes,
+            supply,
+        )
+        if after >= before:
+            continue
+        arranged = trial
+        taken[name] = taken[name] - 1 + len(chosen)
+    owed = sorted(
+        (-sizes[other], other) for other in range(len(sizes))
+        if other not in fixed and not arranged[other]
+    )
+    return arranged, {place for _size, place in owed[:supply]}
+
+
 def _label_content(column):
     """The content list of a label column -- method sections G8.1 and G8.4."""
     content = []
@@ -4597,10 +5030,17 @@ def _label_content(column):
     placed = None
     if sizes and max(classes_owed(column, content).values()) > 0:
         placed, _debts = class_stand_ins(column, content, used, sizes, census)
+    # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
+    level_shape = published_level_shape(column)
     if placed is None:
-        stand_ins = invented_levels(used, sizes, census, content)
+        stand_ins = invented_levels(
+            used, sizes, census, content, level_shape=level_shape
+        )
     else:
-        stand_ins = invented_levels(used, sizes, census, content, placed=placed)
+        stand_ins = invented_levels(
+            used, sizes, census, content, placed=placed,
+            level_shape=level_shape,
+        )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)
         used.append(spelling)
@@ -5674,6 +6114,503 @@ def _identifier_pair(name, band, whole_numbers, length):
     return family is not None and family[1] >= 1
 
 
+# ---------------------------------------- the LAYOUT of a record number
+#
+# Contract section 7.12, written from that section alone.  A layout is
+# one mark per character saying what KIND of character stood there and
+# never which one, so the census of layouts is also the census of
+# LENGTHS -- a fact `min_length` and `max_length` cannot carry, since
+# they give only the two ends.
+
+LAYOUT_MARKS = "-./_:#*()[]+,{}"
+LAYOUT_DIGIT = "%"
+LAYOUT_UPPER = "@"
+LAYOUT_LOWER = "&"
+LAYOUT_LOWER_HEX = "~"
+LAYOUT_UPPER_HEX = "^"
+LAYOUT_LEADING_ZERO = "!"
+LAYOUT_PLACEHOLDERS = "%@&~^!"
+LAYOUT_FORM_LIMIT = 64
+LAYOUT_PLAIN = "plain"
+LAYOUT_HEX_LOWER = "lower-hexadecimal"
+LAYOUT_HEX_UPPER = "upper-hexadecimal"
+
+
+def _ascii_digit(character):
+    return "0" <= character <= "9"
+
+
+def _ascii_letter(character):
+    return ("a" <= character <= "z") or ("A" <= character <= "Z")
+
+
+def _described_by_a_layout(text):
+    """Whether this census describes one cell at all (C6-127).
+
+    A cell carrying a PLACEHOLDER is refused and a cell of marks ALONE
+    is refused, and between them they are what makes "no cell that has
+    a layout can be spelled the same as any layout" true.  A SPACE may
+    stand between two other characters, one at a time, and nowhere else
+    (plan P4-D127).
+    """
+    if not text or len(text) > LAYOUT_FORM_LIMIT:
+        return False
+    content = 0
+    before = ""
+    for character in text:
+        if character in LAYOUT_PLACEHOLDERS:
+            return False
+        if _ascii_digit(character) or _ascii_letter(character):
+            content += 1
+        elif character in LAYOUT_MARKS:
+            pass
+        elif character == " " and before not in ("", " "):
+            pass
+        else:
+            return False
+        before = character
+    return content >= 1 and before != " "
+
+
+def layout_convention(values):
+    """Which alphabet convention a whole COLUMN is written in (C6-128).
+
+    Hexadecimal where every letter of every described cell is one of
+    a to f in either case and there is at least one letter; its case is
+    the case more of those letters wear, lower on a tie (plan P4-D125).
+    Decided for the column, which is that clause's whole point: decided
+    per character a figure is ambiguous between the two cases, and a
+    column of braced GUIDs shatters into one layout per cell.
+    """
+    lower = upper = 0
+    for value in values:
+        if not _described_by_a_layout(value):
+            continue
+        for character in value:
+            if not _ascii_letter(character):
+                continue
+            if character in "abcdef":
+                lower += 1
+                continue
+            if character in "ABCDEF":
+                upper += 1
+                continue
+            return LAYOUT_PLAIN
+    if lower + upper < 1:
+        return LAYOUT_PLAIN
+    return LAYOUT_HEX_UPPER if upper > lower else LAYOUT_HEX_LOWER
+
+
+def _layout_mark(character, convention, filling):
+    if _ascii_digit(character):
+        if filling:
+            return LAYOUT_LEADING_ZERO
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_DIGIT
+    if _ascii_letter(character):
+        if convention == LAYOUT_HEX_LOWER:
+            return LAYOUT_LOWER_HEX
+        if convention == LAYOUT_HEX_UPPER:
+            return LAYOUT_UPPER_HEX
+        return LAYOUT_LOWER if "a" <= character <= "z" else LAYOUT_UPPER
+    return character
+
+
+def layout_of(text, convention):
+    """The layout of one cell (C6-127), or "" where there is none."""
+    if not _described_by_a_layout(text):
+        return ""
+    # THE ZERO FILL (plan P4-D126): in a plain column, every nought of a
+    # cell of figures alone that stands before its first other figure,
+    # the last character excepted.
+    fill = 0
+    if convention == LAYOUT_PLAIN and all(_ascii_digit(c) for c in text):
+        while fill < len(text) - 1 and text[fill] == "0":
+            fill += 1
+    built = ""
+    for place, character in enumerate(text):
+        built += _layout_mark(character, convention, place < fill)
+    return built
+
+
+def layout_room(name):
+    """How many different cells could have worn one layout (C6-130)."""
+    room = 1
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            room *= 10
+        elif character in (LAYOUT_UPPER, LAYOUT_LOWER):
+            room *= 26
+        elif character in (LAYOUT_LOWER_HEX, LAYOUT_UPPER_HEX):
+            room *= 16
+    return room
+
+
+def _shares_a_factor(one, other):
+    left, right = one, other
+    while right:
+        left, right = right, left % right
+    return left != 1
+
+
+def _stepped_around(step, room):
+    """``step`` moved around ``room`` so that every position varies.
+
+    Method G9.6 fills a layout by the arithmetic G8.3 fills a written
+    form by: a stride coprime to the room is a bijection on it, taken
+    near the golden section of the room and walked up to the first
+    value sharing no factor with it.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max(room * 61803 // 100000, 1)
+    while _shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
+def layout_stepped(step, room):
+    """``step`` moved around a layout's room (method G9.6, plan P4-D128).
+
+    A stride coprime to the room is a bijection on it.  The stride is the
+    golden section of the room taken EXACTLY in whole numbers -- the whole
+    part of the room times the square root of five, less the room, halved
+    -- and walked up to the first value sharing no factor with the room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max((math.isqrt(5 * room * room) - room) // 2, 1)
+    while _shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
+def filled_layout(layout, step):
+    """One spelling of one layout, stepped (method G9.6).
+
+    LEFTMOST FIRST, so consecutive steps differ in the leading
+    characters rather than the trailing ones -- which is what stops a
+    column of record numbers coming out as a near-consecutive walk.
+    `!` takes the figure nought and spends no step, because that is
+    exactly what the mark says; the figure after a fill must not be a
+    nought, and `_fits_its_slot` steps over a filling where it is,
+    because that cell recounts one nought deeper.
+    """
+    figures = "0123456789"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    lower_hex = "0123456789abcdef"
+    upper_hex = "0123456789ABCDEF"
+    place = layout_stepped(step, layout_room(layout))
+    spelling = ""
+    for character in layout:
+        if character == LAYOUT_DIGIT:
+            spelling += figures[place % 10]
+            place //= 10
+        elif character == LAYOUT_UPPER:
+            spelling += upper[place % 26]
+            place //= 26
+        elif character == LAYOUT_LOWER:
+            spelling += lower[place % 26]
+            place //= 26
+        elif character == LAYOUT_LOWER_HEX:
+            spelling += lower_hex[place % 16]
+            place //= 16
+        elif character == LAYOUT_UPPER_HEX:
+            spelling += upper_hex[place % 16]
+            place //= 16
+        elif character == LAYOUT_LEADING_ZERO:
+            spelling += "0"
+        else:
+            spelling += character
+    return spelling
+
+
+def layout_offer(column):
+    """The layouts a column publishes, in the order they are offered.
+
+    Sorted, and without the pooled key, which names no layout. It is a
+    function of its own so that the frozen case's registered mutant can
+    take it away: with nothing offered every cell falls back to the
+    band enumeration and the committed cells move.
+    """
+    census = column.get("layout_forms") or {}
+    return [name for name in sorted(census) if name != WITHHELD]
+
+
+def _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+    """Whether one filling of a layout may stand in a slot, freeness aside.
+
+    Every guard method G9.6 states but the one about what the column has
+    already written: the cell recounts into the band it was made for,
+    reads as a number exactly where that band says it must, and RECOUNTS
+    INTO THE LAYOUT IT WAS WRITTEN TO -- `%%%%` filled at a step whose
+    leading figure is nought spells `0123`, whose layout is `!%%%`.
+    """
+    if layout_of(candidate, convention) != layout:
+        return False
+    bare = candidate.strip()
+    digits = bool(bare) and set(bare) <= DIGIT_CHARACTERS
+    coded = bool(bare) and set(bare) <= CODE_CHARACTERS
+    if band == FIGURES and not digits:
+        return False
+    if band == CODE_BAND and (digits or not coded):
+        return False
+    if band not in (FIGURES, CODE_BAND) and (digits or coded):
+        return False
+    if whole_numbers and not _is_a_whole_number(candidate):
+        return False
+    if not whole_numbers and _is_a_number(candidate) != (band == FIGURES):
+        return False
+    return True
+
+
+FORMULA_OPENINGS = ("=", "+", "-", "@", " ")
+LAYOUT_STEPS = 4096
+LAYOUT_ADMISSION_STEPS = 64
+
+
+def _layout_spelling(layout, convention, steps, used, band, whole_numbers):
+    """The next free spelling of one layout that keeps its slot's band.
+
+    At most 4,096 fillings are read, counted on from wherever this
+    layout's own walk stopped last; the opening character is never one
+    a spreadsheet reads as the start of a formula, and every other guard
+    is `_fits_its_slot`.
+    """
+    room = layout_room(layout)
+    ceiling = min(room, LAYOUT_STEPS)
+    tried = 0
+    while tried < ceiling:
+        candidate = filled_layout(layout, steps[layout])
+        steps[layout] += 1
+        tried += 1
+        if candidate[:1] in FORMULA_OPENINGS:
+            return None
+        if candidate in used:
+            continue
+        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+            return candidate
+    return None
+
+
+def _layout_admits(layout, convention, band, whole_numbers):
+    """Whether a slot of one band can wear one layout at all (G9.6).
+
+    Read off the layout's own first 64 fillings (or all of them, where
+    it has fewer), with every guard of `_fits_its_slot` and nothing
+    about what the column has written.
+    """
+    for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
+        candidate = filled_layout(layout, step)
+        if candidate[:1] in FORMULA_OPENINGS:
+            return False
+        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+            return True
+    return False
+
+
+def _convention_of_the_keys(offered):
+    """Which alphabet convention a column's PUBLISHED KEYS were built in.
+
+    Read off the keys and off nothing else, because that is all a
+    generator has: a hexadecimal mark appears in a column's layouts
+    exactly when the producer decided the whole column was hexadecimal
+    (C6-128), so one such mark anywhere settles it.
+    """
+    for layout in sorted(offered):
+        for character in layout:
+            if character == LAYOUT_LOWER_HEX:
+                return LAYOUT_HEX_LOWER
+            if character == LAYOUT_UPPER_HEX:
+                return LAYOUT_HEX_UPPER
+    return LAYOUT_PLAIN
+
+
+def layout_preferences(column, groups, families, bands, windows, pinned):
+    """Which published layout each identity is offered FIRST (method G9.6).
+
+    Written from the rule statement.  The identities are visited with
+    the ones carrying a published length END first, then by the number
+    of cells they cover, largest first, then in position order.  Each
+    visit takes, among the published layouts with at least that many
+    cells left, a length the slot's window holds, and a filling the
+    slot's band can wear (`_layout_admits`), the one the SMOOTH
+    WEIGHTED ROTATION names: every layout that family can wear has its
+    published count times the group's size added to its credit, the
+    candidate with the most credit is taken -- the earliest in sorted
+    order on a tie -- and the family's total times the group's size is
+    taken back from it.  Credit is kept per family.  ``""`` is no
+    preference.
+
+    A function of its own so the frozen case's registered mutant can
+    take it away: with no preference every group is offered the layouts
+    in sorted order, the singletons that come first take the first
+    layout, and the committed cells move.
+    """
+    offered = layout_offer(column)
+    census = column.get("layout_forms") or {}
+    convention = _convention_of_the_keys(offered)
+    remaining = {name: census[name] for name in offered}
+    whole_numbers = column["all_whole_numbers"]
+    preferred = [""] * len(groups)
+    wearable = {}
+    credits = {}
+    visits = sorted(
+        (0 if position in pinned else 1, -groups[position], position)
+        for position in range(len(groups))
+    )
+    for _pinned, _size, position in visits:
+        family = families[position]
+        if family not in wearable:
+            wearable[family] = [
+                name for name in offered
+                if _layout_admits(name, convention, bands[position], whole_numbers)
+            ]
+            credits[family] = {name: 0 for name in wearable[family]}
+        covering = groups[position]
+        weight = sum(census[name] for name in wearable[family])
+        best = ""
+        best_credit = 0
+        for name in wearable[family]:
+            if remaining[name] < covering or len(name) not in windows[position]:
+                continue
+            credit = credits[family][name] + census[name] * covering
+            if best == "" or credit > best_credit:
+                best, best_credit = name, credit
+        if best == "":
+            continue
+        for name in wearable[family]:
+            credits[family][name] += census[name] * covering
+        credits[family][best] -= weight * covering
+        remaining[best] -= covering
+        preferred[position] = best
+    return preferred
+
+
+def _offer_a_layout(
+    quotas, steps, lengths, convention, used, band, whole_numbers,
+    covering, letters_needed, preferred,
+):
+    """The layout this slot takes, spelled (G9.6), or None.
+
+    The preferred layout is offered first and then every other published
+    layout in sorted order, each only where it has at least ``covering``
+    cells left and a length the slot may hold.  ``letters_needed`` is
+    the fold-collision ask of G9.3 step 1 and stays an ASK: a layout
+    guaranteeing a character with a case is offered first, and where
+    none fits the ordinary offer is taken rather than the slot being
+    spent.
+    """
+    offered = ([preferred] if preferred else []) + [
+        name for name in sorted(quotas) if name != preferred
+    ]
+    for asking in ((True, False) if letters_needed else (False,)):
+        for layout in offered:
+            if quotas[layout] < covering:
+                continue
+            if len(layout) not in lengths:
+                continue
+            if asking and not any(
+                character in (LAYOUT_UPPER, LAYOUT_LOWER)
+                for character in layout
+            ):
+                continue
+            found = _layout_spelling(
+                layout, convention, steps, used, band, whole_numbers
+            )
+            if found is None:
+                continue
+            quotas[layout] -= covering
+            return found
+    return None
+
+
+LAYOUT_STAND_IN_TRIES = 16
+
+
+def layout_stand_in_bases(column):
+    """The named layouts a stand-in may be mixed from (method G9.6).
+
+    Written from the rule statement.  The KINDS are the placeholders
+    `%`, `@` and `&` the published layouts use between them, in that
+    order; with fewer than two, or on a hexadecimal census, there is
+    nothing to mix and nothing is offered.  A base is a named layout with
+    no zero fill.
+
+    A function of its own so the frozen case's registered mutant can take
+    it away: with no base every group the census does not serve falls to
+    the band enumeration, and the committed cells move.
+    """
+    offered = layout_offer(column)
+    kinds = "".join(
+        kind
+        for kind in (LAYOUT_DIGIT, LAYOUT_UPPER, LAYOUT_LOWER)
+        if any(kind in name for name in offered)
+    )
+    if len(kinds) < 2 or _convention_of_the_keys(offered) != LAYOUT_PLAIN:
+        return []
+    return [(name, kinds) for name in offered if LAYOUT_LEADING_ZERO not in name]
+
+
+def layout_mix(base, kinds, step):
+    """The ``step``-th mix of ``kinds`` over a base's figure and letter places.
+
+    The step is spread by `layout_stepped` over the number of mixes, and
+    taken apart place by place, leftmost first; every other character of
+    the base stands as itself.
+    """
+    places = sum(1 for character in base if character in kinds)
+    code = layout_stepped(step, len(kinds) ** places)
+    built = ""
+    for character in base:
+        if character in kinds:
+            built += kinds[code % len(kinds)]
+            code //= len(kinds)
+        else:
+            built += character
+    return built
+
+
+def layout_stand_in(
+    bases, census, mixed, steps, lengths, convention, used, band, whole_numbers,
+):
+    """A group no named layout serves, written to a mix of its kinds (G9.6).
+
+    The bases are read in sorted order, each only where the slot may hold
+    its length, and sixteen mixes are read in all, each base's reading
+    counted on from where it stopped: a mix the census names is stepped
+    over, a mix no slot of this band can wear (`_layout_admits`) is
+    stepped over, and the first mix with a free filling that recounts
+    into it is taken, its own walk starting at the step after every walk
+    already started.  None where no mix serves.
+    """
+    tried = 0
+    for base, kinds in bases:
+        if len(base) not in lengths:
+            continue
+        mixed.setdefault(base, 0)
+        while tried < LAYOUT_STAND_IN_TRIES:
+            mix = layout_mix(base, kinds, mixed[base])
+            mixed[base] += 1
+            tried += 1
+            if mix in census:
+                continue
+            if not _layout_admits(mix, convention, band, whole_numbers):
+                continue
+            if mix not in steps:
+                steps[mix] = 1 + len(steps) * LAYOUT_STEPS
+            found = _layout_spelling(
+                mix, convention, steps, used, band, whole_numbers
+            )
+            if found is not None:
+                return found
+    return None
+
+
 def _identifier_recount(column, content):
     """The published identifier facts, recounted from the finished cells.
 
@@ -5733,6 +6670,32 @@ def _identifier_recount(column, content):
                 "published value, so the construction above is wrong; do not "
                 "move the published fact to meet it."
             )
+    # THE CENSUS OF LAYOUTS, RECOUNTED (contract section 7.12).  That
+    # section makes it EXACT-OBSERVABLE, so a vector publishing cells
+    # that miss it would be an oracle certifying the very thing the
+    # contract forbids.  The POOLED key bounds rather than binds and is
+    # not recounted; a NAMED layout is.
+    census = column.get("layout_forms") or {}
+    named = {
+        name: count for name, count in census.items() if name != WITHHELD
+    }
+    if named:
+        convention = layout_convention(list(content))
+        worn = {}
+        for cell in content:
+            layout = layout_of(cell, convention)
+            if layout:
+                worn[layout] = worn.get(layout, 0) + 1
+        for layout in sorted(named):
+            if worn.get(layout, 0) != named[layout]:
+                raise AssertionError(
+                    f"the cells this oracle built wear the layout "
+                    f"{layout!r} {worn.get(layout, 0)} times and the case "
+                    f"publishes {named[layout]}. Contract section 7.12 "
+                    "makes the census EXACT-OBSERVABLE, so the construction "
+                    "above is wrong; do not move the published fact to meet "
+                    "it."
+                )
 
 
 def _is_a_number(text):
@@ -5877,9 +6840,70 @@ def _identifier_content(column):
             "states no expected cells for it"
         )
 
+    # THE PUBLISHED LAYOUT IS OFFERED FIRST (contract 7.12, method
+    # G9.6).  The census counts CELLS and this walk spends GROUPS, and
+    # every cell of a group carries the same spelling, so a group takes
+    # the first published layout, in sorted order, whose remaining count
+    # is at least the number of cells that group covers and whose length
+    # its own slot may hold.  Where nothing is offered -- which is every
+    # case frozen before landing 2b.18, each publishing the empty census
+    # a floored census gives a column whose layouts are all held back --
+    # the band enumeration below is reached unchanged, which is why
+    # those cases keep their committed cells.
+    offered = layout_offer(column)
+    census = column.get("layout_forms") or {}
+    quotas = {name: census[name] for name in offered}
+    # Each layout's walk starts at its own step (plan P4-D128): the k-th
+    # layout in sorted order at 1 + k * 4096, and a mix, when first read,
+    # at the next such step after every walk already started.
+    steps = {name: 1 + k * LAYOUT_STEPS for k, name in enumerate(offered)}
+    convention = _convention_of_the_keys(offered)
+    bases = layout_stand_in_bases(column)
+    mixed = {}
+    preferred = [""] * identities_wanted
+    if offered:
+        preferred = layout_preferences(
+            column,
+            groups[:identities_wanted],
+            [f"{_classes[p]}/{bands[p]}" for p in range(identities_wanted)],
+            bands,
+            [slot_lengths(p, low, high) for p in range(identities_wanted)],
+            {0, 1} if high > low else {0},
+        )
+
     identities = []
     for position in range(identities_wanted):
         letters_needed = position < partners_wanted
+        laid = None
+        if offered:
+            laid = _offer_a_layout(
+                quotas,
+                steps,
+                slot_lengths(position, low, high),
+                convention,
+                used,
+                bands[position],
+                whole_numbers,
+                groups[position],
+                letters_needed,
+                preferred[position],
+            )
+        if laid is None and bases:
+            laid = layout_stand_in(
+                bases,
+                census,
+                mixed,
+                steps,
+                slot_lengths(position, low, high),
+                convention,
+                used,
+                bands[position],
+                whole_numbers,
+            )
+        if laid is not None:
+            used.add(laid)
+            identities.append(laid)
+            continue
         identities.append(
             take(
                 bands[position],
@@ -6762,16 +7786,56 @@ def singletons_kept_as_text(groups, lengths, packed, carriers, line=LONG_TAIL_LI
     return moved
 
 
+def number_at_form(band, length, census=()):
+    """The written form every number of one band and length wears.
+
+    One band and one length write ONE form, which is read off the
+    spelling families of G9.5 step 3 rather than off any one spelling:
+    in the figures a run of digits, which carries ONE kind and so has no
+    form at all; in the code band a minus and a figure at two characters
+    and `L - 2` figures, an `e` and a figure above it; outside it a
+    figure and a point at two characters and `L - 2` figures, a point
+    and a figure above it.
+    """
+    if band == FIGURES or length < NUMBER_SHORTEST[band]:
+        return ""
+    if band == CODE_BAND:
+        built = "-1" if length == 2 else "1" * (length - 2) + "e1"
+    else:
+        built = "1." if length == 2 else "1" * (length - 2) + ".1"
+    return census_form(built, census)
+
+
 def number_lengths(column, groups, packed, carriers, lengths=None):
     """G9.5 step 3a: every number carrying no published end at its own length.
 
     Largest group first, ties by group order, each takes the shortest
     length at or above its band's shortest, and inside the published
     ends, at which its band still has a number with no leading zero to
-    give.  A census naming a form is refused before this is reached.
+    give -- AND WHOSE FORM THE CENSUS DOES NOT NAME (landing 2b.8).
+
+    The second clause is the rule the review of landing 2b.4 asked for.
+    A named form is settled over the number groups EXACTLY, so its cells
+    are spoken for; but the length rule knew nothing of the census, and
+    every number of the wide band four characters long is written `99.9`.
+    A column publishing `99.9` on 199 cells had those 199 settled and
+    then gave forty-eight groups the census owed nothing a length of
+    four, so the twin wore that form on 247 cells and failed its own
+    description.  Where no length inside the published ends escapes the
+    named forms the first length with room stands, the census is missed
+    and the report names it, which is what G9.5 step 3b already states.
+
+    This file freezes no case whose census names a form, so no case here
+    reaches the second clause; it is written from the rule statement
+    all the same, because an oracle that carries only the rules its own
+    cases reach cannot answer the next case.
     """
     low = column["length"]["min"]
     high = column["length"]["max"]
+    named = {
+        form for form in (column.get("shape_forms") or {})
+        if form != WITHHELD
+    }
     taken = {}
     fixed = {}
     # A number carrying an end spends a spelling of its own length too.
@@ -6784,9 +7848,22 @@ def number_lengths(column, groups, packed, carriers, lengths=None):
         if place in carriers or notation != NOTATION_NUMBER:
             continue
         length = max(NUMBER_SHORTEST[band], low)
-        while length < high and taken.get((band, length), 0) >= plain_number_room(band, length):
+        spare = 0
+        found = 0
+        while length < high:
+            if taken.get((band, length), 0) < plain_number_room(band, length):
+                if not spare:
+                    spare = length
+                if number_at_form(band, length, named) not in named:
+                    found = length
+                    break
             length += 1
-        length = min(length, high)
+        if not found:
+            # The walk's own answer where every length with room wears a
+            # form the census names: the first length with room, or the
+            # published longest where none had any.
+            found = spare or min(length, high)
+        length = found
         taken[(band, length)] = taken.get((band, length), 0) + 1
         fixed[place] = length
     return fixed
@@ -7252,7 +8329,17 @@ def _numeric_content(column):
 
     Method sections G5.2 to G5.5 for the values, G6.1 to G6.5 for the
     spellings, and G10.3 for the stragglers.
+
+    A count column publishing a census of spellings (method G6.8,
+    contract 7.13) is written as that census and nothing else: each
+    spelling as many times as it counts, in the order of the number it
+    spells and then of the spelling, and no chain of drawn values.
     """
+    census = column.get("number_spellings") or {}
+    if census:
+        content = spelled_census(census)
+        content.extend(_straggler_cells(column, content))
+        return content, [], []
     numeric = column["n_numeric"]
     negatives = column["n_negative"] - column["n_negative_unrepresentable"]
     zeros = column["n_zero"]
@@ -7525,6 +8612,14 @@ def _numeric_content(column):
     return content, chain, missed
 
 
+def spelled_census(census):
+    """Every spelling of a count census, as often as it was written -- G6.8."""
+    content = []
+    for spelling in sorted(census, key=lambda text: (int(text), text)):
+        content.extend([spelling] * census[spelling])
+    return content
+
+
 def _straggler_cells(column, used):
     """The out-of-range, contradictory and ordinary-text cells of G10.3."""
     cells = []
@@ -7784,6 +8879,20 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # every case here but two does.
     if "numeric_styles" in block and "fraction_widths" not in block:
         block["fraction_widths"] = {}
+    # The census of LAYOUTS (contract 7.12), REQUIRED on the identifier
+    # role and forbidden everywhere else, so a case that states none
+    # publishes the empty census a floored census gives a column whose
+    # layouts are all held back -- and the walk below is then the walk
+    # this oracle always had, which is why the three identifier cases
+    # frozen before landing 2b.18 keep their committed cells.
+    if role == "identifier" and "layout_forms" not in block:
+        block["layout_forms"] = {}
+    # The census of SPELLINGS (contract 7.13), REQUIRED on the count role
+    # and forbidden everywhere else, and EMPTY on every count case frozen
+    # before landing 2b.18's second part: none of their source columns
+    # wrote one number more than one way.
+    if role == "count" and "number_spellings" not in block:
+        block["number_spellings"] = {}
     # ...and the mark between thousands (contract numeric block, stage 2),
     # EMPTY for every case here: no source column these cases describe
     # was written with a grouped convention, so a case publishes no mark
@@ -9391,6 +10500,67 @@ def _numeric_point_free_styles():
     }
 
 
+def _count_spellings():
+    ladder, ladder_claims, rungs, finer = _ladder_fields(
+        {
+            "min": "0", "p01": "0", "p05": "0", "p10": "0", "p25": "5.25",
+            "p50": "7", "p75": "7", "p90": "7", "p95": "7", "p99": "7",
+            "max": "7",
+        }
+    )
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (
+        ("mean", "5.25"),
+        ("std", "3.066131567740966"),
+        ("skew", "-1.1547005383792515"),
+        ("kurtosis", "2.3333333333333335"),
+        ("numeric_share", "1"),
+    ):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=44, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=44, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=11, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=44, n_left_out_of_statistics=0,
+        integer_valued=True, n_rows=44, n_distinct_values=2,
+        numeric_styles={"leading_zero": 22, "plain": 22},
+        pad_widths={"2": 11, "3": 11},
+        field_widths={"1": 22, "2": 11, "3": 11},
+        # THE CENSUS OF SPELLINGS (contract 7.13, landing 2b.18 part 2).
+        # Seven is written three ways and nought one, eleven cells each,
+        # which is the smallest group size these vectors are recorded at:
+        # every spelling clears it, so the census names all four.
+        number_spellings={"0": 11, "007": 11, "07": 11, "7": 11},
+        **moments,
+    )
+    return {
+        "why": "a count column that wrote one number more than one way -- "
+        "`7`, `07` and `007` beside `0` -- and so publishes the census of "
+        "its spellings (contract section 7.13, method G6.8, landing 2b.18 "
+        "part 2). Before the census a count published how many cells wore "
+        "each field width and never which number wore which, and the twin "
+        "of a column shaped like this one wrote `00` and `05`, spellings "
+        "its source never had. The census names every cell read as a "
+        "number, so it is the column's numbers: the forty-four cells here "
+        "are its four spellings eleven times each, in the order of the "
+        "number spelled and then of the spelling, and nothing is drawn "
+        "for them. This case's mutant withdraws the rule, and the ladder "
+        "walk of G5 and the style walk of G6 write the column instead: "
+        "the cells move.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _unrepresentable_joint():
     column = _universal(
         "column_1", "numeric_unrepresentable", "numeric", "data",
@@ -9714,6 +10884,190 @@ def _identifier_edge_spacing():
         "column": column,
         "rows": 4,
         "identifier_declared": True,
+    }
+
+
+def _identifier_layout():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=6, max_length=6, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"@%%%%%": 12, "@@%%%%": 12},
+    )
+    return {
+        "why": "a declared identifier that publishes a census of LAYOUTS "
+        "(contract section 7.12, landing 2b.18), which every case frozen "
+        "before it publishes empty. The census says what KIND of character "
+        "stood at each position and never which one, and G9.6 writes each "
+        "cell to it: the twenty-four cells here wear `@%%%%%` twelve times "
+        "and `@@%%%%` twelve times instead of the band enumeration's own "
+        "spellings. Without this case the whole layout rule could be "
+        "withdrawn with every committed byte unchanged, because the three "
+        "identifier cases beside it publish no layout at all. TWO RULES ARE "
+        "FROZEN HERE. The fill is a COUNTER taken apart LEFTMOST FIRST, so "
+        "consecutive cells of one layout differ in their leading characters "
+        "rather than their trailing ones, which is what stops a column of "
+        "record numbers coming out as a near-consecutive walk. And the "
+        "census is SPREAD over the identities by the smooth weighted "
+        "rotation, largest group first, rather than poured into them in "
+        "walk order: twelve values are written once and six twice, and a "
+        "walk taking the first layout with room left gives every singleton "
+        "`@%%%%%` and every repeated value `@@%%%%`, binding a layout to how "
+        "often its record numbers recur. This case's mutant withdraws the "
+        "preference, and the cells move. Every other published fact "
+        "survives the offer and is recounted from the finished cells: the "
+        "two alphabet counts and the four class counts, because a candidate "
+        "the readers do not recount into its slot's band is stepped over, "
+        "and both length ends, because a layout is one mark per character. "
+        "Withdrawing the offer altogether stops this oracle before any byte "
+        "is written, because the recount of 7.12 then finds each layout "
+        "worn nought times.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_layout_mixes():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=47, n_missing=0, n_distinct=47, n_distinct_folded=47,
+        n_numeric=11, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
+        min_length=9, max_length=9, all_whole_numbers=False,
+        n_all_digits=11, n_code_alphabet=36,
+        n_distinct_by_occurrences={"1": 47},
+        layout_forms={
+            "!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14,
+        },
+    )
+    return {
+        "why": "a declared identifier whose census of LAYOUTS names a zero "
+        "fill two noughts deep, a layout holding a single interior SPACE, "
+        "and a pool of fourteen cells no named layout serves (contract "
+        "section 7.12, plans P4-D126, P4-D127 and P4-D128). THREE RULES OF "
+        "G9.6 ARE FROZEN HERE. A zero-filled layout writes a nought for "
+        "every `!` and steps over a filling whose next figure is a nought, "
+        "because that cell recounts one nought deeper. A space stands in a "
+        "layout as a mark does. And the fourteen pooled cells, which every "
+        "case before this one wrote by the band enumeration, are written to "
+        "MIXES of the kinds the census names -- figures and capitals over "
+        "the two places of `@%-------`, the first base in sorted order -- and "
+        "of its four mixes the one the census names, `@%-------` itself, is "
+        "stepped over, so no pooled cell is counted into a published layout. Every layout "
+        "is walked from step one, and a step is spread by the exact golden "
+        "section of the layout's room. NINE characters wide, because G9.6's bar "
+        "on a filling that reads as a date is not carried by this oracle, "
+        "which reads no date, and no date format this package reads is nine "
+        "figures or four and four around a space: at eight, `00330816` reads "
+        "as the compact date 0033-08-16 and is stepped over. This case's mutant withdraws the "
+        "mixes, and the fourteen cells move; withdrawing the fill or the "
+        "space stops this oracle at the recount of 7.12.",
+        "column": column,
+        "rows": 47,
+        "identifier_declared": True,
+    }
+
+
+def _lower_case_stand_ins():
+    column = _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        n_present=51, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=51, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            # `note alpha` holds a space and has no form; `ab-cd` has the
+            # form `@@-@@` and every cell of it is lower case, so it settles
+            # the census's lower-case key `&&-&&` in full -- and a walk
+            # reading it blind to case would find that key unpaid.
+            {
+                "label": "ab-cd", "count": 11,
+                "variants": {"ab-cd": 11}, "variants_withheld": {},
+                "shape_form_cells": 11,
+            },
+            {
+                "label": "note alpha", "count": 11,
+                "variants": {"note alpha": 11}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+        ],
+        suppressed_levels=20, suppressed_rows=29,
+        suppressed_level_counts=[1] * 11 + [2] * 9,
+        # Fifty-one rows give a ceiling of twenty-five and twenty-two
+        # values stand under it, so this column is a set of categories;
+        # the census and the stand-in walk are the four label roles' own.
+        level_ceiling=25,
+        # THE LOWER-CASE KEYS (contract C6-31a, landing 2b.18 part 2).
+        # Every formed cell wrote every letter lower case, so the census
+        # names each form with `&` in each letter place, and the column's
+        # twenty-two values fold to twenty-two, which SF5 asks.
+        shape_forms={"&&&&-&&": 29, "&&-&&": 11},
+    )
+    return {
+        "why": "a column of categories whose census names LOWER-CASE keys (contract "
+        "C6-31a, landing 2b.18 part 2): every formed cell wrote every letter "
+        "in lower case, so the census names `&&&&-&&` and `&&-&&` and not "
+        "their capital forms. The published level `ab-cd` settles `&&-&&` in "
+        "full, counted under the key the census files it under, so the "
+        "twenty stand-ins owe `&&&&-&&` alone -- twenty-nine cells, exactly "
+        "their sizes -- and G8.3 fills each `&` from the lower-case alphabet "
+        "at the position and by the arithmetic a `@` is filled. Before this "
+        "key existed a column of lower-case codes came back in capitals on "
+        "every stand-in and a case-sensitive pattern matched none of them. "
+        "This case's mutant fills the key in capitals, and every stand-in "
+        "moves; a walk reading the published level blind to case hands "
+        "`&&-&&` stand-ins it does not owe, and the cells move too.",
+        "column": column,
+        "rows": 51,
+        "identifier_declared": False,
+    }
+
+
+def _level_shape_stand_ins():
+    column = _universal(
+        "column_1", "long_tail_labels", "long_tail_labels", "data", "ok",
+        n_present=LEVEL_SHAPE_ROWS, n_missing=0,
+        n_distinct=1 + len(LEVEL_SHAPE_SIZES),
+        n_distinct_folded=1 + len(LEVEL_SHAPE_SIZES),
+        n_numeric=0, n_not_numeric=LEVEL_SHAPE_ROWS, n_out_of_range=0,
+        n_contradictory=0,
+        levels=[
+            {
+                "label": "a-", "count": 11,
+                "variants": {"a-": 11}, "variants_withheld": {},
+                "shape_form_cells": 11,
+            },
+        ],
+        suppressed_levels=len(LEVEL_SHAPE_SIZES),
+        suppressed_rows=sum(LEVEL_SHAPE_SIZES),
+        suppressed_level_counts=list(LEVEL_SHAPE_SIZES),
+        # THE CENSUS NAMES ONE FORM AND NOT THE SHAPE THE PUBLISHED LEVEL
+        # WEARS. `a-` has fifty-two spellings to a profiler, fewer than the
+        # column's different values and the floor, so the small-supply rule
+        # of C6-31 names no key for it -- the shape of the carried column of
+        # landing 2b.12, `4-F`, in letters alone.
+        shape_forms={"@@@@-@@": LEVEL_SHAPE_DEBT},
+    )
+    return {
+        "why": "the shape a held-back label takes where the census owes it "
+        "no form (method G8.3b, landing 2b.18 part 2, the carried item of "
+        "landing 2b.12). The column publishes one level, `a-`, whose shape "
+        "no census key names because it has too few spellings; before "
+        "this rule every stand-in the census owed nothing was `group-N`, "
+        "and on the carried column that made the twin's mean cell length "
+        "9.907 against the real 7.204. The stand-ins owed no form are "
+        "written in the level's own shape with its case kept, `&-`, whose "
+        "supply here is twenty-five spellings against more places owed "
+        "nothing -- so the TRADE of G8.3b is frozen too: a large held-back "
+        "group paying `@@@@-@@` trades places with single rows summing to "
+        "it exactly, the named form keeps its count, and the shape covers "
+        "every row it can. This case's mutant withdraws the trade, and a "
+        "place past the shape's supply takes the neutral spelling, which "
+        "this oracle refuses to reason about.",
+        "column": column,
+        "rows": LEVEL_SHAPE_ROWS,
+        "identifier_declared": False,
     }
 
 
@@ -10649,6 +12003,17 @@ BRANCH_CASE_BUILDERS = {
     "free_text_joint": _free_text_joint,
     "numeric_pooled_spelling": _numeric_pooled_spelling,
     "identifier_edge_spacing": _identifier_edge_spacing,
+    # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). It
+    # goes in THIS file and not the third, which stands at the cap.
+    "identifier_layout": _identifier_layout,
+    # THE FILL, THE SPACE AND THE MIXES OF A LAYOUT CENSUS (landing 2b.18's
+    # repair pass). In this file, which has the room.
+    "identifier_layout_mixes": _identifier_layout_mixes,
+    # THE CASE OF A LETTER AND THE SHAPE OF A PUBLISHED LABEL (landing
+    # 2b.18 part 2). Both go in this file, which has the room.
+    "lower_case_stand_ins": _lower_case_stand_ins,
+    "count_spellings": _count_spellings,
+    "level_shape_stand_ins": _level_shape_stand_ins,
     "leap_second_endpoint": _leap_second_endpoint,
     "month_span": _month_span,
     "numeric_point_free_styles": _numeric_point_free_styles,
@@ -10755,7 +12120,10 @@ _BRANCH_ACCOUNT = (
     "window, the month, which is the second resolution naming a SPAN "
     "rather than an instant, the four roles Phase 4 added, the "
     "EXPONENT spelling family of an unrepresentable column, on widths no "
-    "digit string can be written at. "
+    "digit string can be written at, and, for landing 2b.18, the layout "
+    "census of a declared record number, the lower-case key of a form "
+    "census, and the shape of a published label worn by the stand-ins "
+    "a census owes no form. "
     "They are computed by the same oracle and the same proof "
     "layer as tests/reference/generation-reference-vectors.json, and live "
     "in their own file only because a committed fixture must stay under "
@@ -10999,6 +12367,107 @@ GIVEN_WORDS = {
     ),
     "identifier_edge_spacing": (
         1301936263764534004, 2783040907285617897, 2670401546021029124,
+    ),
+    # Twenty-three words, which is a twenty-four-row identifier column's
+    # placement budget and its whole budget: the role consumes no content word, so
+    # every cell is fixed by the published facts and these decide only
+    # the ORDER the rows come out in.
+    "identifier_layout": (
+        2350890344146344126, 1295412325827091444, 2148692853705598588,
+        6856365061159066252, 15421135529079413842, 9337190313697136114,
+        17443182240601902554, 3945372972456016603, 3231109804060922937,
+        14928184306589085733, 9623648095902836919, 2833255648229499529,
+        2484211853885415346, 9206020379377428048, 10880630985268877757,
+        11539897411331388552, 13221390389229023683, 5089869681841105310,
+        12063417803171021458, 3253571153139736265, 17680378324194345923,
+        17516376728897238031, 2135463789325316001,
+    ),
+    # Forty-six words: a forty-seven-row identifier column's placement
+    # budget and its whole budget, as `identifier_layout`'s are.
+    "identifier_layout_mixes": (
+        12315416199638712830, 11461917734807452332, 13043389866221201829,
+        4117057510935812347, 11166822964374134715, 10306677672402459178,
+        8646002244923713862, 4041989434868756395, 3102189724845197795,
+        18075701478311684605, 1857492319440419448, 13086464872739884056,
+        581282553384915289, 7586242669707928484, 10323704345614453502,
+        2255447556845704593, 1703153506126005306, 2692500561440188756,
+        3055453076326589704, 97091045728570219, 14343194256563202997,
+        9217557811682092942, 15888849271152112244, 2757548850731508731,
+        14119304420836053316, 6472162727552187798, 5861169136430044779,
+        13671056489289250396, 13691116676054877367, 5333278273152096980,
+        4851488638743472859, 17583254726709643303, 18085613694544194866,
+        16045974538112549444, 12577078091213710482, 11805424536042655935,
+        10109715328958355953, 1696310926535484208, 7655097596069497137,
+        17270314890295469748, 7499453768873882173, 4012621328774350190,
+        10699857760492589064, 6430887874155946278, 17302433675516304856,
+        15120724432689965450,
+    ),
+    # Fifty words and seventy: each label column's placement budget
+    # and its whole budget, since the role consumes no content word.
+    "lower_case_stand_ins": (
+        15830664673893228848, 5073698456080673279, 7875838601216900988,
+        11535154252214777058, 8621941330772045083, 8772339449381309270,
+        10488852849884475397, 6371871893467202343, 1246799487542206975,
+        9064597751508696776, 15332551243623560934, 14774754731362542570,
+        14534231870623192905, 9408872517084544776, 3320777161477635281,
+        8654342408759465470, 12447963985929670088, 5106417360233856539,
+        18427915347586493865, 10570067524607262016, 14439736570525528903,
+        16546367209938517481, 8477631004882138497, 10913147923967033456,
+        4194028020326342935, 14495905327524417777, 583302282863258999,
+        139154040289801448, 18046683419125720843, 1296118245588486310,
+        2636961127756418768, 9001931390103612218, 7741167511558814911,
+        18041580935583591676, 13694740739387581868, 553546565315490563,
+        22513546439589079, 16709646298868681502, 1447791936714280564,
+        5098489623189836073, 4374303835978440748, 9815100461200391397,
+        15679049804236764501, 18155049002991901528, 8469325124826455278,
+        946244536432157447, 7040022859543152818, 15636706020943181500,
+        10620482021486410816, 741266932377646521,
+    ),
+    "level_shape_stand_ins": (
+        10572201364969750517, 14488452992183049686, 10338980211685271540,
+        17310746628490101705, 15930516927233095031, 10925981946687229523,
+        11984375984483652018, 3115820831674141766, 1491667508731758021,
+        12095184894851438023, 6616027349516039298, 4869191475851910318,
+        3667299028267463384, 6287211967338772842, 10303464976186970092,
+        3778724444670585346, 5518558728777231354, 15069916103189709611,
+        13902520522701011481, 14960497023170678489, 7361620293930603418,
+        17783812003195909956, 902419012765408100, 9861278426630039680,
+        550339003356881841, 17324367625225383559, 16634594057315558326,
+        17745590132511631737, 4661080672871936834, 3041321162227143340,
+        5680036735926225649, 3863807788710707093, 9729211348814354707,
+        15791412086449201245, 3530221954823534184, 4612587005460363641,
+        7044370326001245642, 10055541422525994635, 14970981537008481323,
+        7666065712349092006, 6886019483394326737, 14772245721026608204,
+        15083889930239009629, 16666244600805875045, 11435779303634445760,
+        11864111828352662593, 10236277314942045383, 2765469866442712258,
+        15636219563350824567, 8863328807930096672, 12914777269208835441,
+        3595536836711968274, 1433759923759427814, 13624577672746584616,
+        4873316314549421849, 7932092449336148476, 7739797739499316257,
+        123464669902506341, 11181717779831646623, 9263968744977333854,
+        14344049750293701763, 16366278832934763060, 12179873843408294288,
+        2444068681713350805, 12848255613891529191, 12641691033048600769,
+        14952483995130744131, 8283423452509650775, 12601060826970560254,
+        8872082779446286874,
+    ),
+    # Two content words and forty-three placement words: the G4.3 budget
+    # a forty-four-cell count column is given whether or not its census
+    # of spellings leaves the words anything to decide.
+    "count_spellings": (
+        7687911214574418412, 10663533608816953314, 2616547998438772155,
+        1366869589866334087, 17520374349558038042, 1609274745335312500,
+        14208627795420856630, 4243662745333721072, 16049732717786980771,
+        13998553070692769882, 1474326905162042579, 2312802121902820003,
+        2469587400300821282, 18252884443183030911, 3161585658302330964,
+        5124052084043109061, 12069967067160595751, 18101372447488982082,
+        1747047840045718174, 8772433440031119127, 503463901603744489,
+        14446097835952004249, 5275666164281917924, 17786018302256602457,
+        9531465300822991939, 16454979768288460259, 14153358980504684320,
+        544672169205711433, 17575418052128749653, 1651629124224001023,
+        12674954058559114794, 6112529208509423379, 12384984089675196170,
+        236106178430280789, 16664337307126418403, 600496068526828757,
+        17536768382670458704, 2828983999751666805, 4820344975137709250,
+        15646717198495412648, 15130515098698616441, 4009465223591371070,
+        5131576334512893944, 4352129982649265412, 11759005967142306325,
     ),
     "leap_second_endpoint": (
         13427168714134208824, 2622372851408911490, 7994527897440520627,
@@ -11381,6 +12850,12 @@ INTEGER_COLUMN_MAPS = frozenset({
     # grouped cells wore each mark.
     "negative_notations", "thousands_marks",
     "shape_forms",
+    # The census of LAYOUTS on a declared identifier (contract 7.12,
+    # landing 2b.18), a map of counts like the form census beside it.
+    "layout_forms",
+    # The census of SPELLINGS on a count column (contract 7.13, landing
+    # 2b.18 part 2), a map of counts keyed by the spellings themselves.
+    "number_spellings",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry
 # (contract 6.7 read at that depth).  It is deliberately narrower than

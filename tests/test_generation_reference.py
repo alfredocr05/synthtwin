@@ -127,6 +127,11 @@ def _generator():
 
 gen = _generator()
 
+# The oracle's own filling and numeric content, held before any test
+# patches them, so a mutant calls the rule it replaces rather than itself.
+gen_filled_form = gen.filled_form
+gen_numeric_content = gen._numeric_content
+
 
 
 def _document() -> dict:
@@ -170,20 +175,47 @@ BRANCH_CASES = (
     # so the all-different repair of G7A.4 has no slack and every
     # interior rank must land on the one ordinal left for it.
     "clock_ladder",
+    # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (landing 2b.18 part 2,
+    # plan P4-D123). Every count case before it wrote each number one
+    # way, so it publishes an empty census and the rule could be
+    # withdrawn with every committed byte unchanged.
+    "count_spellings",
     "free_text_joint",
     "identifier_edge_spacing",
+    # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). The
+    # three identifier cases beside it publish an EMPTY census, so the
+    # whole layout rule -- the seventh published key of the role, and
+    # the generator walk that writes each cell to it -- could have been
+    # withdrawn with every committed byte unchanged. This is the case
+    # that holds it up.
+    "identifier_layout",
+    # THE FILL, THE SPACE AND THE MIXES OF A LAYOUT CENSUS (landing
+    # 2b.18's repair pass, plans P4-D126 to P4-D128). `identifier_layout`
+    # names two layouts that pay every cell, so a zero fill two noughts
+    # deep, a space inside a layout and a pool written to mixes of the
+    # named kinds could each be withdrawn with every committed byte
+    # unchanged.
+    "identifier_layout_mixes",
     # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
     # R-P4-17). It pins the pairing walk of G6B.4, the only search in
     # the method and the only place synthtwin reproduces structure
     # between two quantities at all.
     "joined_readings",
     "leap_second_endpoint",
+    # THE SHAPE OF A PUBLISHED LABEL (landing 2b.18 part 2, plan
+    # P4-D122). No label case before it reaches a stand-in the census
+    # owes no form, so the rule could be withdrawn with every committed
+    # byte unchanged.
+    "level_shape_stand_ins",
     # THE FIRST FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
     # R-P4-17). Every other case here exercises a role Phase 1 to 3
     # built; the four Phase 4 roles had no independent vector at all,
     # so their generator branches were checked only against
     # themselves. This is one of the four.
     "long_tail_levels",
+    # THE CASE OF A LETTER (landing 2b.18 part 2, plan P4-D121). Every
+    # label case before it publishes a census blind to case.
+    "lower_case_stand_ins",
     # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
     # One pins the day-unit rule of a column that stands wholly at
     # midnight; the other pins the evenly spread rotation of marks, its
@@ -297,6 +329,11 @@ SEEDS = {
     "unrepresentable_exponent": 121,
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
+    "identifier_layout": 136,
+    "identifier_layout_mixes": 140,
+    "lower_case_stand_ins": 137,
+    "level_shape_stand_ins": 138,
+    "count_spellings": 139,
     "leap_second_endpoint": 114,
     "numeric_pooled_spelling": 115,
     "month_span": 116,
@@ -342,6 +379,8 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_fold_collisions",
         "identifier_whole_numbers",
         "identifier_edge_spacing",
+        "identifier_layout",
+        "identifier_layout_mixes",
     }
 )
 
@@ -1384,7 +1423,9 @@ def _next_on_the_ladder_without_the_census(
     return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
 
 
-def _levels_from_the_second_spelling(used, sizes, census=None, written=()):
+def _levels_from_the_second_spelling(
+    used, sizes, census=None, written=(), placed=None, level_shape=""
+):
     """G8.3's stand-in walk, started one spelling along.
 
     The method enumerates a form's spellings IN ORDER and takes the
@@ -1452,6 +1493,66 @@ _identifier_family = gen.identifier_family
 def _every_band_from_the_figures(band, whole_numbers, length):
     """G9.6's withdrawn rule put back: `all_whole_numbers` means figures."""
     return _identifier_family(gen.FIGURES, whole_numbers, length)
+
+
+def _no_layout_offered(column):
+    """G9.6's layout offer withdrawn: the census is published and unread.
+
+    This is the state landing 2b.18 found and closed -- a column that
+    publishes what its record numbers look like and a generator that
+    writes them from the band enumeration anyway.
+    """
+    return []
+
+
+def _no_layout_mixed(column):
+    """G9.6's mixes withdrawn: a group no named layout serves is not mixed.
+
+    Every such group then falls to the band enumeration, which is what
+    wrote `A-----5V` for a pooled record number before the mixes existed.
+    """
+    return []
+
+
+def _no_layout_preferred(column, groups, families, bands, windows, pinned):
+    """G9.6's smooth rotation withdrawn: every group takes the first layout.
+
+    The layouts are then offered in sorted order alone, so the identities
+    written once -- which the walk reaches first -- take the first layout
+    and the identities written twice take the second.
+    """
+    return [""] * len(groups)
+
+
+def _lower_filled_in_capitals(form, step):
+    """C6-31a's lower-case key withdrawn: `&` is filled as `@` is."""
+    return gen_filled_form(form.replace("&", "@"), step)
+
+
+def _no_spelling_census(column):
+    """G6.8 withdrawn: a count column's census of spellings is not read.
+
+    The ladder walk of G5 and the style walk of G6 write the column, as
+    they did before the census existed.
+    """
+    return gen_numeric_content(dict(column, number_spellings={}))
+
+
+def _no_level_shape_trade(sizes, shared, level_shape, fixed, seen, folds):
+    """G8.3b's trade withdrawn: the shape covers the places as settled.
+
+    The named forms keep the places the census settlement gave them, so
+    the places owed no form past the shape's supply take the neutral
+    spelling -- which carries a figure, and this oracle refuses to reason
+    about one.
+    """
+    free = [
+        place for place in range(len(sizes))
+        if place not in fixed and not shared[place]
+    ]
+    supply = gen.usable_room(level_shape, len(free), seen, folds)
+    owed = sorted((-sizes[place], place) for place in free)
+    return list(shared), {place for _size, place in owed[:supply]}
 
 
 def _case_flips_only(parent, longest):
@@ -1661,6 +1762,49 @@ CASE_MUTANTS = {
         "published mark as a comma",
         attribute="grouping_mark_of",
         replacement=_every_mark_a_comma,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "lower_case_stand_ins": Mutant(
+        branch="C6-31a's lower-case key, filled from the lower-case "
+        "alphabet at the positions a `@` takes; the mutant fills it in "
+        "capitals, and every stand-in moves",
+        attribute="filled_form",
+        replacement=_lower_filled_in_capitals,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "count_spellings": Mutant(
+        branch="G6.8's census of spellings, which writes a count column "
+        "that wrote one number more than one way as its published "
+        "spellings; the mutant withdraws it, and the ladder and style walks "
+        "write the column instead",
+        attribute="_numeric_content",
+        replacement=_no_spelling_census,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "level_shape_stand_ins": Mutant(
+        branch="G8.3b's trade, which moves a large held-back group paying a "
+        "named form onto the published labels' shape and settles the form "
+        "with single rows summing to it; the mutant withdraws the trade, "
+        "and a place past the shape's supply is left the neutral spelling",
+        attribute="level_shape_spent",
+        replacement=_no_level_shape_trade,
+        outcome="reasons only about stand-ins with no figure",
+    ),
+    "identifier_layout": Mutant(
+        branch="G9.6's smooth weighted rotation of a layout census over the "
+        "identities (contract 7.12); the mutant withdraws it, so every "
+        "identity written once takes `@%%%%%` and every identity written "
+        "twice takes `@@%%%%`, binding a layout to how often it recurs",
+        attribute="layout_preferences",
+        replacement=_no_layout_preferred,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout_mixes": Mutant(
+        branch="G9.6's mixes of a layout census's kinds, which write the "
+        "cells no named layout serves (plan P4-D128); the mutant withdraws "
+        "them, and the fourteen pooled cells fall to the band enumeration",
+        attribute="layout_stand_in_bases",
+        replacement=_no_layout_mixed,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(
@@ -1972,6 +2116,23 @@ CASE_MUTANTS = {
         outcome="recount min_length as 310",
     ),
 }
+
+
+def test_withdrawing_the_layout_offer_stops_the_oracle(monkeypatch) -> None:
+    """The layout census is EXACT-OBSERVABLE, and the oracle holds itself to it.
+
+    The registered mutant of `identifier_layout` withdraws the ROTATION,
+    which moves cells. Withdrawing the OFFER altogether is a different
+    reversal and is held up here: the twenty-four cells then come from
+    the band enumeration, wear no published layout, and the recount of
+    contract 7.12 stops the oracle before any byte could be written.
+    """
+    before, _claims = gen.build_case("identifier_layout")
+    assert before["cells"]
+    monkeypatch.setattr(gen, "layout_offer", _no_layout_offered)
+    with pytest.raises(AssertionError) as refusal:
+        gen.build_case("identifier_layout")
+    assert "wear the layout '@%%%%%' 0 times" in str(refusal.value)
 
 
 def test_the_mutant_table_names_every_case_and_nothing_else() -> None:

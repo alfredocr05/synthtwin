@@ -578,7 +578,17 @@ def test_a_count_missed_by_the_split_is_named_for_the_split(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     profile = _described_labels(tmp_path)
-    monkeypatch.setattr(generation, "_class_split", lambda sizes, debts, supply: {})
+    monkeypatch.setattr(
+        generation,
+        "_class_split",
+        # Landing 2b.13 widened the real signature with the census's
+        # remaining form debt and the column's grammar, which G8.3a
+        # step 1 consults before it accepts an arrangement. The
+        # stand-in takes them and ignores them: what this test pins
+        # is that a split covering NOTHING is named for the split,
+        # which this landing does not touch.
+        lambda sizes, debts, supply, owing=None, decimal_comma=False: {},
+    )
     assert _class_reasons(generation.generate(profile, 3)) == {
         generation._CLASS_SPLIT_REASON
     }
@@ -875,7 +885,10 @@ def test_a_number_form_of_a_column_of_text_is_paid_in_its_own_band(
     for form in first["shape_forms"]:
         if form == "(withheld)":
             continue
-        worn = sum(1 for cell in written if parsing.shape_form(cell) == form)
+        worn = sum(
+            1 for cell in written
+            if parsing.census_form(cell, first["shape_forms"]) == form
+        )
         assert worn == first["shape_forms"][form], form
     # A form is filled from a counter, and `%%.%` at step zero is `00.0`.
     numbers = [cell for cell in written if parsing.classify_number(cell) == parsing.NUMBER]
@@ -908,7 +921,10 @@ def test_numbers_are_moved_into_the_band_their_forms_are_written_in(
     for form in first["shape_forms"]:
         if form == "(withheld)":
             continue
-        worn = sum(1 for cell in written if parsing.shape_form(cell) == form)
+        worn = sum(
+            1 for cell in written
+            if parsing.census_form(cell, first["shape_forms"]) == form
+        )
         miss = miss + abs(worn - first["shape_forms"][form])
     assert miss <= 1, miss
 

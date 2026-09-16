@@ -249,6 +249,21 @@ SPELLING_SUBCHECKS = (
 # of dates, so it is one check. Re-recording 416 as 417 would retire the
 # only thing this baseline buys.
 MEMBER_SUBCHECK = "format.member"
+# ...and the ONE check landing 2b.18 added (contract 7.12, plan
+# P4-D120), set aside on the same doctrine. The demonstration's
+# `record_code` column is a DECLARED identifier, so it now publishes a
+# census of layouts and the run files one check it did not file before:
+# `record_code|identifier.layout_forms|forms.published.@%%%%%`.
+# MEASURED before this entry was written: with the new check left IN,
+# the wide list read 417 and the frozen 407 read 408; with it set
+# aside, BOTH digests come back character for character, which is what
+# says the landing added an obligation and moved nothing else.
+LAYOUT_SUBCHECKS = ("forms.published.@%%%%%",)
+# ...and it is SET ASIDE rather than folded into either baseline, which
+# is this file's doctrine for an obligation that arrived: re-recording
+# 416 as 417 would retire the only thing the baseline buys. Both frozen
+# digests must come back character for character with this one check
+# taken out, and the assertion below names the column it lands on.
 WIDE_CHECK_COUNT = 416
 WIDE_CHECK_DIGEST = (
     "a7ce60b12fb7b298a5643736c5c480d0e3f6169065e6b08080e1dc5c9116a6f9"
@@ -283,7 +298,28 @@ NARROW_LISTING_DIGEST = (
     "5978ec5be61bdfe2b0b4f21cad6c7b3ae2477c21c697fa20192f24f86656bf92"
 )
 NARROW_COLUMN_DIGESTS = {
-    "record_code": "f6d74ac3a099e5713338c9baff476924",
+    # RE-RECORDED AT LANDING 2b.18, and this is the ONE column of the
+    # demonstration that may have moved: `record_code` is the table's
+    # declared identifier, and the identifier role now publishes the
+    # census of layouts and is written to it (contract 7.12, method
+    # G9.6, plan P4-D120). MEASURED before re-recording: every cell of
+    # the new column wears the published layout `@%%%%%`, the column's
+    # own pattern matches every twin row where it matched none before,
+    # both the twin and the real table pass the description at exit 0,
+    # and the two columns beside it below did NOT move -- which is what
+    # says the landing reached the declared identifier and nothing
+    # else.
+    #
+    # RE-RECORDED AGAIN AT LANDING 2b.18's REPAIR PASS, and again only
+    # this column moved (plan P4-D128): each layout's walk now starts at
+    # its own step past nought and a step is spread by the exact golden
+    # section of the layout's room, because the five-figure stride left
+    # the leftmost figures of a filling mostly noughts on rooms that are
+    # powers of ten. MEASURED before re-recording, against abd11f0: every
+    # column but `record_code` is byte-identical; all 240 of its cells
+    # still wear `@%%%%%`; and the quality report digest below did not
+    # move, so every obligation is held as it was.
+    "record_code": "831384cc2284883fa8bb0b535966ba11",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
@@ -364,7 +400,12 @@ def test_widening_the_demonstration_lost_no_obligation(
         """Whether this line belongs to a check added since the freeze."""
         if VALUE_COUNT_SUBCHECK in entry:
             return True
-        for one in AFFIX_SET_SUBCHECKS + SPELLING_SUBCHECKS + (MEMBER_SUBCHECK,):
+        for one in (
+            AFFIX_SET_SUBCHECKS
+            + SPELLING_SUBCHECKS
+            + (MEMBER_SUBCHECK,)
+            + LAYOUT_SUBCHECKS
+        ):
             if one in entry:
                 return True
         return False
@@ -383,6 +424,18 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose", "dose", "dose",
     ], wrapped
     assert len(counted) == WIDE_CHECK_COUNT, len(counted)
+    # ...and the ONE check landing 2b.18 added is on the ONE column that
+    # can carry it, named rather than counted: `record_code` is the only
+    # DECLARED identifier in this table, and the census of layouts is
+    # that role's alone (contract 7.12, C6-129).
+    laid = sorted(
+        entry
+        for entry in checks
+        if any(one in entry for one in LAYOUT_SUBCHECKS)
+    )
+    assert laid == [
+        "record_code|identifier.layout_forms|forms.published.@%%%%%",
+    ], laid
     # ...and the three spelling checks, on the four numeric-family
     # columns and nowhere else (landing 2b.2).
     spelled = sorted(
@@ -926,8 +979,58 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # GOLDEN_TWIN_SHA256 is 2b.6's -- because 2b.7's censuses are empty here
 # and an empty census writes the published majority, as both landings
 # measured.
+# RE-RECORDED 2026-09-16 (landing 2b.12, plan P4-D85). The description
+# moved by ONE LINE -- `comment` publishes `n_missing_blank: 160` where
+# it published 0 -- diffed against the base commit, with nothing else
+# changed.
+#
+# GOLDEN_TWIN_SHA256 BELOW DID NOT MOVE, and on this landing that is the
+# load-bearing observation. The demonstration's free-text column holds
+# 160 absent cells and every one of them held NOTHING, so the twin wrote
+# them empty before this landing and writes them empty after it; the
+# rule that changed reaches a column's absent cells only where they wore
+# one of synthtwin's own words, and this column's wore none. Measured,
+# not argued: the twin of the demonstration is byte-identical to the
+# base commit's (6a88f23f629b53e506371f7f632709977e26d7155e8ee1cd357146c2e51a5c1c).
+#
+# THE REPORT DIGEST MOVED, AND IT NOW SAYS MORE RATHER THAN LESS, which
+# is the condition this file sets before a report digest may be
+# re-recorded. Two lines -- "the description names no spelling for these
+# cells, so this report names none either" -- became one: "160 cell(s)
+# with nothing written in them". The sentence it replaces was true only
+# because the class had emptied the count the report wanted to print.
+# THE THREE DIGESTS MOVED AT LANDING 2b.18, and what moved is recorded
+# here rather than left to the diff. The demonstration's `record_code`
+# column is declared an identifier, and the identifier role gained a
+# seventh published key: `layout_forms`, the census of positional
+# layouts (contract 7.12, plan P4-D120). So the DESCRIPTION moved
+# first, and the twin and the quality report follow it:
+#
+#   * the description gained one key on one column -- the census
+#     `{"@%%%%%": 12}` -- and nothing else moved in it;
+#   * the TWIN moved because the generator now reads that census and
+#     writes each record number to its published layout, which is the
+#     whole of what the landing does. MEASURED on the new run before
+#     re-recording: every `record_code` cell wears the published
+#     layout, the column's own pattern matches every twin row where it
+#     matched none before, and both the twin and the real table pass
+#     the description at exit 0;
+#   * the QUALITY REPORT says MORE and not less: it carries one
+#     obligation it did not carry, `identifier.layout_forms`, and drops
+#     none -- which the wide baseline above asserts by identity.
+# THE DESCRIPTION DIGEST MOVED AGAIN AT LANDING 2b.18'S SECOND PART, and
+# ONLY it: the two count blocks gained the empty census
+# `number_spellings: {}` (contract 7.13, plan P4-D123), which is the whole
+# of the diff against 2e2ec8f. MEASURED: the twin and the quality report
+# digests below come back character for character, because an empty
+# census writes nothing differently and sets no obligation.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), for the cause recorded beside the profile golden, plus
+# landing 2b.8's `layout_forms` `{"@%%%%%": 240}` on `record_code`.
+# Diffed both ways, the description moved against each side only in the
+# other side's keys.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "65b2c4dec551d97043bcf1e2ecb373d6d98c31a128e77fa741168e2df1c0dfc7"
+    "9c2387e97f27765e2a261c1f8d5a26c2b3c2dae395f07121f7bd5cecfd968548"
 )
 
 
@@ -1044,8 +1147,19 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # early. Only `recorded_on`'s cells move: no other column of the
 # demonstration is a column of dates, and the word budget per column is
 # unchanged, so nothing downstream of it shifts either.
+# RE-RECORDED at landing 2b.18's repair pass (2026-09-16): `record_code`
+# moved for the cause recorded beside its column digest above -- the step
+# a layout's walk starts at and the stride it takes (plan P4-D128) -- and
+# no other column's cells moved; the description and quality report
+# digests held.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), and BOTH SIDES HAD MOVED THE TWIN, each in its
+# own column. Diffed cell by cell: against the tree before the merge only
+# `record_code` moved (240 cells, written to their published layout);
+# against landing 2b.8's own tree only `recorded_on` moved (214 cells,
+# placed on the pinned rungs of landing 2b.6). No other cell moved.
 GOLDEN_TWIN_SHA256 = (
-    "2d9175d73f6c0b819cba38e8df4cdd9348f8589028ccff0d52d9d9d156c1fff3"
+    "ed198f28df9a7136f970686e9de64374db7173217eeabf32add6f6f6919d1fa3"
 )
 
 
@@ -1466,8 +1580,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # window was a point while the code spent the allowance anyway. The twin
 # is untouched, every achieved figure is unchanged, and the report says
 # strictly more than it did.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), read as a diff against each side. Against the tree
+# before the merge only landing 2b.8's line moved: the free-text column's
+# holes are named as 160 cells with nothing written in them. Against
+# landing 2b.8's own tree only landing 2b.6's lines moved: the date rungs
+# on their published values with point windows, its sentence on what a
+# twin of dates does not reproduce, and the n_distinct note it removed.
 GOLDEN_REPORT_SHA256 = (
-    "89bd7cc9538269732daaa81b96c77c52c618d4a9e11663c0876f3fa422d0762c"
+    "2da9d1bb5ba22238c056f9b39b49900d00a11065a0f58b5949946412c593eb99"
 )
 
 
@@ -2033,8 +2154,14 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # the four written-form listings, and the date rungs held at their
 # published values. The census carries no fewer obligations than either
 # side: 508 checked, as 2b.6 has, and every verdict otherwise unchanged.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), read as a diff against each side. Against the tree
+# before the merge only landing 2b.8's check arrived:
+# `forms.published.@%%%%%` HELD on `record_code`, 508 to 509 obligations.
+# Against landing 2b.8's own tree only landings 2b.6's and 2b.7's lines
+# moved, as recorded above. No verdict otherwise moved.
 GOLDEN_QUALITY_SHA256 = (
-    "89e61bed860dfe8b0019501c578d28687473cb03a09347700d0cded4ef2b0a76"
+    "35d3a010f2b0a8c96cf36030067940dd9e376cd1d5fabffcdd8e2888048bdcf7"
 )
 
 

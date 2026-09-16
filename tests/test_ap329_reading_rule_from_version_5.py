@@ -621,7 +621,12 @@ def test_a_named_built_in_word_comes_back_where_no_column_names_it(
         )
     )
     column = mine.described.columns[0]
-    assert column.missing_by_source == {}
+    # SINCE PLAN P4-D85 the word is recoverable from the COLUMN as well
+    # as from the settings block, because `n/a` is one of synthtwin's
+    # own words and no table's. The point of this test is unchanged and
+    # strengthened: naming `n/a` and naming `ZZZ` still differ, and the
+    # difference is now visible in two places rather than one.
+    assert column.missing_by_source == {"n/a": 12}
     assert column.missing_by_class.declared_missing == 12
     assert validation.declared_spellings(mine.described) == ("n/a",)
     assert validation.unrebuildable_columns(mine.described) == {}
@@ -801,14 +806,16 @@ def test_the_structural_test_is_not_asked_where_the_class_empties_it(
         )
     )
     column = case.described.columns[0]
-    assert validation._publishes_no_source_accounting(column)
-    assert column.missing_by_source == {}
-    assert column.n_missing_blank == 0
+    # SINCE PLAN P4-D85 THE CLASS EMPTIES NOTHING HERE. `n/a` is one of
+    # synthtwin's own words, so this column names it and the structural
+    # test has something to read after all -- it finds every declared
+    # hole attributed rather than none. What the class still empties is
+    # a spelling of the PERSON'S own, which is the case this file's
+    # neighbour above covers with `ZZZ`.
+    assert column.missing_by_source == {"n/a": 12}
     assert column.n_missing_withheld == 0
     assert column.missing_by_class.declared_missing == 12
-    # The test that is not asked would have found twelve unattributable
-    # cells; the rule that is asked finds the word in the settings.
-    assert validation._holes_no_spelling_accounts_for(column, ("n/a",)) == 12
+    assert validation._holes_no_spelling_accounts_for(column, ("n/a",)) == 0
     assert validation.unrebuildable_columns(case.described) == {}
 
 

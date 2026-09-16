@@ -1227,6 +1227,12 @@ REGISTRY += [
         plan_region="padding",
         aliases=("padding census", "field-width census"),
     ),
+    # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (contract 7.13, landing
+    # 2b.18 part 2, plan P4-D123). EXACT-OBSERVABLE, on the plainest
+    # terms any census here has: it names every cell read as a number
+    # with its own spelling and pools nothing, so a person opens the twin
+    # and counts each spelling back.
+    Fact("numeric", "number_spellings", EXACT_OBSERVABLE),
     # Plan P4-D30. The census of WHOLE-NUMBER field widths is the third
     # sibling of the styles map and is the ONE of the three that is not
     # exact. Its two siblings are facts about SPELLING and are bought
@@ -1577,6 +1583,15 @@ REGISTRY += _facts(
     "all_whole_numbers",
     "n_all_digits",
     "n_code_alphabet",
+    # THE CENSUS OF LAYOUTS (contract 7.12, landing 2b.18, plan
+    # P4-D120). EXACT-OBSERVABLE on exactly the terms the form census
+    # is: a person opens the twin, reads the layout off each cell and
+    # gets the published census back, with the pooled remainder
+    # widening the bar. It is owed INSIDE owner decision 6's infeasible
+    # corner as well as outside it -- that corner lowers three
+    # DISTINCTNESS facts and says nothing about what a cell LOOKS
+    # like -- so it carries no `authorized` entry.
+    "layout_forms",
 )
 REGISTRY += [
     Fact(
