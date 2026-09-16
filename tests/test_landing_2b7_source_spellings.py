@@ -282,6 +282,97 @@ def test_whole_numbers_past_binary64_meet_their_description(
     assert twin_exit == 0
 
 
+@pytest.mark.parametrize("seed", ["1", "7"])
+def test_negative_whole_numbers_past_binary64_meet_their_description(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The same ledger with half its keys negative, which still failed.
+
+    FOUND BY THE VERIFICATION OF THIS LANDING, and it is the same class
+    the test above closes, one shape over. The figures were asked to
+    read back as the value with the SIGN ALREADY TAKEN OFF -- the two
+    other shapes of this family ask about figures alone, so the caller
+    stripped it for all three -- and no run of figures reads back as a
+    negative number. So a real ledger of signed seventeen-figure keys
+    was told its own export missed its own description: 398 of 800
+    cells negative, exit 3 with `styles.spelled` MISSED and the failing
+    cells withheld, at both seeds, unchanged by the repair that fixed
+    the positive column beside it.
+
+    The fixture asserts that it IS that shape before it asserts the
+    answer: a column of positive keys would pass this test with the
+    defect still in place.
+    """
+    draw = random.Random("signed-seventeen-figures")
+    cells: "list[str]" = []
+    for _each in range(ROWS):
+        figures = str(draw.randrange(10 ** 16, 10 ** 17))
+        if draw.random() < 0.5:
+            cells += [f"-{figures}"]
+        else:
+            cells += [figures]
+    negative = len([cell for cell in cells if cell[:1] == "-"])
+    assert negative > 300, negative
+    # ...and the keys really are past what binary64 keeps, which is the
+    # only reason the family cannot answer for them on its own.
+    odd = len([cell for cell in cells if f"{int(float(cell))}" != cell])
+    assert odd > 300, odd
+    _source, _twin_block, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "signed-wide", cells, seed=seed, header="ledger_key"
+    )
+    assert real_exit == 0
+    assert twin_exit == 0
+
+
+def test_the_wide_run_rule_answers_only_where_binary64_loses_a_figure() -> None:
+    """The widening's REACH, pinned, because the rule is an identity.
+
+    `float(run) == value` is true of every run of figures ever written:
+    the value is what that run read back as. So as first written this
+    shape admitted every point-free numeric cell in any file -- 0 of
+    8,000 random runs refused, where the commit before this landing
+    refused 4,819 -- and a subcheck that cannot fail on the class it
+    governs is what a widened family invites.
+
+    The bound is the class binary64 actually loses a figure in. Below
+    2**53 a whole number is held exactly, so exactly one run reads back
+    as it, and that run is one `_permitted_spellings` already offers;
+    this rule deciding it would decide nothing. Measured on the base
+    commit at three hundred runs per width: none refused at fifteen
+    figures, 18 of 300 at sixteen, 240 of 300 at seventeen.
+
+    WHAT THE BOUND DOES NOT BUY is stated here rather than implied: it
+    restores no refusal, because the base refused nothing below sixteen
+    figures either. What it buys is that the sentence in the sealed
+    method is true of the class it names, and that this test can tell
+    the rule from its absence.
+    """
+    from synthtwin import validation
+
+    # Below the threshold the rule declines and the FAMILY answers, so
+    # the cell is still a spelling and the column is still clean.
+    assert (
+        validation._wears_a_source_spelling(
+            "12345678901234", 12345678901234.0, ""
+        )
+        is False
+    )
+    assert validation._cells_outside_the_styles(
+        ["12345678901234"], True, ()
+    ) == 0
+    # At or past it, a run that is NOT its value's canonical text is a
+    # spelling of that value -- which the fixture asserts of itself
+    # first, so a run that happened to be canonical would pin nothing.
+    wide = "88618223144562695"
+    assert f"{int(float(wide))}" != wide
+    assert validation._wears_a_source_spelling(wide, float(wide), "") is True
+    assert (
+        validation._wears_a_source_spelling(f"-{wide}", -float(wide), "")
+        is True
+    )
+    assert validation._cells_outside_the_styles([f"-{wide}"], True, ()) == 0
+
+
 def test_a_spelling_of_no_permitted_form_is_still_missed(
     tmp_path: pathlib.Path,
 ) -> None:

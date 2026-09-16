@@ -1327,16 +1327,36 @@ figure of that number:
   figures with zeros added, so a mantissa naming other figures is a
   spelling of a number the file does not hold;
 - an exponent written however the writer spells it — with or without a
-  `+` on a non-negative power, at one, two or three digits — since
-  those differ in no figure;
+  `+` on a non-negative power, at any number of digits — since those
+  differ in no figure. The width is deliberately unbounded and the
+  code holds no ceiling on it: `e+5`, `e+05` and MSVC's `e+005` are
+  one power written three ways, and a bound would have to name a
+  widest writer to be right about the next one. The earlier wording
+  here said "at one, two or three digits", which the code never did
+  (the verification of landing 2b.7);
 - a value below one written with no `0` in front of its point, `.05`
   and `-.23`, which is restored as a NOTATION before any spelling is
   offered, exactly as brackets and a trailing minus are. Restoring it
   rather than offering a second text is what reaches the zero cell
   `.000`, whose restored text is offered only at the census width;
-- the figures of a whole number too wide for binary64 to keep, where
-  more than one run of figures reads back as the same value and only
-  one is the one the shortest-round-trip rule produces.
+- the figures of a whole number too wide for binary64 to keep, WITH
+  ITS SIGN, where more than one run of figures reads back as the same
+  value and only one is the one the shortest-round-trip rule produces.
+  Two bounds on it, both added by the verification of landing 2b.7.
+  The sign is part of the run: a run of figures with the minus taken
+  off never reads back as a negative value, so a real ledger of signed
+  seventeen-figure keys failed its own description on every negative
+  cell — 398 of 800, exit 3, on both seeds — while the same column
+  written positive passed. And the shape is admitted only where the
+  value is at or past 2**53: below that a whole number is held
+  exactly, exactly one run of figures reads back as it, and that run
+  is one the family already offers, so admitting it here would decide
+  nothing and claim to have decided something. Of three hundred random
+  runs at each width measured on the commit before this landing, none
+  at fifteen figures was ever counted outside the styles, 18 of 300
+  were at sixteen and 240 of 300 at seventeen, and every run refused
+  was one that is not its own value's canonical text — so the class
+  this admits and the class binary64 cannot tell apart are one class.
 
 **The direction this cannot drift in, and the guard on it.** A text
 this admits that no style would have chosen costs a miss the aggregate
