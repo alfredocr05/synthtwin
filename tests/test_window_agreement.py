@@ -706,6 +706,57 @@ def _dropped_zero(text: str) -> str:
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
+def test_the_generator_and_the_oracle_read_one_integer_grid(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A whole-valued column is on the integers in BOTH writings (P4-D66.3).
+
+    THE MIRROR WAS PINNED BY NOTHING, and a mutation check is what
+    found it: withdrawing this rule from the oracle left all 365 tests
+    of the reference and agreement files passing, because no committed
+    frozen case has a whole-valued column with a NON-EMPTY fraction
+    census and both writings agree on every other shape.
+
+    That census is the shape the rule turns on. A column a spreadsheet
+    exported as `44.0` publishes `integer_valued: true` AND a census of
+    one figure, and both writings used to read the census first -- so
+    both put the column on the grid of tenths, and the separation walk
+    moved a stratum onto a value no whole-number column holds. The
+    control below is the same census on a column that is NOT whole,
+    where the census IS the grid, so the test can tell the rule from
+    its absence.
+    """
+    oracle = _oracle()
+    draw = random.Random(11)
+    whole = [f"{draw.randrange(10, 90)}.0" for _ in range(600)]
+    column = _describe(tmp_path, "whole_with_width", whole)
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.integer_valued is True
+    assert facts.fraction_widths == {"1": 600}, dict(facts.fraction_widths)
+    assert generation._pinned_fraction(column, facts) == 0
+    assert (
+        oracle.grid_of(
+            dict(facts.fraction_widths), facts.integer_valued, column.n_numeric
+        )
+        == 0
+    )
+    # THE CONTROL: the same census, values that are not whole. Here the
+    # census is the grid, and both writings must still say so.
+    tenths = [f"{draw.gauss(37, 0.5):.1f}" for _ in range(600)]
+    other = _describe(tmp_path, "tenths_control", tenths)
+    theirs = other.facts
+    assert isinstance(theirs, contract.NumericFacts)
+    assert theirs.integer_valued is False
+    assert generation._pinned_fraction(other, theirs) == 1
+    assert (
+        oracle.grid_of(
+            dict(theirs.fraction_widths), theirs.integer_valued, other.n_numeric
+        )
+        == 1
+    )
+
+
 def test_the_generator_and_the_oracle_read_one_written_grid(
     tmp_path: pathlib.Path,
 ) -> None:

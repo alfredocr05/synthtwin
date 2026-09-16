@@ -2396,10 +2396,20 @@ def grid_of(fraction_widths, integer_valued, numeric):
     function without it, accepting any one-key census -- so a case whose
     one width covered 11 of 33 cells would have been called a grid here
     and refused by the implementation.
+
+    A WHOLE-VALUED COLUMN IS ON THE INTEGER GRID WHATEVER ITS CENSUS
+    SAYS (landing 2b.7, plan P4-D66.3).  ``integer_valued`` says every
+    VALUE is whole and ``fraction_widths`` says how many figures each
+    cell WRITES after its point, and a column exported as ``44.0``
+    publishes both.  Reading the census here put such a column on the
+    grid of TENTHS and the separation walk moved a stratum onto
+    ``25.6``.  This read the census first and answered the integers
+    only for an EMPTY one, which is the same defect the implementation
+    carried at ``_pinned_fraction``.
     """
+    if integer_valued:
+        return 0
     if len(fraction_widths) != 1:
-        if integer_valued and not fraction_widths:
-            return 0
         return -1
     for width in fraction_widths:
         try:

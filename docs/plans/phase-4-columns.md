@@ -9744,6 +9744,36 @@ The rule is now the same rule for both grids: a candidate is moved onto the colu
 
 **And the key index had already fallen out of step.** `negative_notations` and `thousands_marks`, the two censuses of P4-D65.2, are keys a report may carry, and the landing that added them to the generator did not add them to G12's key index — so `tests/test_p4d32_empty_bins.py::test_every_deviation_key_is_one_the_method_authorizes` was RED on commit cf7d2cb before any change of this part. Both are listed now. A closed enumeration is stated in up to eight places and the deviation key index is one of them.
 
+### P4-D66.2 A real export meets its own description (landing 2b.7, 2026-09-15)
+
+Describe a real Excel, SAS, Stata, SPSS or Fortran export and then validate THAT FILE against the description this tool has just produced from it: exit 3, `styles.spelled` MISSED, and the report withholds which cells failed. Seven shapes were measured doing it at 800 rows and two generation seeds, fourteen runs of fourteen: Excel's `2.29E+05`, SAS's `7.2960E+02`, the zero cell `0.00E+00`, Fortran's `6E9`, Stata's `.05` and `-.23`, and columns of seventeen- and eighteen-figure identifiers. A researcher is told their own export does not match its own description, and is not told which cell.
+
+**The cause is that one family answered two questions.** `_permitted_spellings` writes out the family of G6.1 — what this method's generator MAY write — and the per-cell check accepted that and nothing else from any file. Every spelling above is a spelling of the value the cell reads back as, differing from a text the family already offers in no figure of that number: a mantissa padded to a fixed count of figures, an exponent written without its `+` or at one digit, a value below one written without its leading `0`, and the figures of a whole number past what binary64 keeps, where more than one run of figures reads back as one value and only one of them is what the shortest-round-trip rule produces.
+
+**What changed.** The bare point joins brackets, the minus sign and the trailing minus as a NOTATION restored before any spelling is offered — which is what reaches the zero cell `.000`, whose restored text `0.000` is offered only by the census width, and what a rule built from the fixed-point text alone got wrong. The padded mantissa and the wide whole number are asked as shapes, after the family has been offered and found nothing. Amended into the sealed validation method.
+
+**Measured after.** All fourteen runs validate the real table at exit 0, and every twin still validates at exit 0. The mantissa width, the exponent grammar and the bare point are still not PUBLISHED facts, so the twin does not write them back — that is the carried half of NC-1, NC-2 and NC-6 and this decision does not claim it. What it closes is the false accusation against the file.
+
+**It stays falsifiable.** `46E+02` reads back as 4600 and pairs two figures before the point with an exponent one too small; no rule here admits it, and `tests/test_landing_2b7_source_spellings.py::test_a_spelling_of_no_permitted_form_is_still_missed` pins that the file holding it is still MISSED. A check that cannot fail is what a widened family invites, and that test is what stops this one becoming it.
+
+### P4-D66.3 A whole-valued column is on the integer grid whatever its census says (landing 2b.7, 2026-09-15)
+
+`integer_valued` says every VALUE of a column is whole; `fraction_widths` says how many figures each CELL writes after its point. A column a spreadsheet exported as `44.0` publishes both, and G5.2a step 1 read the census: such a column was put on the grid of TENTHS, and the separation walk of G6.5a then moved a stratum onto `25.6`, a value no whole-number column holds.
+
+Measured through the real reader, producer, loader, generator and validator, 800 rows, seeds 1 and 7, floor eleven: 23 non-whole twin cells at seed 1 and 19 at seed 7, and the twin DESCRIBED ITSELF AGAIN as a `continuous` column where the source was a `count` — `axes.role`, `axes.statistical_type` and `type.integer_valued` all MISSED. A column of whole amounts written at two figures was worse, 68 cells of 800 and 76 at seed 7. Code written on such a twin meets values `astype(int)` refuses and a count model will not take.
+
+**After:** the one-figure column comes back with ZERO non-whole cells at both seeds, re-describes itself as a `count` with `integer_valued` true and the same width census, and both the twin and the real table validate at exit 0. Amended into the sealed method at G6.5a's WHICH GRID clause and mirrored in the independent oracle's `grid_of`, which carried the same defect — so the product and the oracle disagreed here before this landing, and no frozen case has a whole-valued column with a non-empty census to have caught it.
+
+**What it does NOT close, measured and carried.** On the two-figure column the values are now whole — 0 non-whole of 800 — but six cells are written at one figure rather than the published two, so `widths.published.2` and `distinct.n_distinct_values` are MISSED where `axes.role` and `type.integer_valued` were MISSED before. That is a real trade and it is named rather than buried: the integer grid gives such a column fewer numbers to separate with, and G6.6's width assignment spends a second width to make two spellings differ. The defect that remains is a width; the defect it replaced was the column's own type, which is the fact code depends on.
+
+### P4-D66.4 A padded cell no field can hold gives the style up (landing 2b.7, 2026-09-15)
+
+G6.3's rule 2 moves the `leading_zero` style ONTO a value a published field width can hold. It never moved it OFF a value no published width can hold, and rule 1 forbids assigning such a cell a width at all — so the writer put one zero in front of a value that already filled the field. Measured: a column of month codes `01` to `12`, every real cell two characters, census `{2: 598}`, came back holding `012` — three characters in a two-character field, two cells per seed, `pads.published.2` MISSED. A month lookup on the twin's own text finds no key for it.
+
+The exchange now runs in both directions, which is the rule rule 2 already states applied where the walks left it open, and the count of padded cells is unchanged by it — so every published style count is exactly what it was.
+
+**PARTLY, and the measurement says why.** The month column does NOT come back clean, and the reason is not the exchange: every cell of that twin not wearing the padded style already needs the whole field, so there is no partner to exchange with. The twin drew fewer single-figure values than the census counts padded cells, which is a fact about the VALUES and reaches the draw of G5, not the placement of styles. The audit named both repairs and this landing builds the smaller one; the larger is carried. Both cases are pinned: the exchange on a column that has a partner, and the column that has none, where the pass must leave every style exactly where it found it rather than move one onto a value that cannot wear it.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free

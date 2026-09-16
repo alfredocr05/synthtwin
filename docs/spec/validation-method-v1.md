@@ -1309,6 +1309,46 @@ defaults (GS1, NS1, DP1), and a check of them could not fail. The sentence the l
 is read the same way whether its large numbers carry the mark or not --
 is contradicted by the first goal and is withdrawn.
 
+**Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
+admits the spellings a real exporter writes that G6.3 does not choose.**
+The family of G6.1 is what this method's own generator may write, and
+it was also what this check would accept from any file — so a REAL
+Excel, SAS, Stata, SPSS or Fortran export, validated against the
+description this tool had just produced from it, exited 3 with
+`styles.spelled` MISSED and the failing cells withheld. Seven shapes
+were measured doing it, fourteen runs of fourteen. Four notations and
+shapes are now admitted, each a spelling of the value the cell reads
+back as and each differing from a text the family already offers in no
+figure of that number:
+
+- a mantissa PADDED to a fixed count of figures, `4.60E+03` and
+  `7.2960E+02` and `0.00E+00`, with the value's own decimal place.
+  Padding only, never rounding: the mantissa must be the value's own
+  figures with zeros added, so a mantissa naming other figures is a
+  spelling of a number the file does not hold;
+- an exponent written however the writer spells it — with or without a
+  `+` on a non-negative power, at one, two or three digits — since
+  those differ in no figure;
+- a value below one written with no `0` in front of its point, `.05`
+  and `-.23`, which is restored as a NOTATION before any spelling is
+  offered, exactly as brackets and a trailing minus are. Restoring it
+  rather than offering a second text is what reaches the zero cell
+  `.000`, whose restored text is offered only at the census width;
+- the figures of a whole number too wide for binary64 to keep, where
+  more than one run of figures reads back as the same value and only
+  one is the one the shortest-round-trip rule produces.
+
+**The direction this cannot drift in, and the guard on it.** A text
+this admits that no style would have chosen costs a miss the aggregate
+style counts make anyway; a text it omits costs a MISSED verdict
+against a conforming file, which is the direction nothing may drift in.
+None of these shapes is one G6.3 chooses, so no twin of this generator
+writes one, and the style census, the canonical ceilings of the pooled
+forms and the width census are untouched by this widening. A pairing
+the family does not hold — two figures before an exponent's point,
+`46E+02` — is still MISSED, and a test asserts it, because a check that
+cannot fail is what a widened family invites.
+
 **Amended 2026-09-15 (stage 2 confirmation review): a declared column is
 read in its own grammar before it is translated.** Which cells are
 absent is decided on the file's own text with every exact identity --

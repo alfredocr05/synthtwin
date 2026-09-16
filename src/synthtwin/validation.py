@@ -11263,6 +11263,238 @@ def _written_with_a_leading_minus(body: str) -> str:
     return body
 
 
+def _written_with_a_leading_zero(body: str) -> str:
+    """A cell's text with the `0` in front of a bare point restored.
+
+    WRITTEN HERE, NOT BORROWED, for the reason `_written_with_a_leading_minus`
+    above is, and it is the same KIND of rule: a notation this method's
+    own generator does not choose, normalised to the one it does before
+    the cell is compared with the spellings of its value.
+
+    Stata and SPSS write a value below one with no integer figure --
+    `.05`, `-.23`, and `,41` on a column declared to write its decimals
+    with a comma, which reaches here as `.41` -- and `0.05` is the same
+    figures with a character in front that carries none of them. Every
+    permitted spelling of 0.05 begins with that character, so 724 of
+    800 cells of a real Stata export were counted as spellings outside
+    the six forms and the file failed its own description (landing
+    2b.7; audit items NC-6 and NC-12).
+
+    RESTORING THE ZERO RATHER THAN OFFERING A SECOND TEXT is what makes
+    it reach every width: the census may publish three figures after
+    the point, so the bare spelling of a cell that rounds to nothing is
+    `.000`, whose restored text `0.000` is offered by `_text_at_width`
+    at that width and by nothing else. A rule that built the bare form
+    from the fixed-point text alone answered for `.05` and not for
+    `.000`, which is the zero cell of every such column.
+
+    Guarantees: accepts one cell's text; returns it unchanged unless a
+    point stands where the integer figure should be. No I/O.
+    """
+    if body[:1] == ".":
+        return f"0{body}"
+    if body[:1] == "-" and body[1:2] == ".":
+        return f"-0{body[1:]}"
+    if body[:1] == "+" and body[1:2] == ".":
+        return f"+0{body[1:]}"
+    return body
+
+
+def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
+    """One cell's text with its sign and any invented zeros taken off.
+
+    The leading-zero family of owner decision 8 is zeros written
+    straight after the sign, at any order, which is what `_wears`
+    strips for the texts it is handed. The three shapes below ask about
+    the figures themselves, so they need the same stripping first, and
+    doing it once here is what keeps the three from each growing their
+    own copy of it.
+
+    None where the cell's sign is not the value's: a spelling of a
+    negative value carries a minus, and a text carrying one is no
+    spelling of a value that does not.
+
+    The run of zeros stops at a point, because the `0` of `0.5` is a
+    figure of the number and not an invented one.
+    """
+    body = text
+    if sign == "-":
+        if body[:1] != "-":
+            return None
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        return None
+    while body[:1] == "0" and len(body) > 1 and body[1:2] != ".":
+        body = body[1:]
+    if not body:
+        return None
+    return body
+
+
+def _wears_a_padded_exponent(body: str, figures: str, place: int) -> bool:
+    """Whether one cell is this value's figures in exponent notation.
+
+    THE MANTISSA WIDTH AND THE EXPONENT GRAMMAR ARE THE WRITER'S, NOT
+    THIS METHOD'S (landing 2b.7; audit items NC-1, NC-2, NC-12). G6.3
+    writes `d[.ddd]e+XX` from the SHORTEST round-trip figures with the
+    sign always written and the exponent at least two digits, and every
+    real exporter writes something else: Excel's `2.29E+05` and SAS's
+    `7.2960E+02` pad the mantissa to a fixed count of figures, and
+    Fortran, Julia and JavaScript write `6E9` with no sign and one
+    exponent digit. None of those is a spelling this method's own
+    generator chooses, and every one of them is a spelling of the
+    value the cell reads back as -- so a REAL table exported by any of
+    those three tools failed its own description, `styles.spelled`
+    MISSED, with the failing cells withheld. That is a false accusation
+    against a file this tool was pointed at, which is the one direction
+    the family's generosity rule says nothing may drift in.
+
+    What is admitted is PADDING ONLY, never rounding: the mantissa must
+    be this value's own figures with zeros added, so `4.60E+03` is a
+    spelling of 4600 and `4.6E+03` is a spelling of 4600, while
+    `4.61E+03` is a spelling of a number the file does not hold. The
+    exponent must be the value's own decimal place, however it is
+    spelled -- with or without a `+` on a non-negative power, at any
+    number of digits -- because those three spellings differ in no
+    figure of the number.
+
+    ONE FIGURE BEFORE THE POINT. `46E+02` reads back as 4600 too, but
+    it pairs a mantissa with an exponent this family never pairs, and
+    the place test below refuses it rather than a rule of its own.
+    """
+    marker = -1
+    for index in range(len(body)):
+        if body[index] == "e" or body[index] == "E":
+            marker = index
+    if marker < 0:
+        return False
+    mantissa = body[:marker]
+    power = body[marker + 1 :]
+    lead = ""
+    if power[:1] == "+" or power[:1] == "-":
+        lead = power[:1]
+        power = power[1:]
+    if not power:
+        return False
+    for character in power:
+        if character < "0" or character > "9":
+            return False
+    written = int(power)
+    if lead == "-":
+        written = -written
+    if written != place - 1:
+        return False
+    point = -1
+    for index in range(len(mantissa)):
+        if mantissa[index] == ".":
+            point = index
+    if point < 0:
+        digits = mantissa
+    else:
+        if point != 1:
+            return False
+        digits = f"{mantissa[:point]}{mantissa[point + 1 :]}"
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    if len(digits) < len(figures):
+        return False
+    if digits[: len(figures)] != figures:
+        return False
+    for character in digits[len(figures) :]:
+        if character != "0":
+            return False
+    return True
+
+
+def _wears_a_whole_number_text(body: str, value: float) -> bool:
+    """Whether one cell is a run of figures reading back as exactly this value.
+
+    THE FIGURES OF A WHOLE NUMBER PAST WHAT BINARY64 KEEPS (landing
+    2b.7; the audit's missed item M2). G6.2's point-free spelling is
+    the value's shortest round-trip figures with its trailing zeros
+    written out, and it owes exactly one thing: that it reads back as
+    the same number. Above 2**53 more than one run of figures does --
+    `88618223144562695` and `88618223144562696` are one binary64 -- and
+    only one of them is the one `repr` produces, so a real table of
+    seventeen-figure accession numbers, encounter numbers or concept
+    identifiers failed its own description on every cell whose last
+    figure the format could not keep.
+
+    Asked of the text and answered by the NUMBER: the cell's figures
+    are read back and compared with the value the cell already read
+    back as, so nothing the file spells decides anything here except
+    whether it is a spelling of its own value.
+    """
+    digits = body
+    if digits[:1] == "-" or digits[:1] == "+":
+        digits = digits[1:]
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    return float(body) == value
+
+
+def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
+    """Whether one cell is a spelling of its value this family omitted.
+
+    TWO SHAPES A REAL EXPORTER WRITES AND G6.3 DOES NOT CHOOSE (landing
+    2b.7, plan P4-D66.2; audit items NC-1, NC-2 and NC-12, and the
+    missed item M2). Each is a spelling of the number the cell reads
+    back as, differing from a text `_permitted_spellings` already
+    offers in no figure of that number -- a mantissa padded to a fixed
+    count of figures with an exponent written however the writer spells
+    it, and the figures of a whole number too wide for binary64 to
+    keep. The third shape of this family, a value below one written
+    without its leading `0`, is a NOTATION and is restored by
+    `_written_with_a_leading_zero` before any spelling is offered.
+
+    ASKED ONLY AFTER THE FAMILY HAS BEEN OFFERED AND HAS FOUND NOTHING,
+    so a cell this method's own generator wrote is decided by the
+    family exactly as it was before this existed.
+
+    WHAT THIS DOES NOT DO IS EXCUSE THE TWIN. None of these shapes is
+    one G6.3 chooses, so no twin of this generator writes one; what the
+    check stops doing is calling the REAL table's own export a miss.
+    A twin that did write one would still be counted by the style
+    census, by the canonical ceilings of the pooled forms, and by the
+    width census, none of which this reaches.
+
+    Guarantees: accepts one cell's text with its negative notation
+    already written as a leading minus, the value it read back as, and
+    the grouping mark offered for it; returns whether it is one of the
+    three shapes. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    sign, figures, place = _figures_of(value)
+    body = _body_without_sign_or_zeros(text, sign)
+    if body is None:
+        return False
+    if _wears_a_padded_exponent(body, figures, place):
+        return True
+    # THE MARK COMES OFF FOR THE WHOLE-NUMBER SHAPE ALONE, because a
+    # grouped seventeen-figure identifier is the same run of figures
+    # with marks in it and the other two shapes carry no mark at all
+    # (an exponent mantissa never reaches four whole figures, and a
+    # value below one has no whole figure to group).
+    ungrouped = body
+    if mark:
+        kept = ""
+        for character in body:
+            if character != mark:
+                kept = f"{kept}{character}"
+        ungrouped = kept
+    if not ungrouped:
+        return False
+    return _wears_a_whole_number_text(ungrouped, value)
+
+
 def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
@@ -11300,7 +11532,16 @@ def _cells_outside_the_styles(
         for known in parsing.GROUP_MARKS:
             if known in body:
                 offered = known
-        signed = _written_with_a_leading_minus(body)
+        # THE TWO NOTATIONS THIS METHOD'S GENERATOR DOES NOT CHOOSE,
+        # both restored before any spelling is offered: the negative
+        # written as brackets, a minus sign or a trailing minus, and
+        # (landing 2b.7) the value below one written with no `0` in
+        # front of its point. Each carries no figure of the number, so
+        # restoring it compares the same figures the file wrote against
+        # the spellings of the value they read back as.
+        signed = _written_with_a_leading_zero(
+            _written_with_a_leading_minus(body)
+        )
         # A ZERO WRITTEN WITH A SIGN IS A SPELLING OF ZERO (the
         # verification of landing 2b.2). A ledger rounding -0.3 to a
         # whole amount writes `(0)` or `-0`, and every permitted spelling
@@ -11320,6 +11561,19 @@ def _cells_outside_the_styles(
         for spelling in _permitted_spellings(value, whole_column, widths, offered):
             if _wears(signed, spelling):
                 worn = True
+        # ...AND THE SPELLINGS A REAL EXPORTER WRITES THAT THIS FAMILY
+        # DOES NOT CHOOSE (landing 2b.7, plan P4-D66.2). A padded
+        # mantissa, an exponent with no `+`, a value below one with no
+        # leading `0`, and the figures of a whole number past what
+        # binary64 keeps are each a spelling of the value the cell read
+        # back as, and each was counted as a cell outside the six forms
+        # -- so a real Excel, SAS, Stata or SPSS export, and a real
+        # column of seventeen-figure identifiers, failed its own
+        # description with the failing cells withheld. Asked only where
+        # the family above found nothing, so a cell this generator
+        # wrote is decided exactly as it was before.
+        if not worn and _wears_a_source_spelling(signed, value, offered):
+            worn = True
         if not worn:
             outside = outside + 1
     return outside

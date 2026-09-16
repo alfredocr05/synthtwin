@@ -1648,6 +1648,26 @@ cells, a ceiling of one. Two rules follow and both are normative:
    themselves impose: there is no leading-plus spelling of a negative
    value, and no point-free spelling of a value that has none.
 
+   **AND THE EXCHANGE RUNS IN BOTH DIRECTIONS** (landing 2b.7,
+   2026-09-15; plan P4-D66.4). The sentence above moves the padded
+   style ONTO a value a published field can hold; it must equally move
+   it OFF a value no published field can hold. A cell left wearing the
+   style is handed no width — a field narrower than the value is never
+   assigned, by rule 1 — and the writer then writes one zero in front
+   of a value that already fills the field. Measured: a column of month
+   codes `01` to `12`, every real cell two characters and the census
+   naming the one field `{2: 598}`, came back holding `012`, three
+   characters in a two-character field, with `pads.published.2` MISSED.
+   So after the widths are served, each cell still wearing the padded
+   style whose value no published width can hold exchanges styles with
+   the first cell, in ascending position, that is not wearing it, can
+   wear it, and holds a value a published width CAN hold; the giver
+   must be able to wear what it receives, as in the exchange above.
+   Where no such partner exists the cell keeps the style and G13's
+   recount names the field it missed — which is the case where the
+   twin has drawn fewer values narrow enough for the field than the
+   census counts cells, and no exchange can mend it.
+
 Placing the counted cells into the published widths is a packing
 problem and this method fixes a WALK rather than an optimum. The walk
 is stated to the byte, because two implementations agreeing on the
@@ -2260,14 +2280,32 @@ itself land two strata on one text — and before the held-back pool.
 acts only where every numeric cell of the column is written on ONE
 grid, because only then does a value know what text it will wear:
 
+- **where the column is `integer_valued`, the grid is the INTEGERS,
+  whatever `fraction_widths` says** (landing 2b.7, 2026-09-15; plan
+  P4-D66.3). The two facts answer different questions: `integer_valued`
+  says every VALUE of the column is whole, and `fraction_widths` says
+  how many figures each CELL writes after its point. A column a
+  spreadsheet exported as `44.0` publishes both — every value whole,
+  every cell one figure wide — and this clause used to reach the
+  integers only for an EMPTY census, so such a column was read as
+  being on the grid of TENTHS and this pass moved a stratum onto a
+  value no whole-number column holds. Measured through the real reader,
+  producer, loader, generator and validator on 800 whole counts written
+  at one figure: 23 non-whole twin cells at seed 1 and 19 at seed 7,
+  `25.6` and `30.6` among them, and the twin described itself again as
+  a `continuous` column where the source was a `count` — `axes.role`,
+  `axes.statistical_type` and `type.integer_valued` all MISSED. Whole
+  amounts written at two figures were worse, 68 cells of 800. Which
+  cell is written at which width is not lost by answering the other
+  question: that is settled after the styles by G6.6, and what is
+  settled here is the grid the VALUES sit on, which for a whole-valued
+  column is the one G5.4's own rule already put them on;
 - where `fraction_widths` names exactly one width and that width covers
-  every numeric cell, the grid is that width — tenths, hundredths;
-- where `fraction_widths` is EMPTY and the column is `integer_valued`,
-  the grid is the INTEGERS. A whole-number column carries no figure
-  after the point, so it has no width to count and its census is empty
-  — which an implementation may read as "no grid" and skip the pass
-  entirely. It IS a grid: the one every whole-valued column is written
-  on;
+  every numeric cell, the grid is that width — tenths, hundredths. A
+  whole-number column carries no figure after the point, so it has no
+  width to count and its census is empty — which an implementation may
+  read as "no grid" and skip the pass entirely, which is why the clause
+  above does not depend on the census at all;
 - otherwise the pass does not run. Where the census names several
   widths, which cell gets which is settled after the styles by G6.6,
   and a value cannot know here what it will be written at.

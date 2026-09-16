@@ -3208,6 +3208,47 @@ def _padded_style_swaps(
             if not hand_over(index, width):
                 break
             owing = owing - 1
+    # AND A PADDED CELL NO PUBLISHED WIDTH CAN HOLD GIVES THE STYLE UP
+    # (landing 2b.7, plan P4-D66.4; the audit's missed item M4). Every
+    # walk above moves the padded style ONTO a value some published
+    # field can hold; none of them moves it OFF a value none can. A
+    # cell left wearing it is handed no width by `_pad_places`, which
+    # refuses a field narrower than the value, and `_styled_number`
+    # then writes one zero in front of a value that already fills the
+    # field: a column of month codes `01` to `12`, every cell two
+    # characters and a census of `{2: 598}`, came back holding `012` --
+    # three characters in a two-character field, `pads.published.2`
+    # MISSED, and a month lookup on the twin's own text finding no key.
+    #
+    # THE EXCHANGE IS THE ONE G6.3's RULE 2 ALREADY STATES, applied in
+    # the direction the walks above leave open: the overflowing cell
+    # and a cell whose value a published width CAN hold swap styles, so
+    # every published style count is exactly what it was. Where no
+    # partner exists the cell keeps the style and G13's recount names
+    # it, which is what happened silently before.
+    widest = 0
+    for width in quotas:
+        if width > widest:
+            widest = width
+    for index in range(len(moved)):
+        if moved[index] != "leading_zero" or index in reserved:
+            continue
+        if need_of(index) < widest:
+            continue
+        for other in range(len(moved)):
+            if moved[other] == "leading_zero" or other in reserved:
+                continue
+            if not _carries_plainly(holds[other], whole_column):
+                continue
+            if need_of(other) >= widest:
+                continue
+            if not _can_wear(moved[other], holds[index], whole_column):
+                continue
+            moved[index] = moved[other]
+            moved[other] = "leading_zero"
+            spent[other] = 1
+            reserved[other] = widest
+            break
     return moved
 
 
@@ -9028,6 +9069,30 @@ def _pinned_fraction(
     whether that width is two figures or none.
     """
     census = facts.fraction_widths
+    if facts.integer_valued:
+        # A WHOLE-NUMBER COLUMN IS ON THE INTEGER GRID WHATEVER ITS
+        # CENSUS SAYS (landing 2b.7, plan P4-D66.3; audit item NC-10).
+        # The two facts answer different questions and this line used to
+        # read the wrong one. `integer_valued` says every VALUE of the
+        # column is whole; `fraction_widths` says how many figures each
+        # cell WRITES after its point, and a column pandas exported as
+        # `44.0` publishes both -- every value whole, every cell one
+        # figure wide. Reading the census here put such a column on the
+        # grid of TENTHS, so the separation walk of G6.5a moved a
+        # stratum onto `25.6` and the writer wrote it out: 23 cells of
+        # 800 at seed 1 and 19 at seed 7, and the twin's own
+        # re-description came back a `continuous` column where the
+        # source was a `count` -- `axes.role`, `axes.statistical_type`
+        # and `type.integer_valued` all MISSED. A column of whole
+        # amounts written at two places was worse, 68 cells of 800.
+        #
+        # THE WIDTH IS NOT LOST BY ANSWERING THE OTHER QUESTION. Which
+        # cell is written at which width is `_width_places`'s, after
+        # the styles; what is settled here is the grid the VALUES sit
+        # on, and for a column whose every value is whole that is the
+        # integers -- which is what G5.4's own rule already made of
+        # them before any later pass moved them off it.
+        return 0
     if len(census) != 1:
         # A WHOLE-NUMBER COLUMN IS ON A GRID TOO, and it is the
         # integers. Its census is EMPTY -- no cell carries a figure

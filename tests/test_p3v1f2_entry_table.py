@@ -1593,20 +1593,48 @@ def _one_figure_more(cell: str) -> str:
     values already shorter than that produces a DIFFERENT number whose
     own shortest spelling it then is -- so it moves the ladder and never
     reaches the spelling. This one moves nothing but the characters: a
-    trailing zero after the point, or one inside the mantissa of an
-    exponent form, or a `.00` on a whole one. The value the cell reads
-    back as is the value it held, and the text is a spelling no style of
-    method G6.1 can write for it.
+    trailing zero after the point, or a `.00` on a whole one. The value
+    the cell reads back as is the value it held, and the text is a
+    spelling nothing may write for it.
+
+    THE EXPONENT EDIT WAS RE-CHOSEN BY LANDING 2b.7, AND THE CAUSE IS
+    THAT THE OLD ONE STOPPED BEING WRONG. It used to pad the MANTISSA,
+    turning `1e-05` into `1.00e-05` -- and a mantissa padded to a fixed
+    count of figures is exactly what Excel and SAS write, so plan
+    P4-D66.2 now admits it as a spelling of the value the cell reads
+    back as. The edit went green, and this file's own guard caught it:
+    a registered red case that no longer misses the site it names is a
+    subcheck nothing in this suite shows can fail. Measured both ways
+    round -- with this function reverted to its old text, BOTH
+    `test_every_registered_red_case_misses_the_site_it_names` and
+    `test_the_coverage_identity_walks_the_shipped_table` fail again.
+
+    So the exponent edit now MISPAIRS the mantissa with its exponent
+    instead: `1e-05` becomes `10e-06`, two figures before the point
+    against an exponent one smaller. It reads back as the same number,
+    it is a spelling no writer produces, and the padded-mantissa rule
+    refuses it BY NAME, because that rule requires the value's own
+    decimal place. The edit is still "one figure more" than the
+    shortest spelling, which is what this function is called.
     """
     for marker in ("e", "E"):
         for index in range(len(cell)):
             if cell[index] != marker:
                 continue
             head = cell[:index]
-            tail = cell[index:]
-            if "." not in head:
-                head = f"{head}.0"
-            return f"{head}0{tail}"
+            power = int(cell[index + 1 :])
+            if "." in head:
+                # A mantissa that already carries a point: move the
+                # point one place right and drop the exponent to match.
+                point = head.find(".")
+                figures = f"{head[:point]}{head[point + 1 :]}"
+                if len(figures) > point + 1:
+                    head = f"{figures[: point + 1]}.{figures[point + 1 :]}"
+                else:
+                    head = figures
+            else:
+                head = f"{head}0"
+            return f"{head}{marker}{power - 1:+03d}"
     if "." in cell:
         return f"{cell}0"
     return f"{cell}.00"
