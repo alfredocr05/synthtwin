@@ -8176,13 +8176,28 @@ be one of FIFTEEN MARKS this contract names, standing as itself. A
 UUID `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-hexadecimal
 column has the layout `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site
 code `NYC-7480` has `@@@-%%%%`; a record number `REC4972605` has
-`@@@%%%%%%%`; and `00282669`, being figures alone and led by a nought,
-has `!%%%%%%%`.
+`@@@%%%%%%%`; a national number `657 240 7282` has `%%% %%% %%%%`;
+and `00282669`, being figures alone with a fill of two noughts, has
+`!!%%%%%%`.
 
 **THE SIX PLACEHOLDERS**: `%` a figure, `@` an upper-case letter, `&`
 a lower-case letter, `~` a lower-hexadecimal character, `^` an
-upper-hexadecimal character, and `!` A LEADING NOUGHT IN A CELL
-WRITTEN IN FIGURES ALONE.
+upper-hexadecimal character, and `!` A NOUGHT OF THE ZERO FILL OF A
+CELL WRITTEN IN FIGURES ALONE IN A PLAIN COLUMN.
+
+**THE ZERO FILL IS EVERY NOUGHT, NOT ONLY THE FIRST (plan P4-D126).**
+It is every nought standing before the first other figure of a cell
+written in figures alone, the LAST character of the cell excepted, so
+`0` has the layout `%` and `000` has `!!%`; and it is marked only in a
+PLAIN column (C6-128), where a figure is a figure and a leading nought
+is a fill somebody wrote. A key holding `!` is therefore a run of `!`
+followed by at least one `%` and nothing else. Marking only the first
+nought said a cell was filled and not how far: measured on 800 cells of
+`%08d` over 1 to 499,999, the real column opened `00` on 800 cells and
+the twin on 78, and `len(x.lstrip('0')) <= 5` counted 158 real cells
+against 1. How many noughts fill a cell is how many decades short of its
+width the number was — a census of magnitudes under the floor, never a
+value.
 
 **THE FIFTEEN MARKS, and the list is CLOSED**: `-` `.` `/` `_` `:`
 `#` `*` `(` `)` `[` `]` `+` `,` `{` `}`. They are the thirteen of
@@ -8192,10 +8207,19 @@ and runtime exports write one — wears them, and a closed list that
 omitted them would give that column no layout at all while appearing
 to describe it.
 
-**A CELL HOLDING ANYTHING ELSE HAS NO LAYOUT AT ALL** — a space among
-them, a letter of another alphabet, a mark this list leaves out, a
-placeholder, a cell longer than SIXTY-FOUR characters, and a cell made
-of marks alone. The limit is sixty-four because the widest identifier
+**AND ONE SPACE BETWEEN TWO OTHER CHARACTERS (plan P4-D127)**, which
+stands as itself. A national number written in groups wears it, and a
+census that refused it gave that column no layout at all: measured, 800
+real cells of `657 240 7282` matched `\d{3} \d{3} \d{4}` and 0 twin
+cells did, both files at exit 0. What the space was kept out for is
+prose, and prose is kept out by the rest of the rule: a space may not
+open or close a cell or a key and may not stand beside another space,
+and no other space character is admitted.
+
+**A CELL HOLDING ANYTHING ELSE HAS NO LAYOUT AT ALL** — a space that
+opens or closes it or stands beside another, a letter of another
+alphabet, a mark this list leaves out, a placeholder, a cell longer
+than SIXTY-FOUR characters, and a cell made of marks alone. The limit is sixty-four because the widest identifier
 scheme in ordinary use is a braced GUID at thirty-eight. The last two
 exclusions are each a PROPERTY and not a preference: between them they
 are what makes "no cell that HAS a layout can be spelled the same as
@@ -8204,11 +8228,22 @@ guarantee C6-31a's two placeholders buy the form census.
 
 **C6-128 (the alphabet convention is the COLUMN's, and never one
 cell's).** A column is hexadecimal exactly where every letter of every
-cell this census describes is one of `abcdef`, or every one is one of
-`ABCDEF`, the two cases do not both appear, and at least one letter
-appears anywhere; its figures and letters then take `~` or `^`
-according to that case. Every other column is PLAIN, and its letters
-take `@` or `&` according to their own case.
+cell this census describes is one of `abcdef` in EITHER case, and at
+least one letter appears anywhere; its figures and letters then take
+`~` where at least as many of those letters are lower case as upper,
+and `^` where more are upper, and a cell written in the other case
+wears the same marks. Every other column is PLAIN, and its letters take
+`@` or `&` according to their own case.
+
+**THE CASE DECIDES THE MARK AND NEVER WHETHER A COLUMN IS HEXADECIMAL
+(plan P4-D125).** It did: a column whose letters appeared in both cases
+was plain, and one upper-case UUID among 799 lower-case ones then gave
+every UUID its own mask of figures and letters — 800 layouts of one cell
+each, the mask of one person's identifier on the page — and at a floor
+of eleven a census of nothing but its pool, whose twin wrote
+`A----...J` on every row. A cell in the minority case is not counted
+apart, so nothing about it is published; what that costs is the case of
+those cells, which the twin writes in the column's case.
 
 **THE RULE IS ALL-OR-NOTHING OVER THE COLUMN, AND THAT WAS MEASURED
 RATHER THAN ASSUMED.** A hexadecimal mark decided character by
@@ -8225,8 +8260,8 @@ carries `layout_forms` as a key of the BLOCK. It is REQUIRED on that
 ONE role, written even when empty, and FORBIDDEN on the other
 FOURTEEN; section 6.11's matrix is the authority and this clause
 restates it. It maps a layout to the number of present cells written
-in it, with the pooled key `(withheld)` for the layouts fewer than
-`small_cell_floor` cells share.
+in it, with the pooled key `(withheld)` for the layouts too few cells
+share to name (C6-130).
 
 **IT IS NOT `shape_forms` UNDER ANOTHER NAME.** That census belongs to
 the five label roles, is forbidden on this one by C6-31b, stops at
@@ -8253,9 +8288,16 @@ C6-31a rather than an oversight.** `@@@@@` is refused there because
 role they do not, and `%%%%%%%` beside `%%%%%%%%%%` is exactly the
 fact the two length ends lose.
 
-**C6-130 (the floor, and the small supply).** A layout shared by fewer
-than `small_cell_floor` cells is not named; its cells are counted into
-the `(withheld)` remainder. **AND A LAYOUT WHOSE POSSIBLE SPELLINGS
+**C6-130 (the line, the small supply, the fill, and the pool).** A
+layout is named only where at least THE LINE of cells share it: the
+larger of `small_cell_floor` and TWO, because no count of one is ever
+published (plan P4-D124). At a floor above one a layout under the line
+is counted into the `(withheld)` remainder, and the remainder is written
+only where it holds at least two cells; at a floor of one there is no
+remainder (C5-S13) and such a layout is counted nowhere. Measured
+before the line was two: 800 random codes of capitals and figures
+published 56 layouts of one cell each, and a UUID column with one
+upper-case row published 800. **AND A LAYOUT WHOSE POSSIBLE SPELLINGS
 NUMBER FEWER THAN `n_distinct` PLUS THE FLOOR IS NOT NAMED EITHER**,
 because a layout with a small supply NAMES the values it describes:
 `%-` has exactly ten cells that could have worn it, so a column
@@ -8264,6 +8306,15 @@ tenth. The test is over PUBLISHED facts only — the supply is a
 property of the KEY, and `n_distinct` and the floor are already on the
 page — so a reader can work out which layouts this rule refuses, and
 an absence they can predict tells them nothing.
+
+**A FILL DEPTH TOO RARE TO NAME IS COUNTED ONE NOUGHT SHALLOWER
+(plan P4-D126).** A layout of two or more fill noughts that the line or
+the small supply refuses gives its cells to the layout with one fewer
+`!` — `!!!%%%%%` to `!!%%%%%%` — deepest first, which is a true statement
+about them: a cell filled with three noughts was filled with at least
+two. The step stops at one nought. A reader of the census reads a cell
+the same way: under its own layout where that is named, and otherwise
+under the nearest shallower named one.
 
 **A SMALL-SUPPLY LAYOUT IS DROPPED AND NOT POOLED.** Pooling it would
 write a `(withheld)` key into a description made at a smallest group
@@ -8280,11 +8331,39 @@ publishes little or nothing. Measured: a column holding `007` beside
 and `!%%` a hundred. That is this contract's disclosure rule working
 as written, and a reader must not read the absence as a defect.
 
+**C6-131b (no count of one by subtraction, plan P4-D124).** A reader
+holds three totals beside the census — `n_present`, `n_code_alphabet`,
+and in a plain column `n_all_digits` — and subtracting from each the
+named layouts inside its alphabet counts the cells that wear no named
+layout. **NO SUCH DIFFERENCE IS ONE** where any named layout lies inside
+that alphabet, because a difference of one says that one row of the
+table is unlike every other, which the disclosure rule forbids as it
+forbids a count of one. Measured before this clause: 799 record numbers
+beside one `REC 123456` published `{"@@@%%%%%%%": 799}` against 800
+present cells. The producer applies it until no difference is one:
+where the difference against `n_present` is one and the pool is written,
+the pool is not written; otherwise the smallest named layout that no
+shallower named layout stands behind — the earliest in sorted order on
+a tie, and for an alphabet total the smallest inside that alphabet — is
+no longer named, and joins the pool at a floor above one. **What it
+costs, stated plainly:** a column in which exactly one cell wears no
+named layout, and whose only named layout is the one taken back,
+publishes no layout at all — `REC` and seven figures on 799 rows beside
+one `TMP-42` publish `{}` and the twin is written by the enumeration.
+
 **C6-131 (invariants).** **LF1.** Every NAMED layout's count is at
-least `small_cell_floor`. **LF3.** Every count is at least 1, and the
-sum of all counts, `(withheld)` included, is at most `n_present` — at
-most, because a cell this census does not describe has no layout and
-is counted nowhere.
+least the line: `small_cell_floor`, and never under two. **LF2.** The
+`(withheld)` count, where written, is at least two. **LF3.** Every count
+is at least 1, and the sum of all counts, `(withheld)` included, is at
+most `n_present` — at most, because a cell this census does not
+describe has no layout and is counted nowhere. **LF4.** That sum is not
+exactly one less than `n_present`. **LF5.** Where a named layout is made
+only of placeholders, `-` and `_`, the named layouts so made do not count
+exactly one cell fewer than `n_code_alphabet`; and on a census carrying
+no hexadecimal mark, where a named layout is made only of `%` and `!`,
+the named layouts so made do not count exactly one cell fewer than
+`n_all_digits`. **LF6.** Every key is written under one convention: no
+`~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!`.
 
 **C6-132 (the binding generation rule).** Where the column publishes a
 layout, the twin writes its cells to it. The census counts CELLS and
@@ -8294,9 +8373,18 @@ SPREAD over the identities by a smooth weighted rotation, largest
 group first, so that no layout is bound to how often its values recur;
 each group is then offered the layout the rotation gave it and every
 other published layout after it, each only where the remaining count
-covers the group and the length fits the group's own slot. A group the
-offer cannot serve is written by the enumeration that always wrote it,
-so a column publishing no layout keeps its cells byte for byte. The disposition is EXACT-OBSERVABLE against the recount identity
+covers the group and the length fits the group's own slot. **A GROUP NO
+NAMED LAYOUT SERVES — a pooled cell, a cell too few to name, a cell of a
+layout C6-131b took back — IS WRITTEN TO A MIX OF THE COLUMN'S OWN KINDS
+(plan P4-D128)**: the figures and case letters the named layouts use
+between them, placed over the figure and letter positions of a named
+plain layout with no fill, never a mix the census names, so it is
+counted into no published layout. Measured before the mixes: 800 random
+eight-character codes of capitals and figures at a floor of eleven
+pooled 448 cells, the twin wrote them `A-----2S`, and `[A-Z0-9]{8}`
+matched 800 real cells and 352 twin cells. A group no mix serves either
+is written by the enumeration that always wrote it, so a column
+publishing no layout keeps its cells byte for byte. The disposition is EXACT-OBSERVABLE against the recount identity
 below, and method section G9.6 states the construction.
 
 **A CELL IS WRITTEN TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT
@@ -8309,16 +8397,22 @@ four-character cells with a leading nought — a zero-filled four-figure
 spelling its source never wrote.
 
 **THE RECOUNT IDENTITY.** A person who opens the twin and reads the
-layout off each cell finds, for every NAMED layout, at least its
-published count and at most that count plus the pooled remainder. The
-pooled key names no layout, so it bounds rather than binds, exactly as
-it does at 7.9.
+layout off each cell, under every rule of C6-130, finds for every NAMED
+layout at least its published count and at most that count plus the
+pooled remainder. The pooled key names no layout, so it bounds rather
+than binds, exactly as it does at 7.9. **THE RECOUNT DOES NOT APPLY
+C6-131b** (plan P4-D124): that clause takes decisions about which of a
+file's OWN layouts it may name, and a conforming file whose made-up
+cells left one cell off its named layouts would otherwise have a layout
+it holds at the published count taken back and be told it missed it.
 
 **`!` IS THE ONE PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A
 NOUGHT**, and the mark is confined to cells written in figures alone,
 so it can carry no text anybody chose: it is a writer's field width,
 the zero fill a reader loses when a spreadsheet or a statistics
-package reads `01586982` as 1586982.
+package reads `01586982` as 1586982. A run of noughts INSIDE a cell
+that is not figures alone — the `000123` of `S23-000123` — is not
+marked, and its twin writes those places from the figures.
 
 **AND A LITERAL RUN IS NOT PUBLISHED.** A constant run of letters
 shared by a whole column is a character-for-character fragment of
@@ -8829,8 +8923,12 @@ stated in full at section 7.9.
 | SF1 | every NAMED form's count is at least `small_cell_floor`, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well |
 | SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere |
 | SF5 | a lower-case key is named only where `n_distinct` equals `n_distinct_folded` |
-| LF1 | every NAMED layout's count is at least `small_cell_floor` |
+| LF1 | every NAMED layout's count is at least the line: `small_cell_floor`, and never under two |
+| LF2 | the `(withheld)` count, where written, is at least two |
 | LF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell this census does not describe has no layout and is counted nowhere |
+| LF4 | the sum of all counts is not exactly one less than `n_present` (C6-131b) |
+| LF5 | where a named layout lies inside the code alphabet, the named layouts inside it do not count exactly one cell fewer than `n_code_alphabet`; and on a census with no hexadecimal mark, where a named layout is figures alone, those do not count exactly one cell fewer than `n_all_digits` (C6-131b) |
+| LF6 | every key is written under one convention: no `~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!` |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
 C6-31d is a refusal and not an invariant: the loader checks the key
@@ -8909,7 +9007,7 @@ document, never the table it describes.
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | SC-P | where a count column writes one number more than one way, every cell read as a number is written in figures alone, every spelling clears the line of 7.13 and the spellings are within the ceiling, `number_spellings` names every spelling with its count, and it is `{}` otherwise | SC1 to SC3 check a census that is published; none can see a census that should have been and was not |
-| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required |
+| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required; nor can any of LF1 to LF6 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 

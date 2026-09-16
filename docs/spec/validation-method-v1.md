@@ -1444,7 +1444,12 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   publishes one, on the same terms 7.9's form census is recounted —
   each named layout numbering at least its published count and at most
   that count plus the pooled remainder — and filing that check after
-  the corner's early return would have quietly excused it.
+  the corner's early return would have quietly excused it. **The recount
+  is taken off the measured cells by every rule of contract C6-130 and
+  NOT by C6-131b** (plan P4-D124): that clause decides which of a file's
+  own layouts its description may name, and a conforming file whose
+  made-up cells left one cell off its named layouts would have a layout
+  it holds at the published count taken back and be reported MISSED.
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells

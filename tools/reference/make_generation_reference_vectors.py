@@ -5641,38 +5641,46 @@ def _described_by_a_layout(text):
 
     A cell carrying a PLACEHOLDER is refused and a cell of marks ALONE
     is refused, and between them they are what makes "no cell that has
-    a layout can be spelled the same as any layout" true.
+    a layout can be spelled the same as any layout" true.  A SPACE may
+    stand between two other characters, one at a time, and nowhere else
+    (plan P4-D127).
     """
     if not text or len(text) > LAYOUT_FORM_LIMIT:
         return False
     content = 0
+    before = ""
     for character in text:
         if character in LAYOUT_PLACEHOLDERS:
             return False
         if _ascii_digit(character) or _ascii_letter(character):
             content += 1
-            continue
-        if character in LAYOUT_MARKS:
-            continue
-        return False
-    return content >= 1
+        elif character in LAYOUT_MARKS:
+            pass
+        elif character == " " and before not in ("", " "):
+            pass
+        else:
+            return False
+        before = character
+    return content >= 1 and before != " "
 
 
 def layout_convention(values):
     """Which alphabet convention a whole COLUMN is written in (C6-128).
 
-    All-or-nothing over the column, which is that clause's whole point:
-    decided per character a figure is ambiguous between the two cases,
-    and a column of braced GUIDs shatters into one layout per cell.
+    Hexadecimal where every letter of every described cell is one of
+    a to f in either case and there is at least one letter; its case is
+    the case more of those letters wear, lower on a tie (plan P4-D125).
+    Decided for the column, which is that clause's whole point: decided
+    per character a figure is ambiguous between the two cases, and a
+    column of braced GUIDs shatters into one layout per cell.
     """
-    letters = lower = upper = 0
+    lower = upper = 0
     for value in values:
         if not _described_by_a_layout(value):
             continue
         for character in value:
             if not _ascii_letter(character):
                 continue
-            letters += 1
             if character in "abcdef":
                 lower += 1
                 continue
@@ -5680,14 +5688,14 @@ def layout_convention(values):
                 upper += 1
                 continue
             return LAYOUT_PLAIN
-    if letters < 1 or (lower > 0 and upper > 0):
+    if lower + upper < 1:
         return LAYOUT_PLAIN
-    return LAYOUT_HEX_UPPER if upper > 0 else LAYOUT_HEX_LOWER
+    return LAYOUT_HEX_UPPER if upper > lower else LAYOUT_HEX_LOWER
 
 
-def _layout_mark(character, convention, leading):
+def _layout_mark(character, convention, filling):
     if _ascii_digit(character):
-        if leading and character == "0":
+        if filling:
             return LAYOUT_LEADING_ZERO
         if convention == LAYOUT_HEX_LOWER:
             return LAYOUT_LOWER_HEX
@@ -5707,11 +5715,16 @@ def layout_of(text, convention):
     """The layout of one cell (C6-127), or "" where there is none."""
     if not _described_by_a_layout(text):
         return ""
-    figures = sum(1 for character in text if _ascii_digit(character))
-    whole = figures == len(text)
+    # THE ZERO FILL (plan P4-D126): in a plain column, every nought of a
+    # cell of figures alone that stands before its first other figure,
+    # the last character excepted.
+    fill = 0
+    if convention == LAYOUT_PLAIN and all(_ascii_digit(c) for c in text):
+        while fill < len(text) - 1 and text[fill] == "0":
+            fill += 1
     built = ""
     for place, character in enumerate(text):
-        built += _layout_mark(character, convention, whole and place < 1)
+        built += _layout_mark(character, convention, place < fill)
     return built
 
 
@@ -5751,6 +5764,22 @@ def _stepped_around(step, room):
     return (step * stride) % room
 
 
+def layout_stepped(step, room):
+    """``step`` moved around a layout's room (method G9.6, plan P4-D128).
+
+    A stride coprime to the room is a bijection on it.  The stride is the
+    golden section of the room taken EXACTLY in whole numbers -- the whole
+    part of the room times the square root of five, less the room, halved
+    -- and walked up to the first value sharing no factor with the room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max((math.isqrt(5 * room * room) - room) // 2, 1)
+    while _shares_a_factor(stride, room):
+        stride += 1
+    return (step * stride) % room
+
+
 def filled_layout(layout, step):
     """One spelling of one layout, stepped (method G9.6).
 
@@ -5758,14 +5787,16 @@ def filled_layout(layout, step):
     characters rather than the trailing ones -- which is what stops a
     column of record numbers coming out as a near-consecutive walk.
     `!` takes the figure nought and spends no step, because that is
-    exactly what the mark says.
+    exactly what the mark says; the figure after a fill must not be a
+    nought, and `_fits_its_slot` steps over a filling where it is,
+    because that cell recounts one nought deeper.
     """
     figures = "0123456789"
     upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     lower = "abcdefghijklmnopqrstuvwxyz"
     lower_hex = "0123456789abcdef"
     upper_hex = "0123456789ABCDEF"
-    place = _stepped_around(step, layout_room(layout))
+    place = layout_stepped(step, layout_room(layout))
     spelling = ""
     for character in layout:
         if character == LAYOUT_DIGIT:
@@ -5987,6 +6018,88 @@ def _offer_a_layout(
                 continue
             quotas[layout] -= covering
             return found
+    return None
+
+
+LAYOUT_STAND_IN_TRIES = 16
+
+
+def layout_stand_in_bases(column):
+    """The named layouts a stand-in may be mixed from (method G9.6).
+
+    Written from the rule statement.  The KINDS are the placeholders
+    `%`, `@` and `&` the published layouts use between them, in that
+    order; with fewer than two, or on a hexadecimal census, there is
+    nothing to mix and nothing is offered.  A base is a named layout with
+    no zero fill.
+
+    A function of its own so the frozen case's registered mutant can take
+    it away: with no base every group the census does not serve falls to
+    the band enumeration, and the committed cells move.
+    """
+    offered = layout_offer(column)
+    kinds = "".join(
+        kind
+        for kind in (LAYOUT_DIGIT, LAYOUT_UPPER, LAYOUT_LOWER)
+        if any(kind in name for name in offered)
+    )
+    if len(kinds) < 2 or _convention_of_the_keys(offered) != LAYOUT_PLAIN:
+        return []
+    return [(name, kinds) for name in offered if LAYOUT_LEADING_ZERO not in name]
+
+
+def layout_mix(base, kinds, step):
+    """The ``step``-th mix of ``kinds`` over a base's figure and letter places.
+
+    The step is spread by `layout_stepped` over the number of mixes, and
+    taken apart place by place, leftmost first; every other character of
+    the base stands as itself.
+    """
+    places = sum(1 for character in base if character in kinds)
+    code = layout_stepped(step, len(kinds) ** places)
+    built = ""
+    for character in base:
+        if character in kinds:
+            built += kinds[code % len(kinds)]
+            code //= len(kinds)
+        else:
+            built += character
+    return built
+
+
+def layout_stand_in(
+    bases, census, mixed, steps, lengths, convention, used, band, whole_numbers,
+):
+    """A group no named layout serves, written to a mix of its kinds (G9.6).
+
+    The bases are read in sorted order, each only where the slot may hold
+    its length, and sixteen mixes are read in all, each base's reading
+    counted on from where it stopped: a mix the census names is stepped
+    over, a mix no slot of this band can wear (`_layout_admits`) is
+    stepped over, and the first mix with a free filling that recounts
+    into it is taken, its own walk starting at the step after every walk
+    already started.  None where no mix serves.
+    """
+    tried = 0
+    for base, kinds in bases:
+        if len(base) not in lengths:
+            continue
+        mixed.setdefault(base, 0)
+        while tried < LAYOUT_STAND_IN_TRIES:
+            mix = layout_mix(base, kinds, mixed[base])
+            mixed[base] += 1
+            tried += 1
+            if mix in census:
+                continue
+            if not _layout_admits(mix, convention, band, whole_numbers):
+                continue
+            if mix not in steps:
+                steps[mix] = 1 + len(steps) * LAYOUT_STEPS
+            found = _layout_spelling(
+                mix, convention, steps, used, band, whole_numbers
+            )
+            if found is not None:
+                return found
     return None
 
 
@@ -6232,8 +6345,13 @@ def _identifier_content(column):
     offered = layout_offer(column)
     census = column.get("layout_forms") or {}
     quotas = {name: census[name] for name in offered}
-    steps = {name: 0 for name in offered}
+    # Each layout's walk starts at its own step (plan P4-D128): the k-th
+    # layout in sorted order at 1 + k * 4096, and a mix, when first read,
+    # at the next such step after every walk already started.
+    steps = {name: 1 + k * LAYOUT_STEPS for k, name in enumerate(offered)}
     convention = _convention_of_the_keys(offered)
+    bases = layout_stand_in_bases(column)
+    mixed = {}
     preferred = [""] * identities_wanted
     if offered:
         preferred = layout_preferences(
@@ -6261,6 +6379,18 @@ def _identifier_content(column):
                 groups[position],
                 letters_needed,
                 preferred[position],
+            )
+        if laid is None and bases:
+            laid = layout_stand_in(
+                bases,
+                census,
+                mixed,
+                steps,
+                slot_lengths(position, low, high),
+                convention,
+                used,
+                bands[position],
+                whole_numbers,
             )
         if laid is not None:
             used.add(laid)
@@ -10237,6 +10367,46 @@ def _identifier_layout():
     }
 
 
+def _identifier_layout_mixes():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=47, n_missing=0, n_distinct=47, n_distinct_folded=47,
+        n_numeric=11, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
+        min_length=9, max_length=9, all_whole_numbers=False,
+        n_all_digits=11, n_code_alphabet=36,
+        n_distinct_by_occurrences={"1": 47},
+        layout_forms={
+            "!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14,
+        },
+    )
+    return {
+        "why": "a declared identifier whose census of LAYOUTS names a zero "
+        "fill two noughts deep, a layout holding a single interior SPACE, "
+        "and a pool of fourteen cells no named layout serves (contract "
+        "section 7.12, plans P4-D126, P4-D127 and P4-D128). THREE RULES OF "
+        "G9.6 ARE FROZEN HERE. A zero-filled layout writes a nought for "
+        "every `!` and steps over a filling whose next figure is a nought, "
+        "because that cell recounts one nought deeper. A space stands in a "
+        "layout as a mark does. And the fourteen pooled cells, which every "
+        "case before this one wrote by the band enumeration, are written to "
+        "MIXES of the kinds the census names -- figures and capitals over "
+        "the two places of `@%-------`, the first base in sorted order -- and "
+        "of its four mixes the one the census names, `@%-------` itself, is "
+        "stepped over, so no pooled cell is counted into a published layout. Every layout "
+        "is walked from step one, and a step is spread by the exact golden "
+        "section of the layout's room. NINE characters wide, because G9.6's bar "
+        "on a filling that reads as a date is not carried by this oracle, "
+        "which reads no date, and no date format this package reads is nine "
+        "figures or four and four around a space: at eight, `00330816` reads "
+        "as the compact date 0033-08-16 and is stepped over. This case's mutant withdraws the "
+        "mixes, and the fourteen cells move; withdrawing the fill or the "
+        "space stops this oracle at the recount of 7.12.",
+        "column": column,
+        "rows": 47,
+        "identifier_declared": True,
+    }
+
+
 def _lower_case_stand_ins():
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
@@ -11251,6 +11421,9 @@ BRANCH_CASE_BUILDERS = {
     # THE LAYOUT OF A RECORD NUMBER (contract 7.12, landing 2b.18). It
     # goes in THIS file and not the third, which stands at the cap.
     "identifier_layout": _identifier_layout,
+    # THE FILL, THE SPACE AND THE MIXES OF A LAYOUT CENSUS (landing 2b.18's
+    # repair pass). In this file, which has the room.
+    "identifier_layout_mixes": _identifier_layout_mixes,
     # THE CASE OF A LETTER AND THE SHAPE OF A PUBLISHED LABEL (landing
     # 2b.18 part 2). Both go in this file, which has the room.
     "lower_case_stand_ins": _lower_case_stand_ins,
@@ -11616,6 +11789,26 @@ GIVEN_WORDS = {
         11539897411331388552, 13221390389229023683, 5089869681841105310,
         12063417803171021458, 3253571153139736265, 17680378324194345923,
         17516376728897238031, 2135463789325316001,
+    ),
+    # Forty-six words: a forty-seven-row identifier column's placement
+    # budget and its whole budget, as `identifier_layout`'s are.
+    "identifier_layout_mixes": (
+        12315416199638712830, 11461917734807452332, 13043389866221201829,
+        4117057510935812347, 11166822964374134715, 10306677672402459178,
+        8646002244923713862, 4041989434868756395, 3102189724845197795,
+        18075701478311684605, 1857492319440419448, 13086464872739884056,
+        581282553384915289, 7586242669707928484, 10323704345614453502,
+        2255447556845704593, 1703153506126005306, 2692500561440188756,
+        3055453076326589704, 97091045728570219, 14343194256563202997,
+        9217557811682092942, 15888849271152112244, 2757548850731508731,
+        14119304420836053316, 6472162727552187798, 5861169136430044779,
+        13671056489289250396, 13691116676054877367, 5333278273152096980,
+        4851488638743472859, 17583254726709643303, 18085613694544194866,
+        16045974538112549444, 12577078091213710482, 11805424536042655935,
+        10109715328958355953, 1696310926535484208, 7655097596069497137,
+        17270314890295469748, 7499453768873882173, 4012621328774350190,
+        10699857760492589064, 6430887874155946278, 17302433675516304856,
+        15120724432689965450,
     ),
     # Fifty words and seventy: each label column's placement budget
     # and its whole budget, since the role consumes no content word.

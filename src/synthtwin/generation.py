@@ -18052,7 +18052,18 @@ def _laid_identifiers(
     convention = _layout_convention(facts)
     for layout in _named_layouts(facts):
         quotas[layout] = facts.layout_forms[layout]
-        steps[layout] = 0
+        # EACH LAYOUT'S WALK STARTS AT ITS OWN STEP (plan P4-D128): the
+        # k-th layout in sorted order at `1 + k * _LAYOUT_STEPS`. Not at
+        # nought, because step nought is the all-nought, all-`A` filling,
+        # and on a census of many small layouts that was a large share of
+        # the column -- 36 per cent of the figures of 800 random codes at
+        # a floor of one were noughts against 10 per cent of the table's.
+        # And not all at one step, because the trailing characters of a
+        # filling follow the step's golden fraction whatever the room, so
+        # two layouts walked from the same step end alike: `REC` and
+        # seven figures beside `E` and six came back `MBL8574256` beside
+        # `Q457425`.
+        steps[layout] = 1 + len(steps) * _LAYOUT_STEPS
     # WHICH LAYOUT EACH GROUP IS OFFERED FIRST, settled before any cell
     # is spelled (7.12, plan P4-D120). See `_layout_preferences`: the
     # census is spread over the groups by the smooth weighted rotation,
@@ -18061,6 +18072,9 @@ def _laid_identifiers(
         facts, families, kinds, bands, groups, windows, carriers, folded,
         convention,
     )
+    stand_ins = _layout_stand_in_bases(facts)
+    admitted: dict[str, bool] = {}
+    mixed: dict[str, int] = {}
     short = [0 for _cell in range(len(_CLASSES) * width)]
     supply = [0 for _cell in range(len(_CLASSES) * width)]
     spellings: list[str] = []
@@ -18103,6 +18117,16 @@ def _laid_identifiers(
             kind, band, windows[index], convention, quotas, steps,
             groups[index], used, letter, preferred[index],
         )
+        if laid is None and stand_ins:
+            # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
+            # cells too few to name, the cells of a layout the census
+            # took back -- WEARS A LAYOUT OF THE COLUMN'S OWN KINDS
+            # (plan P4-D128), and only where there is none does it fall
+            # to the walk below. See `_layout_stand_in`.
+            laid = _layout_stand_in(
+                kind, band, windows[index], convention, facts, stand_ins,
+                steps, used, admitted, mixed,
+            )
         if laid is not None:
             _claim(laid, used)
             spellings += [laid]
@@ -18237,13 +18261,23 @@ def _filled_layout(layout: str, step: int) -> str:
     measured (`10000020`, `10000021`, ...).
 
     `!` TAKES THE FIGURE NOUGHT AND SPENDS NO STEP, because that is
-    what the mark says: the leftmost character of a cell written in
-    figures alone WAS a nought. It is the zero fill of NC-9 -- the
+    what the mark says: that character of a cell written in figures
+    alone WAS a nought of its zero fill. It is the fill of NC-9 -- the
     `%08d` a reader loses when pandas or R reads `01586982` as
     1586982 -- and it is the one place in this module where a made-up
     whole number may open with a nought. It can name no text anybody
     chose, because the census only ever writes it where the whole cell
-    is figures.
+    is figures. The figure after the fill must not be a nought, or the
+    cell would recount one nought deeper, and `_fits_its_slot` steps
+    over such a filling.
+
+    THE STEP IS SPREAD BY `_layout_stepped`, not by `_stepped_around`
+    (plan P4-D128). The older stride is the room times 61803 over
+    100000, and on a room that is a power of ten that stride ends in
+    noughts, so its low figures -- which this arithmetic hands to the
+    LEFTMOST positions -- were the step's own and mostly nought.
+    Measured on 800 thirteen-figure codes: 44.8 per cent of the twin's
+    figures were noughts against 11.4 per cent of the table's.
 
     IT CARRIES NO FRAGMENT OF ANY REAL VALUE. The layout was built by
     replacing every figure and every letter of a cell before it was
@@ -18256,7 +18290,7 @@ def _filled_layout(layout: str, step: int) -> str:
     lower_hex = "0123456789abcdef"
     upper_hex = "0123456789ABCDEF"
     spelling = ""
-    place = _stepped_around(step, parsing.layout_room(layout))
+    place = _layout_stepped(step, parsing.layout_room(layout))
     for character in layout:
         if character == parsing.LAYOUT_DIGIT:
             spelling = spelling + figures[place % 10]
@@ -18283,6 +18317,45 @@ def _filled_layout(layout: str, step: int) -> str:
             continue
         spelling = spelling + character
     return spelling
+
+
+def _layout_stepped(step: int, room: int) -> int:
+    """``step`` moved around a layout's ``room`` so every position varies.
+
+    The rule of `_stepped_around` -- a stride coprime to the room is a
+    bijection on it, so no two steps below the room collide -- with the
+    stride taken as the golden section of the room EXACTLY, in whole
+    numbers, rather than to five figures. Five figures leave the stride
+    ending in noughts wherever the room is a power of ten, and the
+    filling reads the low figures of the product first (plan P4-D128);
+    a section taken to a fixed number of bits does the same on a room
+    that is a power of two, which a hexadecimal layout's always is. The
+    exact section -- the whole part of the room times the square root of
+    five, less the room, halved -- has no such run on any room.
+    """
+    if room < 4:
+        return step % max(room, 1)
+    stride = max((_whole_root(5 * room * room) - room) // 2, 1)
+    while _shares_a_factor(stride, room):
+        stride = stride + 1
+    return (step * stride) % room
+
+
+def _whole_root(number: int) -> int:
+    """The whole part of the square root of a whole number at least one.
+
+    Newton's step on whole numbers, started above the root, which falls
+    to the root and stops there. Written out because this module takes
+    from `math` only the names its offline policy enumerates.
+    """
+    guess = 1
+    while guess * guess < number:
+        guess = guess * 2
+    while True:
+        better = (guess + number // guess) // 2
+        if better >= guess:
+            return guess
+        guess = better
 
 
 def _layout_spelling(
@@ -18592,6 +18665,147 @@ def _layout_identifier(
                 continue
             quotas[layout] = quotas[layout] - covering
             return found
+    return None
+
+
+# How many made-up layouts one group is offered, over every base, before
+# it falls back to the walk. Bounded because a family whose band no mix
+# of a column's kinds can wear would otherwise read every mix of every
+# base, and the answer to that is the walk anyway.
+_LAYOUT_STAND_IN_TRIES = 16
+
+
+def _layout_stand_in_bases(
+    facts: contract.IdentifierFacts,
+) -> "list[tuple[str, str]]":
+    """The named layouts a stand-in may be made from, with their kinds.
+
+    A base is a named layout written in the PLAIN convention with no zero
+    fill; beside each is the string of case-and-figure placeholders the
+    column's named layouts use between them. Nothing is offered where
+    that string holds fewer than two kinds, because every mix of one
+    kind is the base itself, which is named. A hexadecimal census offers
+    nothing either: its one mark already stands for figures and letters
+    alike, so there is no other mix of it to make.
+    """
+    kinds = ""
+    for layout in _named_layouts(facts):
+        for character in layout:
+            if character not in (
+                parsing.LAYOUT_DIGIT,
+                parsing.LAYOUT_UPPER,
+                parsing.LAYOUT_LOWER,
+            ):
+                continue
+            if character not in kinds:
+                kinds = kinds + character
+    if len(kinds) < 2 or _layout_convention(facts) != parsing.LAYOUT_PLAIN:
+        return []
+    ordered = ""
+    for character in (
+        parsing.LAYOUT_DIGIT, parsing.LAYOUT_UPPER, parsing.LAYOUT_LOWER
+    ):
+        if character in kinds:
+            ordered = ordered + character
+    bases: list[tuple[str, str]] = []
+    for layout in _named_layouts(facts):
+        if parsing.LAYOUT_LEADING_ZERO in layout:
+            continue
+        bases += [(layout, ordered)]
+    return bases
+
+
+def _layout_mix(base: str, kinds: str, step: int) -> str:
+    """The ``step``-th mix of ``kinds`` over the kind places of ``base``.
+
+    Every place of the base holding a figure or a case letter takes one
+    of ``kinds``, read off the step spread around the number of mixes by
+    `_layout_stepped`; every other character stands as itself, so the
+    length, the marks and the spaces are the base's own.
+    """
+    places = 0
+    for character in base:
+        if character in kinds:
+            places = places + 1
+    mixes = len(kinds) ** places
+    code = _layout_stepped(step, mixes)
+    built = ""
+    for character in base:
+        if character not in kinds:
+            built = built + character
+            continue
+        built = built + kinds[code % len(kinds)]
+        code = code // len(kinds)
+    return built
+
+
+def _layout_stand_in(
+    kind: str,
+    band: str,
+    window: "tuple[int, int | None]",
+    convention: str,
+    facts: contract.IdentifierFacts,
+    bases: "list[tuple[str, str]]",
+    steps: "dict[str, int]",
+    used: "dict[str, int]",
+    admitted: "dict[str, bool]",
+    mixed: "dict[str, int]",
+) -> "str | None":
+    """A group no named layout serves, written to a layout of its own kinds.
+
+    THE CELLS A CENSUS DOES NOT NAME STILL LOOK LIKE THE COLUMN (plan
+    P4-D128). Before this, every such group fell to the walk of G9.2, and
+    the walk writes `A-----5V`: on 800 random eight-character codes of
+    capitals and figures at a floor of eleven, 565 cells were pooled, and
+    the pattern `[A-Z0-9]{8}` matched 800 real cells and 235 twin cells.
+
+    THE RULE. The bases of `_layout_stand_in_bases` are read in sorted
+    order, each only where its length is one the group's own slot may
+    hold. For each, up to `_LAYOUT_STAND_IN_TRIES` mixes in all are read,
+    counted on from where that base's own reading stopped: a mix the
+    census NAMES is stepped over, because a cell written to it would be
+    counted into a published layout the column owes exactly; a mix whose
+    first sixty-four fillings no slot of this class and band can wear
+    (`_layout_admits`) is stepped over; and the first mix with a free
+    filling that recounts into it is taken. None where no mix serves, and
+    the caller falls back to the walk.
+
+    NOTHING IS PUBLISHED OR OWED BY IT. The mix is made from the kinds the
+    census already names, a cell written to it recounts into no named
+    layout, and the pool it stands in for bounds a count rather than
+    binding one, so the recount of every published layout is untouched.
+    """
+    census = facts.layout_forms
+    tried = 0
+    for base, kinds in bases:
+        if len(base) < window[0]:
+            continue
+        if window[1] is not None and len(base) > window[1]:
+            continue
+        if base not in mixed:
+            mixed[base] = 0
+        while tried < _LAYOUT_STAND_IN_TRIES:
+            mix = _layout_mix(base, kinds, mixed[base])
+            mixed[base] = mixed[base] + 1
+            tried = tried + 1
+            if mix in census:
+                continue
+            asked = f"{kind} {band} {mix}"
+            if asked not in admitted:
+                admitted[asked] = _layout_admits(kind, band, mix, convention)
+            if not admitted[asked]:
+                continue
+            if mix not in steps:
+                # A MIX'S WALK STARTS AT ITS OWN STEP too, the next one
+                # after every layout already started, for the reason the
+                # named layouts' do: a mix is read for a few cells at
+                # most, so mixes walked from one step would share their
+                # trailing characters -- and counted from nought, every
+                # stand-in opened `A00A00AA`.
+                steps[mix] = 1 + len(steps) * _LAYOUT_STEPS
+            found = _layout_spelling(kind, band, mix, convention, steps, used)
+            if found is not None:
+                return found
     return None
 
 

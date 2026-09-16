@@ -1121,6 +1121,34 @@ def battery() -> list[Mutation]:
             "a layout census counting more cells than the column holds",
             edit("record_code", layout_forms={"@%%%%%": 9999}),
         ),
+        # THE DISCLOSURE RULE OVER THE WHOLE CENSUS (contract C6-131b,
+        # landing 2b.18's repair pass, plan P4-D124). `record_code` holds
+        # 240 present cells, all 240 in the code alphabet and none of them
+        # figures alone, at a floor of eleven.
+        Mutation(
+            "LF2",
+            "a layout census writing a pool of one cell",
+            edit("record_code", layout_forms={"(withheld)": 1, "@%%%%%": 220}),
+        ),
+        Mutation(
+            "LF4",
+            "a layout census leaving exactly one present cell over",
+            edit("record_code", layout_forms={"@%%%%%": 239}),
+        ),
+        Mutation(
+            "LF5",
+            "code-alphabet layouts one cell short of n_code_alphabet",
+            edit(
+                "record_code",
+                layout_forms={"@%%%%%": 229, "@%%.%%": 11},
+                n_code_alphabet=230,
+            ),
+        ),
+        Mutation(
+            "LF6",
+            "a layout census whose keys say two conventions",
+            edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
+        ),
         Mutation(
             "P8",
             "two width censuses that are each possible and not both",

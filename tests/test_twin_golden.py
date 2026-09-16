@@ -249,7 +249,17 @@ NARROW_COLUMN_DIGESTS = {
     # and the two columns beside it below did NOT move -- which is what
     # says the landing reached the declared identifier and nothing
     # else.
-    "record_code": "f056c8416de03a2ffe6478b5c0df3034",
+    #
+    # RE-RECORDED AGAIN AT LANDING 2b.18's REPAIR PASS, and again only
+    # this column moved (plan P4-D128): each layout's walk now starts at
+    # its own step past nought and a step is spread by the exact golden
+    # section of the layout's room, because the five-figure stride left
+    # the leftmost figures of a filling mostly noughts on rooms that are
+    # powers of ten. MEASURED before re-recording, against abd11f0: every
+    # column but `record_code` is byte-identical; all 240 of its cells
+    # still wear `@%%%%%`; and the quality report digest below did not
+    # move, so every obligation is held as it was.
+    "record_code": "831384cc2284883fa8bb0b535966ba11",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
@@ -972,8 +982,13 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # RE-RECORDED at landing 2b.1 (2026-09-15): the `amount` and `dose`
 # columns moved for the causes recorded beside their column digests
 # above, and no other column's cells moved.
+# RE-RECORDED at landing 2b.18's repair pass (2026-09-16): `record_code`
+# moved for the cause recorded beside its column digest above -- the step
+# a layout's walk starts at and the stride it takes (plan P4-D128) -- and
+# no other column's cells moved; the description and quality report
+# digests held.
 GOLDEN_TWIN_SHA256 = (
-    "2baeceb8baab22de72b24ba333f6a4b63063473e87444a33903d26e3a72bbd5c"
+    "5ca090a340ef399adef43c5cd485387b73e1b109bfb5a858ad941ec4e73cca0a"
 )
 
 

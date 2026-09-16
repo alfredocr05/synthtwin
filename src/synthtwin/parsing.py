@@ -1470,9 +1470,7 @@ def census_form(text: str, census: "dict[str, int]") -> str:
 # census of its own, and the form census is left exactly as it was.
 #
 # The limit is sixty-four because the widest identifier scheme in
-# ordinary use is a braced GUID at thirty-eight characters, and the
-# space is excluded here as it is there, which is what actually kept
-# sentences out.
+# ordinary use is a braced GUID at thirty-eight characters.
 LAYOUT_FORM_LIMIT = 64
 
 # The one refusal this census raises on its own account: a convention
@@ -1491,6 +1489,18 @@ _NOT_A_LAYOUT_CONVENTION = (
 # all while appearing to describe it.
 LAYOUT_MARKS = "-./_:#*()[]+,{}"
 
+# ...AND ONE SPACE BETWEEN TWO OTHER CHARACTERS (plan P4-D127). A
+# national number is written in groups -- `657 240 7282` -- and a census
+# that refused the space gave that column no layout at all: measured,
+# 800 real cells matched `\d{3} \d{3} \d{4}` and 0 twin cells did, both
+# files at exit 0. What the space was kept out for is prose, and a run
+# of prose is kept out by the rest of this rule: a space may not open or
+# close a cell and may not stand beside another space, so a sentence's
+# own spacing is never what a layout reads. The column is declared a
+# record number by its owner, and nothing here admits a tab, a line
+# break or any other space character.
+LAYOUT_SPACE = " "
+
 # THE SIX PLACEHOLDERS, and each one says a KIND of character and never
 # which character it was.
 LAYOUT_DIGIT = "%"
@@ -1499,15 +1509,32 @@ LAYOUT_LOWER = "&"
 LAYOUT_LOWER_HEX = "~"
 LAYOUT_UPPER_HEX = "^"
 # ...with ONE exception, which is stated rather than hidden: this mark
-# says the leftmost character of a cell written in FIGURES ALONE was
-# the figure nought. That is a zero FILL -- a writer's field width, the
-# `%08d` of NC-9 -- and it is the fact a reader loses when pandas or R
-# reads `01586982` as 1586982 and silently drops the zero. It can name
-# no text anybody chose, because it stands only where the whole cell is
-# figures. A literal RUN of letters -- a hospital's own record prefix,
-# or `ABC-` in front of a study number -- is a different thing, is a
-# fragment of every value in its column, and is NOT built here: it
-# waits for the owner's ruling on clause 3 (landing 2b.15).
+# says a figure of a cell written in FIGURES ALONE was a nought of its
+# ZERO FILL -- a nought standing before every other figure and not the
+# last character of the cell. It is the writer's field width, the
+# `%08d` of NC-9, and it is the fact a reader loses when pandas or R
+# reads `01586982` as 1586982 and silently drops the zero.
+#
+# EVERY NOUGHT OF THE FILL IS MARKED, NOT ONLY THE FIRST (plan
+# P4-D126). Marking only the first said a cell was zero-filled and not
+# how far: measured on 800 cells of `%08d` over 1 to 499,999, the real
+# column opened `00` on 800 cells and the twin on 78, and
+# `len(x.lstrip('0')) <= 5` counted 158 real cells against 1 -- so code
+# stripping a fill and testing the number's width met a different column.
+# The count of noughts in the fill is how many decades short of the
+# width the number was, which is a coarse census of magnitudes under the
+# floor and never a value. `0` alone and `000` are written by a fill of
+# nought and one of two, so the LAST character is never marked: `0` is
+# `%` and `000` is `!!%`.
+#
+# It can name no text anybody chose, because it stands only where the
+# whole cell is figures, and it is never written in a hexadecimal
+# column, where a figure is one character of sixteen and a leading
+# nought is not a fill anybody wrote (plan P4-D125). A literal RUN of
+# letters -- a hospital's own record prefix, or `ABC-` in front of a
+# study number -- is a different thing, is a fragment of every value in
+# its column, and is NOT built here: it waits for the owner's ruling on
+# clause 3 (landing 2b.15).
 LAYOUT_LEADING_ZERO = "!"
 
 _LAYOUT_PLACEHOLDERS = "%@&~^!"
@@ -1535,8 +1562,8 @@ def _could_carry_a_layout(text: str) -> bool:
 
     A cell is described where it is not empty, is no longer than
     `LAYOUT_FORM_LIMIT`, holds at least one figure or letter, and holds
-    nothing but figures, ASCII letters and `LAYOUT_MARKS` -- a space
-    among the characters that disqualify it, for C6-31a's own reason.
+    nothing but figures, ASCII letters, `LAYOUT_MARKS` and single
+    spaces, none of which opens or closes the cell (plan P4-D127).
 
     THE TWO EDGES ARE EACH A PROPERTY AND NOT A PREFERENCE. A cell
     carrying a PLACEHOLDER is refused, and a cell of marks ALONE is
@@ -1549,32 +1576,50 @@ def _could_carry_a_layout(text: str) -> bool:
     if not text or len(text) > LAYOUT_FORM_LIMIT:
         return False
     content = 0
+    before = ""
     for character in text:
         if character in _LAYOUT_PLACEHOLDERS:
             return False
         if _is_a_digit(character) or _is_a_letter(character):
             content = content + 1
+            before = character
             continue
         if character in LAYOUT_MARKS:
+            before = character
+            continue
+        if character == LAYOUT_SPACE and before not in ("", LAYOUT_SPACE):
+            before = character
             continue
         return False
-    return content >= 1
+    return content >= 1 and before != LAYOUT_SPACE
 
 
 def layout_convention(values: "list[str]") -> str:
     """Which alphabet convention a whole column of record numbers uses.
 
     HEXADECIMAL exactly where every letter of every described cell is
-    one of `abcdef` or one of `ABCDEF`, the two cases do not both
-    appear, and at least one letter appears anywhere. Everything else
-    is `LAYOUT_PLAIN`, where a letter is marked by its CASE instead.
+    one of `abcdef` in EITHER case and at least one letter appears
+    anywhere. The case the column is written in is the case MOST of
+    those letters wear -- lower where the two are as many -- and a cell
+    written in the other case wears the same layout (plan P4-D125).
+    Everything else is `LAYOUT_PLAIN`, where a letter is marked by its
+    CASE instead.
 
-    The rule is deliberately all-or-nothing. A column one of whose
+    WHY THE CASE IS NOT ALL OR NOTHING ANY MORE. It was, and one
+    upper-case UUID among 799 lower-case ones turned the whole column
+    PLAIN: every UUID then wore its own mask of figures and letters, 800
+    layouts of one cell each, and at a floor of eleven the census was
+    nothing but its pool and the twin wrote `A----...J` on every row.
+    A letter's case is not what makes a character hexadecimal, so it
+    does not decide the convention; it decides only which case the
+    column's marks say, and a cell in the minority case -- one cell, or
+    too few to name -- is never counted apart, so nothing about it is
+    published at all.
+
+    The letter test itself stays all-or-nothing. A column one of whose
     letters is not a hexadecimal one is not a hexadecimal column, so a
     site code `BOS-1234` keeps `@@@-%%%%` and does not shatter into one
-    layout per site; and a column whose letters are all hexadecimal but
-    in both cases falls back to the case marks, where the floor pools
-    whatever it must.
+    layout per site.
 
     Guarantees: accepts a list of strings; reads only them; returns one
     member of `LAYOUT_CONVENTIONS`. Determinism: the answer depends
@@ -1583,7 +1628,6 @@ def layout_convention(values: "list[str]") -> str:
     """
     if not isinstance(values, list):
         raise TypeError(_NOT_TEXT)
-    letters = 0
     lower = 0
     upper = 0
     for value in values:
@@ -1594,7 +1638,6 @@ def layout_convention(values: "list[str]") -> str:
         for character in value:
             if not _is_a_letter(character):
                 continue
-            letters = letters + 1
             if character in _HEX_LOWER_LETTERS:
                 lower = lower + 1
                 continue
@@ -1602,17 +1645,21 @@ def layout_convention(values: "list[str]") -> str:
                 upper = upper + 1
                 continue
             return LAYOUT_PLAIN
-    if letters < 1 or (lower > 0 and upper > 0):
+    if lower + upper < 1:
         return LAYOUT_PLAIN
-    if upper > 0:
+    if upper > lower:
         return LAYOUT_HEX_UPPER
     return LAYOUT_HEX_LOWER
 
 
-def _layout_mark(character: str, convention: str, leading: bool) -> str:
-    """The one mark that stands for one character of a cell."""
+def _layout_mark(character: str, convention: str, filling: bool) -> str:
+    """The one mark that stands for one character of a cell.
+
+    ``filling`` says the character is a nought of the cell's zero fill,
+    which `layout_form` settles for the whole cell.
+    """
     if _is_a_digit(character):
-        if leading and character == "0":
+        if filling:
             return LAYOUT_LEADING_ZERO
         if convention == LAYOUT_HEX_LOWER:
             return LAYOUT_LOWER_HEX
@@ -1635,13 +1682,14 @@ def layout_form(text: str, convention: str) -> str:
 
     Every character becomes one mark saying what KIND of character stood
     there -- a figure, an upper-case letter, a lower-case letter, a
-    hexadecimal character -- and every mark of `LAYOUT_MARKS` stands as
-    itself. A UUID `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-
-    hexadecimal column has the layout
-    `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site code `NYC-7480` has
-    `@@@-%%%%`; a record number `REC4972605` has `@@@%%%%%%%`; and
-    `00282669`, being figures alone and led by a nought, has
-    `!%%%%%%%`.
+    hexadecimal character -- and every mark of `LAYOUT_MARKS`, and every
+    single interior space, stands as itself. A UUID
+    `a46d6753-ec14-8cb4-8e73-ca47ea90a8f0` in a lower-hexadecimal column
+    has the layout `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~`; a site code
+    `NYC-7480` has `@@@-%%%%`; a record number `REC4972605` has
+    `@@@%%%%%%%`; a national number `657 240 7282` has `%%% %%% %%%%`;
+    and `00282669`, being figures alone with a fill of two noughts, has
+    `!!%%%%%%`.
 
     ONE MARK PER CHARACTER, WHICH IS WHY THE LENGTH RIDES IN THE KEY.
     A layout is exactly as long as the cell it came from, so the census
@@ -1651,18 +1699,23 @@ def layout_form(text: str, convention: str) -> str:
     separate has to be published for it, and nothing separate can drift
     out of step with it.
 
+    THE ZERO FILL is every nought before the first other figure of a
+    cell written in figures alone, the last character excepted, and is
+    marked only in a PLAIN column (see `LAYOUT_LEADING_ZERO`).
+
     A CELL `_could_carry_a_layout` REFUSES HAS NO LAYOUT AT ALL and
     answers the empty string, exactly as a formless cell does in the
     form census, and it is counted nowhere rather than pooled.
 
     Guarantees: accepts any string; returns a layout built only from
-    the six placeholders and `LAYOUT_MARKS`, or "" for a cell this
-    census does not describe. Determinism: the answer depends only on
-    the text and the convention. Raises TypeError if handed anything
-    that is not a string instance, and ValueError for a convention this
-    module does not name. Boundary: no figure and no letter of the cell
-    survives into the answer -- only what KIND stood at each position,
-    and where the marks between them fell. No I/O of any kind.
+    the six placeholders, `LAYOUT_MARKS` and single interior spaces, or
+    "" for a cell this census does not describe. Determinism: the
+    answer depends only on the text and the convention. Raises
+    TypeError if handed anything that is not a string instance, and
+    ValueError for a convention this module does not name. Boundary: no
+    figure and no letter of the cell survives into the answer -- only
+    what KIND stood at each position, and where the marks between them
+    fell. No I/O of any kind.
     """
     if not isinstance(text, str) or not isinstance(convention, str):
         raise TypeError(_NOT_TEXT)
@@ -1670,15 +1723,14 @@ def layout_form(text: str, convention: str) -> str:
         raise ValueError(_NOT_A_LAYOUT_CONVENTION)
     if not _could_carry_a_layout(text):
         return ""
-    figures = 0
-    for character in text:
-        if _is_a_digit(character):
-            figures = figures + 1
-    whole = figures == len(text)
+    fill = 0
+    if convention == LAYOUT_PLAIN and _all_ascii_digits(text):
+        while fill < len(text) - 1 and text[fill] == "0":
+            fill = fill + 1
     built = ""
     place = 0
     for character in text:
-        built = built + _layout_mark(character, convention, whole and place < 1)
+        built = built + _layout_mark(character, convention, place < fill)
         place = place + 1
     return built
 
@@ -1693,10 +1745,13 @@ def is_a_layout_form(name: str) -> bool:
     one definition here and the others call it.
 
     A layout is one to `LAYOUT_FORM_LIMIT` characters, every one of them
-    a placeholder or a mark from the closed list, carrying AT LEAST ONE
-    placeholder. The last clause is what keeps a key of marks alone out,
-    and with it the property that no cell wearing a layout is spelled
-    like any layout.
+    a placeholder, a mark from the closed list or a single space that
+    neither opens nor closes the key, carrying AT LEAST ONE placeholder.
+    The last clause is what keeps a key of marks alone out, and with it
+    the property that no cell wearing a layout is spelled like any
+    layout. AND A ZERO FILL IS A KEY OF FIGURES ALONE: a key holding `!`
+    is a run of `!` followed by at least one `%` and nothing else, which
+    is the only thing `layout_form` ever writes it as (plan P4-D126).
 
     THERE IS NO TWO-KINDS RULE HERE, and that is a difference from the
     form census rather than an oversight. `@@@@@` is refused there
@@ -1716,14 +1771,74 @@ def is_a_layout_form(name: str) -> bool:
     if not name or len(name) > LAYOUT_FORM_LIMIT:
         return False
     placeholders = 0
+    before = ""
     for character in name:
         if character in _LAYOUT_PLACEHOLDERS:
             placeholders = placeholders + 1
+            before = character
             continue
         if character in LAYOUT_MARKS:
+            before = character
+            continue
+        if character == LAYOUT_SPACE and before not in ("", LAYOUT_SPACE):
+            before = character
             continue
         return False
-    return placeholders >= 1
+    if placeholders < 1 or before == LAYOUT_SPACE:
+        return False
+    if LAYOUT_LEADING_ZERO not in name:
+        return True
+    return _is_a_fill_key(name)
+
+
+def _is_a_fill_key(name: str) -> bool:
+    """Whether a key holding `!` is a run of `!` then at least one `%`."""
+    place = 0
+    while place < len(name) and name[place] == LAYOUT_LEADING_ZERO:
+        place = place + 1
+    if place < 1 or place >= len(name):
+        return False
+    while place < len(name):
+        if name[place] != LAYOUT_DIGIT:
+            return False
+        place = place + 1
+    return True
+
+
+def layout_fill(name: str) -> int:
+    """How many noughts of zero fill one layout says, 0 for none.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    fill = 0
+    while fill < len(name) and name[fill] == LAYOUT_LEADING_ZERO:
+        fill = fill + 1
+    return fill
+
+
+def layout_shallower(name: str) -> str:
+    """The layout one nought SHALLOWER than a zero-filled one, or "".
+
+    A key of two or more fill noughts gives up its last `!` for a `%`:
+    `!!!%%%%%` gives `!!%%%%%%`. It is the ONE step the census takes
+    when a fill depth is too rare to name (contract C6-130, plan
+    P4-D126): the rare depth's cells are counted under the next
+    shallower depth, which is a true statement about them -- a cell
+    filled with three noughts was filled with at least two -- and the
+    step stops at one nought, below which a cell is not zero-filled at
+    all and nothing shallower is true of it. "" for any key with fewer
+    than two fill noughts.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    depth = layout_fill(name)
+    if depth < 2:
+        return ""
+    return name[: depth - 1] + LAYOUT_DIGIT + name[depth:]
 
 
 def layout_room(name: str) -> int:
@@ -1732,10 +1847,10 @@ def layout_room(name: str) -> int:
     Each placeholder stands for its own alphabet -- ten figures,
     twenty-six letters of one case, sixteen hexadecimal characters --
     and `LAYOUT_LEADING_ZERO` stands for exactly one character, the
-    nought, which is what it says. The marks stand for themselves. So a
-    layout is a COUNT of the cells it could have come from, and that
-    count is what tells a generator whether it can spell as many
-    different values as the layout is asked for.
+    nought, which is what it says. The marks and the space stand for
+    themselves. So a layout is a COUNT of the cells it could have come
+    from, and that count is what tells a generator whether it can spell
+    as many different values as the layout is asked for.
 
     Raises TypeError if handed anything that is not a string instance.
     No I/O of any kind.

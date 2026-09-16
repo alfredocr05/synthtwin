@@ -5605,6 +5605,97 @@ def pad_width(text: str) -> int:
     return parsing.pad_width(text)
 
 
+def layout_census(
+    present: "list[str]", floor: int, raw_distinct: int
+) -> dict[str, int]:
+    """The census of LAYOUTS a column's present cells hold, under the floor.
+
+    THE COUNT, AND ONLY THE COUNT. This is every rule of contract C6-130
+    that is about one layout on its own -- the line, the small supply, the
+    fill depth that is too rare, the pool -- and none of the rules of
+    C6-131b that are about what a reader can work out from the census as
+    a WHOLE. It is a function of its own, and public, because the
+    validator recounts a file with it (validation method V3, plan
+    P4-D124): a recount run through the whole-census rules would take
+    decisions about the MEASURED file's cells that the description never
+    took about the real ones, and a conforming twin whose made-up cells
+    left exactly one cell off its named layouts would be told it had lost
+    a layout it held at the published count.
+
+    The rules, each one the disclosure rule and not a preference:
+
+    - a layout is NAMED at the line, which is the floor or TWO, whichever
+      is larger: no count of one is ever published (plan P4-D124);
+    - a layout whose possible spellings number fewer than the column's
+      different values plus the floor is not named, because a layout with
+      a small supply names the values it describes;
+    - a ZERO-FILLED layout of two or more fill noughts that either rule
+      refuses is counted under the layout one nought SHALLOWER
+      (`parsing.layout_shallower`), deepest first, so a fill depth too
+      rare to name still counts where it is true -- a cell filled with
+      three noughts was filled with at least two -- rather than falling
+      out of the census (plan P4-D126);
+    - any other layout under the line goes to the `(withheld)` pool where
+      the floor is above one, and the pool is written only where it
+      reaches two; at a floor of one there is no pool (C5-S13), and such a
+      layout, like a small-supply one and like a cell with no layout at
+      all, is counted nowhere.
+
+    Guarantees: accepts the present cells, the floor and the column's
+    different-spelling count; returns named layouts and possibly
+    `(withheld)`, each at least two. Determinism: a function of the
+    arguments alone; keys in sorted order. Raises TypeError for a cell
+    that is not text. No I/O of any kind.
+    """
+    convention = parsing.layout_convention(present)
+    counts: dict[str, int] = {}
+    deepest = 0
+    for value in present:
+        layout = parsing.layout_form(value, convention)
+        if not layout:
+            # A CELL WITH NO LAYOUT IS COUNTED NOWHERE, and it is not
+            # pooled either: `(withheld)` means a group too small to
+            # name, and a cell this census does not describe is not a
+            # small group.
+            continue
+        deepest = max(deepest, parsing.layout_fill(layout))
+        if layout in counts:
+            counts[layout] = counts[layout] + 1
+            continue
+        counts[layout] = 1
+    line = max(floor, 2)
+    room_needed = raw_distinct + floor
+    depth = deepest
+    while depth >= 2:
+        for layout in sorted(counts):
+            if parsing.layout_fill(layout) != depth:
+                continue
+            if (
+                counts[layout] >= line
+                and parsing.layout_room(layout) >= room_needed
+            ):
+                continue
+            shallower = parsing.layout_shallower(layout)
+            counts[shallower] = (
+                counts[shallower] if shallower in counts else 0
+            ) + counts[layout]
+            del counts[layout]
+        depth = depth - 1
+    pooled = 0
+    census: dict[str, int] = {}
+    for layout in sorted(counts):
+        if parsing.layout_room(layout) < room_needed:
+            continue
+        if counts[layout] >= line:
+            census[layout] = counts[layout]
+            continue
+        if floor >= 2:
+            pooled = pooled + counts[layout]
+    if pooled >= 2:
+        census[SUPPRESSED_LABEL] = pooled
+    return census
+
+
 def _layout_forms(cells: _Cells) -> dict[str, int]:
     """How many present cells wore each LAYOUT, under the floor (7.12).
 
@@ -5620,29 +5711,35 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     A layout says what KIND of character stood at each position -- a
     figure, a letter of one case, a hexadecimal character -- and never
     which one. `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` says a UUID and
-    says nothing whatever about WHICH UUID.
+    says nothing whatever about WHICH UUID. The rules about one layout
+    at a time are `layout_census`'s.
 
-    THE LENGTH CENSUS RIDES IN THE SAME KEY, because a layout is one
-    mark per character and is therefore exactly as long as its cell.
-    That is how NC-9's lost length mix comes back without a second
-    published fact that could drift out of step with this one.
+    AND NO COMPLEMENT OF ONE, which is the rule this function adds over
+    the whole census (contract C6-131b, plan P4-D124). A reader holds
+    three totals beside the census -- `n_present`, `n_code_alphabet` and,
+    in a plain column, `n_all_digits` -- and subtracting from each the
+    named layouts it covers counts the cells that wear no named layout.
+    Where any of those differences is exactly ONE the census says that
+    one row of the table is unlike every other, which the disclosure rule
+    forbids as it forbids a count of one. MEASURED before this rule, on
+    799 record numbers beside one `REC 123456`: the census published
+    `{"@@@%%%%%%%": 799}` against 800 present cells. So, until no
+    difference is one:
 
-    THE FLOOR GOVERNS A LAYOUT AS IT GOVERNS A LEVEL, and the
-    SMALL-SUPPLY rule governs it as well -- the rule `_shape_forms`
-    reached after five adversarial reads, and it is needed here for the
-    same reason and not by analogy. A layout with few possible
-    spellings NAMES the values it describes: `%-` has exactly ten, so a
-    column holding nine of them often enough to publish would hand a
-    reader the tenth. `layout_room` is a property of the KEY and
-    `n_distinct` and the floor are already on the page, so a reader can
-    work out which layouts this rule refuses, and an absence they can
-    predict tells them nothing.
+    - where the difference against `n_present` is one and the pool is
+      written, the pool is not written, which makes it one plus the pool;
+    - otherwise the smallest named layout that no shallower named layout
+      stands behind -- the earliest in sorted order on a tie -- is no
+      longer named, and joins the pool where the floor is above one. Only
+      such a layout can be taken back, because a deeper fill counted
+      under a shallower one would otherwise move into it and leave the
+      difference where it was; for the two alphabet totals it is the
+      smallest such layout those totals cover.
 
-    A SMALL-SUPPLY LAYOUT IS DROPPED AND NOT POOLED, exactly as a
-    small-supply form is. Pooling it would write a `(withheld)` key
-    into a description made at a floor of one, where there is no group
-    below the floor for anything to be held back into, and C5-S13
-    refuses such a document.
+    Each step raises the difference by at least two or ends the rule, so
+    it ends. What it costs is stated, not hidden: a column in which
+    exactly one cell wears no named layout, and whose only named layout
+    is the one taken back, publishes no layout at all.
 
     Guarantees: accepts a tally of one column; returns a mapping from
     layouts, plus possibly `(withheld)`, to counts summing to at most
@@ -5650,34 +5747,100 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     the tally, and the keys are built in sorted order. Raises nothing.
     No I/O of any kind.
     """
-    convention = parsing.layout_convention(cells.present)
-    counts: dict[str, int] = {}
-    for value in cells.present:
-        layout = parsing.layout_form(value, convention)
-        if not layout:
-            # A CELL WITH NO LAYOUT IS COUNTED NOWHERE, and it is not
-            # pooled either: `(withheld)` means a group too small to
-            # name, and a cell this census does not describe is not a
-            # small group.
-            continue
-        if layout in counts:
-            counts[layout] = counts[layout] + 1
-            continue
-        counts[layout] = 1
     floor = cells.settings.small_cell_floor
-    room_needed = cells.raw_distinct + floor
-    withheld = 0
+    census = layout_census(cells.present, floor, cells.raw_distinct)
+    pooled = 0
+    if SUPPRESSED_LABEL in census:
+        pooled = census[SUPPRESSED_LABEL]
+    named: dict[str, int] = {}
+    for layout in sorted(census):
+        if layout != SUPPRESSED_LABEL:
+            named[layout] = census[layout]
+    written_pool = pooled >= 2
+    plain = parsing.layout_convention(cells.present) == parsing.LAYOUT_PLAIN
+    totals = [
+        (cells.code_alphabet, _LAYOUT_CODE_MARKS),
+        (cells.all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
+    ]
+    while named:
+        taken = ""
+        for total, marks in totals:
+            covered = _layout_cells_within(named, marks)
+            if covered >= 1 and total - covered == 1:
+                taken = _layout_to_take_back(named, marks)
+                break
+        if not taken:
+            named_cells = _layout_cells_within(named, "")
+            left = len(cells.present) - named_cells
+            if written_pool:
+                left = left - pooled
+            if left != 1:
+                break
+            if written_pool:
+                written_pool = False
+                continue
+            taken = _layout_to_take_back(named, "")
+        if floor >= 2:
+            pooled = pooled + named[taken]
+        del named[taken]
     published: dict[str, int] = {}
-    for layout in sorted(counts):
-        if parsing.layout_room(layout) < room_needed:
-            continue
-        if counts[layout] >= floor:
-            published[layout] = counts[layout]
-            continue
-        withheld = withheld + counts[layout]
-    if withheld:
-        published[SUPPRESSED_LABEL] = withheld
+    for layout in sorted(named):
+        published[layout] = named[layout]
+    if written_pool and pooled >= 2:
+        published[SUPPRESSED_LABEL] = pooled
     return published
+
+
+# The characters a layout key may hold for every cell wearing it to lie
+# inside one of the two alphabets `n_code_alphabet` and `n_all_digits`
+# count: the code alphabet is letters, figures, the hyphen and the
+# underscore, and a cell of figures alone wears only `%` and `!`.
+_LAYOUT_CODE_MARKS = "%@&~^!-_"
+_LAYOUT_FIGURE_MARKS = "%!"
+
+
+def _layout_within(layout: str, marks: str) -> bool:
+    """Whether every character of a key is one of ``marks``; "" is any."""
+    if not marks:
+        return True
+    for character in layout:
+        if character not in marks:
+            return False
+    return True
+
+
+def _layout_cells_within(named: "dict[str, int]", marks: str) -> int:
+    """How many cells the named layouts made only of ``marks`` count."""
+    counted = 0
+    for layout in sorted(named):
+        if _layout_within(layout, marks):
+            counted = counted + named[layout]
+    return counted
+
+
+def _layout_to_take_back(named: "dict[str, int]", marks: str) -> str:
+    """The smallest named layout of ``marks`` with no shallower one named.
+
+    The earliest in sorted order on a tie. There always is one where any
+    layout of ``marks`` is named, because the shallowest named layout of
+    a fill has nothing named behind it and is made of the same marks.
+    """
+    best = ""
+    for layout in sorted(named):
+        if not _layout_within(layout, marks):
+            continue
+        behind = parsing.layout_shallower(layout)
+        covered = False
+        while behind:
+            if behind in named:
+                covered = True
+                break
+            behind = parsing.layout_shallower(behind)
+        if covered:
+            continue
+        if not best or named[layout] < named[best]:
+            best = layout
+    return best
 
 
 def _shape_forms(cells: _Cells) -> dict[str, int]:

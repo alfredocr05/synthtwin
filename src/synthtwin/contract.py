@@ -1398,11 +1398,27 @@ INVARIANTS = {
     ),
     "LF1": (
         "every layout the census names was written by at least the "
-        "smallest group size"
+        "smallest group size and by at least two cells"
+    ),
+    "LF2": (
+        "the pool of a layout census, where it is written, holds at least "
+        "two cells"
     ),
     "LF3": (
         "the census counts no more cells than the column has present, "
         "a cell this census does not describe being counted nowhere"
+    ),
+    "LF4": (
+        "the census does not count exactly one cell fewer than the column "
+        "has present"
+    ),
+    "LF5": (
+        "the named layouts inside the code alphabet, or in a plain column "
+        "inside the figures, do not count exactly one cell fewer than the "
+        "column publishes in that alphabet"
+    ),
+    "LF6": (
+        "every key of a layout census is written under one convention"
     ),
 }
 
@@ -8136,11 +8152,15 @@ def _layout_forms(
     identifier into the one field this role has for saying what its
     values look like.
 
-    The floor governs a named layout as it governs a level, and the
-    `(withheld)` pool takes what it holds back.
+    The line governs a named layout as it governs a level, and the
+    `(withheld)` pool takes what it holds back. AND NO COUNT OF ONE
+    REACHES A READER BY SUBTRACTION EITHER (C6-131b, plan P4-D124): the
+    census is checked against the three totals a reader holds beside it.
 
     Raises ProfileError for a wrong type, a key that is not a layout, a
-    key longer than the limit, and a named layout below the floor.
+    key longer than the limit, a named layout below the line, a pool of
+    one, a census that leaves one cell over against a total, and keys
+    built under two conventions.
     """
     layouts = _counts(mapping["layout_forms"], "layout_forms", where, 1)
     counted = 0
@@ -8150,41 +8170,148 @@ def _layout_forms(
     if counted > present:
         # LF3. AT MOST, AND NOT EXACTLY, on SF3's own reasoning: a cell
         # this census does not describe -- one too long, one holding a
-        # space, one of marks alone -- is counted nowhere at all, so
-        # the sum falls short on any column holding one and only an
-        # upper bound is checkable here.
+        # space it may not hold, one of marks alone -- is counted
+        # nowhere at all, so the sum falls short on any column holding
+        # one and only an upper bound is checkable here.
         raise _broken(
             "LF3",
             where,
             f"the census counts {counted} cells",
             f"the column holds {present} present cells",
         )
+    line = max(floor, 2)
     for name in sorted(layouts):
         if name == WITHHELD:
             # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
             # IS NONE. That rule is C5-S13's and is checked before any
             # column block is read; `layout_forms` is in its list, so a
-            # rule of this function's own would be unreachable.
+            # rule of this function's own would be unreachable. What is
+            # this function's own is the pool's SIZE.
+            if layouts[name] < 2:
+                raise _broken(
+                    "LF2",
+                    where,
+                    f"the pool holds {layouts[name]} cell",
+                    "a pool is written only where it holds two or more",
+                )
             continue
         if not _is_layout_form(name):
             raise _out_of_range(
                 f"layout_forms -> {name}",
                 where,
                 "a key of that shape",
-                "a layout: a figure written '%', a leading nought "
-                "written '!', an upper-case letter '@', a lower-case "
+                "a layout: a figure written '%', a nought of a zero fill "
+                "written '!' in a run before the figures of a key of "
+                "figures alone, an upper-case letter '@', a lower-case "
                 "letter '&', a hexadecimal character '~' or '^', and "
                 "between them only the marks - . / _ : # * ( ) [ ] "
-                "+ , { } -- carrying at least one placeholder",
+                "+ , { } and single spaces inside the key -- carrying at "
+                "least one placeholder",
             )
-        if layouts[name] < floor:
+        if layouts[name] < line:
             raise _broken(
                 "LF1",
                 where,
                 f"the layout '{name}' was written by {layouts[name]} cells",
-                f"the smallest group size is {floor}",
+                f"the line is {line}: the smallest group size, and never "
+                "under two",
+            )
+    _layout_conventions_agree(layouts, where)
+    if present - counted == 1:
+        raise _broken(
+            "LF4",
+            where,
+            f"the census counts {counted} cells",
+            f"the column holds {present} present cells, one more",
+        )
+    totals = [
+        (
+            "n_code_alphabet",
+            _whole(mapping["n_code_alphabet"], "n_code_alphabet", where, 0),
+            _LAYOUT_CODE_MARKS,
+        ),
+    ]
+    if not _layout_is_hexadecimal(layouts):
+        totals += [
+            (
+                "n_all_digits",
+                _whole(mapping["n_all_digits"], "n_all_digits", where, 0),
+                _LAYOUT_FIGURE_MARKS,
+            )
+        ]
+    for total_name, total, marks in totals:
+        covered = 0
+        for name in sorted(layouts):
+            if name == WITHHELD or not _layout_within(name, marks):
+                continue
+            covered = covered + layouts[name]
+        if covered >= 1 and total - covered == 1:
+            raise _broken(
+                "LF5",
+                where,
+                f"the layouts inside that alphabet count {covered} cells",
+                f"{total_name} is {total}, one more",
             )
     return layouts
+
+
+# The characters a layout key may hold for every cell wearing it to lie
+# inside the alphabet `n_code_alphabet` counts, and inside the one
+# `n_all_digits` counts (C6-131b).
+_LAYOUT_CODE_MARKS = "%@&~^!-_"
+_LAYOUT_FIGURE_MARKS = "%!"
+
+
+def _layout_within(name: str, marks: str) -> bool:
+    """Whether every character of a key is one of ``marks``."""
+    for character in name:
+        if character not in marks:
+            return False
+    return True
+
+
+def _layout_is_hexadecimal(layouts: "dict[str, int]") -> bool:
+    """Whether any key of a census carries a hexadecimal mark."""
+    for name in sorted(layouts):
+        for character in name:
+            if character == "~" or character == "^":
+                return True
+    return False
+
+
+def _layout_conventions_agree(
+    layouts: "dict[str, int]", where: str
+) -> None:
+    """LF6: every key of one census was built under ONE convention.
+
+    The producer decides the convention once for the whole column
+    (C6-128), and the generator reads it back off the keys, so a census
+    whose keys say two conventions -- `~` beside `^`, a hexadecimal mark
+    beside a case letter, or a hexadecimal mark beside a zero fill, which
+    only a plain column writes -- is one no producer wrote and no
+    generator can read one way.
+    """
+    seen = ""
+    for name in sorted(layouts):
+        if name == WITHHELD:
+            continue
+        for character in name:
+            if character == "~":
+                kind = "lower-hexadecimal"
+            elif character == "^":
+                kind = "upper-hexadecimal"
+            elif character in "@&!":
+                kind = "plain"
+            else:
+                continue
+            if seen and kind != seen:
+                raise _broken(
+                    "LF6",
+                    where,
+                    f"one key is written {seen}",
+                    f"another is written {kind}",
+                )
+            seen = kind
 
 
 def _is_layout_form(name: str) -> bool:

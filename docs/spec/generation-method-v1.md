@@ -6272,9 +6272,29 @@ packing rule applying here IN FULL — both margins and the shape search
   preferred layout first and every other published layout in sorted
   order after it, each only where its remaining count covers the group
   and its length fits the slot, and at most 4,096 fillings of one
-  layout are read for one offer. A group the offer cannot serve keeps
-  the walk above, unchanged, so a column publishing no layout is written
-  exactly as it was, byte for byte. **Why the spread, measured:** the
+  layout are read for one offer. **A GROUP THE OFFER CANNOT SERVE IS
+  OFFERED A MIX OF THE COLUMN'S OWN KINDS** (plan P4-D128) -- a pooled
+  cell, a cell of a layout too few to name, a cell of a layout the
+  census took back. The KINDS are the placeholders `%`, `@` and `&` the
+  named layouts use between them, in that order; with fewer than two,
+  or on a census carrying a hexadecimal mark, nothing is mixed. The
+  BASES are the named layouts holding no `!`, in sorted order, each read
+  only where the group's window holds its length. The `j`-th MIX of a
+  base puts one kind in each of its figure and letter places, read off
+  `j` spread over the number of mixes (the kinds' count to the power of
+  the places) by the stepping below and taken apart leftmost first; its
+  marks and spaces are the base's own. Sixteen mixes are read in all for
+  one group, each base's `j` counted on from where that base's reading
+  stopped: a mix the census NAMES is stepped over, because its cell would
+  be counted into a published layout the column owes exactly; a mix no
+  slot of this class and band can wear, by the 64-filling test above, is
+  stepped over; and the first mix with a free filling that passes every
+  guard below is taken. Only a group no mix serves keeps the walk above,
+  unchanged, so a column publishing no layout is written exactly as it
+  was, byte for byte. **Why, measured:** 800 random eight-character codes
+  of capitals and figures at a floor of eleven pooled 448 cells, the
+  walk wrote them `A-----2S`, and `[A-Z0-9]{8}` matched 800 real cells
+  and 352 twin cells; with the mixes it matches 800 of 800. **Why the spread, measured:** the
   walk reaches the values written once before the values written more
   often, and taking the first layout with room left gave a two-system
   key -- `REC` and seven figures beside `E` and six, 800 rows,
@@ -6288,7 +6308,22 @@ packing rule applying here IN FULL — both margins and the shape search
   so consecutive spellings differ in their leading characters rather
   than their trailing ones — which is what stops a column of record
   numbers coming out as the near-consecutive walk `10000020`,
-  `10000021`, … that landing 2b.18 measured. **AND A CELL IS WRITTEN
+  `10000021`, … that landing 2b.18 measured. **The step is spread
+  around the layout's room by a stride coprime to it, the exact golden
+  section of the room in whole numbers** — `(isqrt(5 * room * room) -
+  room) // 2`, walked up to the first value sharing no factor with the
+  room (plan P4-D128). G8.3's stride is the room times 61803 over
+  100000, which on a room that is a power of ten ends in noughts, and
+  the fill reads the low figures of the product first: measured on 800
+  thirteen-figure codes, 44.8 per cent of the twin's figures were
+  noughts against 11.4 per cent of the table's; a section taken to
+  sixty-four bits does the same on a hexadecimal room, 57 per cent on
+  800 UUIDs. **Each layout's walk starts at its own step**: the k-th
+  named layout in sorted order at `1 + k * 4096`, and a mix, when first
+  read, at `1 + m * 4096` where `m` counts the walks already started.
+  Not at nought, which is the all-nought, all-`A` filling; and not all
+  at one step, because a filling's trailing characters follow the step
+  whatever the room, so two layouts walked from one step end alike. **AND A CELL IS WRITTEN
   TO A LAYOUT ONLY WHERE IT RECOUNTS INTO THAT LAYOUT**, asked of the
   census's own reader: `%%%%` filled at a step whose leading figure is
   nought spells `0123`, whose layout is `!%%%` and not `%%%%`, so such
@@ -6302,12 +6337,15 @@ packing rule applying here IN FULL — both margins and the shape search
   counts and the two alphabet counts are kept across this rule and not
   traded for it**: a candidate the shipped classifier does not read
   back as its slot's class, or the shipped alphabet readers do not
-  recount into its slot's band, is stepped over. **`!` IS THE ONE
+  recount into its slot's band, and a candidate that reads as a date
+  under `parsing.DATE_FORMATS`, is stepped over. **`!` IS THE ONE
   PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A NOUGHT**, and it is the
   zero fill of NC-9 — the `%08d` a reader loses when a spreadsheet or
-  a statistics package reads `01586982` as 1586982. The mark stands
-  only where the whole cell is figures, so it can name no text anybody
-  chose. **WHAT IS NOT WRITTEN BACK IS A LITERAL RUN** — a record
+  a statistics package reads `01586982` as 1586982. Every `!` is
+  written a nought, and a filling whose next figure is also a nought is
+  stepped over by the recount guard, because that cell is one nought
+  deeper (plan P4-D126). The mark stands only where the whole cell is
+  figures, so it can name no text anybody chose. **WHAT IS NOT WRITTEN BACK IS A LITERAL RUN** — a record
   prefix, or `ABC-` in front of a study number — because a literal run
   is a fragment of every value in its column, which contract invariants
   I3 and F3 forbid; it waits for the owner's ruling on clause 3, and
@@ -8271,9 +8309,11 @@ census, so the whole layout rule could have been withdrawn with every
 committed byte unchanged, and three for the lower-case key of a form
 census, the shape a stand-in owed no form takes, and the census of
 spellings of a count column (landing 2b.18 part 2), which no earlier
-case reaches.
-**All forty-four are required.** The
-first nine are the first committed file, the next eighteen the second,
+case reaches, and one for a layout census's zero fill two noughts deep,
+its interior space and the mixes that write its pool (landing 2b.18's
+repair pass), which `identifier_layout` reaches none of.
+**All forty-five are required.** The
+first nine are the first committed file, the next nineteen the second,
 and the last seventeen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added -- the third
 (G14.2). **The table below is the inventory itself, and it was short of
@@ -8300,7 +8340,8 @@ case passed, which is the failure the count exists to prevent:
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
 | `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over five groups of four rows and forty single rows. The stand-ins owed no form wear `&-` with the case kept, and one group of four trades with four single rows so the shape's supply covers every row owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
 | `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |
-| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST — `A00000`, `B30816`, `C60632` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
+| `identifier_layout_mixes` | G9.6's zero fill, space and MIXES (plans P4-D126 to P4-D128): a declared identifier of forty-seven nine-character cells publishing `{"!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14}`. The eleven fills are written `00` and seven figures, the next figure never a nought; the space stands as a mark; and the fourteen pooled cells are written to mixes of figures and capitals over the two places of `@%-------`, the first base in sorted order, whose mix `@%` is named and stepped over, so they are written `%%`, `%@` and `@@`. Nine characters wide because this oracle reads no date, and no date format is nine figures or four and four around a space. Its mutant withdraws the mixes and the fourteen cells move; withdrawing the fill or the space stops the oracle at the recount of 7.12, and reading the named mix moves the cells |
+| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST from step one, spread by the exact golden section of the room — `L30816`, `W60632`, `H01458` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |

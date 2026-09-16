@@ -189,6 +189,13 @@ BRANCH_CASES = (
     # withdrawn with every committed byte unchanged. This is the case
     # that holds it up.
     "identifier_layout",
+    # THE FILL, THE SPACE AND THE MIXES OF A LAYOUT CENSUS (landing
+    # 2b.18's repair pass, plans P4-D126 to P4-D128). `identifier_layout`
+    # names two layouts that pay every cell, so a zero fill two noughts
+    # deep, a space inside a layout and a pool written to mixes of the
+    # named kinds could each be withdrawn with every committed byte
+    # unchanged.
+    "identifier_layout_mixes",
     # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
     # R-P4-17). It pins the pairing walk of G6B.4, the only search in
     # the method and the only place synthtwin reproduces structure
@@ -312,6 +319,7 @@ SEEDS = {
     "free_text_joint": 112,
     "identifier_edge_spacing": 113,
     "identifier_layout": 136,
+    "identifier_layout_mixes": 140,
     "lower_case_stand_ins": 137,
     "level_shape_stand_ins": 138,
     "count_spellings": 139,
@@ -359,6 +367,7 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_whole_numbers",
         "identifier_edge_spacing",
         "identifier_layout",
+        "identifier_layout_mixes",
     }
 )
 
@@ -1450,6 +1459,15 @@ def _no_layout_offered(column):
     return []
 
 
+def _no_layout_mixed(column):
+    """G9.6's mixes withdrawn: a group no named layout serves is not mixed.
+
+    Every such group then falls to the band enumeration, which is what
+    wrote `A-----5V` for a pooled record number before the mixes existed.
+    """
+    return []
+
+
 def _no_layout_preferred(column, groups, families, bands, windows, pinned):
     """G9.6's smooth rotation withdrawn: every group takes the first layout.
 
@@ -1721,6 +1739,14 @@ CASE_MUTANTS = {
         "twice takes `@@%%%%`, binding a layout to how often it recurs",
         attribute="layout_preferences",
         replacement=_no_layout_preferred,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout_mixes": Mutant(
+        branch="G9.6's mixes of a layout census's kinds, which write the "
+        "cells no named layout serves (plan P4-D128); the mutant withdraws "
+        "them, and the fourteen pooled cells fall to the band enumeration",
+        attribute="layout_stand_in_bases",
+        replacement=_no_layout_mixed,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_only": Mutant(

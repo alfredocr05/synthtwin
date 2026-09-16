@@ -7681,7 +7681,7 @@ def _role_checks(
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor)
     if isinstance(facts, contract.IdentifierFacts):
-        return _identifier_checks(column, facts, block, floor, mine)
+        return _identifier_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.UnrepresentableFacts):
         return _unrepresentable_checks(column, facts, block)
     return []
@@ -13220,6 +13220,7 @@ def _identifier_checks(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
     block: "dict[str, object]",
+    cells: "list[str]",
     floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
@@ -13261,9 +13262,26 @@ def _identifier_checks(
     # every one of them to a published layout, so the census is owed
     # there exactly as it is owed anywhere, and putting this check
     # after the early return would have quietly excused it.
+    #
+    # AND THE CENSUS IS RECOUNTED OFF THE CELLS, NOT READ OFF THE FILE'S
+    # OWN DESCRIPTION (plan P4-D124). That description applies the
+    # whole-census rule of C6-131b -- no layout census may leave exactly
+    # one cell over against a total -- and that rule takes decisions
+    # about the MEASURED file's own cells. A twin whose made-up cells
+    # happened to leave one cell off its named layouts would have a
+    # layout it holds at the published count taken back, and be told it
+    # MISSED. `taxonomy.layout_census` is every rule of C6-130 about one
+    # layout at a time, which is exactly what a recount of one published
+    # layout needs, and nothing it prints is more than the file holds.
+    present = [cell for cell in cells if parsing.trimmed(cell)]
+    recounted: "dict[str, object]" = {
+        "layout_forms": taxonomy.layout_census(
+            present, floor, len(set(present))
+        )
+    }
     checks = checks + _form_checks(
-        name, "identifier.layout_forms", facts.layout_forms, block, floor,
-        "layout_forms",
+        name, "identifier.layout_forms", facts.layout_forms, recounted,
+        floor, "layout_forms",
     )
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner

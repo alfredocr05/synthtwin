@@ -382,7 +382,20 @@ def test_a_zero_filled_width_comes_back_zero_filled(
     assert leading == len(cells), (
         f"the twin writes {leading} leading noughts of {len(cells)}"
     )
-    assert got["source"]["layout_forms"] == {"!%%%%%%%": len(cells)}
+    # MOVED AT THE REPAIR PASS (plan P4-D126), and what moved is the
+    # census, not the rule this test holds. This column was published
+    # `{"!%%%%%%%": 800}`, which said a fill and not its width, and the
+    # twin opened `00` on 77 cells of 800 where the table opened it on
+    # 77, 75 and 86 at seeds 1-3 only by chance. Every nought of the fill
+    # is marked now, so the census names each depth that reaches the line
+    # -- one nought, two, and three -- and each depth comes back.
+    published = got["source"]["layout_forms"]
+    assert sum(published.values()) == len(cells)
+    assert all(key[:1] == "!" for key in published), published
+    for depth in range(1, 4):
+        opens = [cell for cell in cells if cell[:depth] == "0" * depth]
+        written = [cell for cell in got["cells"] if cell[:depth] == "0" * depth]
+        assert len(opens) == len(written), (depth, len(opens), len(written))
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
 
 
