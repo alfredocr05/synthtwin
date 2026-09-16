@@ -9171,6 +9171,40 @@ def _grid_text(value: float, figures: int) -> str:
     return _at_width(parts[0], parts[1], parts[2], figures)
 
 
+def _on_the_grid(value: float, figures: int) -> "float | None":
+    """``value`` moved to the point of the ``figures`` grid it is written at.
+
+    THE SIBLING OF `_whole_valued` FOR A COLUMN THAT IS NOT WHOLE-VALUED
+    (landing 2b.7, 2026-09-15). A whole-valued column is on the integer
+    grid and G6.7's walk already rounds every candidate onto it; a
+    column on a WRITTEN grid of `figures` figures is the same kind of
+    fact and had no such step, so the walk handed it a value between two
+    grid points and the writer spelled that value out in full.
+
+    The answer is the number the grid TEXT reads back as, so a grid
+    point no double holds is refused rather than recorded as one text
+    and written as another -- the rule G6.5a states for its own walk,
+    kept here for the same reason.
+
+    Guarantees: accepts a value and a count of figures above nought;
+    returns a value whose grid text at that width reads back as itself,
+    or None. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    if not math.isfinite(value):
+        return None
+    text = _grid_text(value, figures)
+    try:
+        found = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(found):
+        return None
+    if _grid_text(found, figures) != text:
+        return None
+    return found
+
+
 def _grid_units(text: str, figures: int) -> "int | None":
     """A grid text as a whole number of grid units, exactly.
 
@@ -11063,6 +11097,7 @@ def _cleared_value(
     taken: "dict[float, int]",
     whole_column: bool,
     widths: "tuple[int, ...]",
+    grid: int = -1,
 ) -> "float | None":
     """A value outside the empty stretch this one landed in (G6.7).
 
@@ -11135,6 +11170,28 @@ def _cleared_value(
 
     NEVER ACROSS ZERO, which is the rule every sibling pass in this
     file keeps, so the counts of negative and zero values stand.
+
+    AND ON A COLUMN WRITTEN ON A GRID, A POINT OF THAT GRID (landing
+    2b.7, 2026-09-15). `grid` is G5.2a step 1's written grid, and a
+    candidate is moved onto it before anything else is asked of it --
+    exactly as a whole-valued column's candidate is rounded to a whole
+    number, the integers being the grid such a column is written on.
+    Without it this walk stepped in sixty-fourths of a BIN, which is
+    not a step of the grid at all, and handed a stratum a value between
+    two grid points; `_width_places` then wrote that cell at the width
+    its own value needed rather than at a published one. MEASURED
+    through the real reader, producer, loader, generator and validator
+    on 400 and 4,000 halves written as a spreadsheet writes them -- `37`
+    beside `37.5` -- at seeds 1, 7 and 23 and at both floors: ONE cell
+    of each twin came out `38.55126953125` and `39.05078125`, the twin
+    published 207 cells at the one width against 208, and
+    `widths.published.1` missed at every one of the twelve runs.
+    The candidate set only NARROWS: every refusal below still runs, so
+    a snapped candidate that would change the written form, the figure
+    count, the sign band or a spelling another stratum holds is passed
+    over exactly as before, and where the grid holds no free point
+    within reach the answer is None and G6.7.8's recount names the
+    stretch.
 
     Guarantees: accepts the two ends, the bins barred as empty, the run
     the value is in, the value, its sign band, the spellings and values
@@ -11219,6 +11276,19 @@ def _cleared_value(
                 continue
             if whole_column:
                 found = _whole_valued(found)
+            # AND ONTO THE WRITTEN GRID, WHICH IS THE SAME STEP FOR A
+            # COLUMN THAT IS NOT WHOLE-VALUED (landing 2b.7). The walk
+            # steps in sixty-fourths of a BIN, and a bin is not a grid,
+            # so without this the stratum took a value between two grid
+            # points and its cell was written at full precision. It is
+            # taken here, before the reach is tested, for the reason the
+            # rounding above is: the candidate that is tested must be
+            # the candidate that is written.
+            if grid > 0:
+                snapped = _on_the_grid(found, grid)
+                if snapped is None:
+                    continue
+                found = snapped
             # THE REACH IS A DISTANCE FROM THE EDGE, and it is tested
             # after the rounding (review rounds 7 item 2 and 8 item 1).
             # One bin's WIDTH past the published edge, which is the
@@ -11476,6 +11546,12 @@ def _clear_enough(
     barred = {place: 1 for place in facts.empty_bins}
     runs = _empty_runs(facts.empty_bins)
     widths = _census_widths(facts)
+    # THE COLUMN'S WRITTEN GRID (G5.2a step 1), so that a value this
+    # pass moves is a value the writer can write (landing 2b.7). A
+    # whole-valued column is handled by `whole_column` inside the walk
+    # -- the integers being its grid -- and this is the same fact for a
+    # column written at a fixed width.
+    grid = _written_grid(column, facts)
     total = len(values)
     moved = [value for value in values]
     notes: list[Deviation] = []
@@ -11597,13 +11673,13 @@ def _clear_enough(
                 column, facts, layout, moved, ends, barred, run, edges,
                 facts.empty_edges,
                 came[down[len(down) - 1 - step]],
-                down[len(down) - 1 - step], widths, taken, spoken,
+                down[len(down) - 1 - step], widths, taken, spoken, grid,
             )
         for place in up:
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
                 facts.empty_edges, came[place],
-                place, widths, taken, spoken,
+                place, widths, taken, spoken, grid,
             )
     return moved, notes
 
@@ -11623,6 +11699,7 @@ def _cleared_into(
     widths: "tuple[int, ...]",
     taken: "dict[float, int]",
     spoken: "dict[str, int]",
+    grid: int = -1,
 ) -> "list[Deviation]":
     """Move one stratum out of an empty stretch, or name why not (G6.7).
 
@@ -11652,6 +11729,7 @@ def _cleared_into(
         taken,
         facts.integer_valued,
         widths,
+        grid,
     )
     if found is None:
         # NO NOTE IS WRITTEN HERE, and that is the repair of review

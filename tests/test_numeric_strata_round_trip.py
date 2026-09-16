@@ -114,6 +114,20 @@ def _spreadsheet_scores(draw: random.Random, rows: int) -> "list[str]":
     ]
 
 
+def _halves_spreadsheet(draw: random.Random, rows: int) -> "list[str]":
+    """Halves as a spreadsheet writes them: `37` beside `37.5`.
+
+    One published fraction width, and the point-free cells are `plain`,
+    so the column is on the written grid of G5.2a step 1 -- and its
+    values are sparse enough on that grid that the profiler names empty
+    stretches, which is what sends it through G6.7's pass.
+    """
+    return [
+        _dropped_zero(f"{round(draw.gauss(37.5, 1.2) * 2) / 2:.1f}")
+        for _ in range(rows)
+    ]
+
+
 def _zero_inflated(draw: random.Random, rows: int) -> "list[str]":
     return [
         "0" if draw.random() < 0.3 else f"{draw.lognormvariate(1, 0.6):.1f}"
@@ -419,6 +433,61 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
     assert generation._written_grid(column, facts) == -1
+
+
+@pytest.mark.parametrize("rows,every_fact", [(400, False), (4000, True)])
+def test_a_value_moved_off_an_empty_stretch_keeps_the_written_grid(
+    tmp_path: pathlib.Path, rows: int, every_fact: bool
+) -> None:
+    """G6.7.4 clause 8 (landing 2b.7), through the whole product.
+
+    G6.7 moves a stratum out of a stretch the description says holds
+    nothing, walking outward from the stretch's published edge in
+    SIXTY-FOURTHS OF A BIN. A bin is not a grid. On a whole-valued
+    column the walk already rounds each candidate to a whole number,
+    the integers being that column's grid; on a column written at one
+    fixed width there was no such step, so the stratum took a value
+    between two grid points and G6.6 wrote that cell at the width its
+    own value needed rather than at a published one.
+
+    MEASURED before the repair, at both floors and all three seeds:
+    one cell of each twin came out `38.55126953125` at 400 rows and
+    `39.05078125` at 4,000, the twin wrote 207 cells at the one
+    published width against 208 and 2,000 against 2,001, and
+    `widths.published.1` MISSED on all twelve runs.
+
+    THE TWO SIZES ASSERT DIFFERENT THINGS, and that is deliberate
+    rather than a weakened gate. At 4,000 rows the repair closes the
+    column outright, so every published fact is asserted and both
+    files validate at exit 0. At 400 rows it closes the WIDTH and the
+    column still comes back holding 14 of its published 15 different
+    numbers -- a shortfall of the separation walk, not of this rule --
+    so what is pinned there is the fact this rule owns: no cell is
+    written outside the published census. Asserting exit 0 at 400 rows
+    would be asserting somebody else's defect away.
+    """
+    cells = _halves_spreadsheet(random.Random(101 + rows), rows)
+    for seed in SEEDS:
+        first, second, written, twin_exit, real_exit = _round_trip(
+            tmp_path / f"{rows}-{seed}", cells, check_real=True, seed=seed
+        )
+        # NO CELL OUTSIDE THE PUBLISHED CENSUS. A point-free cell
+        # carries no figure after the point, and this column writes
+        # those, so nought is a width it may wear.
+        widths = {int(width) for width in first["fraction_widths"]} | {0}
+        outside = [cell for cell in written if _figures(cell) not in widths]
+        assert outside == [], (rows, seed, outside[:4])
+        # ...and the real table still meets its own description.
+        assert real_exit == 0, (rows, seed, "the real table missed")
+        if every_fact:
+            assert twin_exit == 0, (rows, seed, "the twin missed")
+            assert second["fraction_widths"] == first["fraction_widths"], (
+                rows,
+                seed,
+            )
+            assert (
+                second["n_distinct_values"] == first["n_distinct_values"]
+            ), (rows, seed)
 
 
 def _described(

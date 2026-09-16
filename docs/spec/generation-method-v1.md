@@ -2680,6 +2680,30 @@ Every stratum so identified moves, subject to:
    stratum from one figure to two takes a carrier away from the padded
    -width census: 9 can be written `09` at a published width of two
    and 10 cannot.
+8. landing on a POINT OF THE COLUMN'S WRITTEN GRID, where the column
+   is on one — G5.2a step 1's grid of `f` figures (landing 2b.7,
+   2026-09-15). A whole-valued column is on the INTEGER grid and rule
+   G6.7.6 already rounds every candidate onto it; a column written at
+   a fixed width is the same kind of fact and had no such step, so
+   this walk — which steps in sixty-fourths of a BIN, and a bin is not
+   a grid — handed a stratum a value lying between two grid points.
+   G6.6's writer then wrote that cell at the width its own value
+   needed rather than at a published one, which is a published width
+   count missed. MEASURED through the real reader, producer, loader,
+   generator and validator on halves written as a spreadsheet writes
+   them — `37` beside `37.5` — at 400 and 4,000 rows, seeds 1, 7 and
+   23, at both floors: ONE cell of each twin came out
+   `38.55126953125` and `39.05078125`, the twin wrote 207 cells at the
+   one published width against 208 and 2,000 against 2,001, and
+   `widths.published.1` missed at every one of the twelve runs.
+   The rule only NARROWS the candidate set: rules 1 to 7 are applied
+   to the snapped candidate exactly as before, so a snapped value that
+   would change the written form, the figure count or the sign band,
+   or that reads as a value another stratum holds, is passed over as
+   it always was. Where the grid holds no free point within the reach
+   of G6.7.5, the answer is nothing, the value stays, and G6.7.8's
+   recount names the stretch — the same outcome this walk has always
+   had where it can find nowhere to go.
 
 **RULES 6 AND 7 EXIST BECAUSE THE SUITE FOUND THEM, and both were
 measured on the floored witness of review item P3-V7-F4** — a column
@@ -2765,7 +2789,14 @@ generator following it would reverse the moved values against the
 shipped one and write different bytes for the same description. On a
 whole-numbered column each position is rounded to a whole number
 before it is tested, and a position that then reads back inside a
-named bin is passed over.
+named bin is passed over. **AND ON A COLUMN ON A WRITTEN GRID each
+position is moved onto that grid before it is tested** (G6.7.4 clause
+8, landing 2b.7): the two are one rule, the integers being the grid a
+whole-valued column is written on, and the snap is taken BEFORE the
+reach of G6.7.5 is measured for the same reason the rounding is —
+the candidate that is tested must be the candidate that is written.
+A grid point whose text does not read back as itself is passed over,
+which is the rule G6.5a states for its own walk.
 
 **AND THE TEST IS APPLIED TO THE SPELLING, not to the value.** A
 column written to one figure after the point has its values rounded
@@ -6735,6 +6766,16 @@ to them in BOTH directions. Three keys were missing from the prose
 list when that guard was first written: `shape_forms`, and the two
 gap keys `empty_bins` and `empty_edges`.
 
+**AND TWO MORE WERE MISSING WHEN THE MIXTURE CENSUSES LANDED** (landing
+2b.7, 2026-09-15). `negative_notations` and `thousands_marks` are keys
+a report may carry the moment a column publishes a mixture of
+conventions, and the landing that added them to the generator did not
+add them here -- so this index stopped being complete and the guard
+above turned red, which is exactly what it is for. They are listed
+below. The lesson is the one this repository keeps relearning: a closed
+enumeration is stated in up to eight places, and the deviation key
+index is one of them.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `datetime_separators`
@@ -6770,12 +6811,14 @@ gap keys `empty_bins` and `empty_edges`.
 * `n_unparsed`
 * `n_whole`
 * `n_whole_unknown`
+* `negative_notations`
 * `numeric_styles`
 * `pad_widths`
 * `percentiles`
 * `resolution_mix`
 * `shape_forms`
 * `suppressed_levels`
+* `thousands_marks`
 * `utc_offsets`
 * `words`
 * `levels -> shape_form_cells`

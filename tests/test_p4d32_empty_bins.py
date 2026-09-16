@@ -1234,6 +1234,40 @@ def test_a_moved_value_keeps_the_form_it_was_written_in() -> None:
     assert generation._carries_plainly(plain, False), plain
 
 
+def test_a_moved_value_lands_on_the_columns_written_grid() -> None:
+    """The written grid (G6.7.4, clause 8; landing 2b.7).
+
+    The walk steps in sixty-fourths of a BIN, and a bin is not a grid:
+    a hundred wide here, so a step is 1.5625 and every candidate above
+    the upper edge of 2000.0 lies between two points of the grid of
+    tenths. Driven directly, because what is under test is the SNAP and
+    a column that reached it by chance would pin nothing.
+
+    Both halves are asserted. Without the grid the walk answers a value
+    the writer cannot write at the published width -- which is what put
+    `38.55126953125` in a twin of halves -- and with it the answer is a
+    point of the grid, still carrying a point, so G6.7.4's rule 4 is
+    kept at the same time.
+    """
+    loose = generation._cleared_value(
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.5,
+        generation._BAND_POSITIVE, True, {}, {}, False, _WIDTHS,
+    )
+    assert loose is not None
+    assert float(generation._grid_text(loose, 1)) != loose, (
+        f"{loose} is already a point of the grid of tenths, so this "
+        f"case cannot tell the snap from its absence"
+    )
+    snapped = generation._cleared_value(
+        _ENDS, _BARRED, _RUN, _EDGES, (_EDGES,), 1900.5,
+        generation._BAND_POSITIVE, True, {}, {}, False, _WIDTHS, 1,
+    )
+    assert snapped is not None
+    assert float(generation._grid_text(snapped, 1)) == snapped, snapped
+    # ...and the written form is still kept, which is rule 4.
+    assert not generation._carries_plainly(snapped, False), snapped
+
+
 def test_a_moved_value_never_crosses_zero() -> None:
     """The sign band (G6.7.4, clause 3).
 
