@@ -14423,7 +14423,7 @@ def _class_stand_ins_walked(
     supply = _class_supply(
         ladder, sizes, debts, used, owners, holes, decimal_comma
     )
-    classes = _class_split(sizes, debts, supply)
+    classes = _class_split(sizes, debts, supply, owing, decimal_comma)
     missing = 0
     # A CLASS THE SPLIT COULD NOT PAY BECAUSE ITS SUPPLY RAN OUT is a
     # shortfall of supply, not of the partition: every spelling of the
@@ -14458,9 +14458,23 @@ def _class_stand_ins_walked(
         room: "dict[str, int]" = {}
         for form in sorted(mine_forms):
             if name == _OWED_NUMBER:
-                room[form] = _ladder_room(
-                    ladder, form, len(sub), named, used, owners, holes,
-                    decimal_comma,
+                # A NUMBER FORM HAS TWO SUPPLIES, and counting only the
+                # first gave the form to nobody (landing 2b.13, Codex
+                # item 7). The ladder spells a PLAIN decimal, so a form
+                # the ladder cannot spell -- `%.%@%`, whose spellings
+                # carry an exponent -- has ladder room nought, and
+                # `_shared_out` then settles it over no group at all.
+                # Its own filling is the other supply, and the walk
+                # below takes it where the ladder has nothing.
+                room[form] = max(
+                    _ladder_room(
+                        ladder, form, len(sub), named, used, owners,
+                        holes, decimal_comma,
+                    ),
+                    _usable_room(
+                        form, len(sub), used, owners, holes,
+                        parsing.NUMBER, decimal_comma,
+                    ),
                 )
             else:
                 room[form] = _usable_room(
@@ -14489,6 +14503,23 @@ def _class_stand_ins_walked(
                         ladder, form, cursor, named, used, owners, holes,
                         decimal_comma,
                     )
+                    if not found:
+                        # THE FORM'S OWN FILLING, WHERE THE LADDER
+                        # CANNOT SPELL IT (landing 2b.13, Codex item 7).
+                        # `_units_spelled` writes a plain decimal, whose
+                        # form is `%.%` and never `%.%@%`, so a number
+                        # group owing an exponent form was stepped past
+                        # every candidate and fell through to the
+                        # unformed walk, which wrote `1`. The form's own
+                        # walk writes `9.6E6`, which wears the form AND
+                        # reads as a number, so it meets the census and
+                        # the class count together. Its LOCATION is
+                        # still nothing the description places, which
+                        # `_HELD_BACK_UNSPELLED_REASON` already says.
+                        found = _class_form_stand_in(
+                            form, parsing.NUMBER, walked, used, owners,
+                            holes, decimal_comma,
+                        )
                 if not found:
                     found = _next_on_ladder(
                         ladder, _OWED_NUMBER, cursor, named, used, owners,
@@ -15077,8 +15108,13 @@ def _settled_by_sums(
     names: "list[str]",
     supply: "dict[str, int]",
     biggest_first: bool,
+    avoid: "tuple[int, ...]" = (),
 ) -> "list[str] | None":
     """An arrangement settling every debt exactly, or None.
+
+    ``avoid`` names places this pass may not give to any debt, which is
+    how `_class_split` reaches a different exact arrangement than the
+    one whose form debts it could not settle (landing 2b.13).
 
     Each debt in turn, largest first, takes an exact subset of the
     sizes still going spare. `_subset_making` answers which sizes make
@@ -15092,8 +15128,8 @@ def _settled_by_sums(
     where the debts are settled one at a time, which is the shape a
     real column has.
     """
-    spare = [sizes[place] for place in places]
-    where = list(places)
+    spare = [sizes[place] for place in places if place not in avoid]
+    where = [place for place in places if place not in avoid]
     taken: "dict[int, str]" = {}
     ordered = sorted([(0 - owing[form], form) for form in names])
     if not biggest_first:
@@ -15114,7 +15150,7 @@ def _settled_by_sums(
 
 
 def _subset_making(
-    spare: "list[int]", total: int, most: int
+    spare: "list[int]", total: int, most: int, avoid: "tuple[int, ...]" = ()
 ) -> "list[int] | None":
     """Which of ``spare`` sum to ``total`` in at most ``most`` parts.
 
@@ -15135,6 +15171,11 @@ def _subset_making(
     Both rules together make the chain strictly decreasing in slot, so
     a slot cannot repeat -- which is the property the caller needs and
     the one it did not have.
+
+    ``avoid`` names slots this pass may not lay down, which is how a
+    caller reaches a DIFFERENT exact subset than the one it was given
+    (landing 2b.13, Codex item 5). The sums are the same arithmetic;
+    the avoided sizes are simply not offered.
     """
     if total < 1:
         return []
@@ -15143,6 +15184,8 @@ def _subset_making(
     made: "dict[int, tuple[int, int]]" = {}
     reached: "dict[int, int]" = {0: 0}
     for slot in range(len(spare)):
+        if slot in avoid:
+            continue
         size = spare[slot]
         before = [(sum_so_far, reached[sum_so_far]) for sum_so_far in reached]
         for pair in before:
@@ -15985,6 +16028,14 @@ _SIGN_POSITIVE_BIT = 4
 # takes the one-pass walk instead: the size of the list times the debt.
 _CLASS_SUM_WORK = 1 << 24
 
+# HOW MANY DIFFERENT EXACT CLASS ARRANGEMENTS ARE TRIED before the
+# first one stands (landing 2b.13, Codex item 5 of landing 2b.4). Each
+# pass forbids one more of the places the refused arrangement spent, so
+# the passes reach genuinely different subsets; the bound is here
+# because a column of many held-back levels must not spend unbounded
+# arithmetic on an arrangement the report would name either way.
+_CLASS_RETRIES = 8
+
 # WHY A HELD-BACK GROUP COUNT IS MISSED, in the two cases there are
 # (method G12). Each is one fixed sentence, chosen by what happened
 # and never written at the place that emits it.
@@ -16159,10 +16210,71 @@ def _classes_owed(
 
 
 def _form_reading(form: str, decimal_comma: bool) -> str:
-    """The class a published form's spellings read as, read off its first."""
-    return parsing.classify_number(
+    """The class a published form's spellings read as.
+
+    THE FIRST FILLING IS NOT THE ONLY ONE, and reading only it threw
+    away a column's published numbers (landing 2b.13, Codex item 7 of
+    landing 2b.4). `_filled_form` puts `A` in the first letter place, so
+    `%.%@%` -- the form of `1.1e6` -- fills to `0.0A0`, which reads as
+    TEXT. The form was therefore offered to the word debt and never to
+    the number debt, and the four held-back cells of a column publishing
+    `1.1e6` and `1.2e6` on twenty-two rows were written `1`: the census
+    named `%.%@%` twenty-six times, the twin wore it twenty-two, and
+    `synthtwin validate` exited 3 while the table itself passed.
+
+    SO THE EXPONENT FILLING IS ASKED TOO. A letter place holding `E` is
+    what makes a form of figures and one letter a number, and the same
+    form's own walk (`_class_form_stand_in`) reaches such a spelling at
+    its second step -- `9.6E6` -- so the class this answers is one the
+    walk can really write. Asked ONLY where the first filling reads as
+    no numeric class at all, so no form already settled moves, and only
+    NUMBER is answered: a form is not talked into the out-of-range or
+    contradictory debts, whose spellings G10.3 constructs outright.
+
+    THE LIMIT IS STATED RATHER THAN LEFT TO BE FOUND. One probe fills
+    EVERY letter place with `E`, so a form whose letter places would
+    have to differ -- `@%@`, which no filling makes a number anyway --
+    is answered exactly as before. A form of two letter places that
+    needs `E` in one of them is not reached, and is written as text as
+    it was before this rule.
+    """
+    reading = parsing.classify_number(
         _read_in_grammar(_filled_form(form, 0), decimal_comma)
     )
+    if reading != parsing.NOT_A_NUMBER:
+        return reading
+    exponent = _exponent_filling(form)
+    if exponent and parsing.classify_number(
+        _read_in_grammar(exponent, decimal_comma)
+    ) == parsing.NUMBER:
+        return parsing.NUMBER
+    return reading
+
+
+def _exponent_filling(form: str) -> str:
+    """One filling of a form wearing `E` in every letter place, or "".
+
+    The probe of `_form_reading`: every figure mark takes `0`, every
+    letter mark takes `E`, and every other character stands as itself,
+    because the marks ARE the form. Empty where the form holds no letter
+    mark at all, which is the ordinary case and costs one scan.
+
+    IT CARRIES NO FRAGMENT OF ANY REAL VALUE, on the same ground
+    `_filled_form` does not: the form is built by replacing every figure
+    and letter of a cell before it is published, and the characters put
+    back here are two constants of this module.
+    """
+    if parsing.SHAPE_LETTER not in form:
+        return ""
+    spelled = ""
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            spelled = spelled + "0"
+        elif character == parsing.SHAPE_LETTER:
+            spelled = spelled + "E"
+        else:
+            spelled = spelled + character
+    return spelled
 
 
 def _plain_units(spelling: str) -> "tuple[int, int] | None":
@@ -16677,12 +16789,97 @@ def _ladder_room(
     return usable
 
 
+def _settles_its_forms(
+    taken: "dict[int, str]",
+    sizes: "tuple[int, ...]",
+    owing: "dict[str, int]",
+    decimal_comma: bool,
+) -> bool:
+    """Whether each class's own form debts can still be settled exactly.
+
+    THE SPLIT SETTLES CELLS AND THE FORMS ARE SETTLED INSIDE IT, so an
+    arrangement that meets every class exactly can still make a form debt
+    impossible (landing 2b.13, Codex item 5 of landing 2b.4). MEASURED,
+    on the reviewer's own column: readings `5.1` and `5.3` on eleven
+    rows each beside `ab-cd` on twenty, with `5.2` on four rows, `8` on
+    one and two words held back. Five cells must be numbers and four of
+    them must wear `%.%`. The held-back sizes are 4, 1, 3 and 2, and
+    `_class_split` took 3+2 -- which makes five exactly and cannot make
+    four at all -- so the twin wrote TWENTY-SEVEN cells of `%.%` against
+    a published twenty-six, and `synthtwin validate` exited 3 while the
+    table passed. The source's own 4+1 meets both.
+
+    So the same arithmetic that settles the classes is asked of the
+    forms BEFORE the arrangement is accepted: inside each class, the
+    forms reading as that class are settled over that class's sizes by
+    `_settled_by_sums`, both debt orders, with every form's supply taken
+    as the number of sizes. A class whose forms cannot be settled that
+    way refuses the arrangement and `_class_split` tries another.
+
+    A DEBT NO ARRANGEMENT COULD PAY DOES NOT VETO ONE. A form owing more
+    cells than the whole class covers is unpayable under every split --
+    the published cells owe the rest of it -- so it is not asked, and an
+    arrangement is not refused for failing to do the impossible.
+
+    The supply is counted as the number of sizes rather than walked,
+    which is deliberate: this asks whether the ARITHMETIC exists, and
+    the walk that follows still reports whatever the supply then
+    refuses. Preferring an arithmetically possible arrangement can
+    therefore never be worse than taking the first one blind.
+    """
+    for name in _OWED_CLASSES:
+        reads = _owed_reading(name)
+        mine = [
+            place
+            for place in range(len(sizes))
+            if place in taken and taken[place] == name
+        ]
+        if not mine:
+            continue
+        sub = tuple([sizes[place] for place in mine])
+        covered = 0
+        for size in sub:
+            covered = covered + size
+        wanted = {
+            form: owing[form]
+            for form in sorted(owing)
+            if owing[form] > 0
+            and owing[form] <= covered
+            and _form_reading(form, decimal_comma) == reads
+        }
+        if not wanted:
+            continue
+        order = sorted([(0 - sub[step], step) for step in range(len(sub))])
+        spots = [pair[1] for pair in order]
+        room = {form: len(sub) for form in sorted(wanted)}
+        names = [form for form in sorted(wanted)]
+        settled: "list[str] | None" = None
+        for biggest_first in (True, False):
+            settled = _settled_by_sums(
+                sub, spots, wanted, names, room, biggest_first
+            )
+            if settled is not None:
+                break
+        if settled is None:
+            return False
+    return True
+
+
 def _class_split(
     sizes: "tuple[int, ...]",
     debts: "dict[str, int]",
     supply: "dict[str, int]",
+    owing: "dict[str, int] | None" = None,
+    decimal_comma: bool = False,
 ) -> "dict[int, str]":
     """Which held-back groups pay which class debt, before any form.
+
+    ``owing`` is the census's remaining form debt. Given, an arrangement
+    is accepted only where `_settles_its_forms` says each class can
+    still settle the forms that read as it; otherwise another exact
+    arrangement is tried, up to `_CLASS_RETRIES`, and the FIRST one
+    stands where none of them can. Absent, the first stands as it always
+    did, which is what every caller outside method G8.3a wants.
 
     THE CLASS COMES FIRST because it decides how every cell parses: a
     group owed as a number that is written as a word crashes code on the
@@ -16700,17 +16897,41 @@ def _class_split(
     order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
     places = [pair[1] for pair in order]
     largest = max([debts[name] for name in names])
+    first: "dict[int, str] | None" = None
     if len(places) * largest <= _CLASS_SUM_WORK:
         for biggest_first in (True, False):
-            settled = _settled_by_sums(
-                sizes, places, debts, names, dict(supply), biggest_first
-            )
-            if settled is not None:
-                return {
+            avoid: "tuple[int, ...]" = ()
+            for _again in range(_CLASS_RETRIES):
+                settled = _settled_by_sums(
+                    sizes, places, debts, names, dict(supply),
+                    biggest_first, avoid,
+                )
+                if settled is None:
+                    break
+                taken_now = {
                     place: settled[place]
                     for place in range(len(sizes))
                     if settled[place]
                 }
+                # THE FIRST EXACT ARRANGEMENT IS THE FALLBACK, so a
+                # column whose forms no arrangement settles is written
+                # exactly as it was before this rule.
+                if first is None:
+                    first = taken_now
+                if owing is None or _settles_its_forms(
+                    taken_now, sizes, owing, decimal_comma
+                ):
+                    return taken_now
+                spent = [
+                    place
+                    for place in range(len(sizes))
+                    if settled[place] and place not in avoid
+                ]
+                if not spent:
+                    break
+                avoid = avoid + (spent[0],)
+    if first is not None:
+        return first
     left = {name: debts[name] for name in names}
     spare = {name: supply[name] for name in names}
     taken: "dict[int, str]" = {}

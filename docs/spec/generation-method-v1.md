@@ -4527,11 +4527,66 @@ number when it is one under that reading.
    owing the most that the size does not overpay and that can still
    supply a spelling. A number's supply is how many numbers step 3 can
    still give.
-2. **Which form each paying level wears.** The census forms whose first
-   filling (`_filled_form` at step zero) reads as a class are settled
-   over that class's levels ALONE, by G8.3's arrangement, with each
-   form's supply counted by the walk of step 3 for numbers and by
-   G8.3's own walk for the other two classes. A level given no form
+
+   **AN ARRANGEMENT THAT STRANDS A FORM DEBT IS NOT TAKEN** (landing
+   2b.13, Codex item 5 of landing 2b.4). The split settles CELLS and
+   step 2 settles the forms INSIDE it, so an arrangement paying every
+   class exactly can still make a form debt impossible. Readings `5.1`
+   and `5.3` on eleven rows each beside `ab-cd` on twenty, with `5.2`
+   on four rows, `8` on one and two words held back: five cells must be
+   numbers and four of them must wear `%.%`, and the held-back sizes 4,
+   1, 3 and 2 were split 3+2 — which makes five exactly and four not at
+   all — so the twin wrote TWENTY-SEVEN cells of `%.%` against a
+   published twenty-six and `synthtwin validate` exited 3 while the
+   table passed. The source's own 4+1 meets both.
+
+   So an exact arrangement is accepted only where, inside each class,
+   the forms reading as that class can themselves be settled exactly
+   over that class's sizes by the same reachable-sums arithmetic, both
+   debt orders, each form's supply taken as the number of sizes. Where
+   they cannot, another exact arrangement is tried — each pass
+   forbidding one more of the places the refused arrangement spent, so
+   the passes reach genuinely different subsets — up to eight passes,
+   and the FIRST exact arrangement stands where none of them can. A
+   form owing more cells than the whole class covers is unpayable under
+   every split and is not asked, so an arrangement is never refused for
+   failing to do the impossible. The supply is COUNTED rather than
+   walked because this asks only whether the arithmetic exists; the
+   walk of step 3 still reports whatever the supply then refuses, so
+   preferring an arithmetically possible arrangement can never be worse
+   than taking the first one blind.
+2. **Which form each paying level wears.** The census forms whose
+   spellings read as a class are settled over that class's levels
+   ALONE, by G8.3's arrangement, with each form's supply counted by the
+   walk of step 3 for numbers and by G8.3's own walk for the other two
+   classes.
+
+   **WHICH CLASS A FORM READS AS is its first filling (`_filled_form`
+   at step zero) — and, where that reads as no numeric class, its
+   EXPONENT filling as well** (landing 2b.13, Codex item 7 of landing
+   2b.4). `_filled_form` puts `A` in the first letter place, so
+   `%.%@%`, the form of `1.1e6`, fills to `0.0A0` and read as TEXT: the
+   form went to the word debt and never to the number debt, and the
+   four held-back cells of a column publishing `1.1e6` and `1.2e6` on
+   twenty-two rows were written `1`, with the census naming `%.%@%`
+   twenty-six times, the twin wearing it twenty-two, and `synthtwin
+   validate` exiting 3 while the table passed. The exponent filling
+   puts `0` in every figure place and `E` in every letter place; where
+   it reads as a NUMBER the form reads as a number. Only NUMBER is
+   answered this way — the other two classes are constructed outright
+   by G10.3 — and a form whose letter places would have to DIFFER is
+   answered exactly as before, which is the stated limit of the rule.
+
+   **A NUMBER FORM HAS TWO SUPPLIES, and the walk takes the second
+   where the first is empty** (same landing). Step 3 spells a PLAIN
+   decimal, whose form is `%.%` and never `%.%@%`, so a form the ladder
+   cannot spell has ladder supply nought and would be settled over no
+   level at all. Its supply is therefore the LARGER of the ladder's and
+   its own filling's, and a level owing such a form that step 3 cannot
+   spell takes the form's own walk instead — `9.6E6`, which wears the
+   form and reads as a number, so it meets the census and the class
+   count together. The number's LOCATION is still nothing the
+   description places, and the report says so in those words. A level given no form
    wears none the census names, because a spelling of a named form counts
    toward that form and a level settled without it would overpay it. A form
    whose spellings read as a numeric class is then taken out of the
@@ -5847,8 +5902,17 @@ for.
    column the free-text promise was written for.
 
    **A FORM IS OFFERED ONLY TO A GROUP OF THE CLASS IT READS AS**
-   (landing 2b.4). A form's class is the class its first filling reads
-   as. An ask a group could never meet still spent the form's debt and
+   (landing 2b.4). A form's class HERE is the class its FIRST filling
+   reads as, and that is deliberately narrower than G8.3a's, which since
+   landing 2b.13 asks the exponent filling as well. The asymmetry is
+   named rather than left to be found: G8.3a settles the held-back
+   levels of a column of LABELS, where a form the census names is owed
+   by a known number of cells and the walk can be told to wear it,
+   while this step packs a free-text column's groups against the class
+   and alphabet counts at the same time, and widening which forms count
+   as numbers here moves that packing. Widening it was not measured, so
+   it was not done. An ask a group could never meet still spent the
+   form's debt and
    the length budget, so a column of readings beside comments owing
    forty-four cells of `%.%` gave that form to one group. Ordinary text
    is offered the text forms by the walk above. **A number's form is
