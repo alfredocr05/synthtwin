@@ -3483,6 +3483,19 @@ class _Cells:
     # number at all and matches nothing -- so the outlier pass carried
     # off forty cells the person had explicitly said to keep, and the
     # column's presence, statistics and role moved with them.
+    #
+    # A TALLY BUILT FROM CORES CARRIES IT TOO, and three of them did
+    # not until plan P4-D108. The cores of an affixed column are
+    # classified UNDER the declaration and were then counted into a
+    # record built without it, so every rule that asks the record
+    # which grammar this column writes answered for an undeclared
+    # column while reading cells that had been read as declared ones.
+    # Measured, 800 cells of `92.959,11 EUR` at floor eleven:
+    # `group_separator: ""` and `thousands_marks: {}` about a column
+    # where 800 of 800 cells carry a grouping point, a twin writing
+    # `62391,86 EUR` with the mark on none of them, and exit 0 on both
+    # files. The classification and the record are one decision and
+    # are passed together at every site that builds one.
     decimal_comma: bool
     numbers: list[float]
     n_out_of_range: int
@@ -9589,6 +9602,12 @@ def _wrapper_tally(
     are classified once and a second pass over the same cells is a
     second answer waiting to differ from the first.
 
+    THE RECORD CARRIES THE DECLARATION ITS CELLS WERE CLASSIFIED
+    UNDER (plan P4-D108). It did not, and the cores were classified as
+    a declared column's while the record said they were not, so the
+    mark between thousands was read in the wrong grammar for every
+    wrapper of every declared column.
+
     Guarantees: accepts the column's affixed reading, one wrapper of
     it, and the cells it was read from; returns the tally of that
     wrapper's cores, in row order, with that wrapper's own count as its
@@ -9600,7 +9619,10 @@ def _wrapper_tally(
         if affixed.wrappers[place] == wrapper:
             worn += [affixed.cores[place]]
     return _tally(
-        _classify_all(worn, cells.decimal_comma), len(worn), cells.settings
+        _classify_all(worn, cells.decimal_comma),
+        len(worn),
+        cells.settings,
+        cells.decimal_comma,
     )
 
 
@@ -9624,11 +9646,21 @@ def _affixed_verdict(
     that conflicts with itself, is counted exactly as it would be on a
     plain numeric column -- and the statistics are computed over the
     cores that hold, never over the cells.
+
+    AND UNDER THE SAME DECLARATION, WHICH THE RECORD NOW CARRIES (plan
+    P4-D108). The cores were classified with the declaration and
+    tallied without it, so `_group_separator` and `_thousands_marks`
+    -- which read the grammar off the record and never off the column
+    -- asked the undeclared question of a declared column's cores: a
+    European price column grouping its thousands with a point
+    published no mark at all, and its twin wrote every cell ungrouped
+    at exit 0 on both files.
     """
     core_cells = _tally(
         _classify_all(affixed.cores, cells.decimal_comma),
         cells.n_rows,
         cells.settings,
+        cells.decimal_comma,
     )
     n_core_numeric = len(core_cells.numbers)
     # `whole_everywhere` over the CORES, on the same test the numeric
@@ -9832,6 +9864,11 @@ def _cores_judged(
     exactly as they are on a numeric column: as the number, through the
     standing verdict machinery.
 
+    ITS TALLY CARRIES THE DECLARATION TOO (plan P4-D108), for the
+    reason the record's own field states: a tally built from cells
+    classified under a declaration and recorded as undeclared is one
+    fact answered two ways.
+
     IT TAKES THE DECLARATION BECAUSE ITS CALLER DECIDED THE ROLE WITH
     ONE, and asking the reading a different question than the caller
     asked was a defect. `--measurement` carries an address-shaped
@@ -9871,6 +9908,7 @@ def _cores_judged(
         _classify_all(reading.cores, cells.decimal_comma),
         cells.n_rows,
         settings,
+        cells.decimal_comma,
     )
     if _numeric_looking(cores) < _needed(
         settings.minimum_parse_rate, len(cores.present)

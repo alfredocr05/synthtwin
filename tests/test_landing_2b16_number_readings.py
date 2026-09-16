@@ -399,6 +399,162 @@ def test_an_undeclared_column_of_prices_is_left_exactly_as_it_was(
     assert real_exit == 0
 
 
+def _euro_grouped_prices(seed: int) -> "list[str]":
+    """A European price export that GROUPS its thousands, seeded.
+
+    `92.959,11 EUR`: the point between thousands and the comma before
+    the cents, which is how a German, Spanish or Italian export writes
+    a four-figure amount. Every cell is at or past a thousand, so every
+    cell proves the mark.
+    """
+    draw = random.Random(seed)
+    out: "list[str]" = []
+    for _ in range(ROWS):
+        amount = draw.randrange(100000, 9999999) / 100
+        whole = int(amount)
+        cents = int(round((amount - whole) * 100))
+        grouped = f"{whole:,}".replace(",", ".")
+        out += [f"{grouped},{cents:02d} EUR"]
+    return out
+
+
+def _grouping_in(core: str) -> "tuple[int, bool]":
+    """How many whole figures this core writes, and whether it is grouped."""
+    figures = 0
+    for letter in core:
+        if letter == ",":
+            break
+        if letter != ".":
+            figures += 1
+    pointed = False
+    for letter in core:
+        if letter == ".":
+            pointed = True
+    return figures, pointed
+
+
+@pytest.mark.parametrize("seed", EUROPEAN_SEEDS)
+def test_a_declared_european_price_that_groups_its_thousands_keeps_the_mark(
+    seed: int, tmp_path: pathlib.Path
+) -> None:
+    """THE DEFECT, AS A TEST (plan P4-D108, the skeptic's MAJOR finding).
+
+    The tally the affixed block reads its cores off was built WITHOUT
+    the declaration the cores were classified under, so every rule that
+    asks the record which grammar this column writes -- the mark between
+    thousands above all -- answered for an undeclared column. Measured
+    on the base of this repair, 800 cells of `92.959,11 EUR` at floor
+    eleven: `group_separator: ""` and `thousands_marks: {}` about a
+    column where 800 of 800 cells carry a grouping point, the twin
+    wrote `62391,86 EUR` with 0 of 800 grouped, and the twin AND the
+    real table validated at exit 0 with nothing missed -- so a spelling
+    every real cell wore was lost in silence.
+    """
+    cells = _euro_grouped_prices(seed)
+    folder = tmp_path / f"grouped-{seed}"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, cells, str(seed), DECLARED
+    )
+    assert first["role"] == "affixed_number"
+    # THE MARK THE CORES WEAR, read in the column's OWN grammar: the
+    # point `42.037,34` writes, never the comma that column spends on
+    # its decimals.
+    assert first["group_separator"] == "."
+    assert first["thousands_marks"] == {".": ROWS}
+    # ...and the twin writes it, on every cell that can wear it.
+    grouped = 0
+    for cell in written:
+        if not cell:
+            continue
+        assert cell[len(cell) - 4 :] == " EUR", cell
+        core = cell[: len(cell) - 4]
+        assert "," in core, cell
+        figures, pointed = _grouping_in(core)
+        if figures >= 4:
+            assert pointed, cell
+            grouped += 1
+    assert grouped >= 11
+    # ...so the twin's own re-description says what its source said.
+    assert second["role"] == first["role"]
+    assert second["group_separator"] == first["group_separator"]
+    assert second["numeric_styles"] == first["numeric_styles"]
+    assert second["fraction_widths"] == first["fraction_widths"]
+    assert twin_exit == 0
+    assert real_exit == 0
+    assert _missed(folder) == []
+
+
+def test_a_declared_grouped_column_keeps_its_mark_beside_a_kept_stand_in(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The stand-in pass reads the cores in the same grammar (P4-D108).
+
+    The third tally built from cores is the one the stand-in judgement
+    runs over, and it dropped the declaration exactly as the other two
+    did. A column carrying `-999,0 EUR` the owner has told this tool to
+    KEEP must still publish the mark its other cells wear.
+    """
+    cells = _euro_grouped_prices(3)
+    kept = 20
+    for step in range(kept):
+        cells[step * 7] = "-999,0 EUR"
+    folder = tmp_path / "grouped-kept"
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        folder,
+        cells,
+        "3",
+        DECLARED + ("--keep-value", "-999,0 EUR"),
+    )
+    assert first["role"] == "affixed_number"
+    assert first["n_present"] == ROWS
+    assert first["group_separator"] == "."
+    assert first["thousands_marks"] == {".": ROWS - kept}
+    written_grouped = 0
+    for cell in written:
+        if not cell:
+            continue
+        figures, pointed = _grouping_in(cell[: len(cell) - 4])
+        if figures >= 4 and pointed:
+            written_grouped += 1
+    assert written_grouped >= 11
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_an_undeclared_grouped_price_column_still_publishes_the_comma(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The no-regression control, on the shape the repair moves.
+
+    `92,959.11 EUR` declared nothing is the commonest grouped affix
+    there is, and it must come back exactly as it always did: a comma
+    between thousands, a point before the cents. A repair that reached
+    an undeclared column would move every affixed column in the world.
+    """
+    draw = random.Random(29)
+    cells = [
+        f"{draw.randrange(100000, 9999999) / 100:,.2f} EUR"
+        for _ in range(ROWS)
+    ]
+    folder = tmp_path / "undeclared-grouped"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, cells, "29", ()
+    )
+    assert first["role"] == "affixed_number"
+    assert first["group_separator"] == ","
+    assert first["thousands_marks"] == {",": ROWS}
+    assert second["group_separator"] == ","
+    for cell in written:
+        if not cell:
+            continue
+        core = cell[: len(cell) - 4]
+        assert "," in core, cell
+        assert "." in core, cell
+    assert twin_exit == 0
+    assert real_exit == 0
+    assert _missed(folder) == []
+
+
 def test_a_column_of_month_codes_keeps_its_two_character_field(
     tmp_path: pathlib.Path,
 ) -> None:
