@@ -3344,6 +3344,7 @@ def _pad_places(
     styles: "list[str]",
     holds: "list[float]",
     whole_column: bool,
+    forms: "dict[str, int] | None" = None,
 ) -> "list[int]":
     """Which field width each padded cell is written at, or -1 for none.
 
@@ -3408,6 +3409,24 @@ def _pad_places(
     # form leaves of a count is theirs. Measured before this tier: 800
     # plus-signed keys twenty figures wide published `pad_widths {}` and
     # the twin wrote every one of them at eighteen.
+    #
+    # BUT ONLY AS MANY AS THE CENSUS HAS PLUS-SIGNED PADDED CELLS FOR. The
+    # census counts every `leading_zero` cell, so what it counts past the
+    # published `leading_zero` count is the padded plus cells and nothing
+    # else; where the padded form fell short of its own share, a plus
+    # cell padded to make up the count would wear a spelling -- `+01` --
+    # no cell of the source wore. Measured without this bound on eight
+    # `+1`, eight `-99` and nine `-02`: the twin drew eight values for the
+    # nine padded cells and wrote one `+01`.
+    plus_budget = 0
+    for key in sorted(widths):
+        plus_budget = plus_budget + widths[key]
+    if forms is not None and "leading_zero" in forms:
+        plus_budget = plus_budget - forms["leading_zero"]
+    else:
+        for style in styles:
+            if style == "leading_zero":
+                plus_budget = plus_budget - 1
     for tier in ("leading_zero", "leading_plus"):
         # THE CELLS THIS WALK MAY PLACE, GROUPED BY THE VALUE THEY HOLD.
         groups: "dict[float, list[int]]" = {}
@@ -3442,6 +3461,9 @@ def _pad_places(
         # group is divided only to finish a count that nothing else can.
         for width in sorted(quotas):
             owing = left[width]
+            if tier == "leading_plus":
+                owing = min(owing, max(0, plus_budget))
+            asked = owing
             ranked: "list[tuple[int, float]]" = []
             for value in seen:
                 waiting = 0
@@ -3474,7 +3496,9 @@ def _pad_places(
                         continue
                     places[index] = width
                     owing = owing - 1
-            left[width] = owing
+            left[width] = left[width] - (asked - owing)
+            if tier == "leading_plus":
+                plus_budget = plus_budget - (asked - owing)
     # A cell no count could hold takes the narrowest PUBLISHED width
     # its value can still wear, over that width's count rather than
     # outside the census altogether. A cell left to its own value
@@ -12656,7 +12680,8 @@ def _number_cells(
         facts.integer_valued,
     )
     pads = _pad_places(
-        facts.pad_widths, styles, holds, facts.integer_valued
+        facts.pad_widths, styles, holds, facts.integer_valued,
+        facts.numeric_styles,
     )
     plussed, plus_notes = _plus_places(column, facts, styles, holds)
     base: list[str] = []

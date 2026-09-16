@@ -1998,13 +1998,17 @@ def pad_need(value, integer_valued):
     return len(text) - 1 if text.startswith("-") else len(text)
 
 
-def pad_places(census, styles, values, integer_valued):
+def pad_places(census, styles, values, integer_valued, forms=None):
     """Which field width each padded cell is written at, or -1 -- G6.3.
 
     Every width the census NAMES is a quota.  The cells are served in two
     tiers (plan P4-D145): first those styled ``leading_zero``, then those
     styled ``leading_plus`` whose value is whole and not negative, each
-    tier from what the widths still owe.  Inside a tier the cells are
+    tier from what the widths still owe -- and the second tier pads no
+    more cells in all than the census counts past the published
+    ``leading_zero`` count (or, where that form is not named, past the
+    cells styled ``leading_zero``), which is how many plus-signed padded
+    cells the census holds.  Inside a tier the cells are
     grouped by the value they hold, in first-seen order; widths are served
     narrowest first; a value may take a width only where its own figures
     are FEWER than the width, so at least one zero is written; the groups
@@ -2021,6 +2025,11 @@ def pad_places(census, styles, values, integer_valued):
     if not quotas:
         return places
     left = dict(quotas)
+    plus_budget = sum(census.values())
+    if forms is not None and "leading_zero" in forms:
+        plus_budget -= forms["leading_zero"]
+    else:
+        plus_budget -= sum(1 for style in styles if style == "leading_zero")
     for tier in ("leading_zero", "leading_plus"):
         groups = {}
         seen = []
@@ -2039,6 +2048,9 @@ def pad_places(census, styles, values, integer_valued):
             seen.append(value)
         for width in sorted(quotas):
             owing = left[width]
+            if tier == "leading_plus":
+                owing = min(owing, max(0, plus_budget))
+            asked = owing
             ranked = []
             for value in seen:
                 waiting = sum(1 for index in groups[value] if places[index] < 0)
@@ -2064,7 +2076,9 @@ def pad_places(census, styles, values, integer_valued):
                         continue
                     places[index] = width
                     owing -= 1
-            left[width] = owing
+            left[width] -= asked - owing
+            if tier == "leading_plus":
+                plus_budget -= asked - owing
     for index, style in enumerate(styles):
         if style != "leading_zero" or places[index] >= 0:
             continue
@@ -8699,7 +8713,8 @@ def _numeric_content(column):
     styles = plus_style_exchange(signed, styles, cell_values, integer_valued)
     # THE NAMED FIELD WIDTHS (G6.3), placed once the styles are settled.
     pads = pad_places(
-        column.get("pad_widths", {}), styles, cell_values, integer_valued
+        column.get("pad_widths", {}), styles, cell_values, integer_valued,
+        column["numeric_styles"],
     )
     mark = grouping_mark_of(column)
     negative = column.get("negative_form", "minus")

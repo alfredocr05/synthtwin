@@ -1855,10 +1855,12 @@ def _asked_with_the_published_mark(census, published):
     return published
 
 
-def _pads_on_the_padded_form_alone(census, styles, values, integer_valued):
+def _pads_on_the_padded_form_alone(
+    census, styles, values, integer_valued, forms=None
+):
     """Plan P4-D145's second tier withdrawn: no plus-signed cell is padded."""
     masked = ["plain" if style == "leading_plus" else style for style in styles]
-    return gen_pad_places(census, masked, values, integer_valued)
+    return gen_pad_places(census, masked, values, integer_valued, forms)
 
 
 def _apart_without_the_fill(

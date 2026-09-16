@@ -553,3 +553,22 @@ def test_a_saturated_integer_grid_keeps_every_number(
         assert float(value) == int(float(value)), value
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
+
+
+def test_a_plus_is_never_padded_past_the_census_of_padded_plus_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The second tier's bound (plan P4-D145), on a column with no padded plus.
+
+    Eight `+1`, eight `-99` and nine `-02`: every padded cell of the source
+    is `leading_zero`, so the census holds no plus-signed padded cell. The
+    twin draws eight values for the nine padded cells, and without the
+    bound the second tier made up the count with `+01`, a spelling no cell
+    of the source wore.
+    """
+    rows = [["+1"]] * 8 + [["-99"]] * 8 + [["-02"]] * 9
+    for seed in ("3", "11", "29"):
+        run = _round_trip(tmp_path / f"signed{seed}", ["reading"], rows, seed, floor="1")
+        assert run["first"]["pad_widths"] == {"2": 9}
+        written = {row[0] for row in run["rows"] if row[0]}
+        assert not [cell for cell in written if cell[:2] == "+0"], written

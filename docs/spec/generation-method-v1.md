@@ -1972,10 +1972,15 @@ cells, a ceiling of one. Two rules follow and both are normative:
    are served in TWO TIERS: first every cell styled `leading_zero`,
    exactly as above, and then, from what each width still owes, the
    cells styled `leading_plus` whose value is whole and not negative,
-   by the same narrowest-first, whole-value-first walk. A plus cell given
-   a width is written with its zeros after the plus, `+` and then the
-   field, and wears no mark; a plus cell given none is written as
-   before. The fallback that hands an unplaced cell the narrowest
+   by the same narrowest-first, whole-value-first walk -- and the second
+   tier pads no more cells in all than the census counts past the
+   published `leading_zero` count (past the cells styled `leading_zero`
+   where that form is not named), which is how many plus-signed padded
+   cells the census holds: where the padded form falls short of its own
+   share, a plus padded to make up the count would wear a spelling, `+01`,
+   no cell of the source wore. A plus cell given a width is written with
+   its zeros after the plus, `+` and then the field, and wears no mark; a
+   plus cell given none is written as before. The fallback that hands an unplaced cell the narrowest
    published width it can wear reaches `leading_zero` cells alone,
    because only they are padded by their form. Measured before the
    second tier: 800 keys written `+` and twenty figures, at a floor of
