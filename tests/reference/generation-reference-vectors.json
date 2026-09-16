@@ -767,6 +767,7 @@
         "n_zero": 0,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -1409,7 +1410,9 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
-        "value_histogram": {}
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "1e-05",
@@ -2309,6 +2312,7 @@
         "n_zero": 4,
         "name": "column_1",
         "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -2949,7 +2953,9 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
-        "value_histogram": {}
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "-8",

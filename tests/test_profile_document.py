@@ -345,8 +345,26 @@ def test_nothing_that_varies_between_runs_is_written(
 # role, spelling or value of any column, and the demonstration's twin
 # bytes did not move either, because the demonstration has no column
 # where a declaration and a judgement share a candidate.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2):
+# every numeric block gained the two mixture censuses `negative_notations`
+# and `thousands_marks`, and `decimal_plus` moved from `{}` to
+# `{"(unavailable)": 0}` wherever the column wrote a cell with a point --
+# the state nought now shares with every below-floor count, so that a
+# reader cannot tell "no cell carried a plus" from "one did". Read as a
+# diff of the two documents: those are the only keys that moved, and no
+# count, statistic, label, role or spelling of any column changed.
+# RE-RECORDED AT THE MERGE OF LANDINGS 2b.6 AND 2b.7 (2026-09-16), and
+# the cause is the two landings' own keys side by side, measured both
+# ways on the same harness that reproduces each side's committed digest.
+# Against the tree before the merge (2b.6), only landing 2b.7's keys
+# moved: `negative_notations`, `thousands_marks` and `wide_runs` arrived
+# on every numeric block and `decimal_plus` became `{"(unavailable)": 0}`
+# on the two columns writing a point. Against landing 2b.7's own tree,
+# only landing 2b.6's keys moved: the four written-form censuses of
+# `recorded_on`, its `n_at_midnight` null, and the `-999` spellings of
+# the `reading` decision. No other key, count or value moved.
 GOLDEN_SHA256 = (
-    "020e296babb0fcdd0991c8fa23152f48d5cba59eb8c6acc468b0a39309e3d72a"
+    "77d2795859decefd846bdfd7de518b315a3c0a5730f0a6f1caf827c5a4776460"
 )
 
 

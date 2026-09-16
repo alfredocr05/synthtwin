@@ -1531,6 +1531,58 @@ def _floor_cells(
     return _rebuilt(rows)
 
 
+def _floor_signed_cells(
+    described: contract.Profile, text: str, index: int, value: str
+) -> str:
+    """The floor's worth of cells signed, leaving the complement behind.
+
+    LANDING 2b.7, AND THE REASON THIS EDIT NEEDED A CHOICE. Since plan
+    P4-D65.1 the signed-decimal census is published only where the count
+    NAMES a group and the cells written with a point that carry no plus
+    name one too -- the complement clause, without which "1,195 of these
+    1,200 are signed" names the five that are not. So an edit meant to
+    make `spelling.decimal_plus` miss has to leave a file whose own
+    count is NAMEABLE, and `_floor_cells` cannot promise that: it
+    overwrites whichever cells come first, and on the pooled fixture it
+    consumed two of that column's twelve decimal cells, leaving eleven
+    signed against a complement of ten. Ten is below the floor, so the
+    census was unnameable, the verdict HELD, and the red case proved
+    nothing -- measured, not argued.
+
+    Writing into cells that carry NO POINT fixes it, and makes the edit
+    better aimed besides: the column keeps every unsigned decimal cell
+    it had, so the complement is whatever it was before. On the pooled
+    fixture that is twelve, which clears the floor. Where a column has
+    too few point-free cells -- a column of decimals almost throughout
+    -- the walk takes decimal cells for the rest rather than give up,
+    and such a column has decimals to spare for the complement anyway.
+
+    A cell is judged by whether it holds a point, which takes the
+    exponent forms with it. That is a deliberate over-approximation: the
+    question here is only which cells are the cheapest to spend, and
+    spending an exponent cell would be as sound as spending a decimal
+    one, merely less useful.
+    """
+    rows = _rows_of(text)
+    wanted = described.settings.small_cell_floor
+    first = _first_record(described)
+    written = 0
+    for pointed in (False, True):
+        for row in range(first, len(rows)):
+            if written >= wanted:
+                break
+            cell = rows[row][index]
+            if not cell or cell == value:
+                continue
+            if ("." in cell) != pointed:
+                continue
+            rows[row][index] = value
+            written = written + 1
+    if written < wanted:
+        return ""
+    return _rebuilt(rows)
+
+
 def _restyled(
     described: contract.Profile, text: str, index: int, style: str
 ) -> str:
@@ -1567,20 +1619,48 @@ def _one_figure_more(cell: str) -> str:
     values already shorter than that produces a DIFFERENT number whose
     own shortest spelling it then is -- so it moves the ladder and never
     reaches the spelling. This one moves nothing but the characters: a
-    trailing zero after the point, or one inside the mantissa of an
-    exponent form, or a `.00` on a whole one. The value the cell reads
-    back as is the value it held, and the text is a spelling no style of
-    method G6.1 can write for it.
+    trailing zero after the point, or a `.00` on a whole one. The value
+    the cell reads back as is the value it held, and the text is a
+    spelling nothing may write for it.
+
+    THE EXPONENT EDIT WAS RE-CHOSEN BY LANDING 2b.7, AND THE CAUSE IS
+    THAT THE OLD ONE STOPPED BEING WRONG. It used to pad the MANTISSA,
+    turning `1e-05` into `1.00e-05` -- and a mantissa padded to a fixed
+    count of figures is exactly what Excel and SAS write, so plan
+    P4-D66.2 now admits it as a spelling of the value the cell reads
+    back as. The edit went green, and this file's own guard caught it:
+    a registered red case that no longer misses the site it names is a
+    subcheck nothing in this suite shows can fail. Measured both ways
+    round -- with this function reverted to its old text, BOTH
+    `test_every_registered_red_case_misses_the_site_it_names` and
+    `test_the_coverage_identity_walks_the_shipped_table` fail again.
+
+    So the exponent edit now MISPAIRS the mantissa with its exponent
+    instead: `1e-05` becomes `10e-06`, two figures before the point
+    against an exponent one smaller. It reads back as the same number,
+    it is a spelling no writer produces, and the padded-mantissa rule
+    refuses it BY NAME, because that rule requires the value's own
+    decimal place. The edit is still "one figure more" than the
+    shortest spelling, which is what this function is called.
     """
     for marker in ("e", "E"):
         for index in range(len(cell)):
             if cell[index] != marker:
                 continue
             head = cell[:index]
-            tail = cell[index:]
-            if "." not in head:
-                head = f"{head}.0"
-            return f"{head}0{tail}"
+            power = int(cell[index + 1 :])
+            if "." in head:
+                # A mantissa that already carries a point: move the
+                # point one place right and drop the exponent to match.
+                point = head.find(".")
+                figures = f"{head[:point]}{head[point + 1 :]}"
+                if len(figures) > point + 1:
+                    head = f"{figures[: point + 1]}.{figures[point + 1 :]}"
+                else:
+                    head = figures
+            else:
+                head = f"{head}0"
+            return f"{head}{marker}{power - 1:+03d}"
     if "." in cell:
         return f"{cell}0"
     return f"{cell}.00"
@@ -2288,12 +2368,20 @@ def _column_perturbations(
         built = built + _pair_perturbations(described, twin, index, name, pair)
     if column.role in ROLES_WITH_NUMBERS:
         for tag, value in FLOOR_STYLE_VALUES:
+            # THE SIGNED-DECIMAL EDIT CHOOSES ITS CELLS (landing 2b.7).
+            # Its site is published only where the count and its
+            # complement both name a group, so an edit that spends the
+            # column's unsigned decimal cells can leave the census
+            # unnameable and the check HELD. `_floor_signed_cells`
+            # spends point-free cells first and leaves the complement
+            # where it was; every other tag keeps the plain walk.
+            made = (
+                _floor_signed_cells(described, source, index, value)
+                if tag == "signed"
+                else _floor_cells(described, source, index, value)
+            )
             shaped = shaped + [
-                (
-                    f"floor-{tag}-{name}",
-                    CLASS_SPELLING,
-                    _floor_cells(described, source, index, value),
-                )
+                (f"floor-{tag}-{name}", CLASS_SPELLING, made)
             ]
     if column.role in ROLES_WITH_NUMBERS:
         shaped = shaped + [
@@ -4909,6 +4997,9 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "styles.at-least.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the wide-run ceiling on the numeric HALF, which binds
+    # that half's own published word (landing 2b.13, plan P4-D90).
+    ("compound", "styles.canonical.wide"): "numeric.wide_runs",
     ("compound", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_zero"): "numeric.numeric_styles",
@@ -4962,6 +5053,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 1 styles.at-least.plain'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.decimal'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.exponent_lower'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.canonical.wide'): 'joined.parts[0].wide_runs',
     ("joined", 'number 1 styles.exact.exponent_upper'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_plus'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_zero'): 'joined.parts[0].numeric_styles',
@@ -4985,6 +5077,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 2 styles.at-least.plain'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.decimal'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.exponent_lower'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.canonical.wide'): 'joined.parts[1].wide_runs',
     ("joined", 'number 2 styles.exact.exponent_upper'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_plus'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_zero'): 'joined.parts[1].numeric_styles',
@@ -5360,6 +5453,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.at-least.plain"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13, plan P4-D90), which binds its own
+    # published word rather than the forms map.
+    ("numeric", "styles.canonical.wide"): "numeric.wide_runs",
     ("numeric", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",
@@ -5456,6 +5553,15 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # stretch, and neither position of this column leaves one. A
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
+        # THE TWO MIXED CONVENTIONS, ONE LEVEL DOWN (landing 2b.7). A
+        # position is read from figures and one point alone, so it can
+        # wear no notation and no mark at all: invariants NS2 and TM1
+        # hold both censuses EMPTY there, and an empty census is listed
+        # rather than checked.
+        "joined.parts[0].negative_notations",
+        "joined.parts[0].thousands_marks",
+        "joined.parts[1].negative_notations",
+        "joined.parts[1].thousands_marks",
         "joined.parts[0].field_widths",
         # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
         # 2026-09-04: amendment A-P4-55 makes the count of different
@@ -5488,6 +5594,15 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # `SUBCHECK_FACTS` beside the checks, which is what tells a reader
     # they are the same obligations under another answer.
     "compound": (
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2), which
+        # are CHECKED where a column wore more than one notation or more
+        # than one mark and LISTED where it wore one or none. This half
+        # wears one of each, as every fixture column here does, so both
+        # are listed: the single convention each column did wear is
+        # `negative_form` or `group_separator`, published beside these
+        # censuses and checked in its own right.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
         # amendment A-P4-55 makes the count of different numbers an
@@ -5630,6 +5745,16 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # keys, listed together: the bins say WHICH stretches there
         # are and the edges say where each really begins and ends.
         "numeric.empty_edges",
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2). Not
+        # REPORT-ONLY: both are EXACT-OBSERVABLE and are CHECKED on any
+        # column that wore more than one notation or more than one mark.
+        # They are listed HERE because no column of these fixtures wears
+        # two of either, which is the ordinary case -- a column wearing
+        # one convention has it published in `negative_form` or
+        # `group_separator` and checked there, so a check of the census
+        # beside it would hold one obligation twice.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).

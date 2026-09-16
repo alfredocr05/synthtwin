@@ -212,11 +212,26 @@ def check_identifiers(paths: list[pathlib.Path]) -> list[str]:
                 opened.add(_identifier(match))
             for match in _PROSE_DEFINITION.finditer(text[start:end]):
                 line = text[: start + match.start()].count("\n") + 1
-                for named in _CITATION.finditer(match.group(1)):
-                    if _identifier(named) not in opened:
-                        bucket[_identifier(named)].append(
-                            f"{path.name}:{line}"
-                        )
+                named_here = [
+                    _identifier(named)
+                    for named in _CITATION.finditer(match.group(1))
+                ]
+                # A SINGULAR PROSE DEFINITION COUNTS ON ITS OWN, and the
+                # deduplication below belongs to the PLURAL introduction
+                # alone. "their identifiers are P6c, P7c and P9c" names
+                # rules each opened as a bullet of its own, so counting
+                # the plural again would report every one of them twice.
+                # "One binds, and its identifier is Q20" states the rule
+                # in the paragraph it opens, so it IS the definition --
+                # and skipping it wherever a bold opener had already
+                # been seen in the region hid the mixed pair: a bold
+                # `**Q20 (a count).**` beside a prose `its identifier is
+                # Q20` reported nothing, while two bold openers or two
+                # prose sentences each reported the collision.
+                for name in named_here:
+                    if len(named_here) > 1 and name in opened:
+                        continue
+                    bucket[name].append(f"{path.name}:{line}")
 
     for name, sites in sorted(defined.items()):
         if len(sites) > 1:

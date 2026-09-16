@@ -169,14 +169,41 @@ WRITTEN_FORM_FACTS = (
     "datetime.quarter_marker_case",
     "datetime.zulu_case",
 )
+# ...and the TWELFTH and THIRTEENTH (landing 2b.7): the two mixed-convention
+# censuses. Each is CHECKED on a column that wore more than one notation
+# or more than one mark and LISTED where it wore one or none, which on
+# this demonstration -- whose every column wears a single convention --
+# is every numeric-family column. They are set aside from the frozen
+# census the way the eleven above are, so the 2026-09-04 baseline has to
+# come back character for character rather than be re-recorded against a
+# larger number.
+NEGATIVE_NOTATIONS_FACT = "numeric.negative_notations"
+THOUSANDS_MARKS_FACT = "numeric.thousands_marks"
+# ...and the FOURTEENTH to arrive after that baseline was frozen (plan
+# P4-D90, landing 2b.13, 2026-09-16). `wide_runs` says whether a
+# column's runs of figures past what a double keeps are the text their
+# own values write, and its ceiling is EXECUTABLE only where the column
+# publishes `canonical`. Every numeric column of the demonstration
+# publishes `none` -- no cell of it reaches 2**53 -- so each lists the
+# fact once with the sentence saying there is no such cell to govern,
+# and the count rises by exactly those four columns.
+#
+# SET ASIDE RATHER THAN FOLDED IN, on the doctrine the eight above
+# follow: re-recording 126 as 130 would bless whatever else moved
+# beside them. With this key's own listings taken out the frozen
+# baseline must still reproduce character for character.
+WIDE_RUNS_FACT = "numeric.wide_runs"
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
+    WIDE_RUNS_FACT,
     EMPTY_BIN_FACT,
     EMPTY_EDGE_FACT,
     GROUP_SEPARATOR_FACT,
     DATETIME_SEPARATORS_FACT,
     ALL_AT_MIDNIGHT_FACT,
     N_AT_MIDNIGHT_FACT,
+    NEGATIVE_NOTATIONS_FACT,
+    THOUSANDS_MARKS_FACT,
 ) + WRITTEN_FORM_FACTS
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
@@ -471,6 +498,28 @@ def test_widening_the_demonstration_lost_no_obligation(
         "dose|numeric.field_widths|",
         "reading|numeric.field_widths|",
         "visits|numeric.field_widths|",
+    ]
+    # ...and the two mixed-convention censuses are listed on those SAME
+    # four columns and nowhere else (landing 2b.7), named rather than
+    # counted. Every column of this demonstration wears one notation and
+    # one mark, so each census names fewer than two conventions and is
+    # listed rather than checked; a run that CHECKED either here would
+    # be holding a column to a mixture it does not have, and a run that
+    # listed them on a fifth column would be publishing a census on a
+    # column that carries no numeric block at all.
+    assert sorted(
+        entry
+        for entry in listings
+        if NEGATIVE_NOTATIONS_FACT in entry or THOUSANDS_MARKS_FACT in entry
+    ) == [
+        "amount|numeric.negative_notations|",
+        "amount|numeric.thousands_marks|",
+        "dose|numeric.negative_notations|",
+        "dose|numeric.thousands_marks|",
+        "reading|numeric.negative_notations|",
+        "reading|numeric.thousands_marks|",
+        "visits|numeric.negative_notations|",
+        "visits|numeric.thousands_marks|",
     ]
     # ...and the mark between thousands is listed NOWHERE now: it was
     # listed on the same four columns until landing 2b.2 made it a check,
@@ -860,8 +909,25 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # BYTES DID NOT MOVE -- GOLDEN_TWIN_SHA256 below is untouched -- because
 # no column of this demonstration has a declaration and a judgement
 # sharing one candidate, which is the case the key was published for.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2):
+# every numeric block gained the two mixed-convention censuses
+# `negative_notations` and `thousands_marks`, both EMPTY because no
+# column of this demonstration wears two notations or two marks, and
+# `decimal_plus` moved from `{}` to `{"(unavailable)": 0}` wherever the
+# column writes a cell with a point. The profile golden in
+# tests/test_profile_document.py diagnoses the same change, and the
+# twin's own digest below did NOT move: an empty census names no
+# convention, so the generator writes the published majority for every
+# cell exactly as it did before these keys existed.
+# RE-RECORDED AT THE MERGE OF LANDINGS 2b.6 AND 2b.7 (2026-09-16), for
+# the cause recorded beside the profile golden: diffed both ways, the
+# description moved against each side only in the other landing's keys.
+# THE TWIN'S OWN BYTES DID NOT MOVE from landing 2b.6's recording --
+# GOLDEN_TWIN_SHA256 is 2b.6's -- because 2b.7's censuses are empty here
+# and an empty census writes the published majority, as both landings
+# measured.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "a71bcfa5b7f636e9571b8f4007a852b4fca32683cb71d7628bcdeca0f5f68904"
+    "65b2c4dec551d97043bcf1e2ecb373d6d98c31a128e77fa741168e2df1c0dfc7"
 )
 
 
@@ -1928,8 +1994,47 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # own cells moved: each of the nine interior rungs is now measured AT its
 # published value rather than a day or more below it, and the window it
 # is measured against is that value rather than a band around its slice.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2).
+# The description above moved, so this report is built from different
+# bytes; what it SAYS moved too, in exactly two ways. Every numeric
+# block now LISTS the two mixed-convention censuses, because no column
+# of this demonstration wears two notations or two marks and a census
+# naming fewer than two is listed rather than checked. And
+# `spelling.decimal_plus`, whose census is now the unavailable state on
+# every column that writes a cell with a point, publishes the BAR
+# instead of the count: the line reads "below the floor" on both sides
+# and is HELD. READ BEFORE RE-RECORDING, as the message below asks: the
+# census carries no FEWER obligations than it did -- the checked count
+# is unchanged at 416 and `spelling.decimal_plus` is still executable
+# on all four of the columns that carried it, which the red battery of
+# tests/test_p3v1f2_entry_table.py asserts independently.
+# RE-RECORDED at landing 2b.13's repair pass (2026-09-16, plan P4-D91),
+# and the whole of what moved is ONE SENTENCE, printed six times. The
+# wide-run word is now held to the smallest group size, as its sibling
+# `negative_form` is by NS1, so the listing beside `none` no longer says
+# "wrote no run of figures past what a double keeps" but "wrote fewer of
+# them than the smallest group size it was described at" -- which is
+# what the word now means and what the file it describes now is.
+#
+# MEASURED RATHER THAN ASSUMED, because "only a sentence moved" is the
+# claim this digest exists to stop anyone making loosely: the report was
+# rendered from this same fixture on the commit before the repair and on
+# the repaired tree, and the two files differ in exactly 12 lines -- the
+# six listings of that sentence, each one line out and one line in. No
+# verdict, no count, no obligation and no order moved, the census still
+# carries the same obligations, and `GOLDEN_TWIN_SHA256` and
+# `GOLDEN_DESCRIPTION_SHA256` below did not move at all.
+# RE-RECORDED AT THE MERGE OF LANDINGS 2b.6 AND 2b.7 (2026-09-16), read
+# as a diff of the two reports against each side. Against 2b.6's tree
+# only 2b.7's lines moved: the mixed-convention and wide-run listings on
+# the numeric columns (NOT CHECKABLE 146 to 164) and `decimal_plus`
+# reading "fewer than 11" where it read 0. Against 2b.7's tree only
+# 2b.6's lines moved: `format.member` checked (507 to 508 obligations),
+# the four written-form listings, and the date rungs held at their
+# published values. The census carries no fewer obligations than either
+# side: 508 checked, as 2b.6 has, and every verdict otherwise unchanged.
 GOLDEN_QUALITY_SHA256 = (
-    "1414601dad33d4c223f2d0c00ece84bd13bdced0d7f6b6e437a44dcb2bdceace"
+    "89e61bed860dfe8b0019501c578d28687473cb03a09347700d0cded4ef2b0a76"
 )
 
 

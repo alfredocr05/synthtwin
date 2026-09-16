@@ -1020,8 +1020,6 @@ def floored_cap(bound, floor, numeric, distinct, longest):
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = (longest - 1) * (numeric - 1) // 100
     if distinct > 0:
         proven = max(proven, -(-numeric // distinct))
     if proven >= floor:
@@ -1927,6 +1925,92 @@ def plus_style_exchange(count, styles, values, integer_valued):
     return exchanged
 
 
+# -- the two mixture censuses (landing 2b.7) --------------------------
+
+NEGATIVE_NOTATION_ORDER = ("minus", "brackets", "minus_sign", "trailing_minus")
+GROUP_MARK_ORDER = ("", ",", ".", " ", "'", "’", " ", " ", " ")
+
+
+def mark_written(published):
+    """The mark a cell is grouped with before any exchange (G6.1).
+
+    `grouping_mark_of` asks this of the column's one published mark; a
+    census of marks asks it of each mark it names, and the rule is the
+    same one.
+    """
+    return "," if published in (",", ".") else published
+
+
+def named_conventions(census, order):
+    """The conventions a mixture census NAMES, in the enumeration's order.
+
+    The pooled remainder and the unavailable state name no convention, so
+    neither reaches a cell: what they cover is written in the column's
+    published majority, as a pooled style count is written plainly.
+    """
+    return [
+        (name, census[name])
+        for name in order
+        if name in census and census[name] > 0
+    ]
+
+
+def notation_places(census, default, styles, values):
+    """Which notation each negative cell wears (landing 2b.7, G6.1).
+
+    The cells holding a negative value are walked in cell order and each
+    named notation takes its count in turn; what no named count covers
+    wears the column's published ``negative_form``.  A trailing minus is
+    offered only to a ``decimal`` cell, because `negative_spelled` writes
+    one only where the figures carry a point.
+    """
+    worn = [default] * len(values)
+    named = named_conventions(census, NEGATIVE_NOTATION_ORDER)
+    if not named:
+        return worn
+    taken = set()
+    for notation, wanted in named:
+        placed = 0
+        for index in range(len(values)):
+            if placed >= wanted:
+                break
+            if index in taken or not values[index] < 0:
+                continue
+            if notation == "trailing_minus" and styles[index] != "decimal":
+                continue
+            taken.add(index)
+            worn[index] = notation
+            placed += 1
+    return worn
+
+
+def mark_places(census, published, groupable):
+    """Which mark each grouped cell wears (landing 2b.7, G6.1).
+
+    ``groupable`` says, per cell, whether writing it with the published
+    mark actually put a mark in it -- asked of the writer rather than
+    restated from the rules about forms, orders and four whole figures.
+    Each named mark takes its count of those cells in cell order; what no
+    named count covers wears the column's published mark.
+    """
+    worn = [published] * len(groupable)
+    named = named_conventions(census, GROUP_MARK_ORDER)
+    if not named:
+        return worn
+    taken = set()
+    for mark, wanted in named:
+        placed = 0
+        for index in range(len(groupable)):
+            if placed >= wanted:
+                break
+            if index in taken or not groupable[index]:
+                continue
+            taken.add(index)
+            worn[index] = mark_written(mark)
+            placed += 1
+    return worn
+
+
 def plus_places(count, styles, values):
     """Which cells carry a plus in front of a decimal spelling (G6.1).
 
@@ -2247,14 +2331,31 @@ def whole_number_values(
     return values
 
 
+def named_point_free(published):
+    """The point-free cells a styles map NAMES, the withheld share excluded.
+
+    ``_effective_style_map`` beside this one adds the withheld remainder
+    to ``plain``, because that is the style G6.4 writes it in.  The GRID
+    test may not read it that way: a pooled count names no form, so those
+    cells are not proved point-free (Codex review of landing 2b.1, item
+    4).
+    """
+    owed = 0
+    for style in POINT_FREE_STYLES:
+        if style in published:
+            owed += published[style]
+    return owed
+
+
 def written_grid(fraction_widths, integer_valued, numeric, point_free):
     """The grid G5.2a step 1 and G5.3 read the ladder on, or -1 (landing 2b.1).
 
     ``grid_of``'s one width where it covers every numeric cell, and ALSO the
     one width ``f > 0`` of a column whose other numeric cells are all written
     with no point: a census naming that width alone, whose count and the
-    published point-free style count (``point_free``, the withheld share
-    counted as plain) add up to every numeric cell.  A point-free cell is the
+    NAMED point-free style count (``point_free``, the withheld share
+    EXCLUDED -- an anonymous pool names no form) add up to every numeric
+    cell.  A point-free cell is the
     grid point whose last ``f`` figures are zero, so such a column -- ``37``
     beside ``37.4``, ``0`` beside ``2.5`` -- is on the grid ``f`` too.  A
     whole-valued column answers -1: G5.4 already reads it on the integers.
@@ -2295,10 +2396,20 @@ def grid_of(fraction_widths, integer_valued, numeric):
     function without it, accepting any one-key census -- so a case whose
     one width covered 11 of 33 cells would have been called a grid here
     and refused by the implementation.
+
+    A WHOLE-VALUED COLUMN IS ON THE INTEGER GRID WHATEVER ITS CENSUS
+    SAYS (landing 2b.7, plan P4-D66.3).  ``integer_valued`` says every
+    VALUE is whole and ``fraction_widths`` says how many figures each
+    cell WRITES after its point, and a column exported as ``44.0``
+    publishes both.  Reading the census here put such a column on the
+    grid of TENTHS and the separation walk moved a stratum onto
+    ``25.6``.  This read the census first and answered the integers
+    only for an EMPTY one, which is the same defect the implementation
+    carried at ``_pinned_fraction``.
     """
+    if integer_valued:
+        return 0
     if len(fraction_widths) != 1:
-        if integer_valued and not fraction_widths:
-            return 0
         return -1
     for width in fraction_widths:
         try:
@@ -7184,7 +7295,7 @@ def _numeric_content(column):
         column.get("fraction_widths", {}),
         integer_valued,
         numeric,
-        sum(effective[style] for style in POINT_FREE_STYLES),
+        named_point_free(column["numeric_styles"]),
     )
     cap = stratum_cap(column, ladder, numeric, CASE_SMALL_CELL_FLOOR)
     pair = band_strata(
@@ -7343,9 +7454,31 @@ def _numeric_content(column):
     negative = column.get("negative_form", "minus")
     # The named count of the census; a pooled count names no form.
     plussed = plus_places(signed, styles, cell_values)
+    # THE TWO MIXED CONVENTIONS, SPENT CELL BY CELL (landing 2b.7).  A cell is
+    # groupable exactly where writing it with the published mark puts a
+    # mark in it, which is asked of the writer rather than restated from
+    # the rules about forms, orders and four whole figures.
+    notations = notation_places(
+        column.get("negative_notations", {}), negative, styles, cell_values
+    )
+    groupable = [
+        styled_spelling(
+            style, value, integer_valued, 0, mark, notations[index],
+            plussed[index],
+        )
+        != styled_spelling(
+            style, value, integer_valued, 0, "", notations[index],
+            plussed[index],
+        )
+        for index, (style, value) in enumerate(zip(styles, cell_values))
+    ]
+    marks = mark_places(
+        column.get("thousands_marks", {}), mark, groupable
+    )
     content = [
         styled_spelling(
-            style, value, integer_valued, 0, mark, negative, plussed[index]
+            style, value, integer_valued, 0, marks[index], notations[index],
+            plussed[index],
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
@@ -7378,8 +7511,8 @@ def _numeric_content(column):
                 cell_values[index],
                 integer_valued,
                 order,
-                mark,
-                negative,
+                marks[index],
+                notations[index],
                 plussed[index],
             )
             if folded(raised) not in held:
@@ -7665,6 +7798,24 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         block["negative_form"] = "minus"
     if "numeric_styles" in block and "decimal_plus" not in block:
         block["decimal_plus"] = {}
+    # ...and the wide-run fact (landing 2b.13), `none` for every case
+    # that does not state its own: no source column these cases describe
+    # wrote a point-free cell at or past 2**53 -- the widest whole
+    # number any of them holds is far under it -- so the word is the one
+    # a column with no such run publishes, and their frozen cells do not
+    # move.
+    if "numeric_styles" in block and "wide_runs" not in block:
+        block["wide_runs"] = "none"
+    # ...and the two MIXTURE censuses (landing 2b.7), EMPTY for every
+    # case that does not state its own: no source column these cases
+    # describe mixed two notations or two marks, so each census names
+    # nothing and the generator writes the column's published majority
+    # for every cell -- which is exactly what these cases froze before
+    # the keys existed, so their frozen cells do not move.
+    if "numeric_styles" in block and "negative_notations" not in block:
+        block["negative_notations"] = {}
+    if "numeric_styles" in block and "thousands_marks" not in block:
+        block["thousands_marks"] = {}
     # ...and the same for the census of field widths (P4-D14), which is
     # that map's sibling and empty for every case here but one: a block
     # naming no padded cells takes a census of none.
@@ -9826,6 +9977,25 @@ def _joined_readings():
             # (landing 2b.2): a pressure is written unsigned.
             "negative_form": "minus",
             "decimal_plus": {},
+            # ...and neither census of a MIXED convention (landing 2b.7,
+            # invariants NS2 and TM1). A position is read from figures
+            # and one point alone, so it can wear no notation and no
+            # mark at all, and both censuses are empty at this depth for
+            # every joined column there can be. They are stated here
+            # rather than defaulted because a part block states its own
+            # keys: the defaults this file applies reach a COLUMN block
+            # and never a position, which is what made this case the one
+            # the loader refused when the two keys arrived.
+            "negative_notations": {},
+            "thousands_marks": {},
+            # ...and the wide-run word of this POSITION (landing 2b.13).
+            # Stated here for the same reason the two censuses above
+            # are: the defaults this file applies reach a COLUMN block
+            # and never a position. Every reading a position holds is
+            # two figures, so none of them is a run past what a double
+            # keeps and the word is the one a column with no such run
+            # publishes.
+            "wide_runs": "none",
             # The whole-number field-width census of this POSITION
             # (contract 7.10 read at that depth).  Every one of the
             # twelve readings a position holds is `plain`, and the
@@ -10311,6 +10481,50 @@ def _spaced_brackets():
     }
 
 
+def _mixed_conventions():
+    column, rungs, claims = _flat_numbers(
+        "-12345.5", 22,
+        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=22,
+        numeric_styles={"decimal": 22},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={},
+        group_separator=" ", negative_form="brackets",
+        # THE TWO MIXED CONVENTIONS OF LANDING 2b.7, each naming two.
+        negative_notations={"minus": 11, "brackets": 11},
+        thousands_marks={" ": 11, " ": 11},
+    )
+    return {
+        "why": "the two censuses landing 2b.7 adds, and the ONLY case in "
+        "either file that names more than one convention -- which is the "
+        "whole of what it is for. `negative_form` and `group_separator` "
+        "publish a column's MAJORITY, and until this landing the twin "
+        "wrote every cell that way, so a column mixing two came back "
+        "written wholly as one with every check passing. Where a census "
+        "names ONE convention nothing can show that: the census path and "
+        "the majority path write the same cell, so a mutant that withdraws "
+        "the census is invisible. Here each census names two at eleven "
+        "cells apiece, so the cells divide and a mutant moves them. Every "
+        "cell is minus twelve thousand three hundred and forty-five and a "
+        "half. EACH CENSUS IS SPENT IN THE CONTRACT'S OWN ORDER OF "
+        "CONVENTIONS, so the earliest cells take the earliest convention "
+        "each names: the first eleven are written `-12 345.5`, a minus in "
+        "front and an ordinary space between the thousands, and the last "
+        "eleven `(12 345.5)`, in brackets and grouped with a narrow "
+        "no-break space. That the two pairings fall the way they do is "
+        "the ORDER rule showing, and a generator that spent either "
+        "census the other way round writes different cells here. Two "
+        "spellings of one number is the count of different cells this "
+        "column publishes, so no cell spends a leading zero to reach it. "
+        "This case's mutant withdraws the notation census and every cell "
+        "is written in the majority, brackets, as the twin wrote them "
+        "before this landing.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _apostrophe_minus_sign():
     column, rungs, claims = _flat_numbers(
         "-12345.5", 11,
@@ -10446,6 +10660,12 @@ BRANCH_CASE_BUILDERS = {
     "joined_readings": _joined_readings,
     "midnight_days": _midnight_days,
     "mixed_marks": _mixed_marks,
+    # ...and the case that pins the two MIXED-CONVENTION censuses of
+    # landing 2b.7 (plan P4-D65.2). It goes in this file rather than the
+    # third because this one has the room: it stands at 172046 bytes of
+    # the unchanged 250000-byte cap, and no cap is raised and no fourth
+    # file opened to hold it.
+    "mixed_conventions": _mixed_conventions,
 }
 
 # The cases the carried landings 2b.4, 2b.3 and 2b.2 added, the third file
@@ -10994,6 +11214,20 @@ GIVEN_WORDS = {
         5361620680766448462, 2128419656908236178, 13372904720345244078,
         8759118553313331063, 13069717736981496796, 6138377388608102850,
     ),
+    # The mixed-convention case of landing 2b.7 (plan P4-D65.2). Its
+    # budget is `spaced_brackets`' own -- twenty-two rows of one value,
+    # so no content word is drawn and twenty-one place the rows -- and
+    # these are words of its own rather than that case's, so neither
+    # case's cells can move by borrowing the other's draw.
+    "mixed_conventions": (
+        2350890344146344126, 1295412325827091444, 2148692853705598588,
+        6856365061159066252, 15421135529079413842, 9337190313697136114,
+        17443182240601902554, 3945372972456016603, 3231109804060922937,
+        14928184306589085733, 9623648095902836919, 2833255648229499529,
+        2484211853885415346, 9206020379377428048, 10880630985268877757,
+        11539897411331388552, 13221390389229023683, 5089869681841105310,
+        12063417803171021458, 3253571153139736265, 17680378324194345923,
+    ),
     "apostrophe_minus_sign": (
         11925147295444600069, 11089240203900317313, 9819830666471227869,
         2749346133703871953, 1508733343006715641, 18180139909873991228,
@@ -11141,6 +11375,11 @@ INTEGER_COLUMN_MAPS = frozenset({
     "fraction_widths", "pad_widths", "field_widths", "resolution_mix",
     # The census of signed decimals (landing 2b.2), a map of counts.
     "decimal_plus",
+    # ...and the two censuses of a MIXED convention (landing 2b.7),
+    # which are maps of counts for the same reason: how many of the
+    # column's negative cells wore each notation, and how many of its
+    # grouped cells wore each mark.
+    "negative_notations", "thousands_marks",
     "shape_forms",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry

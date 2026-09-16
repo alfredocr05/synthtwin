@@ -193,6 +193,24 @@ def whole_dates_carrying_offsets(_column: str) -> Change:
     return change
 
 
+def wide_runs_on_a_pooled_form(_column: str) -> Change:
+    """Claim wide runs where the forms map pools a single point-free cell.
+
+    The column is written `decimal` on every cell, so one of them is
+    moved into the withheld remainder: the room for a point-free cell is
+    then exactly one, which passes WR1's room clause and is far below
+    the floor of eleven this base is written at (plan P4-D91).
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        styles = dict(block["numeric_styles"])
+        styles["decimal"] = int(styles["decimal"]) - 1
+        styles["(withheld)"] = 1
+        block["numeric_styles"] = styles
+        block["wide_runs"] = "canonical"
+    return change
+
+
 def counted_past_the_values(_column: str) -> Change:
     """Count more values at midnight than a column has (D15)."""
     def change(document: Document) -> None:
@@ -982,6 +1000,42 @@ def battery() -> list[Mutation]:
         Mutation(
             "DP1", "signed decimals counted past the cells the forms map can put in the decimal form",
             edit("visits", decimal_plus={"+": 11}),
+        ),
+        # The wide-run word landing 2b.13 added beside them (plan
+        # P4-D90). Refused by its ROOM clause, which is the only clause
+        # of WR1 a conforming word can break: `amount` is written
+        # `decimal` on every one of its 240 cells, so the forms map
+        # leaves room for no cell written `plain` and no run of figures
+        # past 2**53 can be among them. A word outside the three is
+        # refused as a range rather than as this invariant.
+        Mutation(
+            "WR1", "wide runs claimed on a column with no cell written plain",
+            edit("amount", wide_runs="canonical"),
+        ),
+        # ...AND AT THE FLOOR, so only the floor clause can refuse it,
+        # which is the shape DP1's second entry above has for the same
+        # reason (landing 2b.13's repair pass, plan P4-D91). The word
+        # names the FORM of the cells it is about, and a description
+        # naming it where the forms map pooled that form into a
+        # remainder of ONE says exactly what the pool was written to
+        # avoid saying. Room of one passes the clause above and is a
+        # tenth of the floor this base is written at.
+        Mutation(
+            "WR1", "wide runs claimed where one pooled cell is all the room there is",
+            wide_runs_on_a_pooled_form("amount"),
+        ),
+        # The two mixture censuses landing 2b.7 added beside them. Each
+        # is refused by the clause the other cannot reach: the notations
+        # by their POPULATION, which the column's own `n_negative`
+        # bounds, and the marks by the CENSUS FLOOR, which is never one
+        # however low the smallest group size is set.
+        Mutation(
+            "NS2", "notations counted on a column that holds no negative number",
+            edit("visits", negative_notations={"brackets": 11}),
+        ),
+        Mutation(
+            "TM1", "a mark counted for a single grouped number",
+            edit("visits", thousands_marks={",": 1}),
         ),
         Mutation(
             "D14", "a column of whole dates said to stand at midnight",

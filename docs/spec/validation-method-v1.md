@@ -1295,7 +1295,54 @@ every numeric block: `spelling.group_separator` and
 describing the file on its own publishes, and `spelling.decimal_plus`
 holds the census's named count the way a named form count is held, with
 its pooled remainder widening the bar, and a census naming none to a
-file naming none. Because the
+file naming none.
+
+**Amended 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2).**
+`spelling.decimal_plus` no longer reads a pooled remainder, because that
+census no longer has one: `+` is its only category, so a `(withheld)`
+count beside it named the category it held back. Where it carries
+`{"(unavailable)": 0}` the check PUBLISHES THE BAR AND NOT THE COUNT:
+that state says neither the count nor whether the count is nought,
+which is what makes nought and a below-floor count one published state.
+What every count it covers has in common is that the count is NOT
+NAMEABLE — it does not reach the census floor, or it reaches it while
+the cells written with a point that carry NO plus fall below the floor,
+which is the complement clause. So the file's own signed decimals and
+its own cells written with a point are counted from its cells — the
+re-description carries no number there, which is the point of the state
+— and the verdict is HELD where that pair is unnameable by the same
+rule and MISSED where it is nameable. Both halves are needed: an
+earlier version of this check read the state as "fewer than the floor"
+alone and failed a REAL TABLE against its own description, 1,195 signed
+cells beside 5 unsigned ones. The exact count is printed only in the
+MISSED case, where it is the file's own and the bar has already been
+passed. Only `{}`, which a column
+writing no cell with a point publishes, still holds a file to naming
+none. Filing the state as WITHHELD instead withdraws a real obligation
+from every ordinary decimal column and was caught by the red battery:
+four fixtures whose `spelling.decimal_plus` had been executable became
+unfalsifiable in one commit.
+
+Two further checks stand beside the three, on every numeric block whose
+census names TWO OR MORE conventions: `spelling.negative_notations` and
+`spelling.thousands_marks` hold the MIXTURE the majority keys collapse.
+Each is one check and not one per convention, because the fact is the
+mixture itself: a twin meeting one count and not the other has not
+reproduced the column's convention. Where the census names one
+convention or none, the fact is LISTED rather than checked — the
+majority key already carries that column's single convention, and a
+check there would say "no obligation" twice on every numeric block of
+every report. Where it names two, each is compared exactly with what
+describing the file on its own publishes for it; the pooled remainder
+does not widen the bar, because a pooled cell wears the column's
+published majority, which this census also names. The comparison is
+WITHHELD where the file's population of cells that could wear a
+convention — its negative cells, or its cells reaching four whole
+figures in a groupable form — differs from the published total: neither
+population is pinned cell for cell, so a twin with fewer such cells
+cannot place every named convention however faithfully it writes the
+ones it can, and the generator's report names that shortfall as a
+deviation of the census. Because the
 comparison is made against the file's own description, every edge of the
 producer's rule comes with it: a padded or exponent cell holding a mark,
 the cores each wrapper wears, the numeric half of a column with labels,
@@ -1313,6 +1360,66 @@ mark, sign or plus can stand in one, the loader holds the three to their
 defaults (GS1, NS1, DP1), and a check of them could not fail. The sentence the listing carried -- a file
 is read the same way whether its large numbers carry the mark or not --
 is contradicted by the first goal and is withdrawn.
+
+**Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
+admits the spellings a real exporter writes that G6.3 does not choose.**
+The family of G6.1 is what this method's own generator may write, and
+it was also what this check would accept from any file — so a REAL
+Excel, SAS, Stata, SPSS or Fortran export, validated against the
+description this tool had just produced from it, exited 3 with
+`styles.spelled` MISSED and the failing cells withheld. Seven shapes
+were measured doing it, fourteen runs of fourteen. Four notations and
+shapes are now admitted, each a spelling of the value the cell reads
+back as and each differing from a text the family already offers in no
+figure of that number:
+
+- a mantissa PADDED to a fixed count of figures, `4.60E+03` and
+  `7.2960E+02` and `0.00E+00`, with the value's own decimal place.
+  Padding only, never rounding: the mantissa must be the value's own
+  figures with zeros added, so a mantissa naming other figures is a
+  spelling of a number the file does not hold;
+- an exponent written however the writer spells it — with or without a
+  `+` on a non-negative power, at any number of digits — since those
+  differ in no figure. The width is deliberately unbounded and the
+  code holds no ceiling on it: `e+5`, `e+05` and MSVC's `e+005` are
+  one power written three ways, and a bound would have to name a
+  widest writer to be right about the next one. The earlier wording
+  here said "at one, two or three digits", which the code never did
+  (the verification of landing 2b.7);
+- a value below one written with no `0` in front of its point, `.05`
+  and `-.23`, which is restored as a NOTATION before any spelling is
+  offered, exactly as brackets and a trailing minus are. Restoring it
+  rather than offering a second text is what reaches the zero cell
+  `.000`, whose restored text is offered only at the census width;
+- the figures of a whole number too wide for binary64 to keep, WITH
+  ITS SIGN, where more than one run of figures reads back as the same
+  value and only one is the one the shortest-round-trip rule produces.
+  Two bounds on it, both added by the verification of landing 2b.7.
+  The sign is part of the run: a run of figures with the minus taken
+  off never reads back as a negative value, so a real ledger of signed
+  seventeen-figure keys failed its own description on every negative
+  cell — 398 of 800, exit 3, on both seeds — while the same column
+  written positive passed. And the shape is admitted only where the
+  value is at or past 2**53: below that a whole number is held
+  exactly, exactly one run of figures reads back as it, and that run
+  is one the family already offers, so admitting it here would decide
+  nothing and claim to have decided something. Of three hundred random
+  runs at each width measured on the commit before this landing, none
+  at fifteen figures was ever counted outside the styles, 18 of 300
+  were at sixteen and 240 of 300 at seventeen, and every run refused
+  was one that is not its own value's canonical text — so the class
+  this admits and the class binary64 cannot tell apart are one class.
+
+**The direction this cannot drift in, and the guard on it.** A text
+this admits that no style would have chosen costs a miss the aggregate
+style counts make anyway; a text it omits costs a MISSED verdict
+against a conforming file, which is the direction nothing may drift in.
+None of these shapes is one G6.3 chooses, so no twin of this generator
+writes one, and the style census, the canonical ceilings of the pooled
+forms and the width census are untouched by this widening. A pairing
+the family does not hold — two figures before an exponent's point,
+`46E+02` — is still MISSED, and a test asserts it, because a check that
+cannot fail is what a widened family invites.
 
 **Amended 2026-09-15 (stage 2 confirmation review): a declared column is
 read in its own grammar before it is translated.** Which cells are
@@ -1380,6 +1487,37 @@ way, and the plan amendment states each as a lowering:
 - `styles.canonical.<form>`, where the published count of the form is
   not below the description's own row count, so the ceiling licenses
   every cell a file of that length can carry.
+
+**V3.5-A2 And the wide-run ceiling is filed the same way, in the two
+states its own published word empties** (2026-09-16, landing 2b.13;
+the plan's decision P4-D90 is the ruling and this follows it).
+`styles.canonical.wide` asks whether every point-free cell past 2**53 is
+the figures its own value writes — asked of the cell's CORE and of the
+three point-free forms, `plain`, `leading_plus` and `leading_zero`, so
+that the checker's class and the producer's are one class (plan P4-D91),
+the padded cell asked once its PAD IS READ OFF: a canonical run never
+begins with a zero, so every leading zero is pad and what remains is the
+run, which both sides read from the text and neither reads from the
+published width census (landing 2b.16 part 2, plan P4-D107; measured
+before it, 800 padded wide keys with every cell respelled published
+`"none"` and were checked by nothing) — the question `styles.spelled` cannot
+ask, because past that bound more than one run of figures reads back as
+one double and admitting them all is what P4-D66.2 decided. The column
+publishes `wide_runs`, and the subcheck is EXECUTABLE on `"canonical"`
+alone:
+
+- on `"none"` the description says fewer such cells than the smallest
+  group size were written, so there is no published cell for the ceiling
+  to govern — the floor is WR1's, and it is there because the word names
+  the FORM of the cells it is about (plan P4-D91);
+- on `"respelled"` the description says its own writer does not write
+  them all canonically, so a file writing one another way writes what
+  the description licenses — and holding it to a ceiling of nought is
+  the false accusation P4-D66.2 ends.
+
+Both are obligations the description itself empties, which is the shape
+the four above are, so both are LISTINGS with the sentence saying why
+and neither is counted toward a pass.
 
 **V3.5-A1 Two more are decided that way, and the count above is now
 six** (2026-08-15, review item P3-V7-F4; the plan's amendment A-P3-18

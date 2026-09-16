@@ -617,6 +617,28 @@ _ARRAY = "array"
 _COUNT = "count"
 _FLOOR_COUNT = "count-at-the-floor"
 _FLOORED_ENTRY = "count-at-the-floor-or-withheld"
+# A CENSUS ENTRY OF LANDING 2b.7, whose floor is never one and which
+# speaks an unavailable state carrying no count (plan P4-D65.1,
+# P4-D65.2). It is not `_FLOORED_ENTRY`: that kind admits a count at the
+# settings floor and a pooled remainder below it, and both of those are
+# exactly what these censuses may not publish.
+_MIXTURE_ENTRY = "count-at-the-census-floor-or-unavailable"
+
+# THE KEYS EACH MIXTURE CENSUS MAY CARRY, read from the one place each
+# convention is named so that the producer and this guard cannot drift.
+# The notations are the four a negative may wear; the marks are the ones
+# a description may publish, less the empty one -- a cell counted there
+# PROVED a mark, so "no mark" is not a convention it can have worn. Both
+# add the pooled word, which a census with several categories may speak
+# because it names none of them, and the unavailable state.
+_MIXTURE_NOTATIONS = parsing.NEGATIVE_FORMS + (
+    taxonomy.SUPPRESSED_LABEL,
+    taxonomy.UNAVAILABLE_LABEL,
+)
+_MIXTURE_MARKS = parsing.PUBLISHED_GROUP_MARKS[1:] + (
+    taxonomy.SUPPRESSED_LABEL,
+    taxonomy.UNAVAILABLE_LABEL,
+)
 # THE FLOOR'S OTHER HALF, which had no vocabulary here until amendment
 # A-P3-16 and so could not be said. A description's counts divide in
 # two: what it names, which the floor holds to "at least the floor", and
@@ -978,9 +1000,26 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "parts", _EACH, "group_separator"): _AFFIX,
     ("columns", _EACH, "parts", _EACH, "negative_form"): _WORD,
+    ("columns", _EACH, "parts", _EACH, "wide_runs"): _WORD,
     ("columns", _EACH, "parts", _EACH, "decimal_plus"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "decimal_plus", _KEY_OF): _WORD,
-    ("columns", _EACH, "parts", _EACH, "decimal_plus", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "decimal_plus", _ANY_KEY): _MIXTURE_ENTRY,
+    # THE TWO MIXTURE CENSUSES ONE LEVEL DOWN (landing 2b.7). A
+    # position publishes neither -- it is read from figures and one
+    # point alone, so it wears no notation and no mark, and the loader
+    # holds it to the empty census under NS2 and TM1 -- but the paths
+    # are stated all the same, because a path missing from this table
+    # is a refusal and the empty mapping still stands at one.
+    ("columns", _EACH, "parts", _EACH, "negative_notations"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "negative_notations", _KEY_OF): _WORD,
+    (
+        "columns", _EACH, "parts", _EACH, "negative_notations", _ANY_KEY
+    ): _MIXTURE_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "thousands_marks"): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "thousands_marks", _KEY_OF): _WORD,
+    (
+        "columns", _EACH, "parts", _EACH, "thousands_marks", _ANY_KEY
+    ): _MIXTURE_ENTRY,
     ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1060,9 +1099,22 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # (landing 2b.2): a word of this package's own four, and a count the
     # loader holds to the floor (contract DP1).
     ("columns", _EACH, "negative_form"): _WORD,
+    # ...and whether its wide runs are their own values' text (landing
+    # 2b.13, plan P4-D90): a word of this package's own three.
+    ("columns", _EACH, "wide_runs"): _WORD,
     ("columns", _EACH, "decimal_plus"): _OBJECT,
     ("columns", _EACH, "decimal_plus", _KEY_OF): _WORD,
-    ("columns", _EACH, "decimal_plus", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "decimal_plus", _ANY_KEY): _MIXTURE_ENTRY,
+    # THE TWO MIXTURE CENSUSES (landing 2b.7, plan P4-D65.2). Their keys
+    # are conventions from a closed vocabulary, held to it by
+    # `PUBLICATION_WORDS` as every other word-keyed map is, and their
+    # counts to the census floor rather than to the settings floor.
+    ("columns", _EACH, "negative_notations"): _OBJECT,
+    ("columns", _EACH, "negative_notations", _KEY_OF): _WORD,
+    ("columns", _EACH, "negative_notations", _ANY_KEY): _MIXTURE_ENTRY,
+    ("columns", _EACH, "thousands_marks"): _OBJECT,
+    ("columns", _EACH, "thousands_marks", _KEY_OF): _WORD,
+    ("columns", _EACH, "thousands_marks", _ANY_KEY): _MIXTURE_ENTRY,
     ("columns", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
     ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
@@ -1332,12 +1384,36 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # The notation a negative wore (landing 2b.2), from the one place
     # the four names are defined, at both depths a numeric block sits.
     ("columns", _EACH, "negative_form"): parsing.NEGATIVE_FORMS,
-    ("columns", _EACH, "decimal_plus", _KEY_OF): ("+", taxonomy.SUPPRESSED_LABEL),
+    # ...and the three words the wide-run fact speaks with (landing
+    # 2b.13, plan P4-D90), at both depths a numeric block sits.
+    ("columns", _EACH, "wide_runs"): parsing.WIDE_RUNS,
+    ("columns", _EACH, "parts", _EACH, "wide_runs"): parsing.WIDE_RUNS,
+    # THE SIGNED-DECIMAL CENSUS NO LONGER POOLS (landing 2b.7, plan
+    # P4-D65.1). `+` is its only category, so a `(withheld)` remainder
+    # beside it named the category it held back; the unavailable state
+    # says nothing at all and is what it reaches instead.
+    ("columns", _EACH, "decimal_plus", _KEY_OF): (
+        "+",
+        taxonomy.UNAVAILABLE_LABEL,
+    ),
     ("columns", _EACH, "parts", _EACH, "decimal_plus", _KEY_OF): (
         "+",
-        taxonomy.SUPPRESSED_LABEL,
+        taxonomy.UNAVAILABLE_LABEL,
     ),
     ("columns", _EACH, "parts", _EACH, "negative_form"): parsing.NEGATIVE_FORMS,
+    # THE TWO MIXTURE CENSUSES (landing 2b.7, plan P4-D65.2), at both
+    # depths a numeric block sits. Their keys are the conventions
+    # themselves -- the four notations and the marks a description may
+    # publish -- read from the one place each is defined, plus the two
+    # words a census speaks with when it cannot name a convention.
+    ("columns", _EACH, "negative_notations", _KEY_OF): _MIXTURE_NOTATIONS,
+    ("columns", _EACH, "parts", _EACH, "negative_notations", _KEY_OF): (
+        _MIXTURE_NOTATIONS
+    ),
+    ("columns", _EACH, "thousands_marks", _KEY_OF): _MIXTURE_MARKS,
+    ("columns", _EACH, "parts", _EACH, "thousands_marks", _KEY_OF): (
+        _MIXTURE_MARKS
+    ),
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     # Read from the one place the two forms are named, so the word a
@@ -1710,6 +1786,33 @@ def _leaf_is_published(
         if key == parsing.MISSING_WITHHELD:
             return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _MIXTURE_ENTRY:
+        # A CENSUS OF LANDING 2b.7, WHOSE FLOOR IS NEVER ONE (plan
+        # P4-D65.1, P4-D65.2; owner twin definition, clause 3). A
+        # published count of one names an individual whatever the
+        # settings floor says, so every count here clears
+        # `taxonomy._census_floor` -- two, or the settings floor where
+        # that is larger -- and the guard that decides what may be
+        # WRITTEN says it at the same reach the loader does.
+        #
+        # THE UNAVAILABLE STATE CARRIES NOUGHT AND ONLY NOUGHT. It is
+        # the state a census reaches where it cannot speak safely, and
+        # a number beside it would be the disclosure it exists to
+        # close.
+        #
+        # THE POOLED REMAINDER IS A REMAINDER STILL: it clears the same
+        # floor, because these censuses pool only what is left after
+        # every named convention, and it may not stand at all at a
+        # settings floor of one, where the range below the floor is
+        # empty and invariant S13 refuses anything held back.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if key == taxonomy.UNAVAILABLE_LABEL:
+            return value == 0
+        least = taxonomy.census_floor_of(context.floor)
+        if key == taxonomy.SUPPRESSED_LABEL:
+            return value >= least and context.floor > 1
+        return value >= least
     if kind == _HELD_BACK:
         # A tally of what the floor took out of sight: how many labels,
         # how many rows they cover, how many stand-in numbers were too

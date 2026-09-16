@@ -3208,7 +3208,126 @@ def _padded_style_swaps(
             if not hand_over(index, width):
                 break
             owing = owing - 1
+    # AND A PADDED CELL NO PUBLISHED WIDTH CAN HOLD GIVES THE STYLE UP
+    # (landing 2b.7, plan P4-D66.4; the audit's missed item M4). Every
+    # walk above moves the padded style ONTO a value some published
+    # field can hold; none of them moves it OFF a value none can. A
+    # cell left wearing it is handed no width by `_pad_places`, which
+    # refuses a field narrower than the value, and `_styled_number`
+    # then writes one zero in front of a value that already fills the
+    # field: a column of month codes `01` to `12`, every cell two
+    # characters and a census of `{2: 598}`, came back holding `012` --
+    # three characters in a two-character field, `pads.published.2`
+    # MISSED, and a month lookup on the twin's own text finding no key.
+    #
+    # THE EXCHANGE IS THE ONE G6.3's RULE 2 ALREADY STATES, applied in
+    # the direction the walks above leave open: the overflowing cell
+    # and a cell whose value a published width CAN hold swap styles, so
+    # every published style count is exactly what it was.
+    #
+    # AND WHERE NO PARTNER EXISTS THE CELL GIVES THE STYLE UP ANYWAY
+    # (landing 2b.16, plan P4-D105; the audit's missed item M4, which
+    # plan P4-D66.4 left half closed). That decision sent this case to
+    # the VALUE draw -- the twin had drawn fewer narrow values than the
+    # census counts padded cells -- and the contract forbids that road
+    # in as many words: a named field width "is honoured by PADDING and
+    # never by adjusting the value", because `000123` and `123` read
+    # back as the same number and no rung, endpoint or statistic may be
+    # spent to reach one (contract 9.4, `pad_widths`). So the census is
+    # unmeetable on the values in hand, something must be missed, and
+    # the only question is what.
+    #
+    # WHAT IS MISSED EITHER WAY IS THE CENSUS. Measured on eight
+    # hundred five-figure postal codes at floor eleven, seed 7: the
+    # description publishes `pad_widths {5: 85}`, the twin drew 84
+    # values narrow enough for the field, and before this repair it
+    # wrote `099613` -- six characters in a five-character field --
+    # leaving `pads.published.5` MISSED at 84 all the same. The repair
+    # cannot save that count; what it saves is the CELL. Every cell of
+    # the real column is five characters, so a fixed-width slice, a
+    # length check and a code lookup all run on the twin, which is the
+    # thing a spelling that no real cell wears takes away.
+    #
+    # THE FORM IT TAKES IS ONE THE COLUMN ALREADY WRITES, never a new
+    # one: a cell is handed the point-free form the published map
+    # carries most of, so nothing is invented (the recount of
+    # `_style_notes` reads the finished text, and `plain` may stand
+    # above its published count while `leading_zero` falls below it,
+    # which is exactly what the identity of contract 7.5.7 permits and
+    # refuses in turn). Where the map carries no other point-free form
+    # -- every cell of the column padded -- there is nothing to give
+    # the style up TO, and the cell keeps it; that column's census is
+    # unmeetable in both directions and G13's recount names it.
+    widest = 0
+    for width in quotas:
+        if width > widest:
+            widest = width
+    for index in range(len(moved)):
+        if moved[index] != "leading_zero" or index in reserved:
+            continue
+        if need_of(index) < widest:
+            continue
+        swapped = False
+        for other in range(len(moved)):
+            if moved[other] == "leading_zero" or other in reserved:
+                continue
+            if not _carries_plainly(holds[other], whole_column):
+                continue
+            if need_of(other) >= widest:
+                continue
+            if not _can_wear(moved[other], holds[index], whole_column):
+                continue
+            moved[index] = moved[other]
+            moved[other] = "leading_zero"
+            spent[other] = 1
+            reserved[other] = widest
+            swapped = True
+            break
+        if swapped:
+            continue
+        given = _point_free_form_worn(styles, holds[index], whole_column)
+        if given:
+            moved[index] = given
     return moved
+
+
+def _point_free_form_worn(
+    styles: "list[str]", value: float, whole_column: bool
+) -> str:
+    """The point-free form this column writes most of, or "" (G6.3 rule 2).
+
+    Asked by the give-up above, and asked of the styles the walk was
+    HANDED rather than of the working copy: those are the published
+    counts, so the answer is the same however many cells have given the
+    padded style up before this one, and a run of give-ups cannot walk a
+    column from one form to another.
+
+    `plain` is offered before `leading_plus` where both are worn the
+    same number of times, which is the enumeration order of
+    `_WHOLE_STYLES` and the order every other tie in G6.4 is broken by.
+    A form no cell of the column wears is never offered: writing one
+    would INVENT a spelling the description does not publish, which is
+    a worse fault than the count this repair is already short.
+
+    Guarantees: accepts the assigned styles, one value and whether the
+    column is whole; returns `"plain"`, `"leading_plus"` or `""`.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    best = ""
+    worn = 0
+    for name in _WHOLE_STYLES:
+        if name == "leading_zero":
+            continue
+        if not _can_wear(name, value, whole_column):
+            continue
+        count = 0
+        for index in range(len(styles)):
+            if styles[index] == name:
+                count = count + 1
+        if count > worn:
+            best = name
+            worn = count
+    return best
 
 
 def _pad_places(
@@ -3457,6 +3576,34 @@ def _whole_demand(facts: contract.NumericFacts) -> int:
     owed = 0
     for name in _WHOLE_STYLES:
         owed = owed + quotas[name]
+    return owed
+
+
+def _named_whole_demand(facts: contract.NumericFacts) -> int:
+    """How many cells the map NAMES as written point-free (landing 2b.7).
+
+    `_whole_demand` beside this one answers a different question and both
+    are needed: G6.4 WRITES the withheld remainder in the plain style, so
+    the demand the cell step must satisfy counts it. Whether the column
+    is on a WRITTEN GRID is a question about proof, and an anonymous pool
+    proves nothing about the form its cells took: a description that
+    pools a style below the floor says how many cells it covered and
+    never which style they wore, so those cells may carry a point.
+
+    Measured (Codex review of landing 2b.1, item 4): 490 cells written at
+    one decimal place beside ten `-1e-2` cells publish widths `{1: 490}`
+    and styles `{decimal: 490, (withheld): 10}`. Counting the pool as
+    point-free made 490 + 10 the whole numeric count, so the column read
+    as the grid `1` -- and `-0.01` is not on that grid. Its twin came
+    back with 28 different numbers against a published 31 at seeds 1, 7
+    and 23, where reading no grid gives 30.
+
+    Guarantees: accepts a numeric block; returns a whole number.
+    Determinism: a fixed function of the block. Raises nothing. No I/O.
+    """
+    owed = 0
+    for name in _WHOLE_STYLES:
+        owed = owed + _style_named(facts.numeric_styles, name)
     return owed
 
 
@@ -4996,8 +5143,6 @@ def _floored_cap(
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = ((longest - 1) * (numbers - 1)) // 100
     if distinct > 0:
         proven = max(proven, -((-numbers) // distinct))
     if proven >= floor:
@@ -8428,10 +8573,22 @@ def _spelled_with_a_decimal_comma(
     out of the twin (stage 2 closure review). An absent cell and a label
     are never exchanged; a number always is.
 
-    WHY ONLY THE PLAIN NUMERIC ROLES. The swap is applied where the
-    cells were written by the numeric machinery and are therefore
-    numbers this method spelled; `contract.a_decimal_comma_reaches`
-    decides which roles those are.
+    WHY ONLY THE ROLES WHOSE CELLS THIS METHOD SPELLED. The swap is
+    applied where the cells were written by the numeric machinery and
+    are therefore numbers this method spelled;
+    `contract.a_decimal_comma_reaches` decides which roles those are.
+
+    AND ON THE AFFIXED ROLE IT RUNS OVER THE CORE ALONE (landing 2b.16,
+    plan P4-D106). Such a cell is a number this method spelled with a
+    WRAPPER around it that the description publishes character for
+    character, and the two are not the same kind of text: the number is
+    this method's to respell and the wrapper is the file's own. A
+    wrapper carrying either mark -- `U.S.$`, a unit written `kg.` --
+    would be rewritten by a swap over the whole cell, so the cell is
+    split by the same longest-wrapper rule the recounts use, the core
+    is swapped, and the wrapper goes back on unchanged. A cell wearing
+    no published wrapper is a straggler, which this method did not
+    spell as a number, and it is left exactly as it is.
 
     Guarantees: accepts the column, the profile, the cells as arranged
     and one flag per cell; returns the cells as written out. Determinism:
@@ -8442,6 +8599,9 @@ def _spelled_with_a_decimal_comma(
         return content
     if not contract.a_decimal_comma_reaches(column):
         return content
+    wrappers: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        wrappers = _vocabulary_of(column.facts)
     spelled: "list[str]" = []
     for place in range(len(content)):
         cell = content[place]
@@ -8450,15 +8610,26 @@ def _spelled_with_a_decimal_comma(
         if not cell or place >= len(numeric) or not numeric[place]:
             spelled += [cell]
             continue
+        ahead = ""
+        behind = ""
+        body = cell
+        if wrappers:
+            worn = _worn_here(parsing.trimmed(cell), wrappers)
+            if worn is None:
+                spelled += [cell]
+                continue
+            ahead = worn[0]
+            behind = worn[1]
+            body = cell[len(ahead) : len(cell) - len(behind)]
         swapped = ""
-        for letter in cell:
+        for letter in body:
             if letter == ".":
                 swapped = swapped + ","
             elif letter == ",":
                 swapped = swapped + "."
             else:
                 swapped = swapped + letter
-        spelled += [swapped]
+        spelled += [f"{ahead}{swapped}{behind}"]
     return spelled
 
 
@@ -9333,9 +9504,11 @@ def _written_grid(
 
     `_pinned_fraction`'s one width, and ALSO the one width `f > 0` of a
     column whose other numeric cells are all written with no point: a
-    census naming that width alone, where its count and the published
-    point-free style count (`plain`, `leading_zero`, `leading_plus` and
-    the withheld share G6.4 writes plain) add up to every numeric cell.
+    census naming that width alone, where its count and the NAMED
+    point-free style counts (`plain`, `leading_zero` and `leading_plus`)
+    add up to every numeric cell. The withheld share is NOT counted: an
+    anonymous pool names no form, so it cannot prove its cells carry no
+    point (Codex review of landing 2b.1, item 4).
     That is how a spreadsheet writes tenths -- `37` beside `37.4` -- and
     a zero-inflated column writes `0` beside `2.5`. Every number of such
     a column is a point of the grid `f`, a point-free cell being the
@@ -9364,7 +9537,7 @@ def _written_grid(
                 return -1
         if int(figures) <= 0:
             return -1
-        if census[figures] + _whole_demand(facts) != column.n_numeric:
+        if census[figures] + _named_whole_demand(facts) != column.n_numeric:
             return -1
         return int(figures)
     return -1
@@ -9395,6 +9568,30 @@ def _pinned_fraction(
     whether that width is two figures or none.
     """
     census = facts.fraction_widths
+    if facts.integer_valued:
+        # A WHOLE-NUMBER COLUMN IS ON THE INTEGER GRID WHATEVER ITS
+        # CENSUS SAYS (landing 2b.7, plan P4-D66.3; audit item NC-10).
+        # The two facts answer different questions and this line used to
+        # read the wrong one. `integer_valued` says every VALUE of the
+        # column is whole; `fraction_widths` says how many figures each
+        # cell WRITES after its point, and a column pandas exported as
+        # `44.0` publishes both -- every value whole, every cell one
+        # figure wide. Reading the census here put such a column on the
+        # grid of TENTHS, so the separation walk of G6.5a moved a
+        # stratum onto `25.6` and the writer wrote it out: 23 cells of
+        # 800 at seed 1 and 19 at seed 7, and the twin's own
+        # re-description came back a `continuous` column where the
+        # source was a `count` -- `axes.role`, `axes.statistical_type`
+        # and `type.integer_valued` all MISSED. A column of whole
+        # amounts written at two places was worse, 68 cells of 800.
+        #
+        # THE WIDTH IS NOT LOST BY ANSWERING THE OTHER QUESTION. Which
+        # cell is written at which width is `_width_places`'s, after
+        # the styles; what is settled here is the grid the VALUES sit
+        # on, and for a column whose every value is whole that is the
+        # integers -- which is what G5.4's own rule already made of
+        # them before any later pass moved them off it.
+        return 0
     if len(census) != 1:
         # A WHOLE-NUMBER COLUMN IS ON A GRID TOO, and it is the
         # integers. Its census is EMPTY -- no cell carries a figure
@@ -9536,6 +9733,40 @@ def _grid_text(value: float, figures: int) -> str:
     """
     parts = _digits_and_point(value)
     return _at_width(parts[0], parts[1], parts[2], figures)
+
+
+def _on_the_grid(value: float, figures: int) -> "float | None":
+    """``value`` moved to the point of the ``figures`` grid it is written at.
+
+    THE SIBLING OF `_whole_valued` FOR A COLUMN THAT IS NOT WHOLE-VALUED
+    (landing 2b.7, 2026-09-15). A whole-valued column is on the integer
+    grid and G6.7's walk already rounds every candidate onto it; a
+    column on a WRITTEN grid of `figures` figures is the same kind of
+    fact and had no such step, so the walk handed it a value between two
+    grid points and the writer spelled that value out in full.
+
+    The answer is the number the grid TEXT reads back as, so a grid
+    point no double holds is refused rather than recorded as one text
+    and written as another -- the rule G6.5a states for its own walk,
+    kept here for the same reason.
+
+    Guarantees: accepts a value and a count of figures above nought;
+    returns a value whose grid text at that width reads back as itself,
+    or None. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    if not math.isfinite(value):
+        return None
+    text = _grid_text(value, figures)
+    try:
+        found = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(found):
+        return None
+    if _grid_text(found, figures) != text:
+        return None
+    return found
 
 
 def _grid_units(text: str, figures: int) -> "int | None":
@@ -11430,6 +11661,7 @@ def _cleared_value(
     taken: "dict[float, int]",
     whole_column: bool,
     widths: "tuple[int, ...]",
+    grid: int = -1,
 ) -> "float | None":
     """A value outside the empty stretch this one landed in (G6.7).
 
@@ -11502,6 +11734,28 @@ def _cleared_value(
 
     NEVER ACROSS ZERO, which is the rule every sibling pass in this
     file keeps, so the counts of negative and zero values stand.
+
+    AND ON A COLUMN WRITTEN ON A GRID, A POINT OF THAT GRID (landing
+    2b.7, 2026-09-15). `grid` is G5.2a step 1's written grid, and a
+    candidate is moved onto it before anything else is asked of it --
+    exactly as a whole-valued column's candidate is rounded to a whole
+    number, the integers being the grid such a column is written on.
+    Without it this walk stepped in sixty-fourths of a BIN, which is
+    not a step of the grid at all, and handed a stratum a value between
+    two grid points; `_width_places` then wrote that cell at the width
+    its own value needed rather than at a published one. MEASURED
+    through the real reader, producer, loader, generator and validator
+    on 400 and 4,000 halves written as a spreadsheet writes them -- `37`
+    beside `37.5` -- at seeds 1, 7 and 23 and at both floors: ONE cell
+    of each twin came out `38.55126953125` and `39.05078125`, the twin
+    published 207 cells at the one width against 208, and
+    `widths.published.1` missed at every one of the twelve runs.
+    The candidate set only NARROWS: every refusal below still runs, so
+    a snapped candidate that would change the written form, the figure
+    count, the sign band or a spelling another stratum holds is passed
+    over exactly as before, and where the grid holds no free point
+    within reach the answer is None and G6.7.8's recount names the
+    stretch.
 
     Guarantees: accepts the two ends, the bins barred as empty, the run
     the value is in, the value, its sign band, the spellings and values
@@ -11586,6 +11840,19 @@ def _cleared_value(
                 continue
             if whole_column:
                 found = _whole_valued(found)
+            # AND ONTO THE WRITTEN GRID, WHICH IS THE SAME STEP FOR A
+            # COLUMN THAT IS NOT WHOLE-VALUED (landing 2b.7). The walk
+            # steps in sixty-fourths of a BIN, and a bin is not a grid,
+            # so without this the stratum took a value between two grid
+            # points and its cell was written at full precision. It is
+            # taken here, before the reach is tested, for the reason the
+            # rounding above is: the candidate that is tested must be
+            # the candidate that is written.
+            if grid > 0:
+                snapped = _on_the_grid(found, grid)
+                if snapped is None:
+                    continue
+                found = snapped
             # THE REACH IS A DISTANCE FROM THE EDGE, and it is tested
             # after the rounding (review rounds 7 item 2 and 8 item 1).
             # One bin's WIDTH past the published edge, which is the
@@ -11843,6 +12110,12 @@ def _clear_enough(
     barred = {place: 1 for place in facts.empty_bins}
     runs = _empty_runs(facts.empty_bins)
     widths = _census_widths(facts)
+    # THE COLUMN'S WRITTEN GRID (G5.2a step 1), so that a value this
+    # pass moves is a value the writer can write (landing 2b.7). A
+    # whole-valued column is handled by `whole_column` inside the walk
+    # -- the integers being its grid -- and this is the same fact for a
+    # column written at a fixed width.
+    grid = _written_grid(column, facts)
     total = len(values)
     moved = [value for value in values]
     notes: list[Deviation] = []
@@ -11964,13 +12237,13 @@ def _clear_enough(
                 column, facts, layout, moved, ends, barred, run, edges,
                 facts.empty_edges,
                 came[down[len(down) - 1 - step]],
-                down[len(down) - 1 - step], widths, taken, spoken,
+                down[len(down) - 1 - step], widths, taken, spoken, grid,
             )
         for place in up:
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
                 facts.empty_edges, came[place],
-                place, widths, taken, spoken,
+                place, widths, taken, spoken, grid,
             )
     return moved, notes
 
@@ -11990,6 +12263,7 @@ def _cleared_into(
     widths: "tuple[int, ...]",
     taken: "dict[float, int]",
     spoken: "dict[str, int]",
+    grid: int = -1,
 ) -> "list[Deviation]":
     """Move one stratum out of an empty stretch, or name why not (G6.7).
 
@@ -12019,6 +12293,7 @@ def _cleared_into(
         taken,
         facts.integer_valued,
         widths,
+        grid,
     )
     if found is None:
         # NO NOTE IS WRITTEN HERE, and that is the repair of review
@@ -12238,6 +12513,47 @@ def _number_cells(
     )
     plussed, plus_notes = _plus_places(column, facts, styles, holds)
     base: list[str] = []
+    # THE TWO MIXED CONVENTIONS, SPENT CELL BY CELL (landing 2b.7, plan
+    # P4-D65.2). The notation each negative wears and the mark each
+    # grouped cell wears come from the censuses where those name a
+    # convention, and from the column's published majority everywhere
+    # else -- which is exactly what every cell wore before this landing,
+    # so a column publishing no mixture is written unchanged.
+    #
+    # WHICH CELLS CAN BE GROUPED IS ASKED OF THE WRITER. A cell is
+    # groupable exactly where writing it with the published mark puts
+    # a mark in it, which `_styled_base` decides from the style, the
+    # leading-zero order and the figures before the point. Asking it
+    # here rather than restating those rules is what stops the two
+    # drifting apart.
+    notations, notation_notes = _notation_places(column, facts, styles, holds)
+    groupable: list[bool] = []
+    for index in range(len(holds)):
+        order = 1 if styles[index] == "leading_zero" else 0
+        with_mark = _styled_number(
+            holds[index],
+            styles[index],
+            order,
+            facts.integer_valued,
+            widths[index],
+            pads[index],
+            _grouping_mark(facts),
+            notations[index],
+            plussed[index],
+        )
+        without = _styled_number(
+            holds[index],
+            styles[index],
+            order,
+            facts.integer_valued,
+            widths[index],
+            pads[index],
+            "",
+            notations[index],
+            plussed[index],
+        )
+        groupable += [with_mark != without]
+    marks, mark_notes = _mark_places(column, facts, groupable)
     for index in range(len(holds)):
         base += [
             _styled_number(
@@ -12247,8 +12563,8 @@ def _number_cells(
                 facts.integer_valued,
                 widths[index],
                 pads[index],
-                _grouping_mark(facts),
-                facts.negative_form,
+                marks[index],
+                notations[index],
                 plussed[index],
             )
         ]
@@ -12318,8 +12634,8 @@ def _number_cells(
                     facts.integer_valued,
                     widths[index],
                     pads[index],
-                    _grouping_mark(facts),
-                    facts.negative_form,
+                    marks[index],
+                    notations[index],
                     plussed[index],
                 )
             owed = owed - 1
@@ -12338,7 +12654,7 @@ def _number_cells(
     # which catches that case and this one, and reporting both would
     # name the same fact twice. The plus allocation's own shortfall is
     # not a form count and is named where it is decided.
-    return cells, plus_notes
+    return cells, notation_notes + mark_notes + plus_notes
 
 
 def _plus_style_swaps(
@@ -12519,6 +12835,187 @@ def _plus_cells_by_value(
             if ((step + 1) * count) // sizes[run] > (step * count) // sizes[run]:
                 chosen += [eligible[starts[run] + step]]
     return chosen
+
+
+def _mark_written(published: str) -> str:
+    """The mark a cell is grouped with before any exchange (G6.1).
+
+    `_grouping_mark` asks this of the column's one published mark; a
+    census of marks asks it of each mark it names, and the answer is the
+    same rule: a comma, and the point a declared decimal-comma column
+    publishes, are both written as a comma first -- the point arrives
+    with the exchange -- and every other mark is carried as published.
+
+    Guarantees: accepts one published mark; returns the mark a cell is
+    written with. Determinism: a fixed function of the mark. Raises
+    nothing. No I/O of any kind.
+    """
+    if published == "," or published == ".":
+        return ","
+    return published
+
+
+def _named_conventions(
+    census: "dict[str, int]", order: "tuple[str, ...]"
+) -> "list[tuple[str, int]]":
+    """The conventions a mixture census NAMES, in the enumeration's order.
+
+    The pooled remainder and the unavailable state name no convention,
+    so neither reaches the cells: what they cover is written in the
+    column's published majority, exactly as a pooled style count is
+    written plainly. That is the same rule `_plus_places` follows for a
+    pooled `decimal_plus`, and it is why a census that says nothing
+    leaves the generator writing precisely what it wrote before this
+    landing existed.
+
+    Guarantees: accepts the census and the enumeration fixing the order;
+    returns each named convention with its count. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    named: "list[tuple[str, int]]" = []
+    for name in order:
+        if name in census and census[name] > 0:
+            named += [(name, census[name])]
+    return named
+
+
+def _notation_places(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Which notation each negative cell wears (landing 2b.7, G6.1).
+
+    THE MAJORITY WROTE THE WHOLE COLUMN, AND THE MINORITY WAS LOST. A
+    column of 600 charges writing 480 with a minus in front and 120 in
+    accounting brackets published the majority alone, and its twin wrote
+    600 minuses and no bracket with every check passing -- so code that
+    parses brackets met none on the twin and failed on the real table.
+    `negative_notations` carries the mixture and this spends it.
+
+    THE CELLS THAT MAY WEAR ONE are the cells holding a negative value.
+    They are walked in cell order and each named notation takes its
+    count in turn; what no named count covers wears the column's
+    published `negative_form`, which is what the pooled remainder and
+    the unavailable state both leave behind.
+
+    A TRAILING MINUS NEEDS A POINT, and that is why this function reads
+    the styles as well as the values. `parsing.with_negative_notation`
+    writes a trailing minus only where the figures carry a decimal
+    point, because neither `12-` nor `1,234-` reads back as a number --
+    so a cell allocated that notation without a point would keep its
+    minus in front, quietly, and the census would be missed with no
+    deviation named. Only `decimal` cells are offered it; where the
+    count cannot be met the report names the shortfall.
+
+    Guarantees: accepts the column, its numeric block, one style per
+    cell and one value per cell; returns one notation per cell and at
+    most one deviation per named notation. Determinism: a function of
+    those inputs, over a fixed index order. Raises nothing. No I/O.
+    """
+    worn = [facts.negative_form] * len(holds)
+    named = _named_conventions(
+        facts.negative_notations, parsing.NEGATIVE_FORMS
+    )
+    if not named:
+        return worn, []
+    taken: "dict[int, int]" = {}
+    notes: list[Deviation] = []
+    for notation, wanted in named:
+        placed = 0
+        for index in range(len(holds)):
+            if placed >= wanted:
+                break
+            if index in taken or not holds[index] < 0.0:
+                continue
+            if (
+                notation == parsing.NEGATIVE_TRAILING
+                and styles[index] != "decimal"
+            ):
+                continue
+            taken[index] = 1
+            worn[index] = notation
+            placed = placed + 1
+        if placed < wanted:
+            notes += [
+                _deviation(
+                    column.name,
+                    "negative_notations",
+                    f"{wanted}",
+                    f"{placed}",
+                    "The twin writes its negative numbers in the "
+                    "notations the description counts, but its published "
+                    "ladder and forms left fewer cells able to wear this "
+                    "one than the description counts, so fewer of them "
+                    "do.",
+                )
+            ]
+    return worn, notes
+
+
+def _mark_places(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    groupable: "list[bool]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Which mark each grouped cell wears (landing 2b.7, G6.1).
+
+    THE SIBLING OF `_notation_places`, SPENDING THE OTHER MIXTURE. 200
+    cells grouped with a space beside 100 grouped with a narrow no-break
+    space came back as 300 ordinary spaces, so code stripping an
+    ordinary space succeeded on the twin and failed on the real table.
+
+    WHICH CELLS MAY WEAR A MARK IS NOT DECIDED HERE. ``groupable`` says,
+    per cell, whether writing it with the published mark actually put a
+    mark in it -- asked of the writer rather than restated from the
+    rules about forms, orders and four whole figures, because a second
+    statement of those rules is a second thing to keep in step with
+    `_styled_base`, and the cell that falls between two statements of a
+    rule is exactly the cell this landing exists to stop losing.
+
+    Each named mark takes its count of those cells in cell order; what
+    no named count covers wears the column's published mark.
+
+    Guarantees: accepts the column, its numeric block and one flag per
+    cell; returns one mark per cell, as written before any exchange, and
+    at most one deviation per named mark. Determinism: a function of
+    those inputs, over a fixed index order. Raises nothing. No I/O.
+    """
+    published = _grouping_mark(facts)
+    worn = [published] * len(groupable)
+    named = _named_conventions(
+        facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
+    )
+    if not named:
+        return worn, []
+    taken: "dict[int, int]" = {}
+    notes: list[Deviation] = []
+    for mark, wanted in named:
+        placed = 0
+        for index in range(len(groupable)):
+            if placed >= wanted:
+                break
+            if index in taken or not groupable[index]:
+                continue
+            taken[index] = 1
+            worn[index] = _mark_written(mark)
+            placed = placed + 1
+        if placed < wanted:
+            notes += [
+                _deviation(
+                    column.name,
+                    "thousands_marks",
+                    f"{wanted}",
+                    f"{placed}",
+                    "The twin groups its thousands with the marks the "
+                    "description counts, but its published ladder and "
+                    "forms left fewer cells large enough to be grouped "
+                    "than the description counts, so fewer of them "
+                    "carry this mark.",
+                )
+            ]
+    return worn, notes
 
 
 def _plus_places(

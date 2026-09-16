@@ -544,6 +544,12 @@ _NOT_CHECKABLE_NO_WRITTEN_FORM = (
     "how their markers were cased -- and this column's dates write "
     "nothing of the kind, so there is none of it for a file to carry"
 )
+_NOT_CHECKABLE_NO_MIXTURE = (
+    "the description counts the notations and the marks a column's "
+    "numbers wore only where it wore more than one of them, and this "
+    "column wore one or none, so the single convention it did wear is "
+    "the one already published beside this count and checked there"
+)
 _NOT_CHECKABLE_NO_CLOCK = (
     "the description records the marks and the values at midnight of a column's "
     "moments only where they write a time of day, and this column's "
@@ -720,6 +726,22 @@ _NOT_CHECKABLE_STYLE_CEILING = (
     "the description names this form for as many cells as the file has "
     "rows, so every cell the file can carry in it is already accounted "
     "for and there is no unnamed cell left for this ceiling to govern"
+)
+# THE TWO STATES THE WIDE-RUN CEILING CANNOT BITE IN (landing 2b.13,
+# plan P4-D90). The fact is published on every numeric column, so on the
+# columns where it settles nothing it is a LISTING and never a silence:
+# a fact that is neither checked nor listed is a fact the report lost.
+_NOT_CHECKABLE_NO_WIDE_RUNS = (
+    "the description says this column wrote fewer runs of figures past "
+    "what a double keeps every figure of than the smallest group size "
+    "it was described at, so this ceiling has no published cell to "
+    "govern"
+)
+_NOT_CHECKABLE_WIDE_RUNS_RESPELLED = (
+    "the description says this column's runs of figures past what a "
+    "double keeps are not all the text their own values write, so a "
+    "file writing any of them another way writes what the description "
+    "already licenses"
 )
 # THE THREE FACTS THE SPLIT RULE ITSELF SETTLES (landing L8). A cell
 # joins a compound column's numeric half only if it reads as a plain
@@ -1060,6 +1082,10 @@ _MEASURED_FROM_THE_CELLS = (
     "styles.spelled",
     f"styles.canonical.{parsing.STYLE_DECIMAL}",
     f"styles.canonical.{parsing.STYLE_EXPONENT_LOWER}",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13), which is measured from the cells for
+    # the same reason the two above are.
+    "styles.canonical.wide",
     # ...and the three spellings landing 2b.2 holds, which are clauses
     # over the written cells of the same kind: a mark, a notation or a
     # plus that fewer cells could wear than the floor names is one no
@@ -1067,6 +1093,12 @@ _MEASURED_FROM_THE_CELLS = (
     "spelling.group_separator",
     "spelling.negative_form",
     "spelling.decimal_plus",
+    # ...and the two MIXED CONVENTIONS landing 2b.7 holds, clauses over
+    # the written cells of exactly the same kind: a notation or a mark
+    # counted for fewer cells than the census floor names is one no
+    # description of the file publishes.
+    "spelling.negative_notations",
+    "spelling.thousands_marks",
 )
 
 # THE SPELLINGS THE MEASUREMENT SIDE KEEPS AS DATA (V2.4).
@@ -3722,8 +3754,6 @@ def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     if floor < 3:
         return bound
     proven = 0
-    if longest > 1:
-        proven = ((longest - 1) * (numbers - 1)) // 100
     if facts.n_distinct_values > 0:
         proven = max(proven, -((-numbers) // facts.n_distinct_values))
     if proven >= floor:
@@ -6317,8 +6347,27 @@ def _cells_read_as_declared(
     # back MISSING its own style obligation, with twenty numbers in a
     # recount of a column published as holding one hundred and eighty.
     compound = isinstance(column.facts, contract.CompoundFacts)
+    # AND ON THE AFFIXED ROLE THE READING RUNS OVER THE CORE ALONE
+    # (landing 2b.16, plan P4-D106), which is the rule the producer's
+    # writeback follows. Such a cell is a number wearing a WRAPPER the
+    # description publishes character for character, and a swap over
+    # the whole cell rewrites that wrapper: `U.S.$ 24,60` would be
+    # measured as `U,S,$ 24.60`, a pair the description does not
+    # publish, so the cell would be counted a straggler and every
+    # quantitative obligation of the column measured over the cells
+    # that remain.
+    speaking: "list[tuple[str, str]]" = []
+    if isinstance(column.facts, contract.AffixedFacts):
+        speaking += [
+            (column.facts.affix_prefix, column.facts.affix_suffix)
+        ]
+        for one in column.facts.affix_variants:
+            speaking += [(one.prefix, one.suffix)]
     swapped: "list[str]" = []
     for place in range(len(cells)):
+        if speaking:
+            swapped += [_core_read_as_declared(cells[place], speaking)]
+            continue
         read = parsing.written_with_a_decimal_comma(cells[place])
         # A COMPOUND COLUMN'S LABEL HALF IS NOT TRANSLATED, which is
         # the rule the writeback follows (review round 4 of landing L8,
@@ -6337,6 +6386,64 @@ def _cells_read_as_declared(
             continue
         swapped += [read]
     return swapped
+
+
+def _core_read_as_declared(
+    cell: str, speaking: "list[tuple[str, str]]"
+) -> str:
+    """One affixed cell with its CORE read in the column's own grammar.
+
+    THE WRAPPER IS THE FILE'S TEXT AND THE CORE IS THE NUMBER (landing
+    2b.16, plan P4-D106). The declaration says how this column's
+    NUMBERS are spelled, so it reaches the core and stops there: a
+    wrapper carrying either mark -- `U.S.$ `, a unit written `kg.` --
+    is published character for character, and swapping inside it makes
+    a pair the description does not publish. Measured on the base of
+    this landing, 800 cells of `U.S.$ 129,58` at floor eleven: the twin
+    wrote every cell correctly and BOTH it and the real table were
+    reported at exit 3 with `styles.at-least.decimal` MISSED, because
+    the reading turned each cell into `U,S,$ 129.58` and counted it a
+    straggler wearing no published pair.
+
+    THE LONGEST WRAPPER WINS, and the bare pair is worn by a number
+    only -- the same two rules `_affixed_checks` reads its cores by,
+    asked here so that the reading and the recount cannot disagree
+    about where a cell's number begins. A cell wearing no published
+    wrapper is a straggler and comes back exactly as it is, edge space
+    and all.
+
+    Guarantees: accepts one cell and the wrappers the description
+    publishes; returns a cell of the same wrapper with its core read as
+    declared. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    start = 0
+    while start < len(cell) and parsing.trimmed(cell[start : start + 1]) == "":
+        start = start + 1
+    stop = len(cell)
+    while stop > start and parsing.trimmed(cell[stop - 1 : stop]) == "":
+        stop = stop - 1
+    trimmed = cell[start:stop]
+    chosen: "tuple[str, str] | None" = None
+    reach = -1
+    for key in sorted(speaking):
+        ahead = key[0]
+        behind = key[1]
+        if not _wears_the_wrapper(cell, ahead, behind):
+            continue
+        if not ahead and not behind:
+            if parsing.classify_number(trimmed) != parsing.NUMBER:
+                continue
+        if len(ahead) + len(behind) > reach:
+            chosen = key
+            reach = len(ahead) + len(behind)
+    if chosen is None:
+        return cell
+    core = trimmed[len(chosen[0]) : len(trimmed) - len(chosen[1])]
+    if not core:
+        return cell
+    read = parsing.written_with_a_decimal_comma(core)
+    return f"{cell[:start]}{chosen[0]}{read}{chosen[1]}{cell[stop:]}"
 
 
 def _cells_of(
@@ -9235,6 +9342,116 @@ def _mark_in_words(mark: str) -> str:
     return "a mark this version does not name"
 
 
+def _mixture_check(
+    name: str,
+    fact: str,
+    census: "dict[str, int]",
+    measured: "dict[str, int] | None",
+    order: "tuple[str, ...]",
+    population: int,
+) -> Check:
+    """One census of mixed conventions, held as a whole (landing 2b.7).
+
+    THE FACT THIS CHECKS IS THE MIXTURE ITSELF, so it is one check and
+    not one per convention. A column writing 480 negatives with a minus
+    and 120 in brackets owes both counts together: a twin meeting the
+    first and not the second has not reproduced the column's
+    convention, and two checks would let a reader think the half that
+    passed was the whole obligation.
+
+    WHERE THE DESCRIPTION NAMES NO CONVENTION -- the empty census, and
+    the unavailable state a census reaches when it cannot speak without
+    naming somebody -- there is nothing to check and the verdict is
+    WITHHELD under the closed gate, exactly as it is for a fact the
+    file's own description would not publish. That is the ordinary case
+    for every column that mixes nothing, and it is why this check is
+    silent on almost every column.
+
+    Each named convention is then compared EXACTLY with what describing
+    the file on its own publishes for it. The pooled remainder is not a
+    window here, as it is for a form count: a cell the census pooled
+    wears the column's published majority, which is a convention this
+    census also names, so widening the bar by the pool would excuse a
+    twin that wrote the pool's cells in the wrong convention.
+
+    Guarantees: accepts the column name, the fact, the published census,
+    the file's own and the enumeration fixing the order; returns one
+    check. Determinism: a function of those inputs. Raises nothing. No
+    I/O of any kind. No text of the file is printed: a count is a count,
+    and a convention is named from a closed list.
+    """
+    named: "list[str]" = []
+    for convention in order:
+        if convention in census and census[convention] > 0:
+            named += [convention]
+    owed = 0
+    for convention in named:
+        owed = owed + census[convention]
+    if not named:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(0),
+            "",
+            _GATE_CLOSED,
+        )
+    if measured is None:
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_CLOSED,
+        )
+    if population != owed:
+        # THE CELLS THAT COULD WEAR A CONVENTION ARE NOT THEMSELVES AN
+        # OBLIGATION, and this gate is where that shows. How many of a
+        # twin's cells reach four whole figures, or fall below zero,
+        # follows from its ladder and its forms; neither is pinned cell
+        # for cell. So a twin with fewer such cells than the description
+        # counts cannot place every named convention however faithfully
+        # it writes the ones it can, and holding it to the exact counts
+        # would report a miss for a shortfall that belongs to the
+        # ladder -- measured on the spelling shapes of landing 2b.2,
+        # where twenty-five columns mixing nothing at all were told they
+        # had missed their own single convention.
+        #
+        # The comparison is made where the two populations agree, which
+        # is every real table against its own description and every twin
+        # whose ladder reached the same cells. Where they do not, the
+        # verdict is WITHHELD and the generator's report names the
+        # shortfall as a deviation of this very fact, so nothing goes
+        # unsaid: the page a person reads still carries the number.
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            WITHHELD,
+            _shown_count(owed),
+            "",
+            _GATE_POOLED,
+        )
+    found = 0
+    agreed = True
+    for convention in named:
+        mine = measured[convention] if convention in measured else 0
+        found = found + mine
+        if mine != census[convention]:
+            agreed = False
+    return Check(
+        name,
+        f"numeric.{fact}",
+        f"spelling.{fact}",
+        HELD if agreed else MISSED,
+        _shown_count(owed),
+        _shown_count(found),
+    )
+
+
 def _spelling_checks(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -9279,6 +9496,14 @@ def _spelling_checks(
     name = column.name
     four_figures = 0
     negatives = 0
+    # HOW MANY OF THIS FILE'S OWN CELLS ARE SIGNED DECIMALS (landing
+    # 2b.7). Counted from the cells rather than read back off the
+    # re-description, because the re-description of a file whose count
+    # falls below the census floor carries the unavailable state and no
+    # number at all -- which is the point of that state. The bar below
+    # is the FLOOR and never the count, so nothing here prints it.
+    signed = 0
+    decimals = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body or parsing.classify_number(body) != parsing.NUMBER:
@@ -9286,6 +9511,13 @@ def _spelling_checks(
         core = parsing.number_core(body)
         if core[:1] == "-":
             negatives += 1
+        if parsing.numeric_style(body) == parsing.STYLE_DECIMAL:
+            # BOTH HALVES OF THE CENSUS'S POPULATION, because the rule
+            # it publishes is about both: the cells written with a point
+            # that carry a plus, and the ones that do not.
+            decimals += 1
+            if core[:1] == "+":
+                signed += 1
         if parsing.numeric_style(body) not in (
             parsing.STYLE_PLAIN,
             parsing.STYLE_LEADING_PLUS,
@@ -9386,6 +9618,63 @@ def _spelling_checks(
                 pool,
             )
         ]
+    elif taxonomy.UNAVAILABLE_LABEL in facts.decimal_plus:
+        # THE UNAVAILABLE STATE PUBLISHES THE BAR AND NOT THE COUNT
+        # (landing 2b.7, plan P4-D65.1), and that is an obligation
+        # rather than a silence.
+        #
+        # The state exists because nought and every count below the
+        # census floor have to be ONE published state: `+` is this
+        # census's only category, so a pooled count beside it named the
+        # category it held back. What every one of those counts has in
+        # common is the thing worth saying -- FEWER SIGNED DECIMALS THAN
+        # THE FLOOR NAMES -- and a file meets that or misses it. So the
+        # bar is the floor, the exact count is published nowhere, and a
+        # file rewritten to carry the floor's worth of signed decimals
+        # is MISSED here as it always was.
+        #
+        # Filing this as WITHHELD instead was tried and is what this
+        # comment exists to stop coming back: it withdrew a real
+        # obligation from every ordinary decimal column, and the red
+        # battery caught it -- four fixtures whose `spelling.decimal_plus`
+        # had been an executable check became unfalsifiable in one
+        # commit.
+        # WHAT THE UNAVAILABLE STATE CLAIMS IS THAT THE COUNT IS NOT
+        # NAMEABLE, and the bar is that claim and nothing more.
+        #
+        # The state is reached TWO ways and an earlier version of this
+        # check knew only one of them. A count below the census floor
+        # reaches it -- and so does a count well ABOVE the floor whose
+        # COMPLEMENT falls below, because naming "1,195 of these 1,200
+        # carry a plus" names the five that do not. Holding every such
+        # census to "fewer signed decimals than the floor" therefore
+        # failed a real table against its own description: 1,195 signed
+        # cells beside 5 unsigned ones, MISSED on the file the
+        # description was computed from. A gate test of this landing
+        # caught it.
+        #
+        # So the file is held to being in the same position: its own
+        # count is nameable, or it is not, and only an unnameable one
+        # meets a census that says the count could not be named. That
+        # is falsifiable -- a file with 40 signed cells of 1,200, both
+        # sides clear of the floor, would have been NAMED and so is
+        # MISSED here -- and it discloses nothing the published state
+        # does not already say.
+        least = taxonomy.census_floor_of(floor)
+        rest = decimals - signed
+        nameable = (
+            decimals >= 1 and signed >= least and (rest == 0 or rest >= least)
+        )
+        checks += [
+            Check(
+                name,
+                "numeric.decimal_plus",
+                "spelling.decimal_plus",
+                MISSED if nameable else HELD,
+                _below_the_floor(least),
+                _shown_count(signed) if nameable else _below_the_floor(least),
+            )
+        ]
     else:
         signed = census["+"] if "+" in census else 0
         checks += [
@@ -9398,6 +9687,44 @@ def _spelling_checks(
                 if pool == 0
                 else f"{_shown_count(0)} ({_shown_window(0.0, float(pool))})",
                 _shown_count(signed),
+            )
+        ]
+    # THE TWO MIXED CONVENTIONS, EACH HELD AS ONE FACT (landing 2b.7, plan
+    # P4-D65.2). Recounted from the re-description like every other
+    # fact of this block, so each named convention is compared with what
+    # describing the file on its own publishes for it.
+    # A CENSUS THAT NAMES NO CONVENTION FILES NO CHECK AT ALL, and that
+    # is the difference between a fact with nothing to say and a fact
+    # this file cannot be held to. Almost every column mixes nothing:
+    # its census is empty, the majority key above already carries its
+    # one convention, and a WITHHELD line here would say "no obligation"
+    # twice on every numeric block of every report -- ten of them on the
+    # demonstration twin, which had withheld nothing at all before.
+    # Where the census DOES name a convention the check is filed, and
+    # its own gate decides whether the comparison can be made.
+    for fact, census, order, population in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+            negatives,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+            four_figures,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        if worn < 2:
+            continue
+        checks += [
+            _mixture_check(
+                name, fact, census, _map_at(block, fact), order, population
             )
         ]
     return checks
@@ -10181,6 +10508,11 @@ def _style_checks(
                 fact = "numeric.fraction_widths"
             if subcheck[:15] == "pads.published.":
                 fact = "numeric.pad_widths"
+            # ...and the wide-run ceiling binds its own published word
+            # (landing 2b.13), so the withheld side names the fact the
+            # measured side names.
+            if subcheck == "styles.canonical.wide":
+                fact = "numeric.wide_runs"
             withheld += [
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
@@ -10397,6 +10729,36 @@ def _style_checks(
                 _GATE_POOLED,
             )
         ]
+    # THE CANONICAL QUESTION FOR A WIDE RUN, ASKED WHERE THE DESCRIPTION
+    # SETTLES IT (landing 2b.13, plan P4-D90, closing the residual
+    # P4-D66.2 named). The ceiling above is the published count of the
+    # form, and on every column of identifiers that count IS the row
+    # count -- `numeric_styles {plain: 800}` on 800 rows -- so the bar
+    # admits every cell and the entry is a listing. Measured before this
+    # check existed: 800 canonical seventeen-figure runs, respelled cell
+    # by cell into the value-preserving neighbours, 790 of 800 moved,
+    # validated at exit 0 with nothing missed.
+    #
+    # FILED ONLY WHERE THE COLUMN PUBLISHES `canonical`, which is what
+    # keeps it from being the vacuity V3.4 refuses. A column publishing
+    # `none` has no such run to ask about and a column publishing
+    # `respelled` has said its own writer respells them -- holding that
+    # file to a ceiling of nought is the false accusation plan P4-D66.2
+    # exists to end, and it is the LISTING below that names it.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        checks += [
+            _silent(
+                name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                (
+                    "every point-free cell past what a double keeps "
+                    "written as the figures of its own value"
+                ),
+                _wide_cells_respelled(cells) == 0,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
     measured = _map_at(block, "numeric_styles")
     # HOW MANY CELLS THIS DESCRIPTION DOES NOT NAME A FORM FOR. The
     # publication floor pools every form fewer cells wear than the floor
@@ -10603,6 +10965,13 @@ def _style_subchecks(
         f"styles.canonical.{style}"
         for style in _ceilinged_styles(column, facts)
     ]
+    # ...and the canonical question for a WIDE run, on the columns whose
+    # description settles it (landing 2b.13, plan P4-D90). Filed on
+    # exactly the condition `_style_checks` files it on, so the
+    # identities a withheld column carries are the ones a measured one
+    # carries.
+    if facts.wide_runs == parsing.WIDE_CANONICAL:
+        named += ["styles.canonical.wide"]
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
@@ -10696,6 +11065,94 @@ def _noncanonical_cells(
         if _written_with_a_leading_minus(body) != _canonical_text(
             value, whole_column
         ):
+            odd = odd + 1
+    return odd
+
+
+def _wide_cells_respelled(cells: "list[str]") -> int:
+    """How many wide runs are NOT the figures their own value writes.
+
+    THE QUESTION `styles.spelled` CANNOT ASK (landing 2b.13, plan
+    P4-D90). That subcheck asks whether a cell is a spelling of its own
+    value, and past 2**53 a run of figures is one whatever its last
+    figure reads -- `88618223144562695` and `88618223144562696` are one
+    double, and admitting both is exactly what plan P4-D66.2 decided so
+    that a real export of seventeen-figure keys stops being told its own
+    file failed its own description. So this asks the OTHER question:
+    not whether the run denotes the value, but whether it is the run the
+    value itself writes.
+
+    WRITTEN OUT HERE RATHER THAN IMPORTED (V1.4, V4.2), exactly as
+    `_canonical_text` above is: the class test is this module's own
+    `_wears_a_whole_number_text` and the figures are taken from the
+    NUMBER the cell read back as, so nothing the file spells decides
+    anything here.
+
+    COUNTED OVER THE SAME CELLS THE WORD IS PUBLISHED ABOUT, and the
+    repair pass of landing 2b.13 (plan P4-D91) is what made that true.
+    This side read the trimmed, minus-first cell while the producer read
+    the RAW one, so the two disagreed about the accounting bracket, the
+    minus sign of the character tables and a leading space: the producer
+    left such a cell out of its word and this counted it, and ONE of
+    them in eight hundred made a REAL table fail its own description at
+    exit 3 -- the false accusation plan P4-D66.2 exists to end. The two
+    now ask the same question of the same text: the two point-free
+    forms, `plain` and `leading_plus`, and the cell's figures with its
+    thousands marks taken out, which is what `number_core` takes out
+    before the form is decided over there.
+
+    `leading_zero` IS ASKED ON BOTH SIDES, once the pad is read off
+    (landing 2b.16 part 2, plan P4-D107). It was left out of both until
+    this landing, on the ground that a padded cell's figures are not its
+    value's figures until somebody decides which zeros are the pad --
+    which was taken to be the width census's job. Measured, that left
+    800 zero-padded nineteen-wide keys, every one respelled, publishing
+    `none` and checked by nothing, with the twin, the real table and the
+    canonical description handed the respelled file all at exit 0.
+
+    NOTHING PUBLISHED DECIDES THE SPLIT. Past 2**53 every value is a
+    whole number and the figures it writes never begin with a zero, so
+    every leading zero is pad and what remains is the run: the split is
+    a fact of the text, and this side reads it from the text exactly as
+    the producer reads it from the text, which is what keeps the two
+    one class. The width census is not consulted here, and this module
+    could not consult it without asking the file's own description what
+    to count -- which is the reading V1.4 refuses.
+
+    THE MARKS ARE TAKEN OUT HERE, NOT BORROWED (V1.4), exactly as the
+    minus notation above is: a column of 800 grouped wide runs, every
+    one respelled, published `none` and was counted by nothing before
+    this read them.
+    """
+    odd = 0
+    for cell in cells:
+        body = parsing.trimmed(cell)
+        if not body:
+            continue
+        style = parsing.numeric_style(body)
+        if (
+            style != parsing.STYLE_PLAIN
+            and style != parsing.STYLE_LEADING_PLUS
+            and style != parsing.STYLE_LEADING_ZERO
+        ):
+            continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        value = parsing.parse_number(body)
+        if value is None:
+            continue
+        signed = _without_group_marks(_written_with_a_leading_minus(body))
+        if not _wears_a_whole_number_text(signed, value):
+            continue
+        digits = signed
+        if digits[:1] == "-" or digits[:1] == "+":
+            digits = digits[1:]
+        while digits[:1] == "0" and len(digits) > 1:
+            digits = digits[1:]
+        whole = int(value)
+        if whole < 0:
+            whole = -whole
+        if digits != f"{whole}":
             odd = odd + 1
     return odd
 
@@ -11059,6 +11516,291 @@ def _written_with_a_leading_minus(body: str) -> str:
     return body
 
 
+def _without_group_marks(body: str) -> str:
+    """A cell's text with every mark between its thousands taken out.
+
+    WRITTEN HERE, NOT BORROWED (V1.4), for the reason
+    `_written_with_a_leading_minus` above is, and it is the same KIND of
+    rule: a spelling this method's own generator may write, normalised
+    to the bare figures before the cell is compared with the text its
+    value writes. `12,345,678,901,234,567` and `12 345 678 901 234 567`
+    both become `12345678901234567`.
+
+    ADDED BY THE REPAIR PASS OF LANDING 2b.13 (plan P4-D91), where a
+    column of 800 grouped wide runs -- every one of them respelled into
+    the value-preserving neighbour a double cannot tell apart --
+    published `none` and was counted by nothing.
+    """
+    core = ""
+    for character in body:
+        if character not in parsing.GROUP_MARKS:
+            core = core + character
+    return core
+
+
+def _written_with_a_leading_zero(body: str) -> str:
+    """A cell's text with the `0` in front of a bare point restored.
+
+    WRITTEN HERE, NOT BORROWED, for the reason `_written_with_a_leading_minus`
+    above is, and it is the same KIND of rule: a notation this method's
+    own generator does not choose, normalised to the one it does before
+    the cell is compared with the spellings of its value.
+
+    Stata and SPSS write a value below one with no integer figure --
+    `.05`, `-.23`, and `,41` on a column declared to write its decimals
+    with a comma, which reaches here as `.41` -- and `0.05` is the same
+    figures with a character in front that carries none of them. Every
+    permitted spelling of 0.05 begins with that character, so 724 of
+    800 cells of a real Stata export were counted as spellings outside
+    the six forms and the file failed its own description (landing
+    2b.7; audit items NC-6 and NC-12).
+
+    RESTORING THE ZERO RATHER THAN OFFERING A SECOND TEXT is what makes
+    it reach every width: the census may publish three figures after
+    the point, so the bare spelling of a cell that rounds to nothing is
+    `.000`, whose restored text `0.000` is offered by `_text_at_width`
+    at that width and by nothing else. A rule that built the bare form
+    from the fixed-point text alone answered for `.05` and not for
+    `.000`, which is the zero cell of every such column.
+
+    Guarantees: accepts one cell's text; returns it unchanged unless a
+    point stands where the integer figure should be. No I/O.
+    """
+    if body[:1] == ".":
+        return f"0{body}"
+    if body[:1] == "-" and body[1:2] == ".":
+        return f"-0{body[1:]}"
+    if body[:1] == "+" and body[1:2] == ".":
+        return f"+0{body[1:]}"
+    return body
+
+
+def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
+    """One cell's text with its sign and any invented zeros taken off.
+
+    The leading-zero family of owner decision 8 is zeros written
+    straight after the sign, at any order, which is what `_wears`
+    strips for the texts it is handed. The three shapes below ask about
+    the figures themselves, so they need the same stripping first, and
+    doing it once here is what keeps the three from each growing their
+    own copy of it.
+
+    None where the cell's sign is not the value's: a spelling of a
+    negative value carries a minus, and a text carrying one is no
+    spelling of a value that does not.
+
+    The run of zeros stops at a point, because the `0` of `0.5` is a
+    figure of the number and not an invented one.
+    """
+    body = text
+    if sign == "-":
+        if body[:1] != "-":
+            return None
+        body = body[1:]
+    elif body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        return None
+    while body[:1] == "0" and len(body) > 1 and body[1:2] != ".":
+        body = body[1:]
+    if not body:
+        return None
+    return body
+
+
+def _wears_a_padded_exponent(body: str, figures: str, place: int) -> bool:
+    """Whether one cell is this value's figures in exponent notation.
+
+    THE MANTISSA WIDTH AND THE EXPONENT GRAMMAR ARE THE WRITER'S, NOT
+    THIS METHOD'S (landing 2b.7; audit items NC-1, NC-2, NC-12). G6.3
+    writes `d[.ddd]e+XX` from the SHORTEST round-trip figures with the
+    sign always written and the exponent at least two digits, and every
+    real exporter writes something else: Excel's `2.29E+05` and SAS's
+    `7.2960E+02` pad the mantissa to a fixed count of figures, and
+    Fortran, Julia and JavaScript write `6E9` with no sign and one
+    exponent digit. None of those is a spelling this method's own
+    generator chooses, and every one of them is a spelling of the
+    value the cell reads back as -- so a REAL table exported by any of
+    those three tools failed its own description, `styles.spelled`
+    MISSED, with the failing cells withheld. That is a false accusation
+    against a file this tool was pointed at, which is the one direction
+    the family's generosity rule says nothing may drift in.
+
+    What is admitted is PADDING ONLY, never rounding: the mantissa must
+    be this value's own figures with zeros added, so `4.60E+03` is a
+    spelling of 4600 and `4.6E+03` is a spelling of 4600, while
+    `4.61E+03` is a spelling of a number the file does not hold. The
+    exponent must be the value's own decimal place, however it is
+    spelled -- with or without a `+` on a non-negative power, at any
+    number of digits -- because those three spellings differ in no
+    figure of the number.
+
+    ONE FIGURE BEFORE THE POINT. `46E+02` reads back as 4600 too, but
+    it pairs a mantissa with an exponent this family never pairs, and
+    the place test below refuses it rather than a rule of its own.
+    """
+    marker = -1
+    for index in range(len(body)):
+        if body[index] == "e" or body[index] == "E":
+            marker = index
+    if marker < 0:
+        return False
+    mantissa = body[:marker]
+    power = body[marker + 1 :]
+    lead = ""
+    if power[:1] == "+" or power[:1] == "-":
+        lead = power[:1]
+        power = power[1:]
+    if not power:
+        return False
+    for character in power:
+        if character < "0" or character > "9":
+            return False
+    written = int(power)
+    if lead == "-":
+        written = -written
+    if written != place - 1:
+        return False
+    point = -1
+    for index in range(len(mantissa)):
+        if mantissa[index] == ".":
+            point = index
+    if point < 0:
+        digits = mantissa
+    else:
+        if point != 1:
+            return False
+        digits = f"{mantissa[:point]}{mantissa[point + 1 :]}"
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    if len(digits) < len(figures):
+        return False
+    if digits[: len(figures)] != figures:
+        return False
+    for character in digits[len(figures) :]:
+        if character != "0":
+            return False
+    return True
+
+
+def _wears_a_whole_number_text(body: str, value: float) -> bool:
+    """Whether one cell is a run of figures reading back as exactly this value.
+
+    THE FIGURES OF A WHOLE NUMBER PAST WHAT BINARY64 KEEPS (landing
+    2b.7; the audit's missed item M2). G6.2's point-free spelling is
+    the value's shortest round-trip figures with its trailing zeros
+    written out, and it owes exactly one thing: that it reads back as
+    the same number. Above 2**53 more than one run of figures does --
+    `88618223144562695` and `88618223144562696` are one binary64 -- and
+    only one of them is the one `repr` produces, so a real table of
+    seventeen-figure accession numbers, encounter numbers or concept
+    identifiers failed its own description on every cell whose last
+    figure the format could not keep.
+
+    Asked of the text and answered by the NUMBER: the cell's figures
+    are read back and compared with the value the cell already read
+    back as, so nothing the file spells decides anything here except
+    whether it is a spelling of its own value.
+
+    THE SIGN IS PART OF THE RUN (the verification of landing 2b.7).
+    `_wears_a_source_spelling` takes the sign off before it asks about
+    the figures, because the other two shapes ask about figures alone --
+    and a run of figures with the sign left off can never read back as a
+    negative value, so every cell of a real ledger of signed
+    seventeen-figure keys was counted outside the six forms and the file
+    failed its own description at exit 3, on both seeds of two, with 398
+    of 800 cells negative. The caller hands the sign back now, and this
+    reads it: a spelling of a negative value carries the minus, and the
+    number it reads back as is the number it is compared with.
+
+    THE RULE ANSWERS ONLY WHERE BINARY64 LOSES A FIGURE, which is what
+    keeps it from being an identity over every run of figures. Below
+    2**53 a whole number is held exactly, so exactly one run of figures
+    reads back as it -- its own -- and that run is a spelling the family
+    already offers, so this rule deciding it would decide nothing and
+    say it did. Measured on the base commit: of three hundred random
+    runs at each width, NONE at fifteen figures was ever counted outside
+    the styles, 18 of 300 were at sixteen and 240 of 300 at seventeen,
+    and every run refused was one that is not its own value's canonical
+    text. So the class this admits and the class binary64 cannot tell
+    apart are the same class, and the bound below says so rather than
+    leaving the sentence true of every digit run ever written.
+    """
+    digits = body
+    if digits[:1] == "-" or digits[:1] == "+":
+        digits = digits[1:]
+    if not digits:
+        return False
+    for character in digits:
+        if character < "0" or character > "9":
+            return False
+    if value > -9007199254740992.0 and value < 9007199254740992.0:
+        return False
+    return float(body) == value
+
+
+def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
+    """Whether one cell is a spelling of its value this family omitted.
+
+    TWO SHAPES A REAL EXPORTER WRITES AND G6.3 DOES NOT CHOOSE (landing
+    2b.7, plan P4-D66.2; audit items NC-1, NC-2 and NC-12, and the
+    missed item M2). Each is a spelling of the number the cell reads
+    back as, differing from a text `_permitted_spellings` already
+    offers in no figure of that number -- a mantissa padded to a fixed
+    count of figures with an exponent written however the writer spells
+    it, and the figures of a whole number too wide for binary64 to
+    keep. The third shape of this family, a value below one written
+    without its leading `0`, is a NOTATION and is restored by
+    `_written_with_a_leading_zero` before any spelling is offered.
+
+    ASKED ONLY AFTER THE FAMILY HAS BEEN OFFERED AND HAS FOUND NOTHING,
+    so a cell this method's own generator wrote is decided by the
+    family exactly as it was before this existed.
+
+    WHAT THIS DOES NOT DO IS EXCUSE THE TWIN. None of these shapes is
+    one G6.3 chooses, so no twin of this generator writes one; what the
+    check stops doing is calling the REAL table's own export a miss.
+    A twin that did write one would still be counted by the style
+    census, by the canonical ceilings of the pooled forms, and by the
+    width census, none of which this reaches.
+
+    Guarantees: accepts one cell's text with its negative notation
+    already written as a leading minus, the value it read back as, and
+    the grouping mark offered for it; returns whether it is one of the
+    three shapes. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    sign, figures, place = _figures_of(value)
+    body = _body_without_sign_or_zeros(text, sign)
+    if body is None:
+        return False
+    if _wears_a_padded_exponent(body, figures, place):
+        return True
+    # THE MARK COMES OFF FOR THE WHOLE-NUMBER SHAPE ALONE, because a
+    # grouped seventeen-figure identifier is the same run of figures
+    # with marks in it and the other two shapes carry no mark at all
+    # (an exponent mantissa never reaches four whole figures, and a
+    # value below one has no whole figure to group).
+    ungrouped = body
+    if mark:
+        kept = ""
+        for character in body:
+            if character != mark:
+                kept = f"{kept}{character}"
+        ungrouped = kept
+    if not ungrouped:
+        return False
+    # AND THE SIGN GOES BACK ON FOR THAT SHAPE, because the run of
+    # figures is asked to read back as the value and a run without its
+    # minus never reads back as a negative one. Taken off above for the
+    # two shapes that ask about figures alone; handed back here for the
+    # one that asks about the number.
+    return _wears_a_whole_number_text(f"{sign}{ungrouped}", value)
+
+
 def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
@@ -11096,7 +11838,16 @@ def _cells_outside_the_styles(
         for known in parsing.GROUP_MARKS:
             if known in body:
                 offered = known
-        signed = _written_with_a_leading_minus(body)
+        # THE TWO NOTATIONS THIS METHOD'S GENERATOR DOES NOT CHOOSE,
+        # both restored before any spelling is offered: the negative
+        # written as brackets, a minus sign or a trailing minus, and
+        # (landing 2b.7) the value below one written with no `0` in
+        # front of its point. Each carries no figure of the number, so
+        # restoring it compares the same figures the file wrote against
+        # the spellings of the value they read back as.
+        signed = _written_with_a_leading_zero(
+            _written_with_a_leading_minus(body)
+        )
         # A ZERO WRITTEN WITH A SIGN IS A SPELLING OF ZERO (the
         # verification of landing 2b.2). A ledger rounding -0.3 to a
         # whole amount writes `(0)` or `-0`, and every permitted spelling
@@ -11116,6 +11867,19 @@ def _cells_outside_the_styles(
         for spelling in _permitted_spellings(value, whole_column, widths, offered):
             if _wears(signed, spelling):
                 worn = True
+        # ...AND THE SPELLINGS A REAL EXPORTER WRITES THAT THIS FAMILY
+        # DOES NOT CHOOSE (landing 2b.7, plan P4-D66.2). A padded
+        # mantissa, an exponent with no `+`, a value below one with no
+        # leading `0`, and the figures of a whole number past what
+        # binary64 keeps are each a spelling of the value the cell read
+        # back as, and each was counted as a cell outside the six forms
+        # -- so a real Excel, SAS, Stata or SPSS export, and a real
+        # column of seventeen-figure identifiers, failed its own
+        # description with the failing cells withheld. Asked only where
+        # the family above found nothing, so a cell this generator
+        # wrote is decided exactly as it was before.
+        if not worn and _wears_a_source_spelling(signed, value, offered):
+            worn = True
         if not worn:
             outside = outside + 1
     return outside
@@ -14221,6 +14985,44 @@ def _numeric_listings(
             _NOT_CHECKABLE_FINER_LADDER,
         ),
     ]
+    # THE TWO MIXED CONVENTIONS, LISTED WHERE A COLUMN MIXED NOTHING (landing
+    # 2b.7) and CHECKED where it mixed two, which is exactly how the
+    # marks inside a moment are carried since landing 2b.3: measured off
+    # the file's own description wherever the description sets an
+    # obligation, and NAMED, never silent, wherever it sets none.
+    #
+    # A column wearing one convention or none is the ordinary case, and
+    # its one convention is `negative_form` or `group_separator`, which
+    # is published beside this census and checked in its own right. A
+    # check here would say "no obligation" twice on every numeric block
+    # of every report; saying nothing at all would leave a published
+    # fact off the census that calls itself every obligation.
+    for fact, census, order in (
+        (
+            "negative_notations",
+            facts.negative_notations,
+            parsing.NEGATIVE_FORMS,
+        ),
+        (
+            "thousands_marks",
+            facts.thousands_marks,
+            parsing.PUBLISHED_GROUP_MARKS,
+        ),
+    ):
+        worn = 0
+        for convention in order:
+            if convention in census and census[convention] > 0:
+                worn = worn + 1
+        if worn >= 2:
+            continue
+        listings += [
+            Listing(
+                column.name,
+                f"numeric.{fact}",
+                "",
+                _NOT_CHECKABLE_NO_MIXTURE,
+            )
+        ]
     # THE MODE PAIR, LISTED and never silent (plan P4-D4.11). It is
     # published on every column of this role that has one, so its
     # listing does not hang off the histogram beside it; a column with
@@ -14290,6 +15092,24 @@ def _unbounded_style_listings(
     a fact the report has lost, which is worse than either.
     """
     listings: list[Listing] = []
+    # THE WIDE-RUN CEILING, WHERE THE DESCRIPTION SETTLES NOTHING FOR IT
+    # (landing 2b.13, plan P4-D90). `_style_checks` files the check on
+    # the `canonical` state alone, because that is the only state a file
+    # can be found to miss it in; the other two are obligations the
+    # description itself empties, which is exactly the shape the three
+    # below are.
+    if facts.wide_runs != parsing.WIDE_CANONICAL:
+        why = _NOT_CHECKABLE_NO_WIDE_RUNS
+        if facts.wide_runs == parsing.WIDE_RESPELLED:
+            why = _NOT_CHECKABLE_WIDE_RUNS_RESPELLED
+        listings += [
+            Listing(
+                column.name,
+                "numeric.wide_runs",
+                "styles.canonical.wide",
+                why,
+            )
+        ]
     for style in (parsing.STYLE_DECIMAL, parsing.STYLE_EXPONENT_LOWER):
         if style in _ceilinged_styles(column, facts):
             continue

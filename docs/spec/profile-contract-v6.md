@@ -708,7 +708,7 @@ claim.
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
-| `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — an affix around it, a separator between several, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer (residual R-P4-52). A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
+| `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `affixed_number`, `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. **THE AFFIXED ROLE IS HONOURED OVER ITS CORE** (landing 2b.16, plan P4-D106, closing the affixed half of residual R-P4-52). Such a cell is a number wearing one shared piece of text, and the two halves are read differently on purpose: the CORE is read, and written back, in the column's declared grammar, while the WRAPPER is published character for character and is never translated — a wrapper carrying either mark, `U.S.$ ` or a unit written `kg.`, is the file's own text and not a number this tool spelled. Before it, the commonest European export there is — `795,64 EUR`, `37,5 %` — had no substring the splitter's reader could hold, so every cell proposed a wrapper of its own, none reached the parse line, and the column was described as free text and rebuilt as punctuation stand-ins, with `synthtwin validate` reporting exit 0 on both files. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — a separator between several numbers, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer; on `joined_numbers` the same mark may be the separator itself, and that half of residual R-P4-52 is open. A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `identifier_minimum_rows` | integer | ≥ 0 | below this many rows nothing is said about a column being all-different, because in a short column almost every measurement is. It decides no role |
@@ -4519,7 +4519,10 @@ consumer off the role name.
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
 | `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
-| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ `small_cell_floor`, or `{"(withheld)": n}` with 1 ≤ n < `small_cell_floor` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`: named where the count reaches `small_cell_floor` and pooled below it, so a floor of one never pools; the total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
+| `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than `small_cell_floor` were written; `"canonical"` where at least that many were and every one of them is the figures its own value writes; `"respelled"` where at least that many were and at least one is not. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
+| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
+| `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is pooled, and a pool that is itself below the floor makes the whole census unavailable. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell proves no mark and is counted nowhere here. Floored, pooled and made unavailable exactly as `negative_notations` is; where the column publishes a mark of its own, this census names that mark. `{}` where no cell proves one, and on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
@@ -4527,7 +4530,7 @@ consumer off the role name.
 | `empty_bins` | array | C6-122 to C6-123 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-123a to C6-123b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
 
-Twenty-eight keys. Every one is present in every block of these two
+Thirty-one keys. Every one is present in every block of these two
 roles — this format has no optional keys — and every key not listed
 here or in section 5.1 is FORBIDDEN on them (section 6.11).
 
@@ -4739,12 +4742,34 @@ block carries `""` and no other mark.
 `negative_form` other than `"minus"` only where `n_negative` is at least
 `small_cell_floor` and at least one.
 
-**Invariant DP1 (signed decimals under the floor and in the room)**
-(landing 2b.2). `decimal_plus` names `+` only with a count of at least
-`small_cell_floor`, holds a count below it only under `(withheld)`, never
-both, and its total is no larger than the `decimal` count of
-`numeric_styles` plus its `(withheld)` remainder; it is `{}` on a
-position of a `joined_numbers` column, whose parts carry no sign.
+**Invariant DP1 (signed decimals at the census floor, in the room, and
+never pooled)** (landing 2b.2, amended by landing 2b.7). `decimal_plus`
+names `+` only with a count of at least the CENSUS FLOOR — max(2,
+`small_cell_floor`) — and never pools: `+` is this census's only
+category, so a `(withheld)` remainder beside it would name the category
+it held back, and `{}` beside `{"(withheld)": 1}` told a reader which
+single cell of 1,200 carried a plus. Where it cannot name a count it
+carries `{"(unavailable)": 0}`, which is the one state nought and every
+below-floor count share; the unavailable key carries no other number.
+Its total is no larger than the `decimal` count of `numeric_styles` plus
+that map's `(withheld)` remainder; it is `{}` on a position of a
+`joined_numbers` column, whose parts carry no sign.
+
+**Invariant NS2 (the notations a negative wore)** (landing 2b.7).
+`negative_notations` names a notation of `negative_form`'s own four only
+with a count of at least the census floor, pools what is left under
+`(withheld)` only at that floor and only where `small_cell_floor` is
+above one — below which C5-S13 leaves nothing to hold back — and carries
+`{"(unavailable)": 0}` where it can do neither. The counts together are
+no more than `n_negative`. It is `{}` on a position of a
+`joined_numbers` column.
+
+**Invariant TM1 (the marks a grouped number wore)** (landing 2b.7).
+`thousands_marks` names a mark `group_separator` may publish, other than
+`""`, on the same three terms as NS2. Where `group_separator` publishes
+a mark, this census names that mark: a majority the mixture does not
+carry is a majority no cell proved. It is `{}` on a position of a
+`joined_numbers` column.
 
 ---
 
@@ -5191,6 +5216,10 @@ rather than a list of its own, so the two cannot part again.
 | `datetime_separators` | | | | | | | ● | | | | | | | | |
 | `all_at_midnight` | | | | | | | ● | | | | | | | | |
 | `n_at_midnight` | | | | | | | ● | | | | | | | | |
+| `date_field_widths` | | | | | | | ● | | | | | | | | |
+| `month_name_styles` | | | | | | | ● | | | | | | | | |
+| `quarter_marker_case` | | | | | | | ● | | | | | | | | |
+| `zulu_case` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -5224,7 +5253,10 @@ rather than a list of its own, so the two cannot part again.
 | `numeric_styles` | | | | | | | | | ● | ● | ● | | | | |
 | `group_separator` | | | | | | | | | ● | ● | ● | | | | |
 | `negative_form` | | | | | | | | | ● | ● | ● | | | | |
+| `wide_runs` | | | | | | | | | ● | ● | ● | | | | |
 | `decimal_plus` | | | | | | | | | ● | ● | ● | | | | |
+| `negative_notations` | | | | | | | | | ● | ● | ● | | | | |
+| `thousands_marks` | | | | | | | | | ● | ● | ● | | | | |
 | `fraction_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `pad_widths` | | | | | | | | | ● | ● | ● | | | | |
 | `field_widths` | | | | | | | | | ● | ● | ● | | | | |
@@ -5271,10 +5303,10 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Ninety rows, one hundred and seventy-three marked cells**,
+**Ninety-seven rows, one hundred and eighty-six marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 16,
-`time_of_day` 5, `count` 28, `continuous` 28, `affixed_number` 38,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
+`time_of_day` 5, `count` 31, `continuous` 31, `affixed_number` 41,
 `identifier` 6, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
@@ -5667,9 +5699,12 @@ refused rather than read.
 | `integer_valued` | boolean | — | true when every numeric-looking CORE is whole | EXACT-OBSERVABLE, routed by the FACT and not by role |
 | `n_rows` | integer ≥ 0 | the table's row count where ONE wrapper is worn; the COMMONEST wrapper's own count where a SET is (C6-7b, AF13) | the row count of the population this block describes, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | CORES per spelling style, under the floor | EXACT-OBSERVABLE, recount identity of section 7.5.7 |
-| `group_separator` | string | as on `count` and `continuous`, never `"."` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous` (GS1) | EXACT-OBSERVABLE (plan P4-D41) |
+| `group_separator` | string | as on `count` and `continuous`, and `"."` only where the column is named in `settings.forced_decimal_commas` | the mark between thousands the CORES were written with, under the same evidence rule as on `count` and `continuous` (GS1). Since landing 2b.16 the declaration reaches this role's cores, so the point stands here under exactly the condition it stands under on a plain numeric column and never otherwise. **THE LIMIT THIS ROW CARRIED IS CLOSED (plan P4-D108, landing 2b.16's repair pass).** A declared column whose cores group their thousands with a point — `645.121,62 EUR` — published `""` about a column where 800 of 800 cells carried the mark, and its twin wrote the value ungrouped, `62391,86 EUR`, at exit 0 on BOTH files with nothing missed, so a spelling every real cell wore was lost in silence. **The cause was not the reading**, which keeps the core's own text and was measured doing so: it was the TALLY the cores are counted into. The cores are classified under the declaration and the record built from them was built without it, so every rule that asks the record which grammar this column writes — this one above all — answered for an undeclared column. The record now carries the declaration its cells were classified under, and the point stands here under exactly the condition it stands under on a plain numeric column and never otherwise. Measured after it, 800 cells at floor eleven, seeds 1 and 7: `group_separator: "."`, `thousands_marks: {".": 800}`, the twin writes `62.391,86 EUR` with 800 of 800 grouped, the twin's own re-description returns the mark, and both files exit 0 with nothing missed | EXACT-OBSERVABLE (plan P4-D41, P4-D106, P4-D108) |
 | `negative_form` | string | as on `count` and `continuous` | how the CORES write their negative numbers, under the same rule; brackets inside the wrapper, `$(1,234.56)`, are the core's own. Brackets around the wrapper too, `($1,234.56)`, are part of the wrapper and carry NF56 | EXACT-OBSERVABLE (plan P4-D41) |
-| `decimal_plus` | object | as on `count` and `continuous` | how many CORES written with a point carried a plus | EXACT-OBSERVABLE (plan P4-D41) |
+| `wide_runs` | string | as on `count` and `continuous` | whether the CORES' wide runs of figures are the text their own values write, under the same rule and read over the cores | EXACT-OBSERVABLE (plan P4-D90) |
+| `decimal_plus` | object | as on `count` and `continuous` | how many CORES written with a point carried a plus | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
+| `negative_notations` | object | as on `count` and `continuous` | how many negative CORES wore each notation, under the same census floor (NS2) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | as on `count` and `continuous` | how many grouped CORES wore each mark, under the same census floor (TM1) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-27 to C6-30 | `decimal`-styled CORES per fraction width, under the floor | EXACT-OBSERVABLE |
 | `pad_widths` | object | C6-27b to C6-30b | `leading_zero`-styled CORES per field width, under the floor | EXACT-OBSERVABLE |
 | `field_widths` | object | C6-27c to C6-30c | whole-written CORES per field width, under the floor | REPORT-ONLY |
@@ -5688,12 +5723,12 @@ refused rather than read.
 | `affix_variants[].n_core_not_numeric` | count | AF11 | its CORES that are no number at all | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct` | count | AF11 | how many DIFFERENT cores this wrapper's cells carry | EXACT-OBSERVABLE |
 | `affix_variants[].n_core_distinct_folded` | count | AF11 | the same over the folded identities | EXACT-OBSERVABLE |
-| `affix_variants[].numbers` | object | AF13 | the twenty-eight keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
+| `affix_variants[].numbers` | object | AF13 | the thirty-one keys of a `count` or `continuous` block, read over this wrapper's cores and echoing its `count` in `n_rows` | as on `count` and `continuous` |
 
-**The block is sixty keys**: the twenty-two universal keys of
-section 5.1 and the thirty-eight above — a `count` block's twenty-eight
+**The block is sixty-three keys**: the twenty-two universal keys of
+section 5.1 and the forty-one above — a `count` block's thirty-one
 additions plus this role's own ten. The matrix of section 6.11 marks
-exactly those thirty-eight cells in its `afx` column. There is no
+exactly those forty-one cells in its `afx` column. There is no
 unparsed count on this role: cells wearing no pair are
 `n_present - n_affixed`, and a key restating a subtraction is a key
 two implementations can disagree about.
@@ -7253,6 +7288,52 @@ all-canonical whole-number column publishes `{"plain": n}` and stays
 byte-plain. The report names the remainder, the cells it covered and
 how many lacked a point-free spelling.
 
+### 7.5a `negative_notations` and `thousands_marks`
+
+**C6-86 (where they live).** A `count`, `continuous` or `affixed_number`
+block carries both as keys of the BLOCK, siblings of `numeric_styles`
+rather than keys inside it, for the reason `fraction_widths` is one: the
+forms map is a partition whose counts close on the numeric count, and a
+grouped cell is also a decimal one. A position of a `joined_numbers`
+column carries `{}` for each (NS2, TM1).
+
+**C6-87 (what they count).** `negative_notations` counts the cells
+`negative_form` is counted over — every cell reading as a negative
+number this format holds — under the notation it wrote.
+`thousands_marks` counts the cells that PROVE a mark under
+`group_separator`'s evidence rule of 7.5: four or more whole figures, a
+groupable form, and a whole part reading as groups of three around one
+mark, read with points and commas exchanged on a declared decimal-comma
+column. A BARE groupable cell proves no mark and is counted in neither
+census: it is not a small group, it is a cell with no convention to
+reproduce.
+
+**C6-88 (the census floor).** Both are floored PER CONVENTION at max(2,
+`small_cell_floor`), never at one. A published count of one names an
+individual outright — the reader who knows how every other cell was
+written can tell how that cell was — and `small_cell_floor` defaults to
+one. What falls below is pooled under `(withheld)`, which names no
+convention here because these censuses have four and eight possible
+keys; a pool that is itself below the floor would name its own cells, so
+such a census publishes `{"(unavailable)": 0}` and no number at all. At
+`small_cell_floor` of one nothing may be pooled (C5-S13) and the
+unavailable state stands instead. The complement clause of the owner's
+twin definition is met by construction: every count printed is at least
+the floor, so the cells outside any one of them are the other printed
+counts added — nought, or at least the floor again.
+
+**C6-89 (disposition).** Both EXACT-OBSERVABLE (plan P4-D65.2). **The
+twin writes each named convention on that many cells**, spending the
+census cell by cell as generation method G6.1 states, and a cell no
+named count covers wears the column's published majority. The quality
+report compares each named convention with what describing the twin on
+its own publishes for it, and WITHHOLDS the comparison where the twin's
+population of cells that could wear a convention differs from the
+published total: how many of a twin's cells reach four whole figures, or
+fall below zero, follows from its ladder and is not itself pinned cell
+for cell, and the generator's report names that shortfall as a deviation
+of the census.
+
 ### 7.6 `fraction_widths`
 
 **C6-27 (where it lives).** A `count`, `continuous` or `affixed_number`
@@ -8406,14 +8487,17 @@ supplied a different test would refuse different files.
 
 | id | statement | loader? |
 |---|---|---|
-| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and a block nested in an `affixed_number` or `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0, U+202F and U+2009 may stand under either; a position of a `joined_numbers` column carries `""` | yes |
+| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and so may the block nested in an `affixed_number` column the declaration reaches (landing 2b.16, plan P4-D106; the loader asks `a_decimal_comma_reaches` and no list of roles, which is what made that a change in one place), while a block nested in a `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0, U+202F and U+2009 may stand under either; a position of a `joined_numbers` column carries `""` | yes |
 
-#### NS1 and DP1 — `negative_form` and `decimal_plus`, on every numeric block
+#### NS1, DP1 and WR1 — `negative_form`, `decimal_plus` and `wide_runs`, on every numeric block
 
 | id | statement | loader? |
 |---|---|---|
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(1, `small_cell_floor`) | yes |
-| DP1 | `decimal_plus` names `+` only at ≥ `small_cell_floor`, pools under `(withheld)` only below it, never both; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder; `{}` on a position of a `joined_numbers` column | yes |
+| WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(1, `small_cell_floor`) cells (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
+| DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder; `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), pools under `(withheld)` only at that floor and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`; `{}` on a position of a `joined_numbers` column | yes |
+| TM1 | `thousands_marks` names a mark other than `""` on NS2's terms, and names whatever mark `group_separator` publishes; `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
 
@@ -8771,6 +8855,7 @@ reproduces the recorded spellings there as on any other column.
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
+| `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: every point-free cell of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — must be the figures its own value writes, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
 | `pad_widths` | EXACT-OBSERVABLE against a recount identity of the same shape as `fraction_widths`: recounted padded cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value. A named width is honoured by PADDING and never by adjusting the value — `000123` and `123` read back as the same number — so no rung, endpoint or statistic is ever spent to reach one. Where a width is named the leading-zero family is spent on it, because every further spelling of a value is one figure wider; raw `n_distinct` then falls to its own two-sided envelope under the authorization owner decision 11 already carries, "only where even those cannot supply" |
 | `fraction_widths` | EXACT-OBSERVABLE against a recount identity of the same shape: recounted cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value — exact where nothing pooled, windowed where something did. Widths are met by value adjustment inside the value-construction stage, so a pinned cell counts toward a width only when its value already fits it |
 | `field_widths` | REPORT-ONLY, and 7.10 carries the measurement the class was chosen on. Unlike `pad_widths`, a named width here is a fact about the VALUE and not only about the spelling — an unpadded cell is exactly as wide as its value — so it can be met only by the value-construction stage, and that stage places values by the ladder. `docs/spec/generation-method-v1.md` G6.6 takes the census as a constraint on the figure count of each stratum's value, within the half unit G5.4's integer rule already spends; where a width has no such value to reach it, the twin's report names the shortfall with the count it reached and `synthtwin validate` LISTS the census rather than holding the file to it |
@@ -9741,7 +9826,8 @@ a marked row.
    `n_negative_unrepresentable`, `n_used_in_statistics`,
    `n_left_out_of_statistics`, `numeric_share`, `integer_valued`,
    `n_rows`, `numeric_styles` with its siblings `group_separator`,
-   `negative_form`, `decimal_plus`,
+   `negative_form`, `wide_runs`, `decimal_plus`, `negative_notations`,
+   `thousands_marks`,
    `fraction_widths`, `pad_widths` and `field_widths`, `n_affixed`, and the four core-class counts
    `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory`,
    `n_core_not_numeric`, `affix_variants`, `n_core_distinct`,
@@ -9750,7 +9836,7 @@ a marked row.
    keys `value_histogram`, `empty_bins` and `empty_edges` — each under
    the treatment the same fact has on a plain numeric column, all of
    it reaching columns that were free text. With row 2 this prices all
-   thirty-eight keys the role adds; rows 4, 7, 20 and 21 restate four of
+   forty-one keys the role adds; rows 4, 7, 20 and 21 restate four of
    them at their own floor or disclosure treatment and add nothing to
    the set.
 

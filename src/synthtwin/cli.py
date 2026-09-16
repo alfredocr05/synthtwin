@@ -670,12 +670,15 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "synthtwin never guesses this: a comma inside an address or "
             "a note is not a decimal point, so it changes the reading "
             "only for the columns you name. It reaches a column read as "
-            "PLAIN NUMBERS, and not one whose cells hold a number "
-            "inside a larger spelling -- a unit or a currency mark "
-            "around it, or a separator between two numbers -- because "
-            "then synthtwin cannot tell which mark is the decimal "
-            "point; where that happens it says so and reads the column "
-            "as it otherwise would. May be given more than once"
+            "PLAIN NUMBERS, and a column whose numbers each wear one "
+            "shared unit or currency mark, such as '795,64 EUR' or "
+            "'37,5 %': there the number inside the mark is read and "
+            "written your way and the mark itself is copied exactly. "
+            "It does NOT reach a cell holding two numbers with a "
+            "separator between them, because there synthtwin cannot "
+            "tell which mark is the decimal point; where that happens "
+            "it says so and reads the column as it otherwise would. "
+            "May be given more than once"
         ),
     )
     parser.add_argument(

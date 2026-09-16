@@ -634,8 +634,18 @@ writer gives `v[i]` at `f` figures. A run is then a run of one WRITTEN
 number, and `GridValue(x)` below names this reading. A column is on a
 written grid of `f` figures where `fraction_widths` names the one width
 `f` and either that width covers every numeric cell — G6.5a's WHICH GRID
-clause — or its count and `W`, the point-free count of G5.2's carrier
-step, add up to every numeric cell (landing 2b.1, repair, 2026-09-16).
+clause — or its count and the NAMED point-free style counts (`plain`,
+`leading_zero` and `leading_plus`, the `(withheld)` share EXCLUDED) add
+up to every numeric cell (landing 2b.1, repair, 2026-09-16; the
+withheld share excluded by landing 2b.7, 2026-09-15). That pool is not
+read here even though G6.4 WRITES it in the plain style: a pooled count
+says how many cells it covered and never which form they took, so it
+cannot prove its cells carry no point. Counting it proved a grid that
+does not exist — 490 cells at one decimal place beside ten `-1e-2`
+cells publish the width `1` for 490 and pool the other ten, and 490 + 10
+read as full coverage of the grid of tenths, which `-0.01` is not on.
+Its twin held 28 different numbers against a published 31 at seeds 1, 7
+and 23, and holds 30 with the pool excluded.
 The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
 how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
 the grid point whose last `f` figures are zero, so every number of such
@@ -743,19 +753,38 @@ strata to fit its cells under the cap at all.
 
 `F` is the description's `small_cell_floor`, and its term stands only
 where `F >= 3` and the description does not itself prove a number held
-by `F` cells or more — neither `ceil(K / n_distinct_values)` nor
-`floor((r - 1) * (K - 1) / 100)` reaches `F`; everywhere else the term
-is absent (landing 2b.1, repair, 2026-09-16). The profiler withholds the
+by `F` cells or more — `ceil(K / n_distinct_values)` does not reach `F`;
+everywhere else the term is absent (landing 2b.1, repair, 2026-09-16;
+narrowed by landing 2b.7, 2026-09-15). The profiler withholds the
 pair exactly where the commonest number is held by fewer than `F` cells
 or by one, so under a floor of 3 or more the pair's absence proves no
 number was held by more than `F - 1`; under a lower floor it proves only
 that every number is different, which the first term already says. The
-two exceptions are descriptions that contradict that reading: every
+ONE exception is a description that contradicts that reading: every
 number of a column holds at least `ceil(K / n_distinct_values)` cells
-on average, and the rungs at the two ends of a run of `r` equal rungs
-stand `(K - 1)(r - 1) / 100` type-7 positions apart, with every sorted
-position from just past the first to the second reading that number. A
-withheld pair under the floor was not withheld by it there. Without the
+on average, so a withheld pair under the floor was not withheld by it
+there.
+
+**A RUN OF EQUAL RUNGS IS NOT THE SECOND EXCEPTION, AND WAS** (landing
+2b.7, 2026-09-15, withdrawing the `floor((r - 1) * (K - 1) / 100)` term
+of the clause above). The argument for it was that the rungs at the two
+ends of a run of `r` equal rungs stand `(K - 1)(r - 1) / 100` type-7
+positions apart with every sorted position between them reading that
+number — which is true of the ladder and false of the column, because
+RUNGS ARE COMPARED AS BINARY64. Equal rungs prove that many equal
+ROUNDED values and say nothing about how often one exact value was held.
+A hundred exact decimals `1.0000000000000001` upward at four cells each
+is the column that separates the two: every number is different, none is
+held more than four times, the profiler withholds the mode pair because
+four is under a floor of 11 — and 101 rungs carry 46 different binary64
+values with a longest equal run of 4, so the withdrawn term read
+`floor(3 * 399 / 100) = 11` and stood the floor aside. All three
+writings then capped a stratum at 21 where the withheld pair proves 10.
+The count term is unaffected: it reads `ceil(400 / 100) = 4`, which does
+not reach the floor, so the floor binds. One frozen case moves with this
+withdrawal and only one — `numeric_point_free_styles`, whose 33 cells
+are all the number 5 and whose hand-written description withholds its
+mode pair while its own flat ladder said a number was held 33 times. Without the
 term, 4,000 amounts described under `--smallest-group 11` came back
 holding one number 45 times and 2,500 thousandths 27 times, where the
 withheld pair proved no real number was held more than 10 times, and
@@ -1465,6 +1494,8 @@ exactly one of six **styles**, and in no other form:
 
 **Every mark a column may publish, and every notation of a negative, and a plus on a decimal** (landing 2b.2, 2026-09-15; plan P4-D41). A column publishing a space, an apostrophe, U+2019, U+00A0, U+202F or U+2009 is grouped with that mark itself, under the same rule of forms and order; no exchange touches it, so a declared decimal-comma column grouped with a space is written `1 234,56`. Where `decimal_plus` names a count, the cells allocated `decimal` whose value is not negative are taken in cell order, P being the lesser of the named count and their number E, and the plus is placed on WHOLE VALUES (integration repair of landing 2b.2: placed cell by cell, three values written fifty times each, one with a plus, came back as six spellings, and 900 signed changes publishing 690 spellings as 780). Those cells form runs of one value, in cell order; a run from cell `a` to cell `b - 1` is offered `floor(b·P/E) - floor(a·P/E)` pluses and takes one on every cell where that offer is at least half its length. While the cells taken exceed P, the taken run with the smallest offer per cell no longer than the excess is given up; while they fall short, the untaken run with the largest offer per cell no longer than the shortfall is taken, the earlier run first on a tie. What whole runs still cannot meet is spread inside one run -- the last taken run where the total is over, keeping its length less the excess, or the first untaken run at least as long as the shortfall -- and a run of length m holding k pluses gives its j-th cell, counting from nought, a plus exactly where `floor((j+1)·k/m)` exceeds `floor(j·k/m)`; so a column whose decimal cells all hold one value is spread one in every `E/P` exactly as before; a pooled count names no form and adds no plus; the plus stands in front of any zeros the cell spends. Before any fraction width is assigned (G6.6), where fewer cells are allocated `decimal` on a value not negative than the named count, cells exchange forms: each cell allocated `plain` or `leading_zero` whose value is not negative, from the first cell upward, takes the first cell, from the last cell downward, allocated `decimal` whose value is negative, has a point-free spelling, is not yet taken, and -- where the giver is `leading_zero` -- writes no more figures than the giver does, so the field width the padded exchange fitted it to is still reachable; each pair swaps its two forms, for as many pairs as the shortfall allows; no form count moves (integration repair of landing 2b.2: only `plain` gave, and a column of `-001` beside `+2.00` and `+3.00` came back with none of its hundred pluses). Where E is still below `decimal_plus` every eligible cell carries one and the report names a deviation of `decimal_plus`. Every negative cell is then written in the column's `negative_form`: the figures after the hyphen-minus, zeros and mark included, inside brackets, after the minus sign U+2212, or followed by a hyphen-minus -- the last only where those figures carry a decimal point, because neither `12-` nor `1,234-` is read as a number, so such a cell keeps its hyphen-minus in front. So `(001234.5)` and `(1,234.5)` are written and `(0,001.00)` never is.
 
+**A mixture of conventions is written as a mixture** (landing 2b.7, 2026-09-15; plan P4-D65.2). `negative_form` and `group_separator` publish the column's MAJORITY, and writing every cell that way threw the minority away: 480 negatives with a minus beside 120 in accounting brackets came back as 600 minuses, and 200 cells grouped with a space beside 100 grouped with a narrow no-break space came back as 300 ordinary spaces, each with no deviation reported and no check missed. Where `negative_notations` names a notation, the cells holding a negative value are taken in cell order and each named notation takes its count in turn; where `thousands_marks` names a mark, the cells that CAN be grouped are taken the same way. A cell no named count covers wears the column's published majority, which is what a pooled remainder and the unavailable state both leave behind — so a column publishing no mixture is written exactly as it was before this rule existed, and no frozen case moves. A cell CAN be grouped exactly where writing it with the published mark puts a mark in it, which is this section's own rule about forms, leading-zero order and four whole figures, asked of the writer rather than restated. A trailing minus is offered only to a cell allocated `decimal`, because the notation is written only where the figures carry a decimal point, so a cell without one would keep its minus in front and miss the census silently. Where a named count has more cells than the twin can offer, every cell it can reach takes the convention and the report names the shortfall as a deviation of that census.
+
 **Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
 **Which decision governs which question** (P2-C1-F8). Decision 8 fixed
@@ -1616,6 +1647,58 @@ cells, a ceiling of one. Two rules follow and both are normative:
    receive it. The two guards that DO bind are the ones the styles
    themselves impose: there is no leading-plus spelling of a negative
    value, and no point-free spelling of a value that has none.
+
+   **AND THE EXCHANGE RUNS IN BOTH DIRECTIONS** (landing 2b.7,
+   2026-09-15; plan P4-D66.4). The sentence above moves the padded
+   style ONTO a value a published field can hold; it must equally move
+   it OFF a value no published field can hold. A cell left wearing the
+   style is handed no width — a field narrower than the value is never
+   assigned, by rule 1 — and the writer then writes one zero in front
+   of a value that already fills the field. Measured: a column of month
+   codes `01` to `12`, every real cell two characters and the census
+   naming the one field `{2: 598}`, came back holding `012`, three
+   characters in a two-character field, with `pads.published.2` MISSED.
+   So after the widths are served, each cell still wearing the padded
+   style whose value no published width can hold exchanges styles with
+   the first cell, in ascending position, that is not wearing it, can
+   wear it, and holds a value a published width CAN hold; the giver
+   must be able to wear what it receives, as in the exchange above.
+   **AND WHERE NO PARTNER EXISTS THE CELL GIVES THE STYLE UP ANYWAY**
+   (landing 2b.16, 2026-09-16; plan P4-D105). That is the case where
+   the twin drew fewer values narrow enough for the field than the
+   census counts cells, so no exchange can mend it and the census
+   cannot be met; a revision of this sentence left the cell wearing the
+   style, and the writer then put one zero in front of a value that
+   already filled the field. Measured: eight hundred five-figure postal
+   codes at floor eleven, seed 7, publish `pad_widths {5: 85}`; the
+   twin drew 84 values narrow enough, wrote `099613` — six characters
+   in a five-character field — and missed `pads.published.5` at 84 all
+   the same. **The census is missed in both writings; what differs is
+   the cell.** Reaching for the value instead is closed off by the
+   contract in as many words: a named field width is honoured by
+   padding and never by adjusting a value, because `000123` and `123`
+   read back as the same number and no rung, endpoint or statistic may
+   be spent to reach one.
+
+   So the cell takes, instead of the padded style, the point-free form
+   the published map carries MOST OF — `plain` before `leading_plus`
+   where both are worn the same number of times, which is the
+   enumeration order every other tie here is broken by — and a form no
+   cell of the column wears is never offered, because writing one would
+   invent a spelling the description does not publish. Where the map
+   carries no other point-free form at all, every cell of the column
+   being padded, there is nothing to give the style up to and the cell
+   keeps it.
+
+   **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
+   exchange above moves no count; this gives one cell from
+   `leading_zero` to `plain`, so the styles map — which is
+   EXACT-OBSERVABLE against the identity of contract 7.5.7 — is missed
+   in the clauses that identity states, beside the width census that
+   was already missed. Measured on the same column: one obligation
+   missed before this rule and five after it, every one of the five
+   naming the same single cell, and no cell of the twin wider than the
+   field its description publishes.
 
 Placing the counted cells into the published widths is a packing
 problem and this method fixes a WALK rather than an optimum. The walk
@@ -2229,14 +2312,32 @@ itself land two strata on one text — and before the held-back pool.
 acts only where every numeric cell of the column is written on ONE
 grid, because only then does a value know what text it will wear:
 
+- **where the column is `integer_valued`, the grid is the INTEGERS,
+  whatever `fraction_widths` says** (landing 2b.7, 2026-09-15; plan
+  P4-D66.3). The two facts answer different questions: `integer_valued`
+  says every VALUE of the column is whole, and `fraction_widths` says
+  how many figures each CELL writes after its point. A column a
+  spreadsheet exported as `44.0` publishes both — every value whole,
+  every cell one figure wide — and this clause used to reach the
+  integers only for an EMPTY census, so such a column was read as
+  being on the grid of TENTHS and this pass moved a stratum onto a
+  value no whole-number column holds. Measured through the real reader,
+  producer, loader, generator and validator on 800 whole counts written
+  at one figure: 23 non-whole twin cells at seed 1 and 19 at seed 7,
+  `25.6` and `30.6` among them, and the twin described itself again as
+  a `continuous` column where the source was a `count` — `axes.role`,
+  `axes.statistical_type` and `type.integer_valued` all MISSED. Whole
+  amounts written at two figures were worse, 68 cells of 800. Which
+  cell is written at which width is not lost by answering the other
+  question: that is settled after the styles by G6.6, and what is
+  settled here is the grid the VALUES sit on, which for a whole-valued
+  column is the one G5.4's own rule already put them on;
 - where `fraction_widths` names exactly one width and that width covers
-  every numeric cell, the grid is that width — tenths, hundredths;
-- where `fraction_widths` is EMPTY and the column is `integer_valued`,
-  the grid is the INTEGERS. A whole-number column carries no figure
-  after the point, so it has no width to count and its census is empty
-  — which an implementation may read as "no grid" and skip the pass
-  entirely. It IS a grid: the one every whole-valued column is written
-  on;
+  every numeric cell, the grid is that width — tenths, hundredths. A
+  whole-number column carries no figure after the point, so it has no
+  width to count and its census is empty — which an implementation may
+  read as "no grid" and skip the pass entirely, which is why the clause
+  above does not depend on the census at all;
 - otherwise the pass does not run. Where the census names several
   widths, which cell gets which is settled after the styles by G6.6,
   and a value cannot know here what it will be written at.
@@ -2649,6 +2750,30 @@ Every stratum so identified moves, subject to:
    stratum from one figure to two takes a carrier away from the padded
    -width census: 9 can be written `09` at a published width of two
    and 10 cannot.
+8. landing on a POINT OF THE COLUMN'S WRITTEN GRID, where the column
+   is on one — G5.2a step 1's grid of `f` figures (landing 2b.7,
+   2026-09-15). A whole-valued column is on the INTEGER grid and rule
+   G6.7.6 already rounds every candidate onto it; a column written at
+   a fixed width is the same kind of fact and had no such step, so
+   this walk — which steps in sixty-fourths of a BIN, and a bin is not
+   a grid — handed a stratum a value lying between two grid points.
+   G6.6's writer then wrote that cell at the width its own value
+   needed rather than at a published one, which is a published width
+   count missed. MEASURED through the real reader, producer, loader,
+   generator and validator on halves written as a spreadsheet writes
+   them — `37` beside `37.5` — at 400 and 4,000 rows, seeds 1, 7 and
+   23, at both floors: ONE cell of each twin came out
+   `38.55126953125` and `39.05078125`, the twin wrote 207 cells at the
+   one published width against 208 and 2,000 against 2,001, and
+   `widths.published.1` missed at every one of the twelve runs.
+   The rule only NARROWS the candidate set: rules 1 to 7 are applied
+   to the snapped candidate exactly as before, so a snapped value that
+   would change the written form, the figure count or the sign band,
+   or that reads as a value another stratum holds, is passed over as
+   it always was. Where the grid holds no free point within the reach
+   of G6.7.5, the answer is nothing, the value stays, and G6.7.8's
+   recount names the stretch — the same outcome this walk has always
+   had where it can find nowhere to go.
 
 **RULES 6 AND 7 EXIST BECAUSE THE SUITE FOUND THEM, and both were
 measured on the floored witness of review item P3-V7-F4** — a column
@@ -2734,7 +2859,14 @@ generator following it would reverse the moved values against the
 shipped one and write different bytes for the same description. On a
 whole-numbered column each position is rounded to a whole number
 before it is tested, and a position that then reads back inside a
-named bin is passed over.
+named bin is passed over. **AND ON A COLUMN ON A WRITTEN GRID each
+position is moved onto that grid before it is tested** (G6.7.4 clause
+8, landing 2b.7): the two are one rule, the integers being the grid a
+whole-valued column is written on, and the snap is taken BEFORE the
+reach of G6.7.5 is measured for the same reason the rounding is —
+the candidate that is tested must be the candidate that is written.
+A grid point whose text does not read back as itself is passed over,
+which is the rule G6.5a states for its own walk.
 
 **AND THE TEST IS APPLIED TO THE SPELLING, not to the value.** A
 column written to one figure after the point has its values rounded
@@ -2845,6 +2977,23 @@ cell = affix_prefix + core + affix_suffix
 ```
 
 No trimming, no case change, no normalization of either side.
+
+**AND ON A DECLARED COLUMN THE EXCHANGE OF P4-D26 RUNS OVER THE CORE
+ALONE** (landing 2b.16, plan P4-D106). Where the column is named in
+`settings.forced_decimal_commas`, its cores are written by the rules
+above and then have every point and comma exchanged, exactly as a plain
+numeric column's cells are — and the WRAPPER is not touched, because it
+is published text rather than a number this method spelled. So a
+declared column publishing the suffix ` EUR` writes `624,60 EUR`, and
+one publishing the prefix `U.S.$ ` writes `U.S.$ 825,81` with the two
+points of its own wrapper still in it. Exchanging the whole cell
+instead rewrites the wrapper into a pair the description does not
+publish: measured, 800 cells of `U.S.$ 129,58` had every twin cell
+written correctly and both the twin and the real table reported at exit
+3, because the reading turned each into `U,S,$ 129.58` and counted it a
+straggler wearing no published pair. The order is the one the numeric
+roles use: the cell is finished first and exchanged last, so the rules
+above see the point form they were written in.
 
 ### G6A.3 The stragglers, and the overlap that must not be assumed away
 
@@ -6863,6 +7012,16 @@ to them in BOTH directions. Three keys were missing from the prose
 list when that guard was first written: `shape_forms`, and the two
 gap keys `empty_bins` and `empty_edges`.
 
+**AND TWO MORE WERE MISSING WHEN THE MIXTURE CENSUSES LANDED** (landing
+2b.7, 2026-09-15). `negative_notations` and `thousands_marks` are keys
+a report may carry the moment a column publishes a mixture of
+conventions, and the landing that added them to the generator did not
+add them here -- so this index stopped being complete and the guard
+above turned red, which is exactly what it is for. They are listed
+below. The lesson is the one this repository keeps relearning: a closed
+enumeration is stated in up to eight places, and the deviation key
+index is one of them.
+
 * `all_at_midnight`
 * `all_whole_numbers`
 * `datetime_separators`
@@ -6898,12 +7057,14 @@ gap keys `empty_bins` and `empty_edges`.
 * `n_unparsed`
 * `n_whole`
 * `n_whole_unknown`
+* `negative_notations`
 * `numeric_styles`
 * `pad_widths`
 * `percentiles`
 * `resolution_mix`
 * `shape_forms`
 * `suppressed_levels`
+* `thousands_marks`
 * `utc_offsets`
 * `words`
 * `levels -> shape_form_cells`
@@ -8046,6 +8207,7 @@ case passed, which is the failure the count exists to prevent:
 | `spaced_decimal_comma` | P4-D26's exchange beside a no-break space U+00A0, a mark neither decimal mark: `42 037,34`, one spent cell `042037,34` with no mark, and two absent cells |
 | `narrow_spaced` | a narrow no-break space U+202F between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `thin_spaced` | a thin space U+2009 between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
+| `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
 | `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
 | `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
