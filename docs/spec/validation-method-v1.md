@@ -2352,7 +2352,14 @@ nothing for the file to meet: those entries are passed over, and
 `empty_rows_inside` is WITHHELD as a whole. A column's `format_code` is
 WITHHELD in the same way when the census entry for the code's own kind
 was held back, because the twin then writes no cell of that kind and
-the code appears nowhere in it.
+the code appears nowhere in it. Since the files review's repair (plan
+P4-D160) the disclosure rule withholds more -- a nought beside a
+withheld count, and the smallest counts a reader could subtract to one
+-- so a whole census is often held back, and a column then publishes
+its commonest value class BY NAME in `value_class`: `workbook.value-class`
+is checked exactly where that name is published, and WITHHELD where it
+is `null`, which is the one fact that still misses a twin writing a
+column of digit texts as numbers.
 
 4. **A hidden state a lone sheet cannot keep.** `workbook.sheet-hidden`
 IS checked -- the writer hides every sheet standing before the table's,

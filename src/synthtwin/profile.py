@@ -713,6 +713,10 @@ _MAYBE_NUMBER = "number-or-nothing"
 # withholding itself -- a sheet whose name could be somebody's is not
 # published at all, and the twin writes it under a neutral name.
 _SHEET_NAME = "sheet-name-or-nothing"
+# The class most of a workbook column's value-holding cells are, by NAME
+# and without a count, or nothing where no class is held by the line
+# (plan P4-D160).
+_SHEET_VALUE_CLASS = "a-value-class-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -905,6 +909,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ),
     ("source", "workbook", "columns", _EACH, "format_code"): _WORD,
     ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
+    # ONE OF SYNTHTWIN'S OWN CLASS WORDS, OR NOTHING (plan P4-D160). It
+    # names which class is commonest without saying how common, which is
+    # what a twin needs where the census beside it withheld every count.
+    ("source", "workbook", "columns", _EACH, "value_class"): (
+        _SHEET_VALUE_CLASS
+    ),
     ("source", "workbook", "date_system"): _WORD,
     ("source", "workbook", "defined_names"): _COUNT,
     ("source", "workbook", "defined_table"): _FLAG,
@@ -2176,6 +2186,10 @@ def _leaf_is_published(
         # given: a pair too rare to publish sends the column to the
         # next rule instead.
         return isinstance(value, str)
+    if kind == _SHEET_VALUE_CLASS:
+        return value is None or (
+            isinstance(value, str) and value in dialect.SHEET_VALUE_CLASSES
+        )
     if kind == _SHEET_NAME:
         # The grammar is the producer's own, asked here rather than
         # restated: a name this document publishes must be one
@@ -2630,22 +2644,32 @@ def _published_form(
     empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
     if order and order <= len(columns):
         block = columns[order - 1]
-        blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
-        pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
-        # ...AND THE CELLS A JUDGED PASS TOOK (the integration of landings
-        # 2b.6 to 2b.10, 2026-09-16). The generator keeps those blank
-        # (contract C6-116), and since landing 2b.6 every such verdict
-        # names the published spellings its cells wore, so they are
-        # counted here as the empty cells they become. Measured before:
-        # a sorted column of dates whose twenty placeholder cells a
-        # judged pass took published its order, the twin wrote those
-        # twenty cells empty, and the twin missed `rows.order` at exit 3.
-        judged = _judged_cells(block)
-        if (
-            not isinstance(blank, int)
-            or not isinstance(pooled, int)
-            or blank + pooled + judged != empties
-        ):
+        # EVERY ABSENT CELL THE TWIN WRITES EMPTY, counted the way the
+        # generator decides it (plan P4-D169): the column's absent cells
+        # less the spellings it reproduces, where a judged pass's
+        # spellings are not reproduced (contract C6-116). It used to be
+        # the blank and pooled counts with the judged cells added, which
+        # left out every absent cell no field names -- measured: a sorted
+        # free-text column with twenty `--missing-value ZZZ` cells
+        # published its order, the twin wrote those twenty empty, and the
+        # twin missed `rows.order` while the real file passed.
+        absent_cells = block["n_missing"] if "n_missing" in block else 0
+        spellings = (
+            block["missing_by_source"] if "missing_by_source" in block else {}
+        )
+        reproduced = 0
+        if isinstance(spellings, dict):
+            for spelling in sorted(spellings):
+                held = spellings[spelling]
+                if isinstance(held, int):
+                    reproduced = reproduced + held
+        reproduced = reproduced - _judged_cells(block)
+        written_empty = -1
+        if isinstance(absent_cells, int):
+            written_empty = absent_cells - reproduced
+            if written_empty < 0:
+                written_empty = 0
+        if written_empty != empties:
             form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
     # AND THE LINES BEFORE THE TABLE ARE ALREADY SHAPES. The survey
     # publishes their kind, their count and their mark, so there is

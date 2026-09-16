@@ -1815,9 +1815,15 @@ def _run_profile(
         # would mean reading the table twice. A person answers the
         # question in the file their last run wrote, and their next run
         # reads their table the way they said.
-        if written.metadata_rows:
+        # AN ANSWER OF `data` IS AN ANSWER (plan P4-D168). It is nought
+        # rows, and a truthiness test here read nought as "not answered"
+        # and kept a typed `--metadata-rows 2`: measured, a file whose
+        # two rows under the names were a person's record and a marker
+        # row lost both to `header_rows` after the person had answered
+        # that they were records.
+        if written.metadata_rows_answered:
             metadata_rows = written.metadata_rows
-            metadata_rows_confirmed = True
+            metadata_rows_confirmed = written.metadata_rows > 0
         # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
         # delimiter the file is written with decides how it is read, so
         # the answer has to arrive before the read. It is the newer

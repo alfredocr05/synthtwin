@@ -66,6 +66,15 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
     "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
     "workbook_other_sheet_holds_a_table": ("/data/table.xlsx", "Notes", "Data"),
+    # The files review's repairs (plan P4-D160 to P4-D169). The three
+    # `checked_` forms are the validate path's, and take a path and
+    # positions alone (V9); the rectangle and the storage refusals are
+    # the profile path's.
+    "workbook_table_spans_too_many_cells": ("/data/table.xlsx", 1_000_000),
+    "checked_workbook_sheet_not_found": ("/data/checked.xlsx", 3),
+    "checked_workbook_sheet_is_empty": ("/data/checked.xlsx", 2),
+    "checked_workbook_other_sheet_holds_a_table": ("/data/checked.xlsx", 2, 1),
+    "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "types"),
     # Registered here by landing 2b.11 part 2. The builder arrived with
     # the `--metadata-rows` declaration of plan P4-D81 and reached this
     # table with no entry, so this file -- whose whole job is that every

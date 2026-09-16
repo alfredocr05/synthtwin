@@ -716,8 +716,30 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     # twin of `_spelled_code_table` is measured beside the others.
     spelled = _described(tmp_path, _spelled_code_table(), None, stem="spelled")
     spelled_twin = rendering.twin_csv(generation.generate(spelled, SEED))
+    # ...AND SO IS THE WORKBOOK BLOCK (plan P4-D77), by one workbook: no
+    # fixture of this battery is a workbook, so `document.source.workbook`
+    # was bound by nothing here while the validator files every one of its
+    # subchecks against it (the files review's repair, plan P4-D169). The
+    # binding asked is only that the fact is filed, so the workbook itself
+    # is the measured file.
+    import workbooks
+
+    book = tmp_path / "book.xlsx"
+    book.write_bytes(workbooks.plain_book(60))
+    booked = contract.load_profile(
+        str(
+            fixtures.write_profile(
+                tmp_path,
+                "book-profile.json",
+                profile.build_document(
+                    reading.read_table(str(book)), SETTINGS, []
+                ),
+            )
+        )
+    )
     for name, described, twin in runs + [
-        ("spelled-codes", spelled, spelled_twin)
+        ("spelled-codes", spelled, spelled_twin),
+        ("workbook", booked, book.read_bytes()),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
@@ -3690,7 +3712,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -3817,7 +3838,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -4170,7 +4190,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # this subcheck can fail at all.
             ("digits-record_code", "forms.published.@%%%%%"),
             ('quoted-record_code', 'bytes.quoting'),
-            ('reversed-record_code', 'rows.order'),
+            # NO ORDER IS REGISTERED ON `record_code` (contract FD12, plan
+            # P4-D76): an order is never published of a declared record
+            # number, so `rows.order` is not filed on this column and an
+            # edit reversing its rows falsifies nothing here. The rule is
+            # pinned by tests/test_file_dialect_round_trip.py.
         ),
         "recorded_on": (
             ("emptied-recorded_on", "axes.quality_state"),
@@ -4457,7 +4481,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -4865,7 +4888,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -5083,7 +5105,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -5266,7 +5287,15 @@ PREDICATE_FIXTURES = {
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # -- the file's written form (plan P4-D86): every rule is filed under
     # one fact, on the document and on every column family alike.
-    ('numeric', 'rows.sequence'): 'document.source.dialect',
+    #
+    # THREE SITES ARE NOT STATED HERE, because no fixture of this battery
+    # can file them and a statement no site meets is one that cannot fail
+    # (the files review's repair, plan P4-D169): `bytes.header-rows` is
+    # filed only where a person DECLARED rows of column descriptions (plan
+    # P4-D81), `rows.sequence` only for a first column named as a written
+    # row index (P4-D76), and `rows.order` never on a declared record
+    # number (FD12). Each is filed, and missed by a file that breaks it,
+    # in tests/test_file_dialect_round_trip.py.
     ('clock', 'bytes.quoting'): 'document.source.dialect',
     ('compound', 'bytes.quoting'): 'document.source.dialect',
     ('datetime', 'bytes.quoting'): 'document.source.dialect',
@@ -5277,7 +5306,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ('document', 'bytes.end-of-file-mark'): 'document.source.dialect',
     ('document', 'bytes.escape'): 'document.source.dialect',
     ('document', 'bytes.header-quoting'): 'document.source.dialect',
-    ('document', 'bytes.header-rows'): 'document.source.dialect',
     ('document', 'bytes.initial-space'): 'document.source.dialect',
     ('document', 'bytes.preamble'): 'document.source.dialect',
     ('document', 'bytes.separator-line'): 'document.source.dialect',
@@ -5288,7 +5316,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ('free_text', 'bytes.quoting'): 'document.source.dialect',
     ('free_text', 'rows.order'): 'document.source.dialect',
     ('identifier', 'bytes.quoting'): 'document.source.dialect',
-    ('identifier', 'rows.order'): 'document.source.dialect',
     ('joined', 'bytes.quoting'): 'document.source.dialect',
     ('joined', 'rows.order'): 'document.source.dialect',
     ('label', 'bytes.quoting'): 'document.source.dialect',

@@ -1098,7 +1098,11 @@ def opened_workbook(table_path: str, shown: str) -> "dict[str, bytes]":
 
 
 def _read_workbook_table(
-    table_path: str, shown: str, wanted: str
+    table_path: str,
+    shown: str,
+    wanted: str,
+    first_row: str = FIRST_ROW_AUTOMATIC,
+    refusals: str = REFUSALS_MAY_QUOTE,
 ) -> Table:
     """One sheet of a workbook, as a table of text (plan P4-D77).
 
@@ -1113,11 +1117,34 @@ def _read_workbook_table(
     gate, which builds a workbook with a seeded script, describes it,
     and reads the description back with openpyxl and pandas as
     DEVELOPMENT oracles that `src` never imports.
+
+    THE PERSON'S DECLARATIONS REACH A WORKBOOK TOO (plan P4-D161, P4-D166).
+    `--first-row data` and the validator's request for positional
+    refusals were both dropped on this branch: a person who said their
+    first row was a record still had it published as names, and a
+    checked workbook's refusal printed its sheets' names. Both are
+    honoured here, and an undeclared first row is held to the same
+    question a delimited file's is -- a header whose cells read as a
+    record stops the run and asks.
+
+    A COLUMN MIXING HOW ITS CELLS ARE STORED IS REFUSED on the profile
+    path (`workbook.mixed_storage`, plan P4-D162), because its twin
+    could not keep which values were stored which way. The validate path
+    measures such a file instead of refusing it: what it checks is what
+    a description publishes, and a checked file is not described.
     """
+    positions = refusals == REFUSALS_NAME_POSITIONS
     parts = opened_workbook(table_path, shown)
-    reading = workbook.read_parts(parts, shown, wanted)
-    sheet = workbook.table_of(reading)
-    if not sheet.names:
+    reading = workbook.read_parts(parts, shown, wanted, positions)
+    records = first_row == FIRST_ROW_DATA
+    sheet = workbook.table_of(reading, shown, records)
+    if not sheet.columns:
+        if positions:
+            raise errors.ProfileError(
+                errors.checked_workbook_sheet_is_empty(
+                    shown, _sheet_position(reading)
+                )
+            )
         raise errors.ProfileError(
             errors.workbook_sheet_is_empty(shown, reading.chosen)
         )
@@ -1125,8 +1152,34 @@ def _read_workbook_table(
         raise errors.shape_refusal(
             errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE
         )
-    return Table(
-        column_names=list(sheet.names),
+    names = list(sheet.names)
+    source = HEADER_FROM_FILE
+    evidence = _TAKEN_BY_CONVENTION
+    # WHICH ROW HOLDS THE NAMES IS AN ASSUMPTION HERE TOO, unless the
+    # person said. The header is found by `workbook.table_of`'s rule,
+    # which is what a person means by a header and what the probe
+    # workbooks show, but nothing about a row of cells makes it names
+    # rather than a record -- so it is published as the assumption it
+    # is, exactly as the first row of a CSV file is.
+    by_convention = True
+    if records:
+        names = _generated_column_names(len(sheet.columns))
+        source = HEADER_GENERATED
+        evidence = _SAID_DATA
+        by_convention = False
+    elif first_row == FIRST_ROW_NAMES:
+        evidence = _SAID_NAMES
+        by_convention = False
+    if not positions:
+        mixed = workbook.mixed_storage(sheet)
+        if mixed is not None:
+            raise errors.ProfileError(
+                errors.workbook_column_mixes_storage(
+                    shown, names[mixed[0]], mixed[1]
+                )
+            )
+    found = _Reading(
+        column_names=names,
         columns=sheet.columns,
         n_rows=sheet.n_rows,
         # A workbook's text is the markup's own, which is UTF-8 whatever
@@ -1134,19 +1187,41 @@ def _read_workbook_table(
         # delimited file asks does not arise and no fallback was taken.
         encoding=dialect.ENCODING_UTF8,
         used_fallback_encoding=False,
-        header_source=HEADER_FROM_FILE,
-        header_evidence=_TAKEN_BY_CONVENTION,
-        # WHICH ROW HOLDS THE NAMES IS AN ASSUMPTION HERE TOO. The
-        # widest row of content is taken as the header, which is what a
-        # person means by a header and what the probe workbooks show,
-        # but nothing about a row of cells makes it names rather than a
-        # record -- so it is published as the assumption it is, exactly
-        # as the first row of a CSV file is.
-        header_by_convention=True,
+        header_source=source,
+        header_evidence=evidence,
+        header_by_convention=by_convention,
         survey=None,
         book=reading,
         sheet=sheet,
     )
+    # THE QUESTION IS ASKED, AND THE PUBLISHED SENTENCE IS NOT MOVED. A
+    # header whose cells read as a record stops the run here as it does
+    # on a delimited file; one that does not keeps the sentence a
+    # workbook has always published, so a description that described
+    # the same book before this rule describes it the same way now.
+    if source == HEADER_FROM_FILE and not positions:
+        _settle_the_first_row(found, shown, first_row)
+    return Table(
+        column_names=found.column_names,
+        columns=found.columns,
+        n_rows=found.n_rows,
+        encoding=found.encoding,
+        used_fallback_encoding=found.used_fallback_encoding,
+        header_source=found.header_source,
+        header_evidence=found.header_evidence,
+        header_by_convention=found.header_by_convention,
+        survey=None,
+        book=reading,
+        sheet=sheet,
+    )
+
+
+def _sheet_position(reading: "workbook.Reading") -> int:
+    """Where the chosen sheet stands in workbook order, counting from one."""
+    for index in range(len(reading.sheets)):
+        if reading.sheets[index].name == reading.chosen:
+            return index + 1
+    return 0
 
 
 def read_table(
@@ -1316,7 +1391,9 @@ def read_table(
             raise errors.ProfileError(
                 errors.delimiter_declared_on_a_workbook(shown)
             )
-        return _read_workbook_table(f"{table_path}", shown, sheet)
+        return _read_workbook_table(
+            f"{table_path}", shown, sheet, first_row, refusals
+        )
     try:
         found = _read_authoritatively(
             table_path, shown, first_row, refusals, encoding, data,

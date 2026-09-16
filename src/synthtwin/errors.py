@@ -2426,3 +2426,109 @@ def workbook_sheet_is_empty(path: str, named: str) -> str:
         f"naming a sheet that holds your table, with --sheet followed "
         f"by its name."
     )
+
+
+def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
+    """Message for a table whose rectangle passes the cell cap (P4-D161).
+
+    THE CAP ON CELLS STORED WAS NOT A CAP ON THE WORK. A sheet holding
+    two stored cells -- `A1` and `ALM1001` -- passed it and then became a
+    table of 1,001,000 cells, because every place between the first and
+    the last cell of a table is a cell of it whether the sheet stores it
+    or not. So the rectangle is measured before a single column is
+    built.
+    """
+    return (
+        f"The table on a sheet of {path} stretches across more than "
+        f"{limit} cells from its first row and column to its last, and "
+        f"every place in between becomes a cell of the table even where "
+        f"the sheet leaves it empty. That is more than synthtwin will "
+        f"read at once. Please open the workbook, delete any stray value "
+        f"far below or to the right of your table, save it again, and "
+        f"run the command again."
+    )
+
+
+def checked_workbook_sheet_not_found(path: str, sheets: int) -> str:
+    """The same refusal for a workbook `validate` was pointed at (V9).
+
+    A sheet's name is text out of the file, which a refusal on the
+    validate path may not print, so the sheets are counted, not named.
+    """
+    return (
+        f"The file {path} has no sheet by the name given after --sheet; "
+        f"it has {sheets} sheet(s). Please check the spelling and run the "
+        f"command again. synthtwin does not print the names it found: "
+        f"this file may not be your own table."
+    )
+
+
+def checked_workbook_sheet_is_empty(path: str, position: int) -> str:
+    """The empty-sheet refusal by position, for the validate path (V9)."""
+    return (
+        f"Sheet number {position} of {path} holds no cells at all, so "
+        f"there is nothing to check. Please run the command again naming "
+        f"the sheet that holds the table, with --sheet followed by its "
+        f"name. synthtwin does not print the sheet's name: this file may "
+        f"not be your own table."
+    )
+
+
+def checked_workbook_other_sheet_holds_a_table(
+    path: str, position: int, chosen: int
+) -> str:
+    """The second-table refusal by position, for the validate path (V9).
+
+    REVIEW ITEM 9 OF THE FILES REVIEW (plan P4-D166). The validator asks
+    the reader for positional refusals and the workbook branch dropped
+    the request, so a checked workbook whose second sheet was called
+    `PERSON-ZEBRA-471` printed that name twice.
+    """
+    return (
+        f"The file {path} holds a table on sheet number {position} as "
+        f"well as on sheet number {chosen}, and synthtwin checks one "
+        f"table at a time. Please save each table in a workbook of its "
+        f"own, and run the command again on the one you want checked. "
+        f"synthtwin does not print the sheets' names: this file may not "
+        f"be your own table."
+    )
+
+
+# THE TWO WAYS A WORKBOOK COLUMN CAN MIX HOW ITS CELLS ARE STORED THAT A
+# TWIN CANNOT CARRY (plan P4-D162), named for the sentence below.
+MIXED_TYPES = "types"
+MIXED_FORMATS = "formats"
+
+
+def workbook_column_mixes_storage(path: str, column: str, mixed: str) -> str:
+    """Message for a column whose cell types or number formats are mixed.
+
+    WHY THIS IS A REFUSAL (review item 6 of the files review, plan
+    P4-D162). A workbook column can hold some values as NUMBERS and
+    others as TEXT that reads as a number, or some numbers wearing a date
+    format and others none. The description publishes how many cells are
+    of each kind, and the column's values as one distribution -- nothing
+    that says WHICH values were the numbers. Measured: thirty numeric
+    cells holding 10 and thirty text cells holding 1000 gave a twin
+    whose numeric cells summed to 15150 against the source's 300, with
+    every published fact held. So a column that mixes them is refused,
+    by name, rather than twinned wrong.
+    """
+    trouble = (
+        "holds some values stored as numbers and others stored as text "
+        "that reads as the same kind of value"
+    )
+    if mixed == MIXED_FORMATS:
+        trouble = (
+            "holds numbers wearing more than one kind of number format -- "
+            "some shown as dates or times and others not"
+        )
+    return (
+        f"The column '{_shown(column)}' of {path} {trouble}. A twin "
+        f"cannot keep which values were stored which way, so code that "
+        f"picks out one kind would get different answers on the twin and "
+        f"on your table. Please open the workbook, make every cell of "
+        f"that column the same type and format (for example with 'Text "
+        f"to Columns' or by setting one number format), save it again, "
+        f"and run the command again."
+    )

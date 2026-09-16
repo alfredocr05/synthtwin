@@ -1416,6 +1416,13 @@ class Answers:
     # ...and the sixth (plan P4-D110): the delimiter the person said
     # their file is written with, as the character, or empty.
     delimiter: str = ""
+    # WHETHER THE FIFTH WAS ANSWERED AT ALL (plan P4-D168). `data` is an
+    # answer of nought rows, and nought is also what an unanswered file
+    # carries -- so the command line could not tell "leave these rows in
+    # my table" from silence, dropped the answer, and let a typed
+    # `--metadata-rows 2` take a person's record out of the table and
+    # publish it. This says which it was.
+    metadata_rows_answered: bool = False
 
 
 def _entry_answer(
@@ -1560,6 +1567,7 @@ def answers_in(document: object, shown: str) -> Answers:
     measurements: list[str] = []
     decimal_commas: list[str] = []
     metadata_rows = 0
+    metadata_rows_answered = False
     delimiter = ""
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
@@ -1587,9 +1595,13 @@ def answers_in(document: object, shown: str) -> Answers:
         elif written == ANSWER_METADATA_ROWS:
             # The one answer that names no column (plan P4-D81).
             metadata_rows = METADATA_ROWS_DECLARED
+            metadata_rows_answered = True
         elif written == ANSWER_DATA:
-            # The reading that already stands: the rows are records.
+            # The reading that already stands: the rows are records. It
+            # is an ANSWER all the same, and it overrides a typed
+            # declaration (plan P4-D168).
             metadata_rows = 0
+            metadata_rows_answered = True
         elif written in ANSWER_DELIMITERS:
             # The one answer that decides how the file is SPLIT (plan
             # P4-D110), which is `--delimiter`.
@@ -1610,4 +1622,5 @@ def answers_in(document: object, shown: str) -> Answers:
         tuple(decimal_commas),
         metadata_rows,
         delimiter,
+        metadata_rows_answered,
     )

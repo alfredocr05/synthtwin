@@ -150,9 +150,61 @@ def kind_of(data: bytes) -> str:
         b"\xbf",
     ):
         lead = lead + 1
-    if data[lead : lead + 1] == b"<":
+    if data[lead : lead + 1] == b"<" and _opens_markup(data[lead + 1 :]):
         return KIND_MARKUP
     return KIND_OTHER
+
+
+# WHAT MARKUP OPENS WITH, AND WHY A LESS-THAN SIGN ALONE IS NOT IT (plan
+# P4-D168). The first writing called any file whose first character was
+# `<` markup, and a delimited table whose first header cell was
+# `<5 ng/mL` -- a detection limit, written the way a laboratory writes
+# one -- was refused as a web page and told to save itself from Excel,
+# where the same bytes had been read correctly before. What an HTML or
+# XML export opens with is a declaration, a comment or one of a few
+# element names, followed by the end of that name.
+_MARKUP_OPENINGS = (
+    b"?xml",
+    b"!doctype",
+    b"!--",
+    b"html",
+    b"head",
+    b"body",
+    b"meta",
+    b"table",
+    b"style",
+    b"workbook",
+    b"?mso-application",
+)
+
+
+def _opens_markup(after: bytes) -> bool:
+    """Whether the bytes after a `<` begin a declaration or a known element.
+
+    Letters are compared without their case, byte by byte, and an element
+    name has to END there -- a space, a line break, `>` or `/` -- so
+    `<tablespoon` is not `<table`. A comment needs no ending.
+    """
+    for opening in _MARKUP_OPENINGS:
+        if len(after) < len(opening):
+            continue
+        same = True
+        for index in range(len(opening)):
+            held = after[index]
+            if 65 <= held <= 90:
+                held = held + 32
+            if held != opening[index]:
+                same = False
+                break
+        if not same:
+            continue
+        if opening == b"!--":
+            return True
+        if len(after) == len(opening):
+            return True
+        if after[len(opening)] in (32, 9, 10, 13, 62, 47):
+            return True
+    return False
 
 
 # -- the package, opened under every cap -------------------------------
@@ -219,6 +271,9 @@ class _StringWalk:
     pending: str
     inside: bool
     stopped: int
+    # How deep the walk stands inside a PHONETIC run (`rPh`), whose text
+    # is a reading aid shown above the cell and never the cell's value.
+    phonetic: int
 
 
 @dataclasses.dataclass
@@ -253,6 +308,10 @@ class _CellWalk:
     filtered: str
     tabled: bool
     stopped: int
+    # Inside an inline string, whether the walk stands in one of its text
+    # runs, and how deep inside a phonetic run (plan P4-D163).
+    in_text: bool
+    phonetic: int
 
 
 def elements(
@@ -354,26 +413,16 @@ CELL_TEXT = dialect.SHEET_CELL_TEXT
 CELL_NUMBER = dialect.SHEET_CELL_NUMBER
 CELL_BOOLEAN = dialect.SHEET_CELL_BOOLEAN
 CELL_ERROR = dialect.SHEET_CELL_ERROR
+CELL_DATE = dialect.SHEET_CELL_DATE
 CELL_CLASSES = dialect.SHEET_CELL_CLASSES
 
 # The error cells a spreadsheet writes, by kind. A kind outside this
 # list is carried as its own characters and counted as an error all the
-# same: the list decides the CENSUS's key space, never what is read.
-ERROR_KINDS = (
-    "#DIV/0!",
-    "#N/A",
-    "#NAME?",
-    "#NULL!",
-    "#NUM!",
-    "#REF!",
-    "#VALUE!",
-    "#GETTING_DATA",
-    "#SPILL!",
-    "#CALC!",
-)
+# same. The list lives in `dialect`, where the twin's writer reads it.
+ERROR_KINDS = dialect.SHEET_ERROR_KINDS
 
-BOOLEAN_TRUE = "TRUE"
-BOOLEAN_FALSE = "FALSE"
+BOOLEAN_TRUE = dialect.SHEET_BOOLEAN_TRUE
+BOOLEAN_FALSE = dialect.SHEET_BOOLEAN_FALSE
 
 # Excel's built-in number formats, by id. The study found that Excel
 # RENUMBERS custom ids when it saves and drops unused ones, so a
@@ -533,6 +582,24 @@ def reference_row(reference: str) -> int:
     return _whole_number(figures, 0)
 
 
+def _is_elapsed_token(inside: str) -> bool:
+    """Whether a bracket's text is an elapsed count: `h`, `mm`, `ss`...
+
+    One letter of hours, minutes or seconds, repeated, in either case.
+    Compared character by character, so no text method is called on
+    text this module built.
+    """
+    if not inside:
+        return False
+    first = inside[0]
+    if first not in ("h", "H", "m", "M", "s", "S"):
+        return False
+    for character in inside:
+        if character != first:
+            return False
+    return True
+
+
 def format_kind(code: str) -> str:
     """Which kind of thing a number wearing this format code is.
 
@@ -555,11 +622,32 @@ def format_kind(code: str) -> str:
     plain = ""
     quoted = False
     skip = False
+    # WHAT A BRACKET HOLDS IS NOT READ AS A DATE (plan P4-D165). A colour
+    # (`[Red]`), a currency and locale (`[$USD-409]`) and a condition
+    # (`[>=100]`) each sit in square brackets, and the letters inside
+    # them are not day, month or hour tokens: sixty values `101.25` to
+    # `160.25` formatted `[Red]0.00` were classed as DATES by the `d` of
+    # `Red`, and the twin came back as datetimes while pandas read floats
+    # from the source. The one bracket that IS a token is an elapsed
+    # count -- `[h]`, `[mm]`, `[ss]` -- which is kept, as its letters.
+    # The character after `_` (a space as wide as it) and after `*` (a
+    # fill) is layout, never a token, and is skipped the same way.
+    bracket = ""
+    in_bracket = False
+    elapsed = False
     for character in body:
         if skip:
             skip = False
             continue
-        if character == "\\":
+        if in_bracket:
+            if character == "]":
+                in_bracket = False
+                if _is_elapsed_token(bracket):
+                    elapsed = True
+                continue
+            bracket = bracket + character
+            continue
+        if character == "\\" or character == "_" or character == "*":
             skip = True
             continue
         if character == '"':
@@ -567,11 +655,11 @@ def format_kind(code: str) -> str:
             continue
         if quoted:
             continue
+        if character == "[":
+            in_bracket = True
+            bracket = ""
+            continue
         plain = plain + character
-    elapsed = (
-        "[h]" in plain or "[m]" in plain or "[s]" in plain
-        or "[H]" in plain or "[M]" in plain or "[S]" in plain
-    )
     # Both cases are tested rather than folding the text: the offline
     # audit traces a method call on a gated parameter and not on text
     # this function built character by character.
@@ -672,11 +760,20 @@ def shared_strings(parts: "dict[str, bytes]", shown: str) -> "tuple[str, ...]":
     the formatting, so the runs are joined here and the formatting is
     not carried: it marks part of one cell's text, which is a fact about
     one row and not about the table.
+
+    A PHONETIC RUN IS NOT PART OF THE VALUE (plan P4-D163). A string may
+    carry `<rPh>` runs -- the reading of its characters, which a
+    spreadsheet shows above them -- and each holds a `<t>` of its own.
+    The first writing collected every `<t>`, so a cell whose visible
+    text is `alpha` and whose reading is `READING` was read as
+    `alphaREADING`, which is not what pandas or openpyxl hand back, and
+    the twin carried the joined word. Text inside a phonetic run is
+    passed over.
     """
     data = _part_named(parts, "xl/sharedStrings.xml")
     if not data:
         return ()
-    walk = _StringWalk([], "", False, 0)
+    walk = _StringWalk([], "", False, 0, 0)
 
     def declared(
         name: str, system: "str | None", public: "str | None", internal: int
@@ -688,13 +785,19 @@ def shared_strings(parts: "dict[str, bytes]", shown: str) -> "tuple[str, ...]":
         local = _after_colon(name)
         if local == "si":
             walk.pending = ""
-        if local == "t":
+        if local == "rPh":
+            walk.phonetic = walk.phonetic + 1
+        if local == "t" and not walk.phonetic:
             walk.inside = True
 
     def ended(name: str) -> None:
         local = _after_colon(name)
         if local == "t":
             walk.inside = False
+            return
+        if local == "rPh":
+            if walk.phonetic:
+                walk.phonetic = walk.phonetic - 1
             return
         if local == "si":
             walk.items += [walk.pending]
@@ -855,7 +958,10 @@ def workbook_parts(
 
 
 def chosen_sheet(
-    sheets: "tuple[SheetEntry, ...]", wanted: str, shown: str
+    sheets: "tuple[SheetEntry, ...]",
+    wanted: str,
+    shown: str,
+    positions: bool = False,
 ) -> SheetEntry:
     """Which sheet the table is on: the one named, else the first visible.
 
@@ -871,6 +977,10 @@ def chosen_sheet(
         for entry in sheets:
             if entry.name == wanted:
                 return entry
+        if positions:
+            raise errors.ProfileError(
+                errors.checked_workbook_sheet_not_found(shown, len(sheets))
+            )
         known: "list[str]" = []
         for entry in sheets:
             known += [entry.name]
@@ -926,7 +1036,7 @@ def sheet_cells(
     """
     walk = _CellWalk(
         [], strings, formats, "", "", 0, "", "", False, False, False,
-        False, 0, 0, 0, "", False, 0,
+        False, 0, 0, 0, "", False, 0, False, 0,
     )
 
     def declared(
@@ -957,7 +1067,11 @@ def sheet_cells(
             walk.in_inline = True
             walk.inline = ""
             return
+        if local == "rPh" and walk.in_inline:
+            walk.phonetic = walk.phonetic + 1
+            return
         if local == "t" and walk.in_inline:
+            walk.in_text = not walk.phonetic
             return
         if local == "row":
             number = _whole_number(_marked(marks, "r", "0"), 0)
@@ -968,7 +1082,15 @@ def sheet_cells(
                 walk.last_row = number
             return
         if local == "pane":
-            walk.frozen = _whole_number(_marked(marks, "ySplit", "0"), 0)
+            # A SPLIT IS NOT A FREEZE (plan P4-D165). `ySplit` counts ROWS
+            # only on a frozen pane; on a split pane it is a distance in
+            # twentieths of a point, and a split at `3000` was published as
+            # three thousand frozen rows -- which the loader then refused
+            # as an edited description, so a real workbook's own
+            # description would not load.
+            state = _marked(marks, "state", "split")
+            if state in ("frozen", "frozenSplit"):
+                walk.frozen = _whole_number(_marked(marks, "ySplit", "0"), 0)
             return
         if local == "autoFilter":
             walk.filtered = _marked(marks, "ref", "")
@@ -984,7 +1106,12 @@ def sheet_cells(
                 raise ValueError("a cell's text is past its cap")
             walk.value = grown
             return
-        if walk.in_inline:
+        # ONLY THE TEXT RUNS OF AN INLINE STRING ARE ITS VALUE (plan
+        # P4-D163). The first writing took every character inside `<is>`,
+        # so the indentation a writer puts between elements -- `<is>\n
+        # <t>North</t>\n </is>` -- became part of the cell, and so did a
+        # phonetic run's reading.
+        if walk.in_inline and walk.in_text:
             grown = walk.inline + piece
             if len(grown) > MAXIMUM_CELL_CHARACTERS:
                 walk.stopped = 3
@@ -999,6 +1126,15 @@ def sheet_cells(
             return
         if local == "is":
             walk.in_inline = False
+            walk.in_text = False
+            walk.phonetic = 0
+            return
+        if local == "t" and walk.in_inline:
+            walk.in_text = False
+            return
+        if local == "rPh" and walk.in_inline:
+            if walk.phonetic:
+                walk.phonetic = walk.phonetic - 1
             return
         if local != "c":
             return
@@ -1033,6 +1169,14 @@ def sheet_cells(
         elif walk.marked_kind == "e":
             kind = CELL_ERROR
             held = walk.value
+        elif walk.marked_kind == "d":
+            # A DATE STORED AS ITS ISO TEXT (plan P4-D164). It is its own
+            # class, spelled as the text the file holds, so the column
+            # machinery reads a column of dates and the twin writes the
+            # cell back the way the file did. It used to fall through to
+            # the number class here.
+            kind = CELL_DATE
+            held = walk.value
         # A CELL PRESENT WITH NO VALUE AT ALL IS NOT AN EMPTY STRING.
         # Excel writes a styled blank as `<c r="A6" s="9"/>`, and the
         # study found every reader folding that, the empty-string cell
@@ -1040,7 +1184,7 @@ def sheet_cells(
         # different things in the file and the twin has to write back
         # the one it was given.
         if not walk.cached and not walk.in_inline and not walk.inline:
-            if kind in (CELL_NUMBER, CELL_TEXT):
+            if kind in (CELL_NUMBER, CELL_TEXT, CELL_DATE):
                 kind = CELL_BLANK
                 held = ""
         elif kind == CELL_TEXT and not held:
@@ -1106,8 +1250,22 @@ def sheet_cells(
     )
 
 
+def _refuse_empty_sheet(
+    shown: str, name: str, position: int, positions: bool
+) -> None:
+    """Refuse a chosen sheet holding nothing, by name or by position."""
+    if positions:
+        raise errors.ProfileError(
+            errors.checked_workbook_sheet_is_empty(shown, position)
+        )
+    raise errors.ProfileError(errors.workbook_sheet_is_empty(shown, name))
+
+
 def read_parts(
-    parts: "dict[str, bytes]", shown: str, wanted: str = ""
+    parts: "dict[str, bytes]",
+    shown: str,
+    wanted: str = "",
+    positions: bool = False,
 ) -> Reading:
     """Read one sheet of a workbook: its cells and the facts about it.
 
@@ -1121,6 +1279,10 @@ def read_parts(
     - Errors raised: ProfileError for every refusal this module names.
     - Boundary: opens nothing, writes nothing, never evaluates a
       formula, never follows a link, and never reads a macro project.
+    - Refusals: where ``positions`` is set -- the validate path, which
+      measures a file nobody promised was the reader's own (V9) -- every
+      refusal here names a sheet by its POSITION and never by its name,
+      because a sheet's name is text out of that file (plan P4-D166).
     """
     has_macro = False
     for name in sorted(parts):
@@ -1129,19 +1291,19 @@ def read_parts(
     strings = shared_strings(parts, shown)
     formats = number_formats(parts, shown)
     sheets, epoch, names = workbook_parts(parts, shown)
-    entry = chosen_sheet(sheets, wanted, shown)
+    entry = chosen_sheet(sheets, wanted, shown, positions)
+    chosen_position = 0
+    for index in range(len(sheets)):
+        if sheets[index] is entry:
+            chosen_position = index + 1
     data = _part_named(parts, entry.part)
     if not data:
-        raise errors.ProfileError(
-            errors.workbook_sheet_is_empty(shown, entry.name)
-        )
+        _refuse_empty_sheet(shown, entry.name, chosen_position, positions)
     cells, last_row, last_column, frozen, filtered, tabled = sheet_cells(
         data, shown, strings, formats
     )
     if not cells:
-        raise errors.ProfileError(
-            errors.workbook_sheet_is_empty(shown, entry.name)
-        )
+        _refuse_empty_sheet(shown, entry.name, chosen_position, positions)
     # WHAT EVERY OTHER SHEET HOLDS, AND THE ONE SHAPE THAT IS REFUSED
     # (plan P4-D82). A workbook's other sheets used to be written EMPTY,
     # so a reader met a different workbook: measured with pandas, the
@@ -1157,6 +1319,15 @@ def read_parts(
     # where a table stood, and statistics taken from it would be false
     # while the file still opened. The person is asked which sheet is
     # the table instead.
+    #
+    # A TABLE ONE COLUMN WIDE IS A TABLE (plan P4-D166). The first
+    # writing refused a block only where it reached two rows AND two
+    # columns, so a sheet holding a header `site` over thirty values was
+    # accepted and every one of its cells written back as the withheld
+    # word, while validation missed nothing -- a worse outcome than the
+    # refusal a wider table met. Any block of two rows or more is
+    # records, whatever its width, and is refused the same way; a block
+    # of one row -- a title, a note -- is still carried by its shape.
     extents: "list[tuple[int, int] | None]" = []
     for index in range(len(sheets)):
         other = sheets[index]
@@ -1169,7 +1340,13 @@ def read_parts(
             continue
         other_cells = sheet_cells(page, shown, strings, formats)[0]
         rows, columns = _extent_of(other_cells)
-        if rows >= 2 and columns >= 2:
+        if rows >= 2:
+            if positions:
+                raise errors.ProfileError(
+                    errors.checked_workbook_other_sheet_holds_a_table(
+                        shown, index + 1, chosen_position
+                    )
+                )
             raise errors.ProfileError(
                 errors.workbook_other_sheet_holds_a_table(
                     shown, other.name, entry.name
@@ -1280,23 +1457,70 @@ def _table_width(widths: "list[int]") -> int:
     return widest
 
 
-def table_of(reading: Reading) -> Sheet:
+def _header_row_of(
+    held: "dict[int, dict[int, Cell]]",
+    content_rows: "list[int]",
+    widths: "list[int]",
+    wanted: int,
+    first_column: int,
+) -> int:
+    """Which row of content holds the names (plan P4-D161).
+
+    THE FIRST ROW HOLDING TWO CELLS OR MORE, AND NOT THE FIRST ROW
+    REACHING THE WIDEST. The first writing took the first row as wide as
+    the widest row, which is right for a title of one cell above a table
+    of four -- and wrong for a header that leaves one of its own cells
+    blank. Measured: a header `record_key`, blank, `arm` over thirty-one
+    records is two cells wide against records of three, so the header
+    was stepped over, the FIRST RECORD became the column names --
+    `CASE-ZEBRA-471`, `37`, `amber`, one person's whole row published as
+    names -- and the table lost that record. A title, a banner or a note
+    above a table is ONE cell; a header of a table two or more columns
+    wide is two or more, whichever of its cells are blank. So the header
+    is the first row of content holding two cells, or the first reaching
+    the table's width where the table is one column wide, or the written
+    row index -- a header one narrower than the table whose missing cell
+    is the first -- where the table is two wide.
+    """
+    for index in range(len(content_rows)):
+        number = content_rows[index]
+        if widths[index] >= 2 or widths[index] == wanted:
+            return number
+        missing_corner = (
+            widths[index] == wanted - 1
+            and (
+                first_column not in held[number]
+                or held[number][first_column].kind == CELL_BLANK
+            )
+        )
+        if missing_corner:
+            return number
+    return content_rows[0]
+
+
+def table_of(
+    reading: Reading, shown: str = "", records_from_the_top: bool = False
+) -> Sheet:
     """The table a sheet holds: its names, its cells and where it sits.
 
-    THE HEADER IS FOUND BY WIDTH, and the rule is the one the probe
-    workbooks measured rather than one invented here. Rows a person puts
-    above a table -- a title, a merged banner, a note -- are NARROWER
-    than the table, because they hold one cell where the table holds
-    many; the study's own titled book has a one-cell merged title above
-    a four-column header. So the width most of the content rows share is
-    the table's width, and the header is the first row that reaches it.
+    THE HEADER IS FOUND BY WIDTH, and the rule is `_header_row_of`'s:
+    rows a person puts above a table -- a title, a merged banner, a note
+    -- hold one cell where a header of the table holds two or more.
 
-    The one row that reaches it short is the written row index pandas
-    and R produce: their header leaves the corner cell empty, so the
-    header is one narrower than every record and the cell it is missing
-    is the FIRST. That shape is admitted by name and no other is, which
-    is why a row missing any other cell is read as standing above the
-    table rather than as its names.
+    ``records_from_the_top`` is the person's `--first-row data` (plan
+    P4-D161): no row holds names, every row from the sheet's first is a
+    record, and the columns are named by the caller. The workbook branch
+    of the reader used to drop that declaration, so a person who said
+    their first row was a record still had it published as names.
+
+    THE COLUMNS START AT THE SHEET'S FIRST COLUMN (plan P4-D161). A table
+    whose header begins in `C1` is three columns wide to every reader --
+    pandas reads the two columns before it as columns holding nothing --
+    and the first writing started the table at its first column of
+    content, so its twin moved the table to `A1` and code that reached a
+    column by its position reached a different one. The columns before
+    the table's first content are columns of the table, holding nothing,
+    as they are to the readers.
 
     Rows holding nothing INSIDE the table stay: every reader keeps them
     as a record of nothing, so the rows between the header and the last
@@ -1304,6 +1528,12 @@ def table_of(reading: Reading) -> Sheet:
     Rows and columns of formatted blanks BELOW and BEYOND the table are
     not the table: the readers trim them, the sheet's own last row and
     column count them, and they are published as a fact of their own.
+
+    Errors raised: ProfileError where the table's rectangle -- every
+    place from its first row and column to its last, stored or not --
+    passes `MAXIMUM_CELLS`. That is measured BEFORE any column is built,
+    because a sheet storing two cells far apart used to pass the cap on
+    stored cells and then build a table of a million.
     """
     held: "dict[int, dict[int, Cell]]" = {}
     for cell in reading.cells:
@@ -1323,57 +1553,51 @@ def table_of(reading: Reading) -> Sheet:
     if not content_rows or not content_columns:
         return Sheet((), (), [], [], [], [], 0, 0, 0, 0, 0, 0)
     places = sorted(content_columns)
-    first_column = places[0]
+    first_column = places[0] if places[0] < 1 else 1
     last_column = places[len(places) - 1]
     last_row = content_rows[len(content_rows) - 1]
+    # Counted over the cells each row STORES, never over the span, so the
+    # work here is bounded by the cells already read.
     widths: "list[int]" = []
     for number in content_rows:
         width = 0
-        for place in range(first_column, last_column + 1):
-            if place in held[number] and held[number][place].kind != CELL_BLANK:
+        for place in held[number]:
+            if place < first_column or place > last_column:
+                continue
+            if held[number][place].kind != CELL_BLANK:
                 width = width + 1
         widths += [width]
     wanted = _table_width(widths)
     header_row = 0
-    rows_above = 0
-    for index in range(len(content_rows)):
-        number = content_rows[index]
-        if widths[index] == wanted:
-            header_row = number
-            break
-        missing_corner = (
-            widths[index] == wanted - 1
-            and (
-                first_column not in held[number]
-                or held[number][first_column].kind == CELL_BLANK
-            )
+    top = content_rows[0] if content_rows[0] < 1 else 1
+    if not records_from_the_top:
+        header_row = _header_row_of(
+            held, content_rows, widths, wanted, first_column
         )
-        if missing_corner:
-            header_row = number
-            break
-        rows_above = rows_above + 1
-    if not header_row:
-        header_row = content_rows[0]
+        top = header_row + 1
+    span = (last_row - top + 1) * (last_column - first_column + 1)
+    if span > MAXIMUM_CELLS:
+        raise errors.ProfileError(
+            errors.workbook_table_spans_too_many_cells(shown, MAXIMUM_CELLS)
+        )
     # EVERY ROW ABOVE THE HEADER, AND NOT ONLY THE ROWS OF CONTENT
     # (repair of landing 2b.10). The count published here is what the
     # twin writes above its own header, so a row the source had and
-    # this count leaves out is a row the twin does not have. The walk
-    # above steps over rows of CONTENT, which is what finds the header;
-    # a blank row between a title and the header is not content and was
-    # not counted, and the twin came up short by exactly those rows.
-    # Measured on the study's titled book: pandas read 15 rows from the
-    # source and 13 from its twin, while synthtwin's own row count was
-    # 12 on both -- a reader seeing a different table, with every
-    # published fact holding. The header's own row number IS how many
-    # rows stand above it, whatever each of them holds.
-    rows_above = header_row - 1
+    # this count leaves out is a row the twin does not have. A blank row
+    # between a title and the header is not content, and the twin came up
+    # short by exactly those rows until the count was read off the
+    # header's own row number: measured on the study's titled book,
+    # pandas read 15 rows from the source and 13 from its twin. Where
+    # every row is a record there is no header and nothing stands above.
+    rows_above = header_row - 1 if header_row else 0
     header_cells: "list[str]" = []
-    for place in range(first_column, last_column + 1):
-        if place in held[header_row]:
-            entry = held[header_row][place]
-            header_cells += [spelled(entry.kind, entry.text)]
-            continue
-        header_cells += [""]
+    if header_row:
+        for place in range(first_column, last_column + 1):
+            if place in held[header_row]:
+                entry = held[header_row][place]
+                header_cells += [spelled(entry.kind, entry.text)]
+                continue
+            header_cells += [""]
     names = dialect.named_columns(tuple(header_cells))
     columns: "list[list[str]]" = []
     classes: "list[list[str]]" = []
@@ -1386,7 +1610,7 @@ def table_of(reading: Reading) -> Sheet:
         formulas += [[]]
     n_rows = 0
     empty_inside = 0
-    for number in range(header_row + 1, last_row + 1):
+    for number in range(top, last_row + 1):
         n_rows = n_rows + 1
         holding = False
         for place in range(first_column, last_column + 1):
@@ -1452,12 +1676,14 @@ def table_of(reading: Reading) -> Sheet:
 # here read "every count" while five of them were published raw, a count
 # of one among them).
 #
-# HELD, through `floored`: every per-column census, and
-# `empty_rows_inside`. What these count is ROWS OF THE TABLE -- a row
-# per person, in most tables anyone brings here -- so a count of one
-# names the row that holds it and a count one short of the whole names
-# the row that does not. That is the twin's third clause and contract
-# WB3 is its executable form.
+# HELD, through `dialect.sheet_census` and `dialect.sheet_count`: every
+# per-column census, each column's formulas and `empty_rows_inside`.
+# What these count is ROWS OF THE TABLE -- a row per person, in most
+# tables anyone brings here -- so a count of one names the row that holds
+# it, a count one short of the whole names the row that does not, and a
+# count withheld beside published ones names it again by subtraction
+# (plan P4-D160). The rules are written once, in `dialect`, and contract
+# WB3 is their executable form on the loader's side.
 #
 # NOT HELD, and each for the same stated reason: `rows_above_header`,
 # `trailing_blank_rows`, `trailing_blank_columns`, `frozen_rows`,
@@ -1482,38 +1708,25 @@ DATE_SYSTEM_1904 = dialect.SHEET_DATE_SYSTEM_1904
 DATE_SYSTEMS = dialect.SHEET_DATE_SYSTEMS
 
 
-def floored(count: int, total: int, floor: int) -> "int | None":
-    """A count as it may be published, or nothing where it names a row.
-
-    The rule of the twin's third clause, applied to every census this
-    module publishes: a count of nothing and a count of everything name
-    nobody, and any count between them is published only where it AND
-    its complement clear the smallest group. A count of one names the
-    row that holds it; a count of one short of the whole names the row
-    that does not.
-    """
-    if count <= 0:
-        return 0
-    if count >= total:
-        return total
-    if count < floor or total - count < floor:
-        return None
-    return count
-
-
-def _census(
-    kinds: "list[str]", every: "tuple[str, ...]", total: int, floor: int
-) -> "dict[str, object]":
-    """One census over a closed key space, every count held to the floor."""
+def _counted(kinds: "list[str]", every: "tuple[str, ...]") -> "dict[str, int]":
+    """How many of these entries are each key of a closed key space."""
     counts: "dict[str, int]" = {}
     for key in every:
         counts[key] = 0
     for kind in kinds:
         if kind in counts:
             counts[kind] = counts[kind] + 1
+    return counts
+
+
+def _census(
+    kinds: "list[str]", every: "tuple[str, ...]", total: int, floor: int
+) -> "dict[str, object]":
+    """One census over a closed key space, under `dialect.sheet_census`."""
+    published = dialect.sheet_census(_counted(kinds, every), every, total, floor)
     out: "dict[str, object]" = {}
     for key in every:
-        out[key] = floored(counts[key], total, floor)
+        out[key] = published[key]
     return out
 
 
@@ -1541,25 +1754,26 @@ def _format_census(
     return _census(kinds, FORMAT_KINDS, total, floor)
 
 
-def _leading_kind(codes: "list[str]") -> str:
-    """The kind of thing this column's numbers are, by its commonest format."""
-    counts: "dict[str, int]" = {}
-    for code in codes:
-        kind = format_kind(code)
-        if kind in counts:
-            counts[kind] = counts[kind] + 1
-            continue
-        counts[kind] = 1
-    best = FORMAT_PLAIN
-    seen = 0
-    for kind in FORMAT_KINDS:
-        if kind in counts and counts[kind] > seen:
-            seen = counts[kind]
-            best = kind
-    return best
+def _value_codes(classes: "list[str]", codes: "list[str]") -> "list[str]":
+    """The format codes the cells HOLDING a value wear, in row order.
+
+    A cell holding nothing wears a format nobody reads it through -- an
+    absent cell wears none at all -- so a column two thirds empty used
+    to publish the general format for its dates.
+    """
+    out: "list[str]" = []
+    for index in range(len(codes)):
+        if index < len(classes) and classes[index] in dialect.SHEET_VALUE_CLASSES:
+            out += [codes[index]]
+    return out
 
 
-def _leading_code(codes: "list[str]") -> str:
+def _leading_code(
+    classes: "list[str]",
+    codes: "list[str]",
+    kinds: "dict[str, object]",
+    floor: int,
+) -> str:
     """The format code this column may publish, from its commonest one.
 
     THE CODE IS PUBLISHED NOW, AND ONLY EVER ONE OF OURS (plan P4-D79).
@@ -1574,25 +1788,149 @@ def _leading_code(codes: "list[str]") -> str:
     its kind is published in its place. A code somebody typed is never
     published and never written: the twin wears the standard spelling of
     a date rather than theirs, which is the landing's stated limit.
+
+    IT IS THE COMMONEST AMONG THE CELLS HOLDING A VALUE, AND ONLY WHERE
+    IT IS WORN BY THE LINE (plan P4-D160). The code a column publishes
+    tells a reader which kind of cell is commonest without a count, and
+    it is also what the twin writes a cell with where the census held
+    every count back -- so it stands where it is a group's and never
+    where it is one cell's: a code worn by fewer cells than the line
+    gives way to the canonical code of the commonest KIND that reaches
+    it, and to the general format where none does. A kind the census
+    publishes as nought is never the one chosen.
     """
+    line = dialect.sheet_line(floor)
+    held = _value_codes(classes, codes)
     counts: "dict[str, int]" = {}
-    for code in codes:
-        if code in counts:
-            counts[code] = counts[code] + 1
-            continue
-        counts[code] = 1
-    best = GENERAL_FORMAT
+    kind_counts: "dict[str, int]" = {}
+    for code in held:
+        counts[code] = (counts[code] if code in counts else 0) + 1
+        kind = format_kind(code)
+        kind_counts[kind] = (kind_counts[kind] if kind in kind_counts else 0) + 1
+    best = ""
     seen = 0
     for code in sorted(counts):
         if counts[code] > seen:
             seen = counts[code]
             best = code
-    if best in dialect.SHEET_BUILT_IN_FORMAT_IDS:
-        return best
-    canonical = dialect.SHEET_CANONICAL_FORMAT_CODES[format_kind(best)]
+    chosen = GENERAL_FORMAT
+    if best and seen >= line and not _denied_kind(kinds, format_kind(best)):
+        chosen = best
+        if best not in dialect.SHEET_BUILT_IN_FORMAT_IDS:
+            chosen = _canonical_code(format_kind(best))
+        return chosen
+    widest = ""
+    many = 0
+    for kind in FORMAT_KINDS:
+        if kind in kind_counts and kind_counts[kind] > many:
+            many = kind_counts[kind]
+            widest = kind
+    if widest and many >= line and not _denied_kind(kinds, widest):
+        return _canonical_code(widest)
+    if not _denied_kind(kinds, FORMAT_PLAIN):
+        return GENERAL_FORMAT
+    # Every cell wears a kind other than plain, and no value-holding cell
+    # wears one by the line: the kind the census counts most is written.
+    most = FORMAT_PLAIN
+    largest = 0
+    for kind in FORMAT_KINDS:
+        found = kinds[kind] if kind in kinds else None
+        if isinstance(found, int) and found > largest:
+            largest = found
+            most = kind
+    return _canonical_code(most)
+
+
+def _denied_kind(kinds: "dict[str, object]", kind: str) -> bool:
+    """Whether the published census says no cell wears this kind."""
+    if kind not in kinds:
+        return False
+    found = kinds[kind]
+    return isinstance(found, int) and not isinstance(found, bool) and found == 0
+
+
+def _canonical_code(kind: str) -> str:
+    """The canonical code of one kind of format."""
+    canonical = dialect.SHEET_CANONICAL_FORMAT_CODES[kind]
     if isinstance(canonical, str):
         return canonical
     return GENERAL_FORMAT
+
+
+def _value_class(classes: "list[str]", floor: int) -> "str | None":
+    """Which class most of the column's value-holding cells are (P4-D160).
+
+    THE ONE FACT A WITHHELD CENSUS STILL OWES THE TWIN. Where one cell of
+    a column is unlike the rest -- one absent cell among two hundred
+    texts of digits -- the census may publish no count at all, because
+    any count it published would let a reader subtract the odd cell's.
+    The twin then has nothing to tell a text of digits from a number by,
+    and `00123` would be written as the number 123. So the commonest
+    value class is published by NAME, without a count, where it is held
+    by the line; a class held by fewer is not published.
+    """
+    counts = _counted(classes, dialect.SHEET_VALUE_CLASSES)
+    best = ""
+    seen = 0
+    for kind in dialect.SHEET_VALUE_CLASSES:
+        if counts[kind] > seen:
+            seen = counts[kind]
+            best = kind
+    if best and seen >= dialect.sheet_line(floor):
+        return best
+    return None
+
+
+def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
+    """The first column whose cells mix how they are stored, or nothing.
+
+    THE TWO MIXES A TWIN CANNOT CARRY (review item 6 of the files
+    review, plan P4-D162). The description publishes how many cells of a
+    column are of each class and wear each kind of format, and the
+    column's values as ONE distribution -- nothing that says which
+    values the numbers were and which the texts. The writer can keep a
+    class with its values only where the values say which class they
+    are: a label is never a number, `TRUE` is never an error. Where they
+    do not, the association is lost silently. Measured: thirty numeric
+    cells of 10 beside thirty text cells of 1000 gave a twin whose
+    numeric cells summed to 15150 against 300, with every published fact
+    held. So the column is refused where
+
+    * two value classes stand in it and some cell of one is spelled the
+      way a cell of the other is written (`dialect.sheet_class_fits`); or
+    * its NUMBER cells wear more than one kind of format -- some dates
+      and some plain -- because the dates and the plain numbers are one
+      distribution in the description too.
+
+    Returns the column's index and which of `errors.MIXED_TYPES` and
+    `errors.MIXED_FORMATS` it is. Guarantees: a fixed function of the
+    sheet; raises nothing.
+    """
+    for index in range(len(sheet.classes)):
+        classes = sheet.classes[index]
+        texts = sheet.columns[index]
+        present: "dict[str, bool]" = {}
+        for kind in classes:
+            if kind in dialect.SHEET_VALUE_CLASSES:
+                present[kind] = True
+        if len(present) >= 2:
+            for row in range(len(classes)):
+                own = classes[row]
+                if own not in present:
+                    continue
+                for other in present:
+                    if other == own or other == dialect.SHEET_CELL_TEXT:
+                        continue
+                    if dialect.sheet_class_fits(other, texts[row]):
+                        return (index, errors.MIXED_TYPES)
+        worn: "dict[str, bool]" = {}
+        codes = sheet.formats[index]
+        for row in range(len(classes)):
+            if classes[row] == dialect.SHEET_CELL_NUMBER and row < len(codes):
+                worn[format_kind(codes[row])] = True
+        if len(worn) >= 2:
+            return (index, errors.MIXED_FORMATS)
+    return None
 
 
 def _published_sheet_names(reading: Reading) -> "list[object]":
@@ -1628,30 +1966,35 @@ def document_of(
     """The workbook as the description publishes it (contract 4.3b).
 
     Every key is always present, so the loader can require exactly this
-    key set; a fact the workbook does not carry is `null` or nought.
+    key set; a fact the workbook does not carry, or one the disclosure
+    rule of `dialect.sheet_census` holds back, is `null` or nought.
     """
     position = 0
     for index in range(len(reading.sheets)):
         if reading.sheets[index].name == reading.chosen:
             position = index + 1
     columns: "list[object]" = []
-    for index in range(len(sheet.names)):
+    # One census per COLUMN, and not per name: a table read with
+    # `--first-row data` has no names of its own (plan P4-D161).
+    for index in range(len(sheet.columns)):
         total = sheet.n_rows
         formulas = 0
         if index < len(sheet.formulas):
             for carried in sheet.formulas[index]:
                 if carried:
                     formulas = formulas + 1
+        kinds = _format_census(sheet.formats[index], total, floor)
         columns += [
             {
                 "cell_classes": _census(
                     sheet.classes[index], CELL_CLASSES, total, floor
                 ),
-                "format_kinds": _format_census(
-                    sheet.formats[index], total, floor
+                "format_kinds": kinds,
+                "format_code": _leading_code(
+                    sheet.classes[index], sheet.formats[index], kinds, floor
                 ),
-                "format_code": _leading_code(sheet.formats[index]),
-                "formulas": floored(formulas, total, floor),
+                "formulas": dialect.sheet_count(formulas, total, floor),
+                "value_class": _value_class(sheet.classes[index], floor),
             }
         ]
     return {
@@ -1663,12 +2006,14 @@ def document_of(
         "defined_names": reading.defined_names,
         "defined_table": bool(reading.table_names),
         # HELD TO THE SMALLEST GROUP LIKE EVERY OTHER COUNT OF RECORDS
-        # (repair of landing 2b.10). This one counts ROWS OF THE TABLE:
-        # "exactly one record here holds nothing" names that record, and
-        # "all but one" names the record that does not, which is what
-        # the twin's third clause forbids. The layout counts below are
-        # exempt and say why in the comment above WORKBOOK_KEYS.
-        "empty_rows_inside": floored(sheet.empty_rows_inside, sheet.n_rows, floor),
+        # (repair of landing 2b.10, plan P4-D160). This one counts ROWS OF
+        # THE TABLE: "exactly one record here holds nothing" names that
+        # record, and "all but one" names the record that does not, which
+        # is what the twin's third clause forbids. The layout counts below
+        # are exempt and say why in the comment above WORKBOOK_KEYS.
+        "empty_rows_inside": dialect.sheet_count(
+            sheet.empty_rows_inside, sheet.n_rows, floor
+        ),
         "frozen_rows": reading.frozen_rows,
         "macro_project": reading.has_macro_project,
         "rows_above_header": sheet.rows_above,

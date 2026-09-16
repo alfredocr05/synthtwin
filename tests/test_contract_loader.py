@@ -1661,6 +1661,28 @@ def battery() -> list[Mutation]:
             "WB7", "a second sheet holding a table this description does not carry",
             _form_workbook_other_sheet_holds_a_table,
         ),
+        # The files review's reproductions, one per rule it broke (plan
+        # P4-D160, P4-D166, P4-D167).
+        Mutation(
+            "WB3", "a census whose one withheld count the others rebuild",
+            _form_workbook_census_rebuilds_its_withheld_count,
+        ),
+        Mutation(
+            "WB3", "a census publishing a nought beside a withheld count",
+            _form_workbook_census_nought_beside_a_withheld_count,
+        ),
+        Mutation(
+            "WB5", "two sheets of one name in different cases",
+            _form_workbook_two_sheets_of_one_name,
+        ),
+        Mutation(
+            "WB7", "a second sheet holding a table one column wide",
+            _form_workbook_other_sheet_holds_a_narrow_table,
+        ),
+        Mutation(
+            "WB8", "a commonest class the column's own census denies",
+            _form_workbook_value_class_denied_by_its_census,
+        ),
     ]
 
 
@@ -1804,6 +1826,10 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
     shape -- every census holding to the base's floor of eleven -- so
     that each entry below damages exactly one rule and nothing else.
     """
+    # THE CENSUSES COUNT THE DESCRIPTION'S OWN ROWS, whatever `rows` says:
+    # a census is held to the table's row count now (plan P4-D160), and
+    # the base description has 240 of them.
+    rows = typing.cast(int, document["n_rows"])
     classes: "dict[str, object]" = {}
     for kind in workbook.CELL_CLASSES:
         classes[kind] = 0
@@ -1819,7 +1845,12 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
                 "cell_classes": dict(classes),
                 "format_code": "General",
                 "format_kinds": dict(kinds),
-                "formulas": 0,
+                # A nought of formulas is WITHHELD like any count that
+                # is not the whole or at the line on both sides, so that
+                # a withheld count is never told from a real nought (plan
+                # P4-D160).
+                "formulas": None,
+                "value_class": "number",
             }
         ]
     block: Document = {
@@ -1828,7 +1859,7 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
         "date_system": "1900",
         "defined_names": 0,
         "defined_table": False,
-        "empty_rows_inside": 0,
+        "empty_rows_inside": None,
         "frozen_rows": 0,
         "macro_project": False,
         "rows_above_header": 0,
@@ -1911,6 +1942,53 @@ def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
     # have the twin write a frame of withheld cells where a table stood,
     # so code developed on it would read a table that is not there.
     block["sheet_extents"] = [None, {"columns": 4, "rows": 12}]
+
+
+def _form_workbook_census_rebuilds_its_withheld_count(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 16, 120)
+    # THE REPRODUCTION (files review, item 4). Sixty numbers, fifty-nine
+    # texts and one boolean, the boolean withheld and every other class
+    # published: 120 - 60 - 59 rebuilds the withheld count of one.
+    census = block["columns"][0]["cell_classes"]
+    census["number"] = 120
+    census["text"] = 119
+    census["boolean"] = None
+
+
+def _form_workbook_census_nought_beside_a_withheld_count(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 16, 120)
+    # Two counts withheld, the rest published -- and the published
+    # noughts tell a reader the withheld ones are not nought, so each is
+    # "some, but few" (plan P4-D160).
+    census = block["columns"][0]["cell_classes"]
+    census["number"] = 200
+    census["text"] = None
+    census["boolean"] = None
+
+
+def _form_workbook_two_sheets_of_one_name(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # A spreadsheet renames the second of two sheets whose names differ
+    # only in case, so the twin could not carry both (plan P4-D167).
+    block["sheet_names"] = ["Data", "DATA"]
+
+
+def _form_workbook_other_sheet_holds_a_narrow_table(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # A header and thirty values in one column: records, however narrow
+    # (files review, item 8; plan P4-D166).
+    block["sheet_extents"] = [None, {"columns": 1, "rows": 31}]
+
+
+def _form_workbook_value_class_denied_by_its_census(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # The census says no cell holds text, and the column names text as
+    # its commonest class.
+    block["columns"][0]["value_class"] = "text"
 
 
 def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
