@@ -544,11 +544,29 @@ _NOT_CHECKABLE_RESOLUTION_MIX = (
 # code developed on the twin runs unchanged on the real table -- is what
 # makes them obligations: `_mark_checks` and `_midnight_checks`. What is
 # still LISTED is where the description sets no obligation at all.
+# What a written form the file's own description does not name prints as,
+# in place of a count that description withholds (plan P4-D134).
+_FORM_NOT_NAMED = (
+    "not named by this file's own description, which names a written "
+    "form only where enough of its values wrote it"
+)
 _NOT_CHECKABLE_NO_WRITTEN_FORM = (
     "the description records how the real column's dates were written "
     "-- how wide their fields were, how their month names were cased, "
     "how their markers were cased -- and this column's dates write "
     "nothing of the kind, so there is none of it for a file to carry"
+)
+# ...and for a column whose dates CAN show the convention but whose census
+# is empty (plan P4-D131): no value showed one, or the census was held
+# back whole. The two are one sentence because a reader may not be told
+# which -- telling them would publish what the census holds back.
+_NOT_CHECKABLE_WRITTEN_FORM_HELD_BACK = (
+    "the description records how the real column's dates were written "
+    "-- how wide their fields were, how their month names were cased, "
+    "how their markers were cased -- and for this column it records "
+    "none of this kind: no value showed one, or a count of it would have "
+    "named too few values or left too few over, so the whole census was "
+    "held back and there is none of it for a file to carry"
 )
 _NOT_CHECKABLE_NO_MIXTURE = (
     "the description counts the notations and the marks a column's "
@@ -4505,6 +4523,7 @@ def measure(
         declared_measured = _declared_measured_here(description, table)
         declared_commas = _declared_commas_here(description, table)
         described_pairs = _described_pairs_here(description, table)
+        kept_days = _kept_placeholders_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -4533,6 +4552,7 @@ def measure(
             declared_commas,
             True,
             described_pairs,
+            kept_placeholder_days=kept_days,
         )
         over_the_split = profile.build_document(
             table,
@@ -4543,6 +4563,7 @@ def measure(
             declared_commas,
             True,
             described_pairs,
+            kept_placeholder_days=kept_days,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -4872,6 +4893,42 @@ def _described_pairs_here(
         and column.name not in declared
         and column.name in table.column_names
     ]
+
+
+def _kept_placeholders_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[str, ...]]":
+    """The placeholder days each column's description records as kept.
+
+    NOT A DECLARATION, and not rebuilt from the settings block, which
+    cannot carry it (plan P4-D136; review of 158c811, item 5). A person who
+    typed `--keep-value 01/01/1900` named a spelling of their table; the
+    settings block records only members of the vocabulary, and
+    `01/01/1900` is not `1900-01-01` as text, so its built-in dates stay
+    empty. The COLUMN records the decision all the same -- a placeholder
+    verdict whose reason is `kept_by_you` -- and that is what is carried
+    over: per column, so a spelling that reached one column is not made to
+    reach another the person's words never touched. Measured before this:
+    thirty `01/01/1900` beside 470 dates, profiled with that declaration,
+    publish 500 values; the table checked against that description read
+    470 and missed 14 obligations, and so did its twin.
+
+    A column the checked file does not carry is dropped, for the reason
+    `_declared_here` gives.
+    """
+    found: "dict[str, tuple[str, ...]]" = {}
+    for column in description.columns:
+        if column.name not in table.column_names:
+            continue
+        days: "list[str]" = []
+        for verdict in column.sentinel_verdicts:
+            if verdict.reason != "kept_by_you":
+                continue
+            if verdict.candidate in parsing.calendar_placeholders():
+                days += [verdict.candidate]
+        if days:
+            found[column.name] = tuple(sorted(days))
+    return found
 
 
 def _declared_commas_here(
@@ -14010,15 +14067,39 @@ def _written_form_listings(
     for key, _family in _WRITTEN_FORMS:
         if _written_census_of(facts, key):
             continue
+        reason = _NOT_CHECKABLE_NO_WRITTEN_FORM
+        if _written_form_reachable(facts, key):
+            reason = _NOT_CHECKABLE_WRITTEN_FORM_HELD_BACK
         listings += [
             Listing(
                 column.name,
                 f"datetime.{key}",
                 "",
-                _NOT_CHECKABLE_NO_WRITTEN_FORM,
+                reason,
             )
         ]
     return listings
+
+
+def _written_form_reachable(facts: contract.DatetimeFacts, key: str) -> bool:
+    """Whether this column's dates can show one census's convention at all.
+
+    Read off what the description publishes for every column -- the
+    member, and whether the offset map names `Z` -- so the answer adds
+    nothing a reader did not have (contract D17 to D20 state the same
+    reach).
+    """
+    family = facts.parser_family
+    if key == "date_field_widths":
+        return (
+            family in parsing.VARIABLE_WIDTH_MEMBERS
+            or family in parsing.TEXTUAL_MEMBERS
+        )
+    if key == "month_name_styles":
+        return family in parsing.TEXTUAL_MEMBERS
+    if key == "quarter_marker_case":
+        return family == "year-quarter"
+    return "Z" in facts.utc_offsets
 
 
 def _written_form_checks(
@@ -14033,19 +14114,33 @@ def _written_form_checks(
     producer under the same declarations and floor, exactly as the marks
     beside them are.
 
-    WHAT IS CHECKED IS THE SET OF CONVENTIONS AND ITS FLOOR, NOT THE
-    COUNT, and the difference is the honest part of this landing rather
-    than a weaker copy of `_mark_checks`. Whether a cell can SHOW a
-    convention depends on its own value: a day above the ninth shows no
-    field width, a month of May shows no name length. So how many cells
-    of a file could carry one is a fact about that file's values, and a
-    twin whose interior values fall a day either side of the real ones
-    carries a different number of them -- a count check would accuse a
-    faithful twin. What a faithful twin DOES owe is every convention the
-    real column used, each on at least a floor's worth of its cells, and
-    no convention the real column did not use beyond what the withheld
-    pool covers. That is what turns red on a writer that collapses a
-    mixed column onto its majority, or that goes back to ISO.
+    TWO KINDS OF CENSUS, AND EACH IS HELD AS FAR AS A FAITHFUL TWIN CAN
+    MEET IT (plan P4-D134). The case of a quarter's marker and of a zulu
+    offset is shown by EVERY cell the census counts over -- every quarter,
+    every value carrying `Z` -- and a twin writes exactly the published
+    number of each, so those two are held EXACTLY, count for count: a
+    file that kept every timestamp and turned eighty lower-case markers
+    and three hundred and twenty capitals into the reverse used to meet
+    both obligations, because only the set of forms and its floor were
+    asked (review of 158c811, item 7). The field widths and the month
+    names are shown only by some cells -- a day above the ninth shows no
+    width, a month of May shows no length -- so how many of a file's
+    cells could carry one is a fact about that file's own values, and a
+    count check would accuse a faithful twin. What those two owe is every
+    convention the real column used, each on at least a floor's worth of
+    the file's cells.
+
+    AND NO CONVENTION THE DESCRIPTION DOES NOT NAME BEYOND WHAT IT LEAVES
+    OVER. A census names no pool (contract D17 to D20), so the cells a
+    description gives no form are the published total less the named
+    counts -- none, on the two exact censuses -- and a file whose own
+    total is larger may give its extra cells any form.
+
+    A FORM THE FILE'S OWN DESCRIPTION DOES NOT NAME IS NOT PRINTED AS A
+    COUNT. That description names a form only where the disclosure rule
+    lets it, so an absent key may stand for a handful of cells or for a
+    whole census held back beside a remainder of one; the line says it
+    was not named, and never a number the file's description withholds.
 
     Guarantees: accepts the column, its facts, the file's re-described
     block and the floor; returns a check per named convention and one
@@ -14057,15 +14152,22 @@ def _written_form_checks(
         census = _written_census_of(facts, key)
         if not census:
             continue
+        exact = key == "quarter_marker_case" or key == "zulu_case"
+        population = column.n_present - facts.n_unparsed
+        if key == "zulu_case":
+            population = (
+                facts.utc_offsets["Z"] if "Z" in facts.utc_offsets else 0
+            )
         fact = f"datetime.{key}"
         measured = _map_at(block, key)
-        pool = census[contract.WITHHELD] if contract.WITHHELD in census else 0
         published_total = 0
         for named in census:
             published_total = published_total + census[named]
+        left_over = max(0, population - published_total)
         for named in sorted(census):
-            if named == contract.WITHHELD:
-                continue
+            asked = (
+                _shown_count(census[named]) if exact else _at_least(floor)
+            )
             if measured is None:
                 checks += [
                     Check(
@@ -14073,20 +14175,33 @@ def _written_form_checks(
                         fact,
                         f"{family}.{named}",
                         WITHHELD,
-                        _at_least(floor),
+                        asked,
                         "",
                         _GATE_CLOSED,
                     )
                 ]
                 continue
-            found = measured[named] if named in measured else 0
+            if named not in measured:
+                checks += [
+                    Check(
+                        name,
+                        fact,
+                        f"{family}.{named}",
+                        MISSED,
+                        asked,
+                        _FORM_NOT_NAMED,
+                    )
+                ]
+                continue
+            found = measured[named]
+            met = found == census[named] if exact else found >= floor
             checks += [
                 Check(
                     name,
                     fact,
                     f"{family}.{named}",
-                    HELD if found >= floor else MISSED,
-                    _at_least(floor),
+                    HELD if met else MISSED,
+                    asked,
                     _shown_count(found),
                 )
             ]
@@ -14097,7 +14212,7 @@ def _written_form_checks(
                     fact,
                     f"{family}.unnamed",
                     WITHHELD,
-                    f"at most {_shown_count(pool)}",
+                    f"at most {_shown_count(left_over)}",
                     "",
                     _GATE_CLOSED,
                 )
@@ -14110,10 +14225,10 @@ def _written_form_checks(
         # which is the same widening `_mark_checks` gives a joint
         # column's clock-writing cells: how many of a file's own cells
         # could show the convention is a fact about its values.
-        bound = pool + max(0, measured_total - published_total)
+        bound = left_over + max(0, measured_total - published_total)
         unnamed = 0
         for named in measured:
-            if named == contract.WITHHELD or named not in census:
+            if named not in census:
                 unnamed = unnamed + measured[named]
         checks += [
             Check(
@@ -14802,7 +14917,9 @@ def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
         and facts.resolution_mix["iso-date"] > 0
     ):
         bare = 1
-    return max(1, named + unnamed) * max(1, marked) + bare
+    # ...and times the written forms one instant can take (plan P4-D137).
+    forms = contract.written_forms_of_an_instant(facts)
+    return max(1, named + unnamed) * max(1, marked) * forms + bare
 
 
 def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:

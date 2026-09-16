@@ -652,6 +652,14 @@ _FLOORED_ENTRY = "count-at-the-floor-or-withheld"
 # settings floor and a pooled remainder below it, and both of those are
 # exactly what these censuses may not publish.
 _MIXTURE_ENTRY = "count-at-the-census-floor-or-unavailable"
+# A CENSUS ENTRY OF HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131): a
+# named count at `parsing.disclosure_line` or above, and no pool at all.
+# It is not `_FLOORED_ENTRY`, which admits a count at a settings floor of
+# one and a pooled remainder, and it is not `_MIXTURE_ENTRY`, which
+# speaks an unavailable state: a census withheld whole is written `{}`.
+# Whether what the named counts leave over of the published total is
+# none or a group is invariants D17 to D20, checked where the total is.
+_DISCLOSED_ENTRY = "count-at-the-disclosure-line"
 
 # THE KEYS EACH MIXTURE CENSUS MAY CARRY, read from the one place each
 # convention is named so that the producer and this guard cannot drift.
@@ -1414,16 +1422,16 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # wrote, and the counts are counts of conventions.
     ("columns", _EACH, "date_field_widths"): _OBJECT,
     ("columns", _EACH, "date_field_widths", _KEY_OF): _WORD,
-    ("columns", _EACH, "date_field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "date_field_widths", _ANY_KEY): _DISCLOSED_ENTRY,
     ("columns", _EACH, "month_name_styles"): _OBJECT,
     ("columns", _EACH, "month_name_styles", _KEY_OF): _WORD,
-    ("columns", _EACH, "month_name_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "month_name_styles", _ANY_KEY): _DISCLOSED_ENTRY,
     ("columns", _EACH, "quarter_marker_case"): _OBJECT,
     ("columns", _EACH, "quarter_marker_case", _KEY_OF): _WORD,
-    ("columns", _EACH, "quarter_marker_case", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "quarter_marker_case", _ANY_KEY): _DISCLOSED_ENTRY,
     ("columns", _EACH, "zulu_case"): _OBJECT,
     ("columns", _EACH, "zulu_case", _KEY_OF): _WORD,
-    ("columns", _EACH, "zulu_case", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "zulu_case", _ANY_KEY): _DISCLOSED_ENTRY,
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -1659,18 +1667,18 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # The four written-form vocabularies, read from the one place each
     # is defined (landing 2b.6), so that a word a producer writes and a
     # word this guard admits cannot drift apart.
+    # No pooled word among them (plan P4-D131): a census of a handful of
+    # forms cannot pool without naming what it pools.
     ("columns", _EACH, "date_field_widths", _KEY_OF): (
-        parsing.FIELD_WIDTH_STYLES + (parsing.MISSING_WITHHELD,)
+        parsing.FIELD_WIDTH_STYLES
     ),
     ("columns", _EACH, "month_name_styles", _KEY_OF): (
-        parsing.MONTH_NAME_STYLES + (parsing.MISSING_WITHHELD,)
+        parsing.MONTH_NAME_STYLES
     ),
     ("columns", _EACH, "quarter_marker_case", _KEY_OF): (
-        parsing.QUARTER_MARKER_CASES + (parsing.MISSING_WITHHELD,)
+        parsing.QUARTER_MARKER_CASES
     ),
-    ("columns", _EACH, "zulu_case", _KEY_OF): (
-        parsing.ZULU_CASES + (parsing.MISSING_WITHHELD,)
-    ),
+    ("columns", _EACH, "zulu_case", _KEY_OF): parsing.ZULU_CASES,
     ("columns", _EACH, "length", _KEY_OF): taxonomy.LENGTH_KEYS,
     ("columns", _EACH, "words", _KEY_OF): taxonomy.WORD_KEYS,
     ("columns", _EACH, "numeric_styles", _KEY_OF): (
@@ -2035,6 +2043,15 @@ def _leaf_is_published(
         if key == parsing.MISSING_WITHHELD:
             return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _DISCLOSED_ENTRY:
+        # A census of written forms (plan P4-D131): never one, never a
+        # pool. `parsing.disclosure_line` is the producer's and the
+        # loader's own number, so all three say it at the same reach.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if key == parsing.MISSING_WITHHELD:
+            return False
+        return value >= parsing.disclosure_line(context.floor)
     if kind == _MIXTURE_ENTRY:
         # A CENSUS OF LANDING 2b.7, WHOSE FLOOR IS NEVER ONE (plan
         # P4-D65.1, P4-D65.2; owner twin definition, clause 3). A
@@ -2709,6 +2726,7 @@ def build_document(
     described_pairs: list[str] | None = None,
     forced_metadata_rows: int = 0,
     forced_delimiter: str = "",
+    kept_placeholder_days: "dict[str, tuple[str, ...]] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2739,6 +2757,13 @@ def build_document(
       then read as ahead of the long-tail rule (plan P4-D40, validation
       method V2.2-A2). It is not a declaration and the settings block
       does not record it. `synthtwin profile` never passes it.
+    - ``kept_placeholder_days`` is handed over by the validator alone too:
+      per column, the placeholder days the description it checks against
+      published as `kept_by_you` there (plan P4-D136). A `--keep-value`
+      spelled as the table spelled the day reaches the settings block as
+      nothing, so this is how the checked file keeps what the description
+      kept, column by column and no wider. `synthtwin profile` never
+      passes it.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
@@ -2752,6 +2777,9 @@ def build_document(
         [] if forced_decimal_commas is None else forced_decimal_commas
     )
     read_as_pairs = [] if described_pairs is None else described_pairs
+    kept_days: "dict[str, tuple[str, ...]]" = (
+        {} if kept_placeholder_days is None else kept_placeholder_days
+    )
     # REFUSED AT THE PRODUCER, so that every path is covered and not
     # only the command line (R-P4-54; review item P4-G3-R8-F2). A
     # declared value whose number depends on which grammar reads it
@@ -2795,6 +2823,7 @@ def build_document(
             name in declared_measurements,
             name in declared_commas,
             name in read_as_pairs,
+            kept_days[name] if name in kept_days else (),
         )
         columns += [_column_block(described)]
         for note in described.publication_notes:

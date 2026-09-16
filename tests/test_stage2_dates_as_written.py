@@ -298,15 +298,26 @@ def test_a_column_mixing_two_width_conventions_keeps_both(
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "widths", cells, (), True, "3"
     )
-    assert sorted(first["date_field_widths"]) == ["padded", "unpadded"]
-    assert sorted(second["date_field_widths"]) == ["padded", "unpadded"]
+    # EACH CONVENTION IS COUNTED UNDER THE FIELDS THAT SHOWED IT (plan
+    # P4-D132): both fields below ten, the first alone, the second alone.
+    consistent = (
+        "first-field-padded",
+        "first-field-unpadded",
+        "padded",
+        "second-field-padded",
+        "second-field-unpadded",
+        "unpadded",
+    )
+    assert {"padded", "unpadded"} <= set(first["date_field_widths"])
+    assert set(first["date_field_widths"]) <= set(consistent)
+    assert {"padded", "unpadded"} <= set(second["date_field_widths"])
     # NEITHER CONVENTION IS INVENTED: no real cell pads one field and
     # not the other, so no twin cell may either.
     for cell in written:
         if not cell:
             continue
         style = parsing.date_field_style(cell, "month-first-date")
-        assert style in (None, "padded", "unpadded"), (cell, style)
+        assert style is None or style in consistent, (cell, style)
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -324,10 +335,18 @@ def test_a_hand_entered_textual_column_keeps_both_of_its_styles(
         tmp_path / "textual", cells, (), True, "8"
     )
     real_styles = sorted(first["month_name_styles"])
-    assert real_styles == [
+    # The two styles, each also as the `either` word its cells of May
+    # showed (plan P4-D133), and no case paired with the other's mark.
+    assert [style for style in real_styles if "-either-" not in style] == [
         "title-abbreviated-space-no-comma",
         "upper-abbreviated-hyphen-no-comma",
     ]
+    assert set(real_styles) <= {
+        "title-abbreviated-space-no-comma",
+        "title-either-space-no-comma",
+        "upper-abbreviated-hyphen-no-comma",
+        "upper-either-hyphen-no-comma",
+    }
     assert sorted(second["month_name_styles"]) == real_styles
     for cell in written:
         if not cell:
@@ -466,14 +485,16 @@ def test_the_writer_is_the_only_place_a_date_cell_is_spelled() -> None:
                         member, cell, found
                     )
                     checked = checked + 1
-    # FOUR HUNDRED AND FIFTY-SIX, counted rather than guessed at, so a
+    # SIX HUNDRED AND NINETY-SIX, counted rather than guessed at, so a
     # member added later without a writing rule moves this number and is
     # noticed here rather than in somebody's table: six variable-width
-    # members at four widths (96), the day-first textual member at two
-    # widths and twelve styles (96), the month-first textual member at
-    # two widths and twenty-four styles (192), and the nine fixed-width
-    # members at two widths (72), each over four calendar dates.
-    assert checked == 456, checked
+    # members at eight widths (192), the day-first textual member at two
+    # widths and eighteen styles (144), the month-first textual member at
+    # two widths and thirty-six styles (288), and the nine fixed-width
+    # members at two widths (72), each over four calendar dates. It was
+    # 456 until the one-field width words and the `either` length of a
+    # name of May joined the vocabularies (plans P4-D132 and P4-D133).
+    assert checked == 696, checked
 
 
 def test_the_generator_writes_through_the_member_and_not_around_it() -> None:

@@ -720,6 +720,16 @@ def battery() -> list[Mutation]:
             "V5", "spellings covering more cells than rows held the candidate",
             edit_verdict("reading", 0, n_occurrences=11),
         ),
+        # ...and the OMISSION, which the two above left open (plan
+        # P4-D135; review of 158c811, item 6). A judged decision edited to
+        # name none of the spellings it took out, beside a pool too small
+        # to hold those cells: the link is gone, the validator reads the
+        # spelling as a declaration reaching the whole table, and a second
+        # column's unchanged values are read as holes.
+        Mutation(
+            "V5", "a judged decision naming none of the spellings it took out",
+            edit_verdict("reading", 0, spellings=[]),
+        ),
         # -- the repetition patterns ----------------------------------
         Mutation(
             "M3", "a row count padded to a width nothing needs",

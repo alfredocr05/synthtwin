@@ -370,7 +370,14 @@ NARROW_COLUMN_DIGESTS = {
     # unchanged; what moved is where the ranks between the rungs land.
     # MERGED WITH LANDING 2b.10, for the reason given at `record_code`:
     # landing 2b.6's cells, sorted here and as written below.
-    "recorded_on": "6763c8168dc9c34495a2f4d8dc33af47",
+    # RE-RECORDED AT THE REVIEW OF 158c811 (2026-09-16, plan P4-D130).
+    # Method G7.3 gives each pinned rank a place inside its own day and
+    # draws a gap across the stretch between two places, where it drew
+    # over the gap's two pinned days whole. MEASURED against a git archive
+    # of 158c811 at this seed: 90 of this column's 240 cells moved, the
+    # other twelve columns are cell for cell the same, and the description
+    # did not move.
+    "recorded_on": "6443ba8ef6f04fd959ee31f7b582cd96",
     "answer": "f96508b26b4c8cae171b5bf0984d34a3",
     "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -402,7 +409,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     "reading": "01d11476294ade427eb6806b3155e7b6",
     "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
-    "recorded_on": "0ae8c7fa2ee77b4522dff2af7403baaf",
+    # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
+    # moved cells as the sorted digest above, as written.
+    "recorded_on": "c0b57178cde620d5bd51bd6b64a62209",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -1342,8 +1351,12 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # is byte-identical to commit 367e1d7's and its written form here is
 # UTF-8, comma, line feeds and a final line ending, which the twin
 # already wrote.
+# RE-RECORDED AT THE REVIEW OF 158c811 (2026-09-16, plan P4-D130), and
+# ONLY `recorded_on` MOVED: 90 of its 240 cells, placed on the pins'
+# places inside their days. Diffed cell by cell against a git archive of
+# 158c811 at this seed; the description digest held.
 GOLDEN_TWIN_SHA256 = (
-    "ed198f28df9a7136f970686e9de64374db7173217eeabf32add6f6f6919d1fa3"
+    "b2d74f8a647ecb8277fe838c59a7a90c1c2ab3817085a953a97ddd3d53177591"
 )
 
 
@@ -1792,8 +1805,13 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # before the merge only the sentence on how the twin is written moved --
 # it now names the written form the description records. Against landing
 # 2b.10's own tree only landings 2b.6's and 2b.8's lines moved.
+# RE-RECORDED AT THE REVIEW OF 158c811 (2026-09-16, plan P4-D130), read
+# line by line against the report of 158c811 at this seed: two lines
+# moved and nothing else, the number of different dates `recorded_on`'s
+# twin holds -- 171 to 176, beside the description's 84 -- once for each
+# of the column's two distinct counts.
 GOLDEN_REPORT_SHA256 = (
-    "4fdd544921fedf8e7a7deb9f35430329acde96b80f2ef2cebcd50fb760f4c2df"
+    "af48254aef73ffcb79ebf458e402b74cb54275b2c84941b585e3e5043473e4d7"
 )
 
 
@@ -2428,8 +2446,15 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # quoting check per column, all HELD, 509 to 535 obligations. Against
 # landing 2b.10's own tree only landings 2b.6's, 2b.7's and 2b.8's lines
 # moved. No verdict otherwise moved.
+# RE-RECORDED AT THE REVIEW OF 158c811 (2026-09-16, plan P4-D130), read
+# line by line against the report of 158c811: two lines moved, the count
+# of different dates found in `recorded_on`, 171.0 to 176.0 on both
+# distinctness checks, both still inside their windows. No verdict moved
+# and the census carries the same obligations; the new sentence of plan
+# P4-D131 for an empty census of written forms is not reached, because
+# this column's member writes none of the four.
 GOLDEN_QUALITY_SHA256 = (
-    "fec741e4541e1e52f64723b9518daef6f98f5f79a2012265d0860ad34840923a"
+    "7b9b68c14ab620634555cceabc27b7bb0660a4ee6be6b95b048c6697d9cebdd0"
 )
 
 

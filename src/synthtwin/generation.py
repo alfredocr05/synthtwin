@@ -3853,9 +3853,7 @@ def _commonest_style(facts: contract.DatetimeFacts) -> "_DateStyle":
     """The spelling a column's ends and its unclassed cells take (2b.6)."""
     return _DateStyle(
         family=facts.parser_family,
-        width=_commonest_of(
-            facts.date_field_widths, parsing.DEFAULT_FIELD_WIDTH
-        ),
+        width=_joint_width_of(facts.date_field_widths),
         name_style=_commonest_of(
             facts.month_name_styles, parsing.DEFAULT_NAME_STYLE
         ),
@@ -3875,37 +3873,69 @@ _ISO_MARK_MEMBERS = ("iso-datetime", contract.FORMAT_ISO_MIXED)
 def _census_weights(
     census: "dict[str, int]", permitted: "tuple[str, ...]"
 ) -> "dict[str, int]":
-    """How many ranks each written form is owed (landing 2b.6).
+    """How many ranks each written form is owed (landing 2b.6, P4-D131).
 
-    `_mark_weights`' rule, over any of the four censuses: every named
-    count as published, and a withheld pool split EVENLY over the forms
-    the census leaves unnamed, a remainder going one each in the
-    vocabulary's own order. Spending a pool on the commonest named form
-    instead would erase the spelling the pool stands for, which is the
-    defect landing 2b.3 found in the marks and fixed there.
+    Every form of `permitted` the census names, at its published count.
+    NOTHING IS POOLED: a census of written forms names no `(withheld)`
+    key (contract D17 to D20), so there is no pool to split, and a form
+    the census left out is owed nothing.
     """
     weights: "dict[str, int]" = {}
-    for name in sorted(census):
-        if name != contract.WITHHELD:
-            weights[name] = census[name]
-    if contract.WITHHELD not in census:
-        return weights
-    unnamed: "list[str]" = []
     for name in permitted:
-        if name not in census:
-            unnamed += [name]
-    if not unnamed:
-        return weights
-    pool = census[contract.WITHHELD]
-    share = pool // len(unnamed)
-    rest = pool - share * len(unnamed)
-    for place in range(len(unnamed)):
-        given = share
-        if place < rest:
-            given = given + 1
-        if given > 0:
-            weights[unnamed[place]] = given
+        if name in census:
+            weights[name] = census[name]
     return weights
+
+
+def _reserved(
+    weights: "dict[str, int]", count: int, floor: int
+) -> "list[str]":
+    """One form per place, every named form given its published least.
+
+    THE SMOOTH ROTATION FIRST, and where it serves every named form at
+    least the smaller of its published count and `parsing.disclosure_line`
+    it is the answer unchanged. Otherwise those leasts are RESERVED first,
+    the places left are shared out by the rotation over what each form is
+    owed beyond its least, and the finished counts are spread by the
+    rotation once more (plan P4-D132). Where the leasts come to more than
+    the places, nothing can serve them all and the first rotation stands.
+
+    WHY (review of 158c811, item 3). The rotation spends places in
+    proportion, and a twin's column has its own number of cells that can
+    show a convention: at a floor of fifty a source publishing
+    `second-padded: 97` got a twin with too few such cells, the convention
+    fell under the floor in the twin's own description, and the twin
+    missed two obligations the real table met.
+
+    Guarantees: accepts the weights, the number of places and the
+    description's smallest group size; returns that many names.
+    Determinism: a function of the three; draws no word. Raises nothing.
+    No I/O of any kind.
+    """
+    spread = _rotated(weights, count)
+    line = parsing.disclosure_line(floor)
+    held: "dict[str, int]" = {name: 0 for name in sorted(weights)}
+    for name in spread:
+        held[name] = held[name] + 1
+    least: "dict[str, int]" = {}
+    short = False
+    given = 0
+    for name in sorted(weights):
+        if weights[name] <= 0:
+            continue
+        least[name] = min(weights[name], line)
+        given = given + least[name]
+        if held[name] < least[name]:
+            short = True
+    if not short or given > count:
+        return spread
+    beyond: "dict[str, int]" = {}
+    for name in sorted(least):
+        if weights[name] > least[name]:
+            beyond[name] = weights[name] - least[name]
+    for name in _rotated(beyond if beyond else least, count - given):
+        least[name] = least[name] + 1
+    return _rotated(least, count)
 
 
 def _rotated(weights: "dict[str, int]", count: int) -> "list[str]":
@@ -3955,18 +3985,20 @@ def _spelling_allocation(
     places: "list[int]",
     parsed: int,
     default: str,
+    floor: int = 0,
 ) -> "list[str]":
     """One written form per rank, spread over the ranks that can show it.
 
     A rank outside `places` cannot show the convention at all -- a cell
-    carrying no zulu marker, a month of May -- so it takes the column's
-    commonest form and is not counted against the census.
+    carrying no zulu marker -- so it takes the column's commonest form and
+    is not counted against the census.
     """
     fallback = _commonest_of(census, default)
     styles = [fallback for _rank in range(parsed)]
-    if not census or not places:
+    weights = _census_weights(census, permitted)
+    if not weights or not places:
         return styles
-    spread = _rotated(_census_weights(census, permitted), len(places))
+    spread = _reserved(weights, len(places), floor)
     for index in range(len(places)):
         styles[places[index]] = spread[index]
     return styles
@@ -3974,88 +4006,189 @@ def _spelling_allocation(
 
 def _date_width_places(
     facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]"
-) -> "tuple[list[int], list[int]]":
-    """The ranks that can show a width, split by how many fields can.
+) -> "tuple[list[int], list[int], list[int]]":
+    """The ranks that can show a width, split by WHICH fields can (P4-D132).
 
-    A field shows its width only below ten. The two JOINT words --
-    `first-padded` and `second-padded` -- say something about BOTH
-    fields, so they are spent only on the ranks whose two fields are
-    both below ten; a rank with one such field can show `padded` or
-    `unpadded` and nothing else. Splitting the ranks is what keeps the
-    twin from writing a word no cell of it can carry.
+    A field shows its width only below ten. A rank whose two fields both
+    do is written with one of the four joint words; a rank whose first
+    field alone does, with a first-field word; and one whose second
+    alone does, with a second-field word -- the three classes the census
+    counts separately, so that no word is spent on a cell that shows
+    another field. On a textual member the month is a NAME, so the day
+    is the one field and every rank that shows it is in the first list.
     """
     both: "list[int]" = []
-    single: "list[int]" = []
+    first: "list[int]" = []
+    second: "list[int]" = []
     textual = facts.parser_family in parsing.TEXTUAL_MEMBERS
     for rank in range(len(fields)):
         month, day = fields[rank]
         if textual:
-            # The month is a NAME here, so the day is the only field.
             if day < 10:
-                single += [rank]
+                first += [rank]
             continue
-        low = 0
-        if month < 10:
-            low = low + 1
-        if day < 10:
-            low = low + 1
-        if low == 2:
+        low_first = month < 10
+        low_second = day < 10
+        if facts.parser_family in parsing.DAY_FIRST_MEMBERS:
+            low_first = day < 10
+            low_second = month < 10
+        if low_first and low_second:
             both += [rank]
-        elif low == 1:
-            single += [rank]
-    return both, single
+        elif low_first:
+            first += [rank]
+        elif low_second:
+            second += [rank]
+    return both, first, second
+
+
+def _joint_width_of(census: "dict[str, int]") -> str:
+    """The joint word a rank with no census of its own class takes (P4-D132).
+
+    The commonest of the four joint words where the census names one;
+    otherwise the joint word built from the commonest first-field word and
+    the commonest second-field word, a field the census says nothing
+    about taking the padded default. It is what the ends' neighbours, the
+    unclassed cells and a class the census has no count for are written in.
+    """
+    joint = _commonest_of(
+        _census_weights(census, parsing.FIELD_WIDTH_STYLES_BOTH), ""
+    )
+    if joint:
+        return joint
+    first = _commonest_of(
+        _census_weights(census, parsing.FIELD_WIDTH_STYLES_FIRST),
+        parsing.WIDTH_FIRST_FIELD_PADDED,
+    )
+    second = _commonest_of(
+        _census_weights(census, parsing.FIELD_WIDTH_STYLES_SECOND),
+        parsing.WIDTH_SECOND_FIELD_PADDED,
+    )
+    return parsing.joint_width(
+        first == parsing.WIDTH_FIRST_FIELD_PADDED,
+        second == parsing.WIDTH_SECOND_FIELD_PADDED,
+    )
+
+
+def _field_weights(
+    census: "dict[str, int]", which: int
+) -> "dict[str, int]":
+    """What ranks of one ONE-FIELD class are owed, as joint words (P4-D132).
+
+    `which` is 1 for the first field and 2 for the second. Where the census
+    counts that class, its two words at their counts, each written as the
+    joint word that pads that field so (`padded` or `unpadded`: the other
+    field is ten or more and shows nothing). Where it does not, the joint
+    words' own padding of that field, summed -- so a column that published
+    only its two-field cells writes its one-field cells as those did.
+    """
+    words = parsing.FIELD_WIDTH_STYLES_FIRST
+    if which == 2:
+        words = parsing.FIELD_WIDTH_STYLES_SECOND
+    owed: "dict[str, int]" = {}
+    for name in words:
+        if name in census:
+            owed[name] = census[name]
+    if owed:
+        return owed
+    for name in parsing.FIELD_WIDTH_STYLES_BOTH:
+        if name not in census:
+            continue
+        padded_first, padded_second = parsing.pair_widths(name)
+        padded = padded_first if which == 1 else padded_second
+        word = words[0] if padded else words[1]
+        owed[word] = (owed[word] if word in owed else 0) + census[name]
+    return owed
 
 
 def _width_allocation(
-    facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]", parsed: int
+    facts: contract.DatetimeFacts,
+    fields: "list[tuple[int, int]]",
+    parsed: int,
+    floor: int = 0,
 ) -> "list[str]":
-    """Which joint width convention every rank writes (landing 2b.6)."""
+    """Which joint width convention every rank writes (2b.6, P4-D132).
+
+    Each class of rank is written from its own words (`_date_width_places`),
+    every published word held to its least by `_reserved`; a class the
+    census has no count for is written as the census's other classes pad
+    that field, and a rank that shows no width takes `_joint_width_of`.
+    """
     census = facts.date_field_widths
-    fallback = _commonest_of(census, parsing.DEFAULT_FIELD_WIDTH)
+    fallback = _joint_width_of(census)
     styles = [fallback for _rank in range(parsed)]
     if not census:
         return styles
-    permitted: "tuple[str, ...]" = parsing.FIELD_WIDTH_STYLES
+    both, first, second = _date_width_places(facts, fields)
     if facts.parser_family in parsing.TEXTUAL_MEMBERS:
-        permitted = parsing.FIELD_WIDTH_STYLES_ONE_FIELD
-    weights = _census_weights(census, permitted)
-    plain: "dict[str, int]" = {}
-    for name in sorted(weights):
-        if name == parsing.WIDTH_PADDED or name == parsing.WIDTH_UNPADDED:
-            plain[name] = weights[name]
-    both, single = _date_width_places(facts, fields)
-    if both:
-        spread = _rotated(weights, len(both))
-        for index in range(len(both)):
-            styles[both[index]] = spread[index]
-    if single:
-        over = plain if plain else {fallback: 1}
-        spread = _rotated(over, len(single))
-        for index in range(len(single)):
-            styles[single[index]] = spread[index]
+        weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_ONE_FIELD)
+        spread = _reserved(weights if weights else {fallback: 1}, len(first), floor)
+        for index in range(len(first)):
+            styles[first[index]] = spread[index]
+        return styles
+    weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_BOTH)
+    spread = _reserved(weights if weights else {fallback: 1}, len(both), floor)
+    for index in range(len(both)):
+        styles[both[index]] = spread[index]
+    for which, ranks in ((1, first), (2, second)):
+        owed = _field_weights(census, which)
+        if not owed:
+            owed = {parsing.field_width_word(which, True): 1}
+        spread = _reserved(owed, len(ranks), floor)
+        for index in range(len(ranks)):
+            styles[ranks[index]] = parsing.width_of_field_word(spread[index])
     return styles
 
 
 def _name_allocation(
-    facts: contract.DatetimeFacts, fields: "list[tuple[int, int]]", parsed: int
+    facts: contract.DatetimeFacts,
+    fields: "list[tuple[int, int]]",
+    parsed: int,
+    floor: int = 0,
 ) -> "list[str]":
-    """Which joint month-name style every rank writes (landing 2b.6).
+    """Which joint month-name style every rank writes (2b.6, P4-D133).
 
-    A rank whose month is MAY is left out: `May` is its own
-    abbreviation, so such a cell can show no length and the describing
-    step counts it under no key either.
+    TWO CLASSES OF RANK. A rank whose month is MAY writes a name whose
+    length shows nothing -- `May` is its own abbreviation -- so it is
+    written from the census's `either` words, which carry the case, the
+    mark and the comma such cells showed. Every other rank is written from
+    the words that name a length. A class the census has no count for
+    takes the other class's words with the length set aside: an `either`
+    word written as its abbreviated form on a rank that must show one,
+    and a named length read as `either` on a rank of May.
     """
     census = facts.month_name_styles
-    permitted = parsing.MONTH_NAME_STYLES
-    if facts.parser_family == "textual-day-first-date":
-        permitted = parsing.MONTH_NAME_STYLES_NO_COMMA
-    places: "list[int]" = []
+    permitted = parsing.name_styles_of(facts.parser_family)
+    either = parsing.name_styles_either_of(facts.parser_family)
+    fallback = _commonest_of(census, parsing.DEFAULT_NAME_STYLE)
+    styles = [fallback for _rank in range(parsed)]
+    if not census:
+        return styles
+    resolved_places: "list[int]" = []
+    may_places: "list[int]" = []
     for rank in range(len(fields)):
-        if fields[rank][0] != 5:
-            places += [rank]
-    return _spelling_allocation(
-        census, permitted, places, parsed, parsing.DEFAULT_NAME_STYLE
-    )
+        if fields[rank][0] == 5:
+            may_places += [rank]
+        else:
+            resolved_places += [rank]
+    for places, words, others in (
+        (resolved_places, permitted, either),
+        (may_places, either, permitted),
+    ):
+        owed = _census_weights(census, words)
+        if not owed:
+            for name in others:
+                if name not in census:
+                    continue
+                moved = parsing.name_style_at_length(
+                    name, words == either
+                )
+                owed[moved] = (owed[moved] if moved in owed else 0) + census[name]
+        if not owed:
+            continue
+        spread = _reserved(owed, len(places), floor)
+        for index in range(len(places)):
+            styles[places[index]] = spread[index]
+    return styles
 
 
 def _written_fields(
@@ -4106,6 +4239,7 @@ def _cell_spellings(
     ordinals: "list[int]",
     offsets: "list[str]",
     parsed: int,
+    floor: int = 0,
 ) -> "list[_DateStyle]":
     """How every rank of a column of dates is spelled (landing 2b.6).
 
@@ -4121,8 +4255,8 @@ def _cell_spellings(
     nothing. No I/O of any kind.
     """
     fields = _written_fields(facts, ordinals, offsets, parsed)
-    widths = _width_allocation(facts, fields, parsed)
-    names = _name_allocation(facts, fields, parsed)
+    widths = _width_allocation(facts, fields, parsed, floor)
+    names = _name_allocation(facts, fields, parsed, floor)
     every = [rank for rank in range(parsed)]
     markers = _spelling_allocation(
         facts.quarter_marker_case,
@@ -4130,13 +4264,14 @@ def _cell_spellings(
         every if facts.resolution == "quarter" else [],
         parsed,
         "upper",
+        floor,
     )
     zulu_places: "list[int]" = []
     for rank in range(parsed):
         if offsets[rank] == "Z":
             zulu_places += [rank]
     zulus = _spelling_allocation(
-        facts.zulu_case, parsing.ZULU_CASES, zulu_places, parsed, "upper"
+        facts.zulu_case, parsing.ZULU_CASES, zulu_places, parsed, "upper", floor
     )
     spellings: "list[_DateStyle]" = []
     for rank in range(parsed):
@@ -13345,7 +13480,9 @@ def _datetime_content(
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
     # on the clock it writes it on.
-    spellings = _cell_spellings(facts, ordinals, offsets, parsed)
+    spellings = _cell_spellings(
+        facts, ordinals, offsets, parsed, plan.small_cell_floor
+    )
     cells: list[str] = []
     for rank in range(parsed):
         end = ""
@@ -14643,6 +14780,96 @@ def _pin_bounds(
     return (lows, highs)
 
 
+# HOW FINELY A PIN IS PLACED INSIDE ITS OWN UNIT, and how many passes
+# settle the places (plan P4-D130, method G7.3). A unit of the ordinal
+# space -- a day, a month, a quarter, a second -- is split into this many
+# steps, which is far finer than any gap's count of ranks can resolve,
+# and the passes are enough for the at most nine interior places to stop
+# moving: each pass shrinks what is left to move by at least a twelfth.
+_PIN_STEPS = 1048576
+_PIN_PASSES = 128
+
+
+def _pin_places(pinned: "dict[int, int]") -> "tuple[list[int], list[int]]":
+    """Where inside its own unit every pinned rank stands (plan P4-D130).
+
+    ONE UNIT OF THE ORDINAL SPACE IS A STRETCH OF TIME AND NOT A POINT.
+    A rung published as 31 January says that the rank it is read off
+    fell somewhere in that day, not where in it; and where a gap between
+    two pins is a day or two wide, WHERE decides how many of the gap's
+    ranks each of those days receives. So every pinned rank is given a
+    place, in `_PIN_STEPS` steps to the unit, and a gap's ranks are drawn
+    across the stretch between its two pins' places.
+
+    THE PLACES ARE THE STRAIGHTEST COUNT THE PINS ALLOW. The first pin,
+    `earliest`, stands at the very start of its unit and the last,
+    `latest`, at the very end: nothing lies beyond either. Every interior
+    pin starts at the middle of its unit and then, `_PIN_PASSES` times in
+    rank order, moves to the point on the straight line between its two
+    neighbours' places at its own rank, kept inside its own unit -- which
+    is the cumulative count with the fewest changes of slope that still
+    puts every pinned rank in the unit it was published in. Two pins on
+    one value share their unit, so the ranks between them stay on it.
+
+    WHAT IT REPLACES AND WHY (review of 158c811, item 2). Every gap drew
+    over `[low, high]` INCLUSIVE, so a pinned value's unit received a
+    whole unit's mass from each of its two gaps and the pin on top.
+    Measured on 3,000 dates drawn uniformly over sixty days, seed 4: the
+    per-day variance rose from the real column's 45.47 to 301.33, 6.63
+    times, with 31 January at 91 values against 44 -- a spike at every
+    published rung -- and both files validated with nothing missed.
+    Taking each pin to the middle of its unit instead left the spike at
+    1.47 to 1.83 times on that column and at 6.40 times on 500 dates over
+    a week, because a gap a day wide is then given half a day too much or
+    too little; the straightest count is what brings those back.
+
+    Guarantees: accepts the pinned ranks with their ordinals, non-
+    decreasing in rank; returns the pinned ranks in order and one place
+    per rank, in steps, each inside its own unit and non-decreasing.
+    Determinism: whole-number arithmetic on the pins alone; draws no
+    word. Raises nothing. No I/O of any kind.
+    """
+    ranks = sorted(pinned)
+    count = len(ranks)
+    places = [pinned[rank] * _PIN_STEPS + _PIN_STEPS // 2 for rank in ranks]
+    if count == 0:
+        return ranks, places
+    places[0] = pinned[ranks[0]] * _PIN_STEPS
+    places[count - 1] = pinned[ranks[count - 1]] * _PIN_STEPS + _PIN_STEPS
+    for _pass in range(_PIN_PASSES):
+        for index in range(1, count - 1):
+            before = ranks[index - 1]
+            after = ranks[index + 1]
+            line = places[index - 1] + (
+                (ranks[index] - before)
+                * (places[index + 1] - places[index - 1])
+            ) // (after - before)
+            lowest = pinned[ranks[index]] * _PIN_STEPS
+            highest = lowest + _PIN_STEPS - 1
+            places[index] = min(max(line, lowest), highest)
+    return ranks, places
+
+
+def _gap_draw(
+    start: int, stop: int, low: int, high: int, word: int
+) -> int:
+    """One rank's ordinal inside a gap, from one word (plan P4-D130).
+
+    The word places the rank uniformly on the stretch from `start` up to
+    and not including `stop`, the two pins' places in steps
+    (`_pin_places`), and the unit that step lies in is the ordinal, kept
+    between the two pins' own values `low` and `high`.
+
+    Guarantees: accepts the two places, the two pinned ordinals and one
+    64-bit word; returns a whole ordinal inside `[low, high]`.
+    Determinism: a function of the five. Raises nothing. No I/O.
+    """
+    step = start
+    if stop > start:
+        step = start + (word * (stop - start)) // _WORD_SCALE
+    return min(max(step // _PIN_STEPS, low), high)
+
+
 def _spread_ordinals(
     ladder: "list[int]", parsed: int, words: "list[int]"
 ) -> "list[int]":
@@ -14651,7 +14878,9 @@ def _spread_ordinals(
     METHOD G7.3, AS LANDING 2b.6 REWRITES IT. The published tail pins
     the two ends and the nine interior rungs (`_ordinal_pins`). Every
     OTHER rank takes an INDEPENDENT draw inside the gap between the two
-    pinned ranks either side of it, in the column's own ordinal space --
+    pinned ranks either side of it -- across the stretch between the two
+    pins' places inside their own units (`_pin_places`, plan P4-D130) --
+    in the column's own ordinal space --
     days for a column of dates, of months, of quarters and for one whose
     every moment stands at midnight, seconds otherwise -- and the draws
     inside one gap are sorted, so the ranks stay in ascending order.
@@ -14706,19 +14935,24 @@ def _spread_ordinals(
     pinned = _ordinal_pins(ladder, parsed)
     for rank in sorted(pinned):
         ordinals[rank] = pinned[rank]
-    places = sorted(pinned)
+    places, steps = _pin_places(pinned)
     taken = 0
     for step in range(len(places) - 1):
         below = places[step]
         above = places[step + 1]
-        low = ordinals[below]
-        high = ordinals[above]
         drawn: "list[int]" = []
         for _rank in range(below + 1, above):
             word = words[taken]
             taken = taken + 1
-            found = low + (word * (high - low + 1)) // _WORD_SCALE
-            drawn += [min(found, high)]
+            drawn += [
+                _gap_draw(
+                    steps[step],
+                    steps[step + 1],
+                    ordinals[below],
+                    ordinals[above],
+                    word,
+                )
+            ]
         drawn = sorted(drawn)
         for place in range(len(drawn)):
             ordinals[below + 1 + place] = drawn[place]
@@ -28719,7 +28953,10 @@ def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
         and facts.resolution_mix["iso-date"] > 0
     ):
         bare = 1
-    return max(1, carried) * max(1, marked) + bare
+    # ...and times the written forms one instant can take (plan P4-D137):
+    # a day written `3/5/2024` and `03/05/2024` is two different cells.
+    forms = contract.written_forms_of_an_instant(facts)
+    return max(1, carried) * max(1, marked) * forms + bare
 
 
 def _clock_approximations(

@@ -40,6 +40,23 @@ question for the stage that sets the disclosure floor. The generator
 says so in the twin's own report, and the last test here is what holds
 it to saying it.
 
+AND A GAP'S TWO PINNED DAYS STOPPED TAKING A WHOLE DAY EACH (plan
+P4-D130; review of 158c811, item 2). Every gap drew over `[low, high]`
+inclusive, so a rung's day took a day's mass from the gap below it, a
+day's from the gap above and the pin on top: 3,000 dates drawn uniformly
+over sixty days, seed 4, came back with a per-day variance of 301.33
+against the real column's 45.47 -- 6.63 times -- with 31 January at 91
+values against 44, and both files validated. Each pin now stands at a
+place inside its own day on the straightest count the pins allow, and
+the gate for SHORT study spans below is what holds it. The bands above
+were re-measured with it, and they moved DOWN on the shaped columns,
+because part of what the withdrawn rule's ratios measured was those
+spikes: over seeds 4, 7, 11 and 23, seasonal at 1,500 rows went from
+0.605-0.680 to 0.516-0.572 and admissions from 0.712-0.781 to
+0.675-0.749, while uniform at 3,000 rows went from 1.159-1.283 -- above
+the real column's own variance, which no shape-free column has -- to
+0.911-1.115.
+
 Every table is built by seeded neutral code at runtime (plan D13).
 """
 
@@ -60,22 +77,40 @@ from tests import fixtures
 # The nine interior rungs, by the percent each is published at.
 INTERIOR = (1, 5, 10, 25, 50, 75, 90, 95, 99)
 
-# The band the repaired construction is held to. Measured over ten seeds
-# per shape and size: uniform 0.93-1.41, seasonal 0.71-1.07 at 400 and
-# 0.62-0.71 at 1,500, admissions 0.86-1.17 at 400 and 0.68-0.88 at
-# 1,500. The floor is not a round number chosen for comfort -- the
-# closest any measured case came to it is seasonal at 1,500 rows, at
-# 0.618.
-LOWEST = 0.6
+# The band the repaired construction is held to. Measured over seeds 4,
+# 7, 11 and 23 per shape and size, dates and midnight moments alike,
+# once the pins were placed inside their days (plan P4-D130): uniform
+# 1.020-1.284 at 400 and 0.936-1.117 at 1,500, seasonal 0.790-0.922 and
+# 0.516-0.572, admissions 0.909-1.049 and 0.675-0.749. The floor is not a
+# round number chosen for comfort -- the closest any measured case came
+# to it is seasonal at 1,500 rows, at 0.516. It was 0.6 while a rung's
+# day took a spike of its own, which is what lifted the shaped columns.
+LOWEST = 0.5
 HIGHEST = 1.6
 
 # What a column whose shape is carried by the weekday is held to at
 # 3,000 rows, where the evenly-filled gap cannot reach the band. The
-# measured range there is 0.524 to 0.711; the withdrawn construction
-# reached 0.057 to 0.066 on the same columns, so this floor is still
-# seven times what the defect allowed and is a bound on the RESIDUAL,
-# not a weakened form of the band above.
-RESIDUAL_LOWEST = 0.45
+# measured range there is 0.421 to 0.565 over seeds 4, 7 and 11 (0.524 to
+# 0.617 while each rung's day carried a spike, plan P4-D130); the
+# stratified construction before it reached 0.057 to 0.066 on the same
+# columns, so this floor is still six times what that defect allowed and
+# is a bound on the RESIDUAL, not a weakened form of the band above.
+RESIDUAL_LOWEST = 0.38
+
+# WHAT A COLUMN THE ELEVEN RUNGS DO CARRY REACHES AT 3,000 ROWS, which
+# is what a shaped column there is SHORT of: uniform arrivals measured
+# 0.911 to 1.115 over seeds 4, 7 and 11 (plan P4-D130).
+CARRIED_LOWEST = 0.85
+
+# THE SHORT STUDY SPAN (plan P4-D130). Uniform arrivals over a week to
+# two months, measured against the variance a column of that many rows
+# over that many days has in expectation, `rows / days * (1 - 1 / days)`,
+# and at the busiest day any rung falls on, in standard units of that
+# expectation. Measured over seeds 0, 4, 7 and 11: the repaired twin
+# 0.16-0.95 and 0.29-2.97; the withdrawn inclusive draw 3.37-23.8 and
+# 2.67-10.64. The real columns themselves measured 0.38-1.04.
+SHORT_SPAN_VARIANCE = 1.5
+SHORT_SPAN_PEAK = 4.0
 
 # AND WHAT AN OUTBREAK COLUMN IS HELD TO, which nothing pinned until the
 # repair pass of landing 2b.6 (skeptic finding 5). Where most values sit
@@ -85,7 +120,9 @@ RESIDUAL_LOWEST = 0.45
 # -- three seeds at each size -- 0.335 to 0.466 at 400 rows and 0.150 to
 # 0.182 at 1,500, against 0.402 to 0.449 and 0.187 to 0.284 on the
 # commit before the repair: the repair neither helps nor harms this
-# shape, and at 1,500 rows the two are the same to within noise. That is
+# shape, and at 1,500 rows the two are the same to within noise. With
+# the pins placed inside their days (plan P4-D130), 0.278 to 0.372 and
+# 0.127 to 0.155. That is
 # pinned rather than left out, because the landing's own sentences gave
 # a repaired range of 0.52 to 1.41 with no qualification, and this is
 # the shape that qualification is about. The remedy is a finer ladder or
@@ -355,7 +392,7 @@ def test_a_large_column_with_no_calendar_shape_still_meets_the_band(
     """
     ratio, missed = _measured(tmp_path / f"{shape}-3000-{seed}", shape, 3000, seed, False)
     assert not missed, missed
-    assert LOWEST <= ratio <= HIGHEST, f"{shape} at 3000 rows: {ratio:.3f}"
+    assert CARRIED_LOWEST <= ratio <= HIGHEST, f"{shape} at 3000 rows: {ratio:.3f}"
 
 
 @pytest.mark.parametrize("shape", ["seasonal", "admissions"])
@@ -368,7 +405,8 @@ def test_a_large_column_shaped_by_the_weekday_is_short_and_says_so(
     variance is structure the description does not publish: which weekday
     a value falls on, and how the density moves WITHIN a gap between two
     published rungs. The gap is filled evenly, so the twin cannot reach
-    it -- measured 0.524 to 0.711 against the band's 0.6.
+    it -- measured 0.421 to 0.565 against the 0.911 to 1.115 a column
+    with no calendar shape reaches at the same size (plan P4-D130).
 
     This is asserted as a floor and a ceiling rather than left silent,
     because the number is what a later landing will move: the withdrawn
@@ -382,7 +420,7 @@ def test_a_large_column_shaped_by_the_weekday_is_short_and_says_so(
         f"{shape} at 3000 rows: {ratio:.3f}, outside "
         f"{RESIDUAL_LOWEST}-{HIGHEST}"
     )
-    assert ratio < LOWEST, (
+    assert ratio < CARRIED_LOWEST, (
         f"{shape} at 3000 rows now reaches {ratio:.3f}, which is inside the "
         f"band this test records it as SHORT of. If a landing carried the "
         f"weekday census or a finer ladder, this test and the report "
@@ -722,6 +760,104 @@ def test_a_column_beside_the_dates_is_untouched_by_this_rule(
     assert written[0] == written[1], (
         "the column of numbers beside the dates moved when only the dates' "
         "own shape changed, so the two columns are sharing words"
+    )
+
+
+def _inclusive_gaps(ladder: "list[int]", parsed: int, words: "list[int]") -> "list[int]":
+    """G7.3 AS IT SHIPPED AT 158c811: every gap drawn over `[low, high]`.
+
+    The withdrawn rule, restored for `REINSTATE=P4-D130`. It spends the
+    same words on the same ranks, so it differs from the rule in force
+    only in where a rank lands.
+    """
+    from synthtwin import generation
+
+    ordinals = [0 for _rank in range(parsed)]
+    if parsed <= 0:
+        return ordinals
+    pinned = generation._ordinal_pins(ladder, parsed)
+    for rank in sorted(pinned):
+        ordinals[rank] = pinned[rank]
+    places = sorted(pinned)
+    taken = 0
+    for step in range(len(places) - 1):
+        below, above = places[step], places[step + 1]
+        low, high = ordinals[below], ordinals[above]
+        drawn = []
+        for _rank in range(below + 1, above):
+            word = words[taken]
+            taken += 1
+            drawn.append(min(low + (word * (high - low + 1)) // 2**64, high))
+        for place, value in enumerate(sorted(drawn)):
+            ordinals[below + 1 + place] = value
+    return ordinals
+
+
+@pytest.fixture
+def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`REINSTATE=P4-D130` puts the inclusive draw back, to see this go red."""
+    import os
+
+    from synthtwin import generation
+
+    if os.environ.get("REINSTATE") == "P4-D130":
+        monkeypatch.setattr(generation, "_spread_ordinals", _inclusive_gaps)
+
+
+@pytest.mark.parametrize(
+    "days, rows, seed",
+    [(60, 3000, 4), (60, 3000, 0), (60, 3000, 11), (30, 1000, 7), (14, 3000, 4), (7, 500, 4)],
+)
+def test_a_short_study_span_puts_no_spike_on_a_published_rung(
+    tmp_path: pathlib.Path, _reinstated: None, days: int, rows: int, seed: int
+) -> None:
+    """The reviewer's shape: uniform arrivals over a short span (P4-D130).
+
+    `random.Random(34676)` draws each date's day inside the span, as the
+    review did, and the column is round-tripped. The twin and the real
+    table both validate with nothing missed, every rung is exact, the
+    twin's per-day variance is no more than `SHORT_SPAN_VARIANCE` times
+    what that many rows over that many days vary by in expectation, and
+    no day a rung falls on holds more than `SHORT_SPAN_PEAK` standard
+    units above the expected count. The withdrawn inclusive draw put
+    that variance at 3.37 to 23.8 times and a rung's day at up to 10.6
+    standard units.
+    """
+    import math
+
+    draw = random.Random(34676)
+    start = datetime.date(2025, 1, 1)
+    chosen = sorted(
+        start + datetime.timedelta(days=draw.randrange(days)) for _ in range(rows)
+    )
+    cells = [day.isoformat() for day in chosen]
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / f"short-{days}-{seed}", cells, str(seed)
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    ordered = sorted(written)
+    parsed = rows - first["n_unparsed"]
+    for percent in INTERIOR:
+        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
+        assert ordered[rank] == first["date_percentiles"][f"p{percent:02d}"]
+    whole = [
+        day.isoformat()
+        for day in _span(chosen[0], chosen[-1])
+    ]
+    counts = _per_day(written, whole)
+    span = len(whole)
+    expected = rows / span
+    ratio = statistics.pvariance(counts) / (expected * (1 - 1 / span))
+    assert ratio <= SHORT_SPAN_VARIANCE, (
+        f"{rows} dates over {span} days, seed {seed}: the twin's per-day "
+        f"variance is {ratio:.2f} of what such a column varies by"
+    )
+    held = dict(zip(whole, counts))
+    rungs = {first["date_percentiles"][f"p{percent:02d}"] for percent in INTERIOR}
+    peak = max((held[day] - expected) / math.sqrt(expected) for day in rungs)
+    assert peak <= SHORT_SPAN_PEAK, (
+        f"{rows} dates over {span} days, seed {seed}: a published rung's "
+        f"day holds {peak:.2f} standard units above the expected count"
     )
 
 

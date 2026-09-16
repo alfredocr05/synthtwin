@@ -3476,15 +3476,43 @@ DAY_FIRST_MEMBERS = (
 # figures under either convention, so a cell whose month and day are both
 # above nine is counted under no key at all, and this census's total is
 # the cells that could show something.
+#
+# AND A CELL WHERE ONLY ONE FIELD SHOWS says WHICH field it was (plan
+# P4-D132). The four joint words are about a cell whose two fields are
+# both below ten; a cell with one such field is counted under the field
+# that showed it. Counted under the bare `padded` or `unpadded` instead,
+# as the first revision did, a column written `m/dd/yyyy` published
+# `unpadded` for every January-to-September date past the ninth and
+# `padded` for every October-to-December date before the tenth, and its
+# twin spent those words on cells whose OTHER field showed: measured on
+# 400 dates, 106 twin cells were written `5/4/2024` or `08/28/2022`,
+# conventions no real cell used.
 WIDTH_PADDED = "padded"
 WIDTH_UNPADDED = "unpadded"
 WIDTH_FIRST_PADDED = "first-padded"
 WIDTH_SECOND_PADDED = "second-padded"
-FIELD_WIDTH_STYLES = (
+WIDTH_FIRST_FIELD_PADDED = "first-field-padded"
+WIDTH_FIRST_FIELD_UNPADDED = "first-field-unpadded"
+WIDTH_SECOND_FIELD_PADDED = "second-field-padded"
+WIDTH_SECOND_FIELD_UNPADDED = "second-field-unpadded"
+# The four words for a cell whose two fields both show a width.
+FIELD_WIDTH_STYLES_BOTH = (
     WIDTH_PADDED,
     WIDTH_UNPADDED,
     WIDTH_FIRST_PADDED,
     WIDTH_SECOND_PADDED,
+)
+# The two words for a cell whose FIRST field alone shows one, and the two
+# for its SECOND field alone.
+FIELD_WIDTH_STYLES_FIRST = (WIDTH_FIRST_FIELD_PADDED, WIDTH_FIRST_FIELD_UNPADDED)
+FIELD_WIDTH_STYLES_SECOND = (
+    WIDTH_SECOND_FIELD_PADDED,
+    WIDTH_SECOND_FIELD_UNPADDED,
+)
+FIELD_WIDTH_STYLES = (
+    FIELD_WIDTH_STYLES_BOTH
+    + FIELD_WIDTH_STYLES_FIRST
+    + FIELD_WIDTH_STYLES_SECOND
 )
 
 # HOW A MONTH NAME WAS WRITTEN, again as one joint word: the case, the
@@ -3496,6 +3524,13 @@ NAME_CASES = ("upper", "title", "lower")
 NAME_LENGTHS = ("abbreviated", "full")
 NAME_MARKS = ("space", "hyphen")
 NAME_COMMAS = ("comma", "no-comma")
+# THE LENGTH A NAME OF MAY SHOWS, which is neither (plan P4-D133). `May`
+# is its own abbreviation, so a cell of May says nothing about length --
+# but it says everything else: its case, its mark and its comma. The
+# first revision counted such a cell under no key at all, so a column of
+# `17-MAY-2024` published an empty census and its twin was written
+# `17 May 2024`: `%d-%b-%Y` read 240 real cells of 240 and no twin cell.
+NAME_LENGTH_EITHER = "either"
 
 
 def _name_styles() -> "tuple[str, ...]":
@@ -3509,7 +3544,23 @@ def _name_styles() -> "tuple[str, ...]":
     return tuple(built)
 
 
-MONTH_NAME_STYLES = _name_styles()
+MONTH_NAME_STYLES_RESOLVED = _name_styles()
+
+
+def _either_styles(no_comma: bool) -> "tuple[str, ...]":
+    """Every joint style a cell of MAY can show, its length `either`."""
+    built: "list[str]" = []
+    for case in NAME_CASES:
+        for mark in NAME_MARKS:
+            for comma in NAME_COMMAS:
+                if no_comma and comma == "comma":
+                    continue
+                built += [f"{case}-{NAME_LENGTH_EITHER}-{mark}-{comma}"]
+    return tuple(built)
+
+
+MONTH_NAME_STYLES_EITHER = _either_styles(False)
+MONTH_NAME_STYLES = MONTH_NAME_STYLES_RESOLVED + MONTH_NAME_STYLES_EITHER
 
 
 def _no_comma_styles() -> "tuple[str, ...]":
@@ -3528,7 +3579,42 @@ def _no_comma_styles() -> "tuple[str, ...]":
     return tuple(built)
 
 
-MONTH_NAME_STYLES_NO_COMMA = _no_comma_styles()
+MONTH_NAME_STYLES_NO_COMMA_RESOLVED = _no_comma_styles()
+MONTH_NAME_STYLES_NO_COMMA_EITHER = _either_styles(True)
+MONTH_NAME_STYLES_NO_COMMA = (
+    MONTH_NAME_STYLES_NO_COMMA_RESOLVED + MONTH_NAME_STYLES_NO_COMMA_EITHER
+)
+
+
+def name_styles_of(format_name: str) -> "tuple[str, ...]":
+    """The styles naming a LENGTH that one textual member's cells can show."""
+    if format_name == "textual-day-first-date":
+        return MONTH_NAME_STYLES_NO_COMMA_RESOLVED
+    return MONTH_NAME_STYLES_RESOLVED
+
+
+def name_styles_either_of(format_name: str) -> "tuple[str, ...]":
+    """The `either` styles one textual member's cells of MAY can show."""
+    if format_name == "textual-day-first-date":
+        return MONTH_NAME_STYLES_NO_COMMA_EITHER
+    return MONTH_NAME_STYLES_EITHER
+
+
+def name_style_at_length(style: str, to_either: bool) -> str:
+    """One joint style with its length set aside or set (plan P4-D133).
+
+    `to_either` true gives the `either` word a cell of May writes;
+    false gives the abbreviated word, which is the length a rank that must
+    show one takes where the census names no length at all -- the same
+    length `DEFAULT_NAME_STYLE` has always carried.
+
+    Guarantees: accepts a joint style word; returns a joint style word.
+    Determinism: a function of the two. Raises TypeError for a style that
+    is not text. No I/O of any kind.
+    """
+    case, _length, mark, comma = _name_parts(style)
+    length = NAME_LENGTH_EITHER if to_either else "abbreviated"
+    return f"{case}-{length}-{mark}-{comma}"
 
 # The two width words a member with ONE numeric field can show: the
 # textual members write the month as a name, so there is no second field
@@ -3607,15 +3693,61 @@ def _one_field_style(written: str) -> "str | None":
     return None
 
 
-def _pair_widths(width: str) -> "tuple[bool, bool]":
-    """One joint width word as a padding decision per field."""
+def pair_widths(width: str) -> "tuple[bool, bool]":
+    """One width word as a padding decision per field (plan P4-D132).
+
+    A joint word decides both fields. A one-field word decides its own
+    field and leaves the other at the padded default, which is never
+    seen on the cells that word is counted over: the other field is ten
+    or more there.
+
+    Guarantees: accepts a member of `FIELD_WIDTH_STYLES` (anything else
+    reads as padded on both); returns (first padded, second padded).
+    Determinism: a function of the word. Raises nothing. No I/O.
+    """
     if width == WIDTH_UNPADDED:
         return False, False
     if width == WIDTH_FIRST_PADDED:
         return True, False
     if width == WIDTH_SECOND_PADDED:
         return False, True
+    if width == WIDTH_FIRST_FIELD_UNPADDED:
+        return False, True
+    if width == WIDTH_SECOND_FIELD_UNPADDED:
+        return True, False
     return True, True
+
+
+def joint_width(first_padded: bool, second_padded: bool) -> str:
+    """The joint word for a padding decision per field: `pair_widths` reversed."""
+    if first_padded and second_padded:
+        return WIDTH_PADDED
+    if first_padded:
+        return WIDTH_FIRST_PADDED
+    if second_padded:
+        return WIDTH_SECOND_PADDED
+    return WIDTH_UNPADDED
+
+
+def field_width_word(which: int, padded: bool) -> str:
+    """The one-field word for field 1 or 2, padded or not (plan P4-D132)."""
+    if which == 2:
+        return WIDTH_SECOND_FIELD_PADDED if padded else WIDTH_SECOND_FIELD_UNPADDED
+    return WIDTH_FIRST_FIELD_PADDED if padded else WIDTH_FIRST_FIELD_UNPADDED
+
+
+def width_of_field_word(word: str) -> str:
+    """The joint word a rank counted under a one-field word is written with.
+
+    `padded` for a padded field and `unpadded` for an unpadded one: the
+    other field is ten or more on every such rank, so it is written in
+    two figures either way and only this field's decision shows.
+    """
+    if word == WIDTH_FIRST_FIELD_UNPADDED or word == WIDTH_SECOND_FIELD_UNPADDED:
+        return WIDTH_UNPADDED
+    if word == WIDTH_FIRST_FIELD_PADDED or word == WIDTH_SECOND_FIELD_PADDED:
+        return WIDTH_PADDED
+    return word
 
 
 def _raw_pair(body: str, mark: str) -> "tuple[str, str] | None":
@@ -3714,12 +3846,14 @@ def _name_parts(style: str) -> "tuple[str, str, str, str]":
 
 
 def date_field_style(text: str, format_name: str) -> "str | None":
-    """The joint width convention one written cell shows, or None.
+    """The width convention one written cell shows, or None.
 
-    None where the member fixes both widths, where the cell does not
-    read under the member, or where no field of it could show a width at
-    all -- which is what makes this census's total the cells that could
-    show something rather than every parsed cell.
+    One of the four joint words where both numeric fields are below ten,
+    and the word of the field that showed where only one is (plan
+    P4-D132). None where the member fixes both widths, where the cell
+    does not read under the member, or where no field of it could show a
+    width at all -- which is what makes this census's total the cells
+    that could show something rather than every parsed cell.
 
     Guarantees: accepts one cell and the member it parsed under; returns
     a member of `FIELD_WIDTH_STYLES` or nothing. Determinism: a function
@@ -3751,9 +3885,14 @@ def date_field_style(text: str, format_name: str) -> "str | None":
     if first is None and second is None:
         return None
     if first is None:
-        return second
+        # Only the second field showed, and the word says so (P4-D132).
+        if second == WIDTH_PADDED:
+            return WIDTH_SECOND_FIELD_PADDED
+        return WIDTH_SECOND_FIELD_UNPADDED
     if second is None:
-        return first
+        if first == WIDTH_PADDED:
+            return WIDTH_FIRST_FIELD_PADDED
+        return WIDTH_FIRST_FIELD_UNPADDED
     if first == second:
         return first
     if first == WIDTH_PADDED:
@@ -3764,9 +3903,13 @@ def date_field_style(text: str, format_name: str) -> "str | None":
 def month_name_style(text: str, format_name: str) -> "str | None":
     """The joint month-name style one written cell shows, or None.
 
-    None for a cell whose month is MAY, whose two written forms are one
-    word: nothing in `May` says whether the column abbreviates, so such a
-    cell is counted under no key and written in the commonest style.
+    A cell whose month is MAY, whose two written forms are one word,
+    shows no length: nothing in `May` says whether the column abbreviates.
+    It still shows its case, its mark and its comma, so it is counted
+    under the `either` word that carries those (plan P4-D133) rather than
+    under no key -- which is what left a column of `17-MAY-2024` with an
+    empty census and a twin written `17 May 2024`. None for a spelling
+    outside the three cases.
 
     Guarantees: accepts one cell and the member it parsed under; returns
     a member of `MONTH_NAME_STYLES` or nothing. Determinism: a function
@@ -3786,12 +3929,13 @@ def month_name_style(text: str, format_name: str) -> "str | None":
     if found is None:
         return None
     name = found[1]
-    if folded(name) == "may":
-        return None
     case = _name_case(name)
     if case is None:
         return None
     length = "abbreviated" if len(name) == 3 else "full"
+    if folded(name) == "may":
+        # ITS LENGTH SHOWS NOTHING, AND THE REST DOES (plan P4-D133).
+        length = NAME_LENGTH_EITHER
     comma = "comma" if found[3] else "no-comma"
     return f"{case}-{length}-{found[2]}-{comma}"
 
@@ -3909,7 +4053,7 @@ def written_date(
         return f"{year:04d}-{month:02d}-{day:02d}"
     dotted = format_name in DOTTED_MEMBERS
     between = "." if dotted else "/"
-    first_padded, second_padded = _pair_widths(width)
+    first_padded, second_padded = pair_widths(width)
     if dotted:
         # C6-22: the dotted families are read padded and only padded,
         # because `1.2.2024` is how a version identifier is written.
@@ -4140,6 +4284,93 @@ MISSING_CLASSES = (
 # for the older facts raise past this one; this is the floor below which
 # no run may go.
 MIDNIGHT_DISCLOSURE_FLOOR = 2
+
+
+def disclosure_line(floor: int) -> int:
+    """The smallest count a census of written forms may name (P4-D131).
+
+    The run's smallest group size, and never below
+    `MIDNIGHT_DISCLOSURE_FLOOR`: one is not a group, whatever the floor.
+
+    Guarantees: accepts the run's smallest group size; returns a whole
+    number of at least two. Determinism: a function of it. Raises
+    nothing. No I/O of any kind.
+    """
+    if floor < MIDNIGHT_DISCLOSURE_FLOOR:
+        return MIDNIGHT_DISCLOSURE_FLOOR
+    return floor
+
+
+def census_discloses(
+    census: "dict[str, int]", population: int, floor: int
+) -> bool:
+    """Whether a census of written forms may be published as it stands.
+
+    THE ONE STATEMENT OF THE DISCLOSURE RULE FOR THE FOUR CENSUSES OF
+    HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131, the owner's twin
+    definition, clause 3), asked by the producer before it publishes one
+    and by the loader of every description that carries one, so that the
+    two cannot hold the rule to different numbers.
+
+    Three things, and each is a way a count of one person was published:
+
+    - EVERY NAMED COUNT reaches `disclosure_line`. A form one row wrote
+      describes how that row was written.
+    - NOTHING IS POOLED. A census names a handful of forms, and a pool
+      beside them is the count of whichever forms are left: where one
+      form is left the pool IS that form's count, and where two are left
+      a pool of at least the line proves both were written. Measured on
+      400 moments at noon with one lower-case `z`: at a floor of eleven
+      the census read `{"upper": 399, "(withheld)": 1}`, which names the
+      one row as plainly as `{"lower": 1, "upper": 399}` did.
+    - THE REMAINDER A READER CAN SUBTRACT is nought or reaches the line.
+      `population` is the total the document already publishes for the
+      cells the census counts over -- the values read as dates, or the
+      values carrying a zulu offset -- so the cells the named counts
+      leave over are a published number too, and one row left over is
+      one row named.
+
+    WHAT IS NOT PUBLISHED IS ABSENT. A census failing any of the three is
+    published as `{}`, which is also what a column whose dates cannot
+    show the convention publishes, so no reader can tell a withheld
+    census from an empty one by its form.
+
+    Guarantees: accepts a census, the published total it counts over and
+    the run's smallest group size; returns a bool. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    line = disclosure_line(floor)
+    total = 0
+    for name in sorted(census):
+        if name == MISSING_WITHHELD or census[name] < line:
+            return False
+        total = total + census[name]
+    rest = population - total
+    return rest == 0 or rest >= line
+
+
+def disclosed_census(
+    counts: "dict[str, int]", population: int, floor: int
+) -> "dict[str, int]":
+    """A tally of written forms, cut to what `census_discloses` allows.
+
+    Every form counted at the line or above is named, a form below it is
+    left out with no pool, and the whole census is withheld -- published
+    `{}` -- where what is left would not disclose.
+
+    Guarantees: accepts the full tally, the published total it counts
+    over and the run's smallest group size; returns a census for which
+    `census_discloses` is true, keys in sorted order. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    line = disclosure_line(floor)
+    named: "dict[str, int]" = {}
+    for name in sorted(counts):
+        if counts[name] >= line:
+            named[name] = counts[name]
+    if not census_discloses(named, population, floor):
+        return {}
+    return named
 
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"

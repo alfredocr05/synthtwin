@@ -4102,12 +4102,46 @@ description can carry.
 - `r == k_j` for some interior rung: the instant is `Lo[j]`, the rung's
   own published ordinal.
 - otherwise: `r` lies strictly between two pinned ranks `a < r < b`. Let
-  `Lo_a` and `Lo_b` be their pinned ordinals. The rank takes one word
-  `w` and
+  `Lo_a` and `Lo_b` be their pinned ordinals and `X_a` and `X_b` their
+  PLACES, below. The rank takes one word `w` and
 
   ```
-  ordinal = Lo_a + (w * (Lo_b - Lo_a + 1)) // 2**64,  capped at Lo_b
+  step    = X_a + (w * (X_b - X_a)) // 2**64       (X_a where X_b <= X_a)
+  ordinal = step // 2**20,  kept inside [Lo_a, Lo_b]
   ```
+
+  **A PIN'S PLACE INSIDE ITS OWN UNIT (plan P4-D130).** One unit of the
+  ordinal space is a stretch of time and not a point, split here into
+  `2**20` steps. Take the distinct pinned ranks in order,
+  `k_0 = 0 < k_1 < ... < k_m = P - 1`, with ordinals `Lo_i`. The first
+  stands at `X_0 = Lo_0 * 2**20`, the start of its unit; the last at
+  `X_m = Lo_m * 2**20 + 2**20`, the end of its own; every other starts at
+  `X_i = Lo_i * 2**20 + 2**19`, its unit's middle. Then 128 times over,
+  for `i = 1 .. m - 1` in order,
+
+  ```
+  line = X_(i-1) + ((k_i - k_(i-1)) * (X_(i+1) - X_(i-1))) // (k_(i+1) - k_(i-1))
+  X_i  = line, kept inside [Lo_i * 2**20, Lo_i * 2**20 + 2**20 - 1]
+  ```
+
+  which is the cumulative count with the fewest changes of slope that
+  still puts every pinned rank in the unit it was published in. Two pins
+  on one value share a unit, so every rank between them stays on it.
+
+  *Amended by the review of 158c811.* This rule drew over `[Lo_a, Lo_b]`
+  inclusive, `ordinal = Lo_a + (w * (Lo_b - Lo_a + 1)) // 2**64`, so a
+  pinned unit took a whole unit's share from the gap on each side of it
+  and the pin on top. Measured on 3,000 dates drawn uniformly over sixty
+  days at seed 4: the twin's per-day variance was 301.33 against the real
+  column's 45.47, 6.63 times, with 31 January at 91 values against 44 and
+  15 February at 105 against 42 -- a spike at every rung -- and both files
+  validated with nothing missed. Taking each pin to its unit's middle
+  alone left 1.47 to 1.83 times there and 6.40 times on 500 dates over a
+  week, because a gap a day wide is then given half a day too much or too
+  little. With the places above: 0.61 to 1.02 times the real column's
+  variance on the sixty-day column over seeds 0, 4 and 11, and on spans of
+  a week to two months at most 0.95 of what such a column varies by in
+  expectation, against 3.37 to 23.8 before.
 
   and the ordinals drawn for the ranks strictly between `a` and `b` are
   SORTED among themselves before they are written back, so `O` is still
@@ -4166,7 +4200,10 @@ nine interior rungs below its published value in all 54 runs** — one day
 early on a 400-row admissions column, so a rung published as a Monday was
 written as a Sunday. After this rule: every rung exact in 54 of 54, and
 the ratio 0.52 to 1.41 **on columns whose shape eleven rungs can
-carry**. That qualification is measured, not hedged (repair pass of
+carry** -- and, once each pin was given its place inside its unit (plan
+P4-D130), 0.516 to 1.284 over seeds 4, 7, 11 and 23 at 400 and 1,500
+rows, the shaped columns lower because part of what the ratio measured
+before was the spike at each rung. That qualification is measured, not hedged (repair pass of
 landing 2b.6): on a column whose values burst around three onset dates,
 eleven pins over a year leave gaps weeks wide, the gap is filled evenly
 as everywhere else, and the ratio stays at 0.34 to 0.47 at 400 rows and
@@ -4314,8 +4351,8 @@ rotation the marks use, which draws no word:
 
 | written by | census | the words |
 |---|---|---|
-| how wide the month and day fields were | `date_field_widths` | `padded`, `unpadded`, `first-padded`, `second-padded` — ONE joint word per CELL, over the cells whose field is below ten |
-| how a month NAME was written | `month_name_styles` | one joint `<case>-<length>-<mark>-<comma>` word, over the cells whose month is not May |
+| how wide the month and day fields were | `date_field_widths` | `padded`, `unpadded`, `first-padded`, `second-padded` for a cell whose two fields are both below ten; `first-field-padded`, `first-field-unpadded`, `second-field-padded`, `second-field-unpadded` for a cell where one alone is — ONE word per CELL |
+| how a month NAME was written | `month_name_styles` | one joint `<case>-<length>-<mark>-<comma>` word, the length `either` on a cell of May |
 | the case of a quarter's marker | `quarter_marker_case` | `upper`, `lower` |
 | the case of a zulu offset marker | `zulu_case` | `upper`, `lower` |
 
@@ -4326,8 +4363,48 @@ written about half the eligible cells `03/5/2024` — a style no row of
 that table uses. The same holds of a hand-entered column mixing
 `17-MAR-2024` with `17 Mar 2024`, which carries its case and its mark
 together. A rank that cannot show a convention — a day above the ninth,
-a month of May, a cell carrying no zulu marker — takes the column's
-commonest form and is counted against no census.
+a cell carrying no zulu marker — takes the column's commonest form and
+is counted against no census.
+
+**Each census is spent over its own classes of rank, and a named form
+keeps its least (plans P4-D131 to P4-D133).** No census of written forms
+carries a pool (contract D17 to D20), so what each owes is its named
+counts and nothing else.
+
+1. WIDTHS. A rank whose two numeric fields are both below ten takes a
+   joint word; one whose FIRST field alone is, a first-field word,
+   written with that field padded or not; one whose SECOND alone is, a
+   second-field word likewise -- first and second in the member's own
+   field order, and on a textual member the day is its one field. A
+   class the census counts no word for takes the joint words' padding of
+   that field, summed (`padded` and `first-padded` pad the first field),
+   and one with none of those either takes that field padded. A rank that
+   shows no width takes the commonest joint word, or the joint word the
+   commonest first-field and second-field words make.
+2. NAMES. A rank whose month is May takes the census's `either` words; a
+   rank of any other month the words that name a length. A class the
+   census counts no word for takes the other class's words with the
+   length set aside: `either` read as `abbreviated`, a named length read
+   as `either`.
+3. MARKERS AND ZULU CASES are spent over every quarter rank and over the
+   ranks carrying `Z`.
+4. THE RESERVATION. Every class is spent by the smooth rotation; where
+   that leaves a named form fewer places than the smaller of its count
+   and the floor (never below two), and those leasts come to no more
+   than the class's places, the leasts are reserved first, the places
+   left are shared by the rotation over what each form is owed beyond
+   its least (over the leasts where nobody is owed more), and the
+   finished counts are spread by the rotation once more. A twin's column
+   has its own number of cells in each class, and a proportional share
+   of a smaller class fell under the floor: at a smallest group size of
+   fifty, `second-padded: 97` came back under it and the twin missed an
+   obligation the real table met.
+
+*Amended by the review of 158c811.* This section spent a withheld pool
+evenly over the forms a census left unnamed, spent the joint width words
+over every rank showing a width and `padded`/`unpadded` over every rank
+showing one field, gave a rank of May the commonest style, and reserved
+nothing.
 
 **The date half, per member:**
 
@@ -8372,16 +8449,23 @@ of instants that range holds at that precision — days on an
 `all_at_midnight` column — `M` the number of named offsets, or 1 where
 none is named, `S` the number of marks G7.5 writes — the named ones
 and, where a pool is split, the unnamed permitted marks given a share of
-it — or 1 where none is, `B` one on an `iso-mixed` column whose
+it — or 1 where none is, `C` the product over the four censuses of how
+a column's dates were written of how many forms each names, 1 for a
+census naming none (plan P4-D137: `3/5/2024` and `03/05/2024` are two
+cells of one day, and `2024-Q1` and `2024-q1` two of one quarter), `B`
+one on an `iso-mixed` column whose
 `all_at_midnight` is `true` on the `local` clock and that holds a whole
 date, where a day can also be written bare, and nought otherwise, and
 `n_present` cells in the column at all:
 
 ```
-n_distinct(twin)   <=   min(n_present, W * (M * S + B) + n_unparsed)
+n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + n_unparsed)
 ```
 
-(`S` counting the pooled marks and `B` were added at landing 2b.3.)
+(`S` counting the pooled marks and `B` were added at landing 2b.3, and
+`C` by the review of 158c811: without it 300 quarters over twelve years,
+a quarter of them written `q`, published 81 different values against an
+upper end of 48, and the table and its twin were both called MISSED.)
 
 **The midnight correction to the lower end is WITHDRAWN** (landing
 2b.6). A column G7.5 moves onto a midnight used to need one, because a
@@ -9035,8 +9119,13 @@ census, the shape a stand-in owed no form takes, and the census of
 spellings of a count column (landing 2b.18 part 2), which no earlier
 case reaches, and one for a layout census's zero fill two noughts deep,
 its interior space and the mixes that write its pool (landing 2b.18's
-repair pass), which `identifier_layout` reaches none of,
-and five for the transforms that produce a WHOLE DOCUMENT rather than
+repair pass), which `identifier_layout` reaches none of, and four for
+the places of G7.3's pins, the classes of width, the `either` length of
+a name of May and the reservation of a named form's least (the review of
+158c811, plans P4-D130, P4-D132 and P4-D133) -- no case in any file
+published a non-empty census of written forms before them, so every
+allocation of G7.5 could have been withdrawn with every committed byte
+unchanged -- and five for the transforms that produce a WHOLE DOCUMENT rather than
 one column's cells, which landings 2b.9, 2b.10 and 2b.11 left with no
 second implementation of any kind (landing 2b.17).
 
@@ -9138,6 +9227,10 @@ case passed, which is the failure the count exists to prevent:
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
 | `midnight_two_offsets` | G7.1 on the `utc` clock and G7.5's move onto midnight: twenty-four local midnight values at `+01:00` and `+02:00`, published at UTC with `all_at_midnight: true`, counted in seconds, whose rung ranks take their rungs and their offsets |
 | `midnight_bare_offsets` | G7.4 and G7.5's whole dates on the `utc` clock: thirteen bare dates and eleven moments at `T00:00:00+02:00`, published with rungs at 22:00 and at 00:00 and two runs of ranks on one instant, whose ranks with a published instant settle their form and offset before the rotation |
+| `date_gap_places` | G7.3's places for its pins inside their own units (plan P4-D130): forty dates over ten days, four pins on the first day and three on the last, whose gaps are drawn across the stretch between two places. Its mutant draws each gap over its two pinned days whole and the ranks beside the pinned days move |
+| `month_first_widths` | G7.5's classes of width (plan P4-D132): eighty month-first dates publishing `padded` and `unpadded` at eleven each and `first-field-padded` at eleven beside `first-field-unpadded` at thirty; a date whose month alone is below ten is written from the first-field words, eleven of them reserved to the padded one. Its mutant writes that class as the joint words pad its field, and those dates take the other padding |
+| `may_month_names` | G7.5's `either` length (plan P4-D133): sixty day-first textual dates publishing `upper-abbreviated-hyphen-no-comma` at forty and `title-either-space-no-comma` at twenty; a date of May is written `02 May 2024` and every other `23-JUL-2024`. Its mutant offers May no `either` word and those dates take the hyphens and capitals |
+| `reserved_name_floor` | G7.5's reservation (plan P4-D132): sixty day-first textual dates publishing `title-abbreviated-space-no-comma` at eleven -- the floor -- beside thirty `upper-abbreviated-hyphen-no-comma` and nineteen `upper-either-hyphen-no-comma`, whose twin holds fewer dates outside May than the real column, so a proportional share gives the title-case style fewer than eleven. Its mutant spends the class by the rotation alone and the style falls under the floor |
 
 | `written_form_lines` | G2's written form end to end: an `sep=` hint, a byte-order mark, four lines before the table in three runs, an always-quoted header, a left-padded column, a second column taking three DIFFERENT quoting rules over its four cell classes, a trailing delimiter on the records and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it |
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |

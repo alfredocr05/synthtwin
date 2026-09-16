@@ -30,6 +30,7 @@ WHAT IS PINNED HERE, and each of it is a rule the amendment states:
 - and `--keep-value` wins exactly as it does for a number.
 """
 
+import datetime
 import pathlib
 import tempfile
 
@@ -331,6 +332,118 @@ def test_the_declaration_names_a_spelling_of_your_table() -> None:
     assert block["n_missing"] == 0
     assert block["latest"] == FAR
     assert block["sentinel_verdicts"][0]["reason"] == "kept_by_you"
+
+
+def _checked_round_trip(
+    folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]", flags: "list[str]"
+) -> "tuple[dict, int, int, str]":
+    """Describe, build and validate BOTH the table and its twin (plan D13)."""
+    from tests.test_stage2_round_trip import _exit_of
+
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "real.csv", fixtures.rows_to_csv(header, rows))
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"] + flags) == 0
+    described = folder / "real-profile.json"
+    assert _exit_of(
+        ["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]
+    ) == 0
+    exits = []
+    for name, checked in (("real", table), ("twin", folder / "real-twin.csv")):
+        out = folder / f"check-{name}"
+        out.mkdir()
+        exits += [
+            _exit_of(["validate", str(described), "--twin", str(checked), "--out-dir", str(out), "--replace"])
+        ]
+    document = __import__("json").loads(described.read_text(encoding="utf-8"))
+    report = "".join(path.read_text(encoding="utf-8") for path in sorted((folder / "check-real").glob("*quality.txt")))
+    return document, exits[0], exits[1], report
+
+
+def test_a_kept_placeholder_in_the_table_s_own_spelling_reaches_both_consumers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The producer-only test above, carried through the validator and the twin.
+
+    REVIEW OF 158c811, ITEM 5 (plan P4-D136). Thirty `01/01/1900` beside
+    470 consecutive dates written `%m/%d/%Y`, profiled with
+    `--keep-value 01/01/1900`: the description records 500 values and the
+    verdict `kept_by_you`, and its settings block records no built-in day,
+    because the typed spelling is not the vocabulary's `1900-01-01` as
+    text. The validator rebuilt the reading rule from the settings block
+    alone, so the unchanged table read 470 values and 30 holes and missed
+    14 obligations, and its twin missed 14 too.
+
+    AND THE DECISION IS REPLAYED IN ITS OWN COLUMN ONLY. A second column
+    holds the same day written `1900-01-01`, outlying and frequent, which
+    the person's `01/01/1900` never named: it is judged a hole there, in
+    the description and when both files are checked.
+    """
+    start = datetime.date(2020, 1, 1)
+    first = ["01/01/1900"] * 30 + [
+        (start + datetime.timedelta(days=place)).strftime("%m/%d/%Y")
+        for place in range(470)
+    ]
+    second = [NEAR] * 30 + [
+        (start + datetime.timedelta(days=place)).isoformat() for place in range(470)
+    ]
+    document, real_exit, twin_exit, report = _checked_round_trip(
+        tmp_path / "kept",
+        ["kept_on", "judged_on"],
+        [[one, two] for one, two in zip(first, second)],
+        ["--keep-value", "01/01/1900"],
+    )
+    kept, judged = document["columns"]
+    assert kept["n_present"] == 500
+    assert kept["sentinel_verdicts"][0]["reason"] == "kept_by_you"
+    assert document["settings"]["kept_values"]["built_in_dates"] == []
+    assert judged["n_present"] == 470
+    assert judged["sentinel_verdicts"][0]["verdict"] == "read_as_missing"
+    assert (real_exit, twin_exit) == (0, 0), report[:2000]
+
+
+def test_a_judged_decision_edited_to_name_no_spelling_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW OF 158c811, ITEM 6 (plan P4-D135): the omission, on the review's table.
+
+    `end` holds twenty `1900-01-01 00:00:00`, thirty T-separated
+    equivalents declared missing and 450 midnight dates; `start` holds
+    eighty of the spaced spelling beside 420 dates a hundred days apart.
+    The producer's own description checks the table and its twin with
+    nothing missed. Edited so the judged decision names no spelling, it
+    used to load -- and the validator then read the spaced spelling as a
+    declaration reaching `start`, whose 500 unchanged values fell to 420
+    with 13 obligations missed. It is refused now.
+    """
+    start = datetime.date(2020, 1, 1)
+    end = ["1900-01-01 00:00:00"] * 20 + ["1900-01-01T00:00:00"] * 30 + [
+        (start + datetime.timedelta(days=place)).isoformat() + " 00:00:00"
+        for place in range(450)
+    ]
+    early = datetime.date(1890, 1, 1)
+    begun = ["1900-01-01 00:00:00"] * 80 + [
+        (early + datetime.timedelta(days=100 * place)).isoformat() + " 00:00:00"
+        for place in range(420)
+    ]
+    document, real_exit, twin_exit, report = _checked_round_trip(
+        tmp_path / "judged",
+        ["end", "start"],
+        [[one, two] for one, two in zip(end, begun)],
+        ["--missing-value", "1900-01-01T00:00:00"],
+    )
+    assert (real_exit, twin_exit) == (0, 0), report[:2000]
+    verdict = document["columns"][0]["sentinel_verdicts"][0]
+    assert verdict["verdict"] == "read_as_missing"
+    assert verdict["spellings"] == ["1900-01-01 00:00:00"]
+    assert document["columns"][0]["n_missing_withheld"] == 0
+    verdict["spellings"] = []
+    edited = fixtures.write_profile(tmp_path, "edited.json", document)
+    try:
+        contract.load_profile(f"{edited}")
+    except contract.errors.ProfileError as refusal:
+        assert contract.INVARIANTS["V5"] in str(refusal), str(refusal)[:400]
+    else:
+        raise AssertionError("a judged decision naming no spelling loaded")
 
 
 def test_a_declared_placeholder_is_recorded_in_its_own_list() -> None:

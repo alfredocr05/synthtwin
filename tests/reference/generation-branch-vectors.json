@@ -4593,7 +4593,7 @@
       "cells": [
         "2024-06-18 00:00:00",
         "2024-06-30 00:00:00",
-        "2024-08-01 00:00:00",
+        "2024-08-02 00:00:00",
         "2024-12-16 00:00:00",
         "2024-04-21 00:00:00",
         "2024-09-23 00:00:00",
@@ -4681,13 +4681,13 @@
         "2024-06-18 00:00:00",
         "2024-06-30 00:00:00",
         "2024-07-18 00:00:00",
-        "2024-08-01 00:00:00",
+        "2024-08-02 00:00:00",
         "2024-09-23 00:00:00",
         "2024-11-29 00:00:00",
         "2024-12-08 00:00:00",
         "2024-12-16 00:00:00"
       ],
-      "csv_bytes": "2024-06-18 00:00:00\n2024-06-30 00:00:00\n2024-08-01 00:00:00\n2024-12-16 00:00:00\n2024-04-21 00:00:00\n2024-09-23 00:00:00\n2024-05-03 00:00:00\n2024-11-29 00:00:00\n2024-02-14 00:00:00\n2024-12-08 00:00:00\n2024-07-18 00:00:00\n2024-01-08 00:00:00\n",
+      "csv_bytes": "2024-06-18 00:00:00\n2024-06-30 00:00:00\n2024-08-02 00:00:00\n2024-12-16 00:00:00\n2024-04-21 00:00:00\n2024-09-23 00:00:00\n2024-05-03 00:00:00\n2024-11-29 00:00:00\n2024-02-14 00:00:00\n2024-12-08 00:00:00\n2024-07-18 00:00:00\n2024-01-08 00:00:00\n",
       "float64": [],
       "why": "the day-unit rule of plan P4-D39. Every moment of this column stands at midnight, which is how a warehouse holds a date with no time, so the ladder, both ends and the ten interior ranks are counted in whole days and each cell is written as its day with a midnight clock at the published precision, carrying the space the census names. Counted in seconds, as every column of moments was before this rule, the interior ranks land part-way through a day and the twin invents a time of day for each of them: that is the regression this case is frozen to stop, and its mutant is exactly that.",
       "word_budget": {

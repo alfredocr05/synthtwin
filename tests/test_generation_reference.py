@@ -163,17 +163,23 @@ def _second_branch_document() -> dict:
     return json.loads(SECOND_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
-# The nine cases method section G14.3 names.
+# The nine cases method section G14.3 names, and the four the review of
+# 158c811 added beside them (plans P4-D130, P4-D132, P4-D133), which live
+# in this file because it has the room.
 REQUIRED_CASES = (
+    "date_gap_places",
     "date_only",
     "identifier_fold_collisions",
     "identifier_whole_numbers",
     "label_variants",
+    "may_month_names",
     "mixed_parsed_unparsed",
+    "month_first_widths",
     "numeric_decimal_styles",
     "numeric_integer",
     "offset_bearing",
     "quarter",
+    "reserved_name_floor",
 )
 
 # The eight that section adds for the branches those nine leave
@@ -333,6 +339,11 @@ ALL_CASES = tuple(sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES))
 # a seed inside it would be a random operation it is not allowed to hold.
 SEEDS = {
     "date_only": 101,
+    # The review of 158c811 takes the next seeds after the highest in use.
+    "date_gap_places": 141,
+    "month_first_widths": 142,
+    "may_month_names": 143,
+    "reserved_name_floor": 144,
     "quarter": 102,
     "offset_bearing": 103,
     "mixed_parsed_unparsed": 104,
@@ -1242,6 +1253,62 @@ def _stratified_ranks(rungs, parsed, words):
     return ordinals
 
 
+def _inclusive_gap_draws(rungs, parsed, words):
+    """G7.3 as it shipped at 158c811: every gap drawn over its two pinned days.
+
+    Each rank between two pins takes one word over `[low, high]`
+    inclusive, so each pinned day receives a day's share from the gap on
+    either side of it. The same words go to the same ranks; only where a
+    rank lands differs from the rule in force (plan P4-D130).
+    """
+    ordinals = [0] * parsed
+    if parsed <= 0:
+        return ordinals
+    pins = gen.ordinal_pins(rungs, parsed)
+    for rank, value in pins.items():
+        ordinals[rank] = value
+    places = sorted(pins)
+    for step in range(len(places) - 1):
+        below, above = places[step], places[step + 1]
+        low, high = ordinals[below], ordinals[above]
+        drawn = sorted(
+            min(low + (next(words) * (high - low + 1)) // gen.TWO64, high)
+            for _rank in range(below + 1, above)
+        )
+        for place, value in enumerate(drawn):
+            ordinals[below + 1 + place] = value
+    return ordinals
+
+
+def _field_class_from_the_joint_words(census, which):
+    """G7.5's one-field class written as the joint words pad that field.
+
+    The census's own count of the class is ignored, which is what a
+    census that folded one-field cells into the joint words amounted to
+    (plan P4-D132).
+    """
+    words = gen.FIELD_WIDTH_FIRST if which == 1 else gen.FIELD_WIDTH_SECOND
+    owed = {}
+    for name in gen.FIELD_WIDTH_BOTH:
+        if name in census:
+            word = words[0] if gen.pair_widths(name)[which - 1] else words[1]
+            owed[word] = owed.get(word, 0) + census[name]
+    return owed
+
+
+def _no_either_length(member, length_words=("abbreviated", "full")):
+    """G7.5's name styles with the `either` length withdrawn (plan P4-D133)."""
+    return _named_lengths_only(member)
+
+
+_named_lengths_only = gen.month_name_styles_of
+
+
+def _rotation_alone(weights, count, floor):
+    """G7.5's reservation withdrawn: the smooth rotation and nothing else."""
+    return gen.rotated(weights, count)
+
+
 _precision_form = gen.precision_form
 
 
@@ -1872,6 +1939,38 @@ CASE_MUTANTS = {
         "and the interior ranks move",
         attribute="spread_ordinals",
         replacement=_stratified_ranks,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_gap_places": Mutant(
+        branch="G7.3's places for its pins inside their own days (plan "
+        "P4-D130); the mutant draws each gap over its two pinned days whole, "
+        "as 158c811 did, and the ranks next to the pinned days move",
+        attribute="spread_ordinals",
+        replacement=_inclusive_gap_draws,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "month_first_widths": Mutant(
+        branch="G7.5's one-field classes of width (plan P4-D132); the mutant "
+        "writes the dates whose month alone shows a width as the joint words "
+        "pad that field, and those dates take the other padding",
+        attribute="field_weights",
+        replacement=_field_class_from_the_joint_words,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "may_month_names": Mutant(
+        branch="G7.5's `either` length of a name of May (plan P4-D133); the "
+        "mutant offers the ranks of May no `either` word, and they are "
+        "written in the other ranks' style",
+        attribute="month_name_styles_of",
+        replacement=_no_either_length,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "reserved_name_floor": Mutant(
+        branch="G7.5's reservation of a named form's least (plan P4-D132); "
+        "the mutant spends the class by the rotation alone, and the style "
+        "published at the floor falls under it",
+        attribute="reserved",
+        replacement=_rotation_alone,
         outcome=CHANGES_THE_CELLS,
     ),
     "free_text_joint": Mutant(
