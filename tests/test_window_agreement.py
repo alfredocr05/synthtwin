@@ -351,13 +351,21 @@ def test_a_twin_scaled_by_three_or_five_percent_is_caught_inside_the_ladder(
 def test_the_skew_range_the_residual_was_opened_on_is_printed_once(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-61's own witness: the values 1 to 60, generated at seed 7.
+    """R-P4-61's own shape: sixty evenly spaced values, generated at seed 7.
 
-    The twin report gave the skew range as -2.282203333063573 to
-    2.2822033330635745 and the quality report as -2.282203333063573 to
-    2.2822033330635754. One method, one run, two numbers.
+    The twin report gave the skew range of the values 1 to 60 as
+    -2.282203333063573 to 2.2822033330635745 and the quality report as
+    -2.282203333063573 to 2.2822033330635754. One method, one run, two
+    numbers.
+
+    THE SAME SIXTY VALUES TWO APART (measured at the merge of the number
+    review's repair into the integration). Plan P4-D147 fills a
+    saturated integer grid with its integers in order, so the twin of 1
+    to 60 holds every rung and every moment exactly and prints no window
+    to compare; the odd numbers 1 to 119 are the same flat shape on a
+    grid with room, and both reports print a skew window again.
     """
-    cells = [str(value) for value in range(1, 61)]
+    cells = [str(value) for value in range(1, 121, 2)]
     _table, described, twin = _described_files(tmp_path, cells, "7")
     printed = _twin_windows(_one_file(tmp_path, "*report*.txt"))
     code, quality = _validated(described, twin, tmp_path / "check")

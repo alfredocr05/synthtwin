@@ -160,11 +160,21 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
 
     `n_distinct_values` counts different NUMBERS, which no method
     window authorizes to move. The twin holds 99 where the description
-    publishes 100, and that is a fact the twin did not hold -- so it
+    publishes 101, and that is a fact the twin did not hold -- so it
     stays in the deviations exactly as it was. A filter that dropped
     every count would have made the report quieter, not honester.
+
+    THE WITNESS IS THE HUNDRED AND ONE FAR VALUE, 150 (measured at the
+    merge of the number review's repair into the integration). Plan
+    P4-D147 fills a saturated integer grid with its integers in order,
+    so `_the_hundred` -- a hundred integers between the ends 1 and 100
+    -- now holds all hundred and names no shortfall at all. One value
+    past the grid's end leaves the column unsaturated, and its twin
+    holds 99 numbers of 101 at this seed.
     """
-    _loaded, twin = _twin(tmp_path, _the_hundred())
+    _loaded, twin = _twin(
+        tmp_path, [f"{number}" for number in range(2, 101)] + ["1", "150"]
+    )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named
     assert not any(

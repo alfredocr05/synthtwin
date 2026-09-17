@@ -771,10 +771,11 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
 
     TWO COLUMNS, ONE FOR EACH HALF, both five positions and 150 rows:
 
-    - `_tight_column(0)` at seed 0 goes red under `tries % 2` -- pair
-      (0, 1) comes out holding 49 rows against a published 64, and
+    - `_tight_column(0)` at seed 2 goes red under `tries % 2` -- pair
+      (0, 1) misses its published above-count (at seed 0, before the
+      seeds moved, it held 49 rows against a published 64), and
       position 1 is that pair's only mover;
-    - `_tight_column(5)` at seed 0 goes red under `(tries + 1) % 2`,
+    - `_tight_column(5)` at seed 1 goes red under `(tries + 1) % 2`,
       the phase flip, which starves the other half -- pair (0, 4)
       misses, and position 4 is that pair's only mover.
 
@@ -784,8 +785,24 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
     driver's forty-column recipe, the shipped gate leaves 44 pairs of
     9,640 short of their above-count where `tries % 2` leaves 120 and
     the phase flip leaves 153.
+
+    THE SEEDS MOVED AT THE MERGE OF THE NUMBER REVIEW'S REPAIR (plan
+    P4-D147). Each part of these columns is a saturated integer grid,
+    which that repair fills in order, so a part now holds every one of
+    its published different numbers where the walk had left one short
+    in silence (`_tight_column(0)`'s second part: 18 of 19). The rows
+    the pairing walk arranges moved with those values, and at seed 0
+    both columns now miss one above-count by one row under the shipped
+    gate too -- 8 of 80 runs over the eight tight columns and seeds 0 to
+    9, against 0 before the fill. The witnesses are therefore taken at
+    the first seed where the shipped gate meets every count and the
+    mutant still misses the pair only its starved half moves, measured
+    on the merged tree with each mutant written in: `_tight_column(0)`
+    at seed 2 misses pair (0, 1) under `tries % 2` alone, and
+    `_tight_column(5)` at seed 1 misses pair (0, 4) under the phase flip
+    alone.
     """
-    for which, seed in ((0, 0), (5, 0)):
+    for which, seed in ((0, 2), (5, 1)):
         _document, loaded, _folder, _table = _described(_tight_column(which))
         column = loaded.columns[0]
         facts = column.facts

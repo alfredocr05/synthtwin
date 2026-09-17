@@ -253,8 +253,20 @@ def test_one_pooled_word_does_not_buy_a_whole_figure(
     name: the twin wrote `100.0` to `100.3`, the spread of its numbers was
     4.91 against the table's 2.01, and both validations passed. Without the
     one text cell the same column's twin had 2.02. The narrow walk comes
-    first now, so the twin of the pooled column is the twin of the column
-    without the word.
+    first now.
+
+    WHAT THIS NO LONGER CLAIMS (measured at the merge of the labels
+    review's repair into the integration). It used to end by requiring
+    the pooled column's twin to BE the twin of the column without the
+    word. Plan P4-D160 then refused the pool of one that made the two
+    descriptions alike: `{"%%.%": 134, "(withheld)": 1}` named the one
+    `ab-cd` by subtraction, and the census now withholds every form,
+    `{"(withheld)": 135}`, so the two columns are described differently
+    and their twins are drawn differently. What the blocker was about
+    is still asserted, and more of it: no made-up number is a whole
+    figure wider, the spread holds, the mean holds (7.004 against the
+    table's 7.000 at this seed), and every made-up number stands inside
+    the table's own range.
     """
     readings = _wide_readings(2500, random.Random(77503))
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -271,10 +283,16 @@ def test_one_pooled_word_does_not_buy_a_whole_figure(
         statistics.pstdev(twin), spread
     )
     assert max(_whole_figures(cell) for cell in _number_cells(written)) <= 2
+    assert first["shape_forms"] == {"(withheld)": 135}, first["shape_forms"]
+    shift = abs(statistics.mean(twin) - statistics.mean(real))
+    assert shift <= MEAN_SHIFT_IN_DEVIATIONS * spread, (shift, spread)
+    assert min(real) <= min(twin) and max(twin) <= max(real), (
+        min(twin), max(twin), min(real), max(real)
+    )
     _f, _s, control, _t, _r = _round_trip(
         tmp_path / "control", readings, ("--smallest-group", "11"), False, "125"
     )
-    assert sorted(_numbers(control)) == sorted(twin)
+    assert _f["shape_forms"] == {"%%.%": 134}, _f["shape_forms"]
 
 
 def _number_cells(cells: "list[str]") -> "list[str]":
