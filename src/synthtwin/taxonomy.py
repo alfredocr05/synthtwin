@@ -5101,18 +5101,18 @@ def _levels(
     apart; the ruling gives that up, and a twin writes its invented
     labels at sizes a fixed rule reads off the pool.
 
-    AND THE POOL IS NEVER ONE WHERE A LABEL CAN JOIN IT. A pool of one
-    row names the one row whose value is none of the published labels,
-    and `n_present` less the published counts reads it even unprinted.
-    So where `parsing.held_back_pool_nameable` refuses the pool, the
-    smallest published label is held back too -- wherever
-    `parsing.pool_takes_label` says the twin can still write the pool
-    below the floor. Measured on the shape that reaches it most: 400
-    `north`, 15 `south` and one `west` at a floor of eleven published a
-    pool of one, and now hold back `south` beside `west` as a pool of
-    sixteen. Where the smallest label is too large to join -- 400 and
-    399 beside one cell -- nothing can be held back without the twin
-    writing a label the floor publishes, and the pool of one stands.
+    A POOL OF ONE ROW STANDS, AND IS PUT TO THE OWNER. A pool of one row
+    names the one row whose value is none of the published labels, and
+    `n_present` less the published counts reads it whether or not it is
+    printed, so no key this function leaves out can hide it. The first
+    writing of the ruling held the smallest published label back beside
+    such a pool; the repair pass of 2026-09-17 withdrew that, because the
+    label it held back had cleared the floor and the twin then wrote none
+    of it -- measured: 400 `north`, 15 `south` and one `west` at a floor
+    of eleven gave `south` 0 twin rows against 15, and a lab column's
+    `>1000` on 11 rows 0 against 11. The ruling asks for neither, so the
+    published labels stand as the floor admits them and the pool of one
+    is a stated limit awaiting the owner (plan P4-D201).
 
     There is no "beyond the cap" outcome here any more. `categorical_
     ceiling` decides the ROLE again, as the plan says (review item
@@ -5127,7 +5127,6 @@ def _levels(
         )
     ]
     entries: list[dict[str, object]] = []
-    published_counts: list[int] = []
     suppressed_levels = 0
     suppressed_rows = 0
     for label in ordered:
@@ -5152,29 +5151,9 @@ def _levels(
                     ),
                 }
             ]
-            published_counts += [count]
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
-    covered = 0
-    for count in published_counts:
-        covered = covered + count
-    kept = len(published_counts)
-    if (
-        kept >= 2
-        and not parsing.held_back_pool_nameable(
-            suppressed_rows, covered + suppressed_rows, covered
-        )
-        and parsing.pool_takes_label(
-            suppressed_rows,
-            suppressed_levels,
-            published_counts[kept - 1],
-            settings.small_cell_floor,
-        )
-    ):
-        suppressed_levels = suppressed_levels + 1
-        suppressed_rows = suppressed_rows + published_counts[kept - 1]
-        entries = entries[: kept - 1]
     return _Levels(
         published=entries,
         suppressed_levels=suppressed_levels,

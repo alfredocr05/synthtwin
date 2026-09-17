@@ -357,33 +357,6 @@ def _long_tail_below_its_line(_column: str) -> Change:
     return change
 
 
-def _pool_of_one_a_label_could_join(_column: str) -> Change:
-    """A held-back pool of ONE row beside a small published label (B4).
-
-    Owner ruling of 2026-09-17, item 2, option A (plan P4-D201): a pool of
-    one names the one row whose value is none of the published labels, so
-    the producer holds the smallest published label back beside it
-    wherever the twin can still write both below the floor. Here the
-    smallest label is given nineteen rows, which a pool of twenty over two
-    labels at a floor of eleven can hold, and the pool is cut to one; the
-    rows it gives up join the largest label, so B3 and B6 still hold.
-    """
-    def change(document: Document) -> None:
-        block = at(document, _column)
-        levels = block["levels"]
-        smallest = levels[len(levels) - 1]
-        moved = smallest["count"] - 19 + block["suppressed_rows"] - 1
-        smallest["count"] = 19
-        smallest["variants"] = {key: 19 for key in smallest["variants"]}
-        largest = levels[0]
-        largest["count"] = largest["count"] + moved
-        largest["variants"] = {
-            key: largest["count"] for key in largest["variants"]
-        }
-        block["suppressed_rows"] = 1
-    return change
-
-
 def edit_verdict(_column: str, _index: int, **changes: object) -> Change:
     """Replace keys of one decision about a stand-in number."""
     def change(document: Document) -> None:
@@ -839,10 +812,6 @@ def battery() -> list[Mutation]:
         Mutation(
             "B4", "a pool too large to be written below the floor",
             edit("region", suppressed_rows=11),
-        ),
-        Mutation(
-            "B4", "a pool of one row the smallest label could have joined",
-            _pool_of_one_a_label_could_join("region"),
         ),
         Mutation(
             "B5", "a label published below the floor",

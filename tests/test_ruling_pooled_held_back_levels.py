@@ -12,10 +12,13 @@ decides, asserted on the files themselves.
 
 THE RED CHECKS, each measured by withdrawing the rule in place:
 
-* the producer's pool of one taking the smallest label back
-  (`taxonomy._levels`) -- `test_a_pool_of_one_takes_the_smallest_label`;
-* the loader's pool of one and its bound on the pool -- the two B4
-  entries of `tests/test_contract_loader.py`'s battery;
+* a label that clears the floor being held back beside a pool of one
+  (the absorption the repair pass of 2026-09-17 withdrew from
+  `taxonomy._levels`) --
+  `test_a_label_that_clears_the_floor_stays_published`, whose twin then
+  writes none of `south` or `W04`;
+* the loader's bound on the pool -- the two B4 entries of
+  `tests/test_contract_loader.py`'s battery;
 * the debts handed to the sizes withdrawn -- the committed cells of
   frozen cases `label_numbers`, `label_number_tiers` and
   `level_shape_stand_ins` in `tests/test_generation_reference.py`. On
@@ -104,36 +107,72 @@ def test_the_loader_refuses_the_withdrawn_key(tmp_path: pathlib.Path) -> None:
         raise AssertionError("a description carrying the sizes loaded")
 
 
-def test_a_pool_of_one_takes_the_smallest_label(tmp_path: pathlib.Path) -> None:
-    """400 `north`, 15 `south` and one `west` at a floor of eleven.
+def _twin_rows(result: dict, column: str, label: str) -> int:
+    """How many twin cells of ``column`` fold to ``label``."""
+    return len(
+        [cell for cell in result["twin"][column] if parsing.folded(cell) == label]
+    )
 
-    A pool of one row names the one row whose value is neither published
-    label, and `n_present` less the published counts reads it unprinted.
-    Fifteen rows joined to it make sixteen, which two invented labels
-    hold below the floor, so `south` is held back beside `west`.
+
+def test_a_label_that_clears_the_floor_stays_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A pool of one does not take a published label with it (P4-D201).
+
+    The first writing of the ruling held the smallest published label
+    back beside a pool of one row wherever the pool still fitted below
+    the floor. Measured by the skeptic of that landing: 400 `north`, 15
+    `south` and one `west` at a floor of eleven then published `north`
+    alone beside a pool of sixteen, and the twin wrote 0 rows of `south`
+    against 15; wards W01 to W04 beside one `home` lost W04's 14. The
+    ruling asks only that the sizes of held-back labels stop being
+    published, so a label the floor admits stays published and the twin
+    writes it at its count.
     """
     cells = ["north"] * 400 + ["south"] * 15 + ["west"]
     random.Random(5).shuffle(cells)
-    result = _round_trip(tmp_path, {"value": cells}, ("--smallest-group", "11"))
+    result = _round_trip(
+        tmp_path / "region", {"value": cells}, ("--smallest-group", "11")
+    )
     column = _column(result)
-    assert [level["label"] for level in column["levels"]] == ["north"]
-    assert (column["suppressed_levels"], column["suppressed_rows"]) == (2, 16)
-    assert (result["twin_exit"], result["real_exit"]) == (0, 0)
-
-
-def test_a_pool_of_one_no_label_can_join_stands(tmp_path: pathlib.Path) -> None:
-    """The named limit: 400 `north`, 399 `south` and one `west` at eleven.
-
-    Holding `south` back would make a pool of four hundred rows over two
-    labels, which the twin can only write with a label the floor
-    publishes. So the pool of one stands, at its size.
-    """
-    cells = ["north"] * 400 + ["south"] * 399 + ["west"]
-    random.Random(5).shuffle(cells)
-    result = _round_trip(tmp_path, {"value": cells}, ("--smallest-group", "11"))
-    column = _column(result)
-    assert len(column["levels"]) == 2
+    assert [level["label"] for level in column["levels"]] == ["north", "south"]
     assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    assert (result["twin_exit"], result["real_exit"]) == (0, 0)
+    assert _twin_rows(result, "value", "south") == 15
+    wards = (
+        ["W01"] * 300 + ["W02"] * 280 + ["W03"] * 260 + ["W04"] * 14
+        + ["home"]
+    )
+    random.Random(6).shuffle(wards)
+    result = _round_trip(
+        tmp_path / "wards", {"ward": wards}, ("--smallest-group", "11")
+    )
+    column = _column(result)
+    assert len(column["levels"]) == 4
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    assert (result["twin_exit"], result["real_exit"]) == (0, 0)
+    assert _twin_rows(result, "ward", "w04") == 14
+
+
+def test_a_pool_of_one_row_stands_as_the_named_limit(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The limit put to the owner: F 480, M 519 and one U at eleven.
+
+    `n_present` less the published counts is the pool whether or not
+    `suppressed_rows` is printed, so no key left out can hide a pool of
+    one; only withholding a label the floor publishes, or moving the
+    cell out of `n_present`, could, and the ruling authorises neither.
+    The pool of one stands, at its size, and both files hold.
+    """
+    cells = ["F"] * 480 + ["M"] * 519 + ["U"]
+    random.Random(5).shuffle(cells)
+    result = _round_trip(tmp_path, {"answer": cells}, ("--smallest-group", "11"))
+    column = _column(result)
+    assert [level["label"] for level in column["levels"]] == ["m", "f"]
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    covered = sum(level["count"] for level in column["levels"])
+    assert column["n_present"] - covered == 1
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 
 

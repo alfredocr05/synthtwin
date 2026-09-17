@@ -750,7 +750,9 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
     # remedy it names is still not one the tool then refuses: it names
     # --sheet on a COPY without the other table's sheet, and says that
     # naming a sheet of this workbook as it stands is not enough.
-    assert "Which of the two sheets is your table?" in spoken, spoken
+    assert "Which sheet is your table?" in spoken, spoken
+    assert "the two sheets" not in spoken, spoken
+    assert "every other sheet that holds a table" in spoken, spoken
     assert "--sheet" in spoken, spoken
     assert "on that copy" in spoken, spoken
     assert "as it stands is not enough" in spoken, spoken
@@ -776,6 +778,39 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
                 "--sheet", named, "--first-row", "names",
             ]
         ) == 0, named
+
+
+def test_a_workbook_with_three_tables_is_not_called_two(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Visits, Labs and Codebook each hold a table (repair pass, 2026-09-17).
+
+    The refusal stops at the first other sheet holding a table, so it
+    names two sheets of three. Its first wording asked "Which of the two
+    sheets is your table?" and asked for a copy "with the other sheet
+    deleted", which a person could follow and be refused again. It asks
+    which sheet is the table and for a copy without every other sheet
+    holding a table, on both paths.
+    """
+    path = _written(
+        tmp_path, "three.xlsx", workbooks.two_table_book(20, "", "Labs")
+    )
+    for positions in (False, True):
+        with pytest.raises(errors.ProfileError) as raised:
+            if positions:
+                reading.read_table(
+                    str(path), sheet="Labs",
+                    refusals=reading.REFUSALS_NAME_POSITIONS,
+                )
+            else:
+                reading.read_table(str(path), sheet="Labs")
+        spoken = f"{raised.value}"
+        assert "two sheets" not in spoken, spoken
+        assert "the other sheet " not in spoken, spoken
+        assert "every other sheet that holds a table" in spoken, spoken
+    assert _quiet(
+        ["profile", str(path), "--out-dir", str(tmp_path), "--sheet", "Labs"]
+    ) == 1
 
 
 def test_a_delimiter_declared_on_a_workbook_is_refused(

@@ -602,8 +602,9 @@ Stated here so that no reader has to discover them independently:
     are what analysis code is written against. Those held-back facts
     are two since the owner's ruling of 2026-09-17 (plan P4-D201): how
     many labels the floor held back and the rows they covered together,
-    and no longer the size of each one; and the pooled total is never
-    one row where the smallest published label could join it.
+    and no longer the size of each one. A pooled total of one row still
+    stands where the table holds it, since `n_present` less the
+    published counts reads it; that limit is put to the owner.
   * **The empty stretches of a numeric range** — `empty_bins` and
     `empty_edges`. **What they add:** where the column has NO value.
     `empty_bins` is the one published fact of this format that names

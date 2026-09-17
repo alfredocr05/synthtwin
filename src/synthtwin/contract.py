@@ -1317,8 +1317,7 @@ INVARIANTS = {
     ),
     "B4": (
         "the labels held back cover at least one row each and fewer "
-        "rows than the smallest group size, and they pool no single row "
-        "where the smallest published label could have joined them"
+        "rows than the smallest group size"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -6837,34 +6836,6 @@ def _levels(
                 f"held-back ones {suppressed_rows}"
             ),
             f"the column holds {n_present} values",
-        )
-    # ...AND A POOL OF ONE ROW IS REFUSED WHERE THE PRODUCER WOULD HAVE
-    # HELD BACK THE SMALLEST PUBLISHED LABEL BESIDE IT (B4, plan
-    # P4-D201), asked through the same two rules the producer asks.
-    if (
-        len(entries) >= 2
-        and not parsing.held_back_pool_nameable(
-            suppressed_rows, n_present, covered
-        )
-        and parsing.pool_takes_label(
-            suppressed_rows,
-            suppressed_levels,
-            entries[len(entries) - 1].count,
-            floor,
-        )
-    ):
-        raise _broken(
-            "B4",
-            where,
-            (
-                f"the labels held back pool {suppressed_rows} row, which "
-                f"names it"
-            ),
-            (
-                f"the smallest published label, on "
-                f"{entries[len(entries) - 1].count} rows, could have "
-                f"joined them"
-            ),
         )
     return tuple(entries), suppressed_levels, suppressed_rows
 

@@ -879,7 +879,7 @@ def all_hidden_book() -> bytes:
     )
 
 
-def two_table_book(n_rows: int = 20, keep: str = "") -> bytes:
+def two_table_book(n_rows: int = 20, keep: str = "", third: str = "") -> bytes:
     """Two sheets, each holding a TABLE, which synthtwin cannot twin.
 
     synthtwin describes ONE table, and the twin writes every other sheet
@@ -891,6 +891,10 @@ def two_table_book(n_rows: int = 20, keep: str = "") -> bytes:
     ``keep`` names one of the two sheets, `Data` or `Codebook`, and builds
     the COPY the refusal asks for instead: that sheet alone, under its own
     name (owner ruling of 2026-09-17, item 3, plan P4-D203).
+
+    ``third`` names a THIRD sheet holding the same table, between the two
+    (repair pass of 2026-09-17): the refusal stops at the first other
+    sheet it meets, so its sentence may not speak of "the two sheets".
     """
     strings = ["reading", "site", "amount", "recorded_on"] + list(SITES)
     head = [
@@ -913,16 +917,21 @@ def two_table_book(n_rows: int = 20, keep: str = "") -> bytes:
                 ("xl/worksheets/sheet1.xml", page),
             ]
         )
+    names = [("Data", ""), ("Codebook", "")]
+    if third:
+        names = [("Data", ""), (third, ""), ("Codebook", "")]
     return package(
         [
-            ("[Content_Types].xml", _content_types(2, True, False, False)),
+            ("[Content_Types].xml", _content_types(len(names), True, False, False)),
             ("_rels/.rels", _root_rels()),
-            ("xl/workbook.xml", _workbook([("Data", ""), ("Codebook", "")])),
-            ("xl/_rels/workbook.xml.rels", _workbook_rels(2, True)),
+            ("xl/workbook.xml", _workbook(names)),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(len(names), True)),
             ("xl/styles.xml", _styles()),
             ("xl/sharedStrings.xml", _shared_strings(strings)),
-            ("xl/worksheets/sheet1.xml", page),
-            ("xl/worksheets/sheet2.xml", page),
+        ]
+        + [
+            (f"xl/worksheets/sheet{number}.xml", page)
+            for number in range(1, len(names) + 1)
         ]
     )
 
