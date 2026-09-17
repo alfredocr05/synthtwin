@@ -198,7 +198,7 @@ def test_at_a_floor_of_one_nothing_is_held_back_at_all(
     for block in document["columns"]:
         where = block["name"]
         assert block.get("suppressed_levels", 0) == 0, where
-        assert block.get("suppressed_level_counts", []) == [], where
+        assert "suppressed_level_counts" not in block, where
         assert block.get("suppressed_rows", 0) == 0, where
         for entry in block.get("levels", []):
             assert entry["variants_withheld"] == {}, where

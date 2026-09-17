@@ -1364,7 +1364,6 @@ REGISTRY += _facts(
     EXACT_OBSERVABLE,
     "levels",
     "suppressed_levels",
-    "suppressed_level_counts",
     "suppressed_rows",
 )
 REGISTRY += [

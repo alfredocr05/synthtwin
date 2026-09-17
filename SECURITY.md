@@ -596,10 +596,14 @@ Stated here so that no reader has to discover them independently:
     the rows of a label the floor has already admitted. What a reader
     can take from it is which held-back group of that level was written
     in the label's shape: presence and shape attached to an unnamed
-    group. That is a widening of the three held-back facts beside it,
-    and it is the owner's ruling of 2026-08-31 (plan amendment
-    A-P4-47), on the ground that a code's shape identifies nobody while
-    category columns are what analysis code is written against.
+    group. That is a widening of the held-back facts beside it, and it
+    is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the
+    ground that a code's shape identifies nobody while category columns
+    are what analysis code is written against. Those held-back facts
+    are two since the owner's ruling of 2026-09-17 (plan P4-D201): how
+    many labels the floor held back and the rows they covered together,
+    and no longer the size of each one; and the pooled total is never
+    one row where the smallest published label could join it.
   * **The empty stretches of a numeric range** — `empty_bins` and
     `empty_edges`. **What they add:** where the column has NO value.
     `empty_bins` is the one published fact of this format that names

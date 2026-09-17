@@ -483,12 +483,22 @@ def test_two_date_columns_with_opposite_shapes_differ_in_the_profile() -> None:
     assert first.details["date_percentiles"] != second.details["date_percentiles"]
 
 
-def test_two_suppressed_binary_splits_differ_in_the_profile() -> None:
+def test_two_suppressed_binary_splits_publish_one_pool() -> None:
+    """Review item P1-R1-F9 told these two apart; the owner ruled not to.
+
+    A column split 1/9 and one split 5/5, both held back whole, published
+    their sizes one by one so a twin could rebuild either. The owner's
+    ruling of 2026-09-17, item 2, option A (plan P4-D201) publishes only
+    the pooled total, so the two describe alike -- two labels on ten
+    rows -- and no size of either label is anywhere in the block.
+    """
     lopsided = describe(["a"] + ["b"] * 9)
     even = describe(["a"] * 5 + ["b"] * 5)
     assert lopsided.details["levels"] == even.details["levels"] == []
-    assert lopsided.details["suppressed_level_counts"] == [1, 9]
-    assert even.details["suppressed_level_counts"] == [5, 5]
+    for described in (lopsided, even):
+        assert described.details["suppressed_levels"] == 2
+        assert described.details["suppressed_rows"] == 10
+        assert "suppressed_level_counts" not in described.details
 
 
 def test_sub_second_precision_is_recorded() -> None:

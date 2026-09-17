@@ -920,6 +920,50 @@ def census_nameable(
     return True
 
 
+def held_back_pool_nameable(pool: int, n_present: int, covered: int) -> bool:
+    """Whether a label column may print its pooled total of held-back cells.
+
+    OWNER RULING OF 2026-09-17, ITEM 2, OPTION A (plan P4-D201). A label
+    column no longer publishes the size of each label the floor held
+    back; it publishes only their pooled total, `suppressed_rows`. That
+    total is itself a count of cells, and `census_nameable` is asked of
+    it at its line of two: a pool of nought says nothing was held back,
+    and a pool of one names the one row whose value is none of the
+    published labels. The population handed in is what a reader gets by
+    SUBTRACTION -- `n_present` less the rows under the published labels
+    -- which invariant B3 makes the pool itself, so a pool this refuses
+    is refused however it is read.
+
+    Guarantees: accepts the pool, the column's present cells and the rows
+    under its published labels; returns a bool. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if pool <= 0:
+        return True
+    return census_nameable([pool], [n_present - covered], 1)
+
+
+def pool_takes_label(pool: int, held_back: int, rows: int, floor: int) -> bool:
+    """Whether a published label of ``rows`` rows can join the held-back pool.
+
+    What the producer does with a pool `held_back_pool_nameable` refuses
+    (plan P4-D201): it holds back its SMALLEST published label too, so
+    the pool is that label's rows and more. It may only where the twin
+    can still write the pool the way it writes every pool -- each
+    invented label below the floor -- so the pool that results must fit
+    in as many labels as it then holds, each holding at most one row
+    fewer than the floor. Where it does not fit, the label stays
+    published and the pool stays as it was: holding it back would have
+    the twin write an invented label the floor publishes, which its own
+    description would then name.
+
+    Guarantees: accepts the pool, how many labels it holds, the rows of
+    the label that would join it and the settings floor; returns a bool.
+    Determinism: a fixed function of the four. Raises nothing. No I/O.
+    """
+    return pool + rows <= (held_back + 1) * (floor - 1)
+
+
 def width_census_breaches(
     styles: "dict[str, int]",
     padded: "dict[str, int]",

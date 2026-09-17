@@ -130,7 +130,6 @@ _FAMILIES = (
     "label.levels",
     "label.variants",
     "label.variants_withheld",
-    "label.suppressed_level_counts",
     "datetime.earliest",
     "datetime.latest",
     "datetime.earliest_utc_offset",
@@ -165,7 +164,8 @@ _CANONICAL = [f"{index}.2" for index in range(1, 61)]
 # The publication floor every description in this file is built at. Four
 # of the sixteen obligation families the corpus must reach exist only
 # where a floor holds something back -- `label.variants`,
-# `label.variants_withheld`, `label.suppressed_level_counts` and the
+# `label.variants_withheld`, the held-back level sizes -- pooled into one
+# total since the owner's ruling of 2026-09-17 (plan P4-D201) -- and the
 # pooled half of `label.levels` -- and at a floor of one nothing is held
 # back at all (contract invariant C5-S13). A floor of one became the
 # default under the owner ruling recorded as plan amendment A-P4-37, so

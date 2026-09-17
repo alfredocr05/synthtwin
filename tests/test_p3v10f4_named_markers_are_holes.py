@@ -28,13 +28,17 @@ WHERE THE PIN STILL LIVES, asserted below so the narrowing cannot creep:
 a built-in word NO column of the description publishes as a hole source
 is still data on the measurement side, whatever the measured file holds.
 
-WHAT IS STILL OPEN, and it is stated rather than implied. The two
-presence COUNTS ask the weaker publication question of amendment
-A-P3-5 clause 1 -- is the number of non-blank holes published, never
-their spellings -- so a column whose holes are pooled below the floor
-under two spellings of one built-in word still reports those two
-counts by blankness. That is residual R-P3-11, it is bounded to exactly
-those two obligations, and the last test here pins its size.
+WHAT WAS STILL OPEN, and what closed it. The two presence COUNTS
+asked the weaker publication question of amendment A-P3-5 clause 1 --
+is the number of non-blank holes published, never their spellings -- so
+a column whose holes are pooled below the floor under two spellings of
+one built-in word reported those two counts by blankness and missed
+them against its own description. That was residual R-P3-11. The
+owner's ruling of 2026-09-17 took option A (plan P4-D200): pooled
+missing-value words count as absent, and the guard that proved the pool
+honest is rewritten to check the pool's TOTAL -- they count as holes
+only up to the published pool, and every one past it is a value again.
+The last two tests here hold both halves.
 
 THE RED CHECK:
 
@@ -236,23 +240,35 @@ def test_the_twin_of_that_description_still_measures_clean(
     assert counted["MISSED"] == 0
 
 
-def test_what_is_still_open_is_two_counts_and_no_more(
+def _split_witness(
+    folder: pathlib.Path, name: str, values: "list[str]"
+) -> pathlib.Path:
+    """One column of readings beside a column of plain row labels.
+
+    The second column is what lets an empty reading be a cell rather
+    than a blank line of a one-column file.
+    """
+    rows = [[value, f"row{index % 7}"] for index, value in enumerate(values)]
+    return fixtures.write(
+        folder, name, fixtures.rows_to_csv(["reading", "other"], rows)
+    )
+
+
+def test_pooled_words_count_as_absent_so_the_table_holds_its_counts(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Residual R-P3-11, pinned at its size so it cannot grow.
+    """Residual R-P3-11's own witness, closed by the ruling of 2026-09-17.
 
     Six cells spelled `n/a` and six spelled `N/A` are twelve holes of one
     built-in word under two spellings, and at the floor of eleven this
     run declares NEITHER spelling reaches the floor, so the column names
     no source at all. The floor is declared rather than assumed because
     the default is 1 since the owner's ruling (plan amendment A-P4-37),
-    and at 1 both spellings are published and this residual is not
-    reachable at all. `missing_by_class` still names twelve non-blank
-    holes, which is the weaker publication amendment A-P3-5 clause 1
-    lets the two presence counts be read over -- so those two are still
-    measured by blankness and still miss. Nothing else does: every
-    obligation that needs the spellings falls back to the file's own
-    description.
+    and at 1 both spellings are published and this case is not reachable
+    at all. Before the ruling the two presence counts were measured by
+    blankness and exactly those two MISSED; now the pooled words count
+    as holes up to the pool's total of twelve, and nothing is missed on
+    the table or on its twin.
     """
     values = [f"{10 + index * 3}.5" for index in range(60)]
     values = values + ["n/a"] * 6 + ["N/A"] * 6
@@ -266,8 +282,41 @@ def test_what_is_still_open_is_two_counts_and_no_more(
     assert column.missing_by_source == {}
     assert column.n_missing_withheld == 12
     assert column.missing_by_class.text_code == 12
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 3
+    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "split-quality.txt").read_text("utf-8")
-    assert _counts(report)["MISSED"] == 2
+    assert _counts(report)["MISSED"] == 0
+    assert "presence.n_present [universal.n_present]: HELD" in report
+    assert "presence.n_missing [universal.n_missing]: HELD" in report
+    assert main(["generate", f"{written}"]) == 0
+    twin = tmp_path / "split-twin.csv"
+    assert main(["validate", f"{written}", "--twin", f"{twin}"]) == 0
+
+
+def test_the_guard_checks_the_pool_s_total(tmp_path: pathlib.Path) -> None:
+    """A file spelling more holes than the pool holds misses both counts.
+
+    The description is written from sixty readings, six `n/a`, six `N/A`
+    and twelve empty cells, so it pools twelve spelled holes. The measured
+    file keeps every count by its own reading -- sixty values, twenty-four
+    holes -- but spells eighteen of them `n/a` and six `N/A`: twenty-four
+    spelled holes against a pool of twelve. The twelve past the pool are
+    counted as the values the split reads them as, so `presence.n_present`
+    finds 72 against 60 and both presence counts miss.
+    """
+    values = [f"{10 + index * 3}.5" for index in range(60)]
+    table = _split_witness(
+        tmp_path, "pooled.csv",
+        values + ["n/a"] * 6 + ["N/A"] * 6 + [""] * 12,
+    )
+    written, description = _described(tmp_path, table, floor=11)
+    assert description.columns[0].n_missing_withheld == 12
+    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
+    spelled = _split_witness(
+        tmp_path, "spelled.csv", values + ["n/a"] * 18 + ["N/A"] * 6
+    )
+    assert main(["validate", f"{written}", "--twin", f"{spelled}"]) == 3
+    report = (tmp_path / "spelled-quality.txt").read_text("utf-8")
     assert "presence.n_present [universal.n_present]: MISSED" in report
     assert "presence.n_missing [universal.n_missing]: MISSED" in report
+    after = report.split("presence.n_present [universal.n_present]: MISSED")
+    assert "the file was found to hold: 72" in after[1][:200]

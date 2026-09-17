@@ -1124,8 +1124,6 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ): _COUNT,
     ("columns", _EACH, "suppressed_levels"): _HELD_BACK,
     ("columns", _EACH, "suppressed_rows"): _HELD_BACK,
-    ("columns", _EACH, "suppressed_level_counts"): _ARRAY,
-    ("columns", _EACH, "suppressed_level_counts", _EACH): _BELOW_THE_FLOOR,
     ("columns", _EACH, "level_ceiling"): _COUNT,
     # The numeric roles.
     ("columns", _EACH, "percentiles"): _OBJECT,
@@ -1492,8 +1490,9 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
     numeric_prefix = ("columns", _EACH, "parts", _EACH)
     # EVERY KEY THE LABEL BUILDER EMITS, and it is a list because
     # `_level_details` is in another module and this table is built at
-    # import. The first writing of it left out
-    # `suppressed_level_counts` and the guard caught that at once,
+    # import. The first writing of it left out the withheld level
+    # sizes, a key since pooled away (plan P4-D201), and the guard caught
+    # that at once,
     # which is the arrangement working: a key added to the builder and
     # not to this list is refused by the publication check rather than
     # published unaccounted for. `test_the_compound_label_block_carries
@@ -1505,7 +1504,6 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
         "n_distinct_folded",
         "n_present",
         "suppressed_levels",
-        "suppressed_level_counts",
         "suppressed_rows",
         "suppressed_spellings",
         "shape_forms",

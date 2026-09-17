@@ -4945,12 +4945,16 @@ def _published_day_verdicts(
 
 @dataclasses.dataclass(frozen=True)
 class _Levels:
-    """The published level list and everything pooled out of it."""
+    """The published level list and everything pooled out of it.
+
+    The pool is two numbers and no sizes (owner ruling of 2026-09-17,
+    item 2, option A; plan P4-D201): how many labels were held back and
+    how many rows they covered together.
+    """
 
     published: list[dict[str, object]]
     suppressed_levels: int
     suppressed_rows: int
-    suppressed_counts: list[int]
 
 
 def _variants(
@@ -5078,10 +5082,26 @@ def _levels(
     spellings the shape the source's held-back spellings actually
     wore, which the column-wide `shape_forms` census cannot say.
 
-    `suppressed_counts` is the anonymous multiset of the withheld
-    levels' sizes. Without it a binary column split 1/9 and one split
-    5/5 serialise to the same profile, so a generator built from the
-    profile alone cannot reproduce either (review item P1-R1-F9).
+    THE HELD-BACK LABELS ARE PUBLISHED AS A POOL, and only as a pool
+    (owner ruling of 2026-09-17, item 2, option A; plan P4-D201): how
+    many there were and how many rows they covered together. Their sizes
+    one by one stood here as `suppressed_counts` since review item
+    P1-R1-F9, so that a column split 1/9 and one split 5/5 serialised
+    apart; the ruling gives that up, and a twin writes its invented
+    labels at sizes a fixed rule reads off the pool.
+
+    AND THE POOL IS NEVER ONE WHERE A LABEL CAN JOIN IT. A pool of one
+    row names the one row whose value is none of the published labels,
+    and `n_present` less the published counts reads it even unprinted.
+    So where `parsing.held_back_pool_nameable` refuses the pool, the
+    smallest published label is held back too -- wherever
+    `parsing.pool_takes_label` says the twin can still write the pool
+    below the floor. Measured on the shape that reaches it most: 400
+    `north`, 15 `south` and one `west` at a floor of eleven published a
+    pool of one, and now hold back `south` beside `west` as a pool of
+    sixteen. Where the smallest label is too large to join -- 400 and
+    399 beside one cell -- nothing can be held back without the twin
+    writing a label the floor publishes, and the pool of one stands.
 
     There is no "beyond the cap" outcome here any more. `categorical_
     ceiling` decides the ROLE again, as the plan says (review item
@@ -5096,9 +5116,9 @@ def _levels(
         )
     ]
     entries: list[dict[str, object]] = []
+    published_counts: list[int] = []
     suppressed_levels = 0
     suppressed_rows = 0
-    suppressed_counts: list[int] = []
     for label in ordered:
         count = counts[label]
         if count >= settings.small_cell_floor:
@@ -5121,15 +5141,33 @@ def _levels(
                     ),
                 }
             ]
+            published_counts += [count]
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
-            suppressed_counts += [count]
+    covered = 0
+    for count in published_counts:
+        covered = covered + count
+    kept = len(published_counts)
+    if (
+        kept >= 2
+        and not parsing.held_back_pool_nameable(
+            suppressed_rows, covered + suppressed_rows, covered
+        )
+        and parsing.pool_takes_label(
+            suppressed_rows,
+            suppressed_levels,
+            published_counts[kept - 1],
+            settings.small_cell_floor,
+        )
+    ):
+        suppressed_levels = suppressed_levels + 1
+        suppressed_rows = suppressed_rows + published_counts[kept - 1]
+        entries = entries[: kept - 1]
     return _Levels(
         published=entries,
         suppressed_levels=suppressed_levels,
         suppressed_rows=suppressed_rows,
-        suppressed_counts=sorted(suppressed_counts),
     )
 
 
@@ -5564,7 +5602,6 @@ def _level_details(
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
-        "suppressed_level_counts": levels.suppressed_counts,
         "shape_forms": _shape_forms(cells, False, with_text_total),
     }
 
@@ -12455,9 +12492,10 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     mapping is a function of the group SIZES alone: rename every value,
     or shuffle every row, and it does not move. No spelling, no order,
     no row position and no link to any other column reaches it. It is
-    the same class of fact as `suppressed_level_counts`, which publishes
-    the sizes of the withheld levels for the same reason -- and the
-    reason was checked here rather than assumed:
+    the same class of fact the sizes of a label column's withheld levels
+    were, published for the same reason until the owner's ruling of
+    2026-09-17 pooled those sizes into one total (plan P4-D201) -- and
+    the reason was checked here rather than assumed:
 
     * at the extremes it adds nothing that was not already published.
       One present value gives ``{"1": 1}``; every value different gives
@@ -12471,8 +12509,8 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     * what it does disclose, and this is stated rather than waved away:
       the sizes themselves. A mapping containing ``"1": 1`` says that
       some one row holds a value no other row holds. That is a count
-      about an unnamed group, which is precisely what
-      `suppressed_level_counts` already publishes, and it is why the
+      about an unnamed group, which is precisely what the withheld
+      level sizes published until that ruling, and it is why the
       profile is described as real-derived material rather than as
       anonymous.
 
@@ -12507,9 +12545,10 @@ def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     routine. This said THREE and then named two; the miscount came from
     the contract's own section heading and was found while transcribing
     that section for the self-contained version 6. There is no third:
-    this function has exactly two callers, and the only candidate --
-    `suppressed_level_counts` -- is a sorted array of integers rather
-    than a mapping. `_n_distinct_by_occurrences` above states what this class
+    this function has exactly two callers, and the only candidate -- the
+    withheld level sizes -- was a sorted array of integers rather than a
+    mapping, and is published as one pooled total since the owner's
+    ruling of 2026-09-17 (plan P4-D201). `_n_distinct_by_occurrences` above states what this class
     of fact does and does not disclose; that statement holds for every
     caller, because none of them passes anything but group sizes.
 

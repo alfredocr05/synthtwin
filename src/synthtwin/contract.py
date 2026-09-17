@@ -506,14 +506,13 @@ LEVEL_KEYS = (
 LABEL_KEYS = (
     "levels",
     "shape_forms",
-    "suppressed_level_counts",
     "suppressed_levels",
     "suppressed_rows",
 )
 
 CATEGORICAL_KEYS = LABEL_KEYS + ("level_ceiling",)
 
-# The label half of a compound column: the five above, plus the two
+# The label half of a compound column: the four above, plus the two
 # counts the half carries for ITSELF because the column's own counts
 # include the numbers (invariant NL2). Written as an extension of
 # LABEL_KEYS rather than as a list of its own, so a key added to a
@@ -1309,12 +1308,12 @@ INVARIANTS = {
         "ones held back together are all the rows that hold a value"
     ),
     "B4": (
-        "the sizes of the labels held back are as many as the labels "
-        "held back, come to the rows they cover, and rise"
+        "the labels held back cover at least one row each and fewer "
+        "rows than the smallest group size, and they pool no single row "
+        "where the smallest published label could have joined them"
     ),
     "B5": (
-        "a label is published only at the smallest group size or more, "
-        "and a label held back covers fewer rows than that"
+        "a label is published only at the smallest group size or more"
     ),
     "B6": (
         "the labels come in order of how many rows they cover, largest "
@@ -2189,12 +2188,15 @@ class LabelFacts:
     raised to close, in the shape a real table most often has it.
     Whether a label role suppresses levels is a fact about the FLOOR,
     not about the role.
+
+    THE HELD-BACK LABELS ARE A POOL (owner ruling of 2026-09-17, item 2,
+    option A; plan P4-D201): `suppressed_levels` and `suppressed_rows`,
+    and no size of any one of them.
     """
 
     levels: "tuple[LevelEntry, ...]"
     suppressed_levels: int
     suppressed_rows: int
-    suppressed_level_counts: "tuple[int, ...]"
     shape_forms: "dict[str, int]"
 
 
@@ -6684,11 +6686,12 @@ def _levels(
     n_present: int,
     n_folded: int,
     inside_a_half: bool = False,
-) -> "tuple[tuple[LevelEntry, ...], int, int, tuple[int, ...]]":
+) -> "tuple[tuple[LevelEntry, ...], int, int]":
     """The published labels and everything the floor held back (6.3).
 
     Raises ProfileError for a wrong type or an out-of-range count, and
-    for B1 to B7 and W2 to W7. B8 is a permission rather than a rule: an
+    for B1 to B7 and W2 to W7 -- B4 over the pooled total alone since the
+    owner's ruling of 2026-09-17 (plan P4-D201). B8 is a permission rather than a rule: an
     empty list of labels is a column every one of whose labels fell
     below the floor, and it is valid.
     """
@@ -6699,52 +6702,30 @@ def _levels(
     suppressed_rows = _whole(
         mapping["suppressed_rows"], "suppressed_rows", where, 0
     )
-    sizes: list[int] = []
-    place = 0
-    previous_size = 0
-    for size in _listing(
-        mapping["suppressed_level_counts"], "suppressed_level_counts", where
-    ):
-        found = _whole(
-            size, f"suppressed_level_counts[{place}]", where, 1
-        )
-        # B5's second half, read against the range the floor holds back
-        # rather than against the floor itself, so that this site and
-        # S13 cannot drift: at a floor of one the range is empty and no
-        # size at all may be listed here.
-        if found not in _below_the_floor(floor):
-            raise _broken(
-                "B5",
-                where,
-                f"a label held back covers {found} rows",
-                f"the smallest group size is {floor}",
-            )
-        if place and found < previous_size:
-            raise _broken(
-                "B4",
-                where,
-                f"a label held back covers {found} rows",
-                f"the one before it covers {previous_size}",
-            )
-        sizes += [found]
-        previous_size = found
-        place = place + 1
-    if len(sizes) != suppressed_levels:
+    # B4, THE POOL (owner ruling of 2026-09-17, item 2, option A; plan
+    # P4-D201). No size of any held-back label is published, so what can
+    # be refused is the pool: every held-back label covers at least one
+    # row and fewer than the floor, which bounds the rows by the labels
+    # both ways -- and at a floor of one both are nought, which is S13.
+    if suppressed_rows < suppressed_levels:
         raise _broken(
             "B4",
             where,
-            f"{len(sizes)} sizes of held-back labels are listed",
-            f"the column says {suppressed_levels} labels were held back",
+            f"{suppressed_levels} labels are said to be held back",
+            f"they cover only {suppressed_rows} rows between them",
         )
-    total_sizes = 0
-    for size_kept in sizes:
-        total_sizes = total_sizes + size_kept
-    if total_sizes != suppressed_rows:
+    if suppressed_rows > suppressed_levels * (floor - 1):
         raise _broken(
             "B4",
             where,
-            f"the sizes of the held-back labels come to {total_sizes}",
-            f"the column says they cover {suppressed_rows} rows",
+            (
+                f"{suppressed_levels} labels held back are said to cover "
+                f"{suppressed_rows} rows"
+            ),
+            (
+                f"a label held back covers fewer rows than the smallest "
+                f"group size of {floor}"
+            ),
         )
     entries: list[LevelEntry] = []
     seen: list[str] = []
@@ -6834,7 +6815,35 @@ def _levels(
             ),
             f"the column holds {n_present} values",
         )
-    return tuple(entries), suppressed_levels, suppressed_rows, tuple(sizes)
+    # ...AND A POOL OF ONE ROW IS REFUSED WHERE THE PRODUCER WOULD HAVE
+    # HELD BACK THE SMALLEST PUBLISHED LABEL BESIDE IT (B4, plan
+    # P4-D201), asked through the same two rules the producer asks.
+    if (
+        len(entries) >= 2
+        and not parsing.held_back_pool_nameable(
+            suppressed_rows, n_present, covered
+        )
+        and parsing.pool_takes_label(
+            suppressed_rows,
+            suppressed_levels,
+            entries[len(entries) - 1].count,
+            floor,
+        )
+    ):
+        raise _broken(
+            "B4",
+            where,
+            (
+                f"the labels held back pool {suppressed_rows} row, which "
+                f"names it"
+            ),
+            (
+                f"the smallest published label, on "
+                f"{entries[len(entries) - 1].count} rows, could have "
+                f"joined them"
+            ),
+        )
+    return tuple(entries), suppressed_levels, suppressed_rows
 
 
 def _shape_form_cells(
@@ -6997,7 +7006,7 @@ def _label_facts(
     n_folded: int,
 ) -> LabelFacts:
     """A constant or a binary column (contract 6.4 and 6.5)."""
-    entries, suppressed, rows, sizes = _levels(
+    entries, suppressed, rows = _levels(
         mapping, where, floor, n_present, n_folded
     )
     wanted = 1 if role == ROLE_CONSTANT else 2
@@ -7016,7 +7025,6 @@ def _label_facts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
-        suppressed_level_counts=sizes,
         shape_forms=_shape_forms(mapping, where, floor),
     )
 
@@ -7050,14 +7058,13 @@ def _compound_label_facts(
     and then by the long-tail rule for having no level on eleven rows.
     Both refusals were about roles this half does not have.
     """
-    entries, suppressed, rows, sizes = _levels(
+    entries, suppressed, rows = _levels(
         mapping, where, floor, n_present, n_folded, True
     )
     return LongTailFacts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
-        suppressed_level_counts=sizes,
         shape_forms=_shape_forms(mapping, where, floor, False, False),
     )
 
@@ -7081,7 +7088,7 @@ def _long_tail_facts(
     larger. A document whose every level falls below that line
     describes a column this rule would not have claimed.
     """
-    entries, suppressed, rows, sizes = _levels(
+    entries, suppressed, rows = _levels(
         mapping, where, floor, n_present, n_folded
     )
     line = LONG_TAIL_LINE
@@ -7128,7 +7135,6 @@ def _long_tail_facts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
-        suppressed_level_counts=sizes,
         shape_forms=_shape_forms(mapping, where, floor),
     )
 
@@ -7141,7 +7147,7 @@ def _categorical_facts(
     n_folded: int,
 ) -> CategoricalFacts:
     """A column of categories (contract 6.6.1)."""
-    entries, suppressed, rows, sizes = _levels(
+    entries, suppressed, rows = _levels(
         mapping, where, floor, n_present, n_folded
     )
     ceiling = _whole(mapping["level_ceiling"], "level_ceiling", where, 1)
@@ -7159,7 +7165,6 @@ def _categorical_facts(
         levels=entries,
         suppressed_levels=suppressed,
         suppressed_rows=rows,
-        suppressed_level_counts=sizes,
         shape_forms=_shape_forms(mapping, where, floor),
         level_ceiling=ceiling,
     )
@@ -12014,9 +12019,10 @@ def _cross_checks(
 # that range is empty. Everything a description writes into that half
 # therefore has to be empty too. There are five ways to write into it,
 # and three of them were already refused by the rule that governs them:
-# B5 reads `suppressed_level_counts` against the range, `_multiplicity`
-# reads `variants_withheld`'s keys against it, and B4 ties
-# `suppressed_levels` and `suppressed_rows` to the sizes. The other two
+# B4 bounds `suppressed_rows` by `suppressed_levels` times one less than
+# the floor and from below by `suppressed_levels` (a pooled total since
+# the owner's ruling of 2026-09-17, plan P4-D201), `_multiplicity`
+# reads `variants_withheld`'s keys against the range. The other two
 # were refused nowhere until amendment A-P3-16, and they are what this
 # section adds.
 #

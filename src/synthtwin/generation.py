@@ -16729,6 +16729,244 @@ def _pin_offset(
 # -- columns of labels (method G8) ------------------------------------
 
 
+def held_back_sizes(
+    held_back: int,
+    rows: int,
+    floor: int,
+    debts: "tuple[int, ...]" = (),
+    words: "tuple[int, ...]" = (),
+) -> "tuple[int, ...]":
+    """How many rows each invented held-back label covers (method G8.3).
+
+    OWNER RULING OF 2026-09-17, ITEM 2, OPTION A (plan P4-D201). A label
+    column publishes how many labels the floor held back and how many
+    rows they covered together, and no size of any one of them. So the
+    sizes the twin writes are a fixed rule of those two, the floor, and
+    the DEBTS the published facts leave the held-back cells to pay:
+    ``debts``, each a count of cells a numeric class or one of its forms
+    still owes, and ``words``, each a count a form reading as no number
+    owes, the last being the cells left over (`_held_back_debts`).
+
+    1. Each debt takes the fewest labels that pay it with every label
+       below the floor: its cells over one less than the floor, rounded
+       up. Where the debts do not come to ``rows``, or need more labels
+       than were held back, the pool is one word debt instead.
+    2. The labels left over are handed out one at a time, each to the
+       debt whose labels are then the largest on average, the earlier
+       debt on a tie, in four rounds: a NUMBER debt until its average
+       is no more than `(cap + 2) / 3`, the average of the rising sizes
+       of step 3, ``cap`` being one less than the floor; then a word
+       FORM's debt until it has a label per cell; then the cells owing
+       no form, the same; then any debt, a label per cell at most.
+    3. Each debt's cells are shared out over its labels by `_ramp`:
+       one row each, the rest in proportion to the square of each
+       label's place, so the sizes rise from one row toward the floor.
+
+    WHY EACH STEP. The debts are what let G8.3a's class split and the
+    form walk settle every published count exactly: written ones first,
+    `1, 1, 1, 1, 18`, amounts given beside `PRN` and `held` at a floor
+    of twenty owed fourteen cells of `%.%` that no set of the sizes made,
+    and the twin missed `%.%` at 38 against 34. A number's labels stop at
+    the ramp's own average because the walk sets the largest groups
+    nearest the published numbers and steps outward one value per label:
+    shared evenly with the words, 232 labels of one or two rows walked
+    integers beside comments out to 2.22 times the table's spread; given
+    the words first, 63 labels held it at 0.69; at the ramp's average it
+    is 0.87, the table's own sizes having given 0.91. A word held back
+    below the floor is written by one row where the pool allows, which is
+    the long tail's own shape. And the ramp puts many small labels
+    beside a few near the floor, which kept readings at a floor of twenty
+    at 1.06 of the table's spread where an even share gave 1.48. A
+    form's cells take their labels before the cells owing no form
+    because a column of more held-back labels than `_shared_out` will
+    search is settled by its one-pass walk, which hands out the largest
+    labels first and overshoots a debt it cannot finish in ones: codes
+    of figures, a hyphen and capitals at a floor of twenty missed two
+    forms by a cell each while every debt shared the labels evenly.
+
+    So every invented label stays below the floor -- the loader's B4
+    refuses a pool too large for that -- and the answer rises.
+
+    Guarantees:
+
+    - Inputs: the held-back label count, their pooled rows, the settings
+      floor, and the two tuples of debts `_held_back_debts` gives.
+    - Determinism: a fixed function of the five.
+    - Errors raised: none. No I/O.
+    - Boundary: the answer has ``held_back`` entries summing to
+      ``rows``, each at least one and below the floor wherever B4 holds;
+      an empty pool gives an empty answer.
+    """
+    if held_back <= 0:
+        return ()
+    cap = floor - 1
+    if cap < 1:
+        cap = 1
+    numbers = [debt for debt in debts if debt > 0]
+    buckets = numbers + [debt for debt in words if debt > 0]
+    total = 0
+    for debt in buckets:
+        total = total + debt
+    labels = [0 - ((0 - debt) // cap) for debt in buckets]
+    needed = 0
+    for count in labels:
+        needed = needed + count
+    first = len(numbers)
+    # THE CELLS OWING NO FORM are the last word debt, where there are any.
+    rest = -1
+    if words and words[len(words) - 1] > 0:
+        rest = len(buckets) - 1
+    if total != rows or needed > held_back or not buckets:
+        buckets = [rows]
+        labels = [0 - ((0 - rows) // cap)]
+        needed = labels[0]
+        first = 0
+        rest = 0
+    # A NUMBER DEBT TAKES LABELS DOWN TO THE AVERAGE ITS RAMP HAS: sizes
+    # rising from one row to one below the floor as the square of their
+    # place average a third of the way up, `(cap + 2) / 3`.
+    reach = [labels[place] for place in range(len(buckets))]
+    for place in range(first):
+        reach[place] = 0 - ((0 - 3 * buckets[place]) // (cap + 2))
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    # ...A FORM OF WORDS THEN TAKES ONE LABEL PER CELL, and what is still
+    # left goes to every debt, the cells owing no form among them, one
+    # label per cell at most.
+    for place in range(first, len(buckets)):
+        if place != rest:
+            reach[place] = buckets[place]
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    if rest >= 0:
+        reach[rest] = buckets[rest]
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    needed = _labels_given(buckets, labels, buckets, needed, held_back)
+    sizes: "list[int]" = []
+    for place in range(len(buckets)):
+        if labels[place] >= 1:
+            sizes += _ramp(buckets[place], labels[place], cap)
+    return tuple(sorted(sizes))
+
+
+def _labels_given(
+    buckets: "list[int]",
+    labels: "list[int]",
+    reach: "list[int]",
+    needed: int,
+    held_back: int,
+) -> int:
+    """Labels handed one at a time to the debt largest on average.
+
+    Only a debt still under its ``reach`` takes one, the earlier debt on a
+    tie; ``labels`` is updated in place, and the new count is returned.
+    """
+    while needed < held_back:
+        best = -1
+        for place in range(len(buckets)):
+            if labels[place] >= reach[place]:
+                continue
+            if best < 0 or (
+                buckets[place] * labels[best] > buckets[best] * labels[place]
+            ):
+                best = place
+        if best < 0:
+            return needed
+        labels[best] = labels[best] + 1
+        needed = needed + 1
+    return needed
+
+
+def _ramp(cells: int, count: int, cap: int) -> "list[int]":
+    """``cells`` shared over ``count`` labels rising from one row.
+
+    Every label holds one row; what is left is shared in proportion to
+    the square of the label's place, one to ``count``, the whole rows a
+    remainder leaves going to the largest remainders (the later place on
+    a tie); and a label past ``cap`` gives what it holds past it to the
+    label before it, from the last one down. The answer rises and stays
+    at or below ``cap`` wherever ``cells`` is at most ``count`` times
+    ``cap``.
+    """
+    spare = cells - count
+    weights = [(place + 1) * (place + 1) for place in range(count)]
+    weight = 0
+    for each in weights:
+        weight = weight + each
+    sizes = [1 + spare * weights[place] // weight for place in range(count)]
+    given = 0
+    for size in sizes:
+        given = given + size
+    left = cells - given
+    ranked = sorted(
+        [
+            (0 - (spare * weights[place]) % weight, 0 - place)
+            for place in range(count)
+        ]
+    )
+    for step in range(left):
+        chosen = 0 - ranked[step][1]
+        sizes[chosen] = sizes[chosen] + 1
+    for place in range(count - 1, 0, -1):
+        if sizes[place] > cap:
+            sizes[place - 1] = sizes[place - 1] + sizes[place] - cap
+            sizes[place] = cap
+    return sizes
+
+
+def _held_back_debts(
+    owing: "dict[str, int]",
+    debts: "dict[str, int]",
+    rows: int,
+    decimal_comma: bool,
+) -> "tuple[tuple[int, ...], tuple[int, ...]]":
+    """What the held-back cells owe, one debt at a time (plan P4-D201).
+
+    The order `held_back_sizes` reads: for each numeric class in the
+    order G8.3a settles them, each census form reading as that class,
+    by the form's own spelling, at most what the class still owes, then
+    what the class owes wearing no named form; then each census form
+    reading as no number, by its spelling; then the cells left over.
+    Every count is one the description publishes or one the published
+    spellings leave (`_classes_owed`, `_forms_owed`), so the answer is a
+    function of the description alone.
+
+    Guarantees: accepts the form debts, the class debts, the pooled rows
+    and the column's decimal mark; returns counts of nought or more, in
+    the order stated. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    found: "list[int]" = []
+    wordy: "list[int]" = []
+    spent = 0
+    for name in _OWED_CLASSES:
+        owed = debts[name]
+        if owed <= 0:
+            continue
+        reads_as = _owed_reading(name)
+        left = owed
+        for form in sorted(owing):
+            if owing[form] <= 0 or left <= 0:
+                continue
+            if _form_reading(form, decimal_comma) != reads_as:
+                continue
+            part = owing[form]
+            if part > left:
+                part = left
+            found += [part]
+            left = left - part
+        if left > 0:
+            found += [left]
+        spent = spent + owed
+    for form in sorted(owing):
+        if owing[form] <= 0:
+            continue
+        if _form_reading(form, decimal_comma) != parsing.NOT_A_NUMBER:
+            continue
+        wordy += [owing[form]]
+        spent = spent + owing[form]
+    wordy += [rows - spent]
+    return tuple(found), tuple(wordy)
+
+
 def _label_content(
     plan: "_ColumnPlan",
     short: "list[int] | None" = None,
@@ -16848,7 +17086,9 @@ def _label_content(
     # groups, which before this rule were all written as words -- so a
     # column of readings beside two labels lost every held-back reading
     # and code parsing its numbers crashed on the twin.
-    sizes = facts.suppressed_level_counts
+    # THE SIZES ARE READ OFF THE POOL (owner ruling of 2026-09-17, item
+    # 2, option A; plan P4-D201), because no size of any one held-back
+    # label is published any more.
     # EVERY ABSENT SPELLING OF THE TABLE, not only this column's
     # (integration repair of landing 2b.4). A made-up number is refused on
     # a spelling the profiler reads as absent, and `--missing-value 5`
@@ -16858,6 +17098,16 @@ def _label_content(
     holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
+    numbers_owed, words_owed = _held_back_debts(
+        owing, debts, facts.suppressed_rows, comma
+    )
+    sizes = held_back_sizes(
+        facts.suppressed_levels,
+        facts.suppressed_rows,
+        plan.small_cell_floor,
+        numbers_owed,
+        words_owed,
+    )
     # ASKED WHILE `cells` HOLDS THE PUBLISHED SPELLINGS ALONE, before any
     # stand-in joins them, so the answer is about what the DESCRIPTION
     # published and not about what the twin went on to write.
@@ -17741,7 +17991,7 @@ def _shared_out(
     taken instead and the twin's own report names whatever it missed.
 
     The search is a function of the description alone -- the sizes come
-    from `suppressed_level_counts`, the debts from the census and the
+    from `held_back_sizes` over the pooled total, the debts from the census and the
     cells already written -- so two implementations reading one
     document reach the same arrangement.
     """
@@ -19110,11 +19360,13 @@ _CLASS_SUPPLY_REASON = (
 # carried.
 _HELD_BACK_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels."
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one."
 )
 _HELD_BACK_NUMBERS_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place, stepped "
     "outward from the smallest and the largest number this column "
     "published, at as many decimal places as those numbers were "
@@ -19124,7 +19376,8 @@ _HELD_BACK_NUMBERS_REASON = (
 )
 _HELD_BACK_UNPLACED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place -- but "
     "this column published no number at all, so nothing in the "
     "description says where they lie: they count upward from the "
@@ -19158,7 +19411,8 @@ _HELD_BACK_UNPLACED_REASON = (
 # still worked out from the published numbers alone.
 _HELD_BACK_UNSPELLED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place -- but "
     "every number this column published is written in a way this "
     "version cannot step from, such as an exponent, a grouping mark "

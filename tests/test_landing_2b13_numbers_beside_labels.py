@@ -413,10 +413,11 @@ def test_a_held_back_levels_own_spelling_is_nowhere_in_the_description(
     SPELLINGS be added to the stand-in refusal set, so that no twin
     cell could ever be spelled as one. They cannot be: the description
     does not carry them, which is what the floor is for. What it does
-    carry is `suppressed_level_counts` -- the COUNTS, `5.2`'s four
-    among them -- so a twin group is the size of a real one by
-    construction while its spelling is invented by arithmetic on the
-    published anchors.
+    carry, since the owner's ruling of 2026-09-17 (plan P4-D201), is the
+    POOL -- how many levels were held back and the rows they covered
+    together -- so neither `5.2`'s spelling nor its four rows are
+    anywhere in it, and a twin group's size is read off the pool while
+    its spelling is invented by arithmetic on the published anchors.
 
     Pinned here because the asymmetry is the whole disclosure argument:
     a later change that began publishing a withheld spelling would
@@ -435,5 +436,6 @@ def test_a_held_back_levels_own_spelling_is_nowhere_in_the_description(
     for spelling in ("5.2", "retest", "hold"):
         assert f'"{spelling}"' not in document, spelling
 
-    # The counts, and only the counts.
-    assert sorted(first["suppressed_level_counts"]) == [1, 2, 3, 4]
+    # The pool, and only the pool.
+    assert "suppressed_level_counts" not in first
+    assert (first["suppressed_levels"], first["suppressed_rows"]) == (4, 10)

@@ -5554,7 +5554,11 @@ def published_level_shape(column):
 
 # The held-back sizes and the named form's debt of the frozen case
 # `level_shape_stand_ins`: five groups of four rows and forty single rows,
-# of which the census owes thirty-four to `@@@@-@@`.
+# of which the census owes thirty-four to `@@@@-@@`. Since the owner's
+# ruling of 2026-09-17 (plan P4-D201) the column publishes only their
+# number and their pooled sixty rows, so the twin writes them at the sizes
+# G8.3 reads off the pool and its debts: thirty-seven single rows, four of
+# two, two of three, one of four and one of five.
 LEVEL_SHAPE_SIZES = (1,) * 40 + (4,) * 5
 LEVEL_SHAPE_DEBT = 34
 LEVEL_SHAPE_ROWS = 11 + sum(LEVEL_SHAPE_SIZES)
@@ -5654,6 +5658,120 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
     return arranged, {place for _size, place in owed[:supply]}
 
 
+def held_back_debts(column, written, census):
+    """What the held-back cells owe, as method G8.3 orders it (P4-D201).
+
+    Two lists.  The first: for each numeric class in G8.3a's order, what
+    each census form reading as that class still owes, by the form's
+    spelling and never past the class's own debt, then what the class
+    owes beyond its forms.  The second: what each census form reading as
+    text still owes, by spelling, then every cell left over.
+    """
+    classes = classes_owed(column, written)
+    owing = forms_owed(census or {}, written)
+    numbers, words = [], []
+    spent = 0
+    for name in OWED_CLASSES:
+        if classes[name] <= 0:
+            continue
+        left = classes[name]
+        for form in sorted(owing):
+            if owing[form] > 0 and left > 0 and form_reading(form) == owed_reading(name):
+                part = min(owing[form], left)
+                numbers.append(part)
+                left -= part
+        if left > 0:
+            numbers.append(left)
+        spent += classes[name]
+    for form in sorted(owing):
+        if owing[form] > 0 and form_reading(form) == NOTATION_TEXT:
+            words.append(owing[form])
+            spent += owing[form]
+    words.append(column["suppressed_rows"] - spent)
+    return numbers, words
+
+
+def rising_share(cells, count, top):
+    """``cells`` over ``count`` labels, one row each and the rest by the
+    square of each label's place (largest remainders first, the later
+    place on a tie), any label past ``top`` passing its excess down."""
+    spare = cells - count
+    weights = [(place + 1) ** 2 for place in range(count)]
+    whole = sum(weights)
+    shares = [1 + spare * weight // whole for weight in weights]
+    order = sorted(
+        range(count), key=lambda place: (-(spare * weights[place] % whole), -place)
+    )
+    for place in order[: cells - sum(shares)]:
+        shares[place] += 1
+    for place in range(count - 1, 0, -1):
+        if shares[place] > top:
+            shares[place - 1] += shares[place] - top
+            shares[place] = top
+    return shares
+
+
+def held_back_sizes(held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR):
+    """The rows of each invented held-back label -- method G8.3's sizes.
+
+    Written from the rule's statement (owner ruling of 2026-09-17, item 2,
+    option A; plan P4-D201), not from the product.  Each debt first takes
+    the fewest labels that pay it below the floor (a pool whose debts do
+    not come to its rows, or need more labels than it holds, is one
+    debt); the labels left over go one by one to the debt then largest
+    on average, the earlier on a tie -- a number debt while its average
+    exceeds a third of the way from one to the floor, then a text form's
+    debt up to a label a cell, then the cells owing no form (the last
+    word debt) likewise, then any debt up to a label a cell; and each
+    debt's cells are shared by ``rising_share``.
+    """
+    if held_back == 0:
+        return []
+    top = max(floor - 1, 1)
+    debts = [debt for debt in numbers if debt > 0] + [debt for debt in words if debt > 0]
+    count_numbers = len([debt for debt in numbers if debt > 0])
+    labels = [math.ceil(fractions.Fraction(debt, top)) for debt in debts]
+    unformed = len(debts) - 1 if words and words[-1] > 0 else None
+    if sum(debts) != rows or sum(labels) > held_back or not debts:
+        debts = [rows]
+        labels = [math.ceil(fractions.Fraction(rows, top))]
+        count_numbers = 0
+        unformed = 0
+
+    def hand_out(limits):
+        while sum(labels) < held_back:
+            open_debts = [place for place in range(len(debts)) if labels[place] < limits[place]]
+            if not open_debts:
+                return
+            best = open_debts[0]
+            for place in open_debts[1:]:
+                if fractions.Fraction(debts[place], labels[place]) > fractions.Fraction(debts[best], labels[best]):
+                    best = place
+            labels[best] += 1
+
+    limits = list(labels)
+    for place in range(count_numbers):
+        limits[place] = math.ceil(fractions.Fraction(3 * debts[place], top + 2))
+    hand_out(limits)
+    for place in range(count_numbers, len(debts)):
+        if place != unformed:
+            limits[place] = debts[place]
+    hand_out(limits)
+    if unformed is not None:
+        limits[unformed] = debts[unformed]
+    hand_out(limits)
+    hand_out(debts)
+    sizes = []
+    for place in range(len(debts)):
+        sizes += rising_share(debts[place], labels[place], top)
+    if len(sizes) != held_back or sum(sizes) != rows or max(sizes) > top:
+        raise AssertionError(
+            f"a pool of {rows} rows cannot be written as {held_back} labels "
+            f"below a floor of {floor}"
+        )
+    return sorted(sizes)
+
+
 def _label_content(column):
     """The content list of a label column -- method sections G8.1 and G8.4."""
     content = []
@@ -5686,8 +5804,11 @@ def _label_content(column):
                     spelling = invented_variant(level["label"], used, target)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
-    sizes = column["suppressed_level_counts"]
     census = column.get("shape_forms")
+    numbers_owed, words_owed = held_back_debts(column, content, census)
+    sizes = held_back_sizes(
+        column["suppressed_levels"], column["suppressed_rows"], numbers_owed, words_owed
+    )
     # THE CLASSES THE HELD-BACK LEVELS OWE (method G8.3a) are settled
     # before any word is: where the published spellings leave a numeric
     # class count unpaid, those levels are written as numbers first.
@@ -11744,7 +11865,7 @@ def _label_variants():
             },
         ],
         suppressed_levels=2, suppressed_rows=10,
-        suppressed_level_counts=[3, 7], level_ceiling=20,
+        level_ceiling=20,
         # The forms this column's cells were written in (P4-D18). The
         # published and made-up variants would cover 26 cells were the
         # labels shaped like codes; they are words, so the census here
@@ -11760,8 +11881,8 @@ def _label_variants():
         "spellings already cover; the case flips of G8.2 with a candidate "
         "skipped because a published variant already spells it; the "
         "trailing-space family a parent with no letters falls straight "
-        "through to; and the neutral stand-in labels of G8.3 at their "
-        "published sizes, this column publishing no census of written forms. "
+        "through to; and the neutral stand-in labels of G8.3 at the "
+        "sizes read off their pooled total (plan P4-D201), this column publishing no census of written forms. "
         "A label column consumes no content word, so every byte here is "
         "fixed by published counts.",
         "column": column,
@@ -11841,7 +11962,6 @@ def _long_tail_levels():
         # ceiling it passed is recorded in its evidence sentence
         # instead. Writing it here was the first thing the loader
         # refused, and rightly.
-        suppressed_level_counts=[1] * 11 + [2] * 9,
         # THE FORM CENSUS IS WHAT LETS THE STAND-INS BE WORDS (P4-D18).
         # Without it the twenty suppressed levels take the neutral
         # labels of G8.3, which carry a figure -- and a candidate that
@@ -11877,7 +11997,7 @@ def _long_tail_levels():
         "other twenty cover one or two rows each and are held back. "
         "The case flips of G8.2 answer the one level carrying a "
         "published variant, and the twenty suppressed levels take the "
-        "neutral stand-ins of G8.3 at their published sizes -- as "
+        "neutral stand-ins of G8.3 at the sizes read off their pooled total -- as "
         "words rather than as numbered labels, because the form census "
         "names a letters-and-hyphen form for all twenty-nine held-back "
         "rows. A label column consumes no content word, so every byte "
@@ -12222,6 +12342,55 @@ def _free_text_joint():
     }
 
 
+def _pooled_level_sizes():
+    """Method G8.3's sizes read off a pooled total (plan P4-D201).
+
+    Owner ruling of 2026-09-17, item 2, option A: a label column publishes
+    how many labels the floor held back and the rows they covered
+    together, and no size of any one of them.  Five labels on twenty-one
+    rows at a floor of eleven, all owed to the one form the census names,
+    take the three labels that pay twenty-one below the floor and then two
+    more, one to a cell at most, and the rows are shared one each and the
+    rest by the square of each label's place: `1, 2, 4, 6, 8`.
+    """
+    column = _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        n_present=54, n_missing=0, n_distinct=7, n_distinct_folded=7,
+        n_numeric=0, n_not_numeric=54, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            # Letters alone carry no written form (a form carries two of
+            # the three kinds), so both levels carry nought, as W8 asks.
+            {
+                "label": "alpha", "count": 22,
+                "variants": {"Alpha": 22}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+            {
+                "label": "beta", "count": 11,
+                "variants": {"beta": 11}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+        ],
+        suppressed_levels=5, suppressed_rows=21, level_ceiling=20,
+        # The held-back cells wore one form of letters and a hyphen, so the
+        # stand-ins are words of that form and no figure reaches them.
+        shape_forms={"@@@@-@@": 21},
+    )
+    return {
+        "why": "the sizes of the held-back labels read off their pooled total "
+        "(method G8.3, plan P4-D201, owner ruling of 2026-09-17): five labels "
+        "on twenty-one rows at a floor of eleven, one row each and the rest "
+        "shared by the square of each label's place, so the stand-ins, "
+        "written in the one form the census names, cover 1, 2, 4, 6 and 8 "
+        "rows. "
+        "Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the "
+        "stand-ins' rows move. A label column consumes no content word.",
+        "column": column,
+        "rows": 54,
+        "identifier_declared": False,
+    }
+
+
 def _numbers_carry_the_average():
     """What the walk could not spend goes to the numbers (plan P4-D190).
 
@@ -12290,18 +12459,22 @@ def _label_numbers():
     on twenty-nine cells and `@@-@@` on thirteen, and pools the two
     cells of `12.5` under the withheld key.
 
+    SINCE THE OWNER'S RULING OF 2026-09-17 (plan P4-D201) the description
+    publishes those four levels as a pool of ten rows and no size of any
+    one, and G8.3 reads the sizes off the pool and its debts: nine
+    numbers, seven of them `%.%`, and one word, written `1, 2, 2, 5`.
     What each rule of G8.3a does here, in order:
 
-    - the class split: nine is `4 + 3 + 2`, read off the reachable sums
+    - the class split: nine is `5 + 2 + 2`, read off the reachable sums
       largest first, so the level of one row stays a word;
     - the forms inside the number class: `%.%` still owes seven, which
-      is `4 + 3`, so the level of two wears no named form;
+      is `5 + 2`, so one level of two wears no named form;
     - the gap: `5.2` is the one value strictly between the published
       numbers that no published number holds, and the largest level
       takes it; the next takes the first outward step, `5.0`;
     - a number wearing no named form: every value of one figure, a point
       and a figure wears `%.%`, which the census names, so the level of
-      two walks the ladder up to `10.0`;
+      two wearing none walks the ladder up to `10.0`;
     - the word: `@@-@@` owes one cell, and the level of one row takes
       that form's first spelling, `AA-AA`.
     """
@@ -12327,16 +12500,18 @@ def _label_numbers():
             },
         ],
         suppressed_levels=4, suppressed_rows=10,
-        suppressed_level_counts=[1, 2, 3, 4], level_ceiling=20,
+        level_ceiling=20,
         shape_forms={"%.%": 29, "@@-@@": 13, "(withheld)": 2},
     )
     return {
         "why": "the class debt of G8.3a: a held-back level that was a number "
         "is written as a number. The published spellings pay twenty-two of "
-        "the thirty-one numbers; the four held-back levels owe nine, which "
-        "the sizes four, three and two make exactly, so the level of one row "
-        "stays a word. Inside the number class `%.%` still owes seven, which "
-        "four and three make, so the level of two wears no named form. The "
+        "the thirty-one numbers; the four held-back levels, published as a "
+        "pool of ten rows (plan P4-D201), owe nine, and the sizes G8.3 reads "
+        "off the pool and its debts, one, two, two and five, make nine as "
+        "five, two and two, so the level of one row stays a word. Inside the "
+        "number class `%.%` still owes seven, which five and two make, so "
+        "one level of two wears no named form. The "
         "numbers come from the published ones: the one value strictly "
         "between them that none holds, `5.2`, goes to the largest level, "
         "the first step outward, `5.0`, to the next, and the level wearing "
@@ -12349,6 +12524,7 @@ def _label_numbers():
     }
 
 
+
 def _label_number_tiers():
     """What the census could hold, and the places a number may take (G8.3a).
 
@@ -12358,13 +12534,16 @@ def _label_number_tiers():
     each; and four held-back levels of one, two, three and four rows,
     which the source it stands for wrote `xy-zw`, `6`, `5.0` and `5.2`.
     The census names `%.%` on twenty-nine cells and `@@-@@` on thirteen
-    and pools nothing: the whole numbers wear no form.
+    and pools nothing: the whole numbers wear no form. Since the owner's
+    ruling of 2026-09-17 (plan P4-D201) the four levels are published as a
+    pool of ten rows, and G8.3 reads their sizes off it and its debts:
+    `1, 2, 2, 5`.
 
     - the class split: the published spellings pay thirty-three of the
-      forty-two numbers, and nine is `4 + 3 + 2`;
-    - the forms inside the number class: `%.%` owes seven, `4 + 3`, and
+      forty-two numbers, and nine is `5 + 2 + 2`;
+    - the forms inside the number class: `%.%` owes seven, `5 + 2`, and
       they take the gaps nearest each end, `5.2` and `6.9`;
-    - the level of two wears no named form. At one place every value it
+    - the other level of two wears no named form. At one place every value it
       could step to wears `%.%`, which the census names, until `10.0`,
       which wears `%%.%`: a form with room for a thousand cells, which
       the census would have counted and pooled -- and it pools nothing,
@@ -12400,14 +12579,16 @@ def _label_number_tiers():
             },
         ],
         suppressed_levels=4, suppressed_rows=10,
-        suppressed_level_counts=[1, 2, 3, 4], level_ceiling=20,
+        level_ceiling=20,
         shape_forms={"%.%": 29, "@@-@@": 13},
     )
     return {
         "why": "what the census could hold, and the places a number wearing no "
         "named form may take (G8.3a, landing 2b.4's repair). The held-back "
-        "levels owe nine numbers, `4 + 3 + 2`, and `%.%` owes seven of them, "
-        "`4 + 3`, which take the gaps `5.2` and `6.9`. The level of two wears "
+        "levels, a pool of ten rows whose sizes G8.3 reads as `1, 2, 2, 5` "
+        "(plan P4-D201), owe nine numbers, `5 + 2 + 2`, and `%.%` owes seven "
+        "of them, `5 + 2`, which take the gaps `5.2` and `6.9`. The other "
+        "level of two wears "
         "no named form: every one-place value it could step to wears the "
         "named `%.%` until `10.0`, whose form the census would have counted "
         "and pooled, and it pools nothing, so that side ends. The walk then "
@@ -12642,7 +12823,6 @@ def _lower_case_stand_ins():
             },
         ],
         suppressed_levels=20, suppressed_rows=29,
-        suppressed_level_counts=[1] * 11 + [2] * 9,
         # Fifty-one rows give a ceiling of twenty-five and twenty-two
         # values stand under it, so this column is a set of categories;
         # the census and the stand-in walk are the four label roles' own.
@@ -12690,7 +12870,6 @@ def _level_shape_stand_ins():
         ],
         suppressed_levels=len(LEVEL_SHAPE_SIZES),
         suppressed_rows=sum(LEVEL_SHAPE_SIZES),
-        suppressed_level_counts=list(LEVEL_SHAPE_SIZES),
         # THE CENSUS NAMES ONE FORM AND NOT THE SHAPE THE PUBLISHED LEVEL
         # WEARS. `a-` has fifty-two spellings to a profiler, fewer than the
         # column's different values and the floor, so the small-supply rule
@@ -17454,6 +17633,7 @@ THIRD_BRANCH_CASE_BUILDERS = {
 FOURTH_BRANCH_CASE_BUILDERS = {
     "grouped_thousands": _grouped_thousands,
     "numbers_carry_the_average": _numbers_carry_the_average,
+    "pooled_level_sizes": _pooled_level_sizes,
     "saturated_levels": _saturated_levels,
     "saturated_tenths": _saturated_tenths,
     "separated_in_order": _separated_in_order,
@@ -17584,7 +17764,8 @@ _FOURTH_BRANCH_ACCOUNT = (
     "published levels are its strata (plan P4-D178), the census of "
     "marks held at a thousand (plan P4-D185), and the numbers of a free-text "
     "column carrying what the walk of G9.5 step 5 could not spend (plan "
-    "P4-D190). They are computed by the same "
+    "P4-D190), and the sizes of the held-back labels read off their pooled "
+    "total (plan P4-D201, owner ruling of 2026-09-17). They are computed by the same "
     "oracle and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -17621,6 +17802,26 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "pooled_level_sizes": (
+        14503370031981946312, 10866797266022480803, 8287125103648255445,
+        11108705830317081577, 16333968570406870456, 10030759462676471524,
+        14139967319966187385, 8452089710054864625, 6709729794954378509,
+        6209031230569317548, 10616107825243607814, 17490282079299735511,
+        8201042098641689693, 16475121054896813466, 15947340541416902269,
+        17811804237383367440, 14348986573916741728, 914223630667449887,
+        1803977476998879168, 2470995526265008042, 6114870152074773036,
+        5014545139925030887, 10597310505843796866, 10269221740081601114,
+        7689241243174046839, 14168138758025302740, 16925239941123661715,
+        7620178991453369610, 9756488692190460251, 13308397254140816106,
+        10018343273389482918, 3251745803743674210, 11794400615492374491,
+        3930763003594469912, 16314861076756185012, 5708820582558523157,
+        1832331693607467705, 3789485779610978932, 10634189693522173346,
+        16591361099430093667, 8780048720305331841, 2746001561619615445,
+        14432653669150635819, 5763991315859282061, 15213806625919386031,
+        5419991622837870749, 2967813317392210345, 15554097204915943944,
+        3888979100133777966, 11092673691278721043, 4790282693615546005,
+        10723327437146037336, 2021117712388464576,
+    ),
     "numbers_carry_the_average": (
         10626364091995481622, 12324380702380665290, 10206021613485447140,
         3833008408733653600, 3279155949837417361, 9726853267425906631,
@@ -18795,7 +18996,7 @@ NUMERIC_PART_KEYS = frozenset({
     "n_distinct_values", "mode_count",
 })
 INTEGER_COLUMN_ARRAYS = frozenset({
-    "suppressed_level_counts", "part_min_widths", "part_above",
+    "part_min_widths", "part_above",
     # The bins holding no value (contract 7.11, plan P4-D32).  Bin
     # NUMBERS, ascending: whole numbers, never a measurement, so they
     # are certified as whole numbers exactly as the two arrays above

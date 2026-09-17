@@ -1590,9 +1590,11 @@ def settings_over_the_split(
     either the spelling is published, and it is unpinned here, or the
     column pools it and `_governed` takes that column's verdicts from
     the file's own description instead. The one place a pooled spelling
-    still reaches a number is the two presence COUNTS, which ask the
-    weaker publication question of A-P3-5 clause 1, and that residual is
-    stated at its size in the plan (R-P3-11) rather than papered over.
+    still reached a number was the two presence COUNTS, which ask the
+    weaker publication question of A-P3-5 clause 1 -- residual R-P3-11,
+    closed by the owner's ruling of 2026-09-17 (option A, plan P4-D200):
+    `_pooled_words_absent` counts the pooled words as holes up to the
+    published pool's total.
 
     WHAT IT COSTS, and it is R-P2-13's own shape on the FIRST class of
     marker -- the class the residual was written about. A twin holding a
@@ -7028,6 +7030,9 @@ def _obligations(
     split_published = _split_is_published(block)
     if _split_size_is_published(block):
         present, missing = _presence_over_the_split(split, cells)
+        present, missing = _pooled_words_absent(
+            column, block, cells, present, missing
+        )
     else:
         present, missing = _own_presence(block, cells)
     checks: list[Check] = []
@@ -8087,6 +8092,57 @@ def _presence_over_the_split(
     if present is None or missing is None:
         return _presence_of(cells)
     return present, missing
+
+
+def _pooled_words_absent(
+    column: contract.ColumnBlock,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    present: int,
+    missing: int,
+) -> "tuple[int, int]":
+    """Pooled missing-value words count as absent, up to the pool's total.
+
+    OWNER RULING OF 2026-09-17 ON RESIDUAL R-P3-11, OPTION A (plan
+    P4-D200, validation method V2.4-A4). Where the SUBMITTED column pools
+    hole spellings below a raised floor -- its `n_missing_withheld` is
+    above nought -- the cells the split reads as values and the file's
+    own description reads as holes are counted as holes, so the table the
+    description was written from holds both presence counts: 280 record
+    numbers beside ten `NA` and ten `N/A` at a floor of twenty were told
+    300 present and nought missing against their own 280 and 20.
+
+    THE GUARD THAT PROVED THE POOL HONEST NOW CHECKS ITS TOTAL. Counting
+    by blankness is what caught the round-2 witness -- a description of
+    EMPTY holes against a file spelling them `n/a` -- and the reason it
+    caught it is that the file wrote more non-blank holes than the
+    description pools, namely thirty against nought. So the disputed
+    cells count as holes only up to the published pool, and every one
+    past it counts as the value the split reads it as: a description
+    pooling nothing is measured exactly as before, and a file spelling
+    more holes than the pool holds misses both counts by the excess.
+
+    Guarantees:
+
+    - Inputs: the submitted column, the file's OWN description of it,
+      its written cells, and the two counts taken over the split.
+    - Determinism: a fixed function of those.
+    - Errors raised: none. No I/O.
+    - Boundary: where the pool is nought, or the file's own reading
+      counts no more holes than the split does, the split's counts are
+      returned unchanged.
+    """
+    pool = column.n_missing_withheld
+    if pool <= 0:
+        return present, missing
+    own_present, own_missing = _own_presence(block, cells)
+    disputed = present - own_present
+    if disputed <= 0 or own_missing - missing != disputed:
+        return present, missing
+    excess = disputed - pool
+    if excess < 0:
+        excess = 0
+    return own_present + excess, own_missing - excess
 
 
 def _presence_of(cells: "list[str]") -> "tuple[int, int]":
@@ -13542,6 +13598,10 @@ def _label_checks(
             _level_form_cells(name, level, entry, measured, floor),
         ]
     checks += [_level_set(name, published_keys, measured)]
+    # THE POOL IS HELD, AND ONLY THE POOL (owner ruling of 2026-09-17,
+    # item 2, option A; plan P4-D201). The size of each held-back label
+    # is published no more, so what a file owes about them is how many
+    # there are and how many rows they cover together -- both exactly.
     for field, published in (
         ("suppressed_levels", facts.suppressed_levels),
         ("suppressed_rows", facts.suppressed_rows),
@@ -13556,29 +13616,6 @@ def _label_checks(
                 None if found is None else _shown_count(found),
             )
         ]
-    counts = _counts_at(block, "suppressed_level_counts")
-    held_back = len(facts.suppressed_level_counts)
-    asked = (
-        "no label of this column is held back, so there is no row count "
-        "of one to carry"
-    )
-    if held_back:
-        asked = (
-            f"the rows covered by each of the {_shown_count(held_back)} "
-            f"label(s) this description holds back"
-        )
-    checks += [
-        _silent(
-            name,
-            "label.suppressed_level_counts",
-            "suppressed.counts",
-            asked,
-            None if counts is None else counts == list(
-                facts.suppressed_level_counts
-            ),
-            _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-        )
-    ]
     return checks
 
 
@@ -13646,25 +13683,6 @@ def _level_set(
         if key not in measured:
             same = False
     return _silent(name, fact, subcheck, shown, same, _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE)
-
-
-def _counts_at(
-    block: "dict[str, object]", key: str
-) -> "list[int] | None":
-    """One list of whole numbers out of a re-described block, or None."""
-    if key not in block:
-        return None
-    value = block[key]
-    if not isinstance(value, list):
-        return None
-    found: list[int] = []
-    for entry in value:
-        if isinstance(entry, bool):
-            return None
-        if not isinstance(entry, int):
-            return None
-        found += [entry]
-    return found
 
 
 def _level_count(

@@ -730,7 +730,12 @@ def test_label_counts_and_variants_are_recounted_exactly(
             if identity not in [entry.label for entry in facts.levels]
         ]
         assert len(held_back) == facts.suppressed_levels, column.name
-        assert sorted(held_back) == sorted(facts.suppressed_level_counts)
+        # The sizes are read off the pooled total (plan P4-D201): they
+        # cover its rows exactly, and every one stays below the floor.
+        assert sum(held_back) == facts.suppressed_rows, column.name
+        assert all(
+            size < every_role.settings.small_cell_floor for size in held_back
+        ), column.name
 
 
 def test_datetime_cells_carry_the_published_precision(

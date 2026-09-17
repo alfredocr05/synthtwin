@@ -396,10 +396,12 @@ THIRD_BRANCH_CASES = (
 # landing 2b added -- G6.5a's walks reach by reach (plan P4-D183), its two
 # fills of plans P4-D176 and P4-D178, the census of marks held at a
 # thousand (plan P4-D185), and the numbers of a free-text column carrying
-# the average (plan P4-D190). Sorted, like the tuples above.
+# the average (plan P4-D190), and the sizes of the held-back labels read
+# off their pooled total (plan P4-D201). Sorted, like the tuples above.
 FOURTH_BRANCH_CASES = (
     "grouped_thousands",
     "numbers_carry_the_average",
+    "pooled_level_sizes",
     "saturated_levels",
     "saturated_tenths",
     "separated_in_order",
@@ -479,6 +481,8 @@ SEEDS = {
     "grouped_thousands": 175,
     # Part 2 of the carried items takes 180 onward.
     "numbers_carry_the_average": 180,
+    # The owner's rulings of 2026-09-17 take 181 onward.
+    "pooled_level_sizes": 181,
     "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
@@ -1365,6 +1369,15 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
+def _pool_shared_evenly(held_back, rows, numbers, words, floor=11):
+    """G8.3's sizes with the pool shared out evenly, its debts unread."""
+    if held_back == 0:
+        return []
+    base = rows // held_back
+    extra = rows % held_back
+    return [base] * (held_back - extra) + [base + 1] * extra
+
+
 def _stratified_ranks(rungs, parsed, words):
     """G7.3's WITHDRAWN placement: one cell per rank in its own stratum.
 
@@ -2153,6 +2166,13 @@ CASE_MUTANTS = {
         "strata elsewhere",
         attribute="saturated_grid",
         replacement=_no_tenths_fill,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "pooled_level_sizes": Mutant(
+        branch="plan P4-D201's sizes read off a pooled total; the mutant "
+        "shares the pool out evenly, and the stand-ins' rows move",
+        attribute="held_back_sizes",
+        replacement=_pool_shared_evenly,
         outcome=CHANGES_THE_CELLS,
     ),
     "saturated_levels": Mutant(

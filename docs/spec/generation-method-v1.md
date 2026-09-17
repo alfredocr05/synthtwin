@@ -5457,9 +5457,44 @@ two bounds. The twin's own report names the shortfall.
 ### G8.3 Withheld levels
 
 `suppressed_levels` says how many levels were withheld and
-`suppressed_level_counts` gives their sizes as an anonymous multiset,
-in ascending order. One invented label is produced for each size and
-used exactly that many times.
+`suppressed_rows` how many rows they covered together. No size of any
+one of them is published (owner ruling of 2026-09-17, item 2, option A;
+plan P4-D201), so the sizes are a fixed rule of those two, the floor,
+and the DEBTS the published facts leave the held-back cells to pay.
+With `cap` one less than the floor:
+
+1. **The debts, in order.** For each numeric class in the order G8.3a
+   settles them, what each census form reading as that class still
+   owes, by the form's spelling and never past the class's own debt,
+   then what the class owes beyond its forms; then what each census form
+   reading as no number owes, by its spelling; then the cells left over.
+   The first group are NUMBER debts and the rest WORD debts.
+2. **The fewest labels.** Each debt takes its cells over `cap`, rounded
+   up. Where the debts do not come to `suppressed_rows`, or need more
+   labels than `suppressed_levels`, the pool is one word debt.
+3. **The labels left over** go one at a time to the debt whose labels
+   are then the largest on average, the earlier debt on a tie, in four
+   rounds: a number debt while its average exceeds `(cap + 2) / 3`, the
+   average of the sizes step 4 writes; then the debt of each census form
+   reading as no number, up to one label per cell; then the cells left
+   over, likewise; then any debt, one label per cell at most. A form's
+   debt comes before the cells owing no form because a column holding
+   more held-back labels than the form walk searches is settled by its
+   one-pass rule, which overshoots a debt it cannot finish in single
+   rows.
+4. **The rows of each debt** are shared over its labels: one row each,
+   the rest in proportion to the square of each label's place counted
+   from one, whole rows going to the largest remainders (the later place
+   on a tie), and a label past `cap` passing what it holds past it to
+   the label before it, from the last one down.
+
+So every invented label stays below the floor -- contract invariant B4
+refuses a pool too large for that -- every debt is paid by a set of the
+sizes that exists, and the sizes rise, in the order this section reads
+them. Five labels on twenty-one rows at a floor of eleven, all owed to
+one form, are `1, 2, 4, 6, 8`; frozen case `pooled_level_sizes` pins it.
+One invented label is produced for each size and used exactly that many
+times.
 
 **WHICH SIZE TAKES WHICH FORM IS SETTLED BEFORE ANY LABEL IS BUILT,
 and it is not the list's own order** (contract 7.9.1, review round 3
@@ -5504,8 +5539,8 @@ leading segment answer plausibly and wrongly.
   minus what those cells paid, counted over the twin's own cells. A
   walk taking its debt from the census alone writes every form twice
   over and misses every count it was built to meet.
-- **Each invented label covers its level's size**, which
-  `suppressed_level_counts` fixes, so the walk chooses only WHERE to
+- **Each invented label covers its level's size**, which the rule
+  above reads off the pooled total, so the walk chooses only WHERE to
   pay: the form owing the most cells, ties broken by the form's own
   spelling ascending.
 - **The form is filled from a counter**, never from a reading. Every
@@ -9667,7 +9702,7 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All seventy-five are required.** The count is taken off the committed
+**All seventy-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9681,7 +9716,7 @@ holds eighteen; the fourth,
 `tests/reference/generation-document-vectors.json`, holds eight; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
-five (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+six (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9703,7 +9738,7 @@ case passed, which is the failure the count exists to prevent:
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
-| `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over five groups of four rows and forty single rows. The stand-ins owed no form wear `&-` with the case kept, and one group of four trades with four single rows so the shape's supply covers every row owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
+| `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over forty-five held-back labels pooled on sixty rows, whose sizes G8.3 reads off the pool and its debts as thirty-seven single rows, four of two, two of three, one of four and one of five (plan P4-D201). The stand-ins owed no form wear `&-` with the case kept, and the group of five paying `@@@@-@@` trades with five single rows so the shape's supply covers every place owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
 | `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |
 | `identifier_layout_mixes` | G9.6's zero fill, space and MIXES (plans P4-D126 to P4-D128): a declared identifier of forty-seven nine-character cells publishing `{"!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14}`. The eleven fills are written `00` and seven figures, the next figure never a nought; the space stands as a mark; and the fourteen pooled cells are written to mixes of figures and capitals over the two places of `@%-------`, the first base in sorted order, whose mix `@%` is named and stepped over, so they are written `%%`, `%@` and `@@`. Nine characters wide because this oracle reads no date, and no date format is nine figures or four and four around a space. Its mutant withdraws the mixes and the fourteen cells move; withdrawing the fill or the space stops the oracle at the check of 7.12, and reading the named mix moves the cells |
 | `identifier_signed_layout` | G9.6's proven sign (plan P4-D156): a declared identifier of twelve signed whole numbers publishing `{"-%%%%": 12}`, every cell a minus and four figures. Its mutant refuses the sign and the check of 7.12 finds the layout worn nought times |
@@ -9737,12 +9772,13 @@ case passed, which is the failure the count exists to prevent:
 | `saturated_tenths` | G6.5a's fill of a saturated written grid (plan P4-D176): thirty-three readings at one place publishing twenty-two different numbers between the ends 0.1 and 2.2, which hold exactly twenty-two tenths, so the strata take those tenths in order, each once. Its mutant keeps the fill on the integers alone, and the cells move |
 | `saturated_levels` | G6.5a's fill of a column whose published levels are its strata (plan P4-D178): thirty-three readings at one place of the four levels 2.0, 3.2, 6.5 and 15.0, each named by two rungs or more, the mode 6.5, four different values published; the rungs name more than four numbers, so the levels are the numbers two rungs or more name with the ends and the mode, and the strata take them in order. Its mutant withdraws the fill and the walk writes `4.6` |
 | `separated_in_order` | G6.5a's walks taken reach by reach (plan P4-D183): `signed_pads` publishing eleven different values and twenty-two spellings, twenty-two strata over 100 to 110; every stratum is walked inside its own share first, so the thirteenth takes 105 inside its share. Its mutant takes the three reaches stratum by stratum, the tenth stratum walks out of its share onto 105, and the cells move |
+| `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
-| `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
-| `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
+| `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels pooled on ten rows owing nine numbers, whose sizes G8.3 reads off the pool and its debts as `1, 2, 2, 5` (plan P4-D201); the class split makes nine `5 + 2 + 2`; `%.%` settled inside the number class as `5 + 2`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
+| `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing, and held-back sizes read off the pool as `1, 2, 2, 5` (plan P4-D201); `%.%` settled as `5 + 2` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
 | `pooled_marks` | G7.5 step 2: twenty-four `local` moments to the minute, published with `datetime_separators: {"upper_t": 14, "(withheld)": 10}`, whose pool is split five and five over `space` and `lower_t`, the two marks the census leaves unnamed |
 | `slashed_pool` | G7.5 step 2's permitted marks and the `slashed-iso-datetime` member: ten year-first slashed stamps whose every mark is pooled, every one written with a space |
 | `midnight_mixed_forms` | G7.5's whole dates: twenty-four days at midnight read jointly, published with `resolution_mix: {"iso-date": 13, "iso-datetime": 11}` and `datetime_separators: {"space": 11}`, whose forms are spread by the rotation and whose marks fall on the clock-writing ranks alone |

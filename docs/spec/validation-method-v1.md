@@ -1069,7 +1069,20 @@ wearing that word, and it is the same exposure A-P3-29 took for a
 built-in word the person declared and A8 took for a stand-in number,
 said now about the one route those two left standing.
 
-**WHAT IS NOT CLOSED, at its size.** The two presence COUNTS are read
+**WHAT WAS NOT CLOSED, at its size, and is closed by the owner's ruling
+of 2026-09-17 (option A, plan P4-D200).** Where the SUBMITTED
+description's column pools hole spellings -- its `n_missing_withheld` is
+above nought -- the cells the blank split reads as values and the
+measured file's own description reads as holes count as holes, so the
+table the description was written from holds both presence counts. The
+guard that proved the pool honest now checks the pool's TOTAL: those
+cells count as holes only up to the published pool, and each one past it
+counts as the value the split reads it as. A description that pools
+nothing is therefore measured by blankness exactly as before, and the
+round-2 witness -- a description of EMPTY holes and a file spelling them
+`n/a` -- is still missed; so is a file spelling more holes than the pool
+holds. The text below is the residual as it stood until that ruling.
+The two presence COUNTS are read
 over the weaker publication of V2.4-A3's second half — `missing_by_class`
 says how many holes are non-blank without saying what they spell — so a
 column whose non-blank holes are pooled below the floor still has those
