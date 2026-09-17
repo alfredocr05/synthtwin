@@ -336,7 +336,10 @@ def test_a_copy_that_drops_the_spelling_is_missed(
 
 def test_a_small_file_is_withheld_and_not_missed(tmp_path: pathlib.Path) -> None:
     """Too few four-figure numbers to show a mark at the group size: WITHHELD, exit 0."""
-    cells = ["1,040.16", "1,091.80", "801.65", "766.75", "229.49",
+    # ONE READING AT ONE PLACE, so the column is on no single grid and plan
+    # P4-D185's move across a thousand -- which would give the twin two
+    # grouped cells, enough to show the mark -- does not reach it.
+    cells = ["1,040.16", "1,091.80", "801.65", "766.75", "229.5",
              "540.78", "283.64", "180.77", "115.02", "222.04"]
     first, second, _written, _twin_exit, real_exit = _round_trip(
         tmp_path / "small", cells, ("--smallest-group", "2"), True

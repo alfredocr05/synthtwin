@@ -6,7 +6,10 @@ import pytest
 
 from tests.test_stage2_round_trip import _round_trip
 
-SMALL = ["1,040.16", "1,091.80", "801.65", "766.75", "229.49",
+# ONE CELL IS WRITTEN AT ONE PLACE, so the column is on no single grid
+# and plan P4-D185's move of a stratum across a thousand does not reach it:
+# that move keeps the mark these tests need lost.
+SMALL = ["1,040.16", "1,091.80", "801.65", "766.75", "229.5",
          "540.78", "283.64", "180.77", "115.02", "222.04"]
 
 
@@ -52,7 +55,9 @@ def test_the_numbers_beside_labels_too_small_to_prove_their_mark_say_so(
     tmp_path: pathlib.Path,
 ) -> None:
     folder = tmp_path / "compound"
-    cells = [f"{100 + 47.3 * i:.2f}" for i in range(18)] + ["1,040.16", "1,091.80"] + ["pending"] * 5
+    # ONE NEGATIVE READING, so plan P4-D185's move across a thousand, which
+    # would keep the mark this test needs lost, does not reach the column.
+    cells = [f"{100 + 47.3 * i:.2f}" for i in range(17)] + ["-3.25"] + ["1,040.16", "1,091.80"] + ["pending"] * 5
     first, second, _written, _t, _r = _round_trip(
         folder, cells, ("--smallest-group", "2"), False, seed="1"
     )

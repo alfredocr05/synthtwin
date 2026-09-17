@@ -9517,16 +9517,19 @@ def _grouped_enough(
         for place in range(total):
             if values[place] < 1000.0:
                 top = place
-        run: list[int] = []
+        downward: list[int] = []
         place = top
         while wanted > 0 and 0 < place < total - 1:
             if held[texts[place]] != 1 or layout.bands[place] != _BAND_POSITIVE:
                 break
             if layout.sizes[place] > wanted:
                 break
-            run = [place] + run
+            downward += [place]
             wanted = wanted - layout.sizes[place]
             place = place - 1
+        run: list[int] = []
+        for step in range(len(downward) - 1, -1, -1):
+            run += [downward[step]]
         if not run:
             return values
         ceiling = values[run[-1] + 1] if run[-1] + 1 < total else None
@@ -9548,7 +9551,7 @@ def _grouped_enough(
                 break
             if layout.sizes[place] > wanted:
                 break
-            run = run + [place]
+            run += [place]
             wanted = wanted - layout.sizes[place]
             place = place + 1
         if not run:
