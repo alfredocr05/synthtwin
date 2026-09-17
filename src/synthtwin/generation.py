@@ -24217,6 +24217,10 @@ def _text_plan(
                 lengths, counts, notes = _text_shape(
                     column, facts, groups, carriers, fixed, worded
                 )
+                lengths = _numbers_walked(
+                    column, facts, groups, lengths, kinds, bands, carriers,
+                    fixed,
+                )
                 if reach:
                     lengths = _lengthened(
                         facts, lengths, counts, together, carriers
@@ -24241,7 +24245,118 @@ def _text_plan(
         lengths, counts, notes = _text_shape(
             column, facts, groups, carriers, fixed, worded
         )
+        lengths = _numbers_walked(
+            column, facts, groups, lengths, kinds, bands, carriers, fixed
+        )
     return lengths, counts, kinds, bands, carriers, notes
+
+
+def _numbers_walked(
+    column: contract.ColumnBlock,
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+    fixed: "dict[int, int]",
+) -> "list[int]":
+    """Spend what the walk could not on the numbers' own lengths (P4-D190).
+
+    THE AVERAGE HAD NOWHERE TO GO (method G9.5 step 5, the final
+    skeptic's MINOR). A number's length is its own (step 3a) and a group
+    wearing a form holds the form's length, so the walk toward the
+    published average moves only the groups neither rule holds. Where
+    every such group is already at the end it would move toward -- or
+    there is none, because the two groups carrying the published ends
+    are the only ones left -- the residual stood unspent and the twin
+    missed `length.mean`: sixty numbers, thirty-eight codes and two
+    `TRUE` cells published a mean of 2.99, and the twin wrote 2.95 on
+    every seed, the numbers at their shortest and both stand-ins
+    carrying an end.
+
+    So where the residual is not zero and no group the walk may move
+    can move toward it, the number groups that carry no end and wear no
+    form the census names are walked the same way, largest group first,
+    ties by group order, one character at a time: a group grows where
+    it is shorter than `length.max` and its band still has a number
+    with no leading zero at the next length whose form the census does
+    not name, and shrinks where it is longer than its band's shortest
+    and `length.min` on the same terms. The walk stops when the residual
+    reaches zero, changes sign, or no number can move. A number holds
+    one word at any length, so no word count moves.
+
+    Guarantees: returns one length per group; a function of the
+    arguments; draws no word; raises nothing. No I/O of any kind.
+    """
+    moved = [length for length in lengths]
+    total = len(groups)
+    if facts.length.mean is None or total < 3:
+        return moved
+    wanted = _exact_product(facts.length.mean, column.n_present)
+    built = 0
+    for place in range(total):
+        built = built + groups[place] * moved[place]
+    residual = wanted - built
+    if residual == 0:
+        return moved
+    upward = residual > 0
+    shortest = facts.length.minimum
+    longest = facts.length.maximum
+    for place in range(total):
+        if place in carriers or place in fixed:
+            continue
+        if upward and moved[place] < longest:
+            return moved
+        if not upward and moved[place] > shortest:
+            return moved
+    named: "dict[str, int]" = {}
+    for form in sorted(facts.shape_forms):
+        if form != contract.WITHHELD:
+            named[form] = 1
+    taken: "dict[str, int]" = {}
+    walkable: "list[tuple[int, int]]" = []
+    for place in range(total):
+        if _CLASSES[kinds[place]] != _CLASS_NUMBER:
+            continue
+        band = _BANDS[bands[place]]
+        key = f"{band}/{moved[place]}"
+        taken[key] = (taken[key] if key in taken else 0) + 1
+        if place in carriers or place not in fixed:
+            continue
+        if _number_form_at(band, moved[place], named) in named:
+            continue
+        walkable += [(0 - groups[place], place)]
+    ranked = sorted(walkable)
+    while residual != 0:
+        stepped = False
+        for pair in ranked:
+            place = pair[1]
+            band = _BANDS[bands[place]]
+            length = moved[place] + (1 if upward else -1)
+            if upward and length > longest:
+                continue
+            if not upward and length < max(shortest, _NUMBER_SHORTEST[band]):
+                continue
+            key = f"{band}/{length}"
+            if (taken[key] if key in taken else 0) >= _plain_number_room(band, length):
+                continue
+            if _number_form_at(band, length, named) in named:
+                continue
+            old = f"{band}/{moved[place]}"
+            taken[old] = taken[old] - 1
+            taken[key] = (taken[key] if key in taken else 0) + 1
+            moved[place] = length
+            residual = residual + (0 - groups[place] if upward else groups[place])
+            stepped = True
+            break
+        if not stepped:
+            break
+        if upward and residual < 0:
+            break
+        if not upward and residual > 0:
+            break
+    return moved
 
 
 def _bands_for_number_forms(

@@ -394,10 +394,12 @@ THIRD_BRANCH_CASES = (
 
 # The sixth committed file: the cases the repair of the carried items of
 # landing 2b added -- G6.5a's walks reach by reach (plan P4-D183), its two
-# fills of plans P4-D176 and P4-D178, and the census of marks held at a
-# thousand (plan P4-D185). Sorted, like the tuples above.
+# fills of plans P4-D176 and P4-D178, the census of marks held at a
+# thousand (plan P4-D185), and the numbers of a free-text column carrying
+# the average (plan P4-D190). Sorted, like the tuples above.
 FOURTH_BRANCH_CASES = (
     "grouped_thousands",
+    "numbers_carry_the_average",
     "saturated_levels",
     "saturated_tenths",
     "separated_in_order",
@@ -475,6 +477,8 @@ SEEDS = {
     "saturated_tenths": 168,
     "saturated_levels": 169,
     "grouped_thousands": 175,
+    # Part 2 of the carried items takes 180 onward.
+    "numbers_carry_the_average": 180,
     "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
@@ -2166,6 +2170,14 @@ CASE_MUTANTS = {
         attribute="separation_reaches",
         replacement=_reaches_stratum_by_stratum,
         outcome=CHANGES_THE_CELLS,
+    ),
+    "numbers_carry_the_average": Mutant(
+        branch="plan P4-D190's walk of the numbers' own lengths; the mutant "
+        "leaves every number at its shortest, and the recount finds the "
+        "average the words carrying both ends could not reach",
+        attribute="numbers_walked",
+        replacement=lambda column, groups, lengths, packed, carriers, fixed: list(lengths),
+        outcome="recount length.mean as",
     ),
     "grouped_thousands": Mutant(
         branch="plan P4-D185's census of marks held at a thousand; the mutant "

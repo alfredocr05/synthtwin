@@ -6957,6 +6957,26 @@ for.
    `R`. Stop when `R` reaches zero, changes sign, or no group can move.
    `length.mean` and `length.p50` are APPROXIMATED; this is the fixed
    rule their bound is measured against.
+
+   **Where no group can move and `R` is not zero, the numbers carry it**
+   (plan P4-D190). The groups this walk moves are the ones no rule
+   holds: a number holds its own length (step 3a) and a group wearing a
+   form its form's length (step 7), so a column whose remaining groups
+   all carry the two ends -- or all stand at the end `R` points toward
+   -- left `R` unspent, and its twin missed `length.mean` on every seed:
+   sixty numbers, thirty-eight codes and two `TRUE` cells published 2.99
+   and the twin wrote 2.95. So where no group the walk may move can move
+   toward `R`, the number groups carrying no end whose length's form the
+   census does not name are walked the same way, largest occurrence
+   count first, ties by group order, one character at a time: a group
+   grows while below `max`, and shrinks while above both `min` and its
+   band's shortest, in each case only to a length at which its band
+   still has a number with no leading zero to give -- counting every
+   number group's length, the two carrying ends included -- and whose
+   form the census does not name. Stop when `R` reaches zero, changes
+   sign, or no number can move. A number holds one word at any length,
+   so no word count moves. Where `R` changes sign the walk above had
+   room and is left as it stood, so no column it already served moves.
 6. **The words.** `words.min` and `words.max` are EXACT-OBSERVABLE and
    pinned onto the same two groups the lengths pinned — whichever two
    the packing rule settled on; `words.mean` is APPROXIMATED
@@ -9606,7 +9626,9 @@ tenths and of a column's published levels (plans P4-D176 and P4-D178),
 and the census of marks held at a thousand (plan P4-D185), and one for
 the rules of G2.2 part 2 of the carried items changed -- a count spread
 over the cells its class fits, and a code published as the source wrote
-it and read for its kind off the code (plans P4-D187 and P4-D189).
+it and read for its kind off the code (plans P4-D187 and P4-D189), and
+one for the numbers of a free-text column carrying what the walk of
+G9.5 step 5 could not spend (plan P4-D190).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -9645,7 +9667,7 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All seventy-four are required.** The count is taken off the committed
+**All seventy-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9659,7 +9681,7 @@ holds eighteen; the fourth,
 `tests/reference/generation-document-vectors.json`, holds eight; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
-four (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+five (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9739,6 +9761,7 @@ case passed, which is the failure the count exists to prevent:
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
+| `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
 | `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
 | `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |
 | `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |

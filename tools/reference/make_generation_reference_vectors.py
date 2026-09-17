@@ -9059,6 +9059,78 @@ def number_lengths(column, groups, packed, carriers, lengths=None):
     return fixed
 
 
+def numbers_walked(column, groups, lengths, packed, carriers, fixed):
+    """G9.5 step 5's walk of the numbers' own lengths (plan P4-D190).
+
+    Where the residual against the published total is not zero and no
+    group the ordinary walk may move -- carrying no end and holding no
+    length of its own -- can move toward it, the number groups carrying
+    no end whose length's form the census does not name are walked the
+    same way: largest group first, ties by group order, one character at
+    a time, a group growing below `length.max` and shrinking above its
+    band's shortest and `length.min`, and only to a length at which its
+    band still has a number with no leading zero to give and whose form
+    the census does not name. The walk stops when the residual reaches
+    zero, changes sign, or no number can move.
+    """
+    lengths = list(lengths)
+    low = column["length"]["min"]
+    high = column["length"]["max"]
+    target = _nearest_whole(
+        F(wire_value(column["length"]["mean"])) * column["n_present"]
+    )
+    residual = target - sum(size * length for size, length in zip(groups, lengths))
+    if not residual or len(groups) < 3:
+        return lengths
+    step = 1 if residual > 0 else -1
+    for place in range(len(groups)):
+        if place in carriers or place in fixed:
+            continue
+        if (lengths[place] < high) if step > 0 else (lengths[place] > low):
+            return lengths
+    named = {
+        form for form in (column.get("shape_forms") or {})
+        if form != WITHHELD
+    }
+    taken = {}
+    walkable = []
+    for place in range(len(groups)):
+        notation, band = packed[place]
+        if notation != NOTATION_NUMBER:
+            continue
+        taken[(band, lengths[place])] = taken.get((band, lengths[place]), 0) + 1
+        if place in carriers or place not in fixed:
+            continue
+        if number_at_form(band, lengths[place], named) in named:
+            continue
+        walkable.append(place)
+    walkable.sort(key=lambda place: (-groups[place], place))
+    while residual:
+        moved = None
+        for place in walkable:
+            band = packed[place][1]
+            length = lengths[place] + step
+            if length > high or length < max(low, NUMBER_SHORTEST[band]):
+                continue
+            if taken.get((band, length), 0) >= plain_number_room(band, length):
+                continue
+            if number_at_form(band, length, named) in named:
+                continue
+            moved = place
+            break
+        if moved is None:
+            break
+        band = packed[moved][1]
+        taken[(band, lengths[moved])] -= 1
+        lengths[moved] += step
+        taken[(band, lengths[moved])] = taken.get((band, lengths[moved]), 0) + 1
+        after = residual - step * groups[moved]
+        if after and (after > 0) != (residual > 0):
+            break
+        residual = after
+    return lengths
+
+
 def _free_text_spelling(notation, band, length, used):
     """One free-text word -- the enumeration of G9.2 with its rejections.
 
@@ -9462,6 +9534,9 @@ def _free_text_content(column):
     if fixed:
         lengths = _free_text_lengths(column, groups, carriers, fixed)
         counts = _free_text_words(column, groups, lengths, carriers, fixed)
+        # ...AND WHAT THE WALK COULD NOT SPEND GOES TO THE NUMBERS (plan
+        # P4-D190).
+        lengths = numbers_walked(column, groups, lengths, packed, carriers, fixed)
     if set(counts) != {1}:
         raise AssertionError(
             "every group of a frozen case holds exactly one word: G9.5 step 7 "
@@ -12144,6 +12219,55 @@ def _free_text_joint():
         "rows": 4,
         "identifier_declared": False,
         "claims": {**length_claims, **words_claims},
+    }
+
+
+def _numbers_carry_the_average():
+    """What the walk could not spend goes to the numbers (plan P4-D190).
+
+    Ten cells of free text: eight numbers and two words. The two words
+    carry the published ends -- `A` at one character and `A--` at three --
+    so no group the ordinary walk of G9.5 step 5 may move is left, and
+    every number stands at its own shortest length, one figure. The
+    column's cells average two characters, which those lengths miss by
+    eight: the walk used to stop there, the recount found an average of
+    six fifths, and the twin missed `length.mean`. The numbers are walked
+    instead, largest group first and one character at a time, so four of
+    them grow to three figures -- `100` to `103` -- and the average is met
+    exactly, with the middle length two.
+    """
+    length, claims = {}, {}
+    for name, text in (("mean", "2.0"), ("p50", "2")):
+        field, claim = nearest_field(text)
+        length[name] = field
+        claims[("column", "length", name)] = claim
+    length["min"] = 1
+    length["max"] = 3
+    words = {"min": 1, "max": 1}
+    field, claim = nearest_field("1")
+    words["mean"] = field
+    claims[("column", "words", "mean")] = claim
+    column = _universal(
+        "column_1", "free_text", "text", "data", "ok",
+        n_present=10, n_missing=0, n_distinct=10, n_distinct_folded=10,
+        n_numeric=8, n_not_numeric=2, n_out_of_range=0, n_contradictory=0,
+        length=length, words=words,
+        n_all_digits=8, n_code_alphabet=10,
+        n_distinct_by_occurrences={"1": 10},
+        # Ten cells at the smallest group of eleven: no form is named.
+        shape_forms={"(withheld)": 10},
+    )
+    return {
+        "why": "method section G9.5 step 5 as plan P4-D190 left it: a column "
+        "of eight numbers and two words whose words carry both published "
+        "length ends, so the ordinary walk has no group to move and the "
+        "numbers, each at its own shortest length, carry what is left of the "
+        "published average. Without that walk the cells average six fifths "
+        "against two, and the description's own length.mean is missed.",
+        "column": column,
+        "rows": 10,
+        "identifier_declared": False,
+        "claims": claims,
     }
 
 
@@ -17329,6 +17453,7 @@ THIRD_BRANCH_CASE_BUILDERS = {
 
 FOURTH_BRANCH_CASE_BUILDERS = {
     "grouped_thousands": _grouped_thousands,
+    "numbers_carry_the_average": _numbers_carry_the_average,
     "saturated_levels": _saturated_levels,
     "saturated_tenths": _saturated_tenths,
     "separated_in_order": _separated_in_order,
@@ -17456,8 +17581,10 @@ _FOURTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the repair of the carried items "
     "of landing 2b: G6.5a's walks taken reach by reach (plan P4-D183), the "
     "fill of a saturated grid of tenths (plan P4-D176) and of a column whose "
-    "published levels are its strata (plan P4-D178), and the census of "
-    "marks held at a thousand (plan P4-D185). They are computed by the same "
+    "published levels are its strata (plan P4-D178), the census of "
+    "marks held at a thousand (plan P4-D185), and the numbers of a free-text "
+    "column carrying what the walk of G9.5 step 5 could not spend (plan "
+    "P4-D190). They are computed by the same "
     "oracle and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -17494,6 +17621,11 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "numbers_carry_the_average": (
+        10626364091995481622, 12324380702380665290, 10206021613485447140,
+        3833008408733653600, 3279155949837417361, 9726853267425906631,
+        5483846556130625623, 17748825266372060920, 15858599329263601550,
+    ),
     "date_peak_heap": (
         14766693206355676505, 6992157754349396863, 7838749716675263788,
         6260884635299288984, 16683963525250038006, 2929686537832769934,

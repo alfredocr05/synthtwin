@@ -1,5 +1,5 @@
 {
-  "case_set": "The 4 cases method section G14.3 adds with the repair of the carried items of landing 2b: G6.5a's walks taken reach by reach (plan P4-D183), the fill of a saturated grid of tenths (plan P4-D176) and of a column whose published levels are its strata (plan P4-D178), and the census of marks held at a thousand (plan P4-D185). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json and tests/reference/generation-document-vectors.json, and live in a sixth file only because the fifth stands within a few kilobytes of the provenance manifest's byte cap.",
+  "case_set": "The 5 cases method section G14.3 adds with the repair of the carried items of landing 2b: G6.5a's walks taken reach by reach (plan P4-D183), the fill of a saturated grid of tenths (plan P4-D176) and of a column whose published levels are its strata (plan P4-D178), the census of marks held at a thousand (plan P4-D185), and the numbers of a free-text column carrying what the walk of G9.5 step 5 could not spend (plan P4-D190). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json and tests/reference/generation-document-vectors.json, and live in a sixth file only because the fifth stands within a few kilobytes of the provenance manifest's byte cap.",
   "cases": {
     "grouped_thousands": {
       "cells": [
@@ -1930,6 +1930,115 @@
         "8021429493413364028",
         "3142289566579720811",
         "8820810108656237450"
+      ]
+    },
+    "numbers_carry_the_average": {
+      "cells": [
+        "A",
+        "101",
+        "1",
+        "3",
+        "100",
+        "2",
+        "A--",
+        "102",
+        "0",
+        "103"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "length": {
+          "max": 3,
+          "mean": {
+            "decimal": "2.0",
+            "exact": "2",
+            "float64": 2.0,
+            "proof": "nearest"
+          },
+          "min": 1,
+          "p50": {
+            "decimal": "2",
+            "exact": "2",
+            "float64": 2.0,
+            "proof": "nearest"
+          }
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 8,
+        "n_code_alphabet": 10,
+        "n_contradictory": 0,
+        "n_distinct": 10,
+        "n_distinct_by_occurrences": {
+          "1": 10
+        },
+        "n_distinct_folded": 10,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 2,
+        "n_numeric": 8,
+        "n_out_of_range": 0,
+        "n_present": 10,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "free_text",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "(withheld)": 10
+        },
+        "statistical_type": "text",
+        "structural_role": "data",
+        "words": {
+          "max": 1,
+          "mean": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          },
+          "min": 1
+        }
+      },
+      "content": [
+        "A",
+        "A--",
+        "100",
+        "101",
+        "102",
+        "103",
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "csv_bytes": "A\n101\n1\n3\n100\n2\nA--\n102\n0\n103\n",
+      "float64": [],
+      "why": "method section G9.5 step 5 as plan P4-D190 left it: a column of eight numbers and two words whose words carry both published length ends, so the ordinary walk has no group to move and the numbers, each at its own shortest length, carry what is left of the published average. Without that walk the cells average six fifths against two, and the description's own length.mean is missed.",
+      "word_budget": {
+        "content": 0,
+        "placement": 9
+      },
+      "words": [
+        "10626364091995481622",
+        "12324380702380665290",
+        "10206021613485447140",
+        "3833008408733653600",
+        "3279155949837417361",
+        "9726853267425906631",
+        "5483846556130625623",
+        "17748825266372060920",
+        "15858599329263601550"
       ]
     },
     "saturated_levels": {
