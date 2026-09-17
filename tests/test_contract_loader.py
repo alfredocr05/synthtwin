@@ -1697,6 +1697,12 @@ def battery() -> list[Mutation]:
             "WB3", "a census whose withheld counts come to fewer than the line",
             _form_workbook_census_withholds_under_the_line,
         ),
+        # The difference a column's count of numbers takes from its census
+        # of number cells: the figures stored as text (plan P4-D197).
+        Mutation(
+            "WB3", "numbers stored as text fewer than the line",
+            _form_workbook_numbers_stored_as_text_under_the_line,
+        ),
         Mutation(
             "WB5", "two sheets of one name in different cases",
             _form_workbook_two_sheets_of_one_name,
@@ -2019,6 +2025,19 @@ def _form_workbook_census_withholds_under_the_line(document: Document) -> None:
     census["number"] = rows - 30 * 5 - 5
     census["date"] = None
     census["error"] = None
+
+
+def _form_workbook_numbers_stored_as_text_under_the_line(
+    document: Document,
+) -> None:
+    block = _workbook_block(document, 16, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # `visits` publishes 229 numbers; a census of 224 number cells and 16
+    # text cells holds every count and complement to the line, and leaves
+    # five figures stored as text -- one subtraction away (plan P4-D197).
+    census = block["columns"][2]["cell_classes"]
+    census["number"] = 224
+    census["text"] = rows - 224
 
 
 def _form_workbook_two_sheets_of_one_name(document: Document) -> None:

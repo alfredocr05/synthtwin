@@ -9376,6 +9376,10 @@ def _numeric_content(
     # After the carrier walk, because that walk moves values onto whole
     # numbers and could itself land two strata on one text.
     values = _apart_enough(column, facts, layout, rungs, values)
+    # AND A WHOLE NUMBER THE COLUMN WRITES TWO WAYS IS HELD BY TWO STRATA
+    # (plan P4-D193): see `_twice_written`. Straight after the walk, whose
+    # count it finishes, and before the pool, which hands out fresh values.
+    values = _twice_written(column, facts, layout, rungs, values)
     # AND THE POOLED CELLS ARE HELD BACK LAST (residual R-P4-69), after
     # the walk that would otherwise write every one of them point-free
     # and after the step that pulls two strata apart, because the values
@@ -9466,10 +9470,10 @@ def _grouped_enough(
     census line is written with the mark (plan P4-D142).
 
     THE RULE, on a column whose every numeric cell is on one grid
-    (`_pinned_fraction`), holds no negative value, publishes no field
-    width, and names no form but `decimal` and `plain`. Let `C` be the
-    census's cells, named and pooled, and `K` the cells whose values
-    reach a thousand. Where `K` is below `C`, the strata just below a
+    (`_pinned_fraction`), publishes no field width, and names no form but
+    `decimal` and `plain`. Let `C` be the census's cells, named and pooled,
+    and `K` the cells whose values reach a thousand in size, either
+    sign. Where `K` is below `C`, the strata just below a
     thousand, from the highest down and while their cells do not pass
     `C - K`, are moved up to the lowest free grid points of a thousand or
     more, in order, each below the value of the stratum above the moved
@@ -9484,6 +9488,17 @@ def _grouped_enough(
     does, so the published count of different values and every sign
     count stay where they were.
 
+    AND ON THE NEGATIVE SIDE WHERE THE POSITIVE ONE LEAVES A DIFFERENCE
+    (plan P4-D194). The rule first stood aside on any column holding a negative
+    value, and refunds beside payments are what an amount column is:
+    1,500 lognormal amounts written `1,234.56`, one in ten negated,
+    published `{",": 396}` and the twin wrote 397 at seeds 4 and 11 with
+    nothing named. So where the count still differs after the run above,
+    it is counted again and the same run is taken among the negative
+    strata read by size -- the strata just above
+    minus a thousand moved down past it, or the strata from minus a
+    thousand down moved up above it -- mirrored point for point.
+
     Guarantees: returns one value per stratum, the order of the values
     unchanged. A fixed function of its arguments. Raises nothing. No I/O.
     """
@@ -9495,22 +9510,68 @@ def _grouped_enough(
     for key in census:
         owed = owed + census[key]
     figures = _pinned_fraction(column, facts)
-    if figures < 0 or facts.n_negative > 0 or facts.pad_widths:
+    if figures < 0 or facts.pad_widths:
         return values
     for style in facts.numeric_styles:
         if style != contract.WITHHELD and style not in _GROUPED_AT_A_THOUSAND:
             return values
     reached = 0
     for place in range(total):
-        if values[place] >= 1000.0:
+        if abs(values[place]) >= 1000.0:
             reached = reached + layout.sizes[place]
+    moved = _grouped_run(
+        values, list(layout.sizes), list(layout.bands), figures, owed, reached, floor
+    )
+    if moved is None:
+        moved = values
+    if facts.n_negative == 0:
+        return moved
+    values = moved
+    reached = 0
+    for place in range(total):
+        if abs(values[place]) >= 1000.0:
+            reached = reached + layout.sizes[place]
+    # THE NEGATIVE SIDE, READ BY SIZE: the strata in reverse order, each
+    # value negated and each band turned, so the run of the positive side
+    # is asked of them unchanged and its answer turned back.
+    mirrored = [-values[total - 1 - place] for place in range(total)]
+    sizes = [layout.sizes[total - 1 - place] for place in range(total)]
+    bands: "list[str]" = []
+    for place in range(total):
+        band = layout.bands[total - 1 - place]
+        if band == _BAND_NEGATIVE:
+            band = _BAND_POSITIVE
+        elif band == _BAND_POSITIVE:
+            band = _BAND_NEGATIVE
+        bands += [band]
+    turned = _grouped_run(mirrored, sizes, bands, figures, owed, reached, floor)
+    if turned is None:
+        return values
+    return [-turned[total - 1 - place] for place in range(total)]
+
+
+def _grouped_run(
+    values: "list[float]",
+    sizes: "list[int]",
+    bands: "list[str]",
+    figures: int,
+    owed: int,
+    reached: int,
+    floor: int,
+) -> "list[float] | None":
+    """One side of `_grouped_enough`: the run just below or from a thousand.
+
+    Guarantees: returns the moved values, or None where no run moves.
+    Determinism: a fixed function. Raises nothing. No I/O.
+    """
+    total = len(values)
     texts = [_grid_text(value, figures) for value in values]
     held: dict[str, int] = {}
     for text in texts:
         held[text] = (held[text] if text in held else 0) + 1
     boundary = _grid_units(_grid_text(1000.0, figures), figures)
     if boundary is None:
-        return values
+        return None
     if reached < owed:
         wanted = owed - reached
         top = -1
@@ -9520,24 +9581,24 @@ def _grouped_enough(
         downward: list[int] = []
         place = top
         while wanted > 0 and 0 < place < total - 1:
-            if held[texts[place]] != 1 or layout.bands[place] != _BAND_POSITIVE:
+            if held[texts[place]] != 1 or bands[place] != _BAND_POSITIVE:
                 break
-            if layout.sizes[place] > wanted:
+            if sizes[place] > wanted:
                 break
             downward += [place]
-            wanted = wanted - layout.sizes[place]
+            wanted = wanted - sizes[place]
             place = place - 1
         run: list[int] = []
         for step in range(len(downward) - 1, -1, -1):
             run += [downward[step]]
         if not run:
-            return values
+            return None
         ceiling = values[run[-1] + 1] if run[-1] + 1 < total else None
         points = _free_grid_points(boundary, 1, len(run), figures, held)
         if not points:
-            return values
+            return None
         if ceiling is not None and float(_grid_at(points[-1], figures)) >= ceiling:
-            return values
+            return None
     elif owed < reached < owed + parsing.census_floor(floor):
         wanted = reached - owed
         low = total
@@ -9547,24 +9608,24 @@ def _grouped_enough(
         run = []
         place = low
         while wanted > 0 and 0 < place < total - 1:
-            if held[texts[place]] != 1 or layout.bands[place] != _BAND_POSITIVE:
+            if held[texts[place]] != 1 or bands[place] != _BAND_POSITIVE:
                 break
-            if layout.sizes[place] > wanted:
+            if sizes[place] > wanted:
                 break
             run += [place]
-            wanted = wanted - layout.sizes[place]
+            wanted = wanted - sizes[place]
             place = place + 1
         if not run:
-            return values
+            return None
         below = _free_grid_points(boundary - 1, -1, len(run), figures, held)
         if not below:
-            return values
+            return None
         points = [below[len(below) - 1 - step] for step in range(len(below))]
         floor_value = values[run[0] - 1]
         if float(_grid_at(points[0], figures)) <= floor_value:
-            return values
+            return None
     else:
-        return values
+        return None
     moved = [value for value in values]
     for step in range(len(run)):
         moved[run[step]] = float(_grid_at(points[step], figures))
@@ -10496,6 +10557,319 @@ def _apart_inside(
 # than cells. The bound is stated rather than left to the share so the
 # walk cannot run long on a column whose published width is very fine.
 _GRID_REACH = 64
+
+
+def _twice_written_grid(
+    column: contract.ColumnBlock, facts: contract.NumericFacts, total: int
+) -> int:
+    """The figures of a column whose extra spellings are whole numbers written twice.
+
+    PLAN P4-D193. A column whose numeric cells are written at ONE fraction
+    width `f` of one figure or more beside cells written with no point at
+    all, in the `decimal` and `plain` forms only, with no field width, no
+    mark between thousands and no second negative notation, spells a number
+    that is not whole one way only (`4.1`) and a whole number at most two
+    ways (`4` and `4.0`). So its count of spellings less its count of
+    numbers is exactly how many whole numbers it writes both ways, and
+    G5.2's strata -- one per spelling -- are that many more than its
+    numbers.
+
+    Guarantees: accepts a column, its numeric block and the stratum count;
+    returns `f`, or -1 where any clause above fails, where the column is
+    whole-valued, where every numeric cell carries a point, or where the
+    strata are not the column's spellings or are fewer than its numbers.
+    Determinism: a fixed function of the inputs. Raises nothing. No I/O.
+    """
+    wanted = facts.n_distinct_values
+    if facts.integer_valued or total < 2 or wanted is None:
+        return -1
+    if column.n_distinct != total or total < wanted:
+        return -1
+    if len(facts.fraction_widths) != 1:
+        return -1
+    if facts.pad_widths or facts.thousands_marks:
+        return -1
+    for notation in facts.negative_notations:
+        if facts.negative_notations[notation] > 0:
+            return -1
+    for style in facts.numeric_styles:
+        if facts.numeric_styles[style] > 0 and style not in _GROUPED_AT_A_THOUSAND:
+            return -1
+    if not _some_cells_carry_no_figure(column, facts):
+        return -1
+    figures = -1
+    for key in facts.fraction_widths:
+        if not key or len(key) > 3:
+            continue
+        digits = True
+        for character in key:
+            if character < "0" or character > "9":
+                digits = False
+        if digits and int(key) >= 1:
+            figures = int(key)
+    return figures
+
+
+def _twice_written_settled(texts: "list[str]", wanted: int) -> bool:
+    """Whether the texts hold `wanted` numbers, each held twice being whole.
+
+    Guarantees: accepts the strata's grid texts and the published count of
+    numbers; True exactly where the texts number `wanted` and every text
+    held by more than one stratum is held by exactly two and names a whole
+    number. Determinism: a fixed function. Raises nothing. No I/O.
+    """
+    held: "dict[str, int]" = {}
+    for text in texts:
+        held[text] = (held[text] + 1) if text in held else 1
+    if len(held) != wanted:
+        return False
+    for text in held:
+        if held[text] >= 2:
+            number = float(text)
+            if held[text] != 2 or _whole_valued(number) != number:
+                return False
+    return True
+
+
+def _twice_written(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+) -> "list[float]":
+    """A whole number written two ways is held by two strata (plan P4-D193).
+
+    MEASURED before this rule: 500 potassium readings at one place, the
+    whole ones written `4` in most cells and `4.0` in some -- a workbook
+    whose figures some were stored as text reads exactly so -- published 33
+    spellings of 31 numbers, and the twin held 30 numbers at seeds 4, 11
+    and 1: G6.5a's walk stops once the texts number the published count,
+    so two strata left on `3.1` and on `4.1` stood where the column needs
+    two strata on `4.0` and on `5.0`, and a whole value it may not walk
+    onto was the only free point. Over 120 such columns 61 twins of 240
+    missed `n_distinct_values`.
+
+    THE RULE, after G6.5a and on a column `_twice_written_grid` answers for
+    with figures `f`, where the strata's grid texts are not already
+    settled -- as many texts as the published count of numbers, every text
+    held twice naming a whole number and none held three times. Let `S` be
+    the strata less the published count of numbers.
+
+    1. THE FILL, WHERE THE GRID HAS NO SPARE POINT. Let `P` be the points
+       of the grid from the published `min` to the published `max`, both
+       ends on the grid, less every point strictly inside a published
+       `empty_edges` pair. Where `P` holds exactly the published count of
+       numbers, the strata take `P` in ascending order, `S` whole points
+       of it each taken by two neighbouring strata. Of every such
+       assignment keeping each stratum inside its sign band, the one taken
+       moves the strata the fewest grid units in all, each stratum
+       counted from its own grid text, and of those the one taking the
+       lower point at the first stratum where two differ. It is not taken
+       where its strata whose numbers have a point-free spelling hold
+       fewer cells than the styles map asks to be written point-free.
+    2. THE MERGE, WHERE THE TEXTS ARE STILL MORE THAN THE COUNT. A stratum
+       holding a number that is not whole, beside a stratum holding a
+       whole number, each text held by that stratum alone, takes its
+       neighbour's number -- never the first or last stratum, and only
+       where its sign band holds that number. The pairs are taken fewest
+       grid units apart first, then lower pair first, then the lower
+       stratum moving first, no stratum in two pairs, until the texts
+       number the published count.
+
+    Guarantees: accepts the column, its numeric block, its layout, the
+    published rungs and the stratum values; returns the values, unchanged
+    where the rule does not apply. The order of the strata, both ends and
+    the sign counts are kept. Determinism: a fixed function of the inputs.
+    Raises nothing. No I/O.
+    """
+    total = len(values)
+    figures = _twice_written_grid(column, facts, total)
+    wanted = facts.n_distinct_values
+    if figures < 1 or rungs is None or wanted is None:
+        return values
+    texts = [_grid_text(value, figures) for value in values]
+    if _twice_written_settled(texts, wanted):
+        return values
+    filled = _twice_filled(facts, layout, rungs, values, figures)
+    moved = [value for value in values]
+    if filled is not None:
+        moved = filled
+    return _twice_merged(layout, moved, figures, wanted)
+
+
+def _twice_filled(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...]",
+    values: "list[float]",
+    figures: int,
+) -> "list[float] | None":
+    """Step 1 of `_twice_written`: the grid with no spare point, filled.
+
+    Guarantees: returns the filled values in stratum order, or None where
+    the step does not apply. Determinism: a fixed function. Raises
+    nothing. No I/O.
+    """
+    total = len(values)
+    wanted = facts.n_distinct_values
+    surplus = total - wanted
+    low = rungs[0]
+    high = rungs[-1]
+    if _on_the_grid(low, figures) != low or _on_the_grid(high, figures) != high:
+        return None
+    bottom = _grid_units(_grid_text(low, figures), figures)
+    top = _grid_units(_grid_text(high, figures), figures)
+    if bottom is None or top is None or top - bottom + 1 < wanted:
+        return None
+    points: "list[float]" = []
+    units: "list[int]" = []
+    for unit in range(bottom, top + 1):
+        point = float(_grid_at(unit, figures))
+        inside = False
+        for edges in facts.empty_edges:
+            if edges[0] < point < edges[1]:
+                inside = True
+        if inside:
+            continue
+        points += [point]
+        units += [unit]
+        if len(points) > wanted:
+            return None
+    if len(points) != wanted:
+        return None
+    anchors: "list[int]" = []
+    for value in values:
+        anchor = _grid_units(_grid_text(value, figures), figures)
+        if anchor is None:
+            return None
+        anchors += [anchor]
+    # THE FEWEST GRID UNITS, counted backward: `cost[i][d][t]` is the least
+    # the strata from `i` on can move, stratum `i` standing on point
+    # `i - d` with `d` doubles taken before it, `t` 1 where it shares that
+    # point with the stratum before it. -1 marks no assignment.
+    width = surplus + 1
+    cost: "list[list[list[int]]]" = [
+        [[-1, -1] for _d in range(width)] for _i in range(total)
+    ]
+    for place in range(total - 1, -1, -1):
+        for doubles in range(width):
+            spot = place - doubles
+            if spot < 0 or spot >= wanted:
+                continue
+            if not _band_takes(layout.bands[place], points[spot]):
+                continue
+            here = abs(units[spot] - anchors[place])
+            for shared in range(2):
+                if shared == 1 and (
+                    place == 0
+                    or doubles == 0
+                    or _whole_valued(points[spot]) != points[spot]
+                ):
+                    continue
+                if place == total - 1:
+                    if doubles == surplus:
+                        cost[place][doubles][shared] = here
+                    continue
+                best = -1
+                if shared == 0 and doubles < surplus:
+                    after = cost[place + 1][doubles + 1][1]
+                    if after >= 0:
+                        best = after
+                after = cost[place + 1][doubles][0]
+                if after >= 0 and (best < 0 or after < best):
+                    best = after
+                if best >= 0:
+                    cost[place][doubles][shared] = here + best
+    if cost[0][0][0] < 0:
+        return None
+    given: "list[float]" = [points[0]]
+    doubles = 0
+    shared = 0
+    for place in range(total - 1):
+        # The lower point first where two ways cost the same: sharing the
+        # point already taken is the lower one.
+        twice = -1
+        if shared == 0 and doubles < surplus:
+            twice = cost[place + 1][doubles + 1][1]
+        once = cost[place + 1][doubles][0]
+        if twice >= 0 and (once < 0 or twice <= once):
+            doubles = doubles + 1
+            shared = 1
+        else:
+            shared = 0
+        given += [points[place + 1 - doubles]]
+    carried = 0
+    for place in range(total):
+        if _carries_plainly(given[place], facts.integer_valued):
+            carried = carried + layout.sizes[place]
+    if carried < _whole_demand(facts):
+        return None
+    return given
+
+
+def _band_takes(band: str, value: float) -> bool:
+    """Whether a stratum in ``band`` may hold ``value``."""
+    if band == _BAND_ZERO:
+        return value == 0.0
+    if band == _BAND_NEGATIVE:
+        return value < 0.0
+    if band == _BAND_POSITIVE:
+        return value > 0.0
+    return True
+
+
+def _twice_merged(
+    layout: "_NumericLayout",
+    values: "list[float]",
+    figures: int,
+    wanted: int,
+) -> "list[float]":
+    """Step 2 of `_twice_written`: a stratum takes its whole neighbour's number.
+
+    Guarantees: returns the values with at most as many texts fewer as the
+    texts exceed ``wanted``. Determinism: a fixed function. Raises nothing.
+    No I/O.
+    """
+    total = len(values)
+    texts = [_grid_text(value, figures) for value in values]
+    held: "dict[str, int]" = {}
+    for text in texts:
+        held[text] = (held[text] + 1) if text in held else 1
+    owed = len(held) - wanted
+    if owed <= 0 or total < 3:
+        return values
+    pairs: "list[tuple[int, int, int, int]]" = []
+    for place in range(total - 1):
+        for mover, keeper in ((place, place + 1), (place + 1, place)):
+            if mover == 0 or mover == total - 1:
+                continue
+            kept = values[keeper]
+            if _whole_valued(kept) != kept:
+                continue
+            if _whole_valued(values[mover]) == values[mover]:
+                continue
+            if held[texts[keeper]] != 1 or held[texts[mover]] != 1:
+                continue
+            if not _band_takes(layout.bands[mover], kept):
+                continue
+            there = _grid_units(texts[keeper], figures)
+            here = _grid_units(texts[mover], figures)
+            if there is None or here is None:
+                continue
+            pairs += [(abs(there - here), place, mover, keeper)]
+    moved = [value for value in values]
+    used: "dict[int, int]" = {}
+    for pair in sorted(pairs):
+        if owed <= 0:
+            break
+        if pair[2] in used or pair[3] in used:
+            continue
+        moved[pair[2]] = values[pair[3]]
+        used[pair[2]] = 1
+        used[pair[3]] = 1
+        owed = owed - 1
+    return moved
 
 
 def _apart_enough(
@@ -14442,6 +14816,27 @@ def _mark_places(
         if groupable[index] and index not in taken:
             left = left + 1
     if left < parsing.census_floor(floor):
+        # A SURPLUS UNDER THE LINE IS NAMED (plan P4-D194). Those cells wear
+        # the published mark, so the twin holds more grouped cells than
+        # the census counts, and the report said nothing: the validator
+        # pools a difference that small and prints no verdict on it.
+        if left > 0:
+            counted = 0
+            for mark in facts.thousands_marks:
+                counted = counted + facts.thousands_marks[mark]
+            notes += [
+                _deviation(
+                    column.name,
+                    "thousands_marks",
+                    f"{counted}",
+                    f"{counted + left}",
+                    "The twin groups its thousands with the marks the "
+                    "description counts, but its published ladder and "
+                    "forms left more cells large enough to be grouped "
+                    "than the description counts, so more of them "
+                    "carry a mark.",
+                )
+            ]
         return worn, notes
     for index in range(len(groupable)):
         if groupable[index] and index not in taken:
@@ -15889,29 +16284,48 @@ def _date_count_notes(
     `parsing.folded_width_tally`). `_units_settled` reaches both where the
     construction allows; what it does not reach was passing silently,
     because the validator held the first to a wide envelope and the
-    second to its floor.
+    second to its floor. A census naming several conventions is recounted
+    the same way, each convention named where its count differs (plan
+    P4-D195).
     """
     notes: "list[Deviation]" = []
     census = facts.date_field_widths
-    if len(census) == 1:
+    if census:
         tally = parsing.folded_width_tally(
             taxonomy.width_tally(cells, facts.parser_family)
         )
-        for key in census:
+        for key in sorted(census):
             held = tally[key] if key in tally else 0
-            if held != census[key]:
-                notes += [
-                    _deviation(
-                        column.name,
-                        "date_field_widths",
-                        f"{census[key]} values written {key}",
-                        f"{held} values written {key}",
-                        "Whether a date shows how wide it writes its fields "
-                        "depends on its day, and moving values inside the "
-                        "room the published ladder leaves could not bring "
-                        "the twin to the published count.",
-                    )
-                ]
+            if held == census[key]:
+                continue
+            # A CENSUS NAMING SEVERAL CONVENTIONS IS NAMED TOO (plan
+            # P4-D195). Which convention a value wears is spread over the
+            # column, so its counts are held only at the floor; a twin of
+            # 900 dates half `1/5/2021` and half `01/05/2021` publishing 369
+            # and 381 held 381 and 393, and the report named nothing.
+            reason = (
+                "Whether a date shows how wide it writes its fields "
+                "depends on its day, and moving values inside the "
+                "room the published ladder leaves could not bring "
+                "the twin to the published count."
+            )
+            if len(census) > 1:
+                reason = (
+                    "Whether a date shows how wide it writes its fields "
+                    "depends on its day, and the twin spreads the ways "
+                    "of writing a date over its values without choosing "
+                    "which values show one, so it holds a different count "
+                    "of those that do."
+                )
+            notes += [
+                _deviation(
+                    column.name,
+                    "date_field_widths",
+                    f"{census[key]} values written {key}",
+                    f"{held} values written {key}",
+                    reason,
+                )
+            ]
     return notes
 
 
@@ -21453,9 +21867,13 @@ def _layout_packed(
     found = _layout_packings(
         column, facts, groups, folded, partners, _LAYOUT_PACKED_QUESTIONS
     )
+    proven = False
+    for layout in _named_layouts(facts):
+        if _signs_a_number(layout):
+            proven = True
     for look in range(min(len(found), _LAYOUT_PACKED_LOOKS)):
         shape, worn = found[look]
-        if shape[2] and not signed:
+        if shape[2] and not signed and not proven:
             continue
         built, notes, short, _supply = _laid_identifiers(
             column, facts, groups, folded, partners, shape,
@@ -22231,8 +22649,21 @@ def _layout_preferences(
         reach = folded
     named = _named_layouts(facts)
     remaining: dict[str, int] = {}
+    # THE CELLS THE CENSUS NAMES NO LAYOUT FOR ARE A QUOTA TOO (plan
+    # P4-D196), kept under the empty name a partner wearing no named
+    # layout is predicted under. An identity whose partner can wear no
+    # named layout was offered a named layout while the census left no
+    # cell unnamed: 300 record numbers `S1000`, a tenth of them written
+    # again in lower case, beside `S-12-A`, published `{"@%%%%": 214, ...}`
+    # with no cell unnamed, and two partners turned `S-12-A` into `s-12-A`,
+    # leaving `@%%%%` two short at every seed.
+    unnamed = 0
+    for group in groups:
+        unnamed = unnamed + group
     for layout in named:
         remaining[layout] = facts.layout_forms[layout]
+        unnamed = unnamed - facts.layout_forms[layout]
+    remaining[""] = max(0, unnamed)
     preferred = ["" for _group in range(total)]
     if not named:
         return preferred
@@ -24415,6 +24846,7 @@ def _text_cells(
     groups: "tuple[int, ...]",
     long_tail_line: int = 0,
     holes: "tuple[str, ...]" = (),
+    truths: int = 0,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
@@ -24448,8 +24880,9 @@ def _text_cells(
     if not isinstance(facts, contract.TextFacts):
         raise _wrong_facts(column.name)
     total = len(groups)
+    truth: "dict[int, str]" = {}
     lengths, counts, kinds, bands, carriers, notes = _text_plan(
-        column, facts, groups, long_tail_line
+        column, facts, groups, long_tail_line, truths, truth
     )
     shortened = 0
     for index in range(total):
@@ -24543,6 +24976,13 @@ def _text_cells(
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
+        if index in truth and truth[index] not in used:
+            # A TRUTH VALUE IS WRITTEN AS ONE (plan P4-D198).
+            taken = _take(truth[index], used)
+            _settle(owing, taken, groups[index])
+            _spend_length(budget, len(taken) - lengths[index], groups[index])
+            spellings += [taken]
+            continue
         # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
         # order-aware pass above cannot know which groups will take a
         # fold-collision partner instead of a made-up spelling, because
@@ -24832,6 +25272,8 @@ def _text_plan(
     facts: contract.TextFacts,
     groups: "tuple[int, ...]",
     line: int = 0,
+    truths: int = 0,
+    truth: "dict[int, str] | None" = None,
 ) -> "tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]]":
     """The whole shape of a column of free text, settled in ONE allocation.
 
@@ -24873,6 +25315,14 @@ def _text_plan(
     candidate already offered the same group sizes with the same
     permitted cells, since the answer to "does this pack" depends on
     nothing else.
+
+    AND A WORKBOOK COLUMN'S TRUTH VALUES ARE WRITTEN AS THEM (plan
+    P4-D198). Where ``truths`` -- the boolean cells the column's workbook
+    census publishes -- is above nought, a shape is taken only where
+    `_truth_words` finds groups to spell `TRUE` and `FALSE`, and their
+    lengths are fixed beside the numbers' and the forms' before the walk
+    spends the average; ``truth`` is filled with those groups' spellings.
+    Where no shape offers such groups the first packing is kept as before.
     """
     total = len(groups)
     classes = [
@@ -24887,6 +25337,7 @@ def _text_plan(
         column.n_present - facts.n_code_alphabet,
     ]
     width = len(_BANDS)
+    kept: "tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]] | None" = None
     room: dict[tuple[int, int], int] = {}
     spent: dict[tuple[tuple[int, int], ...], int] = {}
     for reach in (False, True):
@@ -24954,6 +25405,11 @@ def _text_plan(
             fixed, worded = _held_for_the_census(
                 facts, groups, lengths, counts, kinds, bands, carriers, fixed
             )
+            spelled = _truth_words(
+                groups, kinds, bands, carriers, fixed, truths, lengths, counts
+            )
+            for place in sorted(spelled):
+                fixed[place] = len(spelled[place])
             if fixed:
                 lengths, counts, notes = _text_shape(
                     column, facts, groups, carriers, fixed, worded
@@ -24966,7 +25422,16 @@ def _text_plan(
                     lengths = _lengthened(
                         facts, lengths, counts, together, carriers
                     )
+            if truths > 0 and not spelled:
+                if kept is None:
+                    kept = (lengths, counts, kinds, bands, carriers, notes)
+                continue
+            if truth is not None:
+                for place in sorted(spelled):
+                    truth[place] = spelled[place]
             return lengths, counts, kinds, bands, carriers, notes
+    if kept is not None:
+        return kept
     carriers = _shape_choices(total)[0]
     lengths, counts, notes = _text_shape(column, facts, groups, carriers)
     kinds, bands = _text_families(
@@ -25705,6 +26170,82 @@ def _form_lengths(
         held[place] = len(form)
         worded[place] = words
     return held, worded
+
+
+# The two spellings a workbook writes a truth value's cell back as (plan
+# P4-D198): the boolean class goes only to a cell spelled one of them.
+_TRUTH_SPELLINGS = ("TRUE", "FALSE")
+
+
+def _truth_words(
+    groups: "tuple[int, ...]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    carriers: "tuple[int, int]",
+    fixed: "dict[int, int]",
+    truths: int,
+    lengths: "list[int] | None" = None,
+    counts: "list[int] | None" = None,
+) -> "dict[int, str]":
+    """Which groups of free text are spelled `TRUE` and `FALSE` (plan P4-D198).
+
+    A WORKBOOK COLUMN OF FREE TEXT PUBLISHES HOW MANY OF ITS CELLS WERE
+    TRUTH VALUES, and the writer gives the boolean class only to a cell
+    spelled as one. The made-up words of G9.5 never are, so a column of
+    160 whole numbers, 138 codes `noteNN` and two `TRUE` cells published
+    `boolean 2` and its twin wrote none, missing `workbook.cell-classes`
+    at the default floor on every seed.
+
+    THE RULE. Among the groups the packing gave the text class in the
+    code alphabet and not already held to a length by a number or a census
+    form, in group order: the first covering exactly ``truths`` cells is
+    spelled `TRUE`; failing that, the first two, in order, covering
+    ``truths`` between them are spelled `TRUE` and `FALSE`. A group
+    carrying a published end is taken only where the length and the one
+    word it is pinned to are the spelling's own. A value written two ways is two groups,
+    so no more than two are taken. Empty where ``truths`` is nought or no
+    such groups exist.
+
+    Guarantees: a fixed function of its arguments; no randomness, no I/O.
+    """
+    chosen: "dict[int, str]" = {}
+    if truths < 1:
+        return chosen
+    open_places: "list[int]" = []
+    for place in range(len(groups)):
+        if place in fixed:
+            continue
+        if _CLASSES[kinds[place]] != _CLASS_TEXT:
+            continue
+        if _BANDS[bands[place]] != _BAND_CODE:
+            continue
+        open_places += [place]
+
+    def fits(place: int, word: str) -> bool:
+        if place not in carriers:
+            return True
+        if lengths is None or counts is None:
+            return False
+        return lengths[place] == len(word) and counts[place] == 1
+
+    for place in open_places:
+        if groups[place] == truths and fits(place, _TRUTH_SPELLINGS[0]):
+            chosen[place] = _TRUTH_SPELLINGS[0]
+            return chosen
+    for first in range(len(open_places)):
+        for second in range(first + 1, len(open_places)):
+            one = open_places[first]
+            other = open_places[second]
+            if groups[one] + groups[other] != truths:
+                continue
+            if not fits(one, _TRUTH_SPELLINGS[0]):
+                continue
+            if not fits(other, _TRUTH_SPELLINGS[1]):
+                continue
+            chosen[one] = _TRUTH_SPELLINGS[0]
+            chosen[other] = _TRUTH_SPELLINGS[1]
+            return chosen
+    return chosen
 
 
 def _held_for_the_census(
@@ -28054,7 +28595,8 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     plans: list[_ColumnPlan] = []
     words = 0
     everywhere = _every_hole_spelling(profile)
-    for column in profile.columns:
+    for place in range(len(profile.columns)):
+        column = profile.columns[place]
         # THE LONG-TAIL DETECTION LINE reaches the free-text walk from
         # here, because only the profile carries the settings and only
         # the walk can act on them (residual R-P4-36).
@@ -28069,10 +28611,28 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             everywhere,
             line,
             _declared_a_decimal_comma(column, profile),
+            _truth_cells(profile, place),
         )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
     return GenerationPlan(columns=tuple(plans), words_planned=words)
+
+
+def _truth_cells(profile: contract.Profile, place: int) -> int:
+    """How many truth values a workbook column's census publishes (P4-D198).
+
+    Nought for a delimited table, and wherever the count was withheld.
+    """
+    form = profile.source.workbook
+    if form is None or place >= len(form.columns):
+        return 0
+    census = form.columns[place].cell_classes
+    if dialect.SHEET_CELL_BOOLEAN not in census:
+        return 0
+    counted = census[dialect.SHEET_CELL_BOOLEAN]
+    if counted is None:
+        return 0
+    return counted
 
 
 def _plan_column(
@@ -28082,6 +28642,7 @@ def _plan_column(
     all_holes: "tuple[str, ...]" = (),
     long_tail_line: int = 0,
     decimal_comma: bool = False,
+    truths: int = 0,
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -28185,7 +28746,8 @@ def _plan_column(
             column, facts.length.minimum, facts.length.maximum, len(groups)
         )
         cells, notes, carriers, remarks = _text_cells(
-            column, groups, long_tail_line, _holes_reserved(column, all_holes)
+            column, groups, long_tail_line, _holes_reserved(column, all_holes),
+            truths,
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)

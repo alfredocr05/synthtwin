@@ -2797,7 +2797,48 @@ def _published_workbook(
             if spelling not in reproduced:
                 written_empty += [spelling]
         emptied += [tuple(written_empty)]
-    return workbook.document_of(table.book, table.sheet, floor, tuple(emptied))
+    block = workbook.document_of(table.book, table.sheet, floor, tuple(emptied))
+    return _stored_as_text_withheld(block, columns, floor)
+
+
+def _stored_as_text_withheld(
+    block: "dict[str, object]",
+    columns: "list[dict[str, object]]",
+    floor: int,
+) -> "dict[str, object]":
+    """A column's census withheld where it would name figures stored as text.
+
+    THE DIFFERENCE A READER CAN TAKE (plan P4-D197, final skeptic of stage
+    2's close). A workbook column of numbers some of which are stored as
+    text publishes its count of numbers beside its census of cell classes
+    (plan P4-D187), and the one less the other is how many figures were
+    stored as text: 400 readings, one stored as text and one the word
+    `pending`, published `n_numeric` 399 beside `number` 398 at the
+    default floor, which names one cell. So where a column's census counts
+    number cells at all and its count of numbers passes that count by a
+    difference `parsing.census_nameable` would not print, every count of
+    the census is withheld. Guarantees: returns the block, changed only
+    so; a fixed function of its arguments; raises nothing; no I/O.
+    """
+    censuses = block["columns"]
+    if not isinstance(censuses, list):
+        return block
+    for index in range(min(len(censuses), len(columns))):
+        entry = censuses[index]
+        numbers = columns[index]["n_numeric"] if "n_numeric" in columns[index] else None
+        if not isinstance(entry, dict) or not isinstance(numbers, int):
+            continue
+        classes = entry["cell_classes"]
+        if not isinstance(classes, dict):
+            continue
+        counted = classes[dialect.SHEET_CELL_NUMBER]
+        if isinstance(counted, bool) or not isinstance(counted, int) or counted < 1:
+            continue
+        stored = numbers - counted
+        if stored <= 0 or parsing.census_nameable([stored], [], floor):
+            continue
+        entry["cell_classes"] = {key: None for key in classes}
+    return block
 
 
 def build_document(

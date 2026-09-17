@@ -1243,8 +1243,13 @@ rather than in ISO:
   file's own folded tally, because that convention is worn by every cell
   showing a width and the generator reaches the count of such cells by
   moving ranks inside their gaps; 1635 real cells against 1667 twin cells
-  passed at the floor before. For every other census the counts
-  themselves are NOT compared, and the reason is the fact that makes
+  passed at the floor before. *Amended 2026-09-17 (plan P4-D195):* on
+  every other census a convention met at its floor is printed HELD only
+  where the file's own folded tally equals the published count, and
+  WITHIN-BOUND where it does not, so a twin holding 381 and 393 against
+  a published 369 and 381 is no longer printed as keeping them. For every
+  other census the counts themselves are NOT compared as obligations, and
+  the reason is the fact that makes
   them interesting: whether a cell can
   show a width or a name's length depends on its own value — a day
   above the ninth shows no field width, a month of May shows no name

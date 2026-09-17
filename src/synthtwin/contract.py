@@ -1111,8 +1111,10 @@ INVARIANTS = {
         "that withholds a count withholds at least two, publishes no "
         "nought beside them, and leaves them together at nought, at "
         "the line or more, or at the whole column where nothing is "
-        "published, so that no count, no complement and no difference "
-        "a reader can take names one row"
+        "published, and a column's count of numbers passes its census's "
+        "number cells by nought or by the line or more, so that no "
+        "count, no complement and no difference a reader can take names "
+        "one row"
     ),
     "WB4": (
         "the records holding nothing inside the table are no more than "
@@ -4367,7 +4369,8 @@ def _workbook_rules(
     # subtraction, and the loader passed it at a floor of five. The rules
     # are `dialect.sheet_census`'s, checked here by the function written
     # beside them.
-    for column in form.columns:
+    for place in range(len(form.columns)):
+        column = form.columns[place]
         for census in (column.cell_classes, column.format_kinds):
             trouble = dialect.sheet_census_broken(census, n_rows, floor)
             if trouble:
@@ -4375,6 +4378,19 @@ def _workbook_rules(
                     "WB3", where, trouble,
                     "no count, complement or difference of fewer than "
                     "the line",
+                )
+        # AND NO DIFFERENCE WITH THE COLUMN'S COUNT OF NUMBERS (plan
+        # P4-D197): the count of numbers less the census's number cells is
+        # how many figures were stored as text.
+        counted = column.cell_classes[dialect.SHEET_CELL_NUMBER]
+        if counted is not None and counted >= 1:
+            stored = columns[place].n_numeric - counted
+            if stored > 0 and not parsing.census_nameable([stored], [], floor):
+                raise _broken(
+                    "WB3", where,
+                    f"a column counts {columns[place].n_numeric} numbers "
+                    f"beside {counted} cells stored as numbers",
+                    "no difference of fewer than the line between them",
                 )
         trouble = dialect.sheet_count_broken(column.formulas, n_rows, floor)
         if trouble or (

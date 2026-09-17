@@ -988,8 +988,11 @@ has, counted from one; WB3 every published count of cells, and the count
 of records holding nothing, is all of them or reaches the line at both
 ends, and a census that withholds a count withholds at least two,
 publishes no nought beside them and leaves them together at nought, at
-the line or more, or at the whole column where nothing is published, so
-that no count, complement or difference a reader can take names one row; WB4 the records holding nothing inside the
+the line or more, or at the whole column where nothing is published, and
+a column's count of numbers passes its census's number cells -- the
+figures stored as text -- by nought or by the line or more (plan
+P4-D197), so that no count, complement or difference a reader can take
+names one row; WB4 the records holding nothing inside the
 table are no more than the table itself holds, and no more rows are
 frozen than the sheet has; WB5 a workbook names one sheet for every
 sheet it has, every name it publishes is one this version would

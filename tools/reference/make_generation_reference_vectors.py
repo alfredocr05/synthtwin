@@ -2671,20 +2671,25 @@ def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor)
     """As many cells at a thousand or more as the marks census counts -- G6.1.
 
     Plan P4-D185, written from the rule statement.  Only on a column whose
-    every numeric cell is on one grid, holding no negative value, naming
-    no field width and no form but ``decimal`` and ``plain``.  ``C`` is the
-    census's cells, named and pooled; ``K`` the cells whose values reach a
-    thousand.  Where ``K < C``, the run of strata just below a thousand,
-    from the highest down while their cells do not pass ``C - K``, takes
-    the lowest free grid points of a thousand or more, in order, each below
-    the value of the stratum above the run; where ``C < K < C + line``,
-    the run from a thousand up, from the lowest while their cells do not
-    pass ``K - C``, takes the highest free grid points below a thousand,
-    in order, each above the value of the stratum below it.  A stratum
-    moves only where its text is its own, never the first or the last,
-    and the run moves whole or not at all.  Free points are looked for at
-    most sixty-four past the run's own length, and a point whose text does
-    not survive being read and written again is passed over.
+    every numeric cell is on one grid, naming no field width and no form
+    but ``decimal`` and ``plain``.  ``C`` is the census's cells, named and
+    pooled; ``K`` the cells whose values reach a thousand in size.  Where
+    ``K < C``, the run of strata just below a thousand, from the highest
+    down while their cells do not pass ``C - K``, takes the lowest free
+    grid points of a thousand or more, in order, each below the value of
+    the stratum above the run; where ``C < K < C + line``, the run from a
+    thousand up, from the lowest while their cells do not pass ``K - C``,
+    takes the highest free grid points below a thousand, in order, each
+    above the value of the stratum below it.  A stratum moves only where
+    its text is its own, is in the positive band, is never the first or
+    the last, and the run moves whole or not at all.  Free points are
+    looked for at most sixty-four past the run's own length, and a point
+    whose text does not survive being read and written again is passed
+    over.  Plan P4-D194: where the column holds a negative value, the count
+    is taken again after that, and the same rule is asked of the negative
+    strata by size
+    -- a thousand read as minus a thousand, above read as below -- and
+    written here that way rather than by turning the column over.
     """
     census = column.get("thousands_marks") or {}
     total = len(values)
@@ -2692,14 +2697,16 @@ def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor)
         return values
     owed = sum(census.values())
     figures = grid_of(column.get("fraction_widths", {}), integer_valued, numeric)
-    if figures < 0 or column.get("n_negative", 0) > 0 or column.get("pad_widths"):
+    if figures < 0 or column.get("pad_widths"):
         return values
     if any(
         style not in ("decimal", "plain", "(withheld)")
         for style in column["numeric_styles"]
     ):
         return values
-    reached = sum(sizes[place] for place in range(total) if values[place] >= 1000.0)
+    reached = sum(
+        sizes[place] for place in range(total) if abs(values[place]) >= 1000.0
+    )
     texts = [grid_text(value, figures) for value in values]
     held = {}
     for text in texts:
@@ -2720,51 +2727,91 @@ def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor)
             found.append(float(spelt))
         return found if len(found) == count else None
 
-    def movable(place):
-        return (
-            0 < place < total - 1
-            and held[texts[place]] == 1
-            and bands[place] == "positive"
-        )
+    def side(sign, band):
+        # ``sign`` 1 reads the positive side as written; -1 reads the
+        # negative side by size, so "below a thousand" is "above minus a
+        # thousand" and the run walks the other way through the strata.
+        def size_of(place):
+            return sign * values[place]
 
-    run = []
-    if reached < owed:
-        wanted = owed - reached
-        place = max(p for p in range(total) if values[p] < 1000.0) if any(
-            value < 1000.0 for value in values
-        ) else -1
-        while wanted > 0 and movable(place) and sizes[place] <= wanted:
-            run.insert(0, place)
-            wanted -= sizes[place]
-            place -= 1
-        if not run:
-            return values
-        points = free_points(thousand, unit, len(run))
-        if points is None:
-            return values
-        if run[-1] + 1 < total and points[-1] >= values[run[-1] + 1]:
-            return values
-    elif owed < reached < owed + max(floor, 2):
-        wanted = reached - owed
-        place = min(p for p in range(total) if values[p] >= 1000.0)
-        while wanted > 0 and movable(place) and sizes[place] <= wanted:
-            run.append(place)
-            wanted -= sizes[place]
-            place += 1
-        if not run:
-            return values
-        points = free_points(thousand - unit, -unit, len(run))
-        if points is None:
-            return values
-        points = list(reversed(points))
-        if points[0] <= values[run[0] - 1]:
-            return values
-    else:
-        return values
-    moved = list(values)
-    for step, place in enumerate(run):
-        moved[place] = points[step]
-    return moved
+        def movable(place):
+            return (
+                0 < place < total - 1
+                and held[texts[place]] == 1
+                and bands[place] == band
+            )
+
+        order = list(range(total)) if sign > 0 else list(reversed(range(total)))
+        run = []
+        if reached < owed:
+            wanted = owed - reached
+            under = [p for p in order if size_of(p) < 1000.0]
+            place_index = order.index(under[-1]) if under else -1
+            while (
+                wanted > 0
+                and 0 <= place_index < total
+                and movable(order[place_index])
+                and sizes[order[place_index]] <= wanted
+            ):
+                run.insert(0, order[place_index])
+                wanted -= sizes[order[place_index]]
+                place_index -= 1
+            if not run:
+                return None
+            points = free_points(sign * thousand, sign * unit, len(run))
+            if points is None:
+                return None
+            beyond = order.index(run[-1]) + 1
+            if beyond < total and sign * points[-1] >= size_of(order[beyond]):
+                return None
+        elif owed < reached < owed + max(floor, 2):
+            wanted = reached - owed
+            over = [p for p in order if size_of(p) >= 1000.0]
+            if not over:
+                return None
+            place_index = order.index(over[0])
+            while (
+                wanted > 0
+                and 0 <= place_index < total
+                and movable(order[place_index])
+                and sizes[order[place_index]] <= wanted
+            ):
+                run.append(order[place_index])
+                wanted -= sizes[order[place_index]]
+                place_index += 1
+            if not run:
+                return None
+            points = free_points(
+                sign * (thousand - unit), -sign * unit, len(run)
+            )
+            if points is None:
+                return None
+            points = list(reversed(points))
+            before = order.index(run[0]) - 1
+            if sign * points[0] <= size_of(order[before]):
+                return None
+        else:
+            return None
+        moved = list(values)
+        for step, place in enumerate(run):
+            moved[place] = points[step]
+        return moved
+
+    moved = side(1, "positive")
+    if moved is None:
+        moved = values
+    if column.get("n_negative", 0) == 0:
+        return moved
+    values = moved
+    reached = sum(
+        sizes[place] for place in range(total) if abs(values[place]) >= 1000.0
+    )
+    texts = [grid_text(value, figures) for value in values]
+    held = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    turned = side(-1, "negative")
+    return values if turned is None else turned
 
 
 def separation_reaches():
@@ -3109,6 +3156,173 @@ def saturated_levels(
         ):
             return None
     return [float(value) for value in given]
+
+
+def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric, demand):
+    """A whole number written two ways is held by two strata -- G6.5a, plan P4-D193.
+
+    Read from the method: on a column at ONE fraction width of a figure or
+    more beside point-free cells, in the ``decimal`` and ``plain`` forms
+    only, with no field width, no mark between thousands and no second
+    negative notation, whose strata are its spellings and no fewer than its
+    numbers, and whose grid texts are not already settled (as many texts
+    as numbers, a text held twice naming a whole number, none three
+    times): first the FILL, where the grid points from ``min`` to ``max``
+    outside every published empty pair number exactly the count of
+    numbers -- the strata take them in order, ``S`` whole points each
+    taken by two neighbours, the assignment moving the strata fewest grid
+    units in all, the lower point at the first stratum where two differ,
+    kept only where the strata with point-free spellings hold the
+    point-free demand; then the MERGE, where the texts still outnumber the
+    count -- a stratum holding a number that is not whole beside a
+    stratum holding a whole number, both texts their holders' own, takes
+    the whole number, nearest pairs first, lower pair first, lower mover
+    first, no stratum twice, never the ends, the sign band kept.
+    """
+    wanted = column.get("n_distinct_values")
+    total = len(values)
+    widths = column.get("fraction_widths", {})
+    if integer_valued or wanted is None or ladder is None or total < 2:
+        return values
+    if column.get("n_distinct") != total or total < wanted:
+        return values
+    if len(widths) != 1 or column.get("pad_widths") or column.get("thousands_marks"):
+        return values
+    if any(count > 0 for count in column.get("negative_notations", {}).values()):
+        return values
+    if any(
+        count > 0 and style not in ("decimal", "plain")
+        for style, count in column["numeric_styles"].items()
+    ):
+        return values
+    if sum(widths.values()) >= numeric:
+        return values
+    key = next(iter(widths))
+    if not (key.isdigit() and int(key) >= 1):
+        return values
+    figures = int(key)
+    texts = [grid_text(value, figures) for value in values]
+
+    def settled(spelt):
+        counts = {}
+        for text in spelt:
+            counts[text] = counts.get(text, 0) + 1
+        if len(counts) != wanted:
+            return False
+        return all(
+            n == 1 or (n == 2 and float(text).is_integer())
+            for text, n in counts.items()
+        )
+
+    if settled(texts):
+        return values
+    surplus = total - wanted
+    unit = fractions.Fraction(1, 10 ** figures)
+    moved = list(values)
+    if _on_grid(ladder[0], figures) and _on_grid(ladder[-1], figures):
+        low = _exact_decimal(ladder[0])
+        high = _exact_decimal(ladder[-1])
+        exact_points = []
+        point = low
+        while point <= high and len(exact_points) <= wanted:
+            number = float(_fraction_text(point, figures))
+            if not any(
+                pair[0] < number < pair[1] for pair in column.get("empty_edges", [])
+            ):
+                exact_points.append(point)
+            point = point + unit
+        if len(exact_points) == wanted:
+            points = [float(_fraction_text(p, figures)) for p in exact_points]
+            anchors = [
+                _snapped_fraction(_exact_decimal(float(t)), figures) for t in texts
+            ]
+            memo = {}
+
+            def least(place, spot, twice):
+                # The fewest grid units the strata from ``place`` on move,
+                # this stratum on ``points[spot]``; None where none fits.
+                if (place, spot, twice) in memo:
+                    return memo[(place, spot, twice)]
+                answer = None
+                if _band_holds(bands[place], points[spot]):
+                    here = abs(exact_points[spot] - anchors[place]) / unit
+                    if place == total - 1:
+                        if spot == wanted - 1:
+                            answer = here
+                    else:
+                        ways = []
+                        if not twice and float(points[spot]).is_integer() and place - spot < surplus:
+                            nxt = least(place + 1, spot, True)
+                            if nxt is not None:
+                                ways.append(nxt)
+                        if spot + 1 < wanted:
+                            nxt = least(place + 1, spot + 1, False)
+                            if nxt is not None:
+                                ways.append(nxt)
+                        if ways:
+                            answer = here + min(ways)
+                memo[(place, spot, twice)] = answer
+                return answer
+
+            import sys as _sys
+
+            _sys.setrecursionlimit(max(_sys.getrecursionlimit(), 10 * total + 1000))
+            if least(0, 0, False) is not None:
+                given = [points[0]]
+                spot = 0
+                twice = False
+                for place in range(total - 1):
+                    same = None
+                    if not twice and float(points[spot]).is_integer() and place - spot < surplus:
+                        same = least(place + 1, spot, True)
+                    step = least(place + 1, spot + 1, False) if spot + 1 < wanted else None
+                    if same is not None and (step is None or same <= step):
+                        twice = True
+                    else:
+                        spot = spot + 1
+                        twice = False
+                    given.append(points[spot])
+                carried = sum(
+                    sizes[place]
+                    for place in range(total)
+                    if point_free_spelling(given[place], integer_valued) is not None
+                )
+                if carried >= demand:
+                    moved = given
+    texts = [grid_text(value, figures) for value in moved]
+    counts = {}
+    for text in texts:
+        counts[text] = counts.get(text, 0) + 1
+    owed = len(counts) - wanted
+    if owed <= 0 or total < 3:
+        return moved
+    pairs = []
+    for place in range(total - 1):
+        for mover, keeper in ((place, place + 1), (place + 1, place)):
+            if mover in (0, total - 1):
+                continue
+            if not float(moved[keeper]).is_integer() or float(moved[mover]).is_integer():
+                continue
+            if counts[texts[keeper]] != 1 or counts[texts[mover]] != 1:
+                continue
+            if not _band_holds(bands[mover], moved[keeper]):
+                continue
+            apart = abs(
+                _snapped_fraction(_exact_decimal(float(texts[keeper])), figures)
+                - _snapped_fraction(_exact_decimal(float(texts[mover])), figures)
+            ) / unit
+            pairs.append((apart, place, mover, keeper))
+    merged = list(moved)
+    taken = set()
+    for apart, place, mover, keeper in sorted(pairs):
+        if owed <= 0:
+            break
+        if mover in taken or keeper in taken:
+            continue
+        merged[mover] = moved[keeper]
+        taken.update((mover, keeper))
+        owed -= 1
+    return merged
 
 
 def apart_values(
@@ -7728,6 +7942,8 @@ def layout_preferences(
     its own remaining count covers the identity and each published
     layout its partners wear has their cells left -- the layout itself
     counting both where they coincide; all of them are debited together.
+    A partner wearing no published layout is debited from the cells the
+    census names no layout for (plan P4-D196).
 
     A function of its own so the frozen case's registered mutant can
     take it away: with no preference every group is offered the layouts
@@ -7738,6 +7954,12 @@ def layout_preferences(
     census = column.get("layout_forms") or {}
     convention = _convention_of_the_keys(offered)
     remaining = {name: census[name] for name in offered}
+    # The cells the census names no layout for are a quota too, under the
+    # empty name a partner wearing no published layout is predicted under
+    # (plan P4-D196).
+    remaining[""] = max(
+        0, column["n_present"] - sum(census[name] for name in offered)
+    )
     whole_numbers = column["all_whole_numbers"]
     preferred = [""] * len(groups)
     wearable = {}
@@ -9249,8 +9471,11 @@ FREE_TEXT_BANDS = {
 # formats, and the shortest spelling any of those formats can match is
 # longer than this, so no candidate of this file's own cases can reach
 # the rule. A longer word would need the rule answered rather than
-# reasoned away, and this file states no reading of it.
-LONGEST_FROZEN_WORD = 3
+# reasoned away, and this file states no reading of it. RAISED FROM THREE
+# TO FIVE at plan P4-D198: the shortest date the formats of the method's
+# G7 read is six characters, `1/1/24` and `1.1.24` among them, so no
+# word of five or fewer reaches the rule.
+LONGEST_FROZEN_WORD = 5
 
 
 def _free_text_permits(notation, band, length):
@@ -9877,7 +10102,12 @@ def _free_text_content(column):
         tuple((band, quotas[band]) for band in IDENTIFIER_BANDS),
     )
     longest = column["length"]["max"]
+    # THE TRUTH VALUES A WORKBOOK CENSUS COUNTS (plan P4-D198), handed to
+    # this column under a private key by the case, which carries the
+    # census in its own workbook block.
+    truths = column.get("_truths", 0)
     settled = None
+    first_packed = None
     for reach in (False, True):
         # Two groups of the same size are the same question: no
         # published count tells them apart, so a pair whose two sizes an
@@ -9920,10 +10150,24 @@ def _free_text_content(column):
                     )
                     for place in range(len(groups))
                 ]
+            if truths > 0:
+                # A shape is taken only where groups can be spelled as the
+                # census's truth values; the first packing is kept otherwise.
+                trial = numbers_out_of_the_code_band(groups, lengths, packed, carriers)
+                trial = singletons_kept_as_text(groups, lengths, trial, carriers)
+                held = number_lengths(column, groups, trial, carriers, lengths)
+                if not truth_words(
+                    groups, trial, carriers, held, truths, lengths, counts
+                ):
+                    if first_packed is None:
+                        first_packed = (carriers, lengths, counts, packed)
+                    continue
             settled = (carriers, lengths, counts, packed)
             break
         if settled is not None:
             break
+    if settled is None and first_packed is not None:
+        settled = first_packed
     if settled is None:
         # Every shape has been asked and none packs, so the refusal is a
         # statement about the description. The first shape raises it.
@@ -9953,6 +10197,9 @@ def _free_text_content(column):
     # G9.5 STEP 3a: A NUMBER'S LENGTH IS ITS OWN, and the other groups
     # carry the published average between them.
     fixed = number_lengths(column, groups, packed, carriers, lengths)
+    chosen = truth_words(groups, packed, carriers, fixed, truths, lengths, counts)
+    for place in sorted(chosen):
+        fixed[place] = len(chosen[place])
     if fixed:
         lengths = _free_text_lengths(column, groups, carriers, fixed)
         counts = _free_text_words(column, groups, lengths, carriers, fixed)
@@ -9967,7 +10214,10 @@ def _free_text_content(column):
             "file freezes no case that turns on a reading it cannot take from "
             "the method"
         )
-    if max(lengths) > LONGEST_FROZEN_WORD:
+    # A TRUTH VALUE IS SPELLED, NOT MADE UP, so the date rule never meets it.
+    if max(
+        length for place, length in enumerate(lengths) if place not in chosen
+    ) > LONGEST_FROZEN_WORD:
         raise AssertionError(
             f"a word of more than {LONGEST_FROZEN_WORD} characters can reach "
             "the date rule of G9.2, which this file states no reading of. It "
@@ -9975,12 +10225,54 @@ def _free_text_content(column):
         )
     content = []
     used = set()
-    for size, length, (notation, band) in zip(groups, lengths, packed):
-        spelling = _free_text_spelling(notation, band, length, used)
+    for place, (size, length, (notation, band)) in enumerate(
+        zip(groups, lengths, packed)
+    ):
+        if place in chosen and chosen[place] not in used:
+            spelling = chosen[place]
+        else:
+            spelling = _free_text_spelling(notation, band, length, used)
         used.add(spelling)
         content.extend([spelling] * size)
     _free_text_recount(column, content)
     return content
+
+
+def truth_words(groups, packed, carriers, fixed, truths, lengths, counts):
+    """Which groups are spelled `TRUE` and `FALSE` -- G9.5, plan P4-D198.
+
+    Written from the rule statement.  Among the groups packed as text in
+    the code alphabet and held to no length by a number, in group order:
+    the first covering exactly ``truths`` cells is `TRUE`; else the first
+    two, in order, covering them between them are `TRUE` and `FALSE`; else
+    none.  A group carrying a published end is taken only where its pinned
+    length is the spelling's and its pinned word count is one.
+    """
+    if truths < 1:
+        return {}
+
+    def fits(place, word):
+        return place not in carriers or (
+            lengths[place] == len(word) and counts[place] == 1
+        )
+
+    open_places = [
+        place
+        for place in range(len(groups))
+        if place not in fixed and packed[place] == (NOTATION_TEXT, CODE_BAND)
+    ]
+    for place in open_places:
+        if groups[place] == truths and fits(place, "TRUE"):
+            return {place: "TRUE"}
+    for first, one in enumerate(open_places):
+        for other in open_places[first + 1:]:
+            if (
+                groups[one] + groups[other] == truths
+                and fits(one, "TRUE")
+                and fits(other, "FALSE")
+            ):
+                return {one: "TRUE", other: "FALSE"}
+    return {}
 
 
 def numbers_class_budget(column, published):
@@ -10229,6 +10521,11 @@ def _numeric_content(column):
         demand > 0,
         integer_valued,
         sum(widths.values()) < numeric,
+    )
+    # AND A WHOLE NUMBER WRITTEN TWO WAYS IS HELD BY TWO STRATA (plan
+    # P4-D193), straight after the walk.
+    values = twice_written(
+        column, values, sizes, bands, ladder, integer_valued, numeric, demand
     )
     # AND AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS
     # (plan P4-D185), last of the value passes.
@@ -13281,6 +13578,10 @@ THIRD_BRANCH_PART = "branches-3"
 # P4-D183), the fills of plans P4-D176 and P4-D178 and the census of marks
 # at a thousand (plan P4-D185) added, which the fifth could not hold.
 FOURTH_BRANCH_PART = "branches-4"
+# The seventh file: the cases of a whole number written two ways (plan
+# P4-D193), which the sixth, within a few kilobytes of the byte cap, could
+# not hold.
+FIFTH_BRANCH_PART = "branches-5"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -14344,6 +14645,213 @@ def _separated_in_order():
         "it, and the cells move."
     )
     return built
+
+
+def _truth_values_written():
+    """A workbook column of free text writes its truth values (plan P4-D198).
+
+    Thirty-two cells of free text: twenty-one one-letter codes and eleven
+    truth values, which the column's workbook census counts as `boolean
+    11`. The packing gives the eleven-row group the text class in the code
+    alphabet, so it is spelled `TRUE` and held at four characters before
+    the walk spends the average; the shortest length is one letter and the
+    longest a made-up word of four.
+    """
+    length, claims = {}, {}
+    for name, text in (("mean", "2.125"), ("p50", "1")):
+        field, claim = nearest_field(text)
+        length[name] = field
+        claims[("column", "length", name)] = claim
+    length["min"] = 1
+    length["max"] = 4
+    words = {"min": 1, "max": 1}
+    field, claim = nearest_field("1")
+    words["mean"] = field
+    claims[("column", "words", "mean")] = claim
+    column = _universal(
+        "column_1", "free_text", "text", "data", "ok",
+        n_present=32, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=32, n_out_of_range=0, n_contradictory=0,
+        length=length, words=words,
+        n_all_digits=0, n_code_alphabet=32,
+        n_distinct_by_occurrences={"01": 21, "11": 1},
+        shape_forms={"(withheld)": 32},
+    )
+    return {
+        "why": "method section G9.5 as plan P4-D198 left it: a workbook column "
+        "of free text whose census counts eleven truth values, and the "
+        "group of eleven the packing puts in the code alphabet as text is "
+        "spelled `TRUE` at its own four characters, so the writer gives those "
+        "cells the boolean class. The mutant spells no truth value, and the "
+        "group is a made-up word.",
+        "column": column,
+        "rows": 32,
+        "identifier_declared": False,
+        "claims": claims,
+        "workbook_truths": 11,
+    }
+
+
+def _identifier_unnamed_partners():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=44, n_missing=0, n_distinct=44, n_distinct_folded=33,
+        n_numeric=0, n_not_numeric=44, n_out_of_range=0, n_contradictory=0,
+        min_length=4, max_length=4, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=44,
+        n_distinct_by_occurrences={"1": 44},
+        # EVERY CELL WEARS A NAMED LAYOUT, so the census names no layout
+        # for none of them, and a partner of a `@-%%` identity -- `&-%%`
+        # or an edge-spaced member, neither named -- has no cell to take.
+        layout_forms={"&%%%": 11, "@%%%": 22, "@-%%": 11},
+    )
+    return {
+        "why": "a declared identifier whose census names a layout for every "
+        "cell (G9.6, plan P4-D196), `{\"&%%%\": 11, \"@%%%\": 22, "
+        "\"@-%%\": 11}` over thirty-three identities and eleven fold-collision "
+        "partners. The cells the census names no layout for are a quota of "
+        "nought, so an identity owed a partner takes no layout whose partner "
+        "wears none, and every partner wears `&%%%`. This case's mutant "
+        "withdraws that quota, an identity owed a partner takes `@-%%`, and "
+        "the check of 7.12 stops the oracle.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": True,
+    }
+
+
+def _grouped_thousands_signed():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-1080.4", "p01": "-1075.2", "p05": "-1050.6", "p10": "-1008.4",
+        "p25": "-981.2", "p50": "-20.5", "p75": "1050.3", "p90": "1081.84",
+        "p95": "1086.88", "p99": "1095.544", "max": "1096.6",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "300.5"), ("std", "990.2"), ("skew", "-0.6"),
+                       ("kurtosis", "1.4"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=33, n_distinct_folded=33,
+        n_distinct_values=33,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=17, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=33, numeric_styles={"decimal": 33},
+        mode=None, mode_count=0, fraction_widths={"1": 33}, pad_widths={},
+        field_widths={}, group_separator=",",
+        # TWENTY-TWO OF THE THIRTY-THREE amounts reach a thousand in size,
+        # refunds among them, and eleven are bare.
+        thousands_marks={",": 22},
+        **moments,
+    )
+    return {
+        "why": "G6.1's census of marks held at a thousand on a column with "
+        "refunds (plan P4-D194): thirty-three amounts at one place between "
+        "-1080.4 and 1096.6, seventeen of them negative, twenty-two reaching "
+        "a thousand in size and written with a comma. The positive side moves "
+        "the strata just below a thousand up to it and still leaves one cell "
+        "short, so the count is taken again and the negative stratum just "
+        "above minus a thousand moves below it. The mutant withdraws the "
+        "negative side, and twenty-one cells wear a comma.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _twice_written_column(rung_texts, moment_texts, rows, spellings, numbers,
+                          plain, mode_count):
+    """One column of readings at one place, some whole ones written bare.
+
+    Shared by the two cases of plan P4-D193: a reading written `4` in most
+    cells and `4.0` in a few, so the column publishes one more spelling
+    than it has numbers.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields(rung_texts)
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in moment_texts + (("numeric_share", "1"),):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=spellings,
+        n_distinct_folded=spellings, n_distinct_values=numbers,
+        n_numeric=rows, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=rows, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=rows,
+        numeric_styles={"decimal": rows - plain, "plain": plain},
+        mode_count=mode_count, fraction_widths={"1": rows - plain},
+        pad_widths={}, field_widths={"1": plain},
+        **moments,
+    )
+    return column, rungs, claims
+
+
+def _twice_written_filled():
+    column, rungs, claims = _twice_written_column(
+        {
+            "min": "3.5", "p01": "3.5", "p05": "3.7", "p10": "3.7",
+            "p25": "3.8", "p50": "3.9", "p75": "4.0", "p90": "4.1",
+            "p95": "4.155", "p99": "4.211", "max": "4.3",
+        },
+        (("mean", "3.897777777777778"), ("std", "0.15720721155784406"),
+         ("skew", "-0.03296493326801872"), ("kurtosis", "3.0402915149762997"),
+         ("mode", "3.9")),
+        90, 10, 9, 14, 29,
+    )
+    return {
+        "why": "G6.5a's whole number written two ways, the fill (plan "
+        "P4-D193): ninety readings at one place between 3.5 and 4.3, "
+        "fourteen whole ones written bare, publishing ten spellings of nine "
+        "numbers. The grid from 3.5 to 4.3 holds exactly nine tenths, so the "
+        "ten strata take them in order with the whole 4.0 taken twice, and "
+        "the column is written `4` and `4.0`. The mutant withdraws the rule, "
+        "and the walk leaves two strata on a tenth that is not whole.",
+        "column": column,
+        "rows": 90,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _twice_written_merged():
+    column, rungs, claims = _twice_written_column(
+        {
+            "min": "3.3", "p01": "3.338", "p05": "3.6950000000000003",
+            "p10": "3.7", "p25": "3.8", "p50": "4.0", "p75": "4.2",
+            "p90": "4.3", "p95": "4.4", "p99": "4.481", "max": "4.5",
+        },
+        (("mean", "4.004166666666666"), ("std", "0.24301877139286943"),
+         ("skew", "-0.19688422880912423"), ("kurtosis", "2.8823084380726773"),
+         ("mode", "4.0")),
+        120, 13, 12, 21, 22,
+    )
+    return {
+        "why": "G6.5a's whole number written two ways, the merge (plan "
+        "P4-D193): a hundred and twenty readings at one place between 3.3 "
+        "and 4.5, twenty-one whole ones written bare, publishing thirteen "
+        "spellings of twelve numbers. The walk leaves thirteen numbers, one "
+        "on every stratum, so the stratum beside the whole 4.0 nearest to it "
+        "takes 4.0 and the column is written `4` and `4.0`. The mutant "
+        "withdraws the rule, and the twin holds thirteen numbers.",
+        "column": column,
+        "rows": 120,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
 
 
 def _grouped_thousands():
@@ -17737,6 +18245,7 @@ _DOCUMENT_ACCOUNT = (
     "provenance manifest's byte cap, which leaves room for no case of "
     "any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -18001,7 +18510,20 @@ FOURTH_BRANCH_CASE_BUILDERS = {
     "separated_in_order": _separated_in_order,
 }
 
+FIFTH_BRANCH_CASE_BUILDERS = {
+    # The census of marks held on a column with refunds (plan P4-D194).
+    "grouped_thousands_signed": _grouped_thousands_signed,
+    # The cells no layout is named for, a quota for partners (P4-D196).
+    "identifier_unnamed_partners": _identifier_unnamed_partners,
+    # A workbook column's truth values written as them (plan P4-D198).
+    "truth_values_written": _truth_values_written,
+    # A whole number written two ways (plan P4-D193).
+    "twice_written_filled": _twice_written_filled,
+    "twice_written_merged": _twice_written_merged,
+}
+
 CASE_SETS = {
+    FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     FOURTH_BRANCH_PART: FOURTH_BRANCH_CASE_BUILDERS,
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
@@ -18016,6 +18538,7 @@ CASE_BUILDERS = {
     **SECOND_BRANCH_CASE_BUILDERS,
     **THIRD_BRANCH_CASE_BUILDERS,
     **FOURTH_BRANCH_CASE_BUILDERS,
+    **FIFTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -18044,6 +18567,7 @@ _NAMED_ACCOUNT = (
     "the provenance manifest's byte cap and these already spend most of "
     "it. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -18075,6 +18599,7 @@ _BRANCH_ACCOUNT = (
     "fourth, tests/reference/generation-document-vectors.json, for that "
     "same reason again. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -18097,6 +18622,7 @@ _SECOND_BRANCH_ACCOUNT = (
     "opened because this one holds 245567 bytes against that cap and has "
     "room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -18117,6 +18643,7 @@ _THIRD_BRANCH_ACCOUNT = (
     "kilobytes of the provenance manifest's byte cap. The layout packing "
     "of a declared identifier (plan P4-D182) fits beside them."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -18137,9 +18664,33 @@ _FOURTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a sixth "
     "file only because the fifth stands within a few kilobytes of the "
     "provenance manifest's byte cap."
+    " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+)
+
+_FIFTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the final pass over the close of "
+    "stage 2: a whole number a column writes two ways held by two strata, "
+    "by the fill of a grid with no spare point and by the merge onto a "
+    "whole neighbour (plan P4-D193), the census of marks held at a "
+    "thousand on a column with refunds (plan P4-D194), and a declared "
+    "identifier's partners held to the cells its layout census names no "
+    "layout for (plan P4-D196), and a workbook column's truth values "
+    "written as them (plan P4-D198). They are computed by the same oracle "
+    "and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "seventh file only because the sixth stands within a few kilobytes of "
+    "the provenance manifest's byte cap."
 )
 
 CASE_SET_ACCOUNTS = {
+    FIFTH_BRANCH_PART: (
+        f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
+    ),
     FOURTH_BRANCH_PART: (
         f"The {len(FOURTH_BRANCH_CASE_BUILDERS)} {_FOURTH_BRANCH_ACCOUNT}"
     ),
@@ -18301,6 +18852,140 @@ GIVEN_WORDS = {
         2288397721481960300, 1245103124046357554, 5413929969708689040,
         15713347547806987945, 16103736577416861924, 9183068736795409678,
         8622311728014625025,
+    ),
+    "twice_written_filled": (
+        9807102915954300313, 1533499287027722403, 18268952151052867855,
+        12060899387110967807, 10860169690069155741, 16405807712074503210,
+        11336088225392016739, 2199797941764082403, 13739613106571616197,
+        18334924317143458956, 4063140605235012501, 16735655150261518428,
+        11476877683815293559, 17792322667094641263, 12014792995761957629,
+        5546249749367379967, 2054948804072260868, 8843760835513865372,
+        8921864288772521283, 1043303225908046733, 13531801461799973060,
+        1312901891449209078, 12638412808799657383, 6604206209950781413,
+        9159008789754050014, 9850019097210461608, 9078212282080136838,
+        16062800011441196216, 11024637831316460781, 1054563244285494147,
+        14217947680471629166, 12494806716618703808, 8487968904770489354,
+        14179523892304556319, 14300323049879018697, 7702075684126994096,
+        10387428897563260934, 16460161366402206157, 9779607677780132610,
+        7359278948084398671, 1365355997015429071, 7910910513118479494,
+        9046696453008240357, 11808962128504117011, 5907786448897427363,
+        15258910377865481342, 18276120277371717161, 653860939496642140,
+        11750185583532740204, 2926393443850106355, 12663527996916665122,
+        15526235133111378989, 17863175474026329274, 10674844640458800832,
+        1685502358086292255, 2068178283234361881, 980707999487100314,
+        10527962165262783203, 11940237489962913421, 8709957525082340366,
+        17248150222454450564, 12225533581493515641, 11403195766673220243,
+        17892774679099047886, 8091529709238459994, 7165727519895529347,
+        344173643448963457, 1172731408924079945, 7159376183485932204,
+        14993078684666494856, 9259832398559991538, 1828606630694215736,
+        6710665284434231816, 15691012611080758491, 4359192425805010911,
+        16589627835342335060, 5213741823166526012, 8146321774261281396,
+        16573630057958593333, 5659440468652638042, 5532891247317196394,
+        17039249489079275410, 15588517994549673291, 4767767765745599977,
+        15543608561451580053, 18427540554821171873, 11808744165459225662,
+        13011499182488043987, 14011887690245873623, 13821131567305158457,
+        7334475033472636811, 14990006749503847837, 12405236883591238526,
+        1861542916895868644, 10907038022445448462, 5848479566958409677,
+        13394087866135454608,
+    ),
+    "twice_written_merged": (
+        17941141834044325940, 14632875602993385311, 1862964910129272931,
+        7363349168769164783, 10905083648639855186, 12679517769122161104,
+        5369928061998501952, 14149119457853621279, 2369194901864358058,
+        10440462113439885886, 10470231362912602076, 14464120173577525591,
+        11151443790158101993, 18092319329684162870, 13000430769986063631,
+        12133323377778885408, 4820289028885458240, 2002056790605865618,
+        17185272890892055757, 872275374056328234, 2717430306966218220,
+        2467500710049965192, 5118748686751558798, 15764242969079277010,
+        16251094162997129511, 5905145003520722963, 9338937380208644096,
+        15727110635765447088, 1706602891273181323, 6996846332238721061,
+        9355617325862668404, 1462911225084311079, 8003742341482945701,
+        9391411819831992840, 8977085388481956218, 13590558613441251117,
+        539121795653847616, 10293424940174116985, 13019922291688965959,
+        12040277978966163042, 6304079187398257782, 14485882459981124634,
+        11609117520597510371, 11254564439295682884, 12714468921962315229,
+        13822972392035162507, 1893444944996769225, 8938236064161844909,
+        17650531480333116824, 14150240104731752243, 17474247189529220076,
+        7293533692642602194, 18433963793544359861, 8897103369927101066,
+        7951466397750767904, 15538889139360837295, 10614738487572276606,
+        5430917947221349670, 15348424941277940027, 722121686270846841,
+        6529774961653100056, 16872555452065103719, 116755439182217275,
+        16920865390407826573, 13440839399673389038, 16199239915310000628,
+        2669061496563282748, 1469928219296655217, 11528670697013833693,
+        13819738769330299168, 14639405829595498708, 5889069431413270485,
+        6879310536419436465, 11862151229248521760, 12210652471992693469,
+        10074653044288614926, 6906772344722180470, 10100795457891813292,
+        16373602583696267104, 2642057701305312903, 3071943731113988213,
+        8246230164498673047, 9702191232940167731, 10339425341125031740,
+        3896566248825868558, 2243792059062295508, 3178383758616819416,
+        40547085148408980, 615306504248009032, 17887963927018895161,
+        4730173464511932072, 14545911963571886087, 16905505775258707312,
+        10892877730744188944, 5317318492369062559, 11550158690267553171,
+        4171607160914778088, 13990584268567972547, 14189884023817311489,
+        2899485916812505692, 11306746194681249213, 16752901920372956797,
+        17928493761582744681, 11061644431823411053, 15513550840873650291,
+        7934469473966306063, 18055550523792248467, 5490762053517788937,
+        4106344814970686777, 108223448409825497, 12995969785168454426,
+        10565515385444184662, 18130538850862103141, 15950525092357073735,
+        7054028094876032818, 13956858393576102721, 701468661446754139,
+        8588256808573578130, 14104470163682385804, 11550104608444942108,
+        15722878387300869045, 4785160873426347094, 11318782721475158477,
+        2506653207403379257, 14905726631369685909, 17281674914564274087,
+        5056064720274300460, 3851070252375274713, 13079390315137301171,
+        2821987267926086543,
+    ),
+    "grouped_thousands_signed": (
+        16764337760561268504, 2731616558881925338, 17185388039533249358,
+        16031378487509627551, 15160868482438834999, 6637459220541204986,
+        15123971167182751075, 3351835981126318400, 3922164463738353987,
+        12838904352352051024, 6749974009010182171, 11897635254429754797,
+        3589255144021274194, 2272530937002182543, 17723882233313489793,
+        17880655199774217365, 12903243294484815341, 6060319119888242051,
+        9792324251942424635, 1316350560725249257, 11298045394577903508,
+        319787961644205726, 4227536886557650405, 3166140487822241612,
+        14580508496985908028, 12477511979628408542, 16006882270660894428,
+        10255978691090338018, 11969493266267571745, 17124451362386733504,
+        17999064314377457741, 11619338791520210541, 4648542702066671943,
+        3166176537359448825, 13854899688496727299, 12854584151190606912,
+        643817797855686085, 4668018689313732711, 11856565551534559409,
+        13347311644159046894, 11947745601761639628, 4615861695526443095,
+        4823975300852224202, 4982792375470054363, 11902251730531125228,
+        12163044196976761632, 12615304700235415088, 8090137416499771209,
+        6206666377834488744, 5838079606327013852, 15118918263967301859,
+        16282177319729402544, 2946751026715272847, 15358258244492707711,
+        16354300077055048188, 17734105561450111891, 5516491044845484039,
+        6580534715984554274, 716820483704791096, 11248283820011754988,
+        15341664938743949054, 9664387329628178451, 10601925008818727566,
+    ),
+    "identifier_unnamed_partners": (
+        328013719168398332, 10766562923109368970, 16233426283648288427,
+        13239842561461432069, 14800997116164779575, 4377843721856348356,
+        7222283941641418829, 7232807586903716336, 4315214641349666465,
+        13079633532412175305, 12140737764186525698, 11480906620815575688,
+        172832741148225563, 3701825696883128410, 5352797094984980934,
+        10446816553269624071, 14013187791600110188, 9559059927570196849,
+        13257472263824864606, 1362579972805652153, 17937509842064448139,
+        8788690047843151584, 14525690285098805381, 2791640362165878406,
+        1517141610631836426, 449048779143352735, 2900156140636176997,
+        8101479771955358020, 17208540454124857984, 1508648639110351944,
+        5742590452969085064, 16397150062865857893, 15071087078404451892,
+        7478694804942252120, 10219456386863542526, 17899529849511623624,
+        15182428401504193236, 3569707100093630577, 13063176584291511810,
+        12097044742257023668, 4989164670432844878, 16397286255010340607,
+        16754686801907319504,
+    ),
+    "truth_values_written": (
+        8981042716644221465, 2594304037482169389, 8493817443954993786,
+        15260377241988477239, 2596126174957726585, 508029927280819144,
+        3517168720076184496, 1046876500064735596, 4536341902756269341,
+        7344723933826314326, 16894106758750882493, 8812529051543134519,
+        13116912689864044726, 6521778171008371473, 1024194013544763580,
+        1039422670693554331, 11064341314598592928, 17841714156589934435,
+        17653894005588130276, 5336491974741777481, 16719485571701108735,
+        588539776915580619, 12008556488172240525, 7149429951284806153,
+        1110101954372367595, 2159851726275514585, 11334768227782759701,
+        527807927264194347, 7974245992836738982, 12317518035908784132,
+        15377880167602324455,
     ),
     "numbers_carry_the_average": (
         10626364091995481622, 12324380702380665290, 10206021613485447140,
@@ -19519,6 +20204,11 @@ def whole_number_fields(document):
         ):
             allowed.add(path)
             continue
+        # THE TRUTH VALUES A CASE'S WORKBOOK CENSUS COUNTS (plan P4-D198),
+        # which that case carries beside its column.
+        if len(path) == 3 and path[0] == "cases" and path[2] == "workbook_truths":
+            allowed.add(path)
+            continue
         if len(path) >= 4 and path[0] == "cases" and path[2] == "column":
             inside = path[3:]
             if len(inside) == 1 and inside[0] in INTEGER_COLUMN_KEYS:
@@ -19630,6 +20320,9 @@ def build_case(name):
     working = dict(column)
     working["_content_words"] = words[:content_words]
     working["_rungs"] = spec.get("rungs")
+    # A WORKBOOK COLUMN'S CENSUS OF TRUTH VALUES (plan P4-D198), which a
+    # case carries beside its column because it is a workbook fact.
+    working["_truths"] = spec.get("workbook_truths", 0)
     chain = []
     if column["role"] == "datetime":
         content = _datetime_content(working)
@@ -19716,6 +20409,11 @@ def build_case(name):
     case = {
         "why": spec["why"],
         "column": column,
+        **(
+            {"workbook_truths": spec["workbook_truths"]}
+            if "workbook_truths" in spec
+            else {}
+        ),
         "words": [str(word) for word in words],
         "word_budget": {"content": content_words, "placement": placement_words},
         "content": content,

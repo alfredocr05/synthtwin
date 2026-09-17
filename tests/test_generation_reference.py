@@ -95,6 +95,7 @@ from synthtwin import (
     parsing,
     rendering,
     sheetwriting,
+    workbook,
 )
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
@@ -140,6 +141,15 @@ FOURTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-4.json"
 )
+# THE SEVENTH FILE (the final pass over the close of stage 2, plan P4-D193).
+FIFTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_5.py"
+)
+FIFTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-5.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -168,6 +178,8 @@ gen = _generator()
 # patches them, so a mutant calls the rule it replaces rather than itself.
 gen_filled_form = gen.filled_form
 gen_numeric_content = gen._numeric_content
+gen_grouped_enough = gen.grouped_enough
+gen_layout_preferences = gen.layout_preferences
 
 
 
@@ -189,6 +201,10 @@ def _third_branch_document() -> dict:
 
 def _fourth_branch_document() -> dict:
     return json.loads(FOURTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _fifth_branch_document() -> dict:
+    return json.loads(FIFTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -410,6 +426,19 @@ FOURTH_BRANCH_CASES = (
     "separated_in_order",
 )
 
+# The seventh committed file: a whole number a column writes two ways,
+# held by two strata (plan P4-D193), the census of marks held on a column
+# with refunds (plan P4-D194), and a declared identifier's partners held to
+# its unnamed cells (plan P4-D196), and a workbook column's truth values
+# (plan P4-D198). Sorted, like the tuples above.
+FIFTH_BRANCH_CASES = (
+    "grouped_thousands_signed",
+    "identifier_unnamed_partners",
+    "truth_values_written",
+    "twice_written_filled",
+    "twice_written_merged",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -417,6 +446,7 @@ ALL_CASES = tuple(
         + SECOND_BRANCH_CASES
         + THIRD_BRANCH_CASES
         + FOURTH_BRANCH_CASES
+        + FIFTH_BRANCH_CASES
     )
 )
 
@@ -487,6 +517,12 @@ SEEDS = {
     "date_widths_reached": 181,
     "date_distinct_reached": 182,
     "midnight_withheld_kept": 183,
+    # The final pass over stage 2's close takes 190 onward.
+    "grouped_thousands_signed": 176,
+    "identifier_unnamed_partners": 184,
+    "truth_values_written": 189,
+    "twice_written_filled": 190,
+    "twice_written_merged": 191,
     "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
@@ -527,12 +563,15 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_signed_layout",
         "identifier_layout_partners",
         "identifier_layout_packing",
+        "identifier_unnamed_partners",
     }
 )
 
 def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
-    if name in FOURTH_BRANCH_CASES:
+    if name in FIFTH_BRANCH_CASES:
+        document = _fifth_branch_document()
+    elif name in FOURTH_BRANCH_CASES:
         document = _fourth_branch_document()
     elif name in THIRD_BRANCH_CASES:
         document = _third_branch_document()
@@ -660,9 +699,55 @@ def _profile_document(case: dict, name: str) -> dict:
             # cells written as text -- so it carries no workbook block
             # (plan P4-D77, contract 4.3b). The key is required of every
             # description, and `null` is what a description of delimited
-            # text says there.
-            "workbook": None,
+            # text says there. The one exception carries a census of
+            # truth values, which only a workbook publishes (plan P4-D198).
+            "workbook": _truth_workbook(case, column),
         },
+    }
+
+
+def _truth_workbook(case: dict, column: dict) -> "dict | None":
+    """The workbook block of a case carrying a census of truth values.
+
+    None for every other case. For such a case: one sheet, the column's
+    cells counted as numbers, text and the truth values, all in the
+    general format -- the block the producer writes for such a book.
+    """
+    if "workbook_truths" not in case:
+        return None
+    rows = len(case["cells"])
+    truths = case["workbook_truths"]
+    classes = {kind: 0 for kind in workbook.CELL_CLASSES}
+    classes["number"] = column["n_numeric"]
+    classes["text"] = column["n_not_numeric"] - truths
+    classes["boolean"] = truths
+    kinds = {kind: 0 for kind in workbook.FORMAT_KINDS}
+    kinds["plain"] = rows
+    return {
+        "autofilter": False,
+        "columns": [
+            {
+                "cell_classes": classes,
+                "format_code": "General",
+                "format_kinds": kinds,
+                "formulas": None,
+                "value_class": "text",
+            }
+        ],
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": False,
+        "empty_rows_inside": None,
+        "frozen_rows": 0,
+        "macro_project": False,
+        "rows_above_header": 0,
+        "sheet_count": 1,
+        "sheet_extents": [None],
+        "sheet_hidden": False,
+        "sheet_names": [None],
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0,
     }
 
 
@@ -714,13 +799,15 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     second = _second_branch_document()
     third = _third_branch_document()
     fourth = _fourth_branch_document()
+    fifth = _fifth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
     assert tuple(sorted(third["cases"])) == THIRD_BRANCH_CASES
     assert tuple(sorted(fourth["cases"])) == FOURTH_BRANCH_CASES
+    assert tuple(sorted(fifth["cases"])) == FIFTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, third, fourth, papers)
+    every = (named, branch, second, third, fourth, fifth, papers)
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -734,6 +821,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (second, SECOND_BRANCH_VECTORS),
         (third, THIRD_BRANCH_VECTORS),
         (fourth, FOURTH_BRANCH_VECTORS),
+        (fifth, FIFTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -755,6 +843,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         SECOND_BRANCH_GENERATOR,
         THIRD_BRANCH_GENERATOR,
         FOURTH_BRANCH_GENERATOR,
+        FIFTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -989,6 +1078,8 @@ THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
 THIRD_BRANCH_NAMED_COUNTS = 339
 FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
+FIFTH_BRANCH_PUBLISHED_NUMBERS = 623
+FIFTH_BRANCH_NAMED_COUNTS = 254
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1023,6 +1114,12 @@ COMMITTED_FILES = (
         FOURTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        FIFTH_BRANCH_VECTORS,
+        gen.FIFTH_BRANCH_PART,
+        FIFTH_BRANCH_PUBLISHED_NUMBERS,
+        FIFTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1036,7 +1133,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1078,7 +1175,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1097,7 +1194,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1352,6 +1449,18 @@ def test_the_generator_checks_its_own_calendar_and_its_own_digits(
 
 
 CHANGES_THE_CELLS = "changes the cells"
+
+
+def _partners_with_no_unnamed_quota(column, *arguments):
+    """Plan P4-D196 withdrawn: the unnamed cells read as without end."""
+    return gen_layout_preferences(dict(column, n_present=10**9), *arguments)
+
+
+def _marks_on_the_positive_side_alone(column, *arguments):
+    """Plan P4-D194 withdrawn: the census of marks asked of positives only."""
+    unsigned = dict(column)
+    unsigned["n_negative"] = 0
+    return gen_grouped_enough(unsigned, *arguments)
 
 
 class Mutant(typing.NamedTuple):
@@ -2210,6 +2319,45 @@ CASE_MUTANTS = {
         attribute="numbers_walked",
         replacement=lambda column, groups, lengths, packed, carriers, fixed: list(lengths),
         outcome="recount length.mean as",
+    ),
+    "grouped_thousands_signed": Mutant(
+        branch="plan P4-D194's negative side of the census of marks; the "
+        "mutant reads the column as holding no negative value, and one cell "
+        "fewer than the census wears a comma",
+        attribute="grouped_enough",
+        replacement=_marks_on_the_positive_side_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_unnamed_partners": Mutant(
+        branch="plan P4-D196's quota of the cells a layout census names no "
+        "layout for; the mutant reads that quota as unbounded, an identity "
+        "owed a partner takes `@-%%`, and the check of 7.12 finds `@%%%` "
+        "worn one time too few",
+        attribute="layout_preferences",
+        replacement=_partners_with_no_unnamed_quota,
+        outcome="wear the layout '@%%%' 21 times",
+    ),
+    "truth_values_written": Mutant(
+        branch="plan P4-D198's truth values; the mutant spells none, and the "
+        "group of eleven is a made-up word",
+        attribute="truth_words",
+        replacement=lambda *arguments: {},
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "twice_written_filled": Mutant(
+        branch="plan P4-D193's fill of a grid whose whole number is written "
+        "two ways; the mutant withdraws the rule, and the walk leaves two "
+        "strata on a tenth that is not whole",
+        attribute="twice_written",
+        replacement=lambda column, values, *arguments: list(values),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "twice_written_merged": Mutant(
+        branch="plan P4-D193's merge onto a whole neighbour; the mutant "
+        "withdraws the rule, and every stratum keeps a number of its own",
+        attribute="twice_written",
+        replacement=lambda column, values, *arguments: list(values),
+        outcome=CHANGES_THE_CELLS,
     ),
     "grouped_thousands": Mutant(
         branch="plan P4-D185's census of marks held at a thousand; the mutant "
@@ -3496,6 +3644,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (DOCUMENT_VECTORS, _document_document()),
         (THIRD_BRANCH_VECTORS, _third_branch_document()),
         (FOURTH_BRANCH_VECTORS, _fourth_branch_document()),
+        (FIFTH_BRANCH_VECTORS, _fifth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

@@ -14462,17 +14462,26 @@ def _written_form_checks(
                 ]
                 continue
             met = _written_form_met(key, named, raw, tally, floor)
+            tallied = tally[named] if named in tally else 0
             if counted_exactly:
-                met = (tally[named] if named in tally else 0) == census[named]
+                met = tallied == census[named]
             shown = _FORM_NOT_NAMED
             if named in measured:
                 shown = _shown_count(measured[named])
+            # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
+            # (plan P4-D195). A census of several widths was printed HELD on
+            # a twin holding 381 and 393 against a published 369 and 381,
+            # which a reader takes as the count kept; it is inside what the
+            # check can ask of a file, and that is what the verdict says.
+            verdict = MISSED
+            if met:
+                verdict = HELD if tallied == census[named] else WITHIN_BOUND
             checks += [
                 Check(
                     name,
                     fact,
                     f"{family}.{named}",
-                    HELD if met else MISSED,
+                    verdict,
                     asked,
                     shown,
                 )
