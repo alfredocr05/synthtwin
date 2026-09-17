@@ -397,6 +397,19 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     # coming back under a new sentence.
                     if check.subcheck in validation._MEASURED_FROM_THE_CELLS:
                         continue
+                    # ...AND THE PUBLISHED COUNTS OF THE FORMS MAP AND ITS
+                    # WIDTH CENSUSES (plan P4-D221; stage 2 closed by the
+                    # owner rulings of 2026-09-17). They are the same
+                    # family read off the re-description: a pool below the
+                    # disclosure line there takes in the smallest named
+                    # count, so a key the file's own description no longer
+                    # names may hold the published count, and a verdict
+                    # would state what no description of that file prints.
+                    # The fence moves by exactly those three prefixes.
+                    if check.subcheck.split(".")[0] in (
+                        "styles", "widths", "pads"
+                    ) and ".published." in check.subcheck:
+                        continue
                     unexplained = unexplained + [
                         (
                             f"{name}/{label}/{marker}: {check.column} "

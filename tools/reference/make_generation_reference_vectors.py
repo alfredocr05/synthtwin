@@ -7069,11 +7069,12 @@ def permitted_marks(column):
 def mark_weights(column):
     """How many values each mark is written on (plan P4-D39, landing 2b.3).
 
-    Written from the statement: every named count as published, and a
-    withheld pool split EVENLY over the permitted marks the census leaves
-    unnamed, a remainder going one each to those marks in the order
-    upper_t, space, lower_t; a mark given no value is left out.  Where
-    the census leaves no permitted mark unnamed the pool is not split.
+    Written from the statement (G7.5 step 2, as plan P4-D222 restored it):
+    every named count as published, and a withheld pool split EVENLY over
+    the permitted marks the census leaves unnamed, a remainder going one
+    each to those marks in the order upper_t, space, lower_t; a mark given
+    no value is left out.  Where the census leaves no permitted mark
+    unnamed the pool is not split.
     """
     census = column.get("datetime_separators", {})
     weights = {name: count for name, count in census.items() if name != "(withheld)"}
@@ -12441,17 +12442,19 @@ def _mixed_marks():
             "max": "2024-05-28 21:45:00",
         },
         n_unparsed=0, utc_offsets={"(none)": 24},
-        datetime_separators={"lower_t": 11, "space": 11, "(withheld)": 2},
+        datetime_separators={"lower_t": 12, "space": 12},
         all_at_midnight=False,
     )
     return {
         "why": "the rotation of marks between day and clock of plan P4-D39. "
-        "The census names two marks at eleven cells each and holds two more "
-        "back, so it pins three rules at once: the named marks are spread "
-        "evenly over the ranks rather than spent from the earliest rank "
-        "upward, the earliest name in sorted order is the commonest on a "
-        "tie, and since landing 2b.3 the withheld pool is written with the "
-        "one mark the census leaves unnamed, a capital T. A "
+        "The census names two marks at twelve cells each, so it pins two "
+        "rules at once: the named marks are spread evenly over the ranks "
+        "rather than spent from the earliest rank upward, and the earliest "
+        "name in sorted order is the commonest on a tie. REBUILT AT PLAN "
+        "P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it "
+        "published eleven and eleven with two held back, which named the "
+        "one mark those two wore, and contract D12 now refuses a pool of "
+        "marks beside a named one; the pool is pooled_marks' to pin. A "
         "walk that spent the names from the first rank upward would write "
         "every lower-case t on the earliest dates and every space on the "
         "latest, making up a link between how early a moment is and how it "
@@ -12519,11 +12522,13 @@ def _numeric_integer():
         # with a SINGLE figure and four with two: its ladder puts the
         # p75 rung at 2.5 and the p90 at 11, so three quarters of the
         # column is at or under 3 and the wide cells are the top of it.
-        # Four is below the smallest group size, so that width has no
-        # key and its cells are pooled -- which is why this case pins
-        # the narrow width alone and leaves the twin the room the pool
-        # gives it.  The case is not otherwise about widths.
-        field_widths={"1": 16, "(withheld)": 4},
+        # Four is below the smallest group size, and a pool below the
+        # line takes in the smallest named width (plan P4-D221; stage 2
+        # closed by the owner rulings of 2026-09-17), so no width has a
+        # key and the census is the pool of twenty alone -- which pins
+        # no width and leaves the twin the room the pool gives it.  The
+        # case is not otherwise about widths.
+        field_widths={"(withheld)": 20},
         **moments,
     )
     return {
@@ -12589,27 +12594,30 @@ def _numeric_pooled_spelling():
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=12,
-        numeric_styles={"plain": 11, "(withheld)": 1},
-        # THE POOLED SIDE OF THE CENSUS. The one cell that carries a
-        # point is the one the floor held back, so no width is named at
-        # all and the census carries the pooled remainder alone -- the
-        # census's own shape for a column whose decimal cells the floor
-        # pooled (contract C6-30's case P5.c). The cell is unsnapped and
-        # written at its own value's spelling, which is the pooled
-        # remainder's rule of G6.4 unchanged.
-        fraction_widths={"(withheld)": 1},
+        # THE WHOLE MAP IS ONE POOL (plan P4-D221; stage 2 closed by the
+        # owner rulings of 2026-09-17). Eleven cells were written `plain`
+        # and one with a point; a pool of one is below the line, so it
+        # takes in the one named form, and the map is twelve cells none
+        # of whose forms is named. G6.4 writes the pool in the plain
+        # style, which is what the eleven named cells were written in.
+        numeric_styles={"(withheld)": 12},
+        # A FORM THE MAP HOLDS BACK HAS NO WIDTHS PUBLISHED (contract
+        # invariant P8 as amended by plan P4-D221), so the cell with a
+        # point is counted nowhere here. It is unsnapped and written at
+        # its own value's spelling, which is the pooled remainder's rule
+        # of G6.4 unchanged.
+        fraction_widths={},
         # No cell of this case is padded, so the padded-field-width
         # census is empty and pins nothing.
         pad_widths={},
-        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, WHOLLY POOLED (contract
-        # 7.10).  Eleven cells are published `plain` and the twelfth is
-        # the held-back one that carries a point, so this census counts
-        # eleven -- P9c's two bounds being 11 and 12 here.  The
-        # described source wrote those eleven at two widths, neither
-        # shared by as many as eleven cells, so NEITHER is named and
-        # the census is the pooled remainder alone.  It therefore pins
-        # no width at all, which is right for a case about spellings.
-        field_widths={"(withheld)": 11},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, EMPTY (contract 7.10, as
+        # amended by plan P4-D221).  The eleven cells written without a
+        # point are held back in the forms map's pool of twelve, and
+        # counting them here would leave the one cell with a point by
+        # subtraction, so the census counts no held-back cell -- P9c's
+        # two bounds being nought and twelve.  It pins no width at all,
+        # which is right for a case about spellings.
+        field_widths={},
         **moments,
     )
     return {
@@ -12657,43 +12665,34 @@ def _numeric_decimal_styles():
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=25, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=25,
-        numeric_styles={"(withheld)": 3, "exponent_lower": 11,
-                        "exponent_upper": 11},
+        numeric_styles={"exponent_lower": 12, "exponent_upper": 13},
         # THE WHOLE-NUMBER FIELD-WIDTH CENSUS (contract 7.10).  This
-        # map names NO point-free form -- the three plain cells are the
-        # held-back remainder -- so P9c bounds this census between
-        # nought and three, and three cells cannot reach the smallest
-        # group size at any width.  The census is the pooled remainder
-        # alone and pins no width.
-        field_widths={"(withheld)": 3},
+        # map names NO point-free form and holds nothing back, so P9c
+        # bounds this census at nought: it is empty and pins no width.
+        field_widths={},
         **moments,
     )
     return {
         "why": "the shortest round-trip digits at both boundaries of the "
         "fixed-point window, and an exact style map on a column whose values "
-        "mostly cannot wear a point-free form. The pinned smallest value "
-        "writes 1e-05, one place below the window, and the pinned largest "
-        "writes 1e+16, one place above it; at those two decimal exponents "
-        "the exponent style and the canonical spelling are the same text, "
-        "which is itself worth freezing. The published map asks for three "
-        "plain cells, and a plain cell carries neither a point nor an "
-        "exponent, so only a value the window holds whole can wear one: the "
-        "four cells on the flat top of the ladder are this column's only "
-        "carriers and they all hold 1000000000000000, whose point-free "
-        "spelling is the digits alone and not the canonical "
-        "1000000000000000.0. The look-ahead of G6.4 is what keeps the quota "
-        "for them, since largest-remaining on its own would have spent every "
-        "one of them on an exponent form and left the quota at the end of "
-        "the column with nothing to carry it; the two exponent quotas "
-        "alternate from the first cell until then. Distinctness is met "
-        "inside that map: the base spellings hold twenty-one folded "
-        "identities against a published twenty-three, so exactly two cells "
-        "raise their leading-zero order, each inside the style G6.4 gave it, "
-        "and neither is a plain cell, because plain is the one style with no "
-        "such family. The cost is the one G6.5's precedence decides: three "
-        "plain cells on a single value are a single raw spelling, so this "
-        "column's own supply is twenty-three raw spellings against a "
-        "published twenty-four, and G12.8's envelope prints that range.",
+        "cannot wear a point-free form. The pinned smallest value writes "
+        "1E-05, one place below the window, and the pinned largest writes "
+        "1e+16 and 1E+16, one place above it; at those two decimal exponents "
+        "the exponent style and the canonical spelling are the same figures, "
+        "which is itself worth freezing. The two exponent quotas alternate "
+        "from the first cell, twelve lower-case and thirteen upper-case, the "
+        "published map exactly. Distinctness is met inside that map: the four "
+        "cells on the flat top of the ladder all hold 1000000000000000 and "
+        "are written 1e+15, 01E+15, 001e+15 and 1E+15, two raised "
+        "leading-zero orders and the exponent case pair, so the column holds "
+        "twenty-three folded identities, its published count exactly, and "
+        "twenty-five raw spellings against a published twenty-four. Until "
+        "plan P4-D221 this case published three plain cells held back below "
+        "the smallest group size beside eleven cells in each exponent form; "
+        "a pool below the disclosure line beside a named form names rows and "
+        "the loader refuses it (contract invariant P6, amended by the owner "
+        "rulings of 2026-09-17), so the source is now written in the two "
+        "exponent forms alone.",
         "column": column,
         "rows": 25,
         "identifier_declared": False,
@@ -14359,8 +14358,8 @@ def _joined_readings():
 def _pooled_marks():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
-        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        n_present=20, n_missing=0, n_distinct=20, n_distinct_folded=20,
+        n_numeric=0, n_not_numeric=20, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="minute",
         subsecond_digits=0, datetimes_read_at="local",
         earliest="2024-05-01 06:30:00", latest="2024-05-24 21:45:00",
@@ -14378,23 +14377,28 @@ def _pooled_marks():
             "p99": "2024-05-23 14:20:00",
             "max": "2024-05-24 21:45:00",
         },
-        n_unparsed=0, utc_offsets={"(none)": 24},
-        resolution_mix={"iso-datetime": 24},
-        datetime_separators={"upper_t": 14, "(withheld)": 10},
+        n_unparsed=0, utc_offsets={"(none)": 20},
+        resolution_mix={"iso-datetime": 20},
+        datetime_separators={"(withheld)": 20},
         all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
-            "the withheld pool of landing 2b.3. The census names one mark at "
-            "fourteen values and holds ten back, and every value of a named mark is "
-            "counted under its name, so the ten wore the two marks it leaves "
-            "unnamed: they are split evenly over those two, five a space and five a "
-            "lower-case t, and spread by the same rotation as the named mark. The "
-            "rule this overturns wrote the pool with the commonest mark, erasing "
-            "the two spellings; this case's mutant is that rule."
+            "the withheld pool of landing 2b.3, as plans P4-D220 and P4-D222 "
+            "amended it (stage 2 closed by the owner rulings of 2026-09-17). A "
+            "census of marks names its commonest marks, counting a rarer one "
+            "into the commonest, or holds all of them back where no mark "
+            "reaches the line and a pool would not say every mark was written: "
+            "twenty moments at a floor of eleven. The pool is split evenly over "
+            "the three permitted marks, seven capital Ts, seven spaces and six "
+            "lower-case ts, each below the line, and spread by the rotation; "
+            "described again at the same floor that twin pools the same twenty. "
+            "The rule written before landing 2b.3 put the pool on the commonest "
+            "mark alone, erasing the other spellings; this case's mutant is that "
+            "rule."
         ),
         "column": column,
-        "rows": 24,
+        "rows": 20,
         "identifier_declared": False,
     }
 
@@ -15321,8 +15325,10 @@ def _saturated_integers():
         mode_count=12,
         # THE WHOLE NUMBERS ONE TO TWENTY-TWO, each once, and eleven more
         # cells holding eleven: twenty-four cells two figures wide and nine
-        # held back below the floor.
-        field_widths={"2": 24, "(withheld)": 9},
+        # one figure wide, below the floor -- and a pool below the line
+        # takes in the one named width (plan P4-D221; stage 2 closed by
+        # the owner rulings of 2026-09-17), so the census is one pool.
+        field_widths={"(withheld)": 33},
         **moments,
     )
     return {
@@ -20258,9 +20264,7 @@ GIVEN_WORDS = {
         6425753487679248711, 11015110302746343300, 18339080949187871663,
         3417281073695313348, 18320094770021572713, 14492109870859816788,
         8266784616822606329, 15687942191941692266, 15880471324755436178,
-        17841136179427949105, 3153720365097832194, 12904746883321067555,
-        15289589415482460436, 11790829620896665457, 16118600836855221284,
-        14339110349838762356, 3346176665544244880, 11953169525016169803,
+        17841136179427949105,
     ),
     "slashed_pool": (
         15712004738899576826, 9106234749995103221, 7197214430348145549,

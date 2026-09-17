@@ -5501,29 +5501,29 @@
     "mixed_marks": {
       "cells": [
         "2024-05-02 09:15",
-        "2024-05-09 10:23",
+        "2024-05-09t10:23",
         "2024-05-27 08:25",
-        "2024-05-08t07:05",
-        "2024-05-20t06:47",
+        "2024-05-08 07:05",
+        "2024-05-20 06:47",
         "2024-05-25t16:10",
-        "2024-05-21T11:55",
+        "2024-05-21 11:55",
         "2024-05-04t13:40",
         "2024-05-24 22:32",
-        "2024-05-09t11:42",
+        "2024-05-09 11:42",
         "2024-05-22t09:20",
-        "2024-05-09 17:17",
+        "2024-05-09t17:17",
         "2024-05-28 21:45",
         "2024-05-04 18:28",
-        "2024-05-16 09:54",
-        "2024-05-18 05:13",
-        "2024-05-14 06:25",
-        "2024-05-20 18:07",
+        "2024-05-16t09:54",
+        "2024-05-18t05:13",
+        "2024-05-14t06:25",
+        "2024-05-20t18:07",
         "2024-05-28t20:50",
-        "2024-05-13t13:09",
+        "2024-05-13 13:09",
         "2024-05-01t06:30",
-        "2024-05-07T02:40",
-        "2024-05-16t15:01",
-        "2024-05-14t18:20"
+        "2024-05-07t02:40",
+        "2024-05-16 15:01",
+        "2024-05-14 18:20"
       ],
       "column": {
         "all_at_midnight": false,
@@ -5542,9 +5542,8 @@
           "p99": "2024-05-28 20:50:00"
         },
         "datetime_separators": {
-          "(withheld)": 2,
-          "lower_t": 11,
-          "space": 11
+          "lower_t": 12,
+          "space": 12
         },
         "datetimes_read_at": "local",
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
@@ -5601,20 +5600,20 @@
         "2024-05-02 09:15",
         "2024-05-04t13:40",
         "2024-05-04 18:28",
-        "2024-05-07T02:40",
-        "2024-05-08t07:05",
-        "2024-05-09 10:23",
-        "2024-05-09t11:42",
-        "2024-05-09 17:17",
-        "2024-05-13t13:09",
-        "2024-05-14 06:25",
-        "2024-05-14t18:20",
-        "2024-05-16 09:54",
-        "2024-05-16t15:01",
-        "2024-05-18 05:13",
-        "2024-05-20t06:47",
-        "2024-05-20 18:07",
-        "2024-05-21T11:55",
+        "2024-05-07t02:40",
+        "2024-05-08 07:05",
+        "2024-05-09t10:23",
+        "2024-05-09 11:42",
+        "2024-05-09t17:17",
+        "2024-05-13 13:09",
+        "2024-05-14t06:25",
+        "2024-05-14 18:20",
+        "2024-05-16t09:54",
+        "2024-05-16 15:01",
+        "2024-05-18t05:13",
+        "2024-05-20 06:47",
+        "2024-05-20t18:07",
+        "2024-05-21 11:55",
         "2024-05-22t09:20",
         "2024-05-24 22:32",
         "2024-05-25t16:10",
@@ -5622,9 +5621,9 @@
         "2024-05-28t20:50",
         "2024-05-28 21:45"
       ],
-      "csv_bytes": "2024-05-02 09:15\n2024-05-09 10:23\n2024-05-27 08:25\n2024-05-08t07:05\n2024-05-20t06:47\n2024-05-25t16:10\n2024-05-21T11:55\n2024-05-04t13:40\n2024-05-24 22:32\n2024-05-09t11:42\n2024-05-22t09:20\n2024-05-09 17:17\n2024-05-28 21:45\n2024-05-04 18:28\n2024-05-16 09:54\n2024-05-18 05:13\n2024-05-14 06:25\n2024-05-20 18:07\n2024-05-28t20:50\n2024-05-13t13:09\n2024-05-01t06:30\n2024-05-07T02:40\n2024-05-16t15:01\n2024-05-14t18:20\n",
+      "csv_bytes": "2024-05-02 09:15\n2024-05-09t10:23\n2024-05-27 08:25\n2024-05-08 07:05\n2024-05-20 06:47\n2024-05-25t16:10\n2024-05-21 11:55\n2024-05-04t13:40\n2024-05-24 22:32\n2024-05-09 11:42\n2024-05-22t09:20\n2024-05-09t17:17\n2024-05-28 21:45\n2024-05-04 18:28\n2024-05-16t09:54\n2024-05-18t05:13\n2024-05-14t06:25\n2024-05-20t18:07\n2024-05-28t20:50\n2024-05-13 13:09\n2024-05-01t06:30\n2024-05-07t02:40\n2024-05-16 15:01\n2024-05-14 18:20\n",
       "float64": [],
-      "why": "the rotation of marks between day and clock of plan P4-D39. The census names two marks at eleven cells each and holds two more back, so it pins three rules at once: the named marks are spread evenly over the ranks rather than spent from the earliest rank upward, the earliest name in sorted order is the commonest on a tie, and since landing 2b.3 the withheld pool is written with the one mark the census leaves unnamed, a capital T. A walk that spent the names from the first rank upward would write every lower-case t on the earliest dates and every space on the latest, making up a link between how early a moment is and how it was spelled; this case's mutant is that walk.",
+      "why": "the rotation of marks between day and clock of plan P4-D39. The census names two marks at twelve cells each, so it pins two rules at once: the named marks are spread evenly over the ranks rather than spent from the earliest rank upward, and the earliest name in sorted order is the commonest on a tie. REBUILT AT PLAN P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it published eleven and eleven with two held back, which named the one mark those two wore, and contract D12 now refuses a pool of marks beside a named one; the pool is pooled_marks' to pin. A walk that spent the names from the first rank upward would write every lower-case t on the earliest dates and every space on the latest, making up a link between how early a moment is and how it was spelled; this case's mutant is that walk.",
       "word_budget": {
         "content": 22,
         "placement": 23
@@ -6671,12 +6670,8 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
-        "field_widths": {
-          "(withheld)": 11
-        },
-        "fraction_widths": {
-          "(withheld)": 1
-        },
+        "field_widths": {},
+        "fraction_widths": {},
         "group_separator": "",
         "integer_valued": false,
         "kurtosis": {
@@ -6730,8 +6725,7 @@
           "proof": "nearest"
         },
         "numeric_styles": {
-          "(withheld)": 1,
-          "plain": 11
+          "(withheld)": 12
         },
         "pad_widths": {},
         "percentiles": {

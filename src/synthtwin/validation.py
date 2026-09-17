@@ -11919,23 +11919,20 @@ def _recount_window(
 ) -> "tuple[int, int]":
     """How many cells of these forms the file's own description allows.
 
-    THE ENVELOPE V5.1 DRAWS, IN ARITHMETIC (review item P3-V2-D-F2). A
-    description names a form only where at least `floor` cells wear it;
-    everything below that goes into one pooled total and the form is
-    never named. So what `synthtwin profile` publishes about this file's
-    spellings is: an exact count for each named form, one total for all
-    the rest together, and nothing else. Every count vector consistent
-    with those numbers is a file that description could equally be
+    THE ENVELOPE V5.1 DRAWS, IN ARITHMETIC (review item P3-V2-D-F2). Every
+    count vector consistent with what `synthtwin profile` publishes about
+    this file's forms is a file that description could equally be
     describing, and a report may state only what is true of all of them.
 
-    The two ends follow from that and from nothing measured:
+    WHAT THE DESCRIPTION PUBLISHES. Since plan P4-D222 (stage 2 closed by
+    the owner rulings of 2026-09-17) a map naming its forms holds no pool
+    and `_style_checks` settles on its counts directly, so this is asked
+    only of a map that is one pool (`parsing.census_pools`), or of none:
 
-    * each named form contributes its published count exactly, and the
-      `unread` cells above can add to any form, so they widen the top;
-    * the unnamed forms share the pooled total, none of them reaching
-      the floor -- so the forms asked about here can take at most
-      `floor - 1` each of it, and at least whatever the OTHER unnamed
-      forms cannot hold.
+    * the `unread` cells can add to any form, widening the top;
+    * the forms share the pooled total, none of them reaching the line --
+      so the forms asked about here can take at most one less than the
+      line each of it, and at least whatever the OTHER forms cannot hold.
 
     Guarantees:
 
@@ -11947,9 +11944,7 @@ def _recount_window(
       caller compares it with what the file holds.
     - Errors raised: none.
     """
-    pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
-    room = floor - 1
-    room = max(room, 0)
+    room = parsing.census_floor(floor) - 1
     known = 0
     asked_unnamed = 0
     for style in styles:
@@ -11961,10 +11956,9 @@ def _recount_window(
     for style in contract.NUMERIC_STYLES:
         if style not in own and style not in styles:
             other_unnamed = other_unnamed + 1
-    high = asked_unnamed * room
-    high = min(high, pooled)
-    low = pooled - other_unnamed * room
-    low = max(low, 0)
+    pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
+    high = min(asked_unnamed * room, pooled)
+    low = max(pooled - other_unnamed * room, 0)
     return known + low, known + high + unread
 
 
@@ -12094,11 +12088,31 @@ def _style_checks(
                 _withheld(name, fact, subcheck, _GATE_CLOSED)
             ]
         return withheld
-    recount, no_point_free = _recounted_styles(cells)
     published = facts.numeric_styles
     remainder = _counted(published, taxonomy.SUPPRESSED_LABEL)
     own = _own_styles(block)
     unread = _unread_cells(block, cells)
+    # THE FILE AS ITS OWN DESCRIPTION WRITES IT (plan P4-D222; stage 2
+    # closed by the owner rulings of 2026-09-17). Where that description
+    # names its forms, a form fewer cells than `parsing.census_floor` wrote
+    # was counted into the commonest named one, so the file it describes
+    # holds exactly the named counts and nothing else; its rare cells are
+    # read as written the commonest way, the rule the real table is
+    # described by. Every clause then settles on those counts -- which
+    # are the same for every file that description describes, so V5.1
+    # holds with no window -- and the recount below is read only over the
+    # forms that description names. Measured without this: every clause
+    # of a column of 229 plain numbers was WITHHELD on its own twin,
+    # because up to fifty of them might have been counted in.
+    respelled = bool(own) and taxonomy.SUPPRESSED_LABEL not in own
+    counted_forms: "tuple[str, ...]" = ()
+    if respelled:
+        counted_forms = tuple(sorted(own))
+    recount, no_point_free = _recounted_styles(cells, counted_forms)
+    if respelled:
+        recount = {}
+        for style in sorted(own):
+            recount[style] = own[style]
 
     def named(style: str) -> int:
         return _counted(published, style)
@@ -12110,6 +12124,8 @@ def _style_checks(
         return total
 
     def window(styles: "tuple[str, ...]") -> "tuple[int, int]":
+        if respelled:
+            return found(styles), found(styles) + unread
         return _recount_window(own, floor, unread, styles)
 
     checks: list[Check] = []
@@ -12218,7 +12234,7 @@ def _style_checks(
                 # the offer is a comma for both published marks; a cell
                 # carrying one of the other marks is offered that one.
                 ",",
-                _pooled_widths(facts),
+                _pooled_widths(facts, floor),
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -12288,7 +12304,11 @@ def _style_checks(
     for style in _ceilinged_styles(column, facts):
         odd = _noncanonical_cells(cells, style, facts.integer_valued)
         settled: bool | None = odd <= named(style)
-        if style not in own:
+        if respelled and style not in own:
+            # A form the file's own description counts into another holds
+            # no cell of the file that description describes.
+            settled = True
+        elif style not in own:
             settled = _window_at_most(
                 (0, window((style,))[1]), odd, named(style)
             )
@@ -12577,7 +12597,7 @@ def _style_subchecks(
 
 
 def _recounted_styles(
-    cells: "list[str]",
+    cells: "list[str]", forms: "tuple[str, ...]" = ()
 ) -> "tuple[dict[str, int], int]":
     """How the present numeric cells were written, and how many need a point.
 
@@ -12585,6 +12605,10 @@ def _recounted_styles(
     whose VALUE has no point-free spelling at all. It is read off the
     values and never off the spellings, because counting the cells that
     were written with a point would make the identity circular.
+
+    ``forms``, where given, are the forms the file's own description names
+    (plan P4-D222): a cell of any other form is one that description
+    counts into its commonest form, and it needs no point there.
     """
     counted: dict[str, int] = {}
     no_point_free = 0
@@ -12596,6 +12620,8 @@ def _recounted_styles(
             continue
         style = parsing.numeric_style(body)
         counted[style] = _counted(counted, style) + 1
+        if forms and style not in forms:
+            continue
         value = parsing.parse_number(body)
         if value is not None and not parsing.is_whole_number(value):
             no_point_free = no_point_free + 1
@@ -13054,13 +13080,30 @@ def _shown_count_or_none(found: "int | None") -> "str | None":
     return _shown_count(found)
 
 
-def _pooled_widths(facts: contract.NumericFacts) -> int:
-    """How many cells the fraction-width census withheld under its pool."""
+def _pooled_widths(facts: contract.NumericFacts, floor: int) -> int:
+    """How many cells the fraction-width census leaves no width of its own.
+
+    THE CELLS A WIDTH BELOW THE LINE WAS COUNTED INTO THE COMMONEST
+    WIDTH FROM (plan P4-D222; stage 2 closed by the owner rulings of
+    2026-09-17), at most `parsing.absorbed_room`'s bound, or the census's
+    one pool; and where the forms map holds the point back in one pool,
+    that pool. Each is a cell written at a width too few cells shared to
+    name: a real column of 400 one-place readings, one of them written
+    `4.20`, publishes `fraction_widths {"1": 400}`, and its `4.20` is one
+    of them.
+    """
+    pooled = 0
     if taxonomy.SUPPRESSED_LABEL in facts.fraction_widths:
         found = facts.fraction_widths[taxonomy.SUPPRESSED_LABEL]
         if isinstance(found, int):
-            return found
-    return 0
+            pooled = found
+    _commonest, taken = parsing.absorbed_room(facts.fraction_widths, floor)
+    pooled = pooled + taken
+    if parsing.STYLE_DECIMAL not in facts.numeric_styles:
+        for style in sorted(facts.numeric_styles):
+            if style == taxonomy.SUPPRESSED_LABEL:
+                pooled = pooled + facts.numeric_styles[style]
+    return pooled
 
 
 def _published_widths(

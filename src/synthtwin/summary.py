@@ -631,9 +631,11 @@ def _datetime_separator_lines(
     page is owed the same fact in words.
 
     A POOLED NAME IS NOT A MARK (the rule `_missing_spelling_words`
-    follows). The census pools every mark worn by fewer rows than the
-    floor under `(withheld)`, so that entry is said as a count of values
-    whose mark is not named, never as a mark of its own.
+    follows). Since plan P4-D222 the census pools under `(withheld)` only
+    where every mark was worn by fewer rows than `parsing.census_floor`
+    (a rarer mark beside a named one is counted into the commonest), so
+    that entry is said as a count of values whose mark is not named, never
+    as a mark of its own, and the line is the one the census asks.
 
     A mark is a fact about the WRITING: the line names marks and counts
     of values and nothing else.
@@ -663,8 +665,8 @@ def _datetime_separator_lines(
         pooled = _count_of(census[parsing.MISSING_WITHHELD])
         parts += [
             f"{pooled} value(s) whose mark was too rare to name here, "
-            f"because fewer than {floor} value(s) were written with each "
-            f"such mark"
+            f"because fewer than {parsing.census_floor(floor)} value(s) were "
+            f"written with each such mark"
         ]
     if not parts:
         return []

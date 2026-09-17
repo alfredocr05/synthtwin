@@ -1465,6 +1465,18 @@ spelled as its value at a width the census does not name is admitted,
 up to the pooled count and no further, so a file padding more cells
 than the description withheld still misses.
 
+**Amended 2026-09-17 (plans P4-D221 and P4-D222, citing the owner
+rulings of 2026-09-17): the permission covers the cells a width census
+counts into its commonest width, and a pool that holds the point back.**
+A width fewer cells than `parsing.census_floor` wrote is counted into
+the commonest width, so a cell at a width the census does not name is a
+cell of that count; the permission is at most what the commonest width
+can have taken in (`parsing.absorbed_room`). A real column of 400
+one-place readings with one `4.20` publishes `fraction_widths {"1":
+400}`, and its `4.20` is admitted. And where `numeric_styles` is one
+pool, its count is added: a form the forms map holds back has no widths
+published (profile contract P8).
+
 **Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
 admits the spellings a real exporter writes that G6.3 does not choose.**
 The family of G6.1 is what this method's own generator may write, and
@@ -2272,6 +2284,31 @@ verdict and never the recount. **To reverse**, restore the rounding
 function and the one call, which costs teeth at every count inside a
 floor-wide block and buys the block-resolution bound back against a
 person who holds the file anyway.
+
+**V5.3-A3 The file as its own description writes it** (2026-09-17,
+plans P4-D221 and P4-D222, citing the owner rulings of 2026-09-17). A
+form, a width, a mark or an offset fewer cells than
+`parsing.census_floor` wrote is counted into the commonest named one, so
+where the measured file's own forms map names its forms it pools nothing,
+and every file it describes holds exactly those counts once its rare
+spellings are read the commonest way. The style subchecks settle each
+clause on those counts, and read the recount of cells needing a point
+and of non-canonical cells only over the forms that description names:
+a form it counts into another holds no cell of the file it describes.
+The verdict is then the same for every file one description describes,
+which is what V5.1 asks, with no window; the window of V5.1 is drawn only
+where the map is one pool. `styles.published.*`, `widths.published.*` and
+`pads.published.*` compare the published count with the count the file's
+own description names, and a key it does not name is MISSED where the
+published count reaches the floor. Measured: a file keeping two of the
+twelve exponent cells a description publishes is missed on
+`styles.published.exponent_lower` and `styles.at-least.exponent_lower`,
+where plan P4-D221's reading of an absent key through a pool withheld
+both. **What it costs, and it is the rule and not a gap:** a file with
+fewer than the line of cells respelled another way describes exactly as
+the file without them, so it is not missed -- 583 two-place and 5
+one-place prices at a floor of eleven are the description of 588
+two-place prices, and the real table must meet its own description.
 
 **V5.4 What may be printed, exactly.**
 

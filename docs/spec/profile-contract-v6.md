@@ -1444,6 +1444,33 @@ every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
 `shape_forms`.
 
+**Amended by plan P4-D220 (stage 2 closed by the owner rulings of
+2026-09-17): the `(withheld)` entries of `utc_offsets` and
+`datetime_separators` are OFF this list.** Those two censuses name no
+count below `parsing.census_floor`, which is two at a floor of one
+(D3, D12), so at a floor of one the range below THEIR line is not empty:
+a count of one is pooled rather than named, and a pool there is the
+rule working, not a floor-one document holding something back. The
+places a loader and a producer's guard read that exception from are one
+list, `canonical.POOLED_AT_ANY_FLOOR`.
+
+**Amended again by plan P4-D221 (stage 2 closed by the owner rulings of
+2026-09-17): the `(withheld)` entries of `numeric_styles`,
+`fraction_widths`, `pad_widths` and `field_widths` are OFF this list
+too**, on a column, on each part of a composite column and on the
+`numbers` block of a compound or affixed column. Those four censuses
+name no count below `parsing.census_floor` either (P2, P5, P6b, P6c),
+and a pool of theirs is held by P6, P8 and P9c at every floor; the same
+list carries them.
+
+**Amended by plan P4-D222 (stage 2 closed by the owner rulings of
+2026-09-17), and the list stands.** These six censuses count a name
+below `parsing.census_floor` into their commonest named count, so a
+`(withheld)` entry of theirs stands only alone, where no name reaches
+the line -- at a floor of one, a column whose population is one cell, or
+a closed census whose names are each one cell and too few to fill a
+pool that would say every name was written (`parsing.census_pools`).
+
 A document that fills one of them is refused. The rule is checked with
 the top-level rules, before any column block is read, because the
 floor is a top-level setting and what the rule states is a fact about
@@ -1457,9 +1484,13 @@ named width reaches the floor, so widths are NAMED rather than pooled,
 and the field is nonempty precisely because nothing is held back. What
 must be zero or absent there is the `(withheld)` entry alone, for the
 rule's own reason — at a floor of one there is nothing to pool. The
-same reading applies to `missing_by_class`, `utc_offsets`,
-`datetime_separators`, `numeric_styles`, `pad_widths`, `field_widths` and `shape_forms`: the
-map stays, the pooled remainder goes.
+same reading applies to `missing_by_class`, `numeric_styles`,
+`pad_widths`, `field_widths` and `shape_forms`: the map stays, the
+pooled remainder goes. (`utc_offsets` and `datetime_separators` stood
+here until plan P4-D220 took their pools off the list, and
+`numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths`
+until plan P4-D221 took theirs; only `missing_by_class` and
+`shape_forms` keep the reading.)
 
 **What does NOT join the list, named so no reader adds it.**
 `missing_by_source` is not on it: its keys are spellings of the table
@@ -1472,7 +1503,8 @@ is what the rule requires. And `resolution_mix` is not on it because
 it is floor-free — it never withholds at any floor, so a rule about
 what a floor of one holds back has nothing to say about it. The
 datetime block's other map, `datetime_separators`, is floor-governed
-with a `(withheld)` pool, and it is on the list.
+with a `(withheld)` pool, and since plan P4-D220 its pool, like
+`utc_offsets`', may stand at a floor of one.
 
 **THE LIST IS EXHAUSTIVE, AND THAT MATTERS TO A WALK** (plan amendment
 A-P3-32, review item P3-V9-F2). Every position above is a FIELD of
@@ -2572,10 +2604,12 @@ the sentence is carried in all three cases and not only where something
 else was also guessed.
 
 **NF43. `remark_padded_numbers_may_be_codes`** — arity 1. Argument 1:
-how many of the column's cells were written with a leading zero,
-counted off the cells rather than read back off `numeric_styles`, which
-may have pooled the form below the floor. Carried on a `count` or
-`continuous` column with at least one such cell.
+how many of the column's cells were written with a leading zero, the
+count `numeric_styles` names for `leading_zero`. Carried on a `count` or
+`continuous` column whose forms map names that form, and on no other
+(amended by plan P4-D221, citing the owner rulings of 2026-09-17: the
+argument was counted off the cells so that padding the map pooled was
+still told, and a pooled count of one was printed here by that route).
 
 > «1» of this column's values are written with a leading zero, and
 > synthtwin described them as quantities: their average, their spread
@@ -4388,8 +4422,19 @@ R-P4-12).
 cell wrote between its day and its clock to how many cells wrote it:
 `upper_t` for the letter T, `space` for a space, `lower_t` for the
 letter t. A name is published only where its count reaches
-`small_cell_floor`; the rest pool under `(withheld)`, exactly as on
-`utc_offsets`. Only a cell that writes a clock is counted, so the map
+`parsing.census_floor` -- the floor, and never fewer than two (plan
+P4-D220) -- and **a mark below that line is counted into the commonest
+named mark** (plan P4-D222; stage 2 closed by the owner rulings of
+2026-09-17, as ruling 4 counts missing-value words below a raised floor
+as absent): the map describes the column with its rare marks written the
+commonest way. Where no mark reaches the line EVERY mark pools under
+`(withheld)` -- except over more clock-writing cells than two marks can
+hold below the line, where a pool would say all three were written, and
+there the map is `{"upper_t": N}`. The marks are a closed vocabulary, and
+a pool beside a named mark would say that a rarer mark was not nought, so
+none stands there. Plan P4-D220 pooled the whole map where any mark fell
+short, and one `T` among 5,000 spaces made the twin write `T` on 4,998
+rows. Only a cell that writes a clock is counted, so the map
 is `{}` where `resolution` is not `datetime`, and the whole-date cells
 of an `iso-mixed` column are left out. A `month-first-datetime`,
 `day-first-datetime` or `slashed-iso-datetime` cell counts as `space`,
@@ -4599,8 +4644,22 @@ D1 is stated above, beside the format table whose rows are its own.
 `n_present - n_unparsed`. Only cells that parsed have an offset.
 
 **Invariant D3 (the floor on offsets).** Every key of `utc_offsets`
-other than `(withheld)` maps to a count at least the floor.
-`(withheld)` appears only when the pooled remainder is non-zero.
+other than `(withheld)` maps to a count at least the floor, and never
+below two. **A `(withheld)` count stands ALONE**: it is the whole map,
+whose one count is the total D2 already publishes, and it is admitted at
+any size and at any floor. **Amended by plan P4-D220 and again by plan
+P4-D222 (stage 2 closed by the owner rulings of 2026-09-17).** The rule
+named an offset at the settings floor, so at the default floor of one a
+row written at `+01:00` beside 399 at `Z` was named, and at a floor of
+eleven the pool beside `Z` was that one row. P4-D220 folded a pool below
+the line into the smallest named offset, and one `Z` among `+01:00` and
+`+02:00` then folded `+01:00` in and the twin wrote half the column with
+no offset. The producer now counts an offset below the line into the
+commonest named offset and reads those values at it -- the clock the
+column is published on, its ends and their offsets follow
+(`parsing.absorbed_census`) -- and where no offset reaches the line the
+map is one pool, beside which the clock is `utc` and both ends are held
+back.
 
 **Invariant D4 (endpoint offsets never out-name the map).** An endpoint
 offset field holds `(none)` when that endpoint's cell carried no
@@ -4753,13 +4812,22 @@ ends as well, since they are the same two texts.
 **Invariant D12 (the separator names and the floor).** Every key of
 `datetime_separators` is `upper_t`, `space`, `lower_t` or
 `(withheld)`. Every key other than `(withheld)` maps to a count at
-least the floor, and `(withheld)` appears only when the pooled
-remainder is non-zero. A pool is made of marks each written by fewer
-rows than the floor, so the `(withheld)` count is at most (floor − 1)
-times the number of permitted marks the census leaves unnamed. The
-permitted marks are the three names, or `space` alone on a
-`month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime`
-column (the stage 2 audit, 2026-09-14; landing 2b.3).
+least the floor, and never below two, and `(withheld)` appears only
+when the pooled remainder is non-zero. **A `(withheld)` count stands
+ALONE: no mark is named beside it** (plan P4-D220), and **it stands only
+over a population a pool names no one in** (plan P4-D222; stage 2 closed
+by the owner rulings of 2026-09-17; `parsing.census_pools`): fewer
+clock-writing values than the line, or no more than the permitted marks
+less one can hold below it. The permitted marks are the three names, or
+`space` alone on a `month-first-datetime`, `day-first-datetime` or
+`slashed-iso-datetime` column. A pool over more values than that says
+every permitted mark was written, which is the state nought reaches told
+apart from a count below the floor, so the producer publishes the
+commonest mark there, or `upper_t` for the whole population where no
+mark reaches the line. The bound P4-D220 replaced allowed a pool of at
+most (floor − 1) times the unnamed marks (the stage 2 audit, 2026-09-14;
+landing 2b.3), and admitted both ways a pool of marks names a row:
+`{"upper_t": 399, "(withheld)": 1}` named the one row that wrote a `t`.
 
 **Invariant D13 (the separator totals).** `datetime_separators` is
 `{}` where `resolution` is not `datetime`. On a datetime column whose
@@ -7947,8 +8015,24 @@ exponent.
 An object mapping a style name to a count, plus a `(withheld)`
 remainder when the floor pooled anything. Keys are the six style names
 or `(withheld)`, values integers ≥ 1; a style used by no cell has no
-key, and one used by fewer rows than the floor pools into `(withheld)`
-instead, so a single oddly-written cell cannot be singled out.
+key, and one used by fewer rows than max(2, `small_cell_floor`) pools
+into `(withheld)` instead, so a single oddly-written cell cannot be
+singled out. **A style below that line is counted into the commonest
+named style** (plan P4-D222, citing the owner rulings of 2026-09-17; the
+first in name order on a tie), so the map names styles alone and no
+remainder stands beside them; where no style reaches the line the map is
+the one key `(withheld)` holding the whole numeric count -- except over
+more cells than five styles can hold below the line, where a pool would
+say all six were written, and there the map names `plain` (or `decimal`
+on a column whose values are not all whole) for the whole count.
+Measured before: 1,200 two-place prices with one padded, one exponent
+and one three-place cell published `{"decimal": 1198, "exponent_lower":
+1, "leading_zero": 1}` at a floor of one and `{"decimal": 1198,
+"(withheld)": 2}` at eleven, and plan P4-D221's fold published
+`{"(withheld)": 1200}` at eleven, whose twin wrote integers and
+fifteen-place decimals; both floors now publish `{"decimal": 1200}`. The
+rule is `parsing.census_nameable`, asked through
+`parsing.absorbed_census`.
 
 #### 7.5.4 Invariants
 
@@ -7960,8 +8044,14 @@ forms the six styles cannot express, so counting them would oblige a
 form no generator writes.
 
 **P2 (the floor, both ways).** Every value under a style NAME is at
-least `small_cell_floor`. `(withheld)` appears only when the pooled
-remainder is at least 1, and its own value may be anything from 1 up.
+least max(2, `small_cell_floor`) (amended by plan P4-D221, citing the
+owner rulings of 2026-09-17; it read `small_cell_floor`, and at the
+default floor of one a style used by one cell was named). `(withheld)`
+appears only when the pooled remainder is at least 1, and **only
+alone** (plan P4-D222, citing the owner rulings of 2026-09-17): a map
+whose one key is `(withheld)` restates the numeric count, and it stands
+only over no more numeric cells than five styles hold below the line, or
+fewer than the line -- the loader's P6.
 
 **P3 (never empty here).** Never `{}`: the numeric count is at least 1
 on these roles (Q3) and every counted cell lands in a key.
@@ -8140,9 +8230,16 @@ document deviating (**A-P4-5**).
 
 **C6-28 (what it holds).** A mapping from a fraction width — digits
 after the point — to the number of `decimal`-styled cells at that
-width, with the pooled key `(withheld)` for widths fewer than
-`small_cell_floor` cells share; read over the cores on `affixed_number`
-(AF7).
+width. A width fewer than max(2, `small_cell_floor`) cells share is
+counted into the commonest named width (plan P4-D222, citing the owner
+rulings of 2026-09-17; plan P4-D221 had folded a remainder below that
+line into the smallest named width, and 1,200 prices with one cell at
+three places published `{"2": 1197, "3": 1}` at a floor of one before
+either), and the census counts the `decimal` count the forms map
+publishes, the cells that map counted into `decimal` at the commonest
+width; where no width reaches the line, or where the widest width named
+is narrower than the published `min` or `max` needs, the census is the
+one key `(withheld)`; read over the cores on `affixed_number` (AF7).
 
 **C6-29 (key grammar: one width, one spelling).** A width key is the
 decimal spelling of a non-negative integer: no sign, no leading zero
@@ -8161,34 +8258,27 @@ that value by every condition below.
   exactly.
 - **P5.b — no `decimal` key and no `(withheld)` key.** No decimal cell
   exists: `fraction_widths` is `{}`, *F* zero.
-- **P5.c — no `decimal` key but a `(withheld)` key.** Any decimal count
-  was pooled and no published number holds it, so `fraction_widths` is
-  EITHER `{}` (no decimal cell, the pool holding other styles) OR the
-  pooled decimal cells under its own `(withheld)`. Write *W* for
-  `numeric_styles["(withheld)"]`. FOUR conditions bind, any breach
-  refusing the document:
+- **P5.c — no `decimal` key but a `(withheld)` key.** `fraction_widths`
+  is `{}` (invariant P8, amended by plan P4-D221, citing the owner
+  rulings of 2026-09-17). Since plan P4-D222 the `(withheld)` key stands
+  only alone, so no form is named and a total printed here would say how
+  many of the pooled cells carried a point. Until P4-D221 the census
+  could carry the pooled decimal cells under its own `(withheld)`,
+  bounded by four conditions (A-P4-6, A-P4-8): 1,200 prices with one
+  cell at three places and one padded at a floor of eleven published
+  `{"(withheld)": 1}` there. Those conditions are withdrawn with the
+  shape they bounded, and what the pool can hold is P6's.
 
-  1. *F* is at least 1 wherever the census is NON-EMPTY (A-P4-6) — the
-     one condition confined to that branch, an empty census being what
-     a column with no decimal cell writes;
-  2. *F* is strictly BELOW `small_cell_floor`, a style being pooled
-     only when its count falls below the floor;
-  3. *F* is at most *W*, the pooled decimal cells being a subset of the
-     pool;
-  4. ***F* ≥ *W* − 5 × (`small_cell_floor` − 1)** (A-P4-8): six styles
-     exist, so at most five share the pool with decimal, each holding
-     at most `small_cell_floor` − 1 cells. Vacuous where the right-hand
-     side is zero or negative. It refuses *W* = 60 beside
-     `{"(withheld)": 1}` at a floor of 11, which 1 to 3 admit — *F* ≥
-     10 is required, one of the other five otherwise holding twelve.
-
-**Condition 4 also decides an EMPTY census; no fifth is needed.** At
-*F* = 0 it reads *W* ≤ 5 × (`small_cell_floor` − 1), the pool being the
-five styles other than decimal: it refuses
-`{"(withheld)": 51}` beside `{}` at a floor of 11, which 2 and 3 admit,
-fifty-one being unshareable by five styles holding ten each.
-
-**P6.** Every NAMED width's count is at or above `small_cell_floor`.
+**P6.** Every NAMED width's count, and a `(withheld)` count, is at or
+above max(2, `small_cell_floor`) (plan P4-D221), and a `(withheld)` key
+stands alone (plan P4-D222, citing the owner rulings of 2026-09-17).
+**P8 (a held-back form's widths).** Where `numeric_styles` carries a
+`(withheld)` key and names no `decimal`, `fraction_widths` is `{}`; and
+where it carries one and names no `leading_zero`, `pad_widths` is `{}`;
+and where it carries one, `field_widths` is `{}` (plan P4-D222)
+(plan P4-D221, citing the owner rulings of 2026-09-17; P8 read, until
+then, that the pool fit inside the forms left once both width censuses
+had spoken for their pooled cells, which they no longer do).
 **P7.** A width key is present only if its count is nonzero, so a
 present `(withheld)` value is at least 1; this closes the route R-P3-12
 records.
@@ -8219,7 +8309,12 @@ a cell writes before any point, the sign not counted — to the number of
 PADDED cells at that width — every `leading_zero`-styled cell, and
 every `leading_plus` cell whose figures after the plus begin with a zero
 and are more than that zero (plan P4-D145) — with the pooled key
-`(withheld)` for widths fewer than `small_cell_floor` cells share; read
+`(withheld)` standing alone where no width reaches max(2,
+`small_cell_floor`), a width below that line counted into the commonest
+padded width and the cells the forms map counted into `leading_zero`
+counted at that width (plan P4-D222, citing the owner rulings of
+2026-09-17; plan P4-D221 folded a remainder into the smallest named
+width); read
 over the cores on `affixed_number`, exactly as AF7 reads the fraction
 census there. A PLUS DOES NOT HIDE THE PAD: the ladder files
 `+00100000000000000000` under `leading_plus`, and measured before this
@@ -8245,11 +8340,16 @@ plus-signed padded cell writes: **(1)** where `numeric_styles` names no
 may be padded ones, which a twin writes as their own values are
 written, and measured before this clause eight values written `+0100`
 twice and `0100` once at a floor of eleven published `{"4": 24}` and
-their twin missed `pads.published.4` at exit 3; **(2)** where counting
-them would leave a reader, at a `small_cell_floor` above one, a
-difference that is neither nought nor at least that floor — the census's total less the named
-`leading_zero` count, or the named `leading_plus` count less that
-(invariant P5b). Measured before: 800 padded codes, fifty `+k` and one
+their twin missed `pads.published.4` at exit 3 — and since plan P4-D221
+the census is then `{}` whatever the plus-signed cells (invariant P8):
+the padded cells of the pool are fewer than the line, or they are the
+named count a pool below the line took in; **(2)** where counting
+them would leave a reader, at any `small_cell_floor` (plan P4-D221; it
+read "above one"), a difference that is neither nought nor at least
+max(2, that floor) — the census's total less the named `leading_zero`
+count, or the named `leading_plus` count less that, or where
+`leading_plus` is held back, the forms map's pool less it (invariant
+P5b). Measured before: 800 padded codes, fifty `+k` and one
 `+00123` at a floor of eleven published `{"5": 801}` beside
 `leading_zero: 800`, and the one plus-signed padded cell was read off by
 subtraction.
@@ -8281,29 +8381,31 @@ thing. **P5b (the sum).** Let *F* be the sum of ALL values,
   key holds (plan P4-D145). **And the disclosure rule binds it** (plan
   P4-D148): *F* less the `leading_zero` value is nought or at least
   max(2, `small_cell_floor`), and where `leading_plus` is named, that
-  value less (*F* less the `leading_zero` value) is too — at a
-  `small_cell_floor` above one; at one, the census names counts of one
-  under keys of their own (S13) and the rule adds nothing.
+  value less (*F* less the `leading_zero` value) is too, and where it is
+  held back, the `(withheld)` value less that difference is too — at
+  every `small_cell_floor` (plan P4-D221, citing the owner rulings of
+  2026-09-17; it read "above one", where the census named counts of one
+  under keys of their own).
 - **P5b.b — no `leading_zero` key and no `(withheld)` key.** No
   `leading_zero` cell exists, so every cell the census counts is a
   plus-signed padded one: *F* is at most the `leading_plus` value, and
   zero where that key is not published (plan P4-D145). The disclosure
-  rule binds *F* as P5b.a binds the difference, at a floor above one:
-  nought or at least `small_cell_floor`, and so is the `leading_plus`
-  value less *F* (plan P4-D148).
-- **P5b.c — no `leading_zero` key but a `(withheld)` key.** The four
-  conditions of P5.c bind unchanged, with `leading_zero` in the place
-  of `decimal`: *F* at least 1 wherever the census is non-empty; *F*
-  strictly below `small_cell_floor`; *F* at most *W*; and *F* ≥ *W* − 5
-  × (`small_cell_floor` − 1), six styles existing so that at most five
-  share the pool. **No plus-signed padded cell is counted in this case**
+  rule binds *F* as P5b.a binds the difference, at every floor (plan
+  P4-D221): nought or at least max(2, `small_cell_floor`), and so is the
+  `leading_plus` value less *F* (plan P4-D148).
+- **P5b.c — no `leading_zero` key but a `(withheld)` key.** The census
+  is `{}` (P8, as P5.c; plan P4-D221, citing the owner rulings of
+  2026-09-17, which withdrew the four conditions of P5.c that bound a
+  pooled padded census here). **No plus-signed padded cell is counted in this case**
   (C6-28b, plan P4-D145 as amended by the repair pass): the window P4-D145
   first opened here -- *F* up to `small_cell_floor` − 1 plus the
   `leading_plus` value, and up to *W* plus that value -- is withdrawn,
   because the held-back cells a twin writes unpadded made the census a
   width no twin reached.
 
-**P6b.** Every NAMED width's count is at or above `small_cell_floor`.
+**P6b.** Every NAMED width's count, and a `(withheld)` count, is at or
+above max(2, `small_cell_floor`) (plan P4-D221), and a `(withheld)` key
+stands alone (plan P4-D222, citing the owner rulings of 2026-09-17).
 **P7b.** Every NAMED width is at least 2, by C6-29b, and a width key is
 present only if its count is nonzero.
 
@@ -8350,8 +8452,17 @@ every other role. Inside is impossible for the reason C6-27 gives.
 **C6-28c (what it holds).** A mapping from a FIELD WIDTH — the figures
 a cell writes, the sign not counted — to the number of cells written as
 a WHOLE NUMBER at that width, with the pooled key `(withheld)` for
-widths fewer than `small_cell_floor` cells share; read over the cores
-on `affixed_number`, exactly as AF7 reads the other two censuses there.
+widths fewer than max(2, `small_cell_floor`) cells share standing
+alone; read over the cores on `affixed_number`, exactly as AF7 reads the
+other two censuses there. **Since plan P4-D222 (citing the owner rulings
+of 2026-09-17) it counts the cells of the point-free forms the forms map
+names, and the cells that map counted into one of them at that form's
+commonest width**; the unpadded cells at a width, where fewer than the
+line, are counted into the commonest unpadded width at the line; and the
+census is one pool where no unpadded width reaches the line beside
+unpadded cells, or where no width reaches it. Plan P4-D221 left out the
+held-back cells whose count or complement named rows (the pool route),
+which no longer arises, since no pool stands beside a named form.
 
 **WHICH CELLS ARE "WRITTEN AS A WHOLE NUMBER" IS THE STYLES MAP'S OWN
 QUESTION, ASKED ONCE.** Three of the six forms 7.5.4 fixes carry
@@ -8403,7 +8514,13 @@ column no cell of which was written as a whole number publishes.
   than assumed: every cell counted by a named point-free style is a
   cell this census counts, and every further cell it counts was held
   back from the styles map. Where all three point-free forms are named,
-  *W* has nothing of theirs in it and the two bounds meet.
+  *W* has nothing of theirs in it and the two bounds meet. Since plan
+  P4-D222 (citing the owner rulings of 2026-09-17) *W* is nought
+  wherever a form is named, so the bounds meet on every document a
+  producer writes, and where *W* is not nought the census is `{}` (P8).
+  Plan P4-D221's clause here -- *F* − *N* and *W* − (*F* − *N*) each
+  nought or a group -- had a pool beside a named form to bound, and is
+  withdrawn with it.
 - **There is no separate ceiling against `n_numeric`, and its absence
   is a rule.** P1 makes the styles map sum to the numeric count
   exactly, so *N* + *W* IS `n_numeric` — read over `n_core_numeric` on
@@ -8411,14 +8528,17 @@ column no cell of which was written as a whole number publishes.
   already. A loader that compared *F* against `n_numeric` as well
   would be running a check that cannot fail, which this format counts
   as a defect and not as caution.
-- **P6c.** Every NAMED width's count is at or above `small_cell_floor`.
+- **P6c.** Every NAMED width's count, and a `(withheld)` count, is at or
+  above max(2, `small_cell_floor`) (plan P4-D221, citing the owner
+  rulings of 2026-09-17), and a `(withheld)` key stands alone (plan
+  P4-D222).
   **And at a width `pad_widths` names too, the difference is nought or
   a group** (plan P4-D148, the repair pass of the final Codex review):
   this census's count less `pad_widths`' count at that width — the cells
   written there with no redundant zero — is nought or at least
-  `small_cell_floor`, wherever that floor is above one (at one, both
-  censuses name counts of one outright and S13 forbids the pool this
-  rule's remedy needs). Where `pad_widths` carries a `(withheld)` key,
+  max(2, `small_cell_floor`), at every floor (plan P4-D221; it read
+  "wherever that floor is above one", where both censuses named counts
+  of one outright and S13 forbade the pool this rule's remedy needs). Where `pad_widths` carries a `(withheld)` key,
   this census carries none, and exactly one width of two figures or
   more this census names is not named by `pad_widths`, the pooled
   padded cells are at that width, and are taken off there too. Where
@@ -9724,7 +9844,7 @@ a document, so no document can violate it.
 | S10 | every `publication_notes[i].column` is some column's `name` | yes |
 | S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
-| S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map. Checked before any column block is read | yes |
+| S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map -- save the six censuses plans P4-D220 and P4-D221 took off it (owner rulings of 2026-09-17), whose pools stand at any floor and, since plan P4-D222, only alone. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
 | C6-20 | `settings` has exactly its twenty-two keys; twenty-one or twenty-three is a document this contract does not describe | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
@@ -9744,7 +9864,11 @@ would accept a floor-one document carrying a pooled form entry that
 the shipped loader refuses. The defining list at S13 is the authority
 and it names eight: `missing_by_class`, `utc_offsets`,
 `datetime_separators`, `numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
-`shape_forms`. Each is normative where stated, and a loader enforces it.
+`shape_forms`. Each is normative where stated, and a loader enforces it
+-- save that plan P4-D220 took the pools of `utc_offsets` and
+`datetime_separators` off it, and plan P4-D221 the pools of
+`numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths`,
+where S13 says so.
 
 ### 8.2 The cell census — X
 
@@ -9925,7 +10049,7 @@ it answers to.
 |---|---|---|
 | D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all TWENTY members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
-| D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
+| D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero, and only alone (plans P4-D220 and P4-D222, owner rulings of 2026-09-17) | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
 | D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`, `slashed-iso-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
 | D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
@@ -9934,7 +10058,7 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
@@ -9970,35 +10094,22 @@ part one's (8.3, 8.4).
 | id | statement |
 |---|---|
 | P1 | the values of `numeric_styles` sum to `n_numeric`, and to `n_core_numeric` on `affixed_number` (AF7); out-of-range and contradictory cells are NOT counted, being written in forms no style expresses |
-| P2 | every value under a style NAME is at least `small_cell_floor`; `(withheld)` is exempt, present only when the pooled remainder is at least 1, and may be anything from 1 up |
+| P2 | every value under a style NAME is at least max(2, `small_cell_floor`); `(withheld)` is present only when the pooled remainder is at least 1, and only alone, over no more cells than five styles hold below that line or fewer than it (P6, plans P4-D221 and P4-D222, owner rulings of 2026-09-17) |
 | P3 | `numeric_styles` is never `{}` on the three roles carrying it |
 | P4 | *reading*: `integer_valued` and the census are independent — `5.0` is whole, written with a point; a loader checks neither against the other |
 | P5 | *F*, the sum of ALL `fraction_widths` values including `(withheld)`, obeys the case below that `numeric_styles` selects; an empty census has *F* = 0 throughout |
-| P6 | every NAMED width's count is at or above `small_cell_floor` |
+| P6 | every NAMED width's count, and a `(withheld)` count, is at or above max(2, `small_cell_floor`), and a `(withheld)` key stands alone (plans P4-D221 and P4-D222, owner rulings of 2026-09-17) |
 | P7 | a width key is present only if its count is nonzero, so a present `(withheld)` value is at least 1 and *F* is zero exactly where the census is empty |
+| P8 | where `numeric_styles` holds cells back and names no `decimal`, `fraction_widths` is `{}`, where it names no `leading_zero`, `pad_widths` is `{}`, and `field_widths` is `{}` (plans P4-D221 and P4-D222, owner rulings of 2026-09-17) |
 
 - **P5.a — a `decimal` key is published.** *F* equals its value.
 - **P5.b — no `decimal` and no `(withheld)` key.** No decimal cell
   exists: the census is `{}` and *F* is zero.
-- **P5.c — no `decimal` key but a `(withheld)` key.** The decimal
-  count, if any, was pooled, so the census is `{}` or exactly
-  `{"(withheld)": F}` — no NAMED width key, P6 putting one at the
-  floor and condition 2 putting *F* below it. Writing *W* for
-  `numeric_styles["(withheld)"]`, **FOUR conditions bind**, any
-  breach refusing the document:
-
-  1. *F* is at least 1 **wherever the census is non-empty**, an empty
-     census being what a column with no decimal cell writes;
-  2. *F* is strictly BELOW `small_cell_floor`, a style being pooled
-     only when its own count falls below it;
-  3. *F* is at most *W*, the pooled decimal cells being a subset of
-     the pool;
-  4. *F* ≥ *W* − 5 × (`small_cell_floor` − 1): six styles exist, so at
-     most five share the pool with decimal, each holding at most
-     `small_cell_floor` − 1 cells. Vacuous where that is ≤ 0.
-
-**Condition 4 decides the EMPTY census too, so no fifth is needed**:
-at *F* = 0 it reads *W* ≤ 5 × (`small_cell_floor` − 1).
+- **P5.c — no `decimal` key but a `(withheld)` key.** The census is
+  `{}` (P8): a form the forms map holds back has no widths published
+  (plan P4-D221, citing the owner rulings of 2026-09-17, which withdrew
+  the four conditions that bounded a pooled census here; since plan
+  P4-D222 the pool is the whole map).
 
 ### 8.x The affixed-number role — AF
 
@@ -10127,10 +10238,10 @@ document, never the table it describes.
 | DF-R | where the option was given and a slashed reading was in play, the column bears that remark exactly once, over the EVIDENCE, not the winner | whether a reading was in play is a fact about the table |
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
-| DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of cells whose mark too few shared | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
+| DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, the commonest named mark's count with every cell whose mark was written by fewer rows than `parsing.census_floor` added (plan P4-D222), and the pooled value the count of every cell that writes a clock where no mark reaches that line | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
 | MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight on its own wall clock, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
 | NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it, and a column publishing nothing there may hold none, one, or all but one |
-| FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
+| FW-P | every `fraction_widths` count is the count of source cells written at that fraction width, the commonest width's count with the cells of rarer widths and the cells the forms map counted into `decimal` added (plan P4-D222) | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these, beyond P6c's disclosure rule at a width both name (plan P4-D148) |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
@@ -11334,8 +11445,10 @@ a marked row.
      Its KEYS are this package's three names for the mark a moment
      writes between its day and its clock, never cell text; its VALUES
      are how many parsed cells wrote each named mark. It names
-     spellings, not values. At a floor of one a name can stand for one
-     row's spelling, the posture `utc_offsets` has at that floor.
+     spellings, not values. Since plan P4-D220 neither map names a count
+     below two at any floor, so no name stands for one row's spelling or
+     offset, and since plan P4-D222 a name below the line is counted into
+     the commonest, so no pool stands beside a named one.
    - **One statement about every parsed cell at once, floor-GATED:**
      `all_at_midnight`, whether every parsed cell of a `local` datetime
      column named exactly midnight. It names no value, and it is `true`
@@ -12400,13 +12513,13 @@ form to one of those four paths.
 |---|---|
 | `missing_by_class` | the pooled count of absent-value CLASSES whose own counts fell below the floor |
 | `sentinel_verdicts[].candidate` | the column is a nothing-publishing column, so no value of the table appears anywhere in its block |
-| `utc_offsets` | the pooled count of cells whose OFFSETS fell below the floor |
-| `datetime_separators` | the pooled count of parsed cells whose MARK between day and clock was written by too few rows to name |
-| `earliest_utc_offset`, `latest_utc_offset` | that endpoint's offset is one the map is withholding |
-| `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
-| `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |
-| `pad_widths` | the pooled count of `leading_zero`-styled cells whose FIELD WIDTH was used by too few rows to name |
-| `field_widths` | the pooled count of whole-written cells whose FIELD WIDTH was used by too few rows to name |
+| `utc_offsets` | the count of every parsed cell, where no OFFSET was carried by enough rows to name (plans P4-D220 and P4-D222) |
+| `datetime_separators` | the count of every parsed cell that writes a clock, where no MARK between day and clock was written by enough rows to name (plans P4-D220 and P4-D222) |
+| `earliest_utc_offset`, `latest_utc_offset` | the map is withholding every offset (plan P4-D222) |
+| `numeric_styles` | the count of every numeric cell, where no spelling STYLE was used by enough rows to name (plan P4-D222) |
+| `fraction_widths` | the count of every `decimal`-styled cell, where no fraction WIDTH was used by enough rows to name or the widths named cannot write a published end (plan P4-D222) |
+| `pad_widths` | the count of every padded cell, where no FIELD WIDTH was used by enough of them to name (plan P4-D222) |
+| `field_widths` | the count of every whole-written cell, where no FIELD WIDTH, or no width of the unpadded cells, was used by enough rows to name (plan P4-D222) |
 | `value_histogram` | never written: a column that cannot publish every bin publishes no histogram at all, because a pooled remainder does not say which bins its values are in and the census is read by rank |
 | `empty_bins` | never written, and never needed: this list names only the bins holding NOBODY, and there is no group smaller than nobody for the floor to protect. It is the one row of this table whose fact is published in full at every floor |
 | `empty_edges` | never written either, and for the same reason plus one: a pair names two VALUES and not a group, and both are values the ladder already publishes the class of. Published in full at every floor |

@@ -660,6 +660,14 @@ _MIXTURE_ENTRY = "count-at-the-census-floor-or-unavailable"
 # Whether what the named counts leave over of the published total is
 # none or a group is invariants D17 to D20, checked where the total is.
 _DISCLOSED_ENTRY = "count-at-the-disclosure-line"
+# THE OFFSETS AND THE MARKS BETWEEN DAY AND CLOCK (plan P4-D220), AND THE
+# FORMS MAP OF A NUMBER AND ITS THREE WIDTH CENSUSES (plan P4-D221): a named
+# count at `parsing.census_floor` or above, and a pool at any floor --
+# at a floor of one too, where the line is two and a count of one is
+# pooled rather than named. Whether the pool beside a named count is a
+# group is invariants D3, D12, P6, P5, P6b and P6c, checked where the
+# total is.
+_POOLED_CENSUS_ENTRY = "count-at-the-disclosure-line-or-withheld"
 
 # THE KEYS EACH MIXTURE CENSUS MAY CARRY, read from the one place each
 # convention is named so that the producer and this guard cannot drift.
@@ -1220,7 +1228,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "numeric_share"): _NUMBER,
     ("columns", _EACH, "parts", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "numeric_styles", _KEY_OF): _WORD,
-    ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "numeric_styles", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "parts", _EACH, "group_separator"): _AFFIX,
     ("columns", _EACH, "parts", _EACH, "negative_form"): _WORD,
     ("columns", _EACH, "parts", _EACH, "wide_runs"): _WORD,
@@ -1245,13 +1253,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ): _MIXTURE_ENTRY,
     ("columns", _EACH, "parts", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "fraction_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "parts", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "pad_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "pad_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "parts", _EACH, "field_widths"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "field_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "parts", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "parts", _EACH, "field_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "parts", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "parts", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
@@ -1306,7 +1314,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_core_not_numeric"): _COUNT,
     ("columns", _EACH, "numeric_styles"): _OBJECT,
     ("columns", _EACH, "numeric_styles", _KEY_OF): _WORD,
-    ("columns", _EACH, "numeric_styles", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "numeric_styles", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # The forms map's sibling: how many figures the cells written with a
     # point wrote after it. Its keys are figures rather than words of
     # this package, so they are held to a grammar rather than to a
@@ -1340,13 +1348,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "thousands_marks", _ANY_KEY): _MIXTURE_ENTRY,
     ("columns", _EACH, "fraction_widths"): _OBJECT,
     ("columns", _EACH, "fraction_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "fraction_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "fraction_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "shape_forms"): _OBJECT,
     ("columns", _EACH, "shape_forms", _KEY_OF): _SHAPE_FORM,
     ("columns", _EACH, "shape_forms", _ANY_KEY): _FLOORED_ENTRY,
     ("columns", _EACH, "pad_widths"): _OBJECT,
     ("columns", _EACH, "pad_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "pad_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "pad_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # The spellings of a count column that wrote one number more than
     # one way (plan P4-D123). A key IS a spelling of the table -- `007`
     # beside `7` -- on the role that publishes its values, and it is
@@ -1358,7 +1366,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # than over one form of them (P4-D30). Same grammar, same floor.
     ("columns", _EACH, "field_widths"): _OBJECT,
     ("columns", _EACH, "field_widths", _KEY_OF): _WIDTH,
-    ("columns", _EACH, "field_widths", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "field_widths", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     ("columns", _EACH, "value_histogram"): _OBJECT,
     ("columns", _EACH, "value_histogram", _KEY_OF): _BIN,
     ("columns", _EACH, "value_histogram", _ANY_KEY): _FLOORED_ENTRY,
@@ -1425,13 +1433,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_unparsed"): _COUNT,
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
-    ("columns", _EACH, "utc_offsets", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "utc_offsets", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # HOW MANY PARSED CELLS WORE EACH MARK BETWEEN DAY AND CLOCK (plan
     # P4-D39). Its keys are this package's own names, and unlike the form
     # census above its counts ARE floored, with a withheld pool.
     ("columns", _EACH, "datetime_separators"): _OBJECT,
     ("columns", _EACH, "datetime_separators", _KEY_OF): _WORD,
-    ("columns", _EACH, "datetime_separators", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "datetime_separators", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # HOW THE DATES WERE WRITTEN (landing 2b.6): four censuses of this
     # package's own form words, each floored with a withheld pool
     # exactly as the mark census above is. None of them carries a
@@ -2020,6 +2028,11 @@ def _remainder_is_published(
         return True
     if isinstance(value, bool) or not isinstance(value, int):
         return True
+    if canonical.pools_at_any_floor(path[: len(path) - 1]):
+        # The censuses that pool what `parsing.census_floor` cannot
+        # name, at every floor (plans P4-D220, P4-D221): the leaf's own kind,
+        # `_POOLED_CENSUS_ENTRY`, decides.
+        return True
     return value <= 0 or context.floor > 1
 
 
@@ -2065,6 +2078,12 @@ def _leaf_is_published(
         if key == parsing.MISSING_WITHHELD:
             return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _POOLED_CENSUS_ENTRY:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if key == parsing.MISSING_WITHHELD:
+            return value >= 1
+        return value >= parsing.census_floor(context.floor)
     if kind == _DISCLOSED_ENTRY:
         # A census of written forms (plan P4-D131): never one, never a
         # pool. `parsing.census_floor` is the producer's and the

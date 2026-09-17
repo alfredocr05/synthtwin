@@ -918,6 +918,19 @@ def battery() -> list[Mutation]:
             "D3", "an offset carried by too few rows to name",
             edit("recorded_on", utc_offsets={"(none)": 239, "+02:00": 1}),
         ),
+        # ...AND NO POOL STANDS BESIDE A NAMED OFFSET (plans P4-D220 and
+        # P4-D222): three values held back beside 237 with no offset is the
+        # count of the rows that wore some other one, and the producer
+        # counts such rows into the commonest offset instead.
+        Mutation(
+            "D3", "a withheld pool of offsets beside a named one",
+            edit(
+                "recorded_on",
+                utc_offsets={"(none)": 237, "(withheld)": 3},
+                earliest_utc_offset="(none)",
+                latest_utc_offset="(none)",
+            ),
+        ),
         Mutation(
             "D4", "an endpoint naming an offset the map holds back",
             edit("recorded_on", earliest_utc_offset="+02:00"),
@@ -987,8 +1000,22 @@ def battery() -> list[Mutation]:
             "D12", "a mark between day and clock named for too few rows",
             edit("logged_at", datetime_separators={"space": 1}),
         ),
+        # A POOL OF MARKS STANDS ALONE (plan P4-D220; stage 2 closed by
+        # the owner rulings of 2026-09-17). Eleven values held back beside
+        # a named mark cleared the bound this replaced -- (floor - 1)
+        # times the two unnamed marks -- and told a reader that neither
+        # of those marks was nought. `{"(withheld)": 240}`, the witness
+        # this replaces, is the whole census and is admitted now.
         Mutation(
-            "D12", "a withheld pool larger than the unnamed marks can hold",
+            "D12", "a withheld pool beside a named mark",
+            edit("logged_at", datetime_separators={"upper_t": 229, "(withheld)": 11}),
+        ),
+        # A POOL OF EVERY MARK OVER MORE VALUES THAN TWO MARKS HOLD BELOW THE
+        # LINE (plan P4-D222): it says each of the three was written, so the
+        # producer names the commonest mark there, `{"(withheld)": 240}`
+        # included.
+        Mutation(
+            "D12", "a pool of every mark that says each mark was written",
             edit("logged_at", datetime_separators={"(withheld)": 240}),
         ),
         Mutation(
@@ -1027,16 +1054,15 @@ def battery() -> list[Mutation]:
             "WR1", "wide runs claimed on a column with no cell written plain",
             edit("amount", wide_runs="canonical"),
         ),
-        # ...AND AT THE FLOOR, so only the floor clause can refuse it,
-        # which is the shape DP1's second entry above has for the same
-        # reason (landing 2b.13's repair pass, plan P4-D91). The word
-        # names the FORM of the cells it is about, and a description
-        # naming it where the forms map pooled that form into a
-        # remainder of ONE says exactly what the pool was written to
-        # avoid saying. Room of one passes the clause above and is a
-        # tenth of the floor this base is written at.
+        # ...AND THE POOL OF ONE THAT USED TO WITNESS WR1's FLOOR CLAUSE
+        # (landing 2b.13's repair pass, plan P4-D91) is refused before the
+        # word is read: a pool below `parsing.census_floor` beside a named
+        # form is invariant P6's since plan P4-D221 (stage 2 closed by the
+        # owner rulings of 2026-09-17), so the room WR1's floor clause
+        # measures is nought, a named form, a pool of the line or more, or
+        # the whole numeric count of a column smaller than the floor.
         Mutation(
-            "WR1", "wide runs claimed where one pooled cell is all the room there is",
+            "P6", "a pool of one cell beside a named form",
             wide_runs_on_a_pooled_form("amount"),
         ),
         # The two mixture censuses landing 2b.7 added beside them. Each
@@ -1373,16 +1399,20 @@ def battery() -> list[Mutation]:
             edit("record_code", layout_prefixes={"(column)": "R0"}),
             names="layout_prefixes",
         ),
+        # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plans P4-D221 and
+        # P4-D222). The pool of eleven stands alone and passes the census's
+        # own line, so only P8 refuses it: the forms map holds every form
+        # back, and a total of widths names how many of its cells carried
+        # a point.
         Mutation(
             "P8",
-            "two width censuses that are each possible and not both",
+            "a width census counting cells of a form the forms map holds back",
             edit(
                 "visits",
-                numeric_styles={
-                    "plain": 174, "leading_plus": 20, "(withheld)": 35,
-                },
-                fraction_widths={"(withheld)": 10},
+                numeric_styles={"(withheld)": 229},
+                fraction_widths={"(withheld)": 11},
                 pad_widths={},
+                field_widths={},
             ),
         ),
         Mutation(
@@ -1444,11 +1474,26 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "P6",
-            "a pool larger than the forms left to hold it",
+            "a pool beside named forms",
+            # No pool stands beside a named form (plan P4-D222): the
+            # producer counts a form below the line into the commonest one.
             edit(
                 "visits",
-                numeric_styles={"plain": 100, "decimal": 60, "(withheld)": 69},
+                numeric_styles={"plain": 98, "decimal": 60, "(withheld)": 71},
                 fraction_widths={"2": 60},
+            ),
+        ),
+        Mutation(
+            "P6",
+            "a pool of every form that says each form was written",
+            # 229 numbers are more than five forms hold below the line, so
+            # a pool of all six says every form was written (plan P4-D222).
+            edit(
+                "visits",
+                numeric_styles={"(withheld)": 229},
+                fraction_widths={},
+                pad_widths={},
+                field_widths={},
             ),
         ),
         # -- record numbers and text ----------------------------------

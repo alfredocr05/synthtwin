@@ -69,21 +69,25 @@ def _census(draw: random.Random) -> "tuple[dict[str, int], int, str]":
     if draw.random() < 0.2:
         # A slashed stamp: its reader takes a space and nothing else, so
         # its census is a space count, a pool, or both (contract D13).
+        # A space count or a pool, never both: since plan P4-D220 a pool
+        # of marks is the whole census (contract D12).
         family = draw.choice(SLASHED)
         census: dict[str, int] = {}
         if draw.random() < 0.5:
             census["space"] = draw.randint(1, 40)
-        if "space" not in census or draw.random() < 0.3:
+        else:
             census["(withheld)"] = draw.randint(1, 12)
         return census, sum(census.values()), family
     census = {}
-    for name in NAMES:
-        if draw.random() < 0.65:
-            census[name] = draw.randint(1, 40)
-    # A pool only where a mark is left unnamed, which is the only census
-    # the contract's D12 admits with one (landing 2b.3 spends it there).
-    if len(census) < len(NAMES) and draw.random() < 0.4:
-        census["(withheld)"] = draw.randint(1, 12)
+    # A pool only where no mark is named, which is the only census the
+    # contract's D12 admits with one since plan P4-D220; its sizes reach
+    # one and two, where the pool has fewer values than rarer marks.
+    if draw.random() < 0.3:
+        census["(withheld)"] = draw.choice((1, 2, 3, draw.randint(1, 900)))
+    else:
+        for name in NAMES:
+            if draw.random() < 0.65:
+                census[name] = draw.randint(1, 40)
     total = sum(census.values())
     # Some columns carry more parsed ranks than the census counts, as a
     # joint ISO column's whole dates do.
@@ -122,18 +126,25 @@ def test_the_rotation_of_marks_agrees_with_the_oracle() -> None:
 
 
 def test_each_named_mark_is_written_its_published_number_of_times() -> None:
-    """Exact counts, the withheld pool on the commonest, and no clustering."""
+    """Exact counts, the withheld pool on every mark, and no clustering."""
     column = typing.cast(contract.ColumnBlock, types.SimpleNamespace(name="c"))
-    census = {"lower_t": 11, "space": 11, "(withheld)": 2}
+    census = {"lower_t": 12, "space": 12}
     marks, notes = generation._separator_allocation(column, _facts(census), 24)
-    # Each named mark exactly its count, and the withheld pool on the one
-    # mark the census leaves unnamed (landing 2b.3): every value of a named
-    # mark is counted under its name, so the pooled values wore another.
-    assert (marks.count("t"), marks.count(" "), marks.count("T")) == (11, 11, 2)
+    # Each named mark exactly its count.
+    assert (marks.count("t"), marks.count(" "), marks.count("T")) == (12, 12, 0)
     assert notes == []
     # Spread, not spent from the first rank: neither half of the ranks
     # holds all of one mark.
-    assert 0 < marks[:12].count("t") < 11
+    assert 0 < marks[:12].count("t") < 12
+    # The withheld pool, which since plan P4-D220 is the whole census, split
+    # evenly over the three marks since plan P4-D222 (stage 2 closed by the
+    # owner rulings of 2026-09-17): a pool stands only where each third of
+    # it is below the line, so the twin described again pools the same.
+    pooled, notes = generation._separator_allocation(
+        column, _facts({"(withheld)": 24}), 24
+    )
+    assert (pooled.count("t"), pooled.count(" "), pooled.count("T")) == (8, 8, 8)
+    assert notes == []
     wide = {"space": 300, "upper_t": 50, "lower_t": 50}
     spread, _ = generation._separator_allocation(column, _facts(wide), 400)
     for part in range(4):

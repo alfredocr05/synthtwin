@@ -5020,12 +5020,18 @@ rather than passing it off as an outcome the description asked for.
      alone on a `month-first-datetime`, `day-first-datetime` or
      `slashed-iso-datetime` column — each taking the pool divided by
      their number, and the remainder one each in the order `upper_t`,
-     `space`, `lower_t`; a mark given nothing is left out. Every value
-     of a named mark is counted under its name, so the pooled values
-     wore an unnamed one; writing them with the commonest mark, the rule
-     this replaces, erased that spelling. Each share is below the floor
-     by contract D12. Where no permitted mark is unnamed, the pool is
-     not split.
+     `space`, `lower_t`; a mark given nothing is left out. Where no
+     permitted mark is unnamed, the pool is not split. **Amended by plan
+     P4-D220 and restored by plan P4-D222 (stage 2 closed by the owner
+     rulings of 2026-09-17).** Contract D12 admits a pool only as the
+     whole census and only over values a pool names no one in -- fewer
+     than the line, or no more than two marks hold below it -- so each
+     third of it is below the line and the twin described again pools the
+     same count. Plan P4-D220 gave each rarer mark one value and the
+     commonest the rest, which on a pool of thirty at a floor of twenty
+     wrote twenty-eight `T` and the twin described again named them;
+     writing the whole pool with one mark, the rule landing 2b.3 replaced,
+     erased the spellings the pool stood for.
   3. The ranks this allocation covers are the ones that write a clock:
      on an `iso-mixed` column whose `all_at_midnight` is `true`, the
      ranks the form census gives `iso-date` write none and take no mark.
@@ -9961,7 +9967,7 @@ case passed, which is the failure the count exists to prevent:
 | `offset_bearing` | G7.4's allocation, the `utc` clock conversion, and `earliest_utc_offset`/`latest_utc_offset` |
 | `mixed_parsed_unparsed` | G10.4's stand-ins beside parsed cells, and `n_unparsed` |
 | `numeric_integer` | G5.3 with `integer_valued: true`, the tie-toward-`+inf` rounding, and both endpoint pins |
-| `numeric_decimal_styles` | G6.2's canonical boundaries (`1e+16`, `1e-05`, `.0`), G6.4's largest-remaining allocation, and a fold-collision pair |
+| `numeric_decimal_styles` | G6.2's canonical boundaries (`1e+16`, `1e-05`, `.0`), G6.4's largest-remaining allocation over twelve lower-case and thirteen upper-case exponent cells, and a fold-collision family of four spellings of one value (source rewritten by plan P4-D221, citing the owner rulings of 2026-09-17: its three plain cells were a pool below the disclosure line beside two named forms, which the profile contract no longer admits) |
 | `label_variants` | G8.1's variant allocation, G8.2's case flips and trailing spaces, G8.3's withheld levels |
 | `identifier_fold_collisions` | G9.3 with `n_distinct_folded < n_distinct`, and G9.2's length pins |
 | `identifier_whole_numbers` | G9.6 with `all_whole_numbers: true` reaching all three bands, and the whole-group alphabet packing |
@@ -10015,10 +10021,10 @@ case passed, which is the failure the count exists to prevent:
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |
-| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
+| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 12, "space": 12}`, whose marks are spread evenly over the ranks and whose tie goes to `lower_t`, the earliest name in sorted order. Rebuilt at plan P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it published eleven and eleven beside a pool of two, which contract D12 now refuses, and the pool is `pooled_marks`' to pin |
 | `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels pooled on ten rows owing nine numbers, whose sizes G8.3 reads off the pool and its debts as `1, 2, 2, 5` (plan P4-D201); the class split makes nine `5 + 2 + 2`; `%.%` settled inside the number class as `5 + 2`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
 | `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing, and held-back sizes read off the pool as `1, 2, 2, 5` (plan P4-D201); `%.%` settled as `5 + 2` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
-| `pooled_marks` | G7.5 step 2: twenty-four `local` moments to the minute, published with `datetime_separators: {"upper_t": 14, "(withheld)": 10}`, whose pool is split five and five over `space` and `lower_t`, the two marks the census leaves unnamed |
+| `pooled_marks` | G7.5 step 2: twenty `local` moments to the minute, published with `datetime_separators: {"(withheld)": 20}`, whose pool is split seven, seven and six over `upper_t`, `space` and `lower_t`. Rebuilt at plan P4-D220 (stage 2 closed by the owner rulings of 2026-09-17), from fourteen `upper_t` beside a pool of ten split five and five, and again at plan P4-D222, from twenty-four moments, a pool contract D12 now refuses because it would say all three marks were written |
 | `slashed_pool` | G7.5 step 2's permitted marks and the `slashed-iso-datetime` member: ten year-first slashed stamps whose every mark is pooled, every one written with a space |
 | `midnight_mixed_forms` | G7.5's whole dates: twenty-four days at midnight read jointly, published with `resolution_mix: {"iso-date": 13, "iso-datetime": 11}` and `datetime_separators: {"space": 11}`, whose forms are spread by the rotation and whose marks fall on the clock-writing ranks alone |
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
@@ -10158,6 +10164,22 @@ must fail. The pair this route cannot show on the SHARED clock is
 refused by the profile contract's D10 before generation, so it is a
 loader case and not a vector case — a description no loader accepts has
 no twin bytes to freeze.
+
+**`numeric_decimal_styles` was rewritten again at plan P4-D221** (stage 2
+closed by the owner rulings of 2026-09-17). Its published map of three
+pooled plain cells beside eleven cells in each exponent form holds a
+pool below `parsing.census_floor` beside named forms, which the profile
+contract's P6 now refuses, so no loader reads the case. The source is
+now written in the two exponent forms alone, twelve lower-case and
+thirteen upper-case, with the ladder and the spelling counts unchanged:
+the rebuilt cells write the smallest value `1E-05`, the largest `1e+16`
+and `1E+16`, four spellings of `1000000000000000` on the flat top, and
+twenty-three folded identities against twenty-five raw spellings. The
+cases `numeric_integer`, `numeric_pooled_spelling` and
+`saturated_integers` published censuses the same rule no longer admits
+-- field-width pools of four and nine beside a named width, and a forms
+map pooling one cell beside a named count -- and now publish what the
+producer writes for their sources; their cells did not move.
 
 **`numeric_decimal_styles` was regenerated against this revision by the
 oracle's own owner** (2026-08-11; review items P2-C2-F2 and P2-C2-F3).
@@ -10354,9 +10376,10 @@ P4-D39). G7.1 and G7.5 changed on that date, and a rule no case
 reaches can be withdrawn with every committed byte unchanged.
 `midnight_days` pins the day unit: its mutant counts the column in
 seconds, the rule withdrawn, and the interior ranks then land part-way
-through a day. `mixed_marks` pins the rotation, the tie and the pool:
-its mutant spends the names from the first rank upward, and the marks
-then cluster by date.
+through a day. `mixed_marks` pins the rotation and the tie (and, until
+plan P4-D220 moved it to `pooled_marks`, the pool): its mutant spends
+the names from the first rank upward, and the marks then cluster by
+date.
 
 **Why the twenty-fourth exists** (landing 2b.4). Every label case
 before it published no number, so G8.3a -- a held-back number written

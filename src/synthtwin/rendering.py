@@ -1513,20 +1513,16 @@ def _mark_lines(facts: contract.DatetimeFacts) -> "list[str]":
     elif not _named_census(facts):
         # A POOLED MARK IS WRITTEN WITH THE MARKS THE CENSUS DOES NOT NAME
         # (landing 2b.3), so the sentence says that and no more: which
-        # of them the table wrote, the description does not say.
+        # of them the table wrote, the description does not say. Since
+        # plans P4-D220 and P4-D222 a pool of marks is the whole census,
+        # split evenly; the sentence for a pool beside a named mark went
+        # with that pool, which contract D12 refuses.
         lines = [
             "  Every mark your table wrote between the day and the time of",
             "  day was held by too few values to name, so the twin spreads",
             "  those values over the marks a date and time can wear, each on",
             "  fewer values than the smallest group, which need not be the",
             "  marks your table used.",
-        ]
-    elif contract.WITHHELD in facts.datetime_separators:
-        lines = [
-            "  Between the day and the time of day it writes the marks the",
-            "  description names, each as often as it records them, and gives",
-            "  the values whose mark was too rare to name the marks it does",
-            "  not name, none of them on as many values as the smallest group.",
         ]
     else:
         lines = [

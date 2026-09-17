@@ -955,13 +955,15 @@ def width_census_breaches(
     remainder of a width census is a mixture of widths no reader can
     take apart, and is not a count this rule asks about.
 
-    NOT AT A SETTINGS FLOOR OF ONE. There the width censuses name a count
-    of one under a key of its own (owner ruling 2026-08-14, invariant
-    S13), and no remainder may stand at all, so a difference of one says
-    nothing the census does not already print -- and the only remedy,
-    pooling, is the state S13 forbids. Measured without this clause: the
-    style-reach battery of `tests/test_p2c5f3_style_reach.py`, at floor
-    one, stopped at the profiler's own publication guard.
+    AT EVERY FLOOR, A FLOOR OF ONE INCLUDED (plan P4-D221; stage 2
+    closed by the owner rulings of 2026-09-17). This rule was not asked at
+    a settings floor of one, where the width censuses named counts of one
+    outright and invariant S13 forbade the pool its remedy needs. The
+    censuses now name no count below `census_floor`, whose line is two
+    there, and their pools stand at a floor of one
+    (`canonical.POOLED_AT_ANY_FLOOR`), so a difference of one is refused
+    at every floor. The plus route also subtracts from the forms map's
+    pool where `leading_plus` is held back in it.
 
     Guarantees: accepts the forms map, the two width censuses and the
     settings floor, as published; returns whether the plus route breaks
@@ -969,8 +971,6 @@ def width_census_breaches(
     width route does. Determinism: a fixed function of the four. Raises
     nothing. No I/O of any kind.
     """
-    if floor <= 1:
-        return False, []
     least = census_floor(floor)
     pool = MISSING_WITHHELD
     total = 0
@@ -983,7 +983,11 @@ def width_census_breaches(
     elif pool not in styles:
         plus_cells = total
     if plus_cells > 0:
-        rest = [styles[STYLE_LEADING_PLUS]] if STYLE_LEADING_PLUS in styles else []
+        rest: "list[int]" = []
+        if STYLE_LEADING_PLUS in styles:
+            rest = [styles[STYLE_LEADING_PLUS]]
+        elif pool in styles:
+            rest = [styles[pool]]
         plus_broken = not census_nameable([plus_cells], rest, floor)
     named: "list[int]" = []
     for width in fields:
@@ -4932,6 +4936,148 @@ def disclosed_census(
     return named
 
 
+def census_pools(population: int, floor: int, names: int) -> bool:
+    """Whether a census none of whose names reaches the line may be one pool.
+
+    THE ONE STATEMENT, read by the producer through `absorbed_census`, by
+    the loader (contract D12 and P6) and by the checker, of where the
+    older spelling censuses hold their whole count back (plan P4-D222;
+    stage 2 closed by the owner rulings of 2026-09-17).
+
+    A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On an
+    open vocabulary -- the offsets and the widths, ``names`` nought -- that
+    names nobody. On a CLOSED one -- three marks between day and clock,
+    one on a slashed stamp, six forms of a number -- a pool over more
+    cells than ``names - 1`` names can hold below the line tells a reader
+    that EVERY name was written by at least one cell: the state nought
+    reaches is told apart from the state a below-floor count reaches.
+    Measured on the branch this repairs: 7, +8, 09, 1.5e3 and 2.5E3 among
+    995 prices at a floor of one published a pool of five beside the
+    decimals, each form exactly one cell. So a closed census over more
+    than ``(names - 1) * (line - 1)`` cells is never a pool: above
+    ``names * (line - 1)`` some name reaches the line, and in the band
+    between, where none may, `absorbed_census` writes the vocabulary's
+    default name for the whole population instead. A population below the
+    line is always a pool, whatever the vocabulary.
+
+    Guarantees: accepts the population, the settings floor and the size
+    of the closed vocabulary (nought for an open one); returns a bool.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    line = census_floor(floor)
+    if population < line or names < 1:
+        return True
+    return population <= (names - 1) * (line - 1)
+
+
+def absorbed_census(
+    counts: "dict[str, int]",
+    population: int,
+    floor: int,
+    names: int,
+    default: str = "",
+) -> "dict[str, int]":
+    """A tally of marks, offsets, forms or widths, as the disclosure rule allows.
+
+    THE OLDER SPELLING CENSUSES -- `utc_offsets`, `datetime_separators`,
+    `numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths`
+    -- ask the ONE disclosure rule, `census_nameable` with its line
+    `census_floor` (plans P4-D220, P4-D221 and P4-D222; stage 2 closed by
+    the owner rulings of 2026-09-17). Until P4-D220 each named a count
+    where it reached the settings floor and pooled the rest under
+    `(withheld)`, so at the default floor of one 400 moments with one `t`
+    published `{"lower_t": 1, "upper_t": 399}` and at a floor of eleven
+    `{"upper_t": 399, "(withheld)": 1}`: both name the row.
+
+    A COUNT BELOW THE LINE IS COUNTED INTO THE COMMONEST NAMED COUNT
+    (plan P4-D222), as ruling 4 of 2026-09-17 counts missing-value words
+    below a raised floor as absent: the description is the description
+    of the table with its rare spellings written the way most of its
+    cells were, so the table passes its own description and its twin
+    writes the column's own spelling. The pool this replaces (P4-D220,
+    P4-D221) could not stand beside a named count without naming the
+    rows it held, so a pool below the line took in the commonest named
+    count as well -- and one `T` among 5,000 space-separated moments, one
+    `Z` among offsets, or one `120` among 999 prices pooled the whole
+    census, and the twin wrote `T` on 4,998 rows, no offset on half the
+    column and prices at fifteen places. Nothing is pooled beside a named
+    count now, so no printed count and no count left by subtraction from
+    the population is below the line, and a name below the line is never
+    told apart from a name no cell wrote.
+
+    WHERE NO NAME REACHES THE LINE the census is one pool of the
+    population the block already prints -- except on a closed vocabulary
+    where `census_pools` refuses the pool, and there the whole population
+    is counted under ``default``, the name the caller gives for the
+    vocabulary, whether or not a cell wrote it.
+
+    Ties for the commonest count go to the first name in sorted order,
+    and the name that took the rest in is always the largest printed
+    count: nothing else can grow.
+
+    Guarantees: accepts the full tally (no `(withheld)` key), the
+    published total it covers, the settings floor, the size of the
+    closed vocabulary (nought for an open one) and its default name;
+    returns `{}` for no population, a single `(withheld)` pool or a
+    single default name where no count reaches the line, and otherwise
+    the names at the line or above, keys in sorted order, summing to the
+    population. Determinism: a function of the five. Raises nothing. No
+    I/O of any kind.
+    """
+    if population <= 0:
+        return {}
+    line = census_floor(floor)
+    named: "dict[str, int]" = {}
+    commonest = ""
+    total = 0
+    for name in sorted(counts):
+        if name == MISSING_WITHHELD or counts[name] < line:
+            continue
+        named[name] = counts[name]
+        total = total + counts[name]
+        if not commonest or counts[name] > named[commonest]:
+            commonest = name
+    if not commonest:
+        if default and not census_pools(population, floor, names):
+            return {default: population}
+        return {MISSING_WITHHELD: population}
+    named[commonest] = named[commonest] + population - total
+    return named
+
+
+def absorbed_room(census: "dict[str, int]", floor: int) -> "tuple[str, int]":
+    """Which name of a published census took rare counts in, and how many at most.
+
+    `absorbed_census` read from the other side (plan P4-D222), for the open
+    vocabularies -- the offsets and the widths -- so that the producer reads
+    a value at the offset its rare one was counted into, and the checker
+    bounds the cells a width census counts at a width it does not name,
+    without a second statement of the rule. The name is the largest count,
+    the first in sorted order on a tie. What it took in is at most its
+    count less the line -- it was named before it took anything -- and
+    less the next largest count, which it was no smaller than.
+
+    Guarantees: accepts a published census and the settings floor; returns
+    `("", 0)` for an empty census or a pool, and otherwise the name and a
+    whole number of at least nought. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    commonest = ""
+    for name in sorted(census):
+        if name == MISSING_WITHHELD:
+            return "", 0
+        if not commonest or census[name] > census[commonest]:
+            commonest = name
+    if not commonest:
+        return "", 0
+    room = census[commonest] - line
+    for name in sorted(census):
+        if name != commonest:
+            room = min(room, census[commonest] - census[name])
+    return commonest, max(room, 0)
+
+
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
 PRECISION_MONTH = "month"
@@ -5359,6 +5505,19 @@ SEPARATOR_MARKS = {
     SEPARATOR_SPACE: " ",
     SEPARATOR_UPPER_T: "T",
 }
+
+
+def separator_names(format_name: str) -> int:
+    """How many marks between day and clock a reading can write (P4-D222).
+
+    Three, and one -- a space -- on the slashed stamps, whose clock stands
+    after one space. The size of the closed vocabulary
+    `census_pools` reads for the census of marks; the loader asks it
+    with the same answer. Raises nothing. No I/O of any kind.
+    """
+    if format_name in SLASHED_STAMPS:
+        return 1
+    return len(DATETIME_SEPARATORS)
 
 
 def datetime_separator(text: str, format_name: str) -> "str | None":

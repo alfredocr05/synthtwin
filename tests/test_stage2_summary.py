@@ -221,13 +221,15 @@ def test_marks_too_rare_to_name_are_said_as_a_count_and_never_as_a_mark(
 ) -> None:
     """The pooled `(withheld)` entry is a count of values, not a mark.
 
-    Three hundred and eighty stamps with a space, ten with a `T` and ten
-    with a `t`, under a smallest group of fifteen: the space is named,
-    the capital T is named nowhere, and twenty values are said to wear
-    a mark too rare to name.
+    Ten stamps with a space, nine with a `T` and seven with a `t`, under a
+    smallest group of fifteen. SINCE PLAN P4-D222 (stage 2 closed by the
+    owner rulings of 2026-09-17) a census of marks pools only where no
+    mark reaches the line and a pool does not say every mark was written:
+    no mark is named, and all twenty-six values are said to wear a mark
+    too rare to name. (Three hundred and eighty spaces beside ten of each
+    letter, the shape this used, now name the space for all four hundred.)
     """
-    marks = " " * 38 + "T" + "t"
-    stamps = _stamps(400, 34, marks)
+    stamps = _stamps(26, 34, " " * 10 + "T" * 9 + "t" * 7)
     page, document = _profile_of(
         tmp_path,
         "pooled",
@@ -236,18 +238,17 @@ def test_marks_too_rare_to_name_are_said_as_a_count_and_never_as_a_mark(
         ["--smallest-group", "15"],
     )
     assert _column(document, "seen_at")["datetime_separators"] == {
-        "(withheld)": 20,
-        "space": 380,
+        "(withheld)": 26,
     }
     block = _block_of(page, "seen_at")
     expected = (
         _SEPARATOR_OPENING
-        + "a space in 380 value(s), 20 value(s) whose mark was too rare "
-        "to name here, because fewer than 15 value(s) were written with "
-        "each such mark"
+        + "26 value(s) whose mark was too rare to name here, because fewer "
+        "than 15 value(s) were written with each such mark"
     )
     assert expected in block, "\n".join(block)
     said = "\n".join(block)
+    assert "a space" not in said
     assert "capital T" not in said
     assert "lower-case t" not in said
     assert "(withheld)" not in said

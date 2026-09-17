@@ -450,11 +450,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # quoting, `forced_delimiter`, `forced_metadata_rows`, `workbook` and
 # `used_fallback_encoding`. Against landing 2b.10's own tree only
 # landings 2b.6's, 2b.7's and 2b.8's keys moved. Nothing else moved.
-# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17 (item 2, option A;
-# plan P4-D201), read as a diff against 039df54: `suppressed_level_counts`
-# left `region`, `answer`, `batch` and `note`, and nothing else moved.
+# RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
+# carrying both sides' moved values, read as a diff against 039df54:
+# `suppressed_level_counts` left `region`, `answer`, `batch` and `note`
+# (item 2, option A; plan P4-D201); `record_code` gained
+# `"layout_prefixes": {"(column)": "R"}` (item 1; plan P4-D202); and
+# `reading`'s `field_widths` published `{"2": 57, "3": 165,
+# "(withheld)": 5}` and now publishes `{"2": 57, "3": 170}`, the five
+# cells at widths too rare to name counted into the commonest width
+# (plan P4-D222, which replaces plan P4-D221's recording). Nothing else
+# moved.
 GOLDEN_SHA256 = (
-    "4be3be38e6a758f7eafb1302d0c2be5966bf36aca678391f623fdc9995cf8122"
+    "1eb70ad1a43fb80404b1e88a4c161871f09cd5e33315934d203f9f21373a005c"
 )
 
 

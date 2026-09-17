@@ -1270,20 +1270,20 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # (2026-09-16), for the cause recorded beside the profile golden:
 # diffed both ways, the description moved against each side only in the
 # other side's keys.
-# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17 (item 2, option A;
-# plan P4-D201), and NO CELL OF THE TWIN MOVED. `suppressed_level_counts`
-# left the four label columns and nothing else changed: the description
-# read as a diff against 039df54 loses exactly that key on `region`
-# (`[7]`), `answer` and `batch` (`[]`) and `note` (182 sizes), and the
-# twin digest below holds, because the sizes read off each pool are the
-# sizes the table had.
-# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17, item 1 (plan
-# P4-D202): read as a diff against the ruling's first part, the
-# description gains exactly `"layout_prefixes": {"(column)": "R"}` on
-# `record_code`, whose 240 cells are `R` and five figures, and nothing
-# else moves.
+# RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
+# carrying all three moved values and NO CELL OF THE TWIN MOVING for any
+# of them. Read as a diff against 039df54: `suppressed_level_counts`
+# leaves the four label columns, `region` (`[7]`), `answer` and `batch`
+# (`[]`) and `note` (182 sizes), because the sizes read off each pool are
+# the sizes the table had (item 2, option A; plan P4-D201);
+# `record_code` gains exactly `"layout_prefixes": {"(column)": "R"}`,
+# whose 240 cells are `R` and five figures (item 1; plan P4-D202); and
+# `reading`'s `field_widths` published `{"2": 57, "3": 165,
+# "(withheld)": 5}` and now publishes `{"2": 57, "3": 170}`, the five
+# cells at widths too rare to name counted into the commonest width
+# (plan P4-D222, which replaces plan P4-D221's recording).
 GOLDEN_DESCRIPTION_SHA256 = (
-    "0892a289107aac107d542c58a6ef920ccfb79aa89d16bab02ae8118b5fc5c28f"
+    "e387beaf5167a27e509dfe2ccf62ba3850b8e305e07c54e0e37ce89b3cdcde3e"
 )
 
 
@@ -1972,13 +1972,17 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # not the rows of each one.
 GOLDEN_REPORT_SHA256 = (
     # RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
-    # carrying both sides' moved lines: `recorded_on`'s two distinct
+    # carrying every side's moved lines: `recorded_on`'s two distinct
     # counts, 84 held against a window of 84 where 176 stood in one of 10
-    # to 240 (plan P4-D192); the held-back labels' reason on `region` and
-    # on `note`, which now says how many there were and the rows they
-    # covered together and not the rows of each one (plan P4-D201); and
-    # `record_code`'s recounted prefix (plan P4-D202).
-    "e17f76d30c30820481fe348b02235387afa455f5c7a2be1715024f471a80e250"
+    # to 240 (plan P4-D192); `reading`'s three moments, as held (plan
+    # P4-D183); the held-back labels' reason on `region` and on `note`,
+    # which now says how many there were and the rows they covered
+    # together and not the rows of each one (plan P4-D201);
+    # `record_code`'s recounted prefix (plan P4-D202); and the deviation
+    # `'reading' -- field_widths`, 170 cells at three figures described
+    # and 165 held, whose five counted-in cells the twin writes at their
+    # own widths (plan P4-D222).
+    "3a93eb5d3f94e263c44b5f49a818a295aa3a4245d8e6e8aa6a93a8532a678357"
 )
 
 
