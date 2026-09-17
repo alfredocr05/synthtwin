@@ -117,15 +117,16 @@ _BATTERY: "tuple[tuple[str, list[str]], ...]" = (
     ("wide-at-the-line", _outside_the_code_alphabet(25)),
     ("wide-over-the-line", _outside_the_code_alphabet(26)),
     # Boundary 2 -- whole numbers in figures alone open with a figure
-    # that is not zero (G9.6), except the lone `0`, so one or two
-    # characters spell a hundred values and not a hundred and one (the
-    # boundary moved from nine and ten when the stage-2b integration let
-    # the lone nought be written). Interleaved: in order, such a column
-    # is the row sequence (plan P4-D86) and is written exactly, whatever
-    # its corner. The order of a column's cells is none of the facts a
-    # corner reads.
+    # that is not zero wherever they are longer than one figure (G9.6),
+    # and the lone figure 0 is one of the ten one-figure values (plan
+    # P4-D155): so one and two characters spell a hundred, and a
+    # hundred-and-first value that reads as a whole number in figures
+    # alone -- `00` -- is one past the line.
+    # Interleaved: in order, a column of 0..99 is the row sequence (plan
+    # P4-D86) and is written exactly, whatever its corner. The order of a
+    # column's cells is none of the facts a corner reads.
     ("figures-at-the-line", _interleaved(_figures(0, 99))),
-    ("figures-over-the-line", _interleaved(_figures(0, 99) + ["00"])),
+    ("figures-over-the-line", _interleaved(_figures(0, 99)) + ["00"]),
     # Boundary 3 -- the same rule two characters wide.
     ("padded-at-the-line", _padded(10, 99)),
     ("padded-over-the-line", _padded(0, 99)),
@@ -407,11 +408,13 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
 ) -> None:
     """The lesser outcome is still granted where the plan grants it.
 
-    A hundred and one whole numbers of one or two characters. Figures
-    alone open with a figure that is not zero (G9.6), the lone `0`
-    excepted, so those widths spell a hundred values and the shipped
-    generator writes a hundred where a hundred and one are published --
-    the corner owner decision 6 names. Its twin therefore validates with nothing
+    A hundred and one whole numbers one and two figures wide: 0 to 99
+    and `00`. Figures alone open with a figure that is not zero wherever
+    they are longer than one figure (G9.6, plan P4-D155), so one and two
+    characters spell a hundred values and the shipped generator writes a
+    hundred where a hundred and one are published -- the corner owner
+    decision 6 names. (Ten one-character values were this witness until
+    the lone figure 0 was written; they are now answered exactly.) Its twin therefore validates with nothing
     missed, and the three facts appear as listings rather than as
     checks: the achieved value is named beside the published one and no
     verdict pretends to have been passed.
@@ -421,7 +424,7 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
     # Interleaved, as the battery's own witnesses are: in order the ten
     # figures are the row sequence (plan P4-D86) and are written exactly.
     described = _describe(
-        folder, _interleaved(_figures(0, 99) + ["00"]), "figures-ten"
+        folder, _interleaved(_figures(0, 99)) + ["00"], "figures-ten"
     )
     column = described.columns[0]
     facts = column.facts
@@ -464,7 +467,7 @@ def test_the_band_capacities_are_the_numbers_the_method_counts_out(
     assert validation._capacity_at(validation._BAND_CODE, 1) == 53
     assert validation._capacity_at(validation._BAND_DIGITS, 1) == 10
     # G9.6's whole-number families. Figures alone lose the leading zero
-    # but keep the lone `0`;
+    # past one figure, and keep the lone figure 0 (plan P4-D155);
     # `<digits>e0` has nothing to write below three characters except
     # the ten spellings that open with a sign, which owner decision 9
     # permits at two; `<digits>.` has nothing to write at one.

@@ -1715,6 +1715,57 @@ def census_form(text: str, census: "dict[str, int]") -> str:
     return form
 
 
+# -- the disclosure rule, asked by the label roles (plan P4-D150) -----
+
+
+def census_names_one_row(
+    counts: "dict[str, int]", totals: "list[tuple[int, int]]"
+) -> int:
+    """Which reading of a census names one row of the table, or -1.
+
+    THE ONE DISCLOSURE RULE, `census_nameable`, ASKED AT ITS LINE OF TWO
+    (plan P4-D150), so that the producer that writes a label role's form
+    or layout census and the loader that reads one ask ONE question and
+    cannot part. The line is two and not the settings floor because these
+    censuses pool what falls below the floor by design (invariant S13):
+    their named counts already reach the floor, and what this asks is
+    whether any reading is ONE. This is not a second statement of the
+    rule: at the merge of the labels repair into the integration, where
+    the numbers repair had already written the rule once, this function
+    was re-expressed as `census_nameable` at a floor of one, whose line is
+    two, over each reading in turn, so that it can say WHICH reading
+    failed. A census names one row in two ways, and both are refused:
+
+    - a count it publishes is one, the pool included;
+    - a total the reader holds beside it, less the cells the census
+      covers inside that total, is one. ``totals`` is those pairs, each
+      ``(total, covered)``. A pair is read only where the census covers
+      at least one cell of that total, because a census that says
+      NOTHING about a total -- the empty census above all -- leaves the
+      reader nothing to subtract: an absent census is absent, and the
+      total beside it is a fact published on its own terms.
+
+    The answer is ``-2`` for a count of one, the place in ``totals`` of
+    the first pair whose difference is one, and ``-1`` where the census
+    names no row, so a producer can repair the reading that failed.
+
+    Guarantees: reads only its arguments; returns an int. Determinism:
+    a function of the arguments; the keys are read in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    for key in sorted(counts):
+        # A count of nought names nobody, and it is no reading to refuse.
+        if counts[key] >= 1 and not census_nameable([counts[key]], [], 1):
+            return -2
+    place = 0
+    for total, covered in totals:
+        rest = total - covered
+        if covered >= 1 and rest >= 1 and not census_nameable([], [rest], 1):
+            return place
+        place = place + 1
+    return -1
+
+
 # -- the LAYOUT of a record number (contract 7.12) --------------------
 #
 # WHY THIS IS NOT `shape_form` WITH A LARGER LIMIT, stated here because
@@ -1881,6 +1932,18 @@ def layout_convention(values: "list[str]") -> str:
     site code `BOS-1234` keeps `@@@-%%%%` and does not shatter into one
     layout per site.
 
+    AND A LETTER THAT NEVER TRADES PLACES WITH A FIGURE IS A LETTER
+    (plan P4-D154). Letters inside `a` to `f` do not make a column
+    hexadecimal on their own: `A1000000`, `B1000001` ... `F1000799` hold
+    no other letter, and read as hexadecimal the column published
+    `^^^^^^^^` and its twin wrote 786 of 800 cells with a figure where
+    every real cell has its letter -- `[A-Z][0-9]{7}` matched 800 real
+    cells and 14 twin cells, and both files passed. What a hexadecimal
+    encoding shows that a letter-then-figures scheme does not is a
+    POSITION holding a letter in one cell and a figure in another, so
+    the column is hexadecimal only where, among its described cells of
+    one length, some position holds both.
+
     Guarantees: accepts a list of strings; reads only them; returns one
     member of `LAYOUT_CONVENTIONS`. Determinism: the answer depends
     only on the values. Raises TypeError if handed anything that is not
@@ -1890,22 +1953,36 @@ def layout_convention(values: "list[str]") -> str:
         raise TypeError(_NOT_TEXT)
     lower = 0
     upper = 0
+    # What each (length, position) has held: 1 a figure, 2 a letter.
+    held: "dict[tuple[int, int], int]" = {}
+    traded = False
     for value in values:
         if not isinstance(value, str):
             raise TypeError(_NOT_TEXT)
         if not _could_carry_a_layout(value):
             continue
+        place = 0
         for character in value:
-            if not _is_a_letter(character):
+            place = place + 1
+            kind = 0
+            if _is_a_digit(character):
+                kind = 1
+            if _is_a_letter(character):
+                kind = 2
+                if character in _HEX_LOWER_LETTERS:
+                    lower = lower + 1
+                elif character in _HEX_UPPER_LETTERS:
+                    upper = upper + 1
+                else:
+                    return LAYOUT_PLAIN
+            if not kind:
                 continue
-            if character in _HEX_LOWER_LETTERS:
-                lower = lower + 1
-                continue
-            if character in _HEX_UPPER_LETTERS:
-                upper = upper + 1
-                continue
-            return LAYOUT_PLAIN
-    if lower + upper < 1:
+            spot = (len(value), place)
+            seen = held[spot] if spot in held else 0
+            held[spot] = seen | kind
+            if held[spot] == 3:
+                traded = True
+    if lower + upper < 1 or not traded:
         return LAYOUT_PLAIN
     if upper > lower:
         return LAYOUT_HEX_UPPER

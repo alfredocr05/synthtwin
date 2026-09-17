@@ -236,6 +236,9 @@ BRANCH_CASES = (
     # named kinds could each be withdrawn with every committed byte
     # unchanged.
     "identifier_layout_mixes",
+    # THE PROVEN SIGN OF A LAYOUT CENSUS (plan P4-D156): a sign before
+    # figures written where the census proves the table held one.
+    "identifier_signed_layout",
     # THE FOURTH AND LAST OF THE ROLES PHASE 4 ADDED (residual
     # R-P4-17). It pins the pairing walk of G6B.4, the only search in
     # the method and the only place synthtwin reproduces structure
@@ -320,6 +323,13 @@ SECOND_BRANCH_CASES = (
     # other five followed when this file was split out.
     "grouped_charges",
     "grouped_decimal_comma",
+    # TWO RULES OF G9.6 the repair of the final review of the labels
+    # added (plans P4-D157 and P4-D158): a record number never written in
+    # a spelling read as absent, and a partner wearing the layout its
+    # identity reserved. The layout cases could each have lost its rule
+    # with every committed byte unchanged.
+    "identifier_absent_words",
+    "identifier_layout_partners",
     # WHAT THE CENSUS COULD HOLD, AND THE PLACES A NUMBER MAY TAKE (method
     # G8.3a, landing 2b.4's repair). `label_numbers` pools two cells, so a
     # number stepping past every named `%.%` value may write `10.0` there;
@@ -395,6 +405,9 @@ SEEDS = {
     "identifier_edge_spacing": 113,
     "identifier_layout": 136,
     "identifier_layout_mixes": 140,
+    "identifier_absent_words": 141,
+    "identifier_signed_layout": 142,
+    "identifier_layout_partners": 143,
     "lower_case_stand_ins": 137,
     "level_shape_stand_ins": 138,
     "count_spellings": 139,
@@ -455,6 +468,9 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_edge_spacing",
         "identifier_layout",
         "identifier_layout_mixes",
+        "identifier_absent_words",
+        "identifier_signed_layout",
+        "identifier_layout_partners",
     }
 )
 
@@ -1753,7 +1769,24 @@ def _no_layout_mixed(column):
     return []
 
 
-def _no_layout_preferred(column, groups, families, bands, windows, pinned):
+def _nothing_read_as_absent(text, holes=()):
+    """G9.6's absent spellings withdrawn: no spelling is read as absent."""
+    return False
+
+
+def _no_sign_proven(layout):
+    """G9.6's proven sign withdrawn: every sign opens a formula again."""
+    return False
+
+
+def _partners_wear_no_layout(layout, convention, count, column, offered):
+    """G9.6's partner layouts withdrawn: a partner is predicted to wear none."""
+    return [""] * count
+
+
+def _no_layout_preferred(
+    column, groups, families, bands, windows, pinned, demands=None
+):
     """G9.6's smooth rotation withdrawn: every group takes the first layout.
 
     The layouts are then offered in sorted order alone, so the identities
@@ -2177,6 +2210,30 @@ CASE_MUTANTS = {
         attribute="layout_preferences",
         replacement=_no_layout_preferred,
         outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_absent_words": Mutant(
+        branch="G9.6's refusal of a spelling a reader reads as absent (plan "
+        "P4-D158); the mutant reads nothing as absent, the layout walk "
+        "writes `NA`, and the cells move",
+        attribute="reads_as_absent",
+        replacement=_nothing_read_as_absent,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_signed_layout": Mutant(
+        branch="G9.6's proven sign (plan P4-D156); the mutant refuses every "
+        "opening sign, no filling of `-%%%%` is written, and the check of "
+        "7.12 finds the layout worn nought times",
+        attribute="_a_signed_number",
+        replacement=_no_sign_proven,
+        outcome="wear the layout '-%%%%' 0 times",
+    ),
+    "identifier_layout_partners": Mutant(
+        branch="G9.6's partner layouts (plan P4-D157); the mutant predicts "
+        "no partner wears a layout, the identities take the whole census, "
+        "and their partners overpay the other layout",
+        attribute="partner_layouts",
+        replacement=_partners_wear_no_layout,
+        outcome="wear the layout '&%%' 14 times",
     ),
     "identifier_layout_mixes": Mutant(
         branch="G9.6's mixes of a layout census's kinds, which write the "

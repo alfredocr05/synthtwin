@@ -5882,7 +5882,13 @@ is too short:
    column already folds onto;
 2. the spelling reads back as some other numeric class than the one its
    group has to answer for (G10.2);
-3. the spelling means "no value" (G10.3's list);
+3. the spelling means "no value" (G10.3's list) -- and on a column of
+   free text or of record numbers, it is one ANY column of the document
+   publishes as the spelling of its absent cells, because a
+   `--missing-value` declaration reaches the whole table (plan P4-D158:
+   a declared `FPQ7317879` in one column was written into a column of
+   record numbers beside it, and the twin missed eight obligations with
+   nothing named);
 4. the spelling reads as a date under `parsing.DATE_FORMATS`;
 5. only while a fold collision is being asked for (G9.3 step 1), the
    spelling holds no character with a case.
@@ -6984,7 +6990,17 @@ packing rule applying here IN FULL — both margins and the shape search
   questions are put at all, and at most a second stated number of
   positions are looked at, so a walk that only ever re-asks still ends.
   Where either number is reached the column keeps the layout it already
-  had and the shortfall is measured off the finished cells and named;
+  had and the shortfall is measured off the finished cells and named.
+  **A named layout the first answer leaves short is a reason to look
+  further too** (plan P4-D163): a candidate meeting every count and every
+  collision the first one met is returned at once only where every named
+  layout holds its published count; otherwise the walk goes on, with no
+  collision ask, at most sixteen questions and at most six further
+  layouts built, taking only a candidate that misses exactly the counts
+  the first one missed and reaches for no sign the first one did without,
+  and the candidate leaving the fewest named layouts short is kept, the
+  first on a tie — so 400 `-10000` beside 400 `20000` no longer packs the end
+  pinned to six characters into the figures band;
 - **each of the four class families is class-preserving by
   construction, and the walk CHECKS it.** A cell that reads as an
   ordinary number, one holding a well-formed number too large or too
@@ -7046,13 +7062,21 @@ packing rule applying here IN FULL — both margins and the shape search
   candidate layout wrote, and a candidate missing a count the first
   layout held is refused whatever else it repairs;
 - **when `all_whole_numbers` is true, every band writes whole numbers.**
-  In the figures band the first character is a non-zero digit, so the
-  spelling's length is its digit count — except the lone figure `0`,
-  which leads nothing: one figure long, the band holds ten values, `1`
-  to `9` and then `0`, offered in that order so a column counting from
-  one keeps its first nine. A declared record number counting from
-  nought (`0` to `119`) otherwise spilled its tenth short value into
-  three figures and missed its own published layout census. In the code band the value is
+  In the figures band the first character is a non-zero digit wherever
+  the spelling is longer than one figure, so the spelling's length is
+  its digit count, and **the lone figure `0` is one of the ten
+  one-figure spellings** (plan P4-D155): it is a whole number one figure
+  long, and refusing it left one figure nine spellings where it has ten,
+  so a declared identifier holding 0 to 119 wrote twenty-one
+  three-figure cells against a published `{"%%%": 20}` and failed its
+  own layout census. **It is the LAST of the ten, after `1` to `9`, and
+  where the published lengths run from one figure to two or more the
+  walk takes it after every number shorter than the shortest named
+  layout of figures alone two or more figures long — or after every
+  published length where none is named** (plan P4-D162): taken first, a
+  column of `1` to `800` came back holding `0` and one two-figure number
+  fewer, and taken late it is written only where the column holds more
+  short numbers than the numbers from `1` supply. In the code band the value is
   written `<digits>e0`, which reads back as a whole number and holds a
   character the figures do not. Outside the code alphabet it is written
   `<digits>.`, which reads back as a whole number and holds a character
@@ -7083,7 +7107,7 @@ packing rule applying here IN FULL — both margins and the shape search
   with every guard below but freeness. Every layout the group's family
   can wear has its published count times the group's size added to
   that family's running credit, the candidate with the most credit is
-  preferred -- the earliest in sorted order on a tie -- and the
+  preferred -- the first in sorted order on a tie -- and the
   family's total times the group's size is taken back from it. Credit
   is kept per family (class and band), so a layout one family cannot
   wear is never poured into another. LARGEST FIRST is what keeps the
@@ -7158,8 +7182,21 @@ packing rule applying here IN FULL — both margins and the shape search
   counts and the two alphabet counts are kept across this rule and not
   traded for it**: a candidate the shipped classifier does not read
   back as its slot's class, or the shipped alphabet readers do not
-  recount into its slot's band, and a candidate that reads as a date
-  under `parsing.DATE_FORMATS`, is stepped over. **`!` IS THE ONE
+  recount into its slot's band, a candidate that reads as a date
+  under `parsing.DATE_FORMATS`, and a candidate a reader reads as absent
+  -- G10.3's list, the column's own published hole spellings and every
+  spelling the document declares absent (plan P4-D158) -- is stepped
+  over. **A LAYOUT WHOSE LEADING MARK OPENS A FORMULA IS GIVEN UP AT
+  ONCE, SAVE ONE**: a sign, `-` or `+`, followed by figures with at most
+  one point among them (plan P4-D156). Such a layout is worn by signed
+  numbers alone, so a census publishing it PROVES the table held them,
+  which is owner decision 9's own distinction: the twin inherits the
+  hazard rather than manufacturing it, and the cells are counted in the
+  report's formula paragraph. Refusing it wrote `000020e0` for 800
+  cells of `-1000000` upward, 0 of 800 kept the layout, and nothing
+  named it. A signed layout is not given to an identity owed a
+  fold-collision partner, in the rotation or in the offer, because that
+  partner can only be edge-spaced and would open with the sign too. **`!` IS THE ONE
   PLACE A MADE-UP WHOLE NUMBER MAY OPEN WITH A NOUGHT**, and it is the
   zero fill of NC-9 — the `%08d` a reader loses when a spreadsheet or
   a statistics package reads `01586982` as 1586982. Every `!` is
@@ -7171,15 +7208,39 @@ packing rule applying here IN FULL — both margins and the shape search
   is a fragment of every value in its column, which contract invariants
   I3 and F3 forbid; it waits for the owner's ruling on clause 3, and
   until then the twin writes the layout's own alphabet in its place;
-- **a fold-collision partner wears no layout**, and that is a named
-  limit rather than an oversight. A partner is its parent's spelling
-  with a case flipped or an edge space added (G9.3), and an edge space
-  is a character no layout carries, so a column publishing fewer folded
-  identities than raw spellings meets its census from its identities
-  alone and the recount names whatever is left. The census is not
-  traded for the folded count, nor the folded count for the census:
-  both are attempted and the shortfall is MEASURED off the finished
-  cells;
+- **a fold-collision partner wears the layout its identity reserved**
+  (plan P4-D157). A partner is its parent's spelling with a case turned
+  over or an edge space added (G9.3), so a case flip wears a layout --
+  `g0000` beside `G0000` is `&%%%%` -- and an edge space wears none.
+  Before the rotation, each partner slot is handed, as G9.3 hands
+  partners out, to the first identity of its own family counted on
+  cyclically from the slot's ordinal among the partners. The layouts a
+  cell of layout `L` hands its partners are read off `L`'s first filling:
+  its partner family in G9.3's order, at most 64 members, inside the
+  published length range, and the members wearing a NAMED layout taken
+  one per partner in that order, a partner past them wearing none. Where
+  any partner of any named layout wears a named layout, the rotation
+  visits the identities owed partners after the two end carriers and
+  before every other identity, and a layout is a candidate for such an
+  identity only where its own remaining count covers the identity and
+  every named layout its partners wear has their cells left, the layout
+  itself counting both where they coincide; all of them are debited
+  together. The walk debits an identity's partners off the layout it
+  actually took, remembered by partner; at a partner slot that debit is
+  given back and the member taken is the first unwritten one wearing a
+  named layout with the partner's cells left, else the first wearing no
+  named layout, else the first, and its layout is debited. Measured
+  before this rule: `G` and four figures on 600 rows beside `g` and four
+  on 200 published `{"@%%%%": 600, "&%%%%": 200}` and the twin wrote 500
+  and 300; `AB` beside `ab` wrote the partners `aB`. **And every named
+  layout is RECOUNTED into the twin's own report**, off the present
+  cells by the census's own per-layout rules and against the window the
+  pool leaves, so a layout the twin does not hold is named: before this
+  recount a signed column wrote 0 of 800 cells to its layout, and a
+  battery of 800 small mixed columns missed a layout on 488 runs, and
+  the report named none of them. What the recount names is the limit of
+  G9.4's packing, which settles each group's class and band before any
+  layout is offered;
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
@@ -9357,8 +9418,11 @@ case passed, which is the failure the count exists to prevent:
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
 | `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over five groups of four rows and forty single rows. The stand-ins owed no form wear `&-` with the case kept, and one group of four trades with four single rows so the shape's supply covers every row owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
 | `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |
-| `identifier_layout_mixes` | G9.6's zero fill, space and MIXES (plans P4-D126 to P4-D128): a declared identifier of forty-seven nine-character cells publishing `{"!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14}`. The eleven fills are written `00` and seven figures, the next figure never a nought; the space stands as a mark; and the fourteen pooled cells are written to mixes of figures and capitals over the two places of `@%-------`, the first base in sorted order, whose mix `@%` is named and stepped over, so they are written `%%`, `%@` and `@@`. Nine characters wide because this oracle reads no date, and no date format is nine figures or four and four around a space. Its mutant withdraws the mixes and the fourteen cells move; withdrawing the fill or the space stops the oracle at the recount of 7.12, and reading the named mix moves the cells |
-| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST from step one, spread by the exact golden section of the room — `L30816`, `W60632`, `H01458` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the recount of 7.12 |
+| `identifier_layout_mixes` | G9.6's zero fill, space and MIXES (plans P4-D126 to P4-D128): a declared identifier of forty-seven nine-character cells publishing `{"!!%%%%%%%": 11, "@%-------": 11, "@@%% %%%%": 11, "(withheld)": 14}`. The eleven fills are written `00` and seven figures, the next figure never a nought; the space stands as a mark; and the fourteen pooled cells are written to mixes of figures and capitals over the two places of `@%-------`, the first base in sorted order, whose mix `@%` is named and stepped over, so they are written `%%`, `%@` and `@@`. Nine characters wide because this oracle reads no date, and no date format is nine figures or four and four around a space. Its mutant withdraws the mixes and the fourteen cells move; withdrawing the fill or the space stops the oracle at the check of 7.12, and reading the named mix moves the cells |
+| `identifier_signed_layout` | G9.6's proven sign (plan P4-D156): a declared identifier of twelve signed whole numbers publishing `{"-%%%%": 12}`, every cell a minus and four figures. Its mutant refuses the sign and the check of 7.12 finds the layout worn nought times |
+| `identifier_absent_words` | G9.6's refusal of a spelling read as absent (plan P4-D158): a declared identifier publishing `{"@@": 20}`, whose layout walk reaches `NA` at its thirteenth filling and steps over it. Its mutant reads nothing as absent, `NA` is written, and the cells move |
+| `identifier_layout_partners` | G9.6's partner layouts (plan P4-D157): twenty-two identities and eleven partners publishing `{"@%%": 22, "&%%": 11}`, the identities owed partners visited first and debited with them. Its mutant predicts no partner wears a layout, and the check of 7.12 finds `&%%` worn fourteen times |
+| `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST from step one, spread by the exact golden section of the room — `L30816`, `W60632`, `H01458` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the check of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |

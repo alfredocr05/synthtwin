@@ -19488,19 +19488,23 @@ def _pinned_spelling(
     used: "dict[str, int]",
     letter: bool,
     head: "tuple[str, ...] | None" = None,
+    holes: "tuple[str, ...]" = (),
 ) -> str:
     """The first free spelling of one alphabet at one exact length.
 
     The two extreme lengths of a column are pinned onto its first two
     made-up values, which is what makes the shortest and longest lengths
     facts a recount can confirm. Pinning costs no word, exactly like the
-    ends of a ladder.
+    ends of a ladder. A spelling in ``holes`` is stepped over like a used
+    one (plan P4-D158).
     """
     index = 0
     while index < 1000000:
         candidate = _spelling_at(alphabet, length, index, head)
         index = index + 1
         if letter and not _has_letter(candidate):
+            continue
+        if holes and _is_a_hole_spelling(candidate, holes):
             continue
         if _free(candidate, used):
             return candidate
@@ -19658,31 +19662,7 @@ def _band_alphabet(band: str) -> "tuple[str, ...]":
     return _WIDE
 
 
-def _lone_figure(index: int) -> "str | None":
-    """The ``index``-th whole number one figure long: `1` to `9`, then `0`.
-
-    THE LONE NOUGHT IS A WHOLE NUMBER ONE FIGURE LONG (repair of the
-    stage-2b integration). The rule that keeps a whole number's length
-    equal to its count of figures refuses a leading nought, and it was
-    applied to the one figure that has nothing after it: `0` is not a
-    nought LEADING anything. The figures band therefore held nine
-    one-figure values where there are ten, and a declared record number
-    counting from nought -- `0` to `119` -- could not be written: the
-    tenth short value spilled into three figures and the twin missed its
-    own published layout census, `%%%` asked 20 and held 21.
-
-    The nought is offered LAST, after `9`, so a column whose values count
-    from one takes the same nine values in the same order it always did
-    and meets the nought only where it needs a tenth.
-    """
-    if index < 0 or index > 9:
-        return None
-    if index == 9:
-        return _DIGITS[0]
-    return _DIGITS[index + 1]
-
-
-def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
+def _band_head(band: str, whole: bool, length: int) -> "tuple[str, ...]":
     """What one band allows as a value's leftmost character (G9.5 step 3).
 
     The three bands exist to meet two published counts -- how many
@@ -19691,9 +19671,14 @@ def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
     first:
 
     - figures alone: any figure, or any figure but zero where the
-      description records that every value is a whole number, so that a
-      value's length is its count of figures (method G9.6) -- the lone
-      nought excepted, which `_lone_figure` offers after `9`;
+      description records that every value is a whole number and the
+      value is longer than one figure, so that a value's length is its
+      count of figures (method G9.6). THE LONE FIGURE `0` IS A WHOLE
+      NUMBER ONE FIGURE LONG and is written (plan P4-D155): refusing it
+      left a one-figure length nine spellings where it has ten, so a
+      declared identifier holding 0 to 119 wrote twenty-one three-figure
+      cells against a published `{"%%%": 20}` and failed its own layout
+      census at exit 3;
     - the code alphabet: never a figure, so the value cannot be counted
       among the ones written in figures alone;
     - outside the code alphabet: a character the code alphabet does not
@@ -19708,7 +19693,7 @@ def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
     for figure in alphabet:
         if figure == _SPACE or figure in _FORMULA_LEADERS:
             continue
-        if band == _BAND_DIGITS and whole and figure == "0":
+        if band == _BAND_DIGITS and whole and figure == "0" and length > 1:
             continue
         if band == _BAND_CODE and parsing.is_digit_text(figure):
             continue
@@ -19722,7 +19707,10 @@ def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
 
 
 def _identifier_cells(
-    column: contract.ColumnBlock, groups: "tuple[int, ...]"
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    holes: "tuple[str, ...]" = (),
+    floor: int = 1,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a declared column of record numbers (G9.6).
 
@@ -19814,10 +19802,31 @@ def _identifier_cells(
     # nothing the first layout held.
     allowance = -1
     conceded: frozenset[str] = frozenset()
+    # A LAYOUT THE FIRST ANSWER LEAVES SHORT IS A REASON TO LOOK FURTHER
+    # TOO (plan P4-D163). The packing settles each group's class and band
+    # before any layout is offered, so a slot pinned to the longest length
+    # can land in a band no named layout of that length is written in:
+    # 400 `-10000` beside 400 `20000` published `{"%%%%%": 400, "-%%%%%":
+    # 400}`, and the end fell to the figures band as `100000`, one cell
+    # off each layout. A candidate meeting everything the first one met
+    # is kept where it leaves FEWER named layouts short, and the first is
+    # returned at once only where it leaves none.
+    best: "tuple[list[str], list[Deviation]] | None" = None
+    best_short = -1
+    best_missed: frozenset[str] = frozenset()
+    best_signed = False
+    looks = 0
     for tier in range(2):
         if tier == 1:
+            # A SEARCH FOR A LAYOUT ALONE IS BOUNDED TIGHTER than one for a
+            # collision (plan P4-D163): where an answer already meets every
+            # count and every collision, the wider tier only trades one
+            # layout shortfall for a smaller one, and it is asked at most
+            # `_LAYOUT_PACKINGS` questions and builds at most `_LAYOUT_LOOKS`
+            # further layouts.
+            budget = _FOLD_PACKINGS if best is None else _LAYOUT_PACKINGS
             wider = _identifier_packings(
-                column, facts, groups, folded, partners, _FOLD_PACKINGS
+                column, facts, groups, folded, partners, budget
             )
             if len(wider) < 2:
                 break
@@ -19826,14 +19835,22 @@ def _identifier_cells(
             if tier == 1 and step < 1:
                 continue
             for asking in range(2):
+                if asking and best is not None:
+                    # The ask of G9.3 is about a collision, and a search
+                    # for a layout alone already has every one it owes.
+                    continue
                 asked: tuple[int, ...] = ()
                 if asking:
                     asked = shapes[step][1]
                 caps = [-1 for _cell in range(room)]
                 for _again in range(total + 1):
+                    if best is not None:
+                        looks = looks + 1
+                        if looks > _LAYOUT_LOOKS:
+                            return best
                     built, notes, short, supply = _laid_identifiers(
                         column, facts, groups, folded, partners,
-                        shapes[step], caps, asked,
+                        shapes[step], caps, asked, holes,
                     )
                     if kept is None:
                         kept = (built, notes)
@@ -19841,11 +19858,29 @@ def _identifier_cells(
                         conceded = _identifier_shortfall(
                             column, facts, built
                         )
+                    missed = _identifier_shortfall(column, facts, built)
                     if _fully_folded(short) and len(notes) <= allowance and (
-                        _identifier_shortfall(column, facts, built)
-                        <= conceded
+                        missed <= conceded
                     ):
-                        return built, notes
+                        if best is not None and (
+                            missed != best_missed
+                            or (shapes[step][2] and not best_signed)
+                        ):
+                            # A SEARCH FOR A LAYOUT TRADES NOTHING ELSE: a
+                            # candidate giving up or winning back another
+                            # count, or reaching for the sign the first
+                            # answer did without, is not taken for a layout.
+                            break
+                        laid_short = len(_layout_notes(column, built, floor))
+                        if laid_short == 0:
+                            return built, notes
+                        if best is None or laid_short < best_short:
+                            if best is None:
+                                best_missed = missed
+                                best_signed = shapes[step][2]
+                            best = (built, notes)
+                            best_short = laid_short
+                        break
                     moved = False
                     for cell in range(room):
                         if short[cell] < 1:
@@ -19855,6 +19890,8 @@ def _identifier_cells(
                             moved = True
                     if not moved:
                         break
+    if best is not None:
+        return best
     if kept is None:
         raise errors.ProfileError(
             f"synthtwin internal check: no layout at all was built for "
@@ -19964,8 +20001,17 @@ def _laid_identifiers(
     shape: "tuple[list[int], tuple[int, int], bool]",
     caps: "list[int]",
     asked: "tuple[int, ...]",
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[str], list[Deviation], list[int], list[int]]":
     """One whole layout of a column of record numbers, and what it cost.
+
+    ``holes`` is every spelling this column's walks may not invent (plan
+    P4-D158): the column's own published hole spellings and every
+    spelling any column of the document declares absent. Every candidate
+    below -- a layout's filling, a mix, a pinned end, the walk, its
+    fallback and a fold-collision partner -- is asked
+    `_is_a_hole_spelling` of it, so no present cell of the twin is one a
+    reader of the description reads as absent.
 
     This is the walk of G9.6 as it has always been, taken out of
     `_identifier_cells` so the repair above can run it more than once.
@@ -20039,9 +20085,12 @@ def _laid_identifiers(
     # is spelled (7.12, plan P4-D120). See `_layout_preferences`: the
     # census is spread over the groups by the smooth weighted rotation,
     # so no layout is bound to how often its record numbers repeat.
+    demands = _partner_demands(families, groups, folded)
+    paired = _partners_wear_named_layouts(facts, convention, demands)
+    predicted: dict[int, str] = {}
     preferred = _layout_preferences(
         facts, families, kinds, bands, groups, windows, carriers, folded,
-        convention,
+        convention, demands,
     )
     stand_ins = _layout_stand_in_bases(facts)
     admitted: dict[str, bool] = {}
@@ -20065,8 +20114,19 @@ def _laid_identifiers(
         # carrier pinned to a two-character end has, and what every
         # group has on a column no value of which may be longer.
         signed_here = signed and windows[index][0] == windows[index][1] == 2
+        worn: "tuple[str, dict[str, int], int] | None" = None
+        if paired and index >= folded:
+            # THE CELLS DEBITED FOR THIS PARTNER WHEN ITS PARENT WAS LAID
+            # ARE GIVEN BACK, and the member it actually takes is debited
+            # instead (plan P4-D157).
+            if index in predicted and predicted[index] in quotas:
+                quotas[predicted[index]] = (
+                    quotas[predicted[index]] + groups[index]
+                )
+            worn = (convention, quotas, groups[index])
         partner = _partner_of(
-            index, folded, spellings, families, used, windows
+            index, folded, spellings, families, used, windows, worn=worn,
+            holes=holes,
         )
         if index >= folded >= 1 and index >= 1:
             if partner is None:
@@ -20075,6 +20135,12 @@ def _laid_identifiers(
                 supply[cells[index]] = supply[cells[index]] + 1
         if partner is not None:
             spellings += [_take(partner, used)]
+            if worn is not None:
+                taken_layout = parsing.layout_form(partner, convention)
+                if taken_layout in quotas:
+                    quotas[taken_layout] = (
+                        quotas[taken_layout] - groups[index]
+                    )
             continue
         letter = asks[index] and band != _BAND_DIGITS
         spelling: str | None = None
@@ -20086,7 +20152,8 @@ def _laid_identifiers(
         # offer rather than in spite of it.
         laid = _layout_identifier(
             kind, band, windows[index], convention, quotas, steps,
-            groups[index], used, letter, preferred[index],
+            groups[index], used, letter, preferred[index], holes,
+            index < len(demands) and len(demands[index]) > 0,
         )
         if laid is None and stand_ins:
             # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
@@ -20096,21 +20163,29 @@ def _laid_identifiers(
             # to the walk below. See `_layout_stand_in`.
             laid = _layout_stand_in(
                 kind, band, windows[index], convention, facts, stand_ins,
-                steps, used, admitted, mixed,
+                steps, used, admitted, mixed, holes,
             )
         if laid is not None:
             _claim(laid, used)
             spellings += [laid]
+            # THE PARTNERS THIS IDENTITY WILL BE HANDED ARE DEBITED WITH
+            # IT (plan P4-D157), off the layout it actually took, so no
+            # identity laid after it spends the cells they will wear.
+            if paired and index < len(demands) and demands[index]:
+                _debit_partner_layouts(
+                    parsing.layout_form(laid, convention), convention,
+                    demands[index], groups, facts, quotas, predicted,
+                )
             continue
         if index == carriers[0]:
             spelling = _pinned_identifier(
                 kind, band, facts, facts.min_length, used, letter,
-                signed_here,
+                signed_here, holes,
             )
         elif index == carriers[1] and facts.max_length > facts.min_length:
             spelling = _pinned_identifier(
                 kind, band, facts, facts.max_length, used, letter,
-                signed_here,
+                signed_here, holes,
             )
         else:
             spelling, again = _next_identifier(
@@ -20121,6 +20196,7 @@ def _laid_identifiers(
                 used,
                 letter,
                 signed_here,
+                holes,
             )
             if again:
                 repeated = repeated + 1
@@ -20336,6 +20412,7 @@ def _layout_spelling(
     convention: str,
     steps: "dict[str, int]",
     used: "dict[str, int]",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """The next free spelling of one layout that keeps its slot's family.
 
@@ -20365,24 +20442,33 @@ def _layout_spelling(
         steps[layout] = steps[layout] + 1
         tried = tried + 1
         opening = candidate[:1]
-        if opening == _SPACE or opening in _FORMULA_LEADERS:
+        if (
+            opening == _SPACE or opening in _FORMULA_LEADERS
+        ) and not _signs_a_number(layout):
             # A LAYOUT WHOSE LEADING MARK IS ONE A SPREADSHEET READS AS
             # THE START OF A FORMULA IS GIVEN UP AT ONCE, not stepped
             # through. The opening character of a layout's spelling is
             # the layout's own leading mark wherever that mark is not a
             # placeholder, so every one of its spellings opens the same
             # way and no step can rescue it. G9.1's bar stands here as
-            # it stands everywhere else in this module.
+            # it stands everywhere else in this module -- save for the
+            # one layout the census PROVES was a signed number, which
+            # `_signs_a_number` names.
             return None
         if not _free(candidate, used):
             continue
-        if _fits_its_slot(kind, band, layout, convention, candidate):
+        if _fits_its_slot(kind, band, layout, convention, candidate, holes):
             return candidate
     return None
 
 
 def _fits_its_slot(
-    kind: str, band: str, layout: str, convention: str, candidate: str
+    kind: str,
+    band: str,
+    layout: str,
+    convention: str,
+    candidate: str,
+    holes: "tuple[str, ...]" = (),
 ) -> bool:
     """Whether one filling of a layout may stand in a slot, freeness aside.
 
@@ -20395,7 +20481,7 @@ def _fits_its_slot(
         return False
     if not _reads_in_band(candidate, band):
         return False
-    if parsing.is_missing_text(candidate):
+    if _is_a_hole_spelling(candidate, holes):
         return False
     if _reads_as_a_date(candidate):
         return False
@@ -20420,6 +20506,41 @@ def _fits_its_slot(
         # come to disagree.
         return False
     return True
+
+
+def _signs_a_number(layout: str) -> bool:
+    """Whether a layout is a sign in front of a number, and nothing else.
+
+    A PROVEN SIGN IS NOT A FORMULA (plan P4-D156, owner decision 9's own
+    distinction). `-%%%%%%%` is a layout only a signed whole number of
+    seven figures wears, so a census publishing it PROVES the real
+    column held sign-leading numbers: the twin inherits the hazard the
+    table already had rather than manufacturing one, and the cells are
+    counted in the report's formula paragraph like every other. Refusing
+    them wrote `000020e0` for 800 cells of `-1000000` upward, 0 of 800
+    kept the layout, and nothing named it; a leading plus came back
+    `0000020.`.
+
+    So the layout is a `-` or a `+`, then figures, with at most one point
+    among them and a figure on at least one side of it. Every filling of
+    such a layout reads as a number, and `_fits_its_slot` still asks the
+    shipped classifier. `=` and `@` open no number and stay refused, as
+    does a sign before a letter mark, a hexadecimal mark or any other
+    mark, since such a layout also holds text.
+    """
+    if len(layout) < 2 or layout[0] not in ("-", "+"):
+        return False
+    points = 0
+    figures = 0
+    for character in layout[1:]:
+        if character == parsing.LAYOUT_DIGIT:
+            figures = figures + 1
+            continue
+        if character == ".":
+            points = points + 1
+            continue
+        return False
+    return figures >= 1 and points <= 1
 
 
 # How many fillings of one layout, counted from its first, the admission
@@ -20447,7 +20568,9 @@ def _layout_admits(
     for step in range(ceiling):
         candidate = _filled_layout(layout, step)
         opening = candidate[:1]
-        if opening == _SPACE or opening in _FORMULA_LEADERS:
+        if (
+            opening == _SPACE or opening in _FORMULA_LEADERS
+        ) and not _signs_a_number(layout):
             return False
         if _fits_its_slot(kind, band, layout, convention, candidate):
             return True
@@ -20464,6 +20587,7 @@ def _layout_preferences(
     carriers: "tuple[int, int]",
     folded: int,
     convention: str,
+    demands: "list[list[int]] | None" = None,
 ) -> "list[str]":
     """Which published layout each group is offered FIRST (7.12, G9.6).
 
@@ -20496,10 +20620,29 @@ def _layout_preferences(
     three cells needs a layout with three left, and the singletons that
     come last can pay any remainder a larger group left behind.
 
-    Only IDENTITIES are visited; a slot the fold-collision partners take
-    wears no layout (G9.3). '' says a group has no preference, and the
-    walk then offers the layouts in sorted order as it always did. The
-    rotation draws no random word.
+    Only IDENTITIES are visited, AND AN IDENTITY CARRIES ITS PARTNERS'
+    CELLS (plan P4-D157). A fold-collision partner is its parent's
+    spelling with a case turned over or an edge space added (G9.3), so it
+    wears a layout of its own -- `g0000` beside `G0000` is `&%%%%` -- and
+    that layout is counted in the census like any other cell. Measured
+    before this rule: `G` and four figures on 600 rows beside `g` and
+    four figures on 200 published `{"@%%%%": 600, "&%%%%": 200}`, the
+    identities were spread over both and their partners turned each one
+    over, and the twin wrote 500 and 300 with nothing named. So each
+    identity's partners, as `_partner_demands` hands them out, are asked
+    for with it: a layout is taken only where its own remaining count
+    covers the identity and every NAMED layout its partners would wear
+    (`_partner_layouts`) has their cells left, the layout itself
+    counting both where the two coincide, and all of them are debited
+    together. Identities owing a partner whose layout the census names
+    are visited before the rest (after the two end carriers), because
+    they are the ones a spent layout can strand; a column where no
+    partner of any named layout wears a named layout is visited exactly
+    as it was.
+
+    '' says a group has no preference, and the walk then offers the
+    layouts in sorted order as it always did. The rotation draws no
+    random word.
     """
     total = len(groups)
     reach = total
@@ -20512,15 +20655,20 @@ def _layout_preferences(
     preferred = ["" for _group in range(total)]
     if not named:
         return preferred
-    visits: list[tuple[int, int, int]] = []
+    owed = demands if demands is not None else []
+    paired = _partners_wear_named_layouts(facts, convention, owed)
+    visits: list[tuple[int, int, int, int]] = []
     for index in range(reach):
         pinned = index == carriers[0] or (
             index == carriers[1] and facts.max_length > facts.min_length
         )
-        visits += [(0 if pinned else 1, -groups[index], index)]
+        owes = 0
+        if paired and index < len(owed) and owed[index]:
+            owes = -1
+        visits += [(0 if pinned else 1, owes, -groups[index], index)]
     credits: dict[str, dict[str, int]] = {}
     wearable: dict[str, list[str]] = {}
-    for _pinned, _size, index in sorted(visits):
+    for _pinned, _owes, _size, index in sorted(visits):
         family = families[index]
         if family not in wearable:
             worn: list[str] = []
@@ -20537,8 +20685,26 @@ def _layout_preferences(
             weight = weight + facts.layout_forms[layout]
         best = ""
         best_credit = 0
+        best_needs: dict[str, int] = {}
         for layout in wearable[family]:
-            if remaining[layout] < covering:
+            if index < len(owed) and owed[index] and _signs_a_number(layout):
+                # A SIGNED LAYOUT IS NOT GIVEN TO AN IDENTITY OWED A
+                # PARTNER (plan P4-D156): a sign before figures holds no
+                # letter to turn over, so its partner is edge-spaced and
+                # opens with the sign too -- a second hazard cell where
+                # the proof covers one.
+                continue
+            needs = {layout: covering}
+            if paired and index < len(owed) and owed[index]:
+                needs = _layout_needs(
+                    layout, covering, owed[index], groups, convention,
+                    facts, remaining,
+                )
+            short = False
+            for wanted in sorted(needs):
+                if remaining[wanted] < needs[wanted]:
+                    short = True
+            if short:
                 continue
             if len(layout) < windows[index][0]:
                 continue
@@ -20552,6 +20718,7 @@ def _layout_preferences(
             if best == "" or credit > best_credit:
                 best = layout
                 best_credit = credit
+                best_needs = needs
         if best == "":
             continue
         for layout in wearable[family]:
@@ -20560,9 +20727,142 @@ def _layout_preferences(
                 + facts.layout_forms[layout] * covering
             )
         credits[family][best] = credits[family][best] - weight * covering
-        remaining[best] = remaining[best] - covering
+        for wanted in sorted(best_needs):
+            remaining[wanted] = remaining[wanted] - best_needs[wanted]
         preferred[index] = best
     return preferred
+
+
+def _partner_demands(
+    families: "list[str]", groups: "tuple[int, ...]", folded: int
+) -> "list[list[int]]":
+    """The partner slots every identity is handed, in order (G9.3).
+
+    A partner slot is handed, as G9.3 hands partners out, to the first
+    identity of its own family counted on cyclically from the slot's own
+    ordinal among the partners -- which, on a column of one family, is
+    one each in ascending order and then a second each. The answer is a
+    list per identity of the slots of its partners, first partner first;
+    an identity owed none has an empty list. It is a PREDICTION, made
+    before any spelling exists: `_partner_of` may hand a slot to another
+    parent, and the walk then gives back what it debited and debits what
+    the partner actually wears (plan P4-D157).
+    """
+    total = len(groups)
+    demands: list[list[int]] = [[] for _each in range(max(folded, 0))]
+    if folded < 1:
+        return demands
+    for index in range(folded, total):
+        place = index - folded
+        for step in range(folded):
+            parent = (place + step) % folded
+            if families[parent] == families[index]:
+                demands[parent] += [index]
+                break
+    return demands
+
+
+# How many members of one partner family `_partner_layouts` reads before
+# it stops looking for one wearing a named layout. A family's case flips
+# come first, and a layout of more than six letters is past what any
+# census in this format names alongside its flips.
+_PARTNER_LAYOUT_STEPS = 64
+
+
+def _partner_layouts(
+    layout: str, convention: str, count: int, facts: contract.IdentifierFacts
+) -> "list[str]":
+    """The layouts the first ``count`` partners of a ``layout`` cell wear.
+
+    Read off the layout's own first filling and its partner family as
+    G9.3 orders it, inside the published length range: the members
+    wearing a NAMED layout are taken first, in family order, one per
+    partner, and a partner past them wears "" -- the edge-spaced members
+    the family goes on to, which carry no layout. That is the member
+    `_partner_from` takes where the named layout has cells left, so the
+    prediction and the walk ask one rule. A case turned over moves a
+    letter mark to the other case in a plain column and moves nothing in
+    a hexadecimal one, which is what the census's own reader says.
+    """
+    named = _named_layouts(facts)
+    filled = _filled_layout(layout, 0)
+    worn: list[str] = []
+    order = 1
+    while len(worn) < count and order <= _PARTNER_LAYOUT_STEPS:
+        member = _partner_at(
+            filled, order, facts.min_length, facts.max_length
+        )
+        order = order + 1
+        if member is None:
+            break
+        found = parsing.layout_form(member, convention)
+        if found in named:
+            worn += [found]
+    while len(worn) < count:
+        worn += [""]
+    return worn
+
+
+def _partners_wear_named_layouts(
+    facts: contract.IdentifierFacts,
+    convention: str,
+    demands: "list[list[int]]",
+) -> bool:
+    """Whether any partner of any named layout wears a named layout.
+
+    False on every column publishing no layout or owing no partner, and
+    on a column whose partners are all edge-spaced -- which is what keeps
+    such a column's walk exactly as it was.
+    """
+    most = 0
+    for owed in demands:
+        most = max(most, len(owed))
+    if most < 1:
+        return False
+    for layout in _named_layouts(facts):
+        for worn in _partner_layouts(layout, convention, most, facts):
+            if worn:
+                return True
+    return False
+
+
+def _layout_needs(
+    layout: str,
+    covering: int,
+    owed: "list[int]",
+    groups: "tuple[int, ...]",
+    convention: str,
+    facts: contract.IdentifierFacts,
+    remaining: "dict[str, int]",
+) -> "dict[str, int]":
+    """The cells an identity and its partners ask of each named layout."""
+    needs = {layout: covering}
+    worn = _partner_layouts(layout, convention, len(owed), facts)
+    for order in range(len(owed)):
+        if worn[order] not in remaining:
+            continue
+        before = needs[worn[order]] if worn[order] in needs else 0
+        needs[worn[order]] = before + groups[owed[order]]
+    return needs
+
+
+def _debit_partner_layouts(
+    layout: str,
+    convention: str,
+    owed: "list[int]",
+    groups: "tuple[int, ...]",
+    facts: contract.IdentifierFacts,
+    quotas: "dict[str, int]",
+    predicted: "dict[int, str]",
+) -> None:
+    """Take an identity's partners' cells off the layouts they will wear."""
+    if not layout:
+        return
+    worn = _partner_layouts(layout, convention, len(owed), facts)
+    for order in range(len(owed)):
+        predicted[owed[order]] = worn[order]
+        if worn[order] in quotas:
+            quotas[worn[order]] = quotas[worn[order]] - groups[owed[order]]
 
 
 def _layout_identifier(
@@ -20576,6 +20876,8 @@ def _layout_identifier(
     used: "dict[str, int]",
     letter: bool,
     preferred: str,
+    holes: "tuple[str, ...]" = (),
+    owes: bool = False,
 ) -> "str | None":
     """One record number written to a published layout, or None (7.12).
 
@@ -20629,8 +20931,12 @@ def _layout_identifier(
                 continue
             if asking and not _layout_holds_a_letter(layout):
                 continue
+            if owes and _signs_a_number(layout):
+                # See `_layout_preferences`: an identity owed a partner
+                # is not written to a signed layout (plan P4-D156).
+                continue
             found = _layout_spelling(
-                kind, band, layout, convention, steps, used
+                kind, band, layout, convention, steps, used, holes
             )
             if found is None:
                 continue
@@ -20721,6 +21027,7 @@ def _layout_stand_in(
     used: "dict[str, int]",
     admitted: "dict[str, bool]",
     mixed: "dict[str, int]",
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """A group no named layout serves, written to a layout of its own kinds.
 
@@ -20774,7 +21081,9 @@ def _layout_stand_in(
                 # trailing characters -- and counted from nought, every
                 # stand-in opened `A00A00AA`.
                 steps[mix] = 1 + len(steps) * _LAYOUT_STEPS
-            found = _layout_spelling(kind, band, mix, convention, steps, used)
+            found = _layout_spelling(
+                kind, band, mix, convention, steps, used, holes
+            )
             if found is not None:
                 return found
     return None
@@ -20938,14 +21247,17 @@ def _identifier_at(
             _band_alphabet(band),
             length,
             index,
-            _band_head(band, facts.all_whole_numbers),
+            _band_head(band, facts.all_whole_numbers, length),
         )
     if kind == _CLASS_NUMBER and facts.all_whole_numbers:
         if band == _BAND_DIGITS:
             if length == 1:
-                return _lone_figure(index)
+                # `1` TO `9`, THEN `0` (plan P4-D162): the lone nought is
+                # the last one-figure number, so the end pinned to one
+                # figure is `1` as it was before P4-D155 let `0` be written.
+                return _DIGITS[(index + 1) % len(_DIGITS)]
             return _spelling_at(
-                _DIGITS, length, index, _band_head(band, True)
+                _DIGITS, length, index, _band_head(band, True, length)
             )
         # THE TWO-CHARACTER CODE FAMILY IS KEPT, AND FLAGGED (owner
         # decision 9, 2026-08-13). `-0` through `-9` are the only
@@ -21070,6 +21382,17 @@ def _identifier_permits(
 # had and the shortfall is measured off the cells and named, exactly as
 # before this repair existed.
 _FOLD_PACKINGS = 256
+
+# How many questions the wider tier may put to the allocator where the
+# first answer already meets every count and collision and only a named
+# layout is short (plan P4-D163). Measured: 400 `-10000` beside 400
+# `20000` is met by the sixth packing the wider tier offers.
+_LAYOUT_PACKINGS = 16
+
+# How many further layouts may be built where the first answer already
+# meets every count and collision and only a named layout is short (plan
+# P4-D163). The same column's layout is met at the fifth build.
+_LAYOUT_LOOKS = 6
 
 # HOW MANY POSITIONS THE SECOND TIER MAY LOOK AT (review item P3-V6-F2).
 # A budget counted in positions LOOKED AT rather than in questions
@@ -21432,6 +21755,7 @@ def _pinned_identifier(
     used: "dict[str, int]",
     letter: bool,
     signed: bool = False,
+    holes: "tuple[str, ...]" = (),
 ) -> str:
     """The first free record number of one family at one exact length.
 
@@ -21462,7 +21786,7 @@ def _pinned_identifier(
                 continue
             if parsing.classify_number(candidate) != _reads_as(kind):
                 continue
-            if parsing.is_missing_text(candidate):
+            if _is_a_hole_spelling(candidate, holes):
                 continue
             if _reads_as_a_date(candidate):
                 continue
@@ -21472,7 +21796,8 @@ def _pinned_identifier(
         length,
         used,
         letter,
-        _band_head(band, facts.all_whole_numbers),
+        _band_head(band, facts.all_whole_numbers, length),
+        holes,
     )
 
 
@@ -21484,6 +21809,7 @@ def _next_identifier(
     used: "dict[str, int]",
     letter: bool,
     signed: bool = False,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[str, bool]":
     """The next record number of one family, and whether it repeats.
 
@@ -21512,26 +21838,28 @@ def _next_identifier(
     """
     began = [state[0], state[1], state[2]]
     found = _walked_identifier(
-        kind, band, facts, state, used, letter, signed
+        kind, band, facts, state, used, letter, signed, holes
     )
     if found is None and letter:
         state[0] = began[0]
         state[1] = began[1]
         state[2] = began[2]
         found = _walked_identifier(
-            kind, band, facts, state, used, False, signed
+            kind, band, facts, state, used, False, signed, holes
         )
     if found is not None:
         return found
-    return (
-        _spelling_at(
-            _band_alphabet(band),
-            facts.min_length,
-            0,
-            _band_head(band, facts.all_whole_numbers),
-        ),
-        True,
-    )
+    # THE LAST FALLBACK STEPS OVER A HOLE SPELLING TOO (plan P4-D158),
+    # and the walk is bounded: each hole refuses at most one index.
+    head = _band_head(band, facts.all_whole_numbers, facts.min_length)
+    index = 0
+    fallback = _spelling_at(_band_alphabet(band), facts.min_length, 0, head)
+    while index <= len(holes) and _is_a_hole_spelling(fallback, holes):
+        index = index + 1
+        fallback = _spelling_at(
+            _band_alphabet(band), facts.min_length, index, head
+        )
+    return (fallback, True)
 
 
 def _walked_identifier(
@@ -21542,13 +21870,26 @@ def _walked_identifier(
     used: "dict[str, int]",
     letter: bool,
     signed: bool = False,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[str, bool] | None":
-    """One pass of a record-number family's walk, from where it stopped."""
+    """One pass of a record-number family's walk, from where it stopped.
+
+    THE LONE FIGURE `0` IS WALKED LATE (plan P4-D162), where the
+    column's lengths run from one figure to two or more: after every
+    number shorter than the shortest named layout of figures alone, or,
+    where no such layout is named, after every number of every published
+    length. P4-D155 let it be written, first, and a column of `1` to `800`
+    then came back holding `0` and one two-figure number fewer; walked
+    late it is written only where the column holds more short numbers
+    than `1` onward supply, which is exactly the column of `0` to `119`
+    P4-D155 was for.
+    """
     length = state[0]
     index = state[1]
     spent = state[2] == 1
     steps = 0
     asked = 0
+    late = _nought_walk_length(kind, band, facts)
     while steps < 1000000:
         steps = steps + 1
         if length > facts.max_length:
@@ -21556,17 +21897,25 @@ def _walked_identifier(
             index = 0
             spent = True
             state[2] = 1
-        if index >= _identifier_room(kind, band, facts, length, signed):
+        room = _identifier_room(kind, band, facts, length, signed)
+        if late and length == late:
+            room = room + 1
+        if index >= room:
             length = length + 1
             index = 0
             continue
-        candidate = _identifier_at(
-            kind, band, facts, length, index, signed
-        )
+        if late and length == late and index == room - 1:
+            candidate: "str | None" = "0"
+        else:
+            candidate = _identifier_at(
+                kind, band, facts, length, index, signed
+            )
         index = index + 1
         if candidate is None:
             length = length + 1
             index = 0
+            continue
+        if late and length == 1 and candidate == "0":
             continue
         if letter and not _has_letter(candidate):
             asked = asked + 1
@@ -21577,7 +21926,7 @@ def _walked_identifier(
             continue
         if parsing.classify_number(candidate) != _reads_as(kind):
             continue
-        if parsing.is_missing_text(candidate):
+        if _is_a_hole_spelling(candidate, holes):
             continue
         if _reads_as_a_date(candidate):
             continue
@@ -21585,6 +21934,38 @@ def _walked_identifier(
         state[1] = index
         return candidate, spent
     return None
+
+
+def _nought_walk_length(
+    kind: str, band: str, facts: contract.IdentifierFacts
+) -> int:
+    """The length whose numbers the lone `0` is walked after, or 0.
+
+    One less than the shortest named layout of figures alone two or more
+    figures long, or the longest published length where none is named;
+    0 where the walk has no lone `0` to hold back (plan P4-D162).
+    """
+    if not (
+        kind == _CLASS_NUMBER
+        and band == _BAND_DIGITS
+        and facts.all_whole_numbers
+        and facts.min_length == 1
+        and facts.max_length >= 2
+    ):
+        return 0
+    after = facts.max_length
+    for layout in _named_layouts(facts):
+        if len(layout) < 2 or len(layout) - 1 >= after:
+            continue
+        figures = True
+        for character in layout:
+            if character != parsing.LAYOUT_DIGIT:
+                figures = False
+        if figures:
+            after = len(layout) - 1
+    if after < 2:
+        return 0
+    return after
 
 
 def _partner_at(
@@ -21742,6 +22123,8 @@ def _partner_of(
     sizes: "list[int] | None" = None,
     long_tail_line: int = 0,
     carried: "dict[int, int] | None" = None,
+    worn: "tuple[str, dict[str, int], int] | None" = None,
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -21857,7 +22240,8 @@ def _partner_of(
                 if has_letter != lettered:
                     continue
                 found = _partner_from(
-                    parent_place, index, spellings, used, shortest, longest
+                    parent_place, index, spellings, used, shortest, longest,
+                    worn, holes,
                 )
                 if found is None:
                     continue
@@ -21877,21 +22261,48 @@ def _partner_from(
     used: "dict[str, int]",
     shortest: int,
     longest: "int | None",
+    worn: "tuple[str, dict[str, int], int] | None" = None,
+    holes: "tuple[str, ...]" = (),
 ) -> "str | None":
-    """One parent's family, walked from its own start (G9.3 step 2)."""
-    if True:
-        parent = spellings[parent_place]
-        order = 1
-        steps = len(used) + 1
-        while steps > 0:
-            candidate = _partner_at(parent, order, shortest, longest)
-            if candidate is None:
-                break
-            if _unused(candidate, used):
+    """One parent's family, walked from its own start (G9.3 step 2).
+
+    ``worn``, on a column of record numbers whose partners can wear a
+    named layout, is the convention, the layouts' remaining counts and
+    this partner's cells (plan P4-D157). The member taken is then the
+    first unwritten one wearing a named layout with those cells left;
+    failing that, the first wearing no named layout, so a spent layout is
+    not overpaid; and failing both, the first unwritten one, which is the
+    rule every other column keeps.
+    """
+    parent = spellings[parent_place]
+    order = 1
+    steps = len(used) + 1
+    unnamed: "str | None" = None
+    first: "str | None" = None
+    while steps > 0:
+        candidate = _partner_at(parent, order, shortest, longest)
+        if candidate is None:
+            break
+        order = order + 1
+        steps = steps - 1
+        if not _unused(candidate, used):
+            continue
+        if holes and _is_a_hole_spelling(candidate, holes):
+            continue
+        if worn is None:
+            return candidate
+        if first is None:
+            first = candidate
+        layout = parsing.layout_form(candidate, worn[0])
+        if layout in worn[1]:
+            if worn[1][layout] >= worn[2]:
                 return candidate
-            order = order + 1
-            steps = steps - 1
-    return None
+            continue
+        if unnamed is None:
+            unnamed = candidate
+    if unnamed is not None:
+        return unnamed
+    return first
 
 
 def _length_windows(
@@ -22129,6 +22540,7 @@ def _text_cells(
     column: contract.ColumnBlock,
     groups: "tuple[int, ...]",
     long_tail_line: int = 0,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
@@ -22247,7 +22659,7 @@ def _text_cells(
     for index in range(total):
         partner = _partner_of(
             index, folded, spellings, families, used, windows,
-            list(groups), long_tail_line, carried,
+            list(groups), long_tail_line, carried, holes=holes,
         )
         if partner is not None:
             taken = _take(partner, used)
@@ -22286,11 +22698,14 @@ def _text_cells(
                 band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
+        # EVERY SPELLING THE TABLE READS AS ABSENT, not this column's
+        # alone (plan P4-D158): the caller hands the document's declared
+        # hole spellings beside the column's own.
         spelling = _made_up_cell(
             kind, band, lengths[index], counts[index],
             asks[index], states, used,
             asked_form,
-            _hole_spellings(column),
+            holes if holes else _hole_spellings(column),
         )
         if spelling is None:
             held = 0
@@ -24233,10 +24648,14 @@ def _made_up_cell(
             return found
         if letter:
             shaped_state[0] = marked
-    found = _walked_cell(kind, band, length, words, letter, state, used)
+    found = _walked_cell(
+        kind, band, length, words, letter, state, used, "", holes
+    )
     if found is None and letter:
         state[0] = began
-        found = _walked_cell(kind, band, length, words, False, state, used)
+        found = _walked_cell(
+            kind, band, length, words, False, state, used, "", holes
+        )
     return found
 
 
@@ -24304,7 +24723,7 @@ def _walked_cell(
             # form is refused a leading zero the table never had, as the
             # family's own numbers are (method G9.5 step 3).
             continue
-        if parsing.is_missing_text(candidate):
+        if _is_a_hole_spelling(candidate, holes):
             continue
         if _reads_as_a_date(candidate):
             continue
@@ -25764,7 +26183,12 @@ def _plan_column(
     elif isinstance(facts, contract.IdentifierFacts):
         _whole_number_room(column, facts)
         groups = _groups_of(facts.n_distinct_by_occurrences)
-        cells, notes = _identifier_cells(column, groups)
+        # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE TOO (plan
+        # P4-D158), as they reach the unrepresentable role below: a
+        # `--missing-value` declaration is made once for the whole table.
+        cells, notes = _identifier_cells(
+            column, groups, _holes_reserved(column, all_holes), floor
+        )
     elif isinstance(facts, contract.TextFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
         _word_room(column, facts)
@@ -25772,7 +26196,7 @@ def _plan_column(
             column, facts.length.minimum, facts.length.maximum, len(groups)
         )
         cells, notes, carriers, remarks = _text_cells(
-            column, groups, long_tail_line
+            column, groups, long_tail_line, _holes_reserved(column, all_holes)
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
@@ -26307,9 +26731,13 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # the position R-P2-13 already takes for a generated value that
         # lands on a stand-in: distorting a distribution to protect a
         # re-profiling artifact is the worse trade.
+        # AND EVERY SPELLING THE TABLE DECLARES ABSENT (plan P4-D158): a
+        # cell of this column wearing one is absent to the description's
+        # own reader, whichever column published it.
+        elsewhere = _every_hole_spelling(profile)
         counted = _recounted(
             spelled,
-            _hole_spellings(column),
+            _holes_reserved(column, elsewhere),
             _declared_a_decimal_comma(column, profile),
         )
         notes = (
@@ -26320,6 +26748,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 counted,
                 spelled,
                 _declared_a_decimal_comma(column, profile),
+                elsewhere,
             )
             + _value_count_notes(view, measured)
             + _half_distinct_notes(column, written, halves)
@@ -26333,6 +26762,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _pad_notes(view, measured)
             + _field_notes(view, measured)
             + _whole_notes(view, measured)
+            + _layout_notes(view, measured, profile.settings.small_cell_floor)
             + _magnitude_notes(view, measured)
             + _style_notes(view, measured)
             + _mix_notes(view, measured)
@@ -26563,6 +26993,7 @@ def _unconditional_hole_excess(
     column: contract.ColumnBlock,
     spelled: "list[str]",
     decimal_comma: bool = False,
+    elsewhere: "tuple[str, ...]" = (),
 ) -> int:
     """How many extra cells wear a hole spelling no judgement can undo.
 
@@ -26602,6 +27033,16 @@ def _unconditional_hole_excess(
                 worn = worn + 1
         if worn > published:
             excess = excess + (worn - published)
+    # A SPELLING ANOTHER COLUMN DECLARES ABSENT is unconditional here too
+    # (plan P4-D158): this column publishes none of its cells wearing it,
+    # so every cell that does is a value the twin has lost.
+    own = _hole_spellings(column)
+    for spelling in elsewhere:
+        if spelling in own:
+            continue
+        for cell in spelled:
+            if _wears_this_hole(cell, spelling, decimal_comma):
+                excess = excess + 1
     return excess
 
 
@@ -26610,6 +27051,7 @@ def _recount_notes(
     counted: "tuple[int, int, int, int]",
     spelled: "list[str]",
     decimal_comma: bool = False,
+    elsewhere: "tuple[str, ...]" = (),
 ) -> "list[Deviation]":
     """Name every distinctness count the written column did not reach.
 
@@ -26669,7 +27111,8 @@ def _recount_notes(
     # again, never remove them, so where the recount finds FEWER holes
     # than published no judgement can account for it.
     collided = (
-        _unconditional_hole_excess(column, spelled, decimal_comma) > 0
+        _unconditional_hole_excess(column, spelled, decimal_comma, elsewhere)
+        > 0
     )
     if collided and counted[0] != column.n_present:
         notes += [
@@ -27686,6 +28129,57 @@ def _whole_notes(
             "real table.",
         )
     ]
+
+
+def _layout_notes(
+    column: contract.ColumnBlock, written: "list[str]", floor: int
+) -> "list[Deviation]":
+    """Name every published layout a column of record numbers did not hold.
+
+    THE LAYOUT CENSUS IS EXACT-OBSERVABLE (contract 7.12) AND NOTHING IN
+    THIS REPORT WAS RECOUNTING IT (plan P4-D157). The walk believes it
+    writes every cell to its layout, and a run that believes a fact is
+    the run that stops checking it: fold-collision partners turned their
+    parents' case over and a column publishing 600 and 200 was written
+    500 and 300, and a signed record number wrote 0 of 800 cells to its
+    layout, both with a report that named nothing.
+
+    Recounted as the validator recounts it -- `taxonomy.layout_census`
+    over the present cells, every rule about one layout at a time -- and
+    held to the same window: a named layout numbers at least its count
+    and, where the census writes a pool, at most its count plus the pool.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        return []
+    named = _named_layouts(facts)
+    if not named:
+        return []
+    present = [
+        cell for cell in _present_of(written, _hole_spellings(column))
+        if parsing.trimmed(cell)
+    ]
+    counted = taxonomy.layout_census(present, floor, len(set(present)))
+    pool = 0
+    if contract.WITHHELD in facts.layout_forms:
+        pool = facts.layout_forms[contract.WITHHELD]
+    notes: list[Deviation] = []
+    for layout in named:
+        published = facts.layout_forms[layout]
+        found = counted[layout] if layout in counted else 0
+        if published <= found <= published + pool:
+            continue
+        notes += _named_miss(
+            column,
+            f"layout_forms.{layout}",
+            published,
+            found,
+            "The twin does not write this many record numbers in this "
+            "layout, so a pattern, a length test or a case test developed "
+            "against the twin selects a different number of rows here "
+            "than it will on the real table.",
+        )
+    return notes
 
 
 def _mix_notes(
