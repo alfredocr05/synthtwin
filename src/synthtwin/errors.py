@@ -2496,39 +2496,29 @@ def checked_workbook_other_sheet_holds_a_table(
 
 # THE TWO WAYS A WORKBOOK COLUMN CAN MIX HOW ITS CELLS ARE STORED THAT A
 # TWIN CANNOT CARRY (plan P4-D166), named for the sentence below.
-MIXED_TYPES = "types"
 MIXED_FORMATS = "formats"
 
 
 def workbook_column_mixes_storage(path: str, column: str, mixed: str) -> str:
-    """Message for a column whose cell types or number formats are mixed.
+    """Message for a column whose numbers wear two kinds of number format.
 
     WHY THIS IS A REFUSAL (review item 6 of the files review, plan
-    P4-D166). A workbook column can hold some values as NUMBERS and
-    others as TEXT that reads as a number, or some numbers wearing a date
-    format and others none. The description publishes how many cells are
-    of each kind, and the column's values as one distribution -- nothing
-    that says WHICH values were the numbers. Measured: thirty numeric
-    cells holding 10 and thirty text cells holding 1000 gave a twin
-    whose numeric cells summed to 15150 against the source's 300, with
-    every published fact held. So a column that mixes them is refused,
-    by name, rather than twinned wrong.
+    P4-D166). A workbook column can hold some numbers wearing a date
+    format and others none. The description publishes how many cells wear
+    each kind, and the column's values as one distribution -- nothing that
+    says WHICH values were the dates. So such a column is refused, by
+    name, rather than twinned wrong. ``mixed`` names the mix, and
+    `MIXED_FORMATS` is the one left: numbers stored as text are read since
+    plan P4-D187.
     """
-    trouble = (
-        "holds some values stored as numbers and others stored as text "
-        "that reads as the same kind of value"
-    )
-    if mixed == MIXED_FORMATS:
-        trouble = (
-            "holds numbers wearing more than one kind of number format -- "
-            "some shown as dates or times and others not"
-        )
+    if mixed != MIXED_FORMATS:
+        raise ValueError("internal check: an unknown kind of mixed column")
     return (
-        f"The column '{_shown(column)}' of {path} {trouble}. A twin "
-        f"cannot keep which values were stored which way, so code that "
-        f"picks out one kind would get different answers on the twin and "
-        f"on your table. Please open the workbook, make every cell of "
-        f"that column the same type and format (for example with 'Text "
-        f"to Columns' or by setting one number format), save it again, "
-        f"and run the command again."
+        f"The column '{_shown(column)}' of {path} holds numbers wearing more "
+        f"than one kind of number format -- some shown as dates or times and "
+        f"others not. A twin cannot keep which values were stored which way, "
+        f"so code that picks out one kind would get different answers on the "
+        f"twin and on your table. Please open the workbook, give every cell "
+        f"of that column one number format, save it again, and run the "
+        f"command again."
     )

@@ -353,15 +353,14 @@ def cell_classes(
         wanted = remaining[kind]
         if wanted is None:
             continue
+        fitting: "list[int]" = []
         for index in full_order:
-            if wanted <= 0:
-                break
-            if index in taken or not dialect.sheet_class_fits(kind, cells[index]):
-                continue
+            if index not in taken and dialect.sheet_class_fits(kind, cells[index]):
+                fitting += [index]
+        for index in _spread_over(fitting, wanted):
             out[index] = kind
             taken[index] = True
-            wanted = wanted - 1
-        remaining[kind] = wanted
+        remaining[kind] = wanted - min(wanted, len(fitting))
 
     text_left = remaining[dialect.SHEET_CELL_TEXT]
     if text_left is not None and text_left > 0:
@@ -386,6 +385,36 @@ def cell_classes(
             remaining, cells[index], value_class, leading_value
         )
     return tuple(out)
+
+
+def _spread_over(fitting: "list[int]", wanted: int) -> "list[int]":
+    """Which of the cells a class fits it takes: all, or an even spread.
+
+    WHERE MORE CELLS FIT A CLASS THAN ITS COUNT NAMES, THE COUNT IS
+    SPREAD OVER THEM (plan P4-D187). A column holding numbers some of
+    which were stored as text publishes both counts and one
+    distribution of values, so every one of its cells fits `number`.
+    Handed out in row order, the numbers took the first rows and the
+    text the last: measured, the thirty text cells of a three-hundred-row
+    column stood in its last thirty rows. The smooth rotation -- each
+    fitting cell adds the count to a credit and is taken where the credit
+    reaches the number of fitting cells, which is then taken back --
+    takes exactly the count, evenly over the rows. Where no more cells
+    fit than the count names, every one is taken, in row order, as
+    before.
+    """
+    if wanted <= 0:
+        return []
+    if len(fitting) <= wanted:
+        return fitting
+    chosen: "list[int]" = []
+    credit = 0
+    for index in fitting:
+        credit = credit + wanted
+        if credit >= len(fitting):
+            credit = credit - len(fitting)
+            chosen += [index]
+    return chosen
 
 
 def _still_wanted(remaining: "dict[str, int | None]", text: str) -> bool:
@@ -446,10 +475,12 @@ def _place_of(
 def _styles_part(codes: "tuple[str, ...]") -> str:
     """The style table: one style per published format code, plus the header.
 
-    Every code here came from the description and every one of them is
-    one of `dialect.SHEET_FORMAT_CODES`, which is Excel's own published
-    vocabulary and synthtwin's own. A code of the person's is never
-    written, because one is never published.
+    Every code here came from the description, and every one of them is
+    one `dialect.sheet_format_code_publishable` admits: Excel's own
+    published vocabulary, synthtwin's canonical codes, or a code of the
+    format language's own tokens alone written as the source wrote it
+    (plan P4-D189). A code carrying anybody's words is never written,
+    because one is never published.
     """
     customs: "list[str]" = []
     for code in codes:
@@ -725,11 +756,7 @@ def cell_format_kinds(
     plain_left = _left(census, dialect.SHEET_FORMAT_PLAIN)
     if plain_left is not None:
         plain_left = plain_left - absent
-    leading = dialect.SHEET_FORMAT_PLAIN
-    if format_code in dialect.SHEET_FORMAT_CODE_KINDS:
-        found = dialect.SHEET_FORMAT_CODE_KINDS[format_code]
-        if isinstance(found, str):
-            leading = found
+    leading = dialect.sheet_format_kind(format_code)
     for index in written:
         if index in taken:
             continue
@@ -776,12 +803,11 @@ def _code_for_kind(kind: str, published: str) -> str:
     kind the published code is not gets the canonical code of its own
     kind, which is how a mixture is written back at all.
     """
-    if kind in dialect.SHEET_FORMAT_CODE_KINDS:
-        pass
-    if published in dialect.SHEET_FORMAT_CODE_KINDS:
-        found = dialect.SHEET_FORMAT_CODE_KINDS[published]
-        if isinstance(found, str) and found == kind:
-            return published
+    # ASKED OF THE RULE AND NOT OF A CLOSED MAP (plan P4-D189): a code
+    # published as the source wrote it is in no list, and is the code
+    # its own kind's cells wear.
+    if dialect.sheet_format_kind(published) == kind:
+        return published
     canonical = dialect.SHEET_CANONICAL_FORMAT_CODES[kind]
     if isinstance(canonical, str):
         return canonical
@@ -1292,10 +1318,9 @@ def _dates_as_day_counts(
     for kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
         if _wanted(column.format_kinds, kind) > 0:
             wants_dates = True
-    kinds_of_codes = dialect.SHEET_FORMAT_CODE_KINDS
-    if column.format_code in kinds_of_codes and kinds_of_codes[
-        column.format_code
-    ] in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
+    if dialect.sheet_format_kind(column.format_code) in (
+        dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME
+    ):
         wants_dates = True
     out: "list[str]" = []
     dated: "list[str]" = []

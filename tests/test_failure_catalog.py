@@ -74,7 +74,7 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "checked_workbook_sheet_not_found": ("/data/checked.xlsx", 3),
     "checked_workbook_sheet_is_empty": ("/data/checked.xlsx", 2),
     "checked_workbook_other_sheet_holds_a_table": ("/data/checked.xlsx", 2, 1),
-    "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "types"),
+    "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "formats"),
     # The repair pass after the files review (plan P4-D174): a header
     # row the sheet does not settle is asked about, by row number.
     # Registered here by landing 2b.11 part 2. The builder arrived with

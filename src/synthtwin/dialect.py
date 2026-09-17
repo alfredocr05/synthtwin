@@ -780,6 +780,255 @@ SHEET_FORMAT_CODE_KINDS = {
 }
 
 
+
+# A CODE WRITTEN AS THE SOURCE WROTE IT (plan P4-D189). Plan P4-D79
+# published a custom code as the canonical code of its kind, on the
+# ground that a custom code is text out of somebody's file -- and the
+# twin then rewrote `00000` as `General` (a region code shown `00802`
+# came back `802`) and `yyyy-mm-dd hh:mm` as the canonical spelling.
+# That ground holds for a code carrying a quoted word, a currency or a
+# locale; it does not hold for a code built only out of the number-format
+# language's own tokens, which spells how a number is shown and nothing
+# anybody typed about a person. Such a code is published and written as
+# the source wrote it. Every other custom code still gives way to the
+# canonical code of its kind.
+SHEET_CODE_LENGTH = 64
+
+# The characters a code may hold standing alone: the figure placeholders,
+# the point, the comma, the percent, the fraction bar, the clock's colon,
+# the brackets, dash, plus, dollar and space Excel shows as they are,
+# the text placeholder and the section mark.
+_CODE_BARE = "0#?.,%/:()-+$ @;"
+
+# The date and clock letters, in either case.
+_CODE_LETTERS = "ymdhsYMDHS"
+
+# The colours a section may open with, folded, and the numbered form.
+_CODE_COLOURS_FOLDED = (
+    "black",
+    "blue",
+    "cyan",
+    "green",
+    "magenta",
+    "red",
+    "white",
+    "yellow",
+)
+
+
+def _code_bracket_speaks(inside: str) -> bool:
+    """Whether a bracket of a code holds a token of the language alone.
+
+    An elapsed count (`h`, `mm`, `ss` repeated), a colour by name or
+    `Color` and a number from one to fifty-six. A condition (`>=100`), a
+    currency or a locale (`$USD-409`) is not: they hold figures and words
+    a person chose.
+    """
+    if not inside:
+        return False
+    first = inside[0]
+    if first in ("h", "H", "m", "M", "s", "S"):
+        for character in inside:
+            if character != first:
+                return False
+        return True
+    folded = ""
+    for character in inside:
+        if "A" <= character <= "Z":
+            folded = folded + chr(ord(character) + 32)
+        else:
+            folded = folded + character
+    if folded in _CODE_COLOURS_FOLDED:
+        return True
+    if folded[:5] != "color" or not 1 <= len(folded) - 5 <= 2:
+        return False
+    figures = folded[5:]
+    for character in figures:
+        if not "0" <= character <= "9":
+            return False
+    if figures[0] == "0":
+        return False
+    number = 0
+    for character in figures:
+        number = number * 10 + (ord(character) - 48)
+    return 1 <= number <= 56
+
+
+def sheet_format_code_speakable(code: str) -> bool:
+    """Whether a number format code holds the format language's tokens alone.
+
+    Guarantees: a fixed function of the code; raises TypeError on a
+    value that is not text. True where the code is at most
+    `SHEET_CODE_LENGTH` characters, of at most four sections, and every
+    character is one of these: a character of `_CODE_BARE`; a date or
+    clock letter; `E` or `e` followed by a sign; `AM/PM`, `am/pm`, `A/P`
+    or `a/p`; a backslash, underscore or asterisk followed by a character
+    that is neither a letter nor a figure; a quoted run holding no letter
+    and no figure; or a bracket `_code_bracket_speaks` accepts. A figure
+    other than `0` is refused, and so is every other letter: such a
+    character is a word or a number somebody wrote into the code.
+    """
+    if not isinstance(code, str):
+        raise TypeError("internal check: a format code was not text")
+    if not code or len(code) > SHEET_CODE_LENGTH:
+        return False
+    sections = 1
+    index = 0
+    size = len(code)
+    while index < size:
+        character = code[index]
+        if character in ("\\", "_", "*"):
+            if index + 1 >= size or _is_letter_or_digit(code[index + 1]):
+                return False
+            index = index + 2
+            continue
+        if character == '"':
+            index = index + 1
+            while index < size and code[index] != '"':
+                if _is_letter_or_digit(code[index]):
+                    return False
+                index = index + 1
+            if index >= size:
+                return False
+            index = index + 1
+            continue
+        if character == "[":
+            inside = ""
+            index = index + 1
+            while index < size and code[index] != "]":
+                inside = inside + code[index]
+                index = index + 1
+            if index >= size or not _code_bracket_speaks(inside):
+                return False
+            index = index + 1
+            continue
+        if code[index : index + 5] in ("AM/PM", "am/pm"):
+            index = index + 5
+            continue
+        if code[index : index + 3] in ("A/P", "a/p"):
+            index = index + 3
+            continue
+        if character in ("E", "e"):
+            if index + 1 >= size or code[index + 1] not in ("+", "-"):
+                return False
+            index = index + 2
+            continue
+        if character in _CODE_LETTERS:
+            index = index + 1
+            continue
+        if character in _CODE_BARE:
+            if character == ";":
+                sections = sections + 1
+                if sections > 4:
+                    return False
+            index = index + 1
+            continue
+        return False
+    return True
+
+
+def sheet_format_code_publishable(code: str) -> bool:
+    """Whether a description may publish this code (plans P4-D79, P4-D189).
+
+    One of `SHEET_FORMAT_CODES` -- Excel's built-in vocabulary and the
+    canonical code of each kind -- or a code of the format language's
+    own tokens alone (`sheet_format_code_speakable`). The producer, the
+    publication guard and the loader all ask this one question.
+    """
+    if not isinstance(code, str):
+        raise TypeError("internal check: a format code was not text")
+    return code in SHEET_FORMAT_CODES or sheet_format_code_speakable(code)
+
+
+def _is_elapsed_token(inside: str) -> bool:
+    """Whether a bracket's text is an elapsed count: `h`, `mm`, `ss`...
+
+    One letter of hours, minutes or seconds, repeated, in either case.
+    """
+    if not inside:
+        return False
+    first = inside[0]
+    if first not in ("h", "H", "m", "M", "s", "S"):
+        return False
+    for character in inside:
+        if character != first:
+            return False
+    return True
+
+
+def sheet_format_kind(code: str) -> str:
+    """Which kind of thing a number wearing this format code is.
+
+    THE ONE RULE, IN THE MODULE EVERY SIDE MAY IMPORT (plan P4-D189). It
+    was the reader's (`workbook.format_kind`), and the loader and the
+    writer answered the same question from `SHEET_FORMAT_CODE_KINDS`, a
+    closed map of its answers; a code published as the source wrote it
+    is not in that map, so the rule itself moved here and the reader
+    asks it.
+
+    Guarantees: a fixed function of the code. The rule is the one every
+    reader the study measured uses -- the format decides the type -- and
+    it reads the code outside its quoted runs, so a currency symbol
+    spelling `"d"` inside quotation marks never makes a column of money
+    into a column of dates. Only the first section is read: a format may
+    spell positives, negatives and zeros differently, and the first
+    section is the one a positive number wears. What a bracket holds is
+    not read as a date token (plan P4-D169) -- a colour, a currency and
+    locale, a condition -- except an elapsed count, `[h]`, `[mm]`,
+    `[ss]`; the character after `_` and after `*` is layout and skipped.
+    """
+    if not isinstance(code, str):
+        raise TypeError("internal check: a format code was not text")
+    if code == "General" or not code:
+        return SHEET_FORMAT_PLAIN
+    if code == "@":
+        return SHEET_FORMAT_TEXT
+    body = code.split(";")[0]
+    plain = ""
+    quoted = False
+    skip = False
+    bracket = ""
+    in_bracket = False
+    elapsed = False
+    for character in body:
+        if skip:
+            skip = False
+            continue
+        if in_bracket:
+            if character == "]":
+                in_bracket = False
+                if _is_elapsed_token(bracket):
+                    elapsed = True
+                continue
+            bracket = bracket + character
+            continue
+        if character == "\\" or character == "_" or character == "*":
+            skip = True
+            continue
+        if character == '"':
+            quoted = not quoted
+            continue
+        if quoted:
+            continue
+        if character == "[":
+            in_bracket = True
+            bracket = ""
+            continue
+        plain = plain + character
+    day = "d" in plain or "D" in plain or "y" in plain or "Y" in plain
+    # `m` is minutes next to an hour or a second, and months otherwise.
+    month = "m" in plain or "M" in plain
+    clock = "h" in plain or "H" in plain or "s" in plain or "S" in plain
+    if elapsed:
+        return SHEET_FORMAT_ELAPSED
+    if day and clock:
+        return SHEET_FORMAT_DATETIME
+    if day or (month and not clock):
+        return SHEET_FORMAT_DATE
+    if clock:
+        return SHEET_FORMAT_TIME
+    return SHEET_FORMAT_PLAIN
+
 # -- a date IN a workbook: a number wearing a format, read as a date ---
 #
 # WHY A DATE CELL IS READ AS ITS DATE (repair of the stage-2b

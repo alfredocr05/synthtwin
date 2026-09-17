@@ -2919,6 +2919,7 @@ DOCUMENT_CASES = (
     "delimiter_reading",
     "row_arrangement",
     "withheld_line_marks",
+    "workbook_as_written",
     "workbook_classes_by_spelling",
     "workbook_sheet",
     "written_form_classes",
@@ -3150,7 +3151,7 @@ def test_the_workbook_twin_is_the_package_the_method_requires(
     would produce is in question here, and a case that generated them
     would be testing two transforms at once.
     """
-    for name in ("workbook_sheet", "workbook_classes_by_spelling"):
+    for name in ("workbook_sheet", "workbook_classes_by_spelling", "workbook_as_written"):
         _package_matches(_document_case(name), tmp_path / name)
 
 
@@ -3268,6 +3269,27 @@ DOCUMENT_MUTANTS = {
             "rule it replaced, and the file is read as one column",
             attribute="best_reading",
             replacement=_one_reading_for_each_candidate,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "workbook_as_written": (
+        Mutant(
+            branch="G2.2 step 1's rule that a count is spread over the "
+            "cells a class fits where more fit than it names (plan "
+            "P4-D187); the mutant hands it out in row order, and the "
+            "first column's eleven text cells stand in its last eleven rows",
+            attribute="sheet_spread_over",
+            replacement=lambda fitting, wanted: list(fitting[:max(wanted, 0)]),
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 3's rule that a published code's kind is read "
+            "off the code (plan P4-D189); the mutant looks it up in the "
+            "closed map of built-in and canonical codes, and the third "
+            "column's moments wear the canonical datetime code instead of "
+            "the code the source wrote",
+            attribute="sheet_code_kind",
+            replacement=lambda code: gen.SHEET_FORMAT_CODE_KINDS.get(code, "plain"),
             outcome=CHANGES_THE_CELLS,
         ),
     ),

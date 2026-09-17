@@ -521,29 +521,31 @@ def test_a_placeholder_is_never_a_published_name_in_another_case(
 # -- item 6 and merge item 2: storage types and their values -----------
 
 
-def test_a_column_mixing_numbers_and_numeric_text_is_refused(
+def test_a_column_mixing_numbers_and_numeric_text_is_read(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Files review, BLOCKER 6 (plan P4-D166).
+    """Files review, BLOCKER 6 (plan P4-D166), reversed in part by P4-D187.
 
     THE REPRODUCTION. Thirty numeric cells of 10 and thirty text cells of
-    `1000`: at seed 0 half of each value took the other storage type, a
-    sum over the numeric cells read 15150 on the twin against 300 on the
-    source, and validation reported 48 HELD and nothing missed. The
-    description keeps no association between a value and its type, so
-    the column is refused, by name, rather than twinned wrong -- and so is
-    a column whose numbers wear a date format and a plain one.
+    `1000`: at seed 0 half of each value took the other storage type and
+    validation reported nothing missed, so P4-D166 refused the column.
+    A file the person expects to read must be read (P4-D187): the text
+    cells are read as text holding figures, both counts are published,
+    the twin writes thirty of each, and its report says which values
+    were which is not kept. A column whose NUMBERS wear a date format
+    and a plain one is still refused.
     """
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "2", "s")]}
     for place in range(60):
         number = 2 + place
         value = _cell(f"A{number}", "10") if place < 30 else _cell(f"A{number}", "1", "s")
         grid[number] = [value, _cell(f"B{number}", f"{place % 3}")]
-    source = tmp_path / "typed.xlsx"
-    source.write_bytes(_book([("Data", _rows(grid))], ["v", "1000", "k"]))
-    code, said = _exit_of(["profile", str(source), "--out-dir", str(tmp_path)])
-    assert code != 0
-    assert "stored as numbers and others stored as text" in said, said[-500:]
+    result = _trip(tmp_path / "typed", "typed", _book([("Data", _rows(grid))], ["v", "1000", "k"]))
+    _held(result)
+    census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
+    assert (census["number"], census["text"]) == (30, 30), census
+    report = (tmp_path / "typed" / "typed-twin-report.txt").read_text(encoding="utf-8")
+    assert "stores 30 of its values as text and 30 as numbers," in report
 
     dated = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(20):
@@ -1025,7 +1027,8 @@ def test_a_mostly_empty_date_column_keeps_its_date_format(
     )
     _held(result)
     column = result["document"]["source"]["workbook"]["columns"][0]
-    assert column["format_code"] == dialect.SHEET_CANONICAL_FORMAT_CODES["date"], column
+    # Published as the source wrote it since plan P4-D189.
+    assert column["format_code"] == "yyyy-mm-dd", column
     assert str(pandas.read_excel(result["twin"])["when"].dtype).startswith("datetime64")
 
 

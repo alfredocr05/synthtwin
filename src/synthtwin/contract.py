@@ -1126,8 +1126,10 @@ INVARIANTS = {
     ),
     "WB6": (
         "the number format a column's twin wears is one of the codes "
-        "this version publishes, and its kind is one the column's own "
-        "census does not say no cell wears"
+        "this version publishes -- one of Excel's own codes, a canonical "
+        "code of its kind, or a code built of the number format "
+        "language's own tokens alone -- and its kind is one the column's "
+        "own census does not say no cell wears"
     ),
     "WB7": (
         "a workbook describes the block of cells held by every sheet "
@@ -4175,19 +4177,34 @@ def _held_count(value: object, key: str, where: str) -> "int | None":
 
 
 def _format_kind_of(code: str) -> str:
-    """Which kind a published format code is, by the closed vocabulary.
+    """Which kind a published format code is (`dialect.sheet_format_kind`).
 
     THE LOADER MUST NOT REACH THE READER to answer this. `workbook`
     opens and parses; putting it in the loader's import graph is what
     broke the profile/generator boundary in part 1 of this landing. The
-    published codes are a closed list, so the kind of each is a lookup
-    rather than a reading of the code.
+    rule lives in `dialect`, which opens nothing, since a code may be
+    published as the source wrote it (plan P4-D189).
     """
-    if code in dialect.SHEET_FORMAT_CODE_KINDS:
-        found = dialect.SHEET_FORMAT_CODE_KINDS[code]
-        if isinstance(found, str):
-            return found
-    return dialect.SHEET_FORMAT_PLAIN
+    return dialect.sheet_format_kind(code)
+
+
+def _format_code(value: object, where: str) -> str:
+    """A column's published number format code (contract 4.3b, WB6).
+
+    One `dialect.sheet_format_code_publishable` admits -- Excel's own
+    vocabulary, a canonical code, or a code of the format language's own
+    tokens alone (plan P4-D189) -- and refused otherwise: a hand-made
+    description may not put a code carrying somebody's words into a twin.
+    """
+    found = _text(value, "format_code", where)
+    if not dialect.sheet_format_code_publishable(found):
+        raise _broken(
+            "WB6", where,
+            f"a column's twin wears the format code '{found}'",
+            "one of Excel's own codes, a canonical code, or a code of the "
+            "number format language's own tokens alone",
+        )
+    return found
 
 
 def _sheet_names(value: object, where: str) -> "tuple[str | None, ...]":
@@ -4280,10 +4297,7 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
         columns += [
             WorkbookColumn(
                 cell_classes=counted,
-                format_code=_one_of(
-                    entry["format_code"], "format_code", where,
-                    dialect.SHEET_FORMAT_CODES,
-                ),
+                format_code=_format_code(entry["format_code"], where),
                 format_kinds=wearing,
                 formulas=_held_count(entry["formulas"], "formulas", where),
                 value_class=_value_class(entry["value_class"], where),

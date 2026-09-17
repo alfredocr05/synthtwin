@@ -507,6 +507,93 @@ def _encoding_lines(profile: contract.Profile) -> "list[str]":
     ]
 
 
+def _workbook_lines(profile: contract.Profile) -> "list[str]":
+    """What the twin of a workbook writes where the table's own could not be.
+
+    SAID ONLY FOR A WORKBOOK, so a delimited table's report keeps its
+    bytes. Two things a person who reads the twin by hand meets first:
+
+    WHICH NAME THE TABLE'S SHEET IS WRITTEN UNDER (plan P4-D188). A
+    sheet's name is published only where it is one synthtwin can rebuild
+    from its own vocabulary (`dialect.sheet_name_published`); the twin
+    writes a published name as published and a withheld one under the
+    neutral name `dialect.twin_sheet_names` gives it. The report used to
+    say neither, so `read_excel(sheet_name="Visits")` failed on a twin
+    whose sheet was `Sheet1` with nothing on the page saying why.
+
+    WHICH VALUES WERE STORED AS TEXT (plan P4-D187). A column holding
+    figures some of which the table stored as text publishes both counts
+    and one distribution; the twin writes the text count spread evenly
+    over the column, and which values were the text ones is not
+    published. Said where more of the column's values read as numbers
+    (`n_numeric`) than its cells stored as numbers.
+    """
+    form = profile.source.workbook
+    if form is None:
+        return []
+    names = dialect.twin_sheet_names(form.sheet_names)
+    position = form.sheet_position
+    lines = ["", "The twin is written as a workbook, as your table was."]
+    if 1 <= position <= len(names):
+        written = names[position - 1]
+        published = form.sheet_names[position - 1]
+        if published is not None:
+            lines += [
+                f"The sheet holding your table is written under its own "
+                f"name, {_shown(written)},",
+                "because the description publishes that name, so code that",
+                "names the sheet finds it in the twin.",
+            ]
+        else:
+            lines += [
+                f"The sheet holding your table is written under the name "
+                f"{_shown(written)}.",
+                "Its own name is withheld from the description, because a",
+                "sheet's name can be somebody's name, so code that names the",
+                "sheet by the name your table gives it will not find it in",
+                "the twin; name it by its position or by the name above.",
+            ]
+    others = 0
+    for place in range(len(form.sheet_names)):
+        if place + 1 != position and form.sheet_names[place] is None:
+            others = others + 1
+    if others:
+        lines += [
+            f"{others} other sheet name(s) are withheld the same way, and",
+            "the twin writes those sheets under neutral names too.",
+        ]
+    for place in range(len(profile.columns)):
+        column = profile.columns[place]
+        if place >= len(form.columns):
+            break
+        census = form.columns[place].cell_classes
+        texts = _published_class(census, dialect.SHEET_CELL_TEXT)
+        numbers = _published_class(census, dialect.SHEET_CELL_NUMBER)
+        # Only where some of the text cells hold figures: more of the
+        # column's values read as numbers than the cells stored as ones.
+        if texts <= 0 or numbers <= 0 or column.n_numeric <= numbers:
+            continue
+        lines += [
+            f"'{_shown(column.name)}' stores {texts} of its values as text "
+            f"and {numbers} as numbers,",
+            "and some of those stored as text are figures, as in your",
+            "table. The description does not say which values were stored",
+            "which way, so the twin spreads the text cells evenly over the",
+            "column: code that keeps only the cells stored as numbers, or",
+            "only those stored as text, picks out different values here",
+            "than on your table.",
+        ]
+    return lines
+
+
+def _published_class(census: "dict[str, int | None]", kind: str) -> int:
+    """A class's published count, or nought where withheld or absent."""
+    if kind not in census:
+        return 0
+    found = census[kind]
+    return found if isinstance(found, int) else 0
+
+
 def _independence_lines() -> "list[str]":
     """The two limits that hold for every twin this version builds.
 
@@ -1839,6 +1926,7 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     lines = lines + _seed_lines(twin) + [""]
     lines = lines + _header_lines(profile) + [""]
     lines = lines + _encoding_lines(profile)
+    lines = lines + _workbook_lines(profile)
     # HIGH IN THE PAGE, and before the sections a person skims for their
     # own column. It is a fact about what the reader is holding, so it
     # goes where a reader who stops after one screen still meets it.

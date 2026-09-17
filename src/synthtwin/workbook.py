@@ -762,100 +762,17 @@ def reference_row(reference: str) -> int:
     return _whole_number(figures, 0)
 
 
-def _is_elapsed_token(inside: str) -> bool:
-    """Whether a bracket's text is an elapsed count: `h`, `mm`, `ss`...
-
-    One letter of hours, minutes or seconds, repeated, in either case.
-    Compared character by character, so no text method is called on
-    text this module built.
-    """
-    if not inside:
-        return False
-    first = inside[0]
-    if first not in ("h", "H", "m", "M", "s", "S"):
-        return False
-    for character in inside:
-        if character != first:
-            return False
-    return True
-
-
 def format_kind(code: str) -> str:
     """Which kind of thing a number wearing this format code is.
 
-    Guarantees: a fixed function of the code. The rule is the one every
-    reader the study measured uses -- the format decides the type -- and
-    it reads the code outside its quoted runs, so a currency symbol
-    spelling `"d"` inside quotation marks never makes a column of money
-    into a column of dates.
+    Guarantees: a fixed function of the code; raises TypeError on a
+    value that is not text. The rule is `dialect.sheet_format_kind`'s
+    (plan P4-D189), asked here so that the reader, the loader and the
+    writer answer the question one way.
     """
     if not isinstance(code, str):
         raise TypeError("internal check: a format code was not text")
-    if code == GENERAL_FORMAT or not code:
-        return FORMAT_PLAIN
-    if code == "@":
-        return FORMAT_TEXT
-    # The first section only: a format may spell positives, negatives
-    # and zeros differently, and the first section is the one a positive
-    # number wears.
-    body = code.split(";")[0]
-    plain = ""
-    quoted = False
-    skip = False
-    # WHAT A BRACKET HOLDS IS NOT READ AS A DATE (plan P4-D169). A colour
-    # (`[Red]`), a currency and locale (`[$USD-409]`) and a condition
-    # (`[>=100]`) each sit in square brackets, and the letters inside
-    # them are not day, month or hour tokens: sixty values `101.25` to
-    # `160.25` formatted `[Red]0.00` were classed as DATES by the `d` of
-    # `Red`, and the twin came back as datetimes while pandas read floats
-    # from the source. The one bracket that IS a token is an elapsed
-    # count -- `[h]`, `[mm]`, `[ss]` -- which is kept, as its letters.
-    # The character after `_` (a space as wide as it) and after `*` (a
-    # fill) is layout, never a token, and is skipped the same way.
-    bracket = ""
-    in_bracket = False
-    elapsed = False
-    for character in body:
-        if skip:
-            skip = False
-            continue
-        if in_bracket:
-            if character == "]":
-                in_bracket = False
-                if _is_elapsed_token(bracket):
-                    elapsed = True
-                continue
-            bracket = bracket + character
-            continue
-        if character == "\\" or character == "_" or character == "*":
-            skip = True
-            continue
-        if character == '"':
-            quoted = not quoted
-            continue
-        if quoted:
-            continue
-        if character == "[":
-            in_bracket = True
-            bracket = ""
-            continue
-        plain = plain + character
-    # Both cases are tested rather than folding the text: the offline
-    # audit traces a method call on a gated parameter and not on text
-    # this function built character by character.
-    day = "d" in plain or "D" in plain or "y" in plain or "Y" in plain
-    # `m` is minutes next to an hour or a second, and months otherwise.
-    month = "m" in plain or "M" in plain
-    clock = "h" in plain or "H" in plain or "s" in plain or "S" in plain
-    if elapsed:
-        return FORMAT_ELAPSED
-    if day and clock:
-        return FORMAT_DATETIME
-    if day or (month and not clock):
-        return FORMAT_DATE
-    if clock:
-        return FORMAT_TIME
-    return FORMAT_PLAIN
+    return dialect.sheet_format_kind(code)
 
 
 # -- the parts of a workbook -------------------------------------------
@@ -2079,6 +1996,12 @@ def _leading_code(
 ) -> str:
     """The format code this column may publish, from its commonest one.
 
+    THE CODE IS PUBLISHED AS WRITTEN WHERE IT SPEAKS ONLY THE FORMAT
+    LANGUAGE (plan P4-D189): a code built of that language's own tokens
+    alone (`dialect.sheet_format_code_publishable`) -- `00000`,
+    `yyyy-mm-dd hh:mm` -- is published as the source wrote it, so the
+    twin wears it; what follows is the rule for every other code.
+
     THE CODE IS PUBLISHED NOW, AND ONLY EVER ONE OF OURS (plan P4-D79).
     Part 1 of this landing published the KIND alone and withheld the
     code, on the ground that a custom code is text out of the person's
@@ -2119,7 +2042,7 @@ def _leading_code(
     chosen = GENERAL_FORMAT
     if best and seen >= line and not _denied_kind(kinds, format_kind(best)):
         chosen = best
-        if best not in dialect.SHEET_BUILT_IN_FORMAT_IDS:
+        if not dialect.sheet_format_code_publishable(best):
             chosen = _canonical_code(format_kind(best))
         return chosen
     widest = ""
@@ -2185,47 +2108,33 @@ def _value_class(classes: "list[str]", floor: int) -> "str | None":
 
 
 def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
-    """The first column whose cells mix how they are stored, or nothing.
+    """The first column whose numbers wear two kinds of format, or nothing.
 
-    THE TWO MIXES A TWIN CANNOT CARRY (review item 6 of the files
-    review, plan P4-D166). The description publishes how many cells of a
-    column are of each class and wear each kind of format, and the
-    column's values as ONE distribution -- nothing that says which
-    values the numbers were and which the texts. The writer can keep a
-    class with its values only where the values say which class they
-    are: a label is never a number, `TRUE` is never an error. Where they
-    do not, the association is lost silently. Measured: thirty numeric
-    cells of 10 beside thirty text cells of 1000 gave a twin whose
-    numeric cells summed to 15150 against 300, with every published fact
-    held. So the column is refused where
+    THE ONE MIX A TWIN CANNOT CARRY (review item 6 of the files review,
+    plan P4-D166): a column whose NUMBER cells wear more than one kind of
+    format -- some dates and some plain -- is refused, because the dates
+    and the plain numbers are one distribution in the description and a
+    date written as a plain number, or the other way, is a different
+    value to every reader.
 
-    * two value classes stand in it and some cell of one is spelled the
-      way a cell of the other is written (`dialect.sheet_class_fits`); or
-    * its NUMBER cells wear more than one kind of format -- some dates
-      and some plain -- because the dates and the plain numbers are one
-      distribution in the description too.
+    NUMBERS STORED AS TEXT ARE READ, AND NOT REFUSED (plan P4-D187). The
+    rule this replaced refused a column where a cell of one value class
+    was spelled the way another present class is written -- thirty
+    numbers of 10 beside thirty texts of `1000` -- because the
+    description does not say which values were stored which way. That
+    refused a file the person expects to read. Each such cell is read as
+    what the file stores, a TEXT cell holding its figures; the census
+    publishes both counts, the column's values stay one distribution,
+    and the twin writes the text count back as text cells spread evenly
+    over the column (`sheetwriting.cell_classes`). Which VALUES were the
+    text ones is not published, so is not kept, and the twin's report
+    says so for the column.
 
-    Returns the column's index and which of `errors.MIXED_TYPES` and
-    `errors.MIXED_FORMATS` it is. Guarantees: a fixed function of the
-    sheet; raises nothing.
+    Returns the column's index and `errors.MIXED_FORMATS`. Guarantees: a
+    fixed function of the sheet; raises nothing.
     """
     for index in range(len(sheet.classes)):
         classes = sheet.classes[index]
-        texts = sheet.columns[index]
-        present: "dict[str, bool]" = {}
-        for kind in classes:
-            if kind in dialect.SHEET_VALUE_CLASSES:
-                present[kind] = True
-        if len(present) >= 2:
-            for row in range(len(classes)):
-                own = classes[row]
-                if own not in present:
-                    continue
-                for other in present:
-                    if other == own or other == dialect.SHEET_CELL_TEXT:
-                        continue
-                    if dialect.sheet_class_fits(other, texts[row]):
-                        return (index, errors.MIXED_TYPES)
         worn: "dict[str, bool]" = {}
         codes = sheet.formats[index]
         for row in range(len(classes)):

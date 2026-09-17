@@ -861,7 +861,13 @@ rule and what it does and does not withhold on a workbook.
 **A column's census — exactly five keys.** `format_code` is the number
 format the column's twin WEARS: one of `dialect.SHEET_FORMAT_CODES`,
 which is Excel's own built-in vocabulary plus one canonical code per
-kind, and never a code out of the person's file; it is the commonest
+kind, or a code built of the number format language's own tokens alone
+(`dialect.sheet_format_code_speakable`: figure placeholders, the date
+and clock letters, `AM/PM`, a colour or elapsed bracket, escaped and
+quoted punctuation, at most four sections and sixty-four characters),
+published as the source wrote it (plan P4-D189, WB6) -- `00000` and
+`yyyy-mm-dd hh:mm` are published as written, `0.0" kg"` and
+`[$USD-409]#,##0.00` as the canonical code of their kind; it is the commonest
 code AMONG THE CELLS HOLDING A VALUE where that code is worn by the line,
 else the canonical code of the commonest kind among them where that kind
 is worn by the line, else the general format (plan P4-D164). `cell_classes`
@@ -903,18 +909,20 @@ measured the rule this replaced: sixty numbers, thirty-nine texts and one
 boolean published `60, 39, null` beside noughts at a floor of five, and
 100 - 60 - 39 rebuilt the count of one.
 
-**A column mixing how its cells are stored is refused** (plan P4-D166,
-`errors.workbook_column_mixes_storage`). The description publishes how
-many cells are of each class and wear each kind, and the column's values
-as one distribution -- nothing that says which values the numbers were.
-Where two value classes stand in a column and a cell of one is spelled
-the way the other is written (thirty numbers of 10 beside thirty texts
-of `1000`), or where the column's NUMBER cells wear more than one kind of
-format (dates beside plain numbers), a twin cannot keep which value was
-stored which way -- measured, a calculation over the numeric cells gave
-15150 on the twin against 300 on the source with every fact held -- so
-the profile is refused and the person told how to make the column one
-type.
+**A column whose numbers wear two kinds of format is refused** (plan
+P4-D166, `errors.workbook_column_mixes_storage`). The description
+publishes how many cells wear each kind, and the column's values as one
+distribution -- nothing that says which values were the dates. Where
+the column's NUMBER cells wear more than one kind of format (dates
+beside plain numbers), the profile is refused and the person told how
+to give the column one format. **Numbers stored as text are read**
+(plan P4-D187, withdrawing that rule's other half): a text cell holding
+figures beside number cells -- thirty numbers of 10 beside thirty texts
+of `1000` -- is read as the text cell it is, both counts are published,
+and the twin writes the text count spread evenly over the column. Which
+values were stored which way is not published, so a calculation over
+the numeric cells alone differs between the twin and the table, and the
+twin's report says so for every such column.
 
 **A stored number is read without its writer's noise** (plan P4-D174).
 A number cell's stored text holding a point or an exponent is read as
@@ -986,8 +994,10 @@ table are no more than the table itself holds, and no more rows are
 frozen than the sheet has; WB5 a workbook names one sheet for every
 sheet it has, every name it publishes is one this version would
 publish itself, and no two of them are one name in any case; WB6 the
-number format a column's twin wears is one of the published codes, and
-its kind is one the column's own census does not say no cell wears; WB7
+number format a column's twin wears is one of the published codes -- one
+of Excel's own, a canonical code, or one of the format language's own
+tokens alone (plan P4-D189) -- and its kind, read off the code, is one
+the column's own census does not say no cell wears; WB7
 a workbook describes the block of cells held by every sheet that is not
 the table's and none for the sheet the table was read from, and no such
 block reaches two rows; WB8 the class a column names as its commonest is

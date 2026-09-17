@@ -6741,11 +6741,7 @@ def _format_code_check(
     is the twin obeying the disclosure rule, not failing an obligation,
     and it is WITHHELD here for the same reason the count is.
     """
-    kind = ""
-    if column.format_code in dialect.SHEET_FORMAT_CODE_KINDS:
-        found = dialect.SHEET_FORMAT_CODE_KINDS[column.format_code]
-        if isinstance(found, str):
-            kind = found
+    kind = dialect.sheet_format_kind(column.format_code)
     wearing: "int | None" = None
     if kind and kind in column.format_kinds:
         wearing = column.format_kinds[kind]

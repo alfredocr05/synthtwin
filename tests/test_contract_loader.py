@@ -1662,6 +1662,11 @@ def battery() -> list[Mutation]:
             "WB6", "a format code of a kind the column's own census denies",
             _form_workbook_format_code_denied_by_its_census,
         ),
+        # A code carrying words out of somebody's file (plan P4-D189).
+        Mutation(
+            "WB6", "a format code carrying a quoted word",
+            _form_workbook_format_code_carrying_a_word,
+        ),
         # What every sheet that is not the table's holds (plan P4-D82).
         Mutation(
             "WB7", "a block of cells on the sheet the table was read from",
@@ -2044,6 +2049,14 @@ def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
     # come back from every reader as a column of dates where the
     # description publishes none.
     block["columns"][0]["format_code"] = "mm-dd-yy"
+
+
+def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    # A code of the format language's own tokens alone is published as
+    # written; one carrying a quoted word is not, and a twin written from
+    # this would wear the word in every cell of the column.
+    block["columns"][0]["format_code"] = '"Record "0'
 
 
 BATTERY = battery()

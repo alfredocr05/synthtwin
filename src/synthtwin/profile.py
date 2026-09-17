@@ -721,6 +721,10 @@ _MAYBE_NUMBER = "number-or-nothing"
 # withholding itself -- a sheet whose name could be somebody's is not
 # published at all, and the twin writes it under a neutral name.
 _SHEET_NAME = "sheet-name-or-nothing"
+# A NUMBER FORMAT CODE (plan P4-D189): one of Excel's own, a canonical
+# code, or one of the format language's own tokens alone, as
+# `dialect.sheet_format_code_publishable` answers.
+_SHEET_FORMAT_CODE = "sheet-format-code"
 # The class most of a workbook column's value-holding cells are, by NAME
 # and without a count, or nothing where no class is held by the line
 # (plan P4-D164).
@@ -915,7 +919,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "columns", _EACH, "format_kinds", _ANY_KEY): (
         _MAYBE_NUMBER
     ),
-    ("source", "workbook", "columns", _EACH, "format_code"): _WORD,
+    ("source", "workbook", "columns", _EACH, "format_code"): _SHEET_FORMAT_CODE,
     ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
     # ONE OF SYNTHTWIN'S OWN CLASS WORDS, OR NOTHING (plan P4-D164). It
     # names which class is commonest without saying how common, which is
@@ -1718,9 +1722,6 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         workbook.FORMAT_KINDS
     ),
     ("source", "workbook", "date_system"): workbook.DATE_SYSTEMS,
-    ("source", "workbook", "columns", _EACH, "format_code"): (
-        dialect.SHEET_FORMAT_CODES
-    ),
     **_STATED_WORDS,
     # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
     # P4-D37), read off a joined position's for the reason the rules
@@ -2207,6 +2208,9 @@ def _leaf_is_published(
         return value is None or (
             isinstance(value, str) and value in dialect.SHEET_VALUE_CLASSES
         )
+    if kind == _SHEET_FORMAT_CODE:
+        # The producer's own question, asked rather than restated.
+        return isinstance(value, str) and dialect.sheet_format_code_publishable(value)
     if kind == _SHEET_NAME:
         # The grammar is the producer's own, asked here rather than
         # restated: a name this document publishes must be one

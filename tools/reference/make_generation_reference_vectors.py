@@ -15303,6 +15303,28 @@ def sheet_withheld(census, kind):
     return not isinstance(census.get(kind), int)
 
 
+def sheet_spread_over(fitting, wanted):
+    """The cells a class takes of those it fits (G2.2 step 1, plan P4-D187).
+
+    Every one, in row order, where no more fit than its count names;
+    otherwise the count spread evenly over them by the smooth rotation:
+    each fitting cell adds the count to a credit and is taken where the
+    credit reaches the number of fitting cells, which is then taken back.
+    """
+    if wanted <= 0:
+        return []
+    if len(fitting) <= wanted:
+        return list(fitting)
+    chosen = []
+    credit = 0
+    for index in fitting:
+        credit += wanted
+        if credit >= len(fitting):
+            credit -= len(fitting)
+            chosen.append(index)
+    return chosen
+
+
 def sheet_cell_classes(census, cells, value_class=None):
     """Which class each generated cell of one column is written as (G2.2).
 
@@ -15347,14 +15369,14 @@ def sheet_cell_classes(census, cells, value_class=None):
     for kind in SHEET_TOLD_BY_SPELLING:
         if left[kind] is None:
             continue
-        for index in full_order:
-            if left[kind] <= 0:
-                break
-            if index in given or not sheet_fits(kind, cells[index]):
-                continue
+        fitting = [
+            index for index in full_order
+            if index not in given and sheet_fits(kind, cells[index])
+        ]
+        for index in sheet_spread_over(fitting, left[kind]):
             out[index] = kind
             given.add(index)
-            left[kind] = left[kind] - 1
+        left[kind] = left[kind] - min(left[kind], len(fitting))
 
     def wanted_by_another(text):
         return any(
@@ -15460,7 +15482,7 @@ def sheet_format_kinds(census, classes, format_code="General", dated=None):
 
     plain_withheld = sheet_withheld(census, "plain")
     plain_left = None if plain_withheld else census["plain"] - absent
-    code_kind = SHEET_FORMAT_CODE_KINDS.get(format_code, "plain")
+    code_kind = sheet_code_kind(format_code)
     for index in written:
         if index in given:
             continue
@@ -15547,7 +15569,7 @@ def sheet_dates_as_day_counts(column, own, epoch_1904):
     wants = any(
         sheet_wanted(column["format_kinds"], kind) > 0
         for kind in ("date", "datetime")
-    ) or SHEET_FORMAT_CODE_KINDS.get(column["format_code"]) in ("date", "datetime")
+    ) or sheet_code_kind(column["format_code"]) in ("date", "datetime")
     out = []
     dated = []
     for text in own:
@@ -15557,9 +15579,69 @@ def sheet_dates_as_day_counts(column, own, epoch_1904):
     return out, dated
 
 
+def sheet_code_kind(code):
+    """Which kind a published format code is (G2.2 step 3, plan P4-D189).
+
+    Read off the code, as the method states the rule, because a code
+    published as the source wrote it is in no closed list: `General` and
+    the empty code are plain and `@` is text; otherwise the first section
+    alone, read left to right: a square bracket outside a quoted run is
+    read to its close -- one never closed ends the reading -- and counts
+    only where it holds an elapsed count
+    (`h`, `m` or `s` repeated), which makes the code elapsed; the
+    character after a backslash, an underscore or an asterisk is skipped,
+    inside a quoted run too; a quotation mark opens or closes a quoted
+    run, whose characters are not read. Of what is left, a `d` or `y` beside an `h` or `s`
+    is datetime; a `d` or `y`, or an `m` with no `h` or `s`, is date; an
+    `h` or `s` is time; anything else is plain -- each letter in either
+    case.
+    """
+    if code in ("General", ""):
+        return "plain"
+    if code == "@":
+        return "text"
+    body = code.split(";")[0]
+    letters = []
+    elapsed = False
+    index = 0
+    quoted = False
+    while index < len(body):
+        mark = body[index]
+        if mark == "[" and not quoted:
+            close = body.find("]", index)
+            if close < 0:
+                break
+            inside = body[index + 1:close]
+            if inside and inside[0] in "hHmMsS" and inside == inside[0] * len(inside):
+                elapsed = True
+            index = close + 1
+            continue
+        if mark in "\\_*":
+            index += 2
+            continue
+        if mark == '"':
+            quoted = not quoted
+            index += 1
+            continue
+        if not quoted:
+            letters.append(mark.lower())
+        index += 1
+    if elapsed:
+        return "elapsed"
+    day = "d" in letters or "y" in letters
+    clock = "h" in letters or "s" in letters
+    if day and clock:
+        return "datetime"
+    if day or ("m" in letters and not clock):
+        return "date"
+    if clock:
+        return "time"
+    return "plain"
+
+
 def sheet_code_for_kind(kind, published):
     """The code a cell of this kind is written with (G2.2 step 3)."""
-    if SHEET_FORMAT_CODE_KINDS.get(published) == kind:
+    if sheet_code_kind(published) == kind:
         return published
     return SHEET_CANONICAL_FORMAT_CODES[kind]
 
@@ -16767,9 +16849,13 @@ def _workbook_classes_by_spelling():
         "plain": None, "date": None, "datetime": None, "time": None,
         "elapsed": None, "text": None,
     }
-    status = []
-    for row in range(11):
-        status += [("North", "South", "TRUE")[row % 3], "#N/A"]
+    # Not every other cell: a count spread over cells that all fit it
+    # (plan P4-D187) would land on alternate rows and hide the mutant
+    # that lets every class fit every cell.
+    status = ["North", "South", "TRUE", "#N/A", "#N/A"]
+    for row in range(8):
+        status += ["#N/A", ("North", "South")[row % 2]]
+    status += ["#N/A"]
     codes = ["00123", ""] + [f"0{1000 + 7 * row}" for row in range(20)]
     days = [f"2026-01-{day:02d}T00:00:00" for day in range(1, 23)]
     amounts = [f"{10 + day}.5" for day in range(22)]
@@ -16867,6 +16953,89 @@ def _workbook_classes_by_spelling():
     }
 
 
+def _workbook_as_written():
+    """G2.2 steps 1 and 3 as part 2 of the carried items left them."""
+    plain_kinds = {
+        "plain": 22, "date": 0, "datetime": 0, "time": 0, "elapsed": 0,
+        "text": 0,
+    }
+    moment_kinds = {
+        "plain": 0, "date": 0, "datetime": 22, "time": 0, "elapsed": 0,
+        "text": 0,
+    }
+    weights = [f"{60 + 3 * row}.5" for row in range(22)]
+    regions = [("802", "1101", "901")[row % 3] for row in range(22)]
+    visits = [
+        f"2026-03-{1 + row:02d} {8 + row % 9:02d}:{(15 * row) % 60:02d}:00"
+        for row in range(22)
+    ]
+
+    def census(number, text):
+        return {
+            "absent": 0, "blank": 0, "empty": 0, "text": text,
+            "number": number, "boolean": 0, "error": 0, "date": 0,
+        }
+
+    return {
+        "why": "method section G2.2 steps 1 and 3 as part 2 of the carried "
+        "items left them (plans P4-D187 and P4-D189), in one table of three "
+        "columns and twenty-two rows. The first column holds twenty-two "
+        "figures, eleven of them stored as TEXT, so more cells fit `number` than its "
+        "count names and the count is SPREAD over them: handed out in row "
+        "order, the text cells stood in the last eleven rows. The second "
+        "column's numbers wear `00000` and the third's moments `yyyy-mm-dd "
+        "hh:mm`, codes built of the format language's own tokens alone, "
+        "which are published and written as the source wrote them rather "
+        "than as the general format and the canonical datetime code. It "
+        "carries TWO mutants, one for each rule.",
+        "kind": "workbook",
+        "names": ["weight", "region", "visit"],
+        "n_rows": 22,
+        "write_header": True,
+        "cells": [weights, regions, visits],
+        "workbook": {
+            "autofilter": False,
+            "columns": [
+                {
+                    "cell_classes": census(11, 11),
+                    "format_code": "0.0",
+                    "format_kinds": dict(plain_kinds),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+                {
+                    "cell_classes": census(22, 0),
+                    "format_code": "00000",
+                    "format_kinds": dict(plain_kinds),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+                {
+                    "cell_classes": census(22, 0),
+                    "format_code": "yyyy-mm-dd hh:mm",
+                    "format_kinds": dict(moment_kinds),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+            ],
+            "date_system": "1900",
+            "defined_names": 0,
+            "defined_table": False,
+            "empty_rows_inside": None,
+            "frozen_rows": 1,
+            "macro_project": False,
+            "rows_above_header": 0,
+            "sheet_count": 1,
+            "sheet_extents": [None],
+            "sheet_hidden": False,
+            "sheet_names": [None],
+            "sheet_position": 1,
+            "trailing_blank_columns": 0,
+            "trailing_blank_rows": 0,
+        },
+    }
+
+
 DOCUMENT_PART = "documents"
 
 # The cases landing 2b.17 added for the transforms that produce a WHOLE
@@ -16876,6 +17045,7 @@ DOCUMENT_CASE_BUILDERS = {
     "row_arrangement": _row_arrangement,
     "withheld_line_marks": _withheld_line_marks,
     "workbook_sheet": _workbook_sheet,
+    "workbook_as_written": _workbook_as_written,
     "workbook_classes_by_spelling": _workbook_classes_by_spelling,
     "written_form_classes": _written_form_classes,
     "written_form_lines": _written_form_lines,

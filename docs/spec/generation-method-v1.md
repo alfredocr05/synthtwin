@@ -303,8 +303,14 @@ and not the stored value).
   where none was, the group's LEADING class (below).
 - The cells holding text take the five that hold a value. First
   `error`, `boolean`, `date` and `number`, in that order: each class
-  whose count is published is handed out in row order to as many
-  cells, not yet given a class, that it FITS as its count names. Then
+  whose count is published is handed out to as many cells, not yet
+  given a class, that it FITS as its count names -- every such cell, in
+  row order, where no more fit than the count; where more fit, the count
+  is SPREAD over them by the smooth rotation, each fitting cell in row
+  order adding the count to a credit and taken where the credit reaches
+  the number of fitting cells, which is then taken back (plan P4-D187:
+  thirty text cells of a column of numbers stored partly as text stood
+  in its last thirty rows). Then
   `text`, by its published count, in row order: first to the cells no
   class still wanting cells fits — a class wants cells where its count
   was withheld or is not yet spent — and then to any cell left.
@@ -375,8 +381,24 @@ repair into the integration, which had each rewritten this step.
 **Step 3 — the code each cell is written with.** The column's own
 published `format_code` is used for the kind it IS; a cell of any other
 kind takes the canonical code of its own kind. Every code written is
-one of the closed published vocabulary and never a code out of the
-person's file.
+one the description may publish: Excel's built-in vocabulary, a
+canonical code, or a code built of the number format language's own
+tokens alone, written as the source wrote it (plan P4-D189,
+`dialect.sheet_format_code_publishable`) -- never a code carrying a
+quoted word, a currency or a locale.
+
+A code's KIND is read off the code (`dialect.sheet_format_kind`), since
+a code written as the source wrote it is in no closed list: `General`
+and the empty code are `plain` and `@` is `text`; otherwise the first
+section alone is read left to right -- a square bracket outside a
+quoted run is read to its close, one never closed ending the reading,
+and counts only where it holds one of `h`, `m` or `s` repeated, which
+makes the code `elapsed`; the character after a backslash, an
+underscore or an asterisk is skipped, inside a quoted run too; a
+quotation mark opens or closes a quoted run, whose characters are not
+read. Of the characters read, in either case, a `d` or `y` beside an
+`h` or `s` is `datetime`; a `d` or `y`, or an `m` with no `h` or `s`,
+is `date`; an `h` or `s` is `time`; anything else is `plain`.
 
 **Step 4 — the style table.** One style per distinct code, the general
 format standing first so an unstyled cell is still right, and the codes
@@ -9581,7 +9603,10 @@ a placeholder taken whatever its case (plan P4-D164 to P4-D171), and
 one for G9.6's layout packing (plan P4-D182), and four for G6.5a's walks
 taken reach by reach (plan P4-D183), its fills of a saturated grid of
 tenths and of a column's published levels (plans P4-D176 and P4-D178),
-and the census of marks held at a thousand (plan P4-D185).
+and the census of marks held at a thousand (plan P4-D185), and one for
+the rules of G2.2 part 2 of the carried items changed -- a count spread
+over the cells its class fits, and a code published as the source wrote
+it and read for its kind off the code (plans P4-D187 and P4-D189).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -9620,7 +9645,7 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All seventy-three are required.** The count is taken off the committed
+**All seventy-four are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9631,7 +9656,7 @@ and it is in no file. The first file,
 second, `tests/reference/generation-branch-vectors.json`, holds
 twenty-one; the third, `tests/reference/generation-branch-vectors-2.json`,
 holds eighteen; the fourth,
-`tests/reference/generation-document-vectors.json`, holds seven; the
+`tests/reference/generation-document-vectors.json`, holds eight; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 four (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
@@ -9714,6 +9739,7 @@ case passed, which is the failure the count exists to prevent:
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
+| `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
 | `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |
 | `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |
 
