@@ -562,7 +562,9 @@ def _empty_row_places(
 
 
 def cell_format_kinds(
-    census: "dict[str, int | None]", classes: "tuple[str, ...]"
+    census: "dict[str, int | None]",
+    classes: "tuple[str, ...]",
+    dated: "tuple[str, ...] | None" = None,
 ) -> "tuple[str, ...]":
     """Which kind of format each cell of one column wears.
 
@@ -578,6 +580,16 @@ def cell_format_kinds(
     written for it, so every reader sees the general format there. The
     kinds that are not plain are therefore handed out among the cells
     that ARE written, in row order, and plain takes the rest.
+
+    A DATE FORMAT GOES TO A DATE FIRST (repair of the stage-2b
+    integration). ``dated`` names, per cell, the kind of date its text
+    was written from (`date`, `datetime`, or "" for none), and a date
+    or datetime format is handed first to the cells holding a date of
+    that kind, then to the cells holding a date of the other, and only
+    then to the rest in row order. A date wearing the general format is
+    read back as a bare day count, so where the census names as many
+    date formats as there are dates, every date keeps its format. With
+    no dates named the order is exactly the row order it always was.
     """
     written: "list[int]" = []
     for index in range(len(classes)):
@@ -586,15 +598,45 @@ def cell_format_kinds(
     out: "list[str]" = []
     for _index in range(len(classes)):
         out += [dialect.SHEET_FORMAT_PLAIN]
-    at = 0
+    given: "dict[int, bool]" = {}
     for kind in dialect.SHEET_FORMAT_KINDS:
         if kind == dialect.SHEET_FORMAT_PLAIN:
             continue
         left = _wanted(census, kind)
-        while left > 0 and at < len(written):
-            out[written[at]] = kind
-            at = at + 1
+        order: "list[int]" = []
+        if dated is not None and kind in (
+            dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME
+        ):
+            for index in written:
+                if dated[index] == kind:
+                    order += [index]
+            for index in written:
+                if dated[index] and dated[index] != kind:
+                    order += [index]
+        for index in written:
+            order += [index]
+        for index in order:
+            if left <= 0:
+                break
+            if index in given:
+                continue
+            out[index] = kind
+            given[index] = True
             left = left - 1
+    # A DATE LEFT OVER KEEPS A DATE FORMAT THE CENSUS DOES NOT DENY. Where
+    # the smallest group held the date count back (`null`) no date format
+    # was handed out above, and plain taking the rest turned every date
+    # into a bare day count -- measured on the titled book at a floor of
+    # eleven: the date column read back as numbers and missed its role.
+    # A withheld count is not a licence to write none; a published nought
+    # still is a fact, and is kept.
+    if dated is not None:
+        for index in written:
+            if index in given or not dated[index]:
+                continue
+            if _denied(census, dated[index]):
+                continue
+            out[index] = dated[index]
     return tuple(out)
 
 
@@ -623,7 +665,8 @@ def _aligned_for_empty_records(
     cells: "list[tuple[str, ...]]",
     n_rows: int,
     wanted: int,
-) -> "tuple[list[tuple[str, ...]], list[tuple[str, ...]]]":
+    tags: "list[tuple[str, ...]] | None" = None,
+) -> "tuple[list[tuple[str, ...]], list[tuple[str, ...]], list[tuple[str, ...]]]":
     """Move each column's empty cells onto shared rows, keeping every value.
 
     A RECORD HOLDING NOTHING IS A FACT ABOUT THE WHOLE ROW, and the
@@ -641,9 +684,22 @@ def _aligned_for_empty_records(
     holds. Where a column has fewer empty cells than the record count
     asks for, fewer records are emptied and the shortfall is a stated
     limit rather than a value quietly thrown away.
+
+    ``tags`` is one more per-cell list carried through the same
+    exchanges, so a fact about a cell travels with the cell; it comes
+    back as the third item, all "" where none was given.
     """
+    carried: "list[tuple[str, ...]]" = []
+    for index in range(len(cells)):
+        if tags is not None and index < len(tags):
+            carried += [tags[index]]
+            continue
+        row_tags: "list[str]" = []
+        for _value in cells[index]:
+            row_tags += [""]
+        carried += [tuple(row_tags)]
     if wanted <= 0 or not classes:
-        return (classes, cells)
+        return (classes, cells, carried)
     room = n_rows
     for column in classes:
         spare = 0
@@ -655,7 +711,7 @@ def _aligned_for_empty_records(
     if room < wanted:
         wanted = room
     if wanted <= 0:
-        return (classes, cells)
+        return (classes, cells, carried)
 
     targets: "dict[int, bool]" = {}
     for row in range(wanted):
@@ -663,6 +719,7 @@ def _aligned_for_empty_records(
 
     out_classes: "list[tuple[str, ...]]" = []
     out_cells: "list[tuple[str, ...]]" = []
+    out_tags: "list[tuple[str, ...]]" = []
     for index in range(len(classes)):
         kinds: "list[str]" = []
         for kind in classes[index]:
@@ -670,6 +727,9 @@ def _aligned_for_empty_records(
         values: "list[str]" = []
         for value in cells[index]:
             values += [value]
+        marks: "list[str]" = []
+        for mark in carried[index]:
+            marks += [mark]
         spare_rows: "list[int]" = []
         for row in range(len(kinds)):
             if row not in targets and kinds[row] in _NOTHING_CLASSES:
@@ -684,13 +744,17 @@ def _aligned_for_empty_records(
             at = at + 1
             held_kind = kinds[row]
             held_value = values[row]
+            held_mark = marks[row]
             kinds[row] = kinds[other]
             values[row] = values[other]
+            marks[row] = marks[other]
             kinds[other] = held_kind
             values[other] = held_value
+            marks[other] = held_mark
         out_classes += [tuple(kinds)]
         out_cells += [tuple(values)]
-    return (out_classes, out_cells)
+        out_tags += [tuple(marks)]
+    return (out_classes, out_cells, out_tags)
 
 
 def _sheet_part(
@@ -1064,6 +1128,50 @@ def _sheet_rels_part() -> str:
     return text
 
 
+def _dates_as_day_counts(
+    column: "contract.WorkbookColumn",
+    own: "tuple[str, ...]",
+    epoch_1904: bool,
+) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """A column's dates written back as the day counts a workbook stores.
+
+    THE OTHER HALF OF READING A DATE CELL AS ITS DATE (repair of the
+    stage-2b integration; `dialect.sheet_serial_moment`). The reader
+    hands the column machinery `2024-03-01` for a day count wearing a
+    date format, so the generator writes dates; a workbook stores a day
+    count, and a date written as TEXT would read back as text in every
+    reader. Where the description publishes date or datetime formats
+    for this column, each cell holding the reader's own spelling of a
+    date is written as its day count, and the kind of date it was is
+    handed back beside it so the right format can be put on it. A column
+    publishing no date format is returned exactly as it came.
+    """
+    wants_dates = False
+    for kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
+        if _wanted(column.format_kinds, kind) > 0:
+            wants_dates = True
+    kinds_of_codes = dialect.SHEET_FORMAT_CODE_KINDS
+    if column.format_code in kinds_of_codes and kinds_of_codes[
+        column.format_code
+    ] in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
+        wants_dates = True
+    out: "list[str]" = []
+    dated: "list[str]" = []
+    for text in own:
+        if not wants_dates or not text:
+            out += [text]
+            dated += [""]
+            continue
+        serial = dialect.sheet_moment_serial(text, epoch_1904)
+        if not serial:
+            out += [text]
+            dated += [""]
+            continue
+        out += [serial]
+        dated += [dialect.sheet_moment_kind(text)]
+    return tuple(out), tuple(dated)
+
+
 def _members(
     profile: "contract.Profile", twin: "generation.Twin"
 ) -> "list[tuple[str, str]]":
@@ -1090,10 +1198,15 @@ def _members(
     style_of: "dict[str, int]" = {"General": 0}
     classes: "list[tuple[str, ...]]" = []
     cells: "list[tuple[str, ...]]" = []
+    dates: "list[tuple[str, ...]]" = []
+    epoch_1904 = form.date_system == dialect.SHEET_DATE_SYSTEM_1904
     for index in range(width):
         column = form.columns[index]
-        own = tuple(twin.columns[index])
+        own, dated = _dates_as_day_counts(
+            column, tuple(twin.columns[index]), epoch_1904
+        )
         cells += [own]
+        dates += [dated]
         classes += [cell_classes(column.cell_classes, own)]
 
     items: "list[str]" = []
@@ -1106,8 +1219,8 @@ def _members(
     wanted_empty = 0
     if form.empty_rows_inside is not None:
         wanted_empty = form.empty_rows_inside
-    classes, cells = _aligned_for_empty_records(
-        classes, cells, n_rows, wanted_empty
+    classes, cells, dates = _aligned_for_empty_records(
+        classes, cells, n_rows, wanted_empty, dates
     )
     empty_places = _empty_row_places(classes, n_rows, wanted_empty)
 
@@ -1118,7 +1231,9 @@ def _members(
     styles: "list[tuple[int, ...]]" = []
     for index in range(width):
         column = form.columns[index]
-        kinds = cell_format_kinds(column.format_kinds, classes[index])
+        kinds = cell_format_kinds(
+            column.format_kinds, classes[index], dates[index]
+        )
         row_styles: "list[int]" = []
         for row in range(len(kinds)):
             code = _code_for_kind(kinds[row], column.format_code)

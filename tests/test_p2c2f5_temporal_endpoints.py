@@ -829,6 +829,27 @@ METHOD_PASSAGES = {
         "and G12 names the loss, which is the behaviour every other "
         "passage here describes"
     ),
+    # THREE PASSAGES THE STAGE-2b LANDINGS WROTE, each reaching this
+    # guard's vocabulary in a sense that is not a temporal end (measured
+    # at their integration: the flagged words are quoted in each reason).
+    "**and the exchange runs in both directions**": (
+        "G6.1's padded-style exchange (landings 2b.7 and 2b.16). Its "
+        "'endpoint' is a NUMERIC ladder end no padding may spend, and its "
+        "'missed' and 'cannot be met' are the pad census, not a date end"
+    ),
+    "**the four class counts are packed with the two alphabet counts, in one allocation": (
+        "G9.6's identifier packing. Its 'earliest' is the first name in "
+        "sorted order on a tie (landing 2b.18), its 'recount' and "
+        "'missed' are class and layout counts, and its 'cannot all hold' "
+        "is the whole-number corner G12 refuses; no end of a date column "
+        "is in it"
+    ),
+    "| `date_only` | g7.5's date form; endpoints exact;": (
+        "G14.3's table of frozen cases, which names each case's pins: "
+        "'earliest_utc_offset' is a published key, 'endpoints exact' and "
+        "'endpoint pins' say the ends ARE exact, and 'recount' is the "
+        "layout census's own reader"
+    ),
 }
 
 # Exceptions of the kind that have twice been written into these

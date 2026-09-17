@@ -1367,6 +1367,19 @@ defaults (GS1, NS1, DP1), and a check of them could not fail. The sentence the l
 is read the same way whether its large numbers carry the mark or not --
 is contradicted by the first goal and is withdrawn.
 
+**Amended 2026-09-16 (repair of the stage-2b integration): a withheld
+width pool permits its own count of cells an unnamed width.**
+`fraction_widths` pools a width too few cells shared under
+`(withheld)`, and that pool authorized no spelling, so the cells it
+counts -- cells written at a width the census does not name -- were
+counted outside every permitted form. A real column of 400 one-place
+readings with ONE cell written `4.20` published `{(withheld): 1, 1:
+399}` at a floor of eleven and failed its own description on
+`styles.spelled`, exit 3; ten such cells did the same. Now a cell
+spelled as its value at a width the census does not name is admitted,
+up to the pooled count and no further, so a file padding more cells
+than the description withheld still misses.
+
 **Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
 admits the spellings a real exporter writes that G6.3 does not choose.**
 The family of G6.1 is what this method's own generator may write, and
@@ -2209,6 +2222,28 @@ owner decision that authorizes it, taken from the registry's own
 citations); WITHHELD (V5.3); MISSED (an obligation the ratified matrix
 sets that the file does not meet). Listing entries carry no verdict and
 appear only in the NOT-CHECKABLE census.
+
+**V6.1-A2 A window that does not reach the published mean or standard
+deviation is not a pass for a file far from that value** (repair of
+the stage-2b integration; the owner's ruling of 2026-09-12 that
+statistics computed on the twin are reliable). G12.3's windows are
+drawn from the construction and not around the published value, so on
+a column whose ladder the construction cannot follow they sit wholly
+away from it. MEASURED: a 5,000-row column of amounts
+(`lognormvariate(6, 1.4)`, one value of 124,284 above a 99th percentile
+of 10,438) published a mean of 1049.66 and a standard deviation of
+2697.30; its twin held 1485.25 and 7040.63, inside windows of 1438.37
+to 1682.34 and 6442.66 to 8771.67, and was WITHIN-BOUND on both at exit
+0. So for `mean` and `std` only, where the window does not reach the
+published value, a file not holding that value exactly (V6.1-A1) must
+also stand within half the window's width of it on either side, or the
+obligation is MISSED, and the note under the line says which rule
+missed it. Where the window reaches the value nothing changes. `skew`
+and `kurtosis` keep their windows alone: they are drawn wide on
+purpose, and no analysis this ruling protects reads them as it reads
+the first two moments. The twin's own report passes no verdict and is
+unchanged; it already prints both values and says where its range does
+not cover the published one.
 
 **V6.1-A1 Where the first two definitions both fit, HELD is the one
 taken: a file holding the description's own value has met the exact

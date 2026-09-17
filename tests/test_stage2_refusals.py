@@ -139,7 +139,15 @@ def test_the_loader_refuses_a_point_on_a_column_without_a_decimal_comma(
     tmp_path: pathlib.Path,
 ) -> None:
     document = copy.deepcopy(_numbers_document(tmp_path))
-    _column(document)["group_separator"] = "."
+    column = _column(document)
+    column["group_separator"] = "."
+    # THE CENSUS OF MARKS MOVES WITH THE MARK (landing 2b.7). A census
+    # still naming the comma would be refused first, by TM1, for a mark
+    # it does not count, and this test would never reach the rule it is
+    # about: the point on a column declared nothing.
+    marks = column["thousands_marks"]
+    assert isinstance(marks, dict) and "," in marks, marks
+    column["thousands_marks"] = {".": marks[","]}
     assert "GS1" in _refused(tmp_path, document)
 
 

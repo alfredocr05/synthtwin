@@ -726,6 +726,28 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         for listing in outcome.listings:
             listed.add(listing.fact)
             listed.add(_registry_key(listing.fact))
+    # THE WORKBOOK FACT IS REACHED BY A WORKBOOK (landing 2b.10). Every
+    # fixture above is delimited text, which files no `workbook.*`
+    # subcheck at all, so `document.source.workbook` was bound by nothing
+    # this walk measured. One seeded workbook, described and measured
+    # through the same producer and validator, binds it.
+    import workbooks
+
+    book = tmp_path / "plain-book.xlsx"
+    book.write_bytes(workbooks.plain_book())
+    book_document = profile.build_document(
+        reading.read_table(str(book)), SETTINGS, [], [], []
+    )
+    book_described = contract.load_profile(
+        str(fixtures.write_profile(tmp_path, "plain-book-profile.json", book_document))
+    )
+    book_outcome = validation.measure(book_described, str(book))
+    for check in book_outcome.checks:
+        checked.add(check.fact)
+        checked.add(_registry_key(check.fact))
+    for listing in book_outcome.listings:
+        listed.add(listing.fact)
+        listed.add(_registry_key(listing.fact))
     input_side = {
         f"{group}.{field}"
         for group, field in validation.INPUT_SIDE_ENTRIES
@@ -3690,7 +3712,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
+            # `bytes.header-rows` IS NOT FILED HERE (plan P4-D81; measured
+            # at the stage-2b integration). These fixtures declare no
+            # rows of column descriptions, and a rule no file could miss
+            # is not filed (V3.4), so the rows this edit adds are records.
+            # The subcheck is held where it IS filed, on a declared
+            # description, by `tests/test_file_dialect_round_trip.py`.
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -3817,7 +3844,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
+            # `bytes.header-rows` IS NOT FILED HERE (plan P4-D81; measured
+            # at the stage-2b integration). These fixtures declare no
+            # rows of column descriptions, and a rule no file could miss
+            # is not filed (V3.4), so the rows this edit adds are records.
+            # The subcheck is held where it IS filed, on a declared
+            # description, by `tests/test_file_dialect_round_trip.py`.
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -4170,7 +4202,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # this subcheck can fail at all.
             ("digits-record_code", "forms.published.@%%%%%"),
             ('quoted-record_code', 'bytes.quoting'),
-            ('reversed-record_code', 'rows.order'),
+            # NO `rows.order` ON A DECLARED IDENTIFIER (Codex 2b9-1): a sort
+            # by a record number publishes no order, because the order would
+            # rebuild the record numbers, so reversing this column's rows
+            # has no filed check to miss.
         ),
         "recorded_on": (
             ("emptied-recorded_on", "axes.quality_state"),
@@ -4457,7 +4492,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
+            # `bytes.header-rows` IS NOT FILED HERE (plan P4-D81; measured
+            # at the stage-2b integration). These fixtures declare no
+            # rows of column descriptions, and a rule no file could miss
+            # is not filed (V3.4), so the rows this edit adds are records.
+            # The subcheck is held where it IS filed, on a declared
+            # description, by `tests/test_file_dialect_round_trip.py`.
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -4865,7 +4905,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
+            # `bytes.header-rows` IS NOT FILED HERE (plan P4-D81; measured
+            # at the stage-2b integration). These fixtures declare no
+            # rows of column descriptions, and a rule no file could miss
+            # is not filed (V3.4), so the rows this edit adds are records.
+            # The subcheck is held where it IS filed, on a declared
+            # description, by `tests/test_file_dialect_round_trip.py`.
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -5083,7 +5128,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
             ('quoted-header', 'bytes.header-quoting'),
-            ('metadata-rows', 'bytes.header-rows'),
+            # `bytes.header-rows` IS NOT FILED HERE (plan P4-D81; measured
+            # at the stage-2b integration). These fixtures declare no
+            # rows of column descriptions, and a rule no file could miss
+            # is not filed (V3.4), so the rows this edit adds are records.
+            # The subcheck is held where it IS filed, on a declared
+            # description, by `tests/test_file_dialect_round_trip.py`.
             ('spaced-delimiters', 'bytes.initial-space'),
             ('preamble-line', 'bytes.preamble'),
             ('separator-line', 'bytes.separator-line'),
@@ -5266,7 +5316,10 @@ PREDICATE_FIXTURES = {
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # -- the file's written form (plan P4-D86): every rule is filed under
     # one fact, on the document and on every column family alike.
-    ('numeric', 'rows.sequence'): 'document.source.dialect',
+    # `rows.sequence` is filed only where a sequence is published, and
+    # no fixture here publishes one since a sequence start stopped being
+    # published (Codex 2b9-1); `tests/test_file_dialect_round_trip.py`
+    # holds it on a declared sequence.
     ('clock', 'bytes.quoting'): 'document.source.dialect',
     ('compound', 'bytes.quoting'): 'document.source.dialect',
     ('datetime', 'bytes.quoting'): 'document.source.dialect',
@@ -5277,7 +5330,8 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ('document', 'bytes.end-of-file-mark'): 'document.source.dialect',
     ('document', 'bytes.escape'): 'document.source.dialect',
     ('document', 'bytes.header-quoting'): 'document.source.dialect',
-    ('document', 'bytes.header-rows'): 'document.source.dialect',
+    # `bytes.header-rows`: filed only on a description DECLARING rows of
+    # column descriptions (plan P4-D81), which no fixture here does.
     ('document', 'bytes.initial-space'): 'document.source.dialect',
     ('document', 'bytes.preamble'): 'document.source.dialect',
     ('document', 'bytes.separator-line'): 'document.source.dialect',
@@ -5288,7 +5342,8 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ('free_text', 'bytes.quoting'): 'document.source.dialect',
     ('free_text', 'rows.order'): 'document.source.dialect',
     ('identifier', 'bytes.quoting'): 'document.source.dialect',
-    ('identifier', 'rows.order'): 'document.source.dialect',
+    # `rows.order` on an identifier: never filed, because a sort by a
+    # declared record number publishes no order (Codex 2b9-1).
     ('joined', 'bytes.quoting'): 'document.source.dialect',
     ('joined', 'rows.order'): 'document.source.dialect',
     ('label', 'bytes.quoting'): 'document.source.dialect',

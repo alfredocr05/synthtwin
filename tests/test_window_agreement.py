@@ -777,9 +777,11 @@ def test_the_generator_and_the_oracle_read_one_written_grid(
             ["0" if draw.random() < 0.3 else f"{draw.lognormvariate(1, 0.6):.1f}" for _ in range(600)],
             1,
         ),
+        # Two widths are the grid of the commonest since the stage-2b
+        # integration (G5.2a step 1): here the two-place cells are.
         "two_widths": (
             [_dropped_zero(f"{round(draw.lognormvariate(1.5, 0.6) * 4) / 4:.2f}") for _ in range(600)],
-            -1,
+            2,
         ),
         "whole": ([str(int(draw.gauss(70, 9))) for _ in range(600)], -1),
         "plus_signs": (

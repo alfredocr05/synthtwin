@@ -704,6 +704,18 @@ _LISTING_WORDS = {
         "how many figures each of your whole-numbered cells was "
         "written with"
     ),
+    # THE TWO MIXED CONVENTIONS (landing 2b.7), listed where the census
+    # names one convention or none: the notation or mark itself is held
+    # by `negative_form` and `group_separator`, so nothing is left here
+    # to hold a file to.
+    "numeric.negative_notations": (
+        "how many of your negative numbers wore each way of writing a "
+        "minus, where the description names no more than one"
+    ),
+    "numeric.thousands_marks": (
+        "how many of your grouped numbers wore each mark between "
+        "thousands, where the description names no more than one"
+    ),
 }
 
 

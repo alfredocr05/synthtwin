@@ -1130,6 +1130,62 @@ def test_whole_numbers_past_the_exact_range_meet_their_own_description(
     assert not missed, missed[:5]
 
 
+@pytest.mark.parametrize("figures", [16, 17])
+def test_a_number_stored_with_binary_noise_is_described_by_its_value(
+    tmp_path: pathlib.Path, figures: int
+) -> None:
+    """A stored `79.09999999999999` is the number 79.1, one decimal place.
+
+    Measured before the repair on this fixture: at sixteen figures 167
+    of 400 stored texts were not the shortest spelling of their double,
+    the description published `fraction_widths {1: 233, 14: 119}`, and
+    the REAL workbook exited 3 on `styles.spelled`, its twin exited 3 on
+    three facts; at seventeen figures the widths were `{1: 56, 14: 18,
+    15: 278}`. The same values stored at their shortest spelling
+    validated at exit 0, so the fraction widths were the writer's noise.
+    """
+    path = _written(
+        tmp_path, "noisy.xlsx", workbooks.noisy_number_book(400, figures)
+    )
+    assert _quiet(["profile", str(path)]) == 0
+    described = tmp_path / "noisy-profile.json"
+    column = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
+    assert sorted(column["fraction_widths"]) == ["1"], column["fraction_widths"]
+    real = tmp_path / "real"
+    real.mkdir()
+    assert _quiet(["validate", str(described), "--twin", str(path),
+                   "--out-dir", str(real)]) == 0
+    assert _quiet(["generate", str(described), "--seed", "1"]) == 0
+    twin = tmp_path / "noisy-twin.xlsx"
+    checked = tmp_path / "checked"
+    checked.mkdir()
+    assert _quiet(["validate", str(described), "--twin", str(twin),
+                   "--out-dir", str(checked)]) == 0
+
+
+@pytest.mark.parametrize(
+    ("stored", "read"),
+    [
+        ("79.09999999999999", "79.1"),
+        ("79.099999999999994", "79.1"),
+        ("-0.30000000000000004", "-0.30000000000000004"),
+        ("1.0000000000000001E-5", "1E-5"),
+        ("2.50", "2.50"),
+        ("45000", "45000"),
+        ("9007199254740993", "9007199254740993"),
+        ("1E-3", "1E-3"),
+        ("0.000012300000000000001", "0.0000123"),
+        ("123456.78900000001", "123456.789"),
+    ],
+)
+def test_a_stored_number_keeps_its_value_and_loses_only_the_noise(
+    stored: str, read: str
+) -> None:
+    """The respelling is the shortest spelling of the same double, or nothing."""
+    assert workbook.stored_number_spelling(stored) == read
+    assert float(workbook.stored_number_spelling(stored)) == float(stored)
+
+
 def test_a_lone_record_holding_nothing_is_held_to_the_smallest_group(
     tmp_path: pathlib.Path,
 ) -> None:

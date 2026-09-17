@@ -980,6 +980,15 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     # on a column that no longer exercises both arms. This one keeps
     # both, measured before it was written here: the move fails at 30
     # seeds of 40, every stuck value positive.
+    #
+    # AND IT IS DESCRIBED AT A FLOOR OF 35 SINCE THE STAGE-2b INTEGRATION.
+    # The column is written at two widths, and a column of several widths
+    # is now on the grid of its commonest (G5.2a step 1), which finds its
+    # stuck stratum a free grid point at all forty seeds. A census that
+    # POOLS a width is read as no grid, and at this floor the 34 one-place
+    # cells are pooled -- so the witness keeps the arm it was built for:
+    # measured, the move fails at 30 seeds of 40, every stuck value
+    # positive, exactly as before.
     draw = random.Random(0)
     rows = (
         [f"{round(draw.gauss(-30, 1), 2)}" for _index in range(150)]
@@ -988,8 +997,9 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     lowest, highest, barred = _empty_of(rows)
     assert barred, "this column is chosen for having an empty middle"
     assert lowest < 0.0 < highest, (lowest, highest)
-    _document, loaded = _described(tmp_path, "across-zero", rows)
+    _document, loaded = _described(tmp_path, "across-zero", rows, 35)
     facts = loaded.columns[0].facts
+    assert "(withheld)" in facts.fraction_widths, facts.fraction_widths
     assert facts.n_zero == 0, (
         "this column is chosen for having NO zero, so the arm cannot "
         "be the zero band"

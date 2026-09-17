@@ -2771,7 +2771,9 @@ def _identifier_capacity_at(
     and each is far narrower than the alphabet:
 
     - figures alone open with a digit that is not zero, so a value's
-      length is its count of figures;
+      length is its count of figures -- except the lone figure `0`,
+      which leads nothing, so one character holds all ten (repair of the
+      stage-2b integration, method G9.6);
     - inside the code alphabet the form is `<digits>e0`, which needs
       two characters beyond its digits and has nothing at all to write
       at one character -- one character that reads as a whole number IS
@@ -2791,6 +2793,8 @@ def _identifier_capacity_at(
     """
     if whole:
         if band == _BAND_DIGITS:
+            if length == 1:
+                return _DIGIT_SIZE
             return (_DIGIT_SIZE - 1) * _to_the_power(_DIGIT_SIZE, length - 1)
         if band == _BAND_CODE:
             if length == 2:
@@ -4185,6 +4189,7 @@ def _within(
     window: "tuple[float, float] | None",
     citation: str,
     value: "float | None" = None,
+    anchored: bool = False,
 ) -> Check:
     """One approximated obligation, against both ends of its envelope.
 
@@ -4212,6 +4217,21 @@ def _within(
     definitions overlap here rather than conflict -- HELD is "the exact
     obligation was met" and it WAS met -- so the exact one is taken and
     the window is left to explain itself in the note.
+
+    AND WHERE ``anchored`` IS SET, A WINDOW THAT MISSES THE VALUE IS NOT
+    A PASS FOR A FILE FAR FROM IT (validation method V6.1-A2; repair of
+    the stage-2b integration). The mean and the standard deviation are
+    the statistics analysis code reads, and the owner ruled that
+    statistics on the twin must be reliable. A window drawn from the
+    construction can sit wholly away from the published value, and a
+    file inside it was then WITHIN-BOUND however far from that value it
+    stood: measured on a 5,000-row column of amounts with one far value,
+    the twin's mean was 1485.25 against a published 1049.66 and its
+    standard deviation 7040.63 against 2697.30, both WITHIN-BOUND, exit
+    0. So where the window does not reach the published value, the file
+    must ALSO stand within the window's own width of that value -- half
+    of it either side -- or the obligation is MISSED. Nothing changes
+    where the window reaches the value.
     """
     if measured is None or window is None:
         return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
@@ -4240,6 +4260,15 @@ def _within(
             "      the description and the size of this column; it is not",
             "      a margin around that value.",
         )
+    if anchored and not reaches and value is not None:
+        half = (high - low) / 2.0
+        if not value - half <= measured <= value + half:
+            verdict = MISSED
+            note = note + (
+                "      and the file stands farther from the description's",
+                "      own value than half this window's width, so the",
+                "      window is not taken as a pass (V6.1-A2).",
+            )
     return Check(
         column,
         fact,
@@ -11290,6 +11319,7 @@ def _moment_checks(
                 _window_named(windows, field),
                 ENVELOPE_MOMENTS,
                 value,
+                anchored=field in ("mean", "std"),
             )
         ]
     return checks
@@ -11941,6 +11971,7 @@ def _style_checks(
                 # the offer is a comma for both published marks; a cell
                 # carrying one of the other marks is offered that one.
                 ",",
+                _pooled_widths(facts),
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -12765,6 +12796,15 @@ def _shown_count_or_none(found: "int | None") -> "str | None":
     return _shown_count(found)
 
 
+def _pooled_widths(facts: contract.NumericFacts) -> int:
+    """How many cells the fraction-width census withheld under its pool."""
+    if taxonomy.SUPPRESSED_LABEL in facts.fraction_widths:
+        found = facts.fraction_widths[taxonomy.SUPPRESSED_LABEL]
+        if isinstance(found, int):
+            return found
+    return 0
+
+
 def _published_widths(
     facts: contract.NumericFacts,
 ) -> "tuple[int, ...]":
@@ -13104,6 +13144,7 @@ def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
 def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
+    pooled_widths: int = 0,
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -13119,8 +13160,19 @@ def _cells_outside_the_styles(
     counted here. What it IS -- unreadable, out of range, contradictory
     -- is its own published count and its own subcheck; asking this
     question of it as well would report one fault twice.
+
+    ``pooled_widths`` IS THE CENSUS'S OWN WITHHELD COUNT, and it permits
+    that many cells a width the census does not name (repair of the
+    stage-2b integration). The pool IS cells written at some width too
+    few cells shared to name, so a cell spelled at an unnamed width is
+    exactly what it counts: a real column of 400 one-place readings, one
+    of them written `4.20`, published `fraction_widths {(withheld): 1,
+    1: 399}` at a floor of eleven and failed its own description on this
+    subcheck, exit 3. The permission is bounded by the pool, so a file
+    padding more cells than the description withheld still misses.
     """
     outside = 0
+    spent = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body:
@@ -13188,6 +13240,16 @@ def _cells_outside_the_styles(
         # exception, so one rule answers and the duplicate was removed.
         if not worn and _wears_a_source_spelling(signed, value, offered):
             worn = True
+        if not worn and spent < pooled_widths:
+            unnamed = parsing.fraction_width(body)
+            if unnamed > 0 and unnamed not in widths:
+                for spelling in _permitted_spellings(
+                    value, whole_column, widths + (unnamed,), offered
+                ):
+                    if _wears(signed, spelling):
+                        worn = True
+                if worn:
+                    spent = spent + 1
         if not worn:
             outside = outside + 1
     return outside

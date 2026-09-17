@@ -967,6 +967,32 @@ person's. A custom code is published as the CANONICAL code of its kind.
 THE LIMIT, unchanged in substance: the twin wears the standard spelling
 of a date rather than the one somebody typed.
 
+**What a NUMBER cell reads as** (repair of the stage-2b integration).
+Two readings are applied to a number cell before any column rule sees
+it, and both are the value's and not the writer's:
+
+- *The stored spelling loses its binary noise.* A workbook stores a
+  double, and the characters it stores it under are the writer's
+  choice: openpyxl and pandas store 79.1 as `79.09999999999999` and
+  Excel as `79.099999999999994`. A stored text holding a point or an
+  exponent is read as the shortest spelling of the same double wherever
+  that needs fewer significant figures, keeping its notation
+  (`workbook.stored_number_spelling`); a text of figures alone is never
+  touched, so a whole number past 2**53 keeps the figures stored.
+  Measured before: a column of one-decimal values stored at sixteen
+  figures published `fraction_widths {1: 233, 14: 119}` and the REAL
+  workbook failed its own description.
+- *A number wearing a date or datetime format is read as its date*
+  (`dialect.sheet_serial_moment`): `YYYY-MM-DD` for a whole day wearing
+  a date format, and `YYYY-MM-DD HH:MM:SS` (with `.fff` where the time
+  is not a whole second) otherwise, in the workbook's own date system.
+  A time or elapsed format is a length of time and stays a number, and
+  so does a count no date can be shown for. Measured before: a
+  `dd.mm.yyyy` column was described as role `count` with percentiles
+  44937 to 45579, a column of moments as `continuous`, and the twin lost
+  110 of 1394 moments at midnight. The twin writes each such date back as the day
+  count it was read as, wearing a date format (method G2.2).
+
 **A mixture of kinds is reproduced as its counts, not collapsed to the
 majority.** `format_kinds` publishes a count per kind and the twin
 writes a cell per count; an absent cell is always `plain`, because

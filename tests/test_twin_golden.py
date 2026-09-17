@@ -379,7 +379,15 @@ NARROW_COLUMN_DIGESTS = {
     # withheld mode pair beside 180 different numbers over 240 cells, so
     # G5.2a's stratum cap reads the ladder and is six: the widest
     # stratum was seven, and 139 cells moved to hold it at six.
-    "dose": "48581f921dce1fd3f7ef625278fce1c7",
+    # RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION (2026-09-16).
+    # Only `dose` moved, and only its values: its cores are written at one
+    # and at two places, and a census of several widths is now the grid of
+    # its commonest (method G5.2a step 1), so 228 cells took the value on
+    # that grid the ladder puts there. MEASURED against the tree before the
+    # repair: the same widths census (160 four-character and 80 five), the
+    # same 180 different cells, every other column byte-identical, and no
+    # verdict of the quality report moved.
+    "dose": "21da77fdbb6b90a2eb7327ef6729526e",
     "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
@@ -407,7 +415,10 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
     "batch": "3a209af377e49829fb4ef147725677ca",
-    "dose": "8c8b3c5b9f6513ccd30b32e02393ae8c",
+    # RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION: the cells
+    # themselves moved (see `dose` in the sorted digests above), so the
+    # digest of the cells as written moves with them.
+    "dose": "7dc6eb8715f8789f075a90827ddc69cc",
     "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -1342,8 +1353,16 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # is byte-identical to commit 367e1d7's and its written form here is
 # UTF-8, comma, line feeds and a final line ending, which the twin
 # already wrote.
+# RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION (2026-09-16).
+# Only `dose` moved, and only its values: its cores are written at one
+# and at two places, and a census of several widths is now the grid of
+# its commonest (method G5.2a step 1), so 228 cells took the value on
+# that grid the ladder puts there. MEASURED against the tree before the
+# repair: the same widths census (160 four-character and 80 five), the
+# same 180 different cells, every other column byte-identical, and no
+# verdict of the quality report moved.
 GOLDEN_TWIN_SHA256 = (
-    "ed198f28df9a7136f970686e9de64374db7173217eeabf32add6f6f6919d1fa3"
+    "cf566f43118ef55a5d2e3200c321b83be0a8c8ea44e6e4fcb24306df8113c673"
 )
 
 
@@ -1792,8 +1811,11 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # before the merge only the sentence on how the twin is written moved --
 # it now names the written form the description records. Against landing
 # 2b.10's own tree only landings 2b.6's and 2b.8's lines moved.
+# RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION (2026-09-16):
+# only the achieved values printed for `dose` moved, because its cells
+# did (see the twin digest above). No sentence moved.
 GOLDEN_REPORT_SHA256 = (
-    "4fdd544921fedf8e7a7deb9f35430329acde96b80f2ef2cebcd50fb760f4c2df"
+    "f8a2f2dde33abffddb764fb27f779a5c2c137c5d815096a9ee9629d3bd25d0ed"
 )
 
 
@@ -2428,8 +2450,11 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # quoting check per column, all HELD, 509 to 535 obligations. Against
 # landing 2b.10's own tree only landings 2b.6's, 2b.7's and 2b.8's lines
 # moved. No verdict otherwise moved.
+# RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION (2026-09-16):
+# only the values found for `dose` moved, because its cells did; every
+# verdict line is as it was, and so is the count of obligations.
 GOLDEN_QUALITY_SHA256 = (
-    "fec741e4541e1e52f64723b9518daef6f98f5f79a2012265d0860ad34840923a"
+    "7eaf8274416a4ecf492fa8380958d3936a0e263891efde8d25c20c63bc2db729"
 )
 
 

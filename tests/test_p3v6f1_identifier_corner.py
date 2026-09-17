@@ -117,12 +117,15 @@ _BATTERY: "tuple[tuple[str, list[str]], ...]" = (
     ("wide-at-the-line", _outside_the_code_alphabet(25)),
     ("wide-over-the-line", _outside_the_code_alphabet(26)),
     # Boundary 2 -- whole numbers in figures alone open with a figure
-    # that is not zero (G9.6), so one character spells nine and not ten.
-    # Interleaved: in order, a column of 0..9 or 1..9 is the row sequence
-    # (plan P4-D86) and is written exactly, whatever its corner. The
-    # order of a column's cells is none of the facts a corner reads.
-    ("figures-at-the-line", _interleaved(_figures(1, 9))),
-    ("figures-over-the-line", _interleaved(_figures(0, 9))),
+    # that is not zero (G9.6), except the lone `0`, so one or two
+    # characters spell a hundred values and not a hundred and one (the
+    # boundary moved from nine and ten when the stage-2b integration let
+    # the lone nought be written). Interleaved: in order, such a column
+    # is the row sequence (plan P4-D86) and is written exactly, whatever
+    # its corner. The order of a column's cells is none of the facts a
+    # corner reads.
+    ("figures-at-the-line", _interleaved(_figures(0, 99))),
+    ("figures-over-the-line", _interleaved(_figures(0, 99) + ["00"])),
     # Boundary 3 -- the same rule two characters wide.
     ("padded-at-the-line", _padded(10, 99)),
     ("padded-over-the-line", _padded(0, 99)),
@@ -404,10 +407,11 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
 ) -> None:
     """The lesser outcome is still granted where the plan grants it.
 
-    Ten one-character whole numbers. Figures alone open with a figure
-    that is not zero (G9.6), so one character spells nine values and the
-    shipped generator writes nine where ten are published -- the corner
-    owner decision 6 names. Its twin therefore validates with nothing
+    A hundred and one whole numbers of one or two characters. Figures
+    alone open with a figure that is not zero (G9.6), the lone `0`
+    excepted, so those widths spell a hundred values and the shipped
+    generator writes a hundred where a hundred and one are published --
+    the corner owner decision 6 names. Its twin therefore validates with nothing
     missed, and the three facts appear as listings rather than as
     checks: the achieved value is named beside the published one and no
     verdict pretends to have been passed.
@@ -417,16 +421,16 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
     # Interleaved, as the battery's own witnesses are: in order the ten
     # figures are the row sequence (plan P4-D86) and are written exactly.
     described = _describe(
-        folder, _interleaved(_figures(0, 9)), "figures-ten"
+        folder, _interleaved(_figures(0, 99) + ["00"]), "figures-ten"
     )
     column = described.columns[0]
     facts = column.facts
     assert isinstance(facts, contract.IdentifierFacts)
     assert facts.all_whole_numbers
-    assert (facts.min_length, facts.max_length) == (1, 1)
-    assert column.n_distinct == 10
+    assert (facts.min_length, facts.max_length) == (1, 2)
+    assert column.n_distinct == 101
     twin = _twin(described)
-    assert _distinct_present(twin) == 9
+    assert _distinct_present(twin) == 100
     assert _has_corner(described)
     outcome = _measure(
         folder, described, rendering.twin_csv(twin), "figures-twin.csv"
@@ -459,12 +463,13 @@ def test_the_band_capacities_are_the_numbers_the_method_counts_out(
     # formula leader it holds.
     assert validation._capacity_at(validation._BAND_CODE, 1) == 53
     assert validation._capacity_at(validation._BAND_DIGITS, 1) == 10
-    # G9.6's whole-number families. Figures alone lose the leading zero;
+    # G9.6's whole-number families. Figures alone lose the leading zero
+    # but keep the lone `0`;
     # `<digits>e0` has nothing to write below three characters except
     # the ten spellings that open with a sign, which owner decision 9
     # permits at two; `<digits>.` has nothing to write at one.
     whole = validation._identifier_capacity_at
-    assert whole(validation._BAND_DIGITS, 1, True) == 9
+    assert whole(validation._BAND_DIGITS, 1, True) == 10
     assert whole(validation._BAND_DIGITS, 2, True) == 90
     assert whole(validation._BAND_CODE, 1, True) == 0
     assert whole(validation._BAND_CODE, 2, True) == 10

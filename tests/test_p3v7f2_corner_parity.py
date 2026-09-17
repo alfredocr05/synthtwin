@@ -659,6 +659,28 @@ def _named_entries() -> "list[Entry]":
         Entry(
             "boundary-figures-10", tuple(_figures(0, 9)[0::2] + _figures(0, 9)[1::2]), True, 11
         ),
+        # THE LONE NOUGHT MOVED THIS BOUNDARY (stage-2b integration): one
+        # character holds all ten figures now, so the corner is a hundred
+        # and one values of one or two characters, and a hundred of two.
+        Entry(
+            "boundary-figures-101",
+            tuple((_figures(0, 99) + ["00"])[0::2] + (_figures(0, 99) + ["00"])[1::2]),
+            True,
+            11,
+        ),
+        Entry(
+            "boundary-padded-100",
+            tuple([f"{number:02d}" for number in range(0, 100, 2)]
+                  + [f"{number:02d}" for number in range(1, 100, 2)]),
+            True,
+            11,
+        ),
+        Entry(
+            "boundary-figures-1001",
+            tuple((_figures(0, 999) + ["00"])[0::2] + (_figures(0, 999) + ["00"])[1::2]),
+            True,
+            11,
+        ),
         Entry(
             "boundary-code-53", tuple(_letters() + ["_"]), True, 11
         ),

@@ -58,8 +58,13 @@ def _within_as_it_shipped(
     window: "tuple[float, float] | None",
     citation: str,
     value: "float | None" = None,
+    anchored: bool = False,
 ) -> validation.Check:
-    """`validation._within` exactly as it shipped: the window decides."""
+    """`validation._within` exactly as it shipped: the window decides.
+
+    ``anchored`` (V6.1-A2, added later) is accepted and not read, so the
+    red check reinstates the window-only verdict and nothing else.
+    """
     if measured is None or window is None:
         return validation.Check(
             column, fact, subcheck, validation.WITHHELD, published, "",
@@ -189,6 +194,33 @@ def _dated_table() -> str:
     return fixtures.rows_to_csv(["recorded_on", "reading"], rows)
 
 
+def _tailed_table() -> str:
+    """A column of amounts with a long right tail and one far value.
+
+    WHY THE WITNESS MOVED HERE (measured at the stage-2b integration).
+    Landing 2b.6 redrew G12.4's date windows so that a column's dates
+    spread across days like the real table's, and no date rung of the
+    table above -- nor of sixty seeded date tables searched for one --
+    has a window lying wholly to one side of its own value any more.
+    The corner this file guards is still reachable through the other
+    envelope function, `_within`: on this column G12.3's windows for the
+    mean, the standard deviation and the tail weight all sit away from
+    the published values, so the real table is exactly the file that
+    holds a value its window does not reach. Seeded, so the same table
+    is written on every machine.
+    """
+    import random
+
+    draw = random.Random(2)
+    rows = []
+    for index in range(5000):
+        amount = draw.lognormvariate(6, 1.4)
+        if index == 4321:
+            amount = 124284.2
+        rows = rows + [[f"{index + 1}", f"{amount:.2f}"]]
+    return fixtures.rows_to_csv(["line", "amount"], rows)
+
+
 def _described(
     folder: pathlib.Path, table: pathlib.Path
 ) -> "tuple[pathlib.Path, contract.Profile]":
@@ -214,20 +246,23 @@ def test_the_witness_has_a_window_that_misses_its_own_value(
     description's own value, this file says so rather than passing on a
     corner it can no longer see.
     """
-    outcome, _description = _outcome(tmp_path)
+    table = fixtures.write(tmp_path, "tailed.csv", _tailed_table())
+    _written, description = _described(tmp_path, table)
+    outcome = validation.measure(description, f"{table}")
     outside = [
         check
         for check in outcome.checks
-        if check.fact == "datetime.date_percentiles"
+        if check.fact in ("numeric.mean", "numeric.std")
         and "does NOT reach the" in "\n".join(check.note)
     ]
-    assert outside, (
-        "no date rung of this table has a window that misses the "
-        "description's own value, so this file can no longer see the "
-        "defect it exists for"
+    assert len(outside) == 2, (
+        "the tailed column no longer has a mean and a spread whose "
+        "windows miss the description's own values, so this file can no "
+        "longer see the defect it exists for"
     )
     for check in outside:
-        assert check.achieved == "that same value"
+        assert check.achieved == check.published
+        assert check.verdict == validation.HELD
 
 
 def test_no_line_says_the_file_holds_the_value_and_misses_it(
@@ -265,7 +300,15 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     # still explaining itself underneath.
     assert "date-ladder.p99 [datetime.date_percentiles]: HELD" in report
     assert "the file was found to hold: that same value" in report
-    assert "the file holds the description's own value exactly" in report
+    # ...and the window that does not reach its own value is on the
+    # tailed table now (see `_tailed_table`), which misses nothing either.
+    tailed = fixtures.write(tmp_path, "tailed.csv", _tailed_table())
+    tailed_written, _tailed_description = _described(tmp_path, tailed)
+    assert main(["validate", f"{tailed_written}", "--twin", f"{tailed}"]) == 0
+    tailed_report = (tmp_path / "tailed-quality.txt").read_text("utf-8")
+    assert "0  MISSED" in tailed_report
+    assert "moments.mean [numeric.mean]: HELD" in tailed_report
+    assert "the file holds the description's own value exactly" in tailed_report
 
 
 def test_a_file_that_holds_something_else_is_still_judged_by_the_window(

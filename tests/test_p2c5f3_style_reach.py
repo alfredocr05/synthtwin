@@ -190,8 +190,11 @@ def test_every_named_style_count_comes_out_exactly(
     pool is the part it held back, and G6.4 gives way there first. So
     what is asserted is every named count, on every column, on every
     seed -- which is the general form of the claim two earlier closures
-    made about one column each.
+    made about one column each -- except the padded count G6.1 gives up
+    where no published width can hold the value, which must be named on
+    the twin's own page and is pinned to the eleven runs measured.
     """
+    given_up = []
     for name, document, loaded in _battery(tmp_path):
         published = document["columns"][0]["numeric_styles"]
         named = {
@@ -200,11 +203,31 @@ def test_every_named_style_count_comes_out_exactly(
             if style != contract.WITHHELD
         }
         for seed in SEEDS:
-            written = _styles(generation.generate(loaded, seed))
+            built = generation.generate(loaded, seed)
+            written = _styles(built)
             for style, count in named.items():
-                assert written.get(style, 0) >= count, (
+                if written.get(style, 0) >= count:
+                    continue
+                # THE ONE SHORTFALL THE METHOD NOW CHOOSES (method G6.1,
+                # landings 2b.7 and 2b.16, plans P4-D66.4 and P4-D105). A
+                # padded cell whose value no published field width can
+                # hold gives the style up rather than being written one
+                # zero too wide: before landing 2b.7 this battery "met"
+                # these counts by writing `010` into a column whose only
+                # published pad width is two. The count is then missed
+                # and NAMED, never silent -- which is what is asserted --
+                # and how many runs reach it is pinned below.
+                assert style == parsing.STYLE_LEADING_ZERO, (
                     name, seed, style, count, written, published
                 )
+                named_facts = {note.fact for note in built.deviations}
+                assert {"numeric_styles", "pad_widths"} <= named_facts, (
+                    name, seed, named_facts
+                )
+                given_up += [(name, seed)]
+    # Measured at the stage-2b integration: eleven runs of 1,920, on three
+    # columns (mixed-22 at seven seeds, mixed-58 and mixed-100 at two).
+    assert len(given_up) <= 11, given_up
 
 
 def test_the_map_is_not_bought_with_another_exact_count(

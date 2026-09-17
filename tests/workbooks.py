@@ -953,6 +953,41 @@ def wide_number_book(n_rows: int = 300) -> bytes:
     )
 
 
+def noisy_number_book(n_rows: int = 400, figures: int = 16) -> bytes:
+    """One-decimal measurements stored at ``figures`` significant figures.
+
+    THE SHAPE OF THE STAGE-2b INTEGRATION'S BLOCKER. openpyxl and
+    pandas store the double 79.1 as `79.09999999999999` (`%.16g`) and
+    Excel stores it as `79.099999999999994` (`%.17g`); every reader hands
+    both back as 79.1. The values are a seeded walk of one-decimal
+    numbers in a plausible range, so a good share of them carry binary
+    noise at sixteen figures and most do at seventeen.
+    """
+    import random
+
+    draw = random.Random(12)
+    strings = ["measure"]
+    body: "list[tuple[int, list[str]]]" = [(1, [cell("A1", "0", "s")])]
+    for place in range(n_rows):
+        number = 2 + place
+        value = round(max(35.0, draw.gauss(78, 16)), 1)
+        body += [(number, [cell(f"A{number}", "%.*g" % (figures, value))])]
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(1, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            ("xl/workbook.xml", _workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(1, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            (
+                "xl/worksheets/sheet1.xml",
+                sheet(body, dimension=f"A1:A{n_rows + 1}"),
+            ),
+        ]
+    )
+
+
 def compound_file() -> bytes:
     """The opening bytes of a legacy .xls or an encrypted workbook."""
     return b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + bytes(504)

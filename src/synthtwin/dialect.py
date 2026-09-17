@@ -401,6 +401,220 @@ SHEET_FORMAT_CODE_KINDS = {
 }
 
 
+# -- a date IN a workbook: a number wearing a format, read as a date ---
+#
+# WHY A DATE CELL IS READ AS ITS DATE (repair of the stage-2b
+# integration). A workbook stores a date as the count of days since its
+# epoch, with the time of day as the fraction, and a DATE FORMAT on the
+# cell is what makes every reader hand it back as a date. The reader
+# used to pass the count on as a number, and the column machinery then
+# described a date column as a column of numbers: a `dd.mm.yyyy` column
+# became role `count` with percentiles 44937 to 45579, a column of
+# moments became `continuous`, and its twin -- drawn as continuous
+# numbers -- lost moments at midnight: 1394 cells in the source,
+# 1284 in the twin, where stage 2 promises a date stored at midnight
+# stays at midnight. So a number cell whose format kind is `date` or
+# `datetime` is read as the date it stands for, in one ISO spelling,
+# and the twin writes that date back as the day count it came from,
+# wearing a date format. A `time` or `elapsed` cell is a length of time
+# and not a day, and stays a number.
+
+SHEET_DAY_MILLISECONDS = 86_400_000
+# The last day a workbook can show, 9999-12-31, as a 1900-system count.
+SHEET_LAST_SERIAL = 2_958_465
+
+
+def _days_from_civil(year: int, month: int, day: int) -> int:
+    """Days from 1970-01-01 to one proleptic Gregorian date (exact)."""
+    shifted = year - 1 if month <= 2 else year
+    era = shifted // 400
+    of_era = shifted - era * 400
+    march = month - 3 if month > 2 else month + 9
+    of_year = (153 * march + 2) // 5 + day - 1
+    of_cycle = of_era * 365 + of_era // 4 - of_era // 100 + of_year
+    return era * 146097 + of_cycle - 719468
+
+
+def _civil_from_days(count: int) -> "tuple[int, int, int]":
+    """The proleptic Gregorian date ``count`` days after 1970-01-01 (exact)."""
+    shifted = count + 719468
+    era = shifted // 146097
+    of_era = shifted - era * 146097
+    of_cycle = (
+        of_era - of_era // 1460 + of_era // 36524 - of_era // 146096
+    ) // 365
+    year = of_cycle + era * 400
+    of_year = of_era - (365 * of_cycle + of_cycle // 4 - of_cycle // 100)
+    march = (5 * of_year + 2) // 153
+    day = of_year - (153 * march + 2) // 5 + 1
+    month = march + 3 if march < 10 else march - 9
+    if month <= 2:
+        year = year + 1
+    return (year, month, day)
+
+
+_EPOCH_1900 = _days_from_civil(1899, 12, 30)
+_EPOCH_1900_EARLY = _days_from_civil(1899, 12, 31)
+_EPOCH_1904 = _days_from_civil(1904, 1, 1)
+
+
+def _figures_only(text: str) -> bool:
+    if not text:
+        return False
+    for character in text:
+        if ord(character) < 48 or ord(character) > 57:
+            return False
+    return True
+
+
+def _plain_serial(text: str) -> bool:
+    """Whether the text is a stored day count: figures, one optional point."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    point = text.find(".")
+    if point < 0:
+        return _figures_only(text)
+    return _figures_only(text[:point]) and (
+        point == len(text) - 1 or _figures_only(text[point + 1 :])
+    )
+
+
+def sheet_serial_moment(text: str, kind: str, epoch_1904: bool) -> str:
+    """A stored day count wearing a date format, read as the date it shows.
+
+    Guarantees: a fixed function of its three inputs. Where ``kind`` is
+    `date` or `datetime` and the text is a day count a workbook can show
+    as a date, the answer is `YYYY-MM-DD` for a `date` cell holding a
+    whole day, and `YYYY-MM-DD HH:MM:SS` otherwise, with `.fff` added
+    where the time is not a whole second; the time is rounded to the
+    millisecond, which is finer than any format a workbook can wear.
+    Anything else comes back unchanged: another kind, a negative or
+    exponent spelling, a count before the epoch's first day, the 1900
+    system's day 60 (a 29 February 1900 that never was), and a count
+    past 9999-12-31.
+    """
+    if not isinstance(text, str) or not isinstance(kind, str):
+        raise TypeError("internal check: a cell's text or kind was not text")
+    if kind not in (SHEET_FORMAT_DATE, SHEET_FORMAT_DATETIME):
+        return text
+    if not _plain_serial(text):
+        return text
+    value = float(text)
+    first = 0.0 if epoch_1904 else 1.0
+    if value < first or value > SHEET_LAST_SERIAL:
+        return text
+    moment = round(value * SHEET_DAY_MILLISECONDS)
+    days = moment // SHEET_DAY_MILLISECONDS
+    part = moment - days * SHEET_DAY_MILLISECONDS
+    if epoch_1904:
+        count = _EPOCH_1904 + days
+    elif days == 60:
+        return text
+    elif days < 60:
+        count = _EPOCH_1900_EARLY + days
+    else:
+        count = _EPOCH_1900 + days
+    year, month, day = _civil_from_days(count)
+    if year > 9999:
+        return text
+    written = f"{year:04d}-{month:02d}-{day:02d}"
+    if kind == SHEET_FORMAT_DATE and part == 0:
+        return written
+    seconds = part // 1000
+    written = (
+        f"{written} {seconds // 3600:02d}:{(seconds // 60) % 60:02d}"
+        f":{seconds % 60:02d}"
+    )
+    if part % 1000:
+        written = f"{written}.{part % 1000:03d}"
+    return written
+
+
+def sheet_moment_kind(text: str) -> str:
+    """Which date format kind the reader's own spelling of a date is, or "".
+
+    `date` for `YYYY-MM-DD`, `datetime` for `YYYY-MM-DD HH:MM:SS` with an
+    optional `.fff` -- exactly the two spellings `sheet_serial_moment`
+    writes, and nothing else.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    if len(text) < 10 or text[4:5] != "-" or text[7:8] != "-":
+        return ""
+    if not (
+        _figures_only(text[0:4])
+        and _figures_only(text[5:7])
+        and _figures_only(text[8:10])
+    ):
+        return ""
+    if len(text) == 10:
+        return SHEET_FORMAT_DATE
+    if len(text) not in (19, 23) or text[10:11] != " ":
+        return ""
+    if text[13:14] != ":" or text[16:17] != ":":
+        return ""
+    if not (
+        _figures_only(text[11:13])
+        and _figures_only(text[14:16])
+        and _figures_only(text[17:19])
+    ):
+        return ""
+    if len(text) == 23 and (
+        text[19:20] != "." or not _figures_only(text[20:23])
+    ):
+        return ""
+    return SHEET_FORMAT_DATETIME
+
+
+def sheet_moment_serial(text: str, epoch_1904: bool) -> str:
+    """The day count a workbook stores for the reader's spelling of a date.
+
+    Guarantees: the inverse of `sheet_serial_moment` on every text that
+    function writes, so a twin cell written from it is read back as the
+    same text. "" where the text is not one of those two spellings or
+    names no day the workbook's date system can store. A whole day is
+    spelled in figures; a moment as the shortest spelling of its double.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    kind = sheet_moment_kind(text)
+    if not kind:
+        return ""
+    year = int(text[0:4])
+    month = int(text[5:7])
+    day = int(text[8:10])
+    if month < 1 or month > 12 or day < 1 or day > 31:
+        return ""
+    count = _days_from_civil(year, month, day)
+    if _civil_from_days(count) != (year, month, day):
+        return ""
+    part = 0
+    if kind == SHEET_FORMAT_DATETIME:
+        hours = int(text[11:13])
+        minutes = int(text[14:16])
+        seconds = int(text[17:19])
+        if hours > 23 or minutes > 59 or seconds > 59:
+            return ""
+        part = (hours * 3600 + minutes * 60 + seconds) * 1000
+        if len(text) == 23:
+            part = part + int(text[20:23])
+    if epoch_1904:
+        days = count - _EPOCH_1904
+        if days < 0:
+            return ""
+    else:
+        days = count - _EPOCH_1900
+        if days <= 60:
+            days = count - _EPOCH_1900_EARLY
+            if days < 1 or days >= 60:
+                return ""
+    if days > SHEET_LAST_SERIAL:
+        return ""
+    if part == 0:
+        return f"{days}"
+    return repr(days + part / SHEET_DAY_MILLISECONDS)
+
+
 # -- a sheet's NAME, and when it may be published ----------------------
 #
 # A sheet name is free text somebody typed, and the disclosure rule

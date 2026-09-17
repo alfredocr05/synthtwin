@@ -2366,7 +2366,7 @@ def written_grid(fraction_widths, integer_valued, numeric, point_free):
     if figures > 0:
         return figures
     if len(fraction_widths) != 1:
-        return -1
+        return commonest_width_grid(fraction_widths, numeric, point_free)
     for width in fraction_widths:
         try:
             figures = int(width)
@@ -2376,6 +2376,37 @@ def written_grid(fraction_widths, integer_valued, numeric, point_free):
             return -1
         return figures
     return -1
+
+
+def commonest_width_grid(fraction_widths, numeric, point_free):
+    """G5.2a step 1 on a census naming several widths: the commonest.
+
+    The width the most cells are written at, ties to the wider, where
+    every named width is positive and the named widths and the NAMED
+    point-free style count together cover every numeric cell; -1
+    otherwise, and -1 for a census that pools a width at all, since the
+    pool may hold a width finer than the grid.
+    """
+    covered = point_free
+    best = -1
+    most = -1
+    for width in sorted(fraction_widths):
+        count = fraction_widths[width]
+        covered += count
+        if width == "(withheld)":
+            return -1
+        try:
+            figures = int(width)
+        except (TypeError, ValueError):
+            return -1
+        if figures <= 0:
+            return -1
+        if count > most or (count == most and figures > best):
+            most = count
+            best = figures
+    if best <= 0 or covered != numeric:
+        return -1
+    return best
 
 
 def grid_of(fraction_widths, integer_valued, numeric):
@@ -3342,6 +3373,12 @@ def _not_a_digit(character):
 def _outside_the_code_alphabet(character):
     """A wide cell's leftmost character, so it is not code-alphabet."""
     return character not in CODE_CHARACTERS
+
+
+# The whole-number figures one figure long, in the order G9.6 offers
+# them: the nought is a whole number with nothing after it to lead, and
+# it comes last so a column counting from one keeps its first nine.
+LONE_FIGURES = "1234567890"
 
 
 def _not_a_leading_zero(character):
@@ -5811,7 +5848,8 @@ def identifier_family(band, whole_numbers, length):
     whole-number spelling per band and the bands still come from the two
     published alphabet counts and from nothing else.  The figures write
     the digits themselves with a non-zero leading digit, so the
-    spelling's length is its digit count; the code band writes
+    spelling's length is its digit count (the lone ``0`` excepted, which
+    leads nothing and is offered after ``9``); the code band writes
     ``<digits>e0``, which reads back as a whole number and holds a
     character the figures do not; and outside the code alphabet the cell
     is written ``<digits>.``, which reads back as a whole number and
@@ -6826,6 +6864,11 @@ def _identifier_content(column):
                     candidate = (
                         enumerated_spelling(alphabet, block, index, leading) + suffix
                     )
+                    # THE LONE NOUGHT (G9.6): one figure with nothing
+                    # after it leads nothing, so the whole-number figures
+                    # hold ten one-figure values, `1` to `9` and then `0`.
+                    if leading is _not_a_leading_zero and block == 1:
+                        candidate = LONE_FIGURES[index] + suffix
                     if candidate in used:
                         continue
                     if ask and not any(char.isalpha() for char in candidate):
@@ -13222,27 +13265,129 @@ def sheet_cell_classes(census, cells):
     return out
 
 
-def sheet_format_kinds(census, classes):
+def sheet_format_kinds(census, classes, dated=None):
     """Which kind of format each cell of one column wears (G2.2 step 2).
 
     A mixture is reproduced as its COUNTS and never collapsed to the
     majority.  An ABSENT cell is always plain: nothing is written for
     it, so every reader sees the general format there.
+
+    A date format goes to a date first: ``dated`` names per cell the
+    kind of date its text was (``date``, ``datetime`` or ``""``), and
+    each of those two kinds is offered to the cells of its own kind,
+    then to the cells of the other, then to every written cell in row
+    order.  A date left over after the counts keeps its own kind where
+    the census does not publish that kind as nought.
     """
     written = [
         index for index in range(len(classes)) if classes[index] != "absent"
     ]
+    dated = dated or ["" for _index in range(len(classes))]
     out = ["plain" for _index in range(len(classes))]
-    at = 0
+    given = set()
     for kind in SHEET_FORMAT_KINDS:
         if kind == "plain":
             continue
         left = sheet_wanted(census, kind)
-        while left > 0 and at < len(written):
-            out[written[at]] = kind
-            at = at + 1
-            left = left - 1
+        order = []
+        if kind in ("date", "datetime"):
+            order += [index for index in written if dated[index] == kind]
+            order += [
+                index for index in written if dated[index] and dated[index] != kind
+            ]
+        order += written
+        for index in order:
+            if left <= 0:
+                break
+            if index in given:
+                continue
+            out[index] = kind
+            given.add(index)
+            left -= 1
+    for index in written:
+        if index in given or not dated[index]:
+            continue
+        if sheet_denied(census, dated[index]):
+            continue
+        out[index] = dated[index]
     return out
+
+
+# -- G2.2 step 0: a date is written back as the day count it was read as
+
+SHEET_EPOCH_1900 = datetime.datetime(1899, 12, 30)
+SHEET_EPOCH_1904 = datetime.datetime(1904, 1, 1)
+
+
+def sheet_date_kind(text):
+    """``date`` for ``YYYY-MM-DD``, ``datetime`` for the moment, else ``""``.
+
+    The two spellings are the ones contract 4.3b says a number cell
+    wearing a date or datetime format is read as: the date, or the date,
+    a space and ``HH:MM:SS`` with ``.fff`` where the time is not a whole
+    second.
+    """
+    for kind, pattern in (
+        ("date", "%Y-%m-%d"),
+        ("datetime", "%Y-%m-%d %H:%M:%S"),
+        ("datetime", "%Y-%m-%d %H:%M:%S.%f"),
+    ):
+        try:
+            moment = datetime.datetime.strptime(text, pattern)
+        except ValueError:
+            continue
+        if moment.strftime(pattern) == text or (
+            pattern.endswith("%f") and len(text) == 23
+            and moment.strftime("%Y-%m-%d %H:%M:%S.%f")[:23] == text
+        ):
+            return kind
+    return ""
+
+
+def sheet_day_count(text, epoch_1904):
+    """The day count a workbook stores for one of those spellings, or ``""``.
+
+    The 1900 system counts 1900-01-01 as day 1 and carries a day 60 that
+    never was, so a date before 1900-03-01 is one day nearer its epoch;
+    the 1904 system counts 1904-01-01 as day 0.  A whole day is written
+    in figures and a moment as the shortest spelling of its double.
+    """
+    kind = sheet_date_kind(text)
+    if not kind:
+        return ""
+    pattern = "%Y-%m-%d" if kind == "date" else (
+        "%Y-%m-%d %H:%M:%S.%f" if len(text) == 23 else "%Y-%m-%d %H:%M:%S"
+    )
+    moment = datetime.datetime.strptime(text, pattern)
+    if epoch_1904:
+        span = moment - SHEET_EPOCH_1904
+        if span.days < 0:
+            return ""
+    else:
+        span = moment - SHEET_EPOCH_1900
+        if span.days <= 60:
+            span = span - datetime.timedelta(days=1)
+            if span.days < 1 or span.days >= 60:
+                return ""
+    milliseconds = span.seconds * 1000 + span.microseconds // 1000
+    if milliseconds == 0:
+        return str(span.days)
+    return repr(span.days + milliseconds / 86400000)
+
+
+def sheet_dates_as_day_counts(column, own, epoch_1904):
+    """A column's dates as day counts, where it publishes a date format."""
+    wants = any(
+        sheet_wanted(column["format_kinds"], kind) > 0
+        for kind in ("date", "datetime")
+    ) or SHEET_FORMAT_CODE_KINDS.get(column["format_code"]) in ("date", "datetime")
+    out = []
+    dated = []
+    for text in own:
+        serial = sheet_day_count(text, epoch_1904) if wants and text else ""
+        out += [serial or text]
+        dated += [sheet_date_kind(text) if serial else ""]
+    return out, dated
 
 
 def sheet_code_for_kind(kind, published):
@@ -13262,15 +13407,16 @@ def sheet_placeholder_rows(above, n_columns):
     return 0 if n_columns <= 1 else above
 
 
-def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted):
+def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted, tags=None):
     """Move each column's cells holding nothing onto shared rows (G2.2).
 
     A permutation WITHIN EACH COLUMN and nothing else, so each column
     keeps its exact multiset of values and every published fact about it
-    still holds.
+    still holds.  ``tags`` travel with their cells.
     """
+    tags = tags if tags is not None else [["" for _v in column] for column in cells]
     if wanted <= 0 or not classes:
-        return (classes, cells)
+        return (classes, cells, tags)
     room = n_rows
     for column in classes:
         spare = 0
@@ -13282,12 +13428,14 @@ def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted):
     if room < wanted:
         wanted = room
     if wanted <= 0:
-        return (classes, cells)
+        return (classes, cells, tags)
     out_classes = []
     out_cells = []
+    out_tags = []
     for index in range(len(classes)):
         kinds = list(classes[index])
         values = list(cells[index])
+        marks = list(tags[index])
         spare_rows = [
             row
             for row in range(len(kinds))
@@ -13303,9 +13451,11 @@ def sheet_aligned_for_empty_records(classes, cells, n_rows, wanted):
             at = at + 1
             kinds[row], kinds[other] = kinds[other], kinds[row]
             values[row], values[other] = values[other], values[row]
+            marks[row], marks[other] = marks[other], marks[row]
         out_classes += [kinds]
         out_cells += [values]
-    return (out_classes, out_cells)
+        out_tags += [marks]
+    return (out_classes, out_cells, out_tags)
 
 
 def sheet_empty_row_places(classes, n_rows, wanted):
@@ -13825,25 +13975,32 @@ def workbook_parts(block, names, cells, n_rows, write_header):
     style_of = {"General": 0}
     classes = []
     columns = []
+    dates = []
     for index in range(width):
         census = block["columns"][index]["cell_classes"]
-        own = list(cells[index])
+        own, dated = sheet_dates_as_day_counts(
+            block["columns"][index], list(cells[index]),
+            block["date_system"] == "1904",
+        )
         columns += [own]
+        dates += [dated]
         classes += [sheet_cell_classes(census, own)]
 
     items = []
     places = {}
     rows_above = sheet_placeholder_rows(block["rows_above_header"], width)
     wanted_empty = block["empty_rows_inside"] or 0
-    classes, columns = sheet_aligned_for_empty_records(
-        classes, columns, n_rows, wanted_empty
+    classes, columns, dates = sheet_aligned_for_empty_records(
+        classes, columns, n_rows, wanted_empty, dates
     )
     empty_places = sheet_empty_row_places(classes, n_rows, wanted_empty)
 
     styles = []
     for index in range(width):
         column = block["columns"][index]
-        kinds = sheet_format_kinds(column["format_kinds"], classes[index])
+        kinds = sheet_format_kinds(
+            column["format_kinds"], classes[index], dates[index]
+        )
         row_styles = []
         for row in range(len(kinds)):
             code = sheet_code_for_kind(kinds[row], column["format_code"])
@@ -14213,13 +14370,34 @@ def _workbook_sheet():
     half = 11
     first = [f"10{index:02d}" for index in range(half)] + ["" for _ in range(half)]
     second = ["" for _ in range(half)] + [f"20{index:02d}" for index in range(half)]
+    # THE DATES A READER TOOK OUT OF DATE CELLS (repair of the stage-2b
+    # integration). `recorded_on` holds eight bare days and three moments
+    # among eleven formatted blanks, and publishes eleven datetime
+    # formats: they go to the three moments first, then to the eight
+    # days. `seen_at` holds six days and five
+    # moments -- one at midnight, one carrying milliseconds -- whose
+    # format counts the smallest group held back, so each keeps its own
+    # kind rather than the general format.
+    recorded = []
+    for index, day in enumerate((
+        "1904-01-01", "2023-03-01", "2024-06-15 13:45:07", "2024-02-29",
+        "2030-01-02", "1950-05-05", "2012-07-04 08:00:00", "2024-11-30",
+        "2001-09-10", "1999-12-31 23:59:59", "2019-10-10",
+    )):
+        recorded += ["", day] if index % 2 else [day, ""]
+    seen = [
+        "", "1904-01-02", "2024-06-15 00:00:00", "", "2024-06-16", "",
+        "1999-12-31 23:59:59.250", "", "", "2031-02-03", "2031-02-03 04:05:06",
+        "", "2020-02-29", "", "", "2021-12-31", "", "2021-12-31 12:00:00", "",
+        "", "2022-01-01", "",
+    ]
     return {
         "why": "method section G2.2, written at this landing because the "
         "method stated NONE of the workbook writer's rules and nothing "
         "could be mirrored from a statement that did not exist. Every "
         "part of the package is frozen as TEXT, never as the packed "
         "bytes: the deflate stream differs between zlib builds, which "
-        "the landing that wrote the writer states as a limit. Two "
+        "the landing that wrote the writer states as a limit. Four "
         "columns of twenty-two rows reach the rules that matter. The "
         "second column's cells are digit strings and its census says "
         "TEXT, so it pins the rule the whole seam exists for -- the "
@@ -14237,12 +14415,20 @@ def _workbook_sheet():
         "neutrally, and the shared-string table is filled in the order "
         "the sheets are written -- the word a sheet that is not the "
         "table's carries comes before the empty string of the table's "
-        "own sheet, which no reading of the parts alone would predict.",
+        "own sheet, which no reading of the parts alone would predict. "
+        "The last two columns hold DATES as the reader spells a date "
+        "cell, and they are written back as day counts of the 1904 "
+        "system wearing a date format. The third publishes eleven "
+        "datetime formats beside eleven formatted blanks, which take "
+        "formats too, and the eleven go to the dates. The fourth's format "
+        "counts were held back by the smallest group, and each date "
+        "keeps its own kind rather than being written as a bare day "
+        "count.",
         "kind": "workbook",
-        "names": ["reading", "note"],
+        "names": ["reading", "note", "recorded_on", "seen_at"],
         "n_rows": rows,
         "write_header": True,
-        "cells": [first, second],
+        "cells": [first, second, recorded, seen],
         "workbook": {
             "autofilter": True,
             "columns": [
@@ -14256,6 +14442,18 @@ def _workbook_sheet():
                     "cell_classes": census(absent=half, text=half),
                     "format_code": "@",
                     "format_kinds": kinds(datetime=half, text=half),
+                    "formulas": 0,
+                },
+                {
+                    "cell_classes": census(blank=half, number=half),
+                    "format_code": "m/d/yy h:mm",
+                    "format_kinds": kinds(date=None, datetime=half, plain=None),
+                    "formulas": 0,
+                },
+                {
+                    "cell_classes": census(absent=half, number=half),
+                    "format_code": "mm-dd-yy",
+                    "format_kinds": kinds(date=None, datetime=None, plain=None),
                     "formulas": 0,
                 },
             ],

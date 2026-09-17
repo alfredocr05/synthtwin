@@ -2554,6 +2554,23 @@ def test_the_workbook_twin_is_the_package_the_method_requires(
         assert text == case["parts"][name], name
 
 
+def _row_order_format_kinds(census: dict, classes: list) -> list:
+    """G2.2 step 2 as it stood before a date format went to a date first."""
+    written = [
+        index for index in range(len(classes)) if classes[index] != "absent"
+    ]
+    out = ["plain" for _index in range(len(classes))]
+    at = 0
+    for kind in ("date", "datetime", "time", "elapsed", "text"):
+        found = census.get(kind)
+        left = found if isinstance(found, int) else 0
+        while left > 0 and at < len(written):
+            out[written[at]] = kind
+            at = at + 1
+            left = left - 1
+    return out
+
+
 DOCUMENT_MUTANTS = {
     "written_form_lines": (
         Mutant(
@@ -2613,6 +2630,28 @@ DOCUMENT_MUTANTS = {
             "cells are digit strings is written as numbers",
             attribute="sheet_cell_classes",
             replacement=_classed_by_their_characters,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2's rule that a date the reader took out of a date "
+            "cell is written back as the day count it was read as; the "
+            "mutant writes the date as text, which every reader then "
+            "hands back as text",
+            attribute="sheet_dates_as_day_counts",
+            replacement=lambda column, own, epoch_1904: (
+                list(own), ["" for _cell in own]
+            ),
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2's rule that a date format goes to a date first and "
+            "that a date left over keeps a date format the census does not "
+            "deny; the mutant hands the formats out in row order alone, "
+            "and dates are written wearing the general format",
+            attribute="sheet_format_kinds",
+            replacement=lambda census, classes, dated=None: (
+                _row_order_format_kinds(census, classes)
+            ),
             outcome=CHANGES_THE_CELLS,
         ),
     ),

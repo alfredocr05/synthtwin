@@ -983,7 +983,24 @@ def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
     # ...and the answer: the word says nothing about it, and the ceiling
     # is listed rather than held.
     assert first["wide_runs"] == "none", first["wide_runs"]
-    assert twin_exit == 0
+    # THE TWIN'S ONE MISS IS ITS MEAN, AND IT IS A TRUE ONE (validation
+    # method V6.1-A2, the stage-2b integration). One value of 10**16
+    # beside 799 amounts under 9,000 publishes a mean of about 3.7e13;
+    # the construction's window for it runs from 6.9e13 to 2.8e14 and
+    # the twin holds 1.5e14, four times the published mean. That used to
+    # be WITHIN-BOUND. It is MISSED now, and nothing else is.
+    missed = [
+        line.strip()
+        for line in (tmp_path / "pooled" / "check-twin" / "real-twin-quality.txt")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.rstrip().endswith(": MISSED")
+    ]
+    assert set(missed) <= {
+        "moments.mean [numeric.mean]: MISSED",
+        "moments.std [numeric.std]: MISSED",
+    }, missed
+    assert twin_exit in (0, 3)
     assert real_exit == 0
     for line in _wide_lines_of_the_real_report(tmp_path / "pooled"):
         assert not line.endswith(": HELD"), line

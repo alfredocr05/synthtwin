@@ -9581,7 +9581,7 @@ def _written_grid(
         return pinned if pinned > 0 else -1
     census = facts.fraction_widths
     if len(census) != 1:
-        return -1
+        return _dominant_grid(column, facts)
     for figures in census:
         if not figures:
             return -1
@@ -9594,6 +9594,66 @@ def _written_grid(
             return -1
         return int(figures)
     return -1
+
+
+def _dominant_grid(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> int:
+    """The grid of a column written at SEVERAL widths: its commonest (G5.2a).
+
+    THE DEFECT, AS MEASURED (repair of the stage-2b integration). A
+    column written at more than one fraction width was read as on no
+    grid at all, so its ladder was interpolated continuously and the
+    writer met the census with whatever the values allowed: 400
+    one-place readings with ONE cell written `4.20` publish `{1: 399, 2:
+    1}`, and the twin wrote `5.020207149207973` six times, held 393 cells
+    at one place and 26 different numbers against 27, exit 3 at every
+    floor. The commonest export there is behaves the same way: money
+    written by the shortest round trip (`12.5` beside `12.35`) publishes
+    `{1: 213, 2: 1787}` and missed both widths and the count of
+    different numbers.
+
+    THE COMMONEST NAMED WIDTH IS THE GRID, ties to the wider, wherever
+    the named widths and the NAMED point-free style counts cover every
+    numeric cell -- the coverage test of the one-width rule. A census
+    that pools a width is not read as a grid at all: the pool may hold a
+    width FINER than the commonest, and snapping it to the coarser grid
+    moved a published minimum of 2.11 on a column pooling ten two-place
+    cells beside fifty one-place ones. A narrower width is a grid
+    value whose last figures are zero, and a wider one is a grid value
+    written with zeros after it, so every cell the census counts can be
+    written from a value on that grid. Measured on 96 twins of six
+    multi-width shapes at 400 and 2,000 rows, floors 1 and 11, two seeds
+    each: twins exiting 3 went from 72 to 44, no twin that passed before
+    missed after, and every real table still passed. What is left is a
+    width count off by a few cells where too few grid values end in a
+    zero, and it is named on the twin's page.
+
+    Guarantees: accepts a column and its numeric block; returns a width
+    of one or more, or -1. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
+    """
+    census = facts.fraction_widths
+    total = _named_whole_demand(facts)
+    best = -1
+    most = -1
+    for figures in sorted(census):
+        count = census[figures]
+        if figures == contract.WITHHELD:
+            return -1
+        for letter in figures:
+            if letter not in _DIGITS:
+                return -1
+        width = int(figures)
+        if width <= 0:
+            return -1
+        total = total + count
+        if count > most or (count == most and width > best):
+            most = count
+            best = width
+    if best <= 0 or total != column.n_numeric:
+        return -1
+    return best
 
 
 def _pinned_fraction(
@@ -18794,6 +18854,30 @@ def _band_alphabet(band: str) -> "tuple[str, ...]":
     return _WIDE
 
 
+def _lone_figure(index: int) -> "str | None":
+    """The ``index``-th whole number one figure long: `1` to `9`, then `0`.
+
+    THE LONE NOUGHT IS A WHOLE NUMBER ONE FIGURE LONG (repair of the
+    stage-2b integration). The rule that keeps a whole number's length
+    equal to its count of figures refuses a leading nought, and it was
+    applied to the one figure that has nothing after it: `0` is not a
+    nought LEADING anything. The figures band therefore held nine
+    one-figure values where there are ten, and a declared record number
+    counting from nought -- `0` to `119` -- could not be written: the
+    tenth short value spilled into three figures and the twin missed its
+    own published layout census, `%%%` asked 20 and held 21.
+
+    The nought is offered LAST, after `9`, so a column whose values count
+    from one takes the same nine values in the same order it always did
+    and meets the nought only where it needs a tenth.
+    """
+    if index < 0 or index > 9:
+        return None
+    if index == 9:
+        return _DIGITS[0]
+    return _DIGITS[index + 1]
+
+
 def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
     """What one band allows as a value's leftmost character (G9.5 step 3).
 
@@ -18804,7 +18888,8 @@ def _band_head(band: str, whole: bool) -> "tuple[str, ...]":
 
     - figures alone: any figure, or any figure but zero where the
       description records that every value is a whole number, so that a
-      value's length is its count of figures (method G9.6);
+      value's length is its count of figures (method G9.6) -- the lone
+      nought excepted, which `_lone_figure` offers after `9`;
     - the code alphabet: never a figure, so the value cannot be counted
       among the ones written in figures alone;
     - outside the code alphabet: a character the code alphabet does not
@@ -20053,6 +20138,8 @@ def _identifier_at(
         )
     if kind == _CLASS_NUMBER and facts.all_whole_numbers:
         if band == _BAND_DIGITS:
+            if length == 1:
+                return _lone_figure(index)
             return _spelling_at(
                 _DIGITS, length, index, _band_head(band, True)
             )

@@ -486,6 +486,123 @@ def _all_figures(text: str) -> bool:
     return True
 
 
+def _significant_figures(figures: str) -> str:
+    """The figures with the zeros that only place them removed from both ends."""
+    if not isinstance(figures, str):
+        raise TypeError("internal check: a number's figures were not text")
+    start = 0
+    while start < len(figures) and figures[start] == "0":
+        start = start + 1
+    end = len(figures)
+    while end > start and figures[end - 1] == "0":
+        end = end - 1
+    return figures[start:end]
+
+
+def stored_number_spelling(text: str) -> str:
+    """A number cell's stored text, with the binary noise of its writer removed.
+
+    WHY A STORED NUMBER IS RESPELT AT ALL (repair of the stage-2b
+    integration). A workbook stores a DOUBLE, and the characters it is
+    stored under are the writer's choice and not the person's: what a
+    person sees is decided by the cell's number format. openpyxl and
+    pandas store `79.1` as `79.09999999999999` (sixteen significant
+    figures) and Excel stores it as `79.099999999999994` (seventeen).
+    Every reader hands both back as the double 79.1. Read verbatim, that
+    noise was published as fourteen- and fifteen-place fraction widths,
+    and the real workbook then failed its own description: measured on
+    400 one-decimal values, 167 of them stored at sixteen figures, exit 3
+    on the real file and on its twin, where the shortest spelling of the
+    same values validated at exit 0.
+
+    Guarantees: a fixed function of the text. A text holding a point or
+    an exponent is respelt from the shortest spelling of the double it
+    stores, and only where that spelling needs FEWER significant figures
+    than the stored text -- so `2.50`, `45000` and `1E-3` come back
+    unchanged, and a text holding figures only is never touched, which
+    keeps a whole number past 2**53 in the figures the person stored.
+    The respelling keeps the stored text's notation: positional stays
+    positional, and an exponent keeps its letter. Anything that is not a
+    plain stored number comes back as it was.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a number's spelling was not text")
+    body = text
+    sign = ""
+    if body[:1] == "-":
+        sign = "-"
+        body = body[1:]
+    marker = ""
+    exponent = ""
+    place = body.find("e")
+    if place >= 0:
+        marker = "e"
+    else:
+        place = body.find("E")
+        if place >= 0:
+            marker = "E"
+    if marker:
+        exponent = body[place + 1 :]
+        body = body[:place]
+    if exponent[:1] in ("-", "+"):
+        if not _all_figures(exponent[1:]):
+            return text
+    elif marker and not _all_figures(exponent):
+        return text
+    whole = body
+    fraction = ""
+    point = body.find(".")
+    if point >= 0:
+        whole = body[:point]
+        fraction = body[point + 1 :]
+    if not marker and point < 0:
+        return text
+    if (whole and not _all_figures(whole)) or (
+        fraction and not _all_figures(fraction)
+    ):
+        return text
+    if not whole and not fraction:
+        return text
+    value = float(text)
+    if value != value or value in (float("inf"), float("-inf")):
+        return text
+    shortest = repr(abs(value))
+    short_exponent = 0
+    place = shortest.find("e")
+    if place >= 0:
+        short_exponent = int(shortest[place + 1 :])
+        shortest = shortest[:place]
+    short_point = shortest.find(".")
+    short_whole = shortest
+    short_fraction = ""
+    if short_point >= 0:
+        short_whole = shortest[:short_point]
+        short_fraction = shortest[short_point + 1 :]
+    stored = _significant_figures(whole + fraction)
+    figures = short_whole + short_fraction
+    # Where the first significant figure stands, counted as a power of
+    # ten, is what places the figures again after the zeros are removed.
+    lead = 0
+    while lead < len(figures) and figures[lead] == "0":
+        lead = lead + 1
+    kept = _significant_figures(figures)
+    if len(kept) >= len(stored):
+        return text
+    if not kept:
+        return sign + "0"
+    power = len(short_whole) - lead - 1 + short_exponent
+    if marker:
+        mantissa = kept[:1]
+        if len(kept) > 1:
+            mantissa = mantissa + "." + kept[1:]
+        return sign + mantissa + marker + f"{power}"
+    if power < 0:
+        return sign + "0." + "0" * (-power - 1) + kept
+    if power + 1 >= len(kept):
+        return sign + kept + "0" * (power + 1 - len(kept))
+    return sign + kept[: power + 1] + "." + kept[power + 1 :]
+
+
 def _whole_number(text: str, fallback: int) -> int:
     """A whole number written in figures, or ``fallback``."""
     if not isinstance(text, str):
@@ -1045,6 +1162,8 @@ def sheet_cells(
                 held = ""
         elif kind == CELL_TEXT and not held:
             kind = CELL_EMPTY
+        if kind == CELL_NUMBER:
+            held = stored_number_spelling(held)
         if row > walk.last_row:
             walk.last_row = row
         if column > walk.last_column:
@@ -1386,6 +1505,9 @@ def table_of(reading: Reading) -> Sheet:
         formulas += [[]]
     n_rows = 0
     empty_inside = 0
+    # A DATE CELL IS READ AS ITS DATE (`dialect.sheet_serial_moment`):
+    # the kind of each code is worked out once, not once per cell.
+    kinds_of: "dict[str, str]" = {}
     for number in range(header_row + 1, last_row + 1):
         n_rows = n_rows + 1
         holding = False
@@ -1400,7 +1522,15 @@ def table_of(reading: Reading) -> Sheet:
                 formats[index] += [GENERAL_FORMAT]
                 formulas[index] += [False]
                 continue
-            columns[index] += [spelled(standing.kind, standing.text)]
+            shown_text = spelled(standing.kind, standing.text)
+            if standing.kind == CELL_NUMBER:
+                code = standing.number_format
+                if code not in kinds_of:
+                    kinds_of[code] = format_kind(code)
+                shown_text = dialect.sheet_serial_moment(
+                    shown_text, kinds_of[code], reading.epoch_1904
+                )
+            columns[index] += [shown_text]
             classes[index] += [standing.kind]
             formats[index] += [standing.number_format]
             formulas[index] += [standing.formula]

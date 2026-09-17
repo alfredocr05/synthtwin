@@ -7479,6 +7479,17 @@ def _wide_runs(cells: _Cells) -> str:
         style = numeric_style(text)
         if style not in POINT_FREE_STYLES:
             continue
+        # NO TEXT SHORTER THAN SIXTEEN CHARACTERS CAN BE ONE, and it is
+        # not read again to find that out (repair of the stage-2b
+        # integration). A point-free run at or past `WIDE_RUN_FLOOR`
+        # writes at least the sixteen figures of 9007199254740992, and a
+        # sign, a pad or a mark only adds characters. Reading every
+        # number a second time here tripled the parser's calls on an
+        # ordinary column of counts -- 340 for 80 cells, against the
+        # budget of two a cell `tests/test_r6_taxonomy_contract.py`
+        # holds -- and changed no answer.
+        if len(text) < 16:
+            continue
         value = parsing.parse_number(text)
         if value is None:
             continue

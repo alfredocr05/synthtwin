@@ -335,22 +335,34 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
     value narrow enough to wear the padding and comes out three figures
     wide. No move of a VALUE repairs a cell COUNT, so this column misses
     -- and the point of this test is that it is not silent about it.
+
+    WHERE THE MISS NOW SHOWS (measured at the stage-2b integration).
+    Landing 2b.7 spells each number the way the source spelled its own
+    value, so the ninth padded cell is no longer forced three figures
+    wide: the field-width census now comes back whole, `{1: 8, 2: 17}`
+    at every seed, and the strata that still come out 9, 8 and 8 cost
+    the PADDED count instead -- eight `-02` written against nine. That
+    census is EXACT-OBSERVABLE, so the miss is named on the twin's own
+    page and MISSED on the quality page, and the width census stays
+    REPORT-ONLY and listed.
     """
     document, loaded = _described(
         tmp_path, "signed", "reading", _uneven_signed_rows()
     )
     assert document["columns"][0]["field_widths"] == {"1": 8, "2": 17}
+    assert document["columns"][0]["pad_widths"] == {"2": 9}
     for seed in SEEDS:
         cells, path, built = _twin_cells(tmp_path, "signed", loaded, seed)
-        assert _field_widths_of(cells, "") != {1: 8, 2: 17}
+        assert _field_widths_of(cells, "") == {1: 8, 2: 17}
+        assert sum(1 for cell in cells if cell == "-02") != 9
         # The twin's OWN report names it, with the published count
         # beside the achieved one.
         named = [
             note for note in built.deviations
-            if note.fact == "field_widths" and note.column == "reading"
+            if note.fact == "pad_widths" and note.column == "reading"
         ]
         assert named, f"seed {seed}: the twin missed a width and said nothing"
-        assert "figure(s) wide as a whole number" in named[0].published
+        assert "wide with a leading zero" in named[0].published
         # ...and the quality report LISTS the census, because the fact
         # is REPORT-ONLY: a file is not failed on it.
         outcome = validation.measure(loaded, str(path))
@@ -363,6 +375,10 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
             check for check in outcome.checks
             if check.fact == "numeric.field_widths"
         ], "a REPORT-ONLY census may not file an executable subcheck"
+        assert [
+            check for check in outcome.checks
+            if check.fact == "numeric.pad_widths" and check.verdict == "MISSED"
+        ], f"seed {seed}: the padded count was missed and the quality page held it"
 
 
 # -- the disclosure, in words -----------------------------------------

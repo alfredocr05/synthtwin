@@ -300,6 +300,20 @@ no cell has that class; the two are never read the same way.
   to a class whose number was not published rather than to one the
   description denies.
 
+**Step 0 — a date is written back as the day count it was read as**
+(repair of the stage-2b integration). The reader hands the column
+machinery a number cell wearing a date or datetime format as its date
+(contract 4.3b), so the generator writes dates. Where a column
+publishes a positive `date` or `datetime` count, or a `format_code` of
+either kind, each cell holding `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`
+(with an optional `.fff`) is replaced, before step 1, by the day count
+a workbook stores for it in the published date system — a whole day in
+figures, a moment as the shortest spelling of its double — and the kind
+of date it was is carried beside the cell through step 6's exchanges.
+The 1900 system counts 1900-01-01 as day 1 and carries a 29 February
+1900 that never was, so a date before 1900-03-01 stands one day nearer
+its epoch; a date no day count of the system can hold stays text.
+
 **Step 2 — the kind of format each cell wears** (`cell_format_kinds`).
 A mixture is reproduced as its COUNTS and never collapsed to the
 majority: the census publishes a count per kind and the twin owes a
@@ -307,7 +321,14 @@ cell per count. An ABSENT cell is always `plain`, because nothing is
 written for it and every reader sees the general format there — so the
 kinds that are not plain are handed out, in the order `date`,
 `datetime`, `time`, `elapsed`, `text`, in row order, among the cells
-that ARE written, and `plain` takes the rest.
+that ARE written, and `plain` takes the rest. **A date format goes to a
+date first:** the `date` and `datetime` counts are each offered to the
+cells holding a date of their own kind, then to the cells holding a
+date of the other kind, and only then to every written cell in row
+order. **And a date left over keeps its own kind** where the census
+does not publish that kind as nought: a count the smallest group held
+back is not a licence to write none, and a date wearing the general
+format reads back as a bare day count.
 
 **Step 3 — the code each cell is written with.** The column's own
 published `format_code` is used for the kind it IS; a cell of any other
@@ -932,6 +953,25 @@ cells publish the width `1` for 490 and pool the other ten, and 490 + 10
 read as full coverage of the grid of tenths, which `-0.01` is not on.
 Its twin held 28 different numbers against a published 31 at seeds 1, 7
 and 23, and holds 30 with the pool excluded.
+
+**A census naming SEVERAL widths is on the grid of its commonest one**
+(repair of the stage-2b integration). Where `fraction_widths` names two
+widths or more, none of them pooled, every named width is positive, and
+the named widths and the NAMED point-free style counts together cover
+every numeric cell, the column is on the written grid of the width the
+most cells are written at, ties going to the wider. A census that pools
+a width is read as no grid: the pool may hold a width finer than the
+commonest, and snapping it moved a published minimum of 2.11. A
+narrower width is a grid value whose last figures are zero and a wider
+one is a grid value written with zeros after it, so every cell the
+census counts can be written from a value on that grid. Such a column
+used to be read as on no grid: 400 one-place readings with one cell
+written `4.20` published `{1: 399, 2: 1}` at a floor of one, and the twin wrote
+`5.020207149207973` six times and held 26 different numbers against 27,
+exit 3 at every floor; money written by the shortest round trip
+(`{1: 213, 2: 1787}`) missed both widths and the count of different
+numbers. On 96 twins of six multi-width shapes, twins exiting 3 went
+from 72 to 44, and none that passed before missed after.
 The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
 how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
 the grid point whose last `f` figures are zero, so every number of such
@@ -6825,7 +6865,12 @@ packing rule applying here IN FULL — both margins and the shape search
   layout held is refused whatever else it repairs;
 - **when `all_whole_numbers` is true, every band writes whole numbers.**
   In the figures band the first character is a non-zero digit, so the
-  spelling's length is its digit count. In the code band the value is
+  spelling's length is its digit count — except the lone figure `0`,
+  which leads nothing: one figure long, the band holds ten values, `1`
+  to `9` and then `0`, offered in that order so a column counting from
+  one keeps its first nine. A declared record number counting from
+  nought (`0` to `119`) otherwise spilled its tenth short value into
+  three figures and missed its own published layout census. In the code band the value is
   written `<digits>e0`, which reads back as a whole number and holds a
   character the figures do not. Outside the code alphabet it is written
   `<digits>.`, which reads back as a whole number and holds a character

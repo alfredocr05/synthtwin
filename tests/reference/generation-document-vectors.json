@@ -355,6 +355,54 @@
           "2008",
           "2009",
           "2010"
+        ],
+        [
+          "1904-01-01",
+          "",
+          "",
+          "2023-03-01",
+          "2024-06-15 13:45:07",
+          "",
+          "",
+          "2024-02-29",
+          "2030-01-02",
+          "",
+          "",
+          "1950-05-05",
+          "2012-07-04 08:00:00",
+          "",
+          "",
+          "2024-11-30",
+          "2001-09-10",
+          "",
+          "",
+          "1999-12-31 23:59:59",
+          "2019-10-10",
+          ""
+        ],
+        [
+          "",
+          "1904-01-02",
+          "2024-06-15 00:00:00",
+          "",
+          "2024-06-16",
+          "",
+          "1999-12-31 23:59:59.250",
+          "",
+          "",
+          "2031-02-03",
+          "2031-02-03 04:05:06",
+          "",
+          "2020-02-29",
+          "",
+          "",
+          "2021-12-31",
+          "",
+          "2021-12-31 12:00:00",
+          "",
+          "",
+          "2022-01-01",
+          ""
         ]
       ],
       "kind": "workbook",
@@ -376,7 +424,9 @@
       "n_rows": 22,
       "names": [
         "reading",
-        "note"
+        "note",
+        "recorded_on",
+        "seen_at"
       ],
       "parts": {
         "[Content_Types].xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet3.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/><Override PartName=\"/xl/tables/table1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml\"/><Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/><Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/></Types>",
@@ -384,16 +434,16 @@
         "docProps/app.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>synthtwin</Application><Company></Company></Properties>",
         "docProps/core.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title></dc:title><dc:subject></dc:subject><dc:creator></dc:creator><cp:lastModifiedBy></cp:lastModifiedBy></cp:coreProperties>",
         "xl/_rels/workbook.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet2.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet3.xml\"/><Relationship Id=\"rId4\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/><Relationship Id=\"rId5\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings\" Target=\"sharedStrings.xml\"/></Relationships>",
-        "xl/sharedStrings.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"15\" uniqueCount=\"15\"><si><t>withheld</t></si><si><t></t></si><si><t>reading</t></si><si><t>note</t></si><si><t>2000</t></si><si><t>2001</t></si><si><t>2002</t></si><si><t>2003</t></si><si><t>2004</t></si><si><t>2005</t></si><si><t>2006</t></si><si><t>2007</t></si><si><t>2008</t></si><si><t>2009</t></si><si><t>2010</t></si></sst>",
-        "xl/styles.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"4\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
-        "xl/tables/table1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Table1\" displayName=\"Table1\" ref=\"A3:B25\" totalsRowShown=\"0\"><autoFilter ref=\"A3:B25\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"reading\"/><tableColumn id=\"2\" name=\"note\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showFirstColumn=\"0\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/></table>",
+        "xl/sharedStrings.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"17\" uniqueCount=\"17\"><si><t>withheld</t></si><si><t></t></si><si><t>reading</t></si><si><t>note</t></si><si><t>recorded_on</t></si><si><t>seen_at</t></si><si><t>2000</t></si><si><t>2001</t></si><si><t>2002</t></si><si><t>2003</t></si><si><t>2004</t></si><si><t>2005</t></si><si><t>2006</t></si><si><t>2007</t></si><si><t>2008</t></si><si><t>2009</t></si><si><t>2010</t></si></sst>",
+        "xl/styles.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy\\-mm\\-dd\\ hh:mm:ss\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"5\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"22\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
+        "xl/tables/table1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Table1\" displayName=\"Table1\" ref=\"A3:D25\" totalsRowShown=\"0\"><autoFilter ref=\"A3:D25\"/><tableColumns count=\"4\"><tableColumn id=\"1\" name=\"reading\"/><tableColumn id=\"2\" name=\"note\"/><tableColumn id=\"3\" name=\"recorded_on\"/><tableColumn id=\"4\" name=\"seen_at\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showFirstColumn=\"0\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/></table>",
         "xl/workbook.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><workbookPr date1904=\"1\"/><sheets><sheet name=\"Notes\" sheetId=\"1\" state=\"hidden\" r:id=\"rId1\"/><sheet name=\"Data\" sheetId=\"2\" r:id=\"rId2\"/><sheet name=\"Sheet3\" sheetId=\"3\" r:id=\"rId3\"/></sheets></workbook>",
         "xl/worksheets/_rels/sheet2.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/table\" Target=\"../tables/table1.xml\"/></Relationships>",
         "xl/worksheets/sheet1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c></row></sheetData></worksheet>",
-        "xl/worksheets/sheet2.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:C26\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\" t=\"s\" s=\"3\"><v>2</v></c><c r=\"B3\" t=\"s\" s=\"3\"><v>3</v></c><c r=\"C3\"/></row><row r=\"4\"/><row r=\"5\"/><row r=\"6\"/><row r=\"7\"/><row r=\"8\"/><row r=\"9\"/><row r=\"10\"/><row r=\"11\"/><row r=\"12\"/><row r=\"13\"/><row r=\"14\"/><row r=\"15\"><c r=\"A15\" s=\"1\"><v>1000</v></c><c r=\"B15\" t=\"s\" s=\"2\"><v>4</v></c></row><row r=\"16\"><c r=\"A16\" s=\"1\"><v>1001</v></c><c r=\"B16\" t=\"s\" s=\"2\"><v>5</v></c></row><row r=\"17\"><c r=\"A17\" s=\"1\"><v>1002</v></c><c r=\"B17\" t=\"s\" s=\"2\"><v>6</v></c></row><row r=\"18\"><c r=\"A18\" s=\"1\"><v>1003</v></c><c r=\"B18\" t=\"s\" s=\"2\"><v>7</v></c></row><row r=\"19\"><c r=\"A19\" s=\"1\"><v>1004</v></c><c r=\"B19\" t=\"s\" s=\"2\"><v>8</v></c></row><row r=\"20\"><c r=\"A20\" s=\"1\"><v>1005</v></c><c r=\"B20\" t=\"s\" s=\"2\"><v>9</v></c></row><row r=\"21\"><c r=\"A21\" s=\"1\"><v>1006</v></c><c r=\"B21\" t=\"s\" s=\"2\"><v>10</v></c></row><row r=\"22\"><c r=\"A22\" s=\"1\"><v>1007</v></c><c r=\"B22\" t=\"s\" s=\"2\"><v>11</v></c></row><row r=\"23\"><c r=\"A23\" s=\"1\"><v>1008</v></c><c r=\"B23\" t=\"s\" s=\"2\"><v>12</v></c></row><row r=\"24\"><c r=\"A24\" s=\"1\"><v>1009</v></c><c r=\"B24\" t=\"s\" s=\"2\"><v>13</v></c></row><row r=\"25\"><c r=\"A25\" s=\"1\"><v>1010</v></c><c r=\"B25\" t=\"s\" s=\"2\"><v>14</v></c></row><row r=\"26\"><c r=\"A26\"/></row></sheetData><autoFilter ref=\"A3:B26\"/><tableParts count=\"1\"><tablePart r:id=\"rId1\"/></tableParts></worksheet>",
+        "xl/worksheets/sheet2.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:E26\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\" t=\"s\" s=\"4\"><v>2</v></c><c r=\"B3\" t=\"s\" s=\"4\"><v>3</v></c><c r=\"C3\" t=\"s\" s=\"4\"><v>4</v></c><c r=\"D3\" t=\"s\" s=\"4\"><v>5</v></c><c r=\"E3\"/></row><row r=\"4\"/><row r=\"5\"/><row r=\"6\"/><row r=\"7\"/><row r=\"8\"/><row r=\"9\"/><row r=\"10\"/><row r=\"11\"/><row r=\"12\"/><row r=\"13\"/><row r=\"14\"/><row r=\"15\"><c r=\"A15\" s=\"1\"><v>1000</v></c><c r=\"B15\" t=\"s\" s=\"2\"><v>6</v></c><c r=\"C15\" s=\"3\"><v>16926</v></c><c r=\"D15\" s=\"1\"><v>1</v></c></row><row r=\"16\"><c r=\"A16\" s=\"1\"><v>1001</v></c><c r=\"B16\" t=\"s\" s=\"2\"><v>7</v></c><c r=\"C16\" s=\"3\"><v>39632.333333333336</v></c><c r=\"D16\" s=\"1\"><v>42428</v></c></row><row r=\"17\"><c r=\"A17\" s=\"1\"><v>1002</v></c><c r=\"B17\" t=\"s\" s=\"2\"><v>8</v></c><c r=\"C17\" s=\"3\"><v>0</v></c><c r=\"D17\" s=\"2\"><v>43996</v></c></row><row r=\"18\"><c r=\"A18\" s=\"1\"><v>1003</v></c><c r=\"B18\" t=\"s\" s=\"2\"><v>9</v></c><c r=\"C18\" s=\"3\"><v>43524</v></c><c r=\"D18\" s=\"1\"><v>43997</v></c></row><row r=\"19\"><c r=\"A19\" s=\"1\"><v>1004</v></c><c r=\"B19\" t=\"s\" s=\"2\"><v>10</v></c><c r=\"C19\" s=\"3\"><v>44164</v></c><c r=\"D19\" s=\"1\"><v>43099</v></c></row><row r=\"20\"><c r=\"A20\" s=\"1\"><v>1005</v></c><c r=\"B20\" t=\"s\" s=\"2\"><v>11</v></c><c r=\"C20\" s=\"3\"><v>35682</v></c><c r=\"D20\" s=\"2\"><v>35063.99999131945</v></c></row><row r=\"21\"><c r=\"A21\" s=\"1\"><v>1006</v></c><c r=\"B21\" t=\"s\" s=\"2\"><v>12</v></c><c r=\"C21\" s=\"3\"><v>43996.57299768519</v></c><c r=\"D21\" s=\"2\"><v>43099.5</v></c></row><row r=\"22\"><c r=\"A22\" s=\"1\"><v>1007</v></c><c r=\"B22\" t=\"s\" s=\"2\"><v>13</v></c><c r=\"C22\" s=\"3\"><v>43889</v></c><c r=\"D22\" s=\"1\"><v>46420</v></c></row><row r=\"23\"><c r=\"A23\" s=\"1\"><v>1008</v></c><c r=\"B23\" t=\"s\" s=\"2\"><v>14</v></c><c r=\"C23\" s=\"3\"><v>35063.99998842592</v></c><c r=\"D23\" s=\"2\"><v>46420.17020833334</v></c></row><row r=\"24\"><c r=\"A24\" s=\"1\"><v>1009</v></c><c r=\"B24\" t=\"s\" s=\"2\"><v>15</v></c><c r=\"C24\" s=\"3\"><v>42286</v></c><c r=\"D24\" s=\"1\"><v>43100</v></c></row><row r=\"25\"><c r=\"A25\" s=\"1\"><v>1010</v></c><c r=\"B25\" t=\"s\" s=\"2\"><v>16</v></c><c r=\"C25\" s=\"3\"><v>46023</v></c></row><row r=\"26\"><c r=\"A26\"/></row></sheetData><autoFilter ref=\"A3:D26\"/><tableParts count=\"1\"><tablePart r:id=\"rId1\"/></tableParts></worksheet>",
         "xl/worksheets/sheet3.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData/></worksheet>"
       },
-      "why": "method section G2.2, written at this landing because the method stated NONE of the workbook writer's rules and nothing could be mirrored from a statement that did not exist. Every part of the package is frozen as TEXT, never as the packed bytes: the deflate stream differs between zlib builds, which the landing that wrote the writer states as a limit. Two columns of twenty-two rows reach the rules that matter. The second column's cells are digit strings and its census says TEXT, so it pins the rule the whole seam exists for -- the class comes from what the source held and never from what the twin's characters could be read as -- and that is this case's mutant. Each column holds its eleven cells that hold nothing in DIFFERENT rows from the other, so the eleven records holding nothing exist only after the alignment step has moved cells within each column. One column's cells wear a published built-in format code and the other's wear a kind their published code is not, so the canonical code of that kind is written as a custom format. The table's sheet is the SECOND of three, so the first is hidden for the twin's own reader to land on the table, the third's name is withheld and is written neutrally, and the shared-string table is filled in the order the sheets are written -- the word a sheet that is not the table's carries comes before the empty string of the table's own sheet, which no reading of the parts alone would predict.",
+      "why": "method section G2.2, written at this landing because the method stated NONE of the workbook writer's rules and nothing could be mirrored from a statement that did not exist. Every part of the package is frozen as TEXT, never as the packed bytes: the deflate stream differs between zlib builds, which the landing that wrote the writer states as a limit. Four columns of twenty-two rows reach the rules that matter. The second column's cells are digit strings and its census says TEXT, so it pins the rule the whole seam exists for -- the class comes from what the source held and never from what the twin's characters could be read as -- and that is this case's mutant. Each column holds its eleven cells that hold nothing in DIFFERENT rows from the other, so the eleven records holding nothing exist only after the alignment step has moved cells within each column. One column's cells wear a published built-in format code and the other's wear a kind their published code is not, so the canonical code of that kind is written as a custom format. The table's sheet is the SECOND of three, so the first is hidden for the twin's own reader to land on the table, the third's name is withheld and is written neutrally, and the shared-string table is filled in the order the sheets are written -- the word a sheet that is not the table's carries comes before the empty string of the table's own sheet, which no reading of the parts alone would predict. The last two columns hold DATES as the reader spells a date cell, and they are written back as day counts of the 1904 system wearing a date format. The third publishes eleven datetime formats beside eleven formatted blanks, which take formats too, and the eleven go to the dates. The fourth's format counts were held back by the smallest group, and each date keeps its own kind rather than being written as a bare day count.",
       "workbook": {
         "autofilter": true,
         "columns": [
@@ -435,6 +485,48 @@
               "elapsed": 0,
               "plain": 0,
               "text": 11,
+              "time": 0
+            },
+            "formulas": 0
+          },
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 11,
+              "boolean": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 11,
+              "text": 0
+            },
+            "format_code": "m/d/yy h:mm",
+            "format_kinds": {
+              "date": null,
+              "datetime": 11,
+              "elapsed": 0,
+              "plain": null,
+              "text": 0,
+              "time": 0
+            },
+            "formulas": 0
+          },
+          {
+            "cell_classes": {
+              "absent": 11,
+              "blank": 0,
+              "boolean": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 11,
+              "text": 0
+            },
+            "format_code": "mm-dd-yy",
+            "format_kinds": {
+              "date": null,
+              "datetime": null,
+              "elapsed": 0,
+              "plain": null,
+              "text": 0,
               "time": 0
             },
             "formulas": 0

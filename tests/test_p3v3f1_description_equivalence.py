@@ -668,10 +668,15 @@ def test_canonical_spelling_stays_checkable_on_every_file(
     short_verdicts = {
         (check[0], check[2]): check[3] for check in short_checks
     }
-    assert short_verdicts[("amount", "styles.spelled")] == validation.MISSED, (
-        "the surviving below-floor route is what R-P4-19 records; a "
-        "file that now holds against its own description there means "
-        "the residual is closed and this file should say so"
+    # R-P4-19 IS CLOSED (repair of the stage-2b integration, validation
+    # method: a withheld width pool permits its own count of cells an
+    # unnamed width). The ten padded cells ARE the pool, so the padded
+    # file holds against its own description; a file padding more cells
+    # than the pool counts still misses, and the sixty-cell pair below
+    # is still told apart by the census.
+    assert short_verdicts[("amount", "styles.spelled")] == validation.HELD, (
+        "a file whose padded cells are exactly the description's own "
+        "withheld width pool is spelled in a permitted form"
     )
     checks_a, _census_a = _report(folder, described, text_a, "a.csv")
     checks_b, _census_b = _report(folder, described, text_b, "b.csv")
