@@ -26,7 +26,7 @@
       "justification": "The twin cells synthtwin's generation method requires for the cases docs/spec/generation-method-v1.md section G14.3 adds with the repair of the carried items of landing 2b, computed from that specification alone: G6.5a's separation walks taken reach by reach (plan P4-D183), the fill of a saturated grid of tenths (plan P4-D176) and of a column whose published levels are its strata (plan P4-D178), the census of thousands marks held at a thousand (plan P4-D185), and, at part 2 of those carried items, the numbers of a free-text column carrying what the walk of G9.5 step 5 could not spend (plan P4-D190). Each case's registered mutant withdraws its own rule and moves its cells. They live in a sixth file because the fifth stands within a few kilobytes of the byte cap.",
       "path": "tests/reference/generation-branch-vectors-4.json",
       "seed": 0,
-      "sha256": "658a2ae93813f4a6aecf9d753dd31860cefdea0eed8dfd7b9ae14b0309d62b2a"
+      "sha256": "4ea832a2233d53903378eb36b636a967d7c5d67aaa01a07a1cecfd9807b5ac25"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",

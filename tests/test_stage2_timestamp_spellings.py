@@ -400,8 +400,9 @@ def test_a_column_holding_no_midnight_publishes_no_count_and_asks_for_none(
     A published nought was checked at a floor of one, which is what made a
     count of ONE disclosive: a reader who can tell a real nought from a
     suppressed singleton has been told the singleton. So no count is
-    published here at all, a file holding one midnight misses nothing, and
-    the field is LISTED with the reason rather than checked.
+    published here at all, and a file holding one midnight misses nothing:
+    since plan P4-D191 the withheld count is CHECKED on the side it was
+    withheld from -- one is under the line -- rather than listed.
     """
     cells = _minutes(1200, " ", 11)
     first, _second, written, twin_exit, real_exit = _round_trip(
@@ -415,7 +416,7 @@ def test_a_column_holding_no_midnight_publishes_no_count_and_asks_for_none(
     code, report = _validate(tmp_path / "none" / "real-profile.json", moved, tmp_path / "moved")
     assert code == 0
     assert not _misses(report, "datetime.n_at_midnight")
-    assert "without naming a single person" in report
+    assert "midnight.withheld [datetime.n_at_midnight]: HELD" in report
 
 
 @pytest.mark.parametrize("seed", ["4", "11"])

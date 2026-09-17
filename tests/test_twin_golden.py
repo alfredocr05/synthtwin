@@ -386,7 +386,15 @@ NARROW_COLUMN_DIGESTS = {
     # of 158c811 at this seed: 90 of this column's 240 cells moved, the
     # other twelve columns are cell for cell the same, and the description
     # did not move.
-    "recorded_on": "6443ba8ef6f04fd959ee31f7b582cd96",
+    # RE-RECORDED AT PART 2 OF THE CARRIED ITEMS OF LANDING 2b (2026-09-17,
+    # plan P4-D192). `recorded_on` publishes 84 different dates, and its
+    # twin held 176 inside G12.5's envelope of 10 to 240; G7.3's count
+    # pass now holds exactly 84. MEASURED against 98ba576: 105 cells of
+    # this column differ, every other column is byte-identical, the report
+    # prints 84 against a window of 84 for both distinct counts, and the
+    # quality report moves those two from WITHIN-BOUND to HELD (467 held
+    # and 68 within bound become 469 and 66), nothing missed.
+    "recorded_on": "13de1d1246c7e13d97f4cab47aa8e542",
     "answer": "f96508b26b4c8cae171b5bf0984d34a3",
     "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -438,7 +446,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
     # moved cells as the sorted digest above, as written.
-    "recorded_on": "c0b57178cde620d5bd51bd6b64a62209",
+    # Re-recorded for plan P4-D192 with the sorted digest above: the same
+    # 105 cells, as written.
+    "recorded_on": "841909b96ca215f629011f39bdc719f5",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -1419,8 +1429,8 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # of its two published widths with the census exact; the description
 # digest held and no verdict of the quality report moved.
 GOLDEN_TWIN_SHA256 = (
-    # Re-recorded for plan P4-D183: see `reading` above.
-    "986926831ae32c0025e1d22aea40530168d252052b6783aeb7dea706f9aae784"
+    # Re-recorded for plan P4-D192: see `recorded_on` above.
+    "f3e8523f5bbc28a5b2fd6b3f3bcbd42c1f82712a0896cd412c6a6d9f7084fe10"
 )
 
 
@@ -1893,8 +1903,9 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # said the twin writes the international form; it now says the twin keeps
 # the column's own spelling. Diffed line by line: that paragraph alone.
 GOLDEN_REPORT_SHA256 = (
-    # Re-recorded for plan P4-D183: `reading`'s three moments, as held.
-    "4d257e6e1db854ae68b5a24802234c3b30fdbadc89930241fca1fcfd0b51c270"
+    # Re-recorded for plan P4-D192: `recorded_on`'s two distinct counts,
+    # 84 held against a window of 84 where 176 stood in one of 10 to 240.
+    "7787a883239c3818bd19bf4502d3f8e6d19aba4b4d3f71c69d999e380a9c5322"
 )
 
 
@@ -2559,8 +2570,9 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # description names no more than one"), which plan P4-D142 made untrue
 # by checking a census that names one, so ONE set of words was kept.
 GOLDEN_QUALITY_SHA256 = (
-    # Re-recorded for plan P4-D183: `reading`'s three measured moments.
-    "f5e6949f7834614a4ed8a3aee75d4f863e66c61eff61fcb3d21ad25b2a607d11"
+    # Re-recorded for plan P4-D192: `recorded_on`'s two distinct counts
+    # HELD where they were WITHIN-BOUND.
+    "7822d7b4877e7d9624fd89ea3f5273b04a8c7da9fc3b6ce2f82e556702f25c57"
 )
 
 

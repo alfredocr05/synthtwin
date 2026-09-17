@@ -6457,11 +6457,13 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
 
     for _round in range(4):
         changed = False
-        if widths is not None:
-            changed = widths_pass(column, ordinals, pinned, lows, highs, day, widths) or changed
         if distinct is not None:
             changed = distinct_pass(
                 column, ordinals, pinned, lows, highs, day, step, distinct, widths is not None
+            ) or changed
+        if widths is not None:
+            changed = widths_pass(
+                column, ordinals, pinned, lows, highs, day, widths, step, distinct is not None
             ) or changed
         if not changed:
             break
@@ -6498,26 +6500,48 @@ def nearest_fitting(value, low, high, fits, by):
         away += 1
 
 
-def widths_pass(column, ordinals, pinned, lows, highs, day, widths):
-    """Pass 1 of `units_settled` (plan P4-D192): the widths count."""
+def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, distinct=False):
+    """Pass 1 of `units_settled` (plan P4-D192): the widths count.
+
+    Each rank of the kind in surplus is offered the nearest instant a whole
+    number of days away inside its gap whose day is of the other kind --
+    where the count of different units is held too, the nearest such
+    instant on a unit no rank holds, and the nearest on any unit only where
+    none is free, asked again when the rank's turn comes -- and the offers
+    are taken nearest first, ties to the lower rank.
+    """
     parsed = len(ordinals)
+    unit = step if day == 86400 else 1
+    held = {}
+    for value in ordinals:
+        held[value // unit] = held.get(value // unit, 0) + 1
     showing = sum(1 for value in ordinals if shows_a_width(column, value // day))
     if showing == widths:
         return False
     fewer = showing > widths
+
+    def offer(value, low, high):
+        def kind(candidate):
+            return shows_a_width(column, candidate // day) != fewer
+
+        if not distinct:
+            return nearest_fitting(value, low, high, kind, day)
+        free = nearest_fitting(
+            value, low, high,
+            lambda candidate: kind(candidate) and held.get(candidate // unit, 0) <= 0,
+            day,
+        )
+        return free if free is not None else nearest_fitting(value, low, high, kind, day)
+
     options, bare = [], set()
     for rank in range(parsed):
         if pinned[rank] or shows_a_width(column, ordinals[rank] // day) != fewer:
             continue
         if (lows[rank], highs[rank]) in bare:
             continue
-        found = nearest_fitting(
-            ordinals[rank], lows[rank], highs[rank],
-            lambda candidate: shows_a_width(column, candidate // day) != fewer,
-            day,
-        )
+        found = offer(ordinals[rank], lows[rank], highs[rank])
         if found is None:
-            if day == 1:
+            if day == 1 and not distinct:
                 bare.add((lows[rank], highs[rank]))
             continue
         options.append((abs(found - ordinals[rank]), rank, found))
@@ -6525,6 +6549,12 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths):
     for _distance, rank, found in sorted(options):
         if showing == widths:
             break
+        if distinct:
+            found = offer(ordinals[rank], lows[rank], highs[rank])
+            if found is None:
+                continue
+            held[ordinals[rank] // unit] -= 1
+            held[found // unit] = held.get(found // unit, 0) + 1
         ordinals[rank] = found
         showing += -1 if fewer else 1
         changed = True
@@ -6602,13 +6632,92 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             if count == distinct:
                 break
             own = ordinals[rank] // unit
-            if held[own] < 2 or held.get(found // unit, 0) > 0:
+            if held[own] < 2:
                 continue
+            if held.get(found // unit, 0) > 0:
+                value = ordinals[rank]
+                found = nearest_fitting(
+                    value, lows[rank], highs[rank],
+                    lambda candidate, value=value: held.get(candidate // unit, 0) == 0 and standing(value, candidate),
+                    unit,
+                )
+                if found is None:
+                    continue
             held[own] -= 1
             held[found // unit] = 1
             ordinals[rank] = found
             count += 1
             changed = True
+    if count < distinct:
+        changed = standing_swaps(
+            column, ordinals, pinned, lows, highs, day, step, unit, held, widths, distinct - count
+        ) or changed
+    return changed
+
+
+def standing_of(column, value, day, step, widths):
+    """A unit's width kind (where widths are held) and whether it stands at
+    midnight (on a column counted in seconds)."""
+    return (
+        bool(widths) and shows_a_width(column, value // day),
+        day == 86400 and written_at_midnight(value, 0, step),
+    )
+
+
+def nearest_free_where(column, value, low, high, day, step, unit, held, widths, standing, same):
+    """The nearest free unit inside [low, high] of (``same``) or not of a
+    standing; a unit at a midnight is sought one day at a time, from the
+    one starting the value's own day outward, and every other among the
+    units ``unit`` apart from the value, outward; earlier first."""
+    by, base, away = unit, value, 1
+    if same and standing[1]:
+        by, base, away = 86400, value - value % 86400, 0
+    while True:
+        earlier, later = base - away * by, base + away * by
+        if earlier < low and later > high:
+            return None
+        for candidate in (earlier, later):
+            if not low <= candidate <= high or held.get(candidate // unit, 0) > 0:
+                continue
+            if (standing_of(column, candidate, day, step, widths) == standing) == same:
+                return candidate
+        away += 1
+
+
+def standing_swaps(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, owed):
+    """The trade of plan P4-D192: in rank order, an unpinned rank sharing
+    its unit takes the nearest free unit of another standing inside its gap,
+    where the first unpinned rank of that standing alone on its unit can take
+    the nearest free unit of the first rank's standing inside its own gap;
+    both move, every standing's count holds, and one more unit is held."""
+    changed = False
+    for rank in range(len(ordinals)):
+        if owed <= 0:
+            break
+        if pinned[rank] or held[ordinals[rank] // unit] < 2:
+            continue
+        own = standing_of(column, ordinals[rank], day, step, widths)
+        off = nearest_free_where(column, ordinals[rank], lows[rank], highs[rank], day, step, unit, held, widths, own, False)
+        if off is None:
+            continue
+        wanted = standing_of(column, off, day, step, widths)
+        for other in range(len(ordinals)):
+            if other == rank or pinned[other]:
+                continue
+            value = ordinals[other]
+            if held[value // unit] != 1 or standing_of(column, value, day, step, widths) != wanted:
+                continue
+            onto = nearest_free_where(column, value, lows[other], highs[other], day, step, unit, held, widths, own, True)
+            if onto is None or onto // unit == off // unit:
+                continue
+            held[ordinals[rank] // unit] -= 1
+            held[off // unit] = 1
+            held[value // unit] = 0
+            held[onto // unit] = 1
+            ordinals[rank], ordinals[other] = off, onto
+            owed -= 1
+            changed = True
+            break
     return changed
 
 

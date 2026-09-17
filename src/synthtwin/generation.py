@@ -15880,9 +15880,10 @@ def _date_count_notes(
 ) -> "list[Deviation]":
     """Name a date column's counts the twin did not reach (plan P4-D192).
 
-    A RECOUNT of the cells this run wrote. `n_distinct` is the parsed
-    cells' different spellings with the stand-ins, each different from
-    every other cell, added. A census of widths naming one convention is
+    A RECOUNT of the cells this run wrote. The two distinct counts are
+    named by the column's approximation records, whose window is the
+    published count itself wherever the pass reaches it
+    (`_datetime_approximations`). A census of widths naming one convention is
     the count of cells wearing it, tallied and folded exactly as the
     describing step tallies them (`taxonomy.width_tally`,
     `parsing.folded_width_tally`). `_units_settled` reaches both where the
@@ -15891,32 +15892,6 @@ def _date_count_notes(
     second to its floor.
     """
     notes: "list[Deviation]" = []
-    different: "dict[str, int]" = {}
-    folded: "dict[str, int]" = {}
-    for cell in cells:
-        different[cell] = 1
-        folded[parsing.folded(cell)] = 1
-    for name, published, found in (
-        ("n_distinct", column.n_distinct, len(different) + facts.n_unparsed),
-        (
-            "n_distinct_folded",
-            column.n_distinct_folded,
-            len(folded) + facts.n_unparsed,
-        ),
-    ):
-        if found == published:
-            continue
-        notes += [
-            _deviation(
-                column.name,
-                name,
-                f"{published} different values",
-                f"{found} different values",
-                "Each value is drawn between the dates the published ladder "
-                "pins, and moving values inside that room could not bring "
-                "the twin to the published count.",
-            )
-        ]
     census = facts.date_field_widths
     if len(census) == 1:
         tally = parsing.folded_width_tally(
@@ -16848,7 +16823,10 @@ def _units_settled(
        whose nearest day of the other kind inside its gap is nearest --
        a whole day at a time, keeping its clock -- ties to the lower rank
        and then to the earlier day.
-    2. THE DIFFERENT VALUES. Where one instant is written one way and
+    2. THE DIFFERENT VALUES (taken FIRST in each round, with the widths
+       then offered free units, a split re-offered when its unit was
+       taken, and a trade of standings where splits fall short --
+       `_standing_swaps`). Where one instant is written one way and
        the two published counts agree (`contract.datetime_counts_reachable`), the count of different written units -- a day, or a minute
        or a second at the column's precision -- less the stand-ins must
        be the published count. Too many: each gap's ranks sorted, a RUN
@@ -16861,10 +16839,12 @@ def _units_settled(
        it did not stand at and not off one it did, nearest first, ties to
        the lower rank and then to the earlier unit.
 
-    The two are taken in that order, and again, at most four times,
-    while either moved. Each gap's ranks are then sorted. What the passes
-    cannot reach is recounted from the finished cells and named in the
-    report (`_distinct_count_notes`, `_width_count_notes`).
+    The different values are taken before the widths, and again, at most four times,
+    while either moved. Each gap's ranks are then sorted. A count the
+    passes leave unmet is measured on the finished cells and reported:
+    the distinct counts by their approximation records, whose window is
+    the published count here (`_datetime_approximations`), and the widths
+    by `_date_count_notes`.
 
     Guarantees: returns one instant per rank; a function of the
     arguments; draws no word; raises nothing. No I/O of any kind.
@@ -16904,14 +16884,15 @@ def _units_settled(
         return moved
     for _round in range(4):
         changed = False
-        if widths >= 0:
-            changed = _widths_reached(
-                facts, moved, pinned, gap_lows, gap_highs, day, step, widths
-            ) or changed
         if distinct >= 0:
             changed = _distinct_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step,
                 distinct, widths >= 0,
+            ) or changed
+        if widths >= 0:
+            changed = _widths_reached(
+                facts, moved, pinned, gap_lows, gap_highs, day, step, widths,
+                distinct >= 0,
             ) or changed
         if not changed:
             break
@@ -16928,9 +16909,22 @@ def _widths_reached(
     day: int,
     step: int,
     wanted: int,
+    distinct: bool = False,
 ) -> bool:
-    """Step 1 of `_units_settled`: move ranks until the widths count holds."""
+    """Step 1 of `_units_settled`: move ranks until the widths count holds.
+
+    Where the count of different units is held too, a rank is moved to a
+    unit no rank holds where one of the other kind lies inside its gap,
+    and to any such day only where none does, so this pass spends no
+    different value the other has settled; each rank is asked again when
+    its turn comes.
+    """
     parsed = len(moved)
+    unit = step if day == 86400 else 1
+    held: "dict[int, int]" = {}
+    for rank in range(parsed):
+        key = moved[rank] // unit
+        held[key] = (held[key] if key in held else 0) + 1
     showing = 0
     for rank in range(parsed):
         if _shows_a_width(facts, moved[rank] // day):
@@ -16949,10 +16943,11 @@ def _widths_reached(
         if (lows[rank], highs[rank]) in bare:
             continue
         found = _nearest_day_of_kind(
-            facts, moved[rank], lows[rank], highs[rank], day, step, not fewer
+            facts, moved[rank], lows[rank], highs[rank], day, step, not fewer,
+            held if distinct else None, unit,
         )
         if found is None:
-            if day == 1:
+            if day == 1 and not distinct:
                 bare[(lows[rank], highs[rank])] = True
             continue
         options += [(abs(found - moved[rank]), rank, found)]
@@ -16960,7 +16955,20 @@ def _widths_reached(
     for option in sorted(options):
         if showing == wanted:
             break
-        moved[option[1]] = option[2]
+        rank = option[1]
+        found_now = option[2]
+        if distinct:
+            offered = _nearest_day_of_kind(
+                facts, moved[rank], lows[rank], highs[rank], day, step,
+                not fewer, held, unit,
+            )
+            if offered is None:
+                continue
+            found_now = offered
+            held[moved[rank] // unit] = held[moved[rank] // unit] - 1
+            key = found_now // unit
+            held[key] = (held[key] if key in held else 0) + 1
+        moved[rank] = found_now
         showing = showing - 1 if fewer else showing + 1
         changed = True
     return changed
@@ -16974,24 +16982,36 @@ def _nearest_day_of_kind(
     day: int,
     step: int,
     showing: bool,
+    held: "dict[int, int] | None" = None,
+    unit: int = 1,
 ) -> "int | None":
     """The nearest instant a whole number of days away whose day shows or not.
 
     Inside `[lowest, highest]`, earlier before later at one distance, and
     kept off a midnight the instant did not stand at (moving by whole days
-    keeps the clock, so none is gained or lost). None where there is none.
+    keeps the clock, so none is gained or lost). Given ``held``, a unit no
+    rank holds is taken first, and any unit only where none is free.
+    None where there is none.
     """
+    fallback: "int | None" = None
     away = 1
     while True:
         earlier = value - away * day
         later = value + away * day
         if earlier < lowest and later > highest:
-            return None
+            return fallback
         for candidate in (earlier, later):
             if candidate < lowest or candidate > highest:
                 continue
-            if _shows_a_width(facts, candidate // day) == showing:
+            if _shows_a_width(facts, candidate // day) != showing:
+                continue
+            if held is None:
                 return candidate
+            key = candidate // unit
+            if key not in held or held[key] <= 0:
+                return candidate
+            if fallback is None:
+                fallback = candidate
         away = away + 1
 
 
@@ -17097,15 +17117,151 @@ def _distinct_reached(
             break
         rank = split[1]
         own = moved[rank] // unit
-        found = split[2]
-        if held[own] < 2 or (found // unit in held and held[found // unit] > 0):
+        if held[own] < 2:
+            continue
+        found_now: "int | None" = split[2]
+        if split[2] // unit in held and held[split[2] // unit] > 0:
+            # TAKEN BY AN EARLIER SPLIT: the rank is offered the nearest
+            # unit still free when its turn comes.
+            found_now = _nearest_free_unit(
+                facts, moved[rank], lows[rank], highs[rank], day, step, unit,
+                held, widths,
+            )
+        if found_now is None:
             continue
         held[own] = held[own] - 1
-        held[found // unit] = 1
-        moved[rank] = found
+        held[found_now // unit] = 1
+        moved[rank] = found_now
         count = count + 1
         changed = True
+    if count < wanted:
+        changed = _standing_swaps(
+            facts, moved, pinned, lows, highs, day, step, unit, held, widths,
+            wanted - count,
+        ) or changed
     return changed
+
+
+def _standing_of(
+    facts: contract.DatetimeFacts, value: int, day: int, step: int, widths: bool
+) -> "tuple[bool, bool]":
+    """What a unit holds for the other counts: its width kind and midnight."""
+    shows = widths and _shows_a_width(facts, value // day)
+    at = day == 86400 and _written_at_midnight(value, 0, step)
+    return (shows, at)
+
+
+def _standing_swaps(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    owed: int,
+) -> bool:
+    """Split a shared unit by trading its standing with another rank.
+
+    A GAP CAN HOLD NO FREE UNIT OF A RANK'S OWN KIND while another gap holds
+    one of that kind and wants one of the other (plan P4-D192): 240 dates
+    over 240 days, every day held once and 72 showing a width, came back
+    fourteen different days short, and a moment moved onto a midnight
+    shared it with the pinned earliest, the only midnight inside its gap.
+    So, in rank order, an unpinned rank sharing its unit is offered the
+    nearest free unit of another standing inside its gap (`_standing_of`);
+    where some other unpinned rank of that other standing, alone on its
+    unit -- the first in rank order -- can take the nearest free unit of
+    the first rank's standing inside its own gap, the two move together:
+    every count of a standing holds and the count of units grows by one.
+    """
+    changed = False
+    parsed = len(moved)
+    for rank in range(parsed):
+        if owed <= 0:
+            break
+        if pinned[rank] or held[moved[rank] // unit] < 2:
+            continue
+        own = _standing_of(facts, moved[rank], day, step, widths)
+        off = _nearest_free_where(
+            facts, moved[rank], lows[rank], highs[rank], day, step, unit,
+            held, widths, own, False,
+        )
+        if off is None:
+            continue
+        other_standing = _standing_of(facts, off, day, step, widths)
+        for other in range(parsed):
+            if other == rank or pinned[other]:
+                continue
+            value = moved[other]
+            if held[value // unit] != 1:
+                continue
+            if _standing_of(facts, value, day, step, widths) != other_standing:
+                continue
+            onto = _nearest_free_where(
+                facts, value, lows[other], highs[other], day, step, unit,
+                held, widths, own, True,
+            )
+            if onto is None or onto // unit == off // unit:
+                continue
+            held[moved[rank] // unit] = held[moved[rank] // unit] - 1
+            held[off // unit] = 1
+            held[value // unit] = 0
+            held[onto // unit] = 1
+            moved[rank] = off
+            moved[other] = onto
+            owed = owed - 1
+            changed = True
+            break
+    return changed
+
+
+def _nearest_free_where(
+    facts: contract.DatetimeFacts,
+    value: int,
+    lowest: int,
+    highest: int,
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    standing: "tuple[bool, bool]",
+    same: bool,
+) -> "int | None":
+    """The nearest free unit inside the bounds, of (or not of) a standing.
+
+    ``same`` asks for a unit of ``standing``; otherwise for one of any
+    other. Where a unit at a midnight is asked for, each day's midnight is
+    asked, from the one starting the value's own day outward; otherwise
+    the units `unit` apart from the value, outward, earlier first at one
+    distance. None where there is none.
+    """
+    by = unit
+    base = value
+    away = 1
+    if same and standing[1]:
+        by = 86400
+        base = value - value % 86400
+        away = 0
+    while True:
+        earlier = base - away * by
+        later = base + away * by
+        if earlier < lowest and later > highest:
+            return None
+        for candidate in (earlier, later):
+            if candidate < lowest or candidate > highest:
+                continue
+            key = candidate // unit
+            if key in held and held[key] > 0:
+                continue
+            found = _standing_of(facts, candidate, day, step, widths)
+            if (found == standing) == same:
+                return candidate
+        away = away + 1
 
 
 def _runs_sorted(moved: "list[int]", pinned: "list[bool]") -> None:
@@ -32169,24 +32325,28 @@ def _datetime_approximations(
         published = column.n_distinct
         if place == 3:
             published = column.n_distinct_folded
-        # INSIDE THE ENVELOPE THE COUNT IS EXACT (plan P4-D192): the
-        # construction reaches it (`_units_settled`), the validator holds
-        # it exactly there, and a miss is a deviation
-        # (`_date_count_notes`) rather than a measurement inside a range.
+        # INSIDE THE ENVELOPE THE COUNT IS HELD TO ITSELF (plan P4-D192):
+        # the construction reaches it (`_units_settled`) and the validator
+        # holds it exactly there, so the window is the published count and
+        # a miss lands outside it and is named, rather than passing as a
+        # measurement inside a range from 11 to 1460.
+        lowest_here = lowest_count
+        highest_here = highest_count
         if (
             contract.datetime_counts_reachable(column)
             and lowest_count <= published <= highest_count
         ):
-            continue
+            lowest_here = published
+            highest_here = published
         found_facts += [
             Approximation(
                 column=column.name,
                 fact=name,
                 published=f"{published}",
                 achieved=f"{counted[place]}",
-                lowest=f"{lowest_count}",
-                highest=f"{highest_count}",
-                inside=lowest_count <= counted[place] <= highest_count,
+                lowest=f"{lowest_here}",
+                highest=f"{highest_here}",
+                inside=lowest_here <= counted[place] <= highest_here,
                 note=(
                     "how many different values this column holds"
                     if place == 2

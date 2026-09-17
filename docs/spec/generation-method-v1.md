@@ -4627,19 +4627,29 @@ that way.
   and midnight standing, earlier first, nearest first, ties to the lower
   rank.
 
-The two passes of P4-D192 run in that order, again while either moved,
-at most four times, and each unpinned run is then sorted. What they do
-not reach is recounted from the finished cells and named as a deviation
-of `n_distinct`, `n_distinct_folded`, `date_field_widths` or
-`n_at_midnight`. Measured on the final skeptic's clinical export of
+The two passes of P4-D192 run with the different values FIRST and the
+widths second, again while either moved, at most four times, and each
+unpinned run is then sorted. Where the different values are held too,
+the widths pass offers each rank the nearest day of the other kind on a
+unit no rank holds, and one already held only where none is free; a
+split whose unit an earlier split took is offered the nearest unit still
+free when its turn comes. And where the splits leave the count short, a
+TRADE: in rank order, an unpinned rank sharing its unit takes the nearest
+free unit of another standing -- width kind and midnight -- inside its
+gap, where the first unpinned rank of that standing alone on its unit
+can take the nearest free unit of the first rank's standing inside its
+own gap (a midnight is sought one day at a time, from the one starting
+its own day outward); both move, every standing's count holds, and one
+more unit is held. A count the passes leave unmet is measured on the
+finished cells and reported as a deviation under its own name. Measured on the final skeptic's clinical export of
 2,000 rows at seeds 4 and 11: `n_distinct` 1077, `date_field_widths
 {"unpadded": 1635}` and a withheld discharge count at midnight all come
 back exactly, where the twins held 1065 and 1107, 1657 and 1667, and two.
 
-`n_distinct` and `n_distinct_folded` on a datetime column are EXACT
-where the published count lies inside **the envelope of G12.5** and the
-pass above applies, which it reaches (plan P4-D192), and APPROXIMATED
-under that envelope everywhere else, which is the one the
+`n_distinct` and `n_distinct_folded` on a datetime column are
+APPROXIMATED under **the envelope of G12.5**, and held EXACTLY where the
+published count lies inside that envelope and the pass above applies,
+which it reaches (plan P4-D192); which is the one the
 profile contract's matrix names for them (contract 9.6) and the one this
 document derives from the rank windows of G12.4. An earlier revision
 sent them to G5.6's numeric rung envelope with `g_max = 1`, which is a
@@ -8429,8 +8439,12 @@ below. The lesson is the one this repository keeps relearning: a closed
 enumeration is stated in up to eight places, and the deviation key
 index is one of them.
 
+**AND ONE MORE AT PLAN P4-D192**: `date_field_widths`, named where a
+census of one convention is left unmet by the count passes of G7.3.
+
 * `all_at_midnight`
 * `all_whole_numbers`
+* `date_field_widths`
 * `datetime_separators`
 * `datetimes_read_at`
 * `decimal_plus`
