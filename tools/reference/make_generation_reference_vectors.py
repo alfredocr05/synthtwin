@@ -11529,11 +11529,13 @@ def _numeric_integer():
         # with a SINGLE figure and four with two: its ladder puts the
         # p75 rung at 2.5 and the p90 at 11, so three quarters of the
         # column is at or under 3 and the wide cells are the top of it.
-        # Four is below the smallest group size, so that width has no
-        # key and its cells are pooled -- which is why this case pins
-        # the narrow width alone and leaves the twin the room the pool
-        # gives it.  The case is not otherwise about widths.
-        field_widths={"1": 16, "(withheld)": 4},
+        # Four is below the smallest group size, and a pool below the
+        # line takes in the smallest named width (plan P4-D221; stage 2
+        # closed by the owner rulings of 2026-09-17), so no width has a
+        # key and the census is the pool of twenty alone -- which pins
+        # no width and leaves the twin the room the pool gives it.  The
+        # case is not otherwise about widths.
+        field_widths={"(withheld)": 20},
         **moments,
     )
     return {
@@ -11599,27 +11601,30 @@ def _numeric_pooled_spelling():
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=12, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=12,
-        numeric_styles={"plain": 11, "(withheld)": 1},
-        # THE POOLED SIDE OF THE CENSUS. The one cell that carries a
-        # point is the one the floor held back, so no width is named at
-        # all and the census carries the pooled remainder alone -- the
-        # census's own shape for a column whose decimal cells the floor
-        # pooled (contract C6-30's case P5.c). The cell is unsnapped and
-        # written at its own value's spelling, which is the pooled
-        # remainder's rule of G6.4 unchanged.
-        fraction_widths={"(withheld)": 1},
+        # THE WHOLE MAP IS ONE POOL (plan P4-D221; stage 2 closed by the
+        # owner rulings of 2026-09-17). Eleven cells were written `plain`
+        # and one with a point; a pool of one is below the line, so it
+        # takes in the one named form, and the map is twelve cells none
+        # of whose forms is named. G6.4 writes the pool in the plain
+        # style, which is what the eleven named cells were written in.
+        numeric_styles={"(withheld)": 12},
+        # A FORM THE MAP HOLDS BACK HAS NO WIDTHS PUBLISHED (contract
+        # invariant P8 as amended by plan P4-D221), so the cell with a
+        # point is counted nowhere here. It is unsnapped and written at
+        # its own value's spelling, which is the pooled remainder's rule
+        # of G6.4 unchanged.
+        fraction_widths={},
         # No cell of this case is padded, so the padded-field-width
         # census is empty and pins nothing.
         pad_widths={},
-        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, WHOLLY POOLED (contract
-        # 7.10).  Eleven cells are published `plain` and the twelfth is
-        # the held-back one that carries a point, so this census counts
-        # eleven -- P9c's two bounds being 11 and 12 here.  The
-        # described source wrote those eleven at two widths, neither
-        # shared by as many as eleven cells, so NEITHER is named and
-        # the census is the pooled remainder alone.  It therefore pins
-        # no width at all, which is right for a case about spellings.
-        field_widths={"(withheld)": 11},
+        # THE WHOLE-NUMBER FIELD-WIDTH CENSUS, EMPTY (contract 7.10, as
+        # amended by plan P4-D221).  The eleven cells written without a
+        # point are held back in the forms map's pool of twelve, and
+        # counting them here would leave the one cell with a point by
+        # subtraction, so the census counts no held-back cell -- P9c's
+        # two bounds being nought and twelve.  It pins no width at all,
+        # which is right for a case about spellings.
+        field_widths={},
         **moments,
     )
     return {
@@ -11667,43 +11672,34 @@ def _numeric_decimal_styles():
         n_zero=0, n_negative=0, n_negative_unrepresentable=0,
         n_used_in_statistics=25, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=25,
-        numeric_styles={"(withheld)": 3, "exponent_lower": 11,
-                        "exponent_upper": 11},
+        numeric_styles={"exponent_lower": 12, "exponent_upper": 13},
         # THE WHOLE-NUMBER FIELD-WIDTH CENSUS (contract 7.10).  This
-        # map names NO point-free form -- the three plain cells are the
-        # held-back remainder -- so P9c bounds this census between
-        # nought and three, and three cells cannot reach the smallest
-        # group size at any width.  The census is the pooled remainder
-        # alone and pins no width.
-        field_widths={"(withheld)": 3},
+        # map names NO point-free form and holds nothing back, so P9c
+        # bounds this census at nought: it is empty and pins no width.
+        field_widths={},
         **moments,
     )
     return {
         "why": "the shortest round-trip digits at both boundaries of the "
         "fixed-point window, and an exact style map on a column whose values "
-        "mostly cannot wear a point-free form. The pinned smallest value "
-        "writes 1e-05, one place below the window, and the pinned largest "
-        "writes 1e+16, one place above it; at those two decimal exponents "
-        "the exponent style and the canonical spelling are the same text, "
-        "which is itself worth freezing. The published map asks for three "
-        "plain cells, and a plain cell carries neither a point nor an "
-        "exponent, so only a value the window holds whole can wear one: the "
-        "four cells on the flat top of the ladder are this column's only "
-        "carriers and they all hold 1000000000000000, whose point-free "
-        "spelling is the digits alone and not the canonical "
-        "1000000000000000.0. The look-ahead of G6.4 is what keeps the quota "
-        "for them, since largest-remaining on its own would have spent every "
-        "one of them on an exponent form and left the quota at the end of "
-        "the column with nothing to carry it; the two exponent quotas "
-        "alternate from the first cell until then. Distinctness is met "
-        "inside that map: the base spellings hold twenty-one folded "
-        "identities against a published twenty-three, so exactly two cells "
-        "raise their leading-zero order, each inside the style G6.4 gave it, "
-        "and neither is a plain cell, because plain is the one style with no "
-        "such family. The cost is the one G6.5's precedence decides: three "
-        "plain cells on a single value are a single raw spelling, so this "
-        "column's own supply is twenty-three raw spellings against a "
-        "published twenty-four, and G12.8's envelope prints that range.",
+        "cannot wear a point-free form. The pinned smallest value writes "
+        "1E-05, one place below the window, and the pinned largest writes "
+        "1e+16 and 1E+16, one place above it; at those two decimal exponents "
+        "the exponent style and the canonical spelling are the same figures, "
+        "which is itself worth freezing. The two exponent quotas alternate "
+        "from the first cell, twelve lower-case and thirteen upper-case, the "
+        "published map exactly. Distinctness is met inside that map: the four "
+        "cells on the flat top of the ladder all hold 1000000000000000 and "
+        "are written 1e+15, 01E+15, 001e+15 and 1E+15, two raised "
+        "leading-zero orders and the exponent case pair, so the column holds "
+        "twenty-three folded identities, its published count exactly, and "
+        "twenty-five raw spellings against a published twenty-four. Until "
+        "plan P4-D221 this case published three plain cells held back below "
+        "the smallest group size beside eleven cells in each exponent form; "
+        "a pool below the disclosure line beside a named form names rows and "
+        "the loader refuses it (contract invariant P6, amended by the owner "
+        "rulings of 2026-09-17), so the source is now written in the two "
+        "exponent forms alone.",
         "column": column,
         "rows": 25,
         "identifier_declared": False,
@@ -13897,8 +13893,10 @@ def _saturated_integers():
         mode_count=12,
         # THE WHOLE NUMBERS ONE TO TWENTY-TWO, each once, and eleven more
         # cells holding eleven: twenty-four cells two figures wide and nine
-        # held back below the floor.
-        field_widths={"2": 24, "(withheld)": 9},
+        # one figure wide, below the floor -- and a pool below the line
+        # takes in the one named width (plan P4-D221; stage 2 closed by
+        # the owner rulings of 2026-09-17), so the census is one pool.
+        field_widths={"(withheld)": 33},
         **moments,
     )
     return {

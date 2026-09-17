@@ -428,28 +428,39 @@ def test_red_a_respelled_number_misses_its_style(
 ) -> None:
     """NAMED SUBCHECK: styles.at-least.plain on the numeric column.
 
-    Rewriting one plain cell with a decimal point leaves its VALUE
+    Rewriting plain cells with a decimal point leaves their VALUES
     alone, so every statistic of the column still holds. The style map
     is the only thing that can see it, which is what owner decision 10
     exists for.
+
+    ELEVEN CELLS, A GROUP AT THIS FLOOR, where the case once rewrote one
+    (plan P4-D221; stage 2 closed by the owner rulings of 2026-09-17). A
+    verdict is read through the measured file's own description, and one
+    cell with a point beside the plain ones is a pool below the
+    disclosure line that takes the plain count in with it: that file's
+    description names no form, and the subcheck is withheld rather than
+    missed, as V5.1 requires of a count no description of it prints.
     """
     described, twin = every_role
     position = _column_of(described, taxonomy.ROLE_COUNT)
     assert position > 0
     name = described.columns[position - 1].name
     lines = twin.split("\n")
-    changed = False
+    changed = 0
     for index in range(1, len(lines)):
         cells = lines[index].split(",")
         if len(cells) <= position - 1:
             continue
         body = cells[position - 1]
-        if body and parsing.numeric_style(body) == parsing.STYLE_PLAIN:
+        if (
+            changed < SMALL_CELL_FLOOR
+            and body
+            and parsing.numeric_style(body) == parsing.STYLE_PLAIN
+        ):
             cells[position - 1] = f"{body}.0"
             lines[index] = ",".join(cells)
-            changed = True
-            break
-    assert changed
+            changed = changed + 1
+    assert changed == SMALL_CELL_FLOOR
     outcome = _measure(tmp_path, described, "\n".join(lines))
     found = [
         check
@@ -484,7 +495,7 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
 
     THE CLAUSE IS NOT GONE, AND THE SECOND HALF OF THIS TEST IS THE
     PROOF. The same description still makes the subcheck MISS on a file
-    whose own description NAMES the form -- eleven decimal cells reach
+    whose own description NAMES the form -- twelve decimal cells reach
     the publication floor, so that file's own description carries a
     `decimal` count and the ceiling is settled against it. What is lost
     is the verdict on a file that keeps the form under the floor, and
@@ -534,11 +545,13 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
             continue
         assert check.citation == validation._GATE_POOLED
     # ...and the same description still has a file this subcheck misses
-    # on: eleven cells in the form reach the publication floor, so the
+    # on: twelve cells in the form reach the publication floor, so the
     # file's own description names it and the ceiling is settled.
-    named = ["1" for _index in range(1)] + [
-        f"{index + 1}.50" for index in range(11)
-    ]
+    # TWELVE DECIMAL CELLS AND NO PLAIN ONE (plan P4-D221): a plain cell of
+    # one beside eleven decimals is a pool below the disclosure line, which
+    # would take the decimals in and leave the file's own description
+    # naming no form to settle the ceiling against.
+    named = [f"{index + 1}.50" for index in range(12)]
     over = _measure(
         folder,
         described,
@@ -630,10 +643,17 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
     The assertion is not that the search fails on these six candidates:
     it is that no candidate settles a style subcheck of that column at
     all, so there is nothing for a search to be run over.
+
+    TEN PLAIN CELLS AND ONE PADDED, where there were two and one (plan
+    P4-D221; stage 2 closed by the owner rulings of 2026-09-17). A pool of
+    three is below the disclosure line, which now takes in the named
+    decimals and leaves no split to search; ten and one are a pool of
+    eleven that stands beside them, and every candidate walks a pool of
+    eleven or more, the only pools the loader reads beside a named form.
     """
     folder = tmp_path / "search"
     folder.mkdir()
-    values = ["100", "101", "007"] + [
+    values = [f"{100 + index}" for index in range(10)] + ["007"] + [
         f"{200 + index}.5" for index in range(37)
     ]
     text = fixtures.single_column_table("amount", values)
@@ -641,17 +661,17 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
     assert facts.numeric_styles == {
-        taxonomy.SUPPRESSED_LABEL: 3,
+        taxonomy.SUPPRESSED_LABEL: 11,
         parsing.STYLE_DECIMAL: 37,
     }
     settled: list[str] = []
-    for decimal in range(35, 40):
+    for decimal in range(33, 38):
         candidate = _with_styles(
             folder,
             _described(folder, text, None, "search")[1],
             f"cand-{decimal}",
             {
-                taxonomy.SUPPRESSED_LABEL: 40 - decimal,
+                taxonomy.SUPPRESSED_LABEL: 48 - decimal,
                 parsing.STYLE_DECIMAL: decimal,
             },
         )
@@ -698,9 +718,10 @@ def _with_styles(
     written in a form that carries no point, so a candidate claiming a
     smaller pool is a candidate that can account for fewer of them, and
     one whose census outruns its own pool is refused at the door. This
-    column's point-free cells are three and every one of them is
-    pooled, so what the candidate may carry is the smaller of three and
-    its own pool.
+    column's point-free cells are eleven and every one of them is
+    pooled; a candidate counts the whole of its own pool there, because
+    a census counting part of a pool leaves the rest by subtraction, and
+    P9c refuses a rest below the disclosure line (plan P4-D221).
     """
     document = json.loads(written)
     document["columns"][0]["numeric_styles"] = styles
@@ -714,7 +735,7 @@ def _with_styles(
     pooled = styles[taxonomy.SUPPRESSED_LABEL] if (
         taxonomy.SUPPRESSED_LABEL in styles
     ) else 0
-    withheld = min(3, pooled)
+    withheld = pooled
     census: "dict[str, int]" = {}
     if point_free:
         census["1"] = point_free

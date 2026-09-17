@@ -243,7 +243,10 @@ def test_a_floor_of_one_still_holds_nothing_back(
         field("n_missing_withheld", 2),
         field("n_sentinel_candidates_unpublished", 2),
         under("missing_by_class", 4),
-        under("numeric_styles", 2),
+        # `numeric_styles` stood here until plan P4-D221 (stage 2 closed by
+        # the owner rulings of 2026-09-17): its pool may stand at a floor of
+        # one, where a count of one is pooled rather than named, and a pool
+        # of two beside sixty named cells is P6's to hold, not S13's.
     ):
         said = _refusal(written, tmp_path, edit)
         assert "C5-S13" in said

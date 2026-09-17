@@ -690,16 +690,24 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
         for turn in range(3):
             rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
     run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
-    assert run["first"]["pad_widths"] == {"(withheld)": 8}
+    # ONE POOL, AND NO WIDTH FOR IT (plan P4-D221; stage 2 closed by the
+    # owner rulings of 2026-09-17). The eight padded cells were a pool
+    # below the disclosure line beside sixteen named plus-signed ones, so
+    # the pool takes those in, and a form the forms map holds back has no
+    # widths published: `pad_widths {"(withheld)": 8}` was that pool's
+    # count of padded cells.
+    assert run["first"]["numeric_styles"] == {"(withheld)": 24}
+    assert run["first"]["pad_widths"] == {}
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
-    # ...AND THE LOADER REFUSES THE CENSUS THE PRODUCER NO LONGER WRITES.
+    # ...AND THE LOADER REFUSES THE CENSUS THE PRODUCER NO LONGER WRITES,
+    # by the rule that now holds a held-back form's widths (P8).
     document = json.loads(run["described"].read_text(encoding="utf-8"))
     document["columns"][0]["pad_widths"] = {"4": 24}
     edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     with pytest.raises(errors.ProfileError) as stopped:
         contract.load_profile(str(edited))
-    assert "P5b" in str(stopped.value), str(stopped.value)
+    assert "P8" in str(stopped.value), str(stopped.value)
 
 
 def _mean(values: "list[float]") -> float:

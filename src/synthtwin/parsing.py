@@ -955,13 +955,15 @@ def width_census_breaches(
     remainder of a width census is a mixture of widths no reader can
     take apart, and is not a count this rule asks about.
 
-    NOT AT A SETTINGS FLOOR OF ONE. There the width censuses name a count
-    of one under a key of its own (owner ruling 2026-08-14, invariant
-    S13), and no remainder may stand at all, so a difference of one says
-    nothing the census does not already print -- and the only remedy,
-    pooling, is the state S13 forbids. Measured without this clause: the
-    style-reach battery of `tests/test_p2c5f3_style_reach.py`, at floor
-    one, stopped at the profiler's own publication guard.
+    AT EVERY FLOOR, A FLOOR OF ONE INCLUDED (plan P4-D221; stage 2
+    closed by the owner rulings of 2026-09-17). This rule was not asked at
+    a settings floor of one, where the width censuses named counts of one
+    outright and invariant S13 forbade the pool its remedy needs. The
+    censuses now name no count below `census_floor`, whose line is two
+    there, and their pools stand at a floor of one
+    (`canonical.POOLED_AT_ANY_FLOOR`), so a difference of one is refused
+    at every floor. The plus route also subtracts from the forms map's
+    pool where `leading_plus` is held back in it.
 
     Guarantees: accepts the forms map, the two width censuses and the
     settings floor, as published; returns whether the plus route breaks
@@ -969,8 +971,6 @@ def width_census_breaches(
     width route does. Determinism: a fixed function of the four. Raises
     nothing. No I/O of any kind.
     """
-    if floor <= 1:
-        return False, []
     least = census_floor(floor)
     pool = MISSING_WITHHELD
     total = 0
@@ -983,7 +983,11 @@ def width_census_breaches(
     elif pool not in styles:
         plus_cells = total
     if plus_cells > 0:
-        rest = [styles[STYLE_LEADING_PLUS]] if STYLE_LEADING_PLUS in styles else []
+        rest: "list[int]" = []
+        if STYLE_LEADING_PLUS in styles:
+            rest = [styles[STYLE_LEADING_PLUS]]
+        elif pool in styles:
+            rest = [styles[pool]]
         plus_broken = not census_nameable([plus_cells], rest, floor)
     named: "list[int]" = []
     for width in fields:

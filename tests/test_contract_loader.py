@@ -1048,16 +1048,15 @@ def battery() -> list[Mutation]:
             "WR1", "wide runs claimed on a column with no cell written plain",
             edit("amount", wide_runs="canonical"),
         ),
-        # ...AND AT THE FLOOR, so only the floor clause can refuse it,
-        # which is the shape DP1's second entry above has for the same
-        # reason (landing 2b.13's repair pass, plan P4-D91). The word
-        # names the FORM of the cells it is about, and a description
-        # naming it where the forms map pooled that form into a
-        # remainder of ONE says exactly what the pool was written to
-        # avoid saying. Room of one passes the clause above and is a
-        # tenth of the floor this base is written at.
+        # ...AND THE POOL OF ONE THAT USED TO WITNESS WR1's FLOOR CLAUSE
+        # (landing 2b.13's repair pass, plan P4-D91) is refused before the
+        # word is read: a pool below `parsing.census_floor` beside a named
+        # form is invariant P6's since plan P4-D221 (stage 2 closed by the
+        # owner rulings of 2026-09-17), so the room WR1's floor clause
+        # measures is nought, a named form, a pool of the line or more, or
+        # the whole numeric count of a column smaller than the floor.
         Mutation(
-            "WR1", "wide runs claimed where one pooled cell is all the room there is",
+            "P6", "a pool of one cell beside a named form",
             wide_runs_on_a_pooled_form("amount"),
         ),
         # The two mixture censuses landing 2b.7 added beside them. Each
@@ -1357,15 +1356,19 @@ def battery() -> list[Mutation]:
             "a layout census whose keys say two conventions",
             edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
         ),
+        # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plan P4-D221). The
+        # pool of eleven passes the census's own line, so only P8 refuses
+        # it: the point is held back from the forms map, and a total of
+        # its widths names how many of the pooled cells carried one.
         Mutation(
             "P8",
-            "two width censuses that are each possible and not both",
+            "a width census counting cells of a form the forms map holds back",
             edit(
                 "visits",
                 numeric_styles={
                     "plain": 174, "leading_plus": 20, "(withheld)": 35,
                 },
-                fraction_widths={"(withheld)": 10},
+                fraction_widths={"(withheld)": 11},
                 pad_widths={},
             ),
         ),
@@ -1429,9 +1432,12 @@ def battery() -> list[Mutation]:
         Mutation(
             "P6",
             "a pool larger than the forms left to hold it",
+            # Four unnamed forms hold ten each below the line, or one of
+            # them as many as the smallest named form and ten more (plan
+            # P4-D221): seventy at most beside a named sixty.
             edit(
                 "visits",
-                numeric_styles={"plain": 100, "decimal": 60, "(withheld)": 69},
+                numeric_styles={"plain": 98, "decimal": 60, "(withheld)": 71},
                 fraction_widths={"2": 60},
             ),
         ),

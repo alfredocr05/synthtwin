@@ -330,14 +330,21 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # of one (S13 as amended), so the floor-eleven map grafted there is a
     # description the loader takes. What holds that pool is D3, asked
     # beside it in `tests/test_older_censuses_name_no_row.py`.
+    #
+    # AND THE FORMS MAP AND THE WIDTH CENSUSES SINCE PLAN P4-D221, on the
+    # same terms: their pools may stand at a floor of one too, and what
+    # holds them is P6, P9c and the census floors, asked beside them in
+    # `tests/test_number_censuses_name_no_row.py`.
     assert silent == [
+        ("columns", 3, "field_widths"),
         ("columns", 3, "sentinel_verdicts"),
+        ("columns", 4, "numeric_styles"),
         ("columns", 5, "utc_offsets"),
     ], (
         f"a position the floor moves has stopped being recorded by the "
         f"document: {silent}"
     )
-    for where in silent[:1]:
+    for where in silent[1:2]:
         made = _graft(strict, loose, where[:2])
         written = fixtures.write_profile(tmp_path, "block.json", made)
         with pytest.raises(errors.ProfileError):
@@ -442,11 +449,15 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         and not isinstance(value, bool)
         and isinstance(value, int)
         and value > 0
-        # The two censuses whose pool S13 no longer refuses at a floor of
-        # one (plan P4-D220), read from the one list the guard reads.
+        # The censuses whose pool S13 no longer refuses at a floor of one
+        # (plans P4-D220 and P4-D221), read from the one list the guard
+        # reads.
         and not canonical.pools_at_any_floor(path[:-1])
     ]
-    assert len(remainders) >= 4, (
+    # THREE REMAINDERS OVER TWO FIELDS, where there were four over four
+    # before plan P4-D221 took the forms map and the width censuses out of
+    # this walk: both still stand in more than one field.
+    assert len(remainders) >= 3, (
         f"the witness table stopped pooling a remainder anywhere, so "
         f"this derivation is measuring nothing: {remainders}"
     )
@@ -454,7 +465,7 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         path[-2] if path[-1] == contract.WITHHELD else path[-1]
         for path in remainders
     }
-    assert len(fields) >= 4, (
+    assert len(fields) >= 2, (
         f"every pooled remainder the witness makes now stands in the "
         f"same field, so this derivation cannot show the walk reaching "
         f"more than one: {sorted(fields)}"
@@ -514,11 +525,15 @@ def _column(document: dict, name: str) -> dict:
 # holds the offsets that line cannot name and invariant S13 no longer
 # refuses it; D3 holds the pool instead, and
 # `tests/test_older_censuses_name_no_row.py` witnesses it at a floor of one.
+#
+# `numeric_styles` WAS THE FIFTH AND LEFT AT PLAN P4-D221, for the same
+# reason: the forms map names no count below `parsing.census_floor`, so its
+# pool stands at a floor of one, and P6 holds it instead;
+# `tests/test_number_censuses_name_no_row.py` witnesses it there.
 _WITNESSES = (
     ("missing_by_class", "visits"),
     ("n_missing_withheld", "visits"),
     ("n_sentinel_candidates_unpublished", "reading"),
-    ("numeric_styles", "amount"),
 )
 
 

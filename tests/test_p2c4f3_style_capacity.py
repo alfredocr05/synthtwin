@@ -67,13 +67,23 @@ REVIEWED = ["1.5"] * 11 + ["100"] * 20 + ["200.5"] * 20
 # in that proportion leave the negatives one, and every negative cell is
 # stuck on the fractional end until the band step of the carrier rule
 # gives that side a second stratum.
+#
+# THE POSITIVE SIDE IS WRITTEN WITH A PLUS (plan P4-D221; stage 2 closed
+# by the owner rulings of 2026-09-17). Written bare, the one `-20.5` was a
+# pool of one beside `plain: 20` and `leading_zero: 12`; a pool below
+# `parsing.census_floor` names its row, so it took in the smaller named
+# form and the padded twelve came back unpadded. With the ten positive
+# cells signed, `-20.5`, the ten `-20` and the ten signed cells are three
+# forms each held by fewer than eleven cells, and the map publishes
+# `leading_zero: 12` beside a pool of twenty-one -- a pool that needs no
+# named form to reach the line, over the same eight values.
 BAND = (
     ["-20.5"]
     + ["-20"] * 10
     + ["00"] * 12
-    + ["1"] * 4
-    + ["6"] * 3
-    + ["9"] * 3
+    + ["+1"] * 4
+    + ["+6"] * 3
+    + ["+9"] * 3
 )
 
 # A 22-cell column on which two strata can reach the same whole number
@@ -413,8 +423,12 @@ def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
 ) -> None:
     """The open defect of P2-C5-F3, repaired: no miss is left to name.
 
-    Forty named `plain` cells and six pooled ones over forty-six cells,
-    while one cell must read back as `0.5` and one as `9.25`. Under the
+    Forty `plain` cells and six with a point over forty-six cells, while
+    one cell must read back as `0.5` and one as `9.25`. Since plan P4-D221
+    the six are a pool below the disclosure line, so the pool takes in
+    the named forty and the whole map is one pool of forty-six (stage 2
+    closed by the owner rulings of 2026-09-17); the twin writes it by the
+    same rule and the same bytes. Under the
     withdrawn rule every pooled cell was owed the `plain` form, which
     those two cells have no spelling for, so the twin missed a total it
     could not have met and the report named it. The amended rule of the
@@ -427,10 +441,7 @@ def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
     document, loaded = _described(
         tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     )
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40,
-        "(withheld)": 6,
-    }
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
     twin = generation.generate(loaded, 0)
     assert _styles(twin) == {"plain": 44, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
@@ -491,15 +502,13 @@ def test_the_repaired_style_identity_still_names_a_broken_column(
     fact -- every plain cell given a leading zero, which is a form the
     description publishes zero of -- and the recount must name it. This
     is the clause that stops the amended identity from being satisfied
-    by substituting one published form for another.
+    by substituting one published form for another. The map is one pool
+    of forty-six since plan P4-D221, and the clause still names the column.
     """
     document, loaded = _described(
         tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     )
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40,
-        "(withheld)": 6,
-    }
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
     twin = generation.generate(loaded, 0)
     written = list(twin.columns[0])
     tampered = [
@@ -1391,7 +1400,7 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
 ) -> None:
     """The same repair from the other side, on the exact numbers.
 
-    The first position publishes `plain: 34` with a pool of 2 and wrote
+    The first position published `plain: 34` with a pool of 2 and wrote
     12 to 15 cells with a point in them across seeds, missing
     `number 1 styles.published.plain` at 22 against a floor of 34. At
     the seed this file pins it now writes exactly TWO and misses
@@ -1408,9 +1417,11 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
     """
     _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
-    assert column.facts.parts[0].numeric_styles == {
-        "plain": 34, contract.WITHHELD: 2,
-    }
+    # A POOL OF TWO BESIDE THIRTY-FOUR is below the disclosure line at
+    # this floor, so it takes in the named count (plan P4-D221; stage 2
+    # closed by the owner rulings of 2026-09-17): the position publishes
+    # one pool of thirty-six, which its twin writes by the same rule.
+    assert column.facts.parts[0].numeric_styles == {contract.WITHHELD: 36}
     twin = generation.generate(loaded, 0)
     folder = tmp_path / "joined-floor"
     folder.mkdir(exist_ok=True)
@@ -1427,7 +1438,10 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
         for cell in twin.columns[0]
         if cell != "" and "." in cell.split("/")[0]
     ]
-    assert len(pointed) == 2, pointed
+    # ONE, where the named count beside a pool of two wrote TWO: the pool
+    # of thirty-six is spelled by its own values (plan P4-D221), and at
+    # this seed one value of the position is not whole.
+    assert len(pointed) == 1, pointed
     # AND THE TYPE SURVIVES ON EVERY SEED, which is the part that must
     # not slip while R-P4-119 waits.
     for seed in SEEDS:
@@ -1639,8 +1653,10 @@ def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
 ) -> None:
     """Round 2, item 2, end to end: both obligations, not one of them.
 
-    Two `0`, one `0.5` and 197 `2` publish `plain: 199` with a pool of
-    one, and the ladder allots strata of 2, 2 and 196. No single-cell
+    Two `0`, one `0.5` and 197 `2` published `plain: 199` with a pool of
+    one, and the ladder allots strata of 2, 2 and 196. Since plan P4-D221
+    a pool of one takes in the named count, so the map is one pool of
+    two hundred, which a twin writes by the same rule. No single-cell
     stratum exists, so keeping the type meant giving the two-cell middle
     stratum a value with a point in it and missing an exactly achievable
     `plain: 199` by one. The source's own `0.5` covers one row, so both
@@ -1649,7 +1665,7 @@ def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
     values = ["0"] * 2 + ["0.5"] + ["2"] * 197
     document, loaded = _described(tmp_path, values)
     published = document["columns"][0]
-    assert published["numeric_styles"] == {"plain": 199, "(withheld)": 1}
+    assert published["numeric_styles"] == {"(withheld)": 200}
     for seed in SEEDS:
         twin = generation.generate(loaded, seed)
         written = [cell for cell in twin.columns[0] if cell != ""]
@@ -1760,7 +1776,7 @@ def test_the_carrier_step_is_what_places_the_reviewed_map(
 def test_the_band_step_is_what_reaches_a_stranded_sign_band(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mutant 2: leave the band share alone, and two NAMED counts fall.
+    """Mutant 2: leave the band share alone, and the band loses its type.
 
     THE SHAPE, AND WHY IT STILL REACHES THE STEP. The share of strata
     between the two sign bands follows the LADDER'S PLATEAUS now and no
@@ -1772,15 +1788,21 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
     five strata shared in that proportion leave the negative side ONE.
     That one is the pinned `min`, and it carries a point, so no cell of
     the band can be written point-free at all: without the band step all
-    eleven come out `-20.5`, and the twin misses BOTH published counts,
-    not only the pooled remainder.
+    eleven come out `-20.5`.
+
+    WHAT FALLS IS THE POOL (plan P4-D221). Before the pools of the forms
+    map were held to the disclosure line this column published `plain:
+    20` by name and the mutant cost that count and `leading_zero: 12`
+    with it. Its plain cells are now in a pool of twenty-one, which a
+    twin writes by its own values, so the mutant is measured on what the
+    pool comes to: twenty point-free cells and the one pinned `-20.5`
+    with the step, and ten more cells with a point without it.
     """
     document, loaded = _described(tmp_path, BAND)
     published = document["columns"][0]["numeric_styles"]
-    assert published == {"plain": 20, "leading_zero": 12, "(withheld)": 1}
+    assert published == {"leading_zero": 12, "(withheld)": 21}
     written = _styles(generation.generate(loaded, 0))
-    assert written["leading_zero"] == 12
-    assert written["plain"] >= 20
+    assert written == {"leading_zero": 12, "plain": 20, "decimal": 1}
 
     monkeypatch.setattr(
         generation,
@@ -1789,8 +1811,8 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
         plus_demand: (low, high),
     )
     after = _styles(generation.generate(loaded, 0))
-    assert after.get("leading_zero", 0) < 12, after
     assert after.get("plain", 0) < 20, after
+    assert after.get("decimal", 0) > 1, after
 
 
 def test_the_share_walk_is_what_places_a_flat_ladder(
@@ -1850,16 +1872,22 @@ def test_the_pool_gives_way_before_a_named_count(
 ) -> None:
     """Mutant 3: let the pool compete, and a NAMED count is missed.
 
-    Twenty-five named `leading_zero` cells and a pooled remainder of ten
-    over thirty-three point-free cells: something must give. The repair
-    gives up the anonymous claim; this mutant hands the pool the same
-    standing as the named count, which is what the placement did before,
-    and the named twenty-five comes out twenty-four.
+    Twenty-five named `leading_zero` cells and a pooled remainder of
+    eleven over thirty-four point-free cells: something must give. The
+    repair gives up the anonymous claim; this mutant hands the pool the
+    same standing as the named count, which is what the placement did
+    before, and the named twenty-five comes out twenty-four.
+
+    THE POOL HOLDS TWO FORMS (plan P4-D221; stage 2 closed by the owner
+    rulings of 2026-09-17). Ten cells with a point alone were a pool below
+    the disclosure line, which now takes in the named count; one of them
+    written again with an exponent makes a pool of eleven over two forms
+    each held by fewer than eleven cells, so the named count stands.
     """
-    values = ["1.5"] * 5 + ["007"] * 25 + ["88.5"] * 5
+    values = ["1.5"] * 5 + ["007"] * 25 + ["88.5"] * 5 + ["1.5E+00"]
     document, loaded = _described(tmp_path, values)
     assert document["columns"][0]["numeric_styles"] == {
-        "leading_zero": 25, "(withheld)": 10,
+        "leading_zero": 25, "(withheld)": 11,
     }
     assert _styles(generation.generate(loaded, 0))["leading_zero"] == 25
 

@@ -20,9 +20,9 @@ turns this file red rather than staying green on nothing.
   levels takes those levels;
 - **P4-D179** a column of several widths holds as many cells on each
   narrower grid as its census counts there;
-- the width census `pad_widths` leaves a complement of one beside
-  `n_numeric` only where `numeric_styles` already prints that one cell
-  itself, which is the carried item of plan P4-D148, pinned at its size.
+- the width census `pad_widths` leaves no complement of one beside
+  `n_numeric`: the carried item of plan P4-D148, closed by plan P4-D221
+  (stage 2 closed by the owner rulings of 2026-09-17).
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -540,25 +540,33 @@ def test_the_two_place_readings_twin_passes_its_own_description(
     _both_pass(result)
 
 
-# ------------- the width census of pads, pinned at its size (P4-D148)
+# ------------- the width census of pads, asked again (P4-D148, P4-D221)
 
 
+@pytest.mark.parametrize("floor", [1, 11])
 def test_a_pad_census_one_short_repeats_a_count_the_styles_already_print(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, floor: int
 ) -> None:
-    """799 padded codes and one unpadded, at a floor of eleven.
+    """799 padded codes and one unpadded, at floors of one and eleven.
 
-    `pad_widths {"5": 799}` beside `n_numeric` 800 leaves one cell, and the
-    skeptic read that as a count of one this census gives up. It gives up
-    nothing the description does not already print: `numeric_styles`
-    pools that one cell as `{"(withheld)": 1}`, the older pooled count of
-    one plan P4-D148 carries to the owner. What this pins is that the two
-    agree, so the day the pool stops printing one the pad census is asked
-    again.
+    `pad_widths {"5": 799}` beside `n_numeric` 800 left one cell, and the
+    skeptic read that as a count of one this census gives up. It gave up
+    nothing the description did not already print: `numeric_styles`
+    pooled that one cell as `{"(withheld)": 1}`, the older pooled count of
+    one plan P4-D148 carried to the owner, and this test pinned that the
+    two agreed so the day the pool stopped printing one the pad census
+    would be asked again.
+
+    THAT DAY IS PLAN P4-D221 (stage 2 closed by the owner rulings of
+    2026-09-17). A pool of one takes in the named `leading_zero` count, the
+    forms map is one pool of 800, a form the map holds back has no widths
+    published, and no count the column prints leaves one cell over.
     """
     cells = [f"0{1000 + index}" for index in range(799)] + ["12345"]
-    document, _loaded = _described(tmp_path, _beside(cells), 11)
+    document, _loaded = _described(tmp_path, _beside(cells), floor)
     column = document["columns"][0]
-    left = column["n_numeric"] - sum(column["pad_widths"].values())
-    assert left == 1
-    assert column["numeric_styles"].get("(withheld)") == left
+    assert column["numeric_styles"] == {"(withheld)": 800}
+    assert column["pad_widths"] == {}
+    for census in ("numeric_styles", "pad_widths", "field_widths"):
+        printed = sum(column[census].values())
+        assert printed in (0, column["n_numeric"]), (census, column[census])

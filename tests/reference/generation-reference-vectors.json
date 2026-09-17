@@ -2133,39 +2133,37 @@
     "numeric_decimal_styles": {
       "cells": [
         "1e+16",
-        "8.340898109509465E+14",
-        "1e+15",
-        "4.723891654795379e+00",
-        "9.246127657752139E-01",
-        "1.7441568611536706E-01",
+        "8.340898109509465e+14",
         "01E+15",
-        "1.6883873160327447E+00",
-        "1000000000000000",
-        "943885402617182",
-        "2.965851728127198E+00",
-        "4.446985502536029E+00",
-        "5.285660822656508e-01",
-        "5.682867274303195e+14",
-        "2.6420021233060838e+14",
+        "4.723891654795379E+00",
+        "9.246127657752139e-01",
+        "1.7441568611536706e-01",
+        "001e+15",
+        "1.6883873160327447e+00",
+        "1e+15",
+        "9.43885402617182E+14",
+        "2.965851728127198e+00",
+        "4.446985502536029e+00",
+        "5.285660822656508E-01",
+        "5.682867274303195E+14",
+        "2.6420021233060838E+14",
         "1E+16",
-        "1000000000000000",
-        "4.4723057677101925E+14",
-        "2.2426929566649676e+00",
-        "2.360160628780143E+14",
-        "1e-05",
-        "6.273336559336017E-03",
-        "6.690881100834332e-03",
-        "3.435358557661793e+00",
-        "9.706430188284653e-01"
+        "1E+15",
+        "4.4723057677101925e+14",
+        "2.2426929566649676E+00",
+        "2.360160628780143e+14",
+        "1E-05",
+        "6.273336559336017e-03",
+        "6.690881100834332E-03",
+        "3.435358557661793E+00",
+        "9.706430188284653E-01"
       ],
       "column": {
         "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
-        "field_widths": {
-          "(withheld)": 3
-        },
+        "field_widths": {},
         "fraction_widths": {},
         "group_separator": "",
         "integer_valued": false,
@@ -2220,9 +2218,8 @@
           "proof": "nearest"
         },
         "numeric_styles": {
-          "(withheld)": 3,
-          "exponent_lower": 11,
-          "exponent_upper": 11
+          "exponent_lower": 12,
+          "exponent_upper": 13
         },
         "pad_widths": {},
         "percentiles": {
@@ -2860,33 +2857,33 @@
         "wide_runs": "none"
       },
       "content": [
-        "1e-05",
-        "6.273336559336017E-03",
-        "6.690881100834332e-03",
-        "1.7441568611536706E-01",
-        "5.285660822656508e-01",
-        "9.246127657752139E-01",
-        "9.706430188284653e-01",
-        "1.6883873160327447E+00",
-        "2.2426929566649676e+00",
-        "2.965851728127198E+00",
-        "3.435358557661793e+00",
-        "4.446985502536029E+00",
-        "4.723891654795379e+00",
-        "2.360160628780143E+14",
-        "2.6420021233060838e+14",
-        "4.4723057677101925E+14",
-        "5.682867274303195e+14",
-        "8.340898109509465E+14",
-        "943885402617182",
-        "1000000000000000",
+        "1E-05",
+        "6.273336559336017e-03",
+        "6.690881100834332E-03",
+        "1.7441568611536706e-01",
+        "5.285660822656508E-01",
+        "9.246127657752139e-01",
+        "9.706430188284653E-01",
+        "1.6883873160327447e+00",
+        "2.2426929566649676E+00",
+        "2.965851728127198e+00",
+        "3.435358557661793E+00",
+        "4.446985502536029e+00",
+        "4.723891654795379E+00",
+        "2.360160628780143e+14",
+        "2.6420021233060838E+14",
+        "4.4723057677101925e+14",
+        "5.682867274303195E+14",
+        "8.340898109509465e+14",
+        "9.43885402617182E+14",
         "1e+15",
         "01E+15",
-        "1000000000000000",
+        "001e+15",
+        "1E+15",
         "1e+16",
         "1E+16"
       ],
-      "csv_bytes": "1e+16\n8.340898109509465E+14\n1e+15\n4.723891654795379e+00\n9.246127657752139E-01\n1.7441568611536706E-01\n01E+15\n1.6883873160327447E+00\n1000000000000000\n943885402617182\n2.965851728127198E+00\n4.446985502536029E+00\n5.285660822656508e-01\n5.682867274303195e+14\n2.6420021233060838e+14\n1E+16\n1000000000000000\n4.4723057677101925E+14\n2.2426929566649676e+00\n2.360160628780143E+14\n1e-05\n6.273336559336017E-03\n6.690881100834332e-03\n3.435358557661793e+00\n9.706430188284653e-01\n",
+      "csv_bytes": "1e+16\n8.340898109509465e+14\n01E+15\n4.723891654795379E+00\n9.246127657752139e-01\n1.7441568611536706e-01\n001e+15\n1.6883873160327447e+00\n1e+15\n9.43885402617182E+14\n2.965851728127198e+00\n4.446985502536029e+00\n5.285660822656508E-01\n5.682867274303195E+14\n2.6420021233060838E+14\n1E+16\n1E+15\n4.4723057677101925e+14\n2.2426929566649676E+00\n2.360160628780143e+14\n1E-05\n6.273336559336017e-03\n6.690881100834332E-03\n3.435358557661793E+00\n9.706430188284653E-01\n",
       "float64": [
         {
           "interpolated": {
@@ -3624,7 +3621,7 @@
           }
         }
       ],
-      "why": "the shortest round-trip digits at both boundaries of the fixed-point window, and an exact style map on a column whose values mostly cannot wear a point-free form. The pinned smallest value writes 1e-05, one place below the window, and the pinned largest writes 1e+16, one place above it; at those two decimal exponents the exponent style and the canonical spelling are the same text, which is itself worth freezing. The published map asks for three plain cells, and a plain cell carries neither a point nor an exponent, so only a value the window holds whole can wear one: the four cells on the flat top of the ladder are this column's only carriers and they all hold 1000000000000000, whose point-free spelling is the digits alone and not the canonical 1000000000000000.0. The look-ahead of G6.4 is what keeps the quota for them, since largest-remaining on its own would have spent every one of them on an exponent form and left the quota at the end of the column with nothing to carry it; the two exponent quotas alternate from the first cell until then. Distinctness is met inside that map: the base spellings hold twenty-one folded identities against a published twenty-three, so exactly two cells raise their leading-zero order, each inside the style G6.4 gave it, and neither is a plain cell, because plain is the one style with no such family. The cost is the one G6.5's precedence decides: three plain cells on a single value are a single raw spelling, so this column's own supply is twenty-three raw spellings against a published twenty-four, and G12.8's envelope prints that range.",
+      "why": "the shortest round-trip digits at both boundaries of the fixed-point window, and an exact style map on a column whose values cannot wear a point-free form. The pinned smallest value writes 1E-05, one place below the window, and the pinned largest writes 1e+16 and 1E+16, one place above it; at those two decimal exponents the exponent style and the canonical spelling are the same figures, which is itself worth freezing. The two exponent quotas alternate from the first cell, twelve lower-case and thirteen upper-case, the published map exactly. Distinctness is met inside that map: the four cells on the flat top of the ladder all hold 1000000000000000 and are written 1e+15, 01E+15, 001e+15 and 1E+15, two raised leading-zero orders and the exponent case pair, so the column holds twenty-three folded identities, its published count exactly, and twenty-five raw spellings against a published twenty-four. Until plan P4-D221 this case published three plain cells held back below the smallest group size beside eleven cells in each exponent form; a pool below the disclosure line beside a named form names rows and the loader refuses it (contract invariant P6, amended by the owner rulings of 2026-09-17), so the source is now written in the two exponent forms alone.",
       "word_budget": {
         "content": 21,
         "placement": 24
@@ -3708,8 +3705,7 @@
         "empty_bins": [],
         "empty_edges": [],
         "field_widths": {
-          "(withheld)": 4,
-          "1": 16
+          "(withheld)": 20
         },
         "fraction_widths": {},
         "group_separator": "",

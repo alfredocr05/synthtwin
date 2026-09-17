@@ -659,6 +659,12 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     folder = pathlib.Path(tempfile.mkdtemp())
     values = [f"2.{10 + index}" for index in range(1, 11)]
     values = values + [f"{3 + index // 10}.{index % 10}" for index in range(50)]
+    # ...AND ONE CELL AT THREE PLACES (plan P4-D221; stage 2 closed by the
+    # owner rulings of 2026-09-17). Ten cells at two places alone are a
+    # pool below the disclosure line, which takes in the named width and
+    # leaves no width a snap is read against; ten at two and one at three
+    # are a pool of eleven beside the named fifty.
+    values = values + ["2.125"]
     table = fixtures.write(
         folder, "v.csv", fixtures.single_column_table("v", values)
     )
@@ -672,7 +678,7 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
         [],
     )
     column = document["columns"][0]
-    assert column["fraction_widths"] == {"1": 50, "(withheld)": 10}
+    assert column["fraction_widths"] == {"1": 50, "(withheld)": 11}
     assert column["percentiles"]["min"] == 2.11
     described = contract.load_profile(
         f"{fixtures.write_profile(folder, 'v.json', document)}"
@@ -696,8 +702,8 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
             if not subcheck.startswith("widths.published.")
             # AND THE COUNT OF DIFFERENT NUMBERS, on the same terms as
             # the width quota beside it (amendment A-P4-55, residual
-            # R-P4-154). This column publishes sixty different values
-            # over sixty cells at two fraction widths and has never
+            # R-P4-154). This column publishes sixty-one different values
+            # over sixty-one cells at three fraction widths and has never
             # held them: 52 to 57 at four seeds before the landing
             # that made the count an obligation and 53 to 57 after.
             # What this case is about is the SNAP, and it still

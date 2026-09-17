@@ -277,14 +277,16 @@ def test_the_withheld_remainder_is_recounted_as_plain(
     the column reads back exactly as it did -- which is the point: the
     amendment moved no byte of the ordinary case, only the obligation
     on the case that could not be met.
+
+    THE THREE ARE NOW A POOL OF THIRTY-THREE (plan P4-D221; stage 2 closed
+    by the owner rulings of 2026-09-17): a pool of three is below the
+    disclosure line, so it takes in the named thirty, and the whole map is
+    one pool written by the same rule.
     """
     values = [str(n) for n in range(1, 31)] + ["+101", "+102", "+103"]
     document, loaded = _described(tmp_path, values)
 
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 30,
-        "(withheld)": 3,
-    }
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 33}
 
     twin = generation.generate(loaded, 0)
     assert _styles_written(twin) == {"plain": 33}
@@ -359,10 +361,9 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
 
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40,
-        "(withheld)": 6,
-    }
+    # One pool of forty-six since plan P4-D221: a pool of six below the
+    # disclosure line takes in the named forty.
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
     assert document["columns"][0]["integer_valued"] is False
 
     twin = generation.generate(loaded, 0)

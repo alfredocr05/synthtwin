@@ -1414,6 +1414,18 @@ spelled as its value at a width the census does not name is admitted,
 up to the pooled count and no further, so a file padding more cells
 than the description withheld still misses.
 
+**Amended 2026-09-17 (plan P4-D221, citing the owner rulings of
+2026-09-17): where `numeric_styles` holds the point back, its pool
+permits its own count as well.** A form the forms map holds back has no
+widths published (profile contract P8), so the decimal cells in that
+pool are cells written at some width the census names no more than it
+names their form. 1,200 two-place prices with one padded, one exponent
+and one three-place cell publish `numeric_styles {(withheld): 1200}` and
+`fraction_widths {}` at a floor of eleven, and without this the real
+table failed its own description on `styles.spelled`, exit 3. The
+permission is the forms map's pool added to the width census's own, and
+is asked only where the map names no `decimal` count.
+
 **Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
 admits the spellings a real exporter writes that G6.3 does not choose.**
 The family of G6.1 is what this method's own generator may write, and
@@ -2211,6 +2223,29 @@ verdict and never the recount. **To reverse**, restore the rounding
 function and the one call, which costs teeth at every count inside a
 floor-wide block and buys the block-resolution bound back against a
 person who holds the file anyway.
+
+**V5.3-A3 The room a pool leaves a form it does not name** (2026-09-17,
+plan P4-D221, citing the owner rulings of 2026-09-17). The style
+subchecks settle each clause against the window the measured file's own
+forms map leaves: named forms at their counts, and every unnamed form
+holding at most one less than the line of the pool. That line is now
+`parsing.census_floor` -- two at a floor of one -- and a pool below it
+takes in the smallest named form, so ONE unnamed form may hold as many
+cells as the smallest form the map still names, or the whole pool where
+it names none. The window is drawn with that allowance. Measured without
+it: the 1,200 prices above failed the description written from them at exit 3 on
+`styles.exact.leading_zero`, `styles.spill` and `styles.remainder`, at
+floors one and eleven. **And a key that file's own description does
+not name is read through the same allowance**: `styles.published.*`,
+`widths.published.*` and `pads.published.*` are withheld, under the
+pooled citation, where that description's pool could hold the published
+count, and missed below the floor only where it could not -- 400 twin
+cells at two places beside two at three describe as one pool of 402, and
+were reported as fewer than eleven. What it costs is a verdict on one cell: a file
+with one plain cell rewritten `7.0` beside the rest describes that cell
+into a pool, so `styles.at-least.plain` is withheld there rather than
+missed, exactly as V5.1 requires of a count no description of it prints;
+eleven such cells at a floor of eleven still miss.
 
 **V5.4 What may be printed, exactly.**
 

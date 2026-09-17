@@ -11854,9 +11854,14 @@ def _recount_window(
     * each named form contributes its published count exactly, and the
       `unread` cells above can add to any form, so they widen the top;
     * the unnamed forms share the pooled total, none of them reaching
-      the floor -- so the forms asked about here can take at most
-      `floor - 1` each of it, and at least whatever the OTHER unnamed
-      forms cannot hold.
+      the line -- so the forms asked about here can take at most
+      one less than the line each of it, and at least whatever the OTHER
+      unnamed forms cannot hold;
+    * EXCEPT ONE (plan P4-D221; stage 2 closed by the owner rulings of
+      2026-09-17). The line is `parsing.census_floor`, two at a floor of
+      one, and a pool below it takes in the smallest named form, so one
+      unnamed form may hold as many cells as the smallest form the map
+      still names -- or the whole pool, where the map names none.
 
     Guarantees:
 
@@ -11869,8 +11874,14 @@ def _recount_window(
     - Errors raised: none.
     """
     pooled = _counted(own, taxonomy.SUPPRESSED_LABEL)
-    room = floor - 1
-    room = max(room, 0)
+    room = parsing.census_floor(floor) - 1
+    # THE ONE FORM A POOL MAY HOLD PAST THE LINE: the smallest named form
+    # it took in, never larger than the smallest the map still names.
+    folded = pooled
+    for style in contract.NUMERIC_STYLES:
+        if style in own and own[style] < folded:
+            folded = own[style]
+    folded = max(folded, room)
     known = 0
     asked_unnamed = 0
     for style in styles:
@@ -11882,9 +11893,13 @@ def _recount_window(
     for style in contract.NUMERIC_STYLES:
         if style not in own and style not in styles:
             other_unnamed = other_unnamed + 1
-    high = asked_unnamed * room
+    high = 0
+    if asked_unnamed > 0:
+        high = (asked_unnamed - 1) * room + folded
     high = min(high, pooled)
-    low = pooled - other_unnamed * room
+    low = pooled
+    if other_unnamed > 0:
+        low = pooled - (other_unnamed - 1) * room - folded
     low = max(low, 0)
     return known + low, known + high + unread
 
@@ -12293,6 +12308,7 @@ def _style_checks(
                 style,
                 floor,
                 pooled,
+                _unnamed_reach(measured, floor),
             )
         ]
     # THE CENSUS OF WIDTHS, ON THE SAME TERMS AS THE FORMS MAP. Each
@@ -12320,6 +12336,7 @@ def _style_checks(
                 width,
                 floor,
                 held_back,
+                _form_reach(measured, widths, parsing.STYLE_DECIMAL, floor),
             )
         ]
     # THE CENSUS OF FIELD WIDTHS, ON THOSE SAME TERMS (P4-D14). Without
@@ -12346,6 +12363,7 @@ def _style_checks(
                 width,
                 floor,
                 pooled_pads,
+                _form_reach(measured, pads, parsing.STYLE_LEADING_ZERO, floor),
             )
         ]
     return checks
@@ -12976,12 +12994,26 @@ def _shown_count_or_none(found: "int | None") -> "str | None":
 
 
 def _pooled_widths(facts: contract.NumericFacts) -> int:
-    """How many cells the fraction-width census withheld under its pool."""
+    """How many cells the fraction-width census withheld under its pool.
+
+    AND WHERE THE FORMS MAP HOLDS BACK THE POINT, ITS POOL (plan P4-D221).
+    The census of a held-back form is empty, so no width of the cells the
+    forms map pools is named, and each of them is a cell written at some
+    width too few cells shared to name, exactly as the census's own pool
+    is: 1,200 prices with one padded, one exponent and one three-place
+    cell publish `numeric_styles {(withheld): 1200}` at a floor of eleven,
+    and the real table's `412.50` is a cell of that pool.
+    """
+    pooled = 0
     if taxonomy.SUPPRESSED_LABEL in facts.fraction_widths:
         found = facts.fraction_widths[taxonomy.SUPPRESSED_LABEL]
         if isinstance(found, int):
-            return found
-    return 0
+            pooled = found
+    if parsing.STYLE_DECIMAL not in facts.numeric_styles:
+        for style in sorted(facts.numeric_styles):
+            if style == taxonomy.SUPPRESSED_LABEL:
+                pooled = pooled + facts.numeric_styles[style]
+    return pooled
 
 
 def _published_widths(
@@ -13464,6 +13496,7 @@ def _floor_governed(
     key: str,
     floor: int,
     pooled: int = 0,
+    reach: int = -1,
 ) -> Check:
     """One named count, printed exactly only when it clears the floor.
 
@@ -13504,6 +13537,24 @@ def _floor_governed(
         return _exact(
             name, fact, subcheck, _shown_count(published), _shown_count(measured[key])
         )
+    # ``reach`` IS THE MOST CELLS THE FILE'S OWN DESCRIPTION LEAVES AN
+    # UNNAMED KEY (plan P4-D221; stage 2 closed by the owner rulings of
+    # 2026-09-17), where the caller can say it. A pool below the disclosure
+    # line takes in the smallest named count, so an absent key is no
+    # longer always a count below the floor: 400 twin cells at two places
+    # beside two at other widths describe as one pool of 402, and the 400
+    # were reported below the floor. Where that room reaches the published
+    # count the comparison is not settled, and is withheld (V5.1).
+    if reach >= published:
+        return Check(
+            name,
+            fact,
+            subcheck,
+            WITHHELD,
+            _shown_count(published),
+            "",
+            _GATE_POOLED,
+        )
     return Check(
         name,
         fact,
@@ -13512,6 +13563,46 @@ def _floor_governed(
         _shown_count(published),
         _below_the_floor(floor),
     )
+
+
+def _form_reach(
+    styles: "dict[str, int] | None",
+    widths: "dict[str, int] | None",
+    form: str,
+    floor: int,
+) -> int:
+    """The room a file's own description leaves an unnamed width of a form.
+
+    Where its forms map names the form, the width census's own pool; where
+    it holds the form back, the width census is empty by contract P8 and
+    the room is what the forms map's pool leaves the form (plan P4-D221).
+    """
+    if styles is not None and form not in styles:
+        return _unnamed_reach(styles, floor)
+    return _unnamed_reach(widths, floor)
+
+
+def _unnamed_reach(census: "dict[str, int] | None", floor: int) -> int:
+    """The most cells a file's own census leaves a key it does not name.
+
+    THE POOL, READ AS THE PRODUCER WRITES IT (plan P4-D221). Every count
+    the pool holds is below `parsing.census_floor`, save the one named
+    count a pool below that line took in, which is no larger than the
+    smallest count the census still names -- or the whole pool, where it
+    names none. A census with no pool leaves an unnamed key nothing.
+
+    Guarantees: accepts a measured census, or None, and the floor;
+    returns a whole number of at least nought. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    if census is None or taxonomy.SUPPRESSED_LABEL not in census:
+        return 0
+    pool = census[taxonomy.SUPPRESSED_LABEL]
+    largest = pool
+    for key in sorted(census):
+        if key != taxonomy.SUPPRESSED_LABEL and census[key] < largest:
+            largest = census[key]
+    return min(pool, max(largest, parsing.census_floor(floor) - 1))
 
 
 # -- the label roles --------------------------------------------------

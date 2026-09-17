@@ -1219,8 +1219,17 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # (2026-09-16), for the cause recorded beside the profile golden:
 # diffed both ways, the description moved against each side only in the
 # other side's keys.
+# RE-RECORDED 2026-09-17 for plan P4-D221 (stage 2 closed by the owner
+# rulings of 2026-09-17), and NO CELL OF THE TWIN MOVED. ONE value of the
+# description moved: `reading`'s `field_widths`, which published
+# `{"2": 57, "3": 165, "(withheld)": 5}` and now publishes
+# `{"3": 165, "(withheld)": 62}` -- a pool of five below the disclosure
+# line takes in the smallest named width. MEASURED against a tree of
+# 039df54 at this seed: `diff` of the two descriptions shows those lines
+# alone, and the twin, report and quality digests below are the same on
+# both trees.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "327450edb3a462738004f9dfe688422ad316bd3e9bd17081e29ef031f5455ac8"
+    "27c433140b9180ffbf4bd28d372cf55bc605acdb7813e379ff9a081bf3c5dce2"
 )
 
 

@@ -680,6 +680,14 @@ def test_a_withheld_style_share_widens_both_windows_alike(
     draw = random.Random(11)
     cells = [f"{draw.gauss(80, 16):.1f}" for _ in range(300)]
     cells += [str(draw.randint(60, 100)) for _ in range(6)]
+    # ...AND FIVE WHOLE NUMBERS WRITTEN WITH AN EXPONENT (plan P4-D221;
+    # stage 2 closed by the owner rulings of 2026-09-17). Six plain cells
+    # alone are a pool below the disclosure line, which takes in the named
+    # tenths and leaves a map of one pool of 306 whose placement moves
+    # strata past the cap -- the exception G5.6 names, where the two
+    # windows are drawn apart on purpose. Six plain and five exponent
+    # cells are a pool of eleven over two forms, beside the named tenths.
+    cells += [f"{draw.randint(60, 100)}e0" for _ in range(5)]
     column = _describe(tmp_path, "withheld_style", cells, floor=11)
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
@@ -816,11 +824,17 @@ def test_the_generator_and_the_oracle_read_one_written_grid(
     # do not cover the column, and neither writing may read a grid. Read
     # off the pooled share instead, both would read the grid of tenths,
     # which `-0.01` is not a point of.
-    pooled = [f"{draw.gauss(37, 0.5):.1f}" for _ in range(490)] + ["-1e-2"] * 10
+    # ...and one `-1E-2`, so the pool is eleven over two forms beside the
+    # named 490 (plan P4-D221): ten alone take the named count in.
+    pooled = (
+        [f"{draw.gauss(37, 0.5):.1f}" for _ in range(490)]
+        + ["-1e-2"] * 10
+        + ["-1E-2"]
+    )
     column = _describe(tmp_path, "withheld_pool", pooled, floor=11)
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
-    assert dict(facts.numeric_styles).get("(withheld)") == 10, dict(facts.numeric_styles)
+    assert dict(facts.numeric_styles).get("(withheld)") == 11, dict(facts.numeric_styles)
     assert dict(facts.fraction_widths) == {"1": 490}, dict(facts.fraction_widths)
     mine = generation._written_grid(column, facts)
     theirs = oracle.written_grid(

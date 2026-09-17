@@ -5671,11 +5671,18 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     this enumeration cannot express, so counting it here would promise
     something no twin could keep.
 
-    THE FLOOR GOVERNS A FORM AS IT GOVERNS A LABEL. A form used by fewer
-    than `small_cell_floor` cells has no key of its own; its cells are
-    counted into a `(withheld)` remainder, so a single oddly written
-    cell cannot be singled out. What the mapping publishes either way is
-    a count of cells per form -- no value, no magnitude, no spelling.
+    THE DISCLOSURE RULE GOVERNS A FORM (plan P4-D221; stage 2 closed by
+    the owner rulings of 2026-09-17). A form used by fewer cells than
+    `parsing.census_floor` -- two at a floor of one, the settings floor
+    above it -- has no key of its own; its cells are counted into a
+    `(withheld)` remainder, and a remainder that is itself below that
+    line takes in the smallest named form, through
+    `parsing.pooled_census`, so no printed count and no count left by
+    subtraction from the numeric count is one person. Until then a form
+    used by one cell was named at the default floor of one and a
+    remainder of one was published beside the named forms at every floor
+    above it. What the mapping publishes either way is a count of cells
+    per form -- no value, no magnitude, no spelling.
 
     Guarantees: accepts a tally of one column; returns a mapping from
     form names, plus possibly `(withheld)`, to counts that sum to how
@@ -5692,17 +5699,53 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
             counts[style] = counts[style] + 1
         else:
             counts[style] = 1
+    total = 0
+    for style in counts:
+        total = total + counts[style]
+    census = parsing.pooled_census(
+        counts, total, cells.settings.small_cell_floor, False
+    )
     published_counts: dict[str, int] = {}
-    withheld = 0
     for style in NUMERIC_STYLES:
-        if style not in counts:
-            continue
-        if counts[style] >= cells.settings.small_cell_floor:
-            published_counts[style] = counts[style]
-        else:
-            withheld = withheld + counts[style]
-    if withheld:
-        published_counts[SUPPRESSED_LABEL] = withheld
+        if style in census:
+            published_counts[style] = census[style]
+    if SUPPRESSED_LABEL in census:
+        published_counts[SUPPRESSED_LABEL] = census[SUPPRESSED_LABEL]
+    return published_counts
+
+
+def _floored_widths(counts: "dict[int, int]", floor: int) -> dict[str, int]:
+    """A width census cut to what the disclosure rule allows (plan P4-D221).
+
+    THE THREE WIDTH CENSUSES ASK THE ONE RULE, `parsing.census_nameable`
+    with its line `parsing.census_floor`, through `parsing.pooled_census`
+    (stage 2 closed by the owner rulings of 2026-09-17). Each named a
+    width where it reached the settings floor and pooled the rest, so
+    1,200 prices with one written to three places published
+    `fraction_widths {"2": 1199, "3": 1}` at the default floor and
+    `{"2": 1199, "(withheld)": 1}` at a floor of eleven: both name the
+    cell. Now a width is named at the line or above, a pool below the
+    line takes in the smallest named width, and the census covers its
+    cells exactly, so what the printed counts leave of the total is
+    nought.
+
+    Guarantees: accepts the tally by width and the settings floor;
+    returns canonical width keys in ascending order, and possibly a
+    `(withheld)` pool last, whose counts add up to the tally's total.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    tally: dict[str, int] = {}
+    total = 0
+    for width in sorted(counts):
+        tally[f"{width}"] = counts[width]
+        total = total + counts[width]
+    census = parsing.pooled_census(tally, total, floor, False)
+    published_counts: dict[str, int] = {}
+    for width in sorted(counts):
+        if f"{width}" in census:
+            published_counts[f"{width}"] = census[f"{width}"]
+    if SUPPRESSED_LABEL in census:
+        published_counts[SUPPRESSED_LABEL] = census[SUPPRESSED_LABEL]
     return published_counts
 
 
@@ -5720,7 +5763,7 @@ def fraction_width(text: str) -> int:
     return parsing.fraction_width(text)
 
 
-def _fraction_widths(cells: _Cells) -> dict[str, int]:
+def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     """How many `decimal`-styled cells wrote each width, under the floor.
 
     TWO COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN.
@@ -5732,11 +5775,12 @@ def _fraction_widths(cells: _Cells) -> dict[str, int]:
     what the styles map cannot say: not that a point was written, but
     how many figures followed it.
 
-    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM. A width used by
-    fewer than `small_cell_floor` cells has no key of its own and its
-    cells are counted into a `(withheld)` remainder, so one oddly
-    written cell cannot be singled out by its own width any more than
-    by its own form.
+    THE DISCLOSURE RULE GOVERNS A WIDTH AS IT GOVERNS A FORM (plan
+    P4-D221), through `_floored_widths`: a width used by fewer cells than
+    `parsing.census_floor` has no key of its own, and a remainder below
+    that line takes in the smallest named width. And a form the forms
+    map holds back has no widths published at all, which `styles` is
+    handed in to decide.
 
     THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically: no leading
     zero, no sign, no padding, so `2` and never `02`. A key grammar
@@ -5750,6 +5794,14 @@ def _fraction_widths(cells: _Cells) -> dict[str, int]:
     keys are built in ascending width order. Raises nothing. No I/O of
     any kind.
     """
+    # A FORM THE FORMS MAP HOLDS BACK HAS NO WIDTHS PUBLISHED (plan
+    # P4-D221). Its cells number fewer than the line, or it is the one
+    # named form a pool below the line took in -- and then what the
+    # census would total leaves that pool behind, again fewer than the
+    # line. Either way a total printed here names cells, so the census
+    # is empty: the state a column with no such cell reaches.
+    if parsing.STYLE_DECIMAL not in styles:
+        return {}
     counts: dict[int, int] = {}
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
@@ -5761,16 +5813,7 @@ def _fraction_widths(cells: _Cells) -> dict[str, int]:
             counts[width] = counts[width] + 1
         else:
             counts[width] = 1
-    published_counts: dict[str, int] = {}
-    withheld = 0
-    for width in sorted(counts):
-        if counts[width] >= cells.settings.small_cell_floor:
-            published_counts[f"{width}"] = counts[width]
-        else:
-            withheld = withheld + counts[width]
-    if withheld:
-        published_counts[SUPPRESSED_LABEL] = withheld
-    return published_counts
+    return _floored_widths(counts, cells.settings.small_cell_floor)
 
 
 def pad_width(text: str) -> int:
@@ -6568,10 +6611,11 @@ def _figures_unfilled(spelling: str) -> str:
 def _padded_cells(cells: _Cells) -> int:
     """How many cells of this column were written with a leading zero.
 
-    Counted off the CELLS rather than read back off the published
-    styles map, because the map may have pooled the form below the
-    floor -- and a column whose padding was too rare to name is still a
-    column whose padding a person should be told about.
+    Counted off the CELLS. The remark that carried this count used it
+    because the map may have pooled the form below the floor; since plan
+    P4-D221 that remark speaks only where the map names the form, and
+    with the map's own count, so this answers only whether any cell is
+    padded.
     """
     counted = 0
     for cell in cells.classified:
@@ -6596,11 +6640,10 @@ def _pad_widths(cells: _Cells, plus: bool = True) -> dict[str, int]:
     code, slicing it, or joining on it held a twin their own code could
     not run against, and no report said a word.
 
-    THE FLOOR GOVERNS A WIDTH AS IT GOVERNS A FORM, for the reason it
-    does there: a width fewer than `small_cell_floor` cells share has
-    no key of its own and its cells are counted into a `(withheld)`
-    remainder, so one oddly written cell cannot be singled out by its
-    width.
+    THE DISCLOSURE RULE GOVERNS A WIDTH AS IT GOVERNS A FORM (plan
+    P4-D221), through `_floored_widths`, for the reason it does there;
+    `_width_censuses` publishes nothing for a padded form the forms map
+    holds back.
 
     THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
     leading zero, no sign, no padding -- which is the one grammar the
@@ -6639,16 +6682,7 @@ def _pad_widths(cells: _Cells, plus: bool = True) -> dict[str, int]:
             counts[width] = counts[width] + 1
         else:
             counts[width] = 1
-    published_counts: dict[str, int] = {}
-    withheld = 0
-    for width in sorted(counts):
-        if counts[width] >= cells.settings.small_cell_floor:
-            published_counts[f"{width}"] = counts[width]
-        else:
-            withheld = withheld + counts[width]
-    if withheld:
-        published_counts[SUPPRESSED_LABEL] = withheld
-    return published_counts
+    return _floored_widths(counts, cells.settings.small_cell_floor)
 
 
 def _width_censuses(
@@ -6681,6 +6715,14 @@ def _width_censuses(
        widths. Its padded cells keep their width in `pad_widths`, so the
        twin loses nothing on them; what it loses is the magnitude the
        report-only census gave the few unpadded cells.
+    3. THE POOL ROUTE (plan P4-D221; stage 2 closed by the owner rulings
+       of 2026-09-17). `field_widths` less the named point-free forms is
+       the held-back cells written whole, and the forms map's pool less
+       that is the held-back cells written otherwise; where either is too
+       few to name, the held-back cells are not counted. And a padded form
+       the forms map holds back has no `pad_widths` at all: its cells are
+       fewer than the line, or it is the named form a pool below the line
+       took in, and either way a total printed for it names cells.
 
     Guarantees: accepts a tally of one column and its published forms
     map; returns the published `pad_widths` and `field_widths`, between
@@ -6696,7 +6738,31 @@ def _width_censuses(
         parsing.STYLE_LEADING_ZERO in styles or SUPPRESSED_LABEL not in styles
     )
     padded = _pad_widths(cells, counts_plus)
-    fields = _field_widths(cells)
+    if (
+        parsing.STYLE_LEADING_ZERO not in styles
+        and SUPPRESSED_LABEL in styles
+    ):
+        # THE PADDED FORM HELD BACK (plan P4-D221): the census counts
+        # only its cells here, and a total printed for a held-back form
+        # names cells, as `_fraction_widths` says of the point.
+        padded = {}
+    fields = _field_widths(cells, styles, True)
+    held = 0
+    for width in fields:
+        held = held + fields[width]
+    for style in POINT_FREE_STYLES:
+        if style in styles:
+            held = held - styles[style]
+    if held > 0 and not parsing.census_nameable(
+        [held], [styles[SUPPRESSED_LABEL]], floor
+    ):
+        # THE POOL ROUTE (plan P4-D221). What the census counts past the
+        # named point-free forms is the held-back cells written whole,
+        # and what that leaves of the forms map's pool is the held-back
+        # cells written otherwise. Where either is too few to name, the
+        # held-back cells are not counted, which is what a column whose
+        # held-back cells all carry a point writes.
+        fields = _field_widths(cells, styles, False)
     plus_broken, _widths = parsing.width_census_breaches(
         styles, padded, fields, floor
     )
@@ -6723,7 +6789,9 @@ POINT_FREE_STYLES = (
 )
 
 
-def _field_widths(cells: _Cells) -> dict[str, int]:
+def _field_widths(
+    cells: _Cells, styles: "dict[str, int]", held: bool
+) -> dict[str, int]:
     """How many figures each WHOLE-WRITTEN numeric cell wrote (P4-D30).
 
     THE THIRD CENSUS, AND THE ONE THAT COVERS THE CELLS THE OTHER TWO
@@ -6753,10 +6821,11 @@ def _field_widths(cells: _Cells) -> dict[str, int]:
     the other is what tells a generator how many cells must hold a
     value of a given magnitude, which is what closes R-P4-30.
 
-    THE FLOOR GOVERNS A WIDTH AS IT DOES IN THE OTHER TWO CENSUSES,
-    and for the same reason: a width fewer than `small_cell_floor`
-    cells share has no key of its own and its cells are counted into a
-    `(withheld)` remainder.
+    THE DISCLOSURE RULE GOVERNS A WIDTH AS IT DOES IN THE OTHER TWO
+    CENSUSES (plan P4-D221), through `_floored_widths`. ``held`` says
+    whether the cells of forms the forms map holds back are counted;
+    `_width_censuses` leaves them out where what they add, or what they
+    leave of the map's pool, is too few to name.
 
     THE KEYS ARE THE WIDTHS AS DECIMAL FIGURES, canonically -- no
     leading zero, no sign, no padding -- which is the one grammar the
@@ -6773,23 +6842,17 @@ def _field_widths(cells: _Cells) -> dict[str, int]:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.numeric_text) not in POINT_FREE_STYLES:
+        style = numeric_style(cell.numeric_text)
+        if style not in POINT_FREE_STYLES:
+            continue
+        if not held and style not in styles:
             continue
         width = pad_width(cell.numeric_text)
         if width in counts:
             counts[width] = counts[width] + 1
         else:
             counts[width] = 1
-    published_counts: dict[str, int] = {}
-    withheld = 0
-    for width in sorted(counts):
-        if counts[width] >= cells.settings.small_cell_floor:
-            published_counts[f"{width}"] = counts[width]
-        else:
-            withheld = withheld + counts[width]
-    if withheld:
-        published_counts[SUPPRESSED_LABEL] = withheld
-    return published_counts
+    return _floored_widths(counts, cells.settings.small_cell_floor)
 
 
 def _bin_census(numbers: "list[float]") -> "dict[int, int] | None":
@@ -8092,7 +8155,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         "negative_notations": _negative_notations(cells),
         "thousands_marks": _thousands_marks(cells),
         "decimal_plus": _decimal_plus(cells),
-        "fraction_widths": _fraction_widths(cells),
+        "fraction_widths": _fraction_widths(cells, styles_map),
         # ...and how wide the ones written with a redundant zero wrote
         # their figure field, which the forms map cannot say either
         # (P4-D14). A SIBLING for the same reason: version 6 requires
@@ -12736,9 +12799,20 @@ def _numeric_verdict(
     # of `00100` -- a procedure code, a vaccine code, a zip -- got no
     # pointer at all while being described as a quantity with an
     # average and a spread.
+    #
+    # AND ITS COUNT IS THE ONE THE FORMS MAP NAMES, or there is no remark
+    # (plan P4-D221; stage 2 closed by the owner rulings of 2026-09-17).
+    # It was counted off the cells so that padding too rare to name was
+    # still told, and that told it: 1,200 prices with one padded cell
+    # carried "1 of this column's values are written with a leading zero"
+    # at every floor, beside a forms map that pooled the cell. A count the
+    # map does not name is a count no sentence prints.
     padded = _padded_cells(cells)
-    if padded:
-        remarks += [note(REMARK_PADDED_NUMBERS, (padded,))]
+    styles = _numeric_styles(cells)
+    if padded and parsing.STYLE_LEADING_ZERO in styles:
+        remarks += [
+            note(REMARK_PADDED_NUMBERS, (styles[parsing.STYLE_LEADING_ZERO],))
+        ]
     # ...AND A COMMA INSIDE A NUMBER IS A CHOICE, NOT A READING. This
     # is the one place the package can be wrong by a factor rather than
     # by a rounding, and it was silent about it: a column of European

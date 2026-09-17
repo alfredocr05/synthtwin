@@ -248,9 +248,10 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     """
     values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40, "(withheld)": 6,
-    }
+    # One pool of forty-six since plan P4-D221 (stage 2 closed by the owner
+    # rulings of 2026-09-17): a pool of six below the disclosure line
+    # takes in the named forty.
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
 
     twin = generation.generate(loaded, 0)
     written = _styles(twin)

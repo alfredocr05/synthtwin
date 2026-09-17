@@ -322,31 +322,39 @@ def test_the_reach_step_is_what_carries_the_battery(
     assert missed > 0, "the battery reaches no column the reach step carries"
 
 
-# THE COLUMN THAT HAS TO WRITE AN EXPONENT CASE PAIR (R-P4-55). Twelve
+# THE COLUMN THAT HAS TO WRITE AN EXPONENT CASE PAIR (R-P4-55). Fourteen
 # cells, ten of them values no fixed-point window holds, and one value
-# written TWICE -- once with a lower-case exponent and once with an
+# written THREE times -- once with a lower-case exponent and twice with an
 # upper-case one. G6.5 names that pair as the only construction a
 # numeric column has for a raw spelling count above its folded one, so
 # this description publishes `n_distinct` 12 against `n_distinct_folded`
 # 11 and a twin reaches both counts only by writing the pair.
 #
-# SEARCHED RATHER THAN COMPOSED. Twelve rows is the smallest size at
-# which the shipped guard and the repaired one part company, and at that
-# size they part at every seed -- which is what makes the mutant below
-# a strict one rather than a sampling.
+# SEARCHED RATHER THAN COMPOSED, TWICE. The first search found twelve rows,
+# the smallest size at which the shipped guard and the repaired one part
+# company, with the upper-case spelling written once. A form held by one
+# cell is named by no forms map since plan P4-D221 (stage 2 closed by the
+# owner rulings of 2026-09-17): it pooled with the lower-case three, a pool
+# is spelled by its values, and no twin of it wrote the pair. The search
+# was run again with the upper-case spelling written twice, over the same
+# ten values and draws of up to two more; this is the first column of 400
+# draws on which both counts come out exactly at every seed below and the
+# mutant costs the raw count at every one of them.
 CASE_PAIR = (
-    "90010990.39664085",
-    "81022.18879182487",
-    "1.780748719032198e+17",
+    "5.233046213770536E+18",
     "4562546.455625033",
-    "0.0007690174397238888",
-    "0.7523187990707938",
-    "9.938011207754502e-06",
-    "236035630.34334084",
+    "5.233046213770536E+18",
+    "5.233046213770536e+18",
+    "81022.18879182487",
     "0.08258517838289767",
+    "0.09859816242635232",
     "65041600349440.74",
-    "9.822753491023274e+16",
-    "9.822753491023274E+16",
+    "0.0007690174397238888",
+    "236035630.34334084",
+    "0.7523187990707938",
+    "90010990.39664085",
+    "9.938011207754502e-06",
+    "1.780748719032198e+17",
 )
 
 

@@ -459,8 +459,13 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
     * `reading` -- a common stand-in number and a rare one, so
       `n_sentinel_candidates_unpublished` counts a candidate too rare to
       name;
-    * `amount` -- mostly plain decimals with one exponent and one signed
-      value, so `numeric_styles` pools a FORM;
+    * `amount` -- mostly plain decimals with six exponents, six signed
+      whole numbers and one signed decimal, so `numeric_styles` pools two
+      FORMS at the default floor and names both at a floor of one. They
+      were one exponent and one signed value until plan P4-D221 (stage 2
+      closed by the owner rulings of 2026-09-17) held a pool of the forms
+      map to the disclosure line: a pool of one took the named decimals in
+      with it, and a map of one pool keeps nothing of the column;
     * `stamped_at` -- times stamped in UTC with two rare offsets of six
       rows each, so `utc_offsets` pools an OFFSET beside `Z` at the
       default floor and names both at a floor of one. They were one row
@@ -507,8 +512,10 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
             reading = "9999"
         else:
             reading = str(rng.randint(1, 400))
-        if index == 13:
-            amount = "1.5e3"
+        if index % 40 == 13:
+            amount = f"{index % 90 + 5}.5e0"
+        elif index % 40 == 33:
+            amount = f"+{index % 90 + 3}"
         elif index == 17:
             amount = "+12.25"
         else:

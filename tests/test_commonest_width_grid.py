@@ -58,7 +58,14 @@ def _exit_of(argv: "list[str]") -> int:
 def _readings() -> "list[str]":
     draw = random.Random(3)
     cells = [f"{draw.gauss(4.2, 0.5):.1f}" for _cell in range(400)]
+    # TWO CELLS WRITTEN AT TWO PLACES, where the measurement above wrote
+    # one (plan P4-D221; stage 2 closed by the owner rulings of
+    # 2026-09-17). A width held by one cell is a pool below the disclosure
+    # line, which takes in the one named width, so the census publishes
+    # no width at all and there is no grid left to read; two cells are a
+    # group at a floor of one and both widths are named.
     cells[10] = cells[10] + "0"
+    cells[11] = cells[11] + "0"
     return cells
 
 
@@ -68,7 +75,8 @@ def test_one_padded_reading_no_longer_costs_the_twin_its_widths(
 ) -> None:
     """At a floor of one the twin is on the grid; at eleven the real table passes.
 
-    At eleven the census pools the `4.20` cell, and a pooled width is not
+    At eleven the census pools the two `4.20`-style cells, and with them the
+    width they sit beside, and a pooled width is not
     read as a grid, so only the validator's half of the repair -- the
     pool permits its own count of unnamed widths -- is held there.
     """

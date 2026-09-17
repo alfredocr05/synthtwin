@@ -9701,7 +9701,7 @@ case passed, which is the failure the count exists to prevent:
 | `offset_bearing` | G7.4's allocation, the `utc` clock conversion, and `earliest_utc_offset`/`latest_utc_offset` |
 | `mixed_parsed_unparsed` | G10.4's stand-ins beside parsed cells, and `n_unparsed` |
 | `numeric_integer` | G5.3 with `integer_valued: true`, the tie-toward-`+inf` rounding, and both endpoint pins |
-| `numeric_decimal_styles` | G6.2's canonical boundaries (`1e+16`, `1e-05`, `.0`), G6.4's largest-remaining allocation, and a fold-collision pair |
+| `numeric_decimal_styles` | G6.2's canonical boundaries (`1e+16`, `1e-05`, `.0`), G6.4's largest-remaining allocation over twelve lower-case and thirteen upper-case exponent cells, and a fold-collision family of four spellings of one value (source rewritten by plan P4-D221, citing the owner rulings of 2026-09-17: its three plain cells were a pool below the disclosure line beside two named forms, which the profile contract no longer admits) |
 | `label_variants` | G8.1's variant allocation, G8.2's case flips and trailing spaces, G8.3's withheld levels |
 | `identifier_fold_collisions` | G9.3 with `n_distinct_folded < n_distinct`, and G9.2's length pins |
 | `identifier_whole_numbers` | G9.6 with `all_whole_numbers: true` reaching all three bands, and the whole-group alphabet packing |
@@ -9887,6 +9887,22 @@ must fail. The pair this route cannot show on the SHARED clock is
 refused by the profile contract's D10 before generation, so it is a
 loader case and not a vector case — a description no loader accepts has
 no twin bytes to freeze.
+
+**`numeric_decimal_styles` was rewritten again at plan P4-D221** (stage 2
+closed by the owner rulings of 2026-09-17). Its published map of three
+pooled plain cells beside eleven cells in each exponent form holds a
+pool below `parsing.census_floor` beside named forms, which the profile
+contract's P6 now refuses, so no loader reads the case. The source is
+now written in the two exponent forms alone, twelve lower-case and
+thirteen upper-case, with the ladder and the spelling counts unchanged:
+the rebuilt cells write the smallest value `1E-05`, the largest `1e+16`
+and `1E+16`, four spellings of `1000000000000000` on the flat top, and
+twenty-three folded identities against twenty-five raw spellings. The
+cases `numeric_integer`, `numeric_pooled_spelling` and
+`saturated_integers` published censuses the same rule no longer admits
+-- field-width pools of four and nine beside a named width, and a forms
+map pooling one cell beside a named count -- and now publish what the
+producer writes for their sources; their cells did not move.
 
 **`numeric_decimal_styles` was regenerated against this revision by the
 oracle's own owner** (2026-08-11; review items P2-C2-F2 and P2-C2-F3).

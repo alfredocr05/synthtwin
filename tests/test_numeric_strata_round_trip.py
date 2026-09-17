@@ -413,9 +413,20 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
     The real table misses here whichever way the grid reads -- its lone
     exponent style is pooled below the floor -- so the twin is what this
     gate checks, and that shortfall is named rather than asserted away.
+
+    AND ONE MORE CELL WRITTEN `-1E-2` (plan P4-D221; stage 2 closed by the
+    owner rulings of 2026-09-17). A pool of ten below the disclosure line
+    now takes in the named `decimal` count, which leaves no named count to
+    read a grid from; ten lower-case and one upper-case exponent are two
+    forms each held by fewer than eleven cells, a pool of eleven that
+    stands beside the named 490.
     """
     draw = random.Random(17)
-    cells = [f"{draw.gauss(37, 0.5):.1f}" for _each in range(490)] + ["-1e-2"] * 10
+    cells = (
+        [f"{draw.gauss(37, 0.5):.1f}" for _each in range(490)]
+        + ["-1e-2"] * 10
+        + ["-1E-2"]
+    )
     for seed in SEEDS:
         first, _second, written, _twin_exit, _real_exit = _round_trip(
             tmp_path / f"pool-{seed}",
@@ -425,7 +436,7 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
             seed=seed,
         )
         assert first["fraction_widths"] == {"1": 490}, first["fraction_widths"]
-        assert first["numeric_styles"]["(withheld)"] == 10, first["numeric_styles"]
+        assert first["numeric_styles"]["(withheld)"] == 11, first["numeric_styles"]
         held = {float(cell) for cell in written}
         assert len(held) >= 30, (seed, len(held), first["n_distinct_values"])
     (tmp_path / "grid").mkdir()

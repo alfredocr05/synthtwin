@@ -1009,8 +1009,11 @@ def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
         seed="1",
         header="amount",
     )
-    # The shape: the styles floor really did pool that one cell.
-    assert first["numeric_styles"]["(withheld)"] == 1, first["numeric_styles"]
+    # The shape: the styles floor really did pool that one cell -- and,
+    # since plan P4-D221 (stage 2 closed by the owner rulings of
+    # 2026-09-17), the named amounts with it, because a pool of one is
+    # below the disclosure line: the map is one pool of 800.
+    assert first["numeric_styles"] == {"(withheld)": 800}, first["numeric_styles"]
     # ...and the answer: the word says nothing about it, and the ceiling
     # is listed rather than held.
     assert first["wide_runs"] == "none", first["wide_runs"]

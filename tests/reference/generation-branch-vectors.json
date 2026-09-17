@@ -6757,12 +6757,8 @@
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
-        "field_widths": {
-          "(withheld)": 11
-        },
-        "fraction_widths": {
-          "(withheld)": 1
-        },
+        "field_widths": {},
+        "fraction_widths": {},
         "group_separator": "",
         "integer_valued": false,
         "kurtosis": {
@@ -6816,8 +6812,7 @@
           "proof": "nearest"
         },
         "numeric_styles": {
-          "(withheld)": 1,
-          "plain": 11
+          "(withheld)": 12
         },
         "pad_widths": {},
         "percentiles": {

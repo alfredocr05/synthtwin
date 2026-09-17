@@ -117,7 +117,7 @@ def keys_are_the_tables_own_text(path: "tuple[object, ...]") -> bool:
     return tuple(steps) in TABLE_TEXT_KEY_SPACES
 
 
-# THE TWO CENSUSES WHOSE POOL MAY STAND AT A FLOOR OF ONE (plan P4-D220;
+# THE CENSUSES WHOSE POOL MAY STAND AT A FLOOR OF ONE (plan P4-D220;
 # stage 2 closed by the owner rulings of 2026-09-17). `utc_offsets` and
 # `datetime_separators` name no count below `parsing.census_floor`,
 # which is two at a floor of one, so a count of one they cannot name is
@@ -125,9 +125,30 @@ def keys_are_the_tables_own_text(path: "tuple[object, ...]") -> bool:
 # held back" rests on the range below a floor of one being empty. Read
 # by the loader's S13 walk and by the producer's publication guard, so
 # the two cannot answer the question two ways.
+#
+# THE FOUR CENSUSES OF HOW NUMBERS WERE WRITTEN JOIN THEM (plan P4-D221),
+# on a column, on each part of a composite column, and on the numbers of
+# a compound or affixed column alike: the forms
+# map and its three width censuses name no count below that line either.
 POOLED_AT_ANY_FLOOR = (
     ("columns", EACH, "datetime_separators"),
     ("columns", EACH, "utc_offsets"),
+    ("columns", EACH, "numeric_styles"),
+    ("columns", EACH, "fraction_widths"),
+    ("columns", EACH, "pad_widths"),
+    ("columns", EACH, "field_widths"),
+    ("columns", EACH, "parts", EACH, "numeric_styles"),
+    ("columns", EACH, "parts", EACH, "fraction_widths"),
+    ("columns", EACH, "parts", EACH, "pad_widths"),
+    ("columns", EACH, "parts", EACH, "field_widths"),
+    ("columns", EACH, "numbers", "numeric_styles"),
+    ("columns", EACH, "numbers", "fraction_widths"),
+    ("columns", EACH, "numbers", "pad_widths"),
+    ("columns", EACH, "numbers", "field_widths"),
+    ("columns", EACH, "affix_variants", EACH, "numbers", "numeric_styles"),
+    ("columns", EACH, "affix_variants", EACH, "numbers", "fraction_widths"),
+    ("columns", EACH, "affix_variants", EACH, "numbers", "pad_widths"),
+    ("columns", EACH, "affix_variants", EACH, "numbers", "field_widths"),
 )
 
 
