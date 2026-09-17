@@ -236,8 +236,8 @@ def test_the_writer_and_the_method_oracle_agree_on_every_date_rule() -> None:
             for kind in kinds
         }
         assert list(
-            sheetwriting.cell_format_kinds(census, classes, dated)
-        ) == oracle.sheet_format_kinds(census, list(classes), list(dated)), (
+            sheetwriting.cell_format_kinds(census, classes, dated=dated)
+        ) == oracle.sheet_format_kinds(census, list(classes), dated=list(dated)), (
             census, classes, dated,
         )
     for _step in range(3000):

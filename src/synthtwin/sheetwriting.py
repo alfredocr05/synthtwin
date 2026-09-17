@@ -61,7 +61,16 @@ _TABLE_NAME = "Table1"
 
 
 def _escaped(text: str) -> str:
-    """One piece of text as XML content."""
+    """One piece of text as XML content.
+
+    A CARRIAGE RETURN IS WRITTEN AS ITS CHARACTER REFERENCE (plan
+    P4-D167). Every XML reader turns a literal carriage return into a
+    line feed before the text reaches it, so a header `line&#13;name`
+    that the reader had read as `line\rname` came back from the twin as
+    `line\nname`: the real workbook validated and its twin missed the
+    header's presence, its names, the column order and every column's
+    position. `&#13;` is the one spelling that survives the reading.
+    """
     if not isinstance(text, str):
         raise TypeError("internal check: a cell's text was not text")
     out = text
@@ -69,6 +78,26 @@ def _escaped(text: str) -> str:
     out = out.replace("<", "&lt;")
     out = out.replace(">", "&gt;")
     out = out.replace('"', "&quot;")
+    out = out.replace("\r", "&#13;")
+    return out
+
+
+def _attribute(text: str) -> str:
+    """One piece of text as an XML ATTRIBUTE's value.
+
+    An attribute's tab and line feed are turned into spaces by every
+    reader as well, so all three are written as references here.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: an attribute's text was not text")
+    out = text
+    out = out.replace("&", "&amp;")
+    out = out.replace("<", "&lt;")
+    out = out.replace(">", "&gt;")
+    out = out.replace('"', "&quot;")
+    out = out.replace("\r", "&#13;")
+    out = out.replace("\n", "&#10;")
+    out = out.replace("\t", "&#9;")
     return out
 
 
@@ -105,17 +134,6 @@ def column_reference(number: int) -> str:
     return letters
 
 
-def _all_figures(text: str) -> bool:
-    """Whether every character is an ASCII digit, and there is one."""
-    if not text:
-        return False
-    for character in text:
-        place = ord(character)
-        if place < 48 or place > 57:
-            return False
-    return True
-
-
 def number_spelling(text: str) -> str:
     """The text as a workbook stores a number, or "" where it is not one.
 
@@ -128,41 +146,12 @@ def number_spelling(text: str) -> str:
     written that way is written as text and keeps its characters. That
     is what stops the twin from turning one of the person's published
     spellings into a different number.
+
+    The rule is `dialect.sheet_number_spelling`, which the reader asks
+    too when it refuses a column mixing numbers with texts spelled as
+    numbers (plan P4-D166); one writing of it keeps the two in step.
     """
-    if not isinstance(text, str):
-        raise TypeError("internal check: a cell's text was not text")
-    if not text:
-        return ""
-    body = text
-    if body[:1] in ("-", "+"):
-        body = body[1:]
-    mantissa = body
-    exponent = ""
-    place = mantissa.find("e")
-    if place < 0:
-        place = mantissa.find("E")
-    if place >= 0:
-        exponent = mantissa[place + 1 :]
-        mantissa = mantissa[:place]
-    if exponent:
-        if exponent[:1] in ("-", "+"):
-            exponent = exponent[1:]
-        if not _all_figures(exponent):
-            return ""
-    point = mantissa.find(".")
-    if point >= 0:
-        whole = mantissa[:point]
-        fraction = mantissa[point + 1 :]
-        if whole and not _all_figures(whole):
-            return ""
-        if fraction and not _all_figures(fraction):
-            return ""
-        if not whole and not fraction:
-            return ""
-        return text
-    if not _all_figures(mantissa):
-        return ""
-    return text
+    return dialect.sheet_number_spelling(text)
 
 
 def boolean_spelling(text: str) -> str:
@@ -192,12 +181,7 @@ _NOTHING_CLASSES = (
     dialect.SHEET_CELL_BLANK,
     dialect.SHEET_CELL_EMPTY,
 )
-_VALUE_CLASSES = (
-    dialect.SHEET_CELL_ERROR,
-    dialect.SHEET_CELL_BOOLEAN,
-    dialect.SHEET_CELL_NUMBER,
-    dialect.SHEET_CELL_TEXT,
-)
+_VALUE_CLASSES = dialect.SHEET_VALUE_CLASSES
 
 
 def _wanted(census: "dict[str, int | None]", kind: str) -> int:
@@ -265,8 +249,34 @@ def _leading(census: "dict[str, int | None]", among: "tuple[str, ...]") -> str:
     return best
 
 
+def _left(census: "dict[str, int | None]", kind: str) -> "int | None":
+    """How many cells of this class the census still asks for.
+
+    None where the count was withheld: the census asks for some number
+    of them nobody was told, which is not a licence for none.
+    """
+    if kind not in census:
+        return None
+    found = census[kind]
+    if isinstance(found, bool) or not isinstance(found, int):
+        return None
+    return found
+
+
+# The classes a cell holding a value can be told apart by its spelling
+# (plan P4-D166), in the order a census is handed out in.
+_TOLD_BY_SPELLING = (
+    dialect.SHEET_CELL_ERROR,
+    dialect.SHEET_CELL_BOOLEAN,
+    dialect.SHEET_CELL_DATE,
+    dialect.SHEET_CELL_NUMBER,
+)
+
+
 def cell_classes(
-    census: "dict[str, int | None]", cells: "tuple[str, ...]"
+    census: "dict[str, int | None]",
+    cells: "tuple[str, ...]",
+    value_class: "str | None" = None,
 ) -> "tuple[str, ...]":
     """Which class each generated cell of one column is written as.
 
@@ -281,15 +291,29 @@ def cell_classes(
 
     A cell holding no text takes one of the three classes that hold
     nothing -- absent, a styled blank, or a cell holding the empty
-    string -- and a cell holding text takes one of the four that hold a
-    value. Within each group the published counts are handed out in row
-    order and the column's leading class takes the remainder, so a
-    column whose census is entirely one class is written entirely that
-    way and a census that does not add up cannot leave a cell classless.
+    string -- and a cell holding text takes one of the classes that hold
+    a value. Within each group the published counts are handed out in
+    row order, so a column whose census is entirely one class is written
+    entirely that way and a census that does not add up cannot leave a
+    cell classless.
 
-    The number class is handed out to the cells that CAN be written as a
-    number first (`number_spelling`), so a mixed column does not spend
-    its number cells on text that would have to fall back.
+    A CLASS GOES ONLY TO A CELL SPELLED THE WAY THAT CLASS IS WRITTEN
+    (plan P4-D166). The first writing handed the error, boolean and text
+    counts out to the cells in row order whatever they held, so a column
+    of forty `#N/A` errors, forty `North` and forty `South` got a twin
+    marking twenty-six ordinary labels as errors: pandas read 27, 27 and
+    66 missing from the twin against 40, 40 and 40 from the source, and
+    validation missed nothing. An error goes to an error's spelling, a
+    boolean to `TRUE` or `FALSE`, a date to ISO text and a number to a
+    plain number (`dialect.sheet_class_fits`), and text takes what is
+    left -- first the cells no class still wanted could hold.
+
+    WHERE THE CENSUS WITHHELD A COUNT, ``value_class`` DECIDES (plan
+    P4-D164). A cell no published count claims goes to the column's
+    named commonest class where its spelling fits one, then to a
+    withheld class it fits, then to text -- so a column of digit texts
+    whose every count was withheld is still written as text, and a
+    column of numbers still as numbers.
     """
     empty_order: "list[int]" = []
     full_order: "list[int]" = []
@@ -311,45 +335,88 @@ def cell_classes(
             out[empty_order[at]] = kind
             at = at + 1
             left = left - 1
+    withheld_nothing = ""
+    for kind in _NOTHING_CLASSES:
+        if not withheld_nothing and _left(census, kind) is None:
+            withheld_nothing = kind
     while at < len(empty_order):
-        out[empty_order[at]] = leading_nothing
+        out[empty_order[at]] = (
+            withheld_nothing if withheld_nothing else leading_nothing
+        )
         at = at + 1
 
-    # The number class first, and only to cells that can carry it.
-    numeric: "list[int]" = []
-    other: "list[int]" = []
-    for index in full_order:
-        if number_spelling(cells[index]):
-            numeric += [index]
-            continue
-        other += [index]
+    remaining: "dict[str, int | None]" = {}
+    for kind in _VALUE_CLASSES:
+        remaining[kind] = _left(census, kind)
     taken: "dict[int, bool]" = {}
-    left = _wanted(census, dialect.SHEET_CELL_NUMBER)
-    for index in numeric:
-        if left <= 0:
-            break
-        out[index] = dialect.SHEET_CELL_NUMBER
-        taken[index] = True
-        left = left - 1
+    for kind in _TOLD_BY_SPELLING:
+        wanted = remaining[kind]
+        if wanted is None:
+            continue
+        for index in full_order:
+            if wanted <= 0:
+                break
+            if index in taken or not dialect.sheet_class_fits(kind, cells[index]):
+                continue
+            out[index] = kind
+            taken[index] = True
+            wanted = wanted - 1
+        remaining[kind] = wanted
+
+    text_left = remaining[dialect.SHEET_CELL_TEXT]
+    if text_left is not None and text_left > 0:
+        for tier in (0, 1):
+            for index in full_order:
+                if text_left <= 0:
+                    break
+                if index in taken:
+                    continue
+                if tier == 0 and _still_wanted(remaining, cells[index]):
+                    continue
+                out[index] = dialect.SHEET_CELL_TEXT
+                taken[index] = True
+                text_left = text_left - 1
+        remaining[dialect.SHEET_CELL_TEXT] = text_left
 
     leading_value = _leading(census, _VALUE_CLASSES)
-    waiting: "list[int]" = []
     for index in full_order:
-        if index not in taken:
-            waiting += [index]
-    at = 0
-    for kind in _VALUE_CLASSES:
-        if kind == dialect.SHEET_CELL_NUMBER:
+        if index in taken:
             continue
-        left = _wanted(census, kind)
-        while left > 0 and at < len(waiting):
-            out[waiting[at]] = kind
-            at = at + 1
-            left = left - 1
-    while at < len(waiting):
-        out[waiting[at]] = leading_value
-        at = at + 1
+        out[index] = _unclaimed_class(
+            remaining, cells[index], value_class, leading_value
+        )
     return tuple(out)
+
+
+def _still_wanted(remaining: "dict[str, int | None]", text: str) -> bool:
+    """Whether a class other than text that could hold this cell wants more."""
+    for kind in _TOLD_BY_SPELLING:
+        wanted = remaining[kind]
+        if wanted is not None and wanted <= 0:
+            continue
+        if dialect.sheet_class_fits(kind, text):
+            return True
+    return False
+
+
+def _unclaimed_class(
+    remaining: "dict[str, int | None]",
+    text: str,
+    value_class: "str | None",
+    leading: str,
+) -> str:
+    """The class a cell no published count claimed is written as."""
+    order: "list[str]" = []
+    if value_class is not None and value_class in remaining:
+        order += [value_class]
+    for kind in _VALUE_CLASSES:
+        order += [kind]
+    for kind in order:
+        if remaining[kind] is None and dialect.sheet_class_fits(kind, text):
+            return kind
+    if dialect.sheet_class_fits(leading, text):
+        return leading
+    return dialect.SHEET_CELL_TEXT
 
 
 def _place_of(
@@ -394,7 +461,7 @@ def _styles_part(codes: "tuple[str, ...]") -> str:
         for index in range(len(customs)):
             text = text + (
                 f'<numFmt numFmtId="{164 + index}" '
-                f'formatCode="{_escaped(customs[index])}"/>'
+                f'formatCode="{_attribute(customs[index])}"/>'
             )
         text = text + "</numFmts>"
     text = text + (
@@ -564,6 +631,7 @@ def _empty_row_places(
 def cell_format_kinds(
     census: "dict[str, int | None]",
     classes: "tuple[str, ...]",
+    format_code: str = "General",
     dated: "tuple[str, ...] | None" = None,
 ) -> "tuple[str, ...]":
     """Which kind of format each cell of one column wears.
@@ -579,26 +647,47 @@ def cell_format_kinds(
     AN ABSENT CELL IS ALWAYS PLAIN, and that is not a choice: nothing is
     written for it, so every reader sees the general format there. The
     kinds that are not plain are therefore handed out among the cells
-    that ARE written, in row order, and plain takes the rest.
+    that ARE written, in row order, a text format first to the cells
+    holding text and a date or time format first to the cells holding a
+    number, and plain takes the rest.
 
     A DATE FORMAT GOES TO A DATE FIRST (repair of the stage-2b
     integration). ``dated`` names, per cell, the kind of date its text
     was written from (`date`, `datetime`, or "" for none), and a date
     or datetime format is handed first to the cells holding a date of
     that kind, then to the cells holding a date of the other, and only
-    then to the rest in row order. A date wearing the general format is
-    read back as a bare day count, so where the census names as many
-    date formats as there are dates, every date keeps its format. With
-    no dates named the order is exactly the row order it always was.
+    then by the order above. A date wearing the general format is read
+    back as a bare day count, so where the census names as many date
+    formats as there are dates, every date keeps its format.
+
+    A WITHHELD COUNT IS NOT A LICENCE FOR PLAIN (plan P4-D166). Where
+    the census held the counts back, the cells no published count claims
+    used to be written plain -- including in a column whose census
+    PUBLISHED plain as nought: twenty dates at a floor of eleven came
+    back `plain 20` and missed `workbook.format-kinds`. So a date no
+    count claimed keeps its own kind where that kind's count was
+    withheld (measured on the titled book at a floor of eleven: the date
+    column read back as numbers and missed its role); and any other such
+    cell takes the kind of the column's published code where that kind
+    was withheld, then a withheld kind, and plain only where plain was
+    not denied. A PUBLISHED count is never exceeded by either rule.
+
+    (Both repairs rewrote this step, the integration's for dates and the
+    files review's for withheld counts and cell classes; at their merge
+    the two orders were composed into this one: a date's own kind first,
+    then the class tiers.)
     """
     written: "list[int]" = []
+    absent = 0
     for index in range(len(classes)):
         if classes[index] != dialect.SHEET_CELL_ABSENT:
             written += [index]
+            continue
+        absent = absent + 1
     out: "list[str]" = []
     for _index in range(len(classes)):
         out += [dialect.SHEET_FORMAT_PLAIN]
-    given: "dict[int, bool]" = {}
+    taken: "dict[int, bool]" = {}
     for kind in dialect.SHEET_FORMAT_KINDS:
         if kind == dialect.SHEET_FORMAT_PLAIN:
             continue
@@ -613,31 +702,70 @@ def cell_format_kinds(
             for index in written:
                 if dated[index] and dated[index] != kind:
                     order += [index]
-        for index in written:
-            order += [index]
+        for tier in (0, 1, 2):
+            for index in written:
+                if _format_tier(kind, classes[index]) == tier:
+                    order += [index]
         for index in order:
             if left <= 0:
                 break
-            if index in given:
+            if index in taken:
                 continue
             out[index] = kind
-            given[index] = True
+            taken[index] = True
             left = left - 1
-    # A DATE LEFT OVER KEEPS A DATE FORMAT THE CENSUS DOES NOT DENY. Where
-    # the smallest group held the date count back (`null`) no date format
-    # was handed out above, and plain taking the rest turned every date
-    # into a bare day count -- measured on the titled book at a floor of
-    # eleven: the date column read back as numbers and missed its role.
-    # A withheld count is not a licence to write none; a published nought
-    # still is a fact, and is kept.
     if dated is not None:
         for index in written:
-            if index in given or not dated[index]:
+            if index in taken or not dated[index]:
                 continue
-            if _denied(census, dated[index]):
+            if _left(census, dated[index]) is not None:
                 continue
             out[index] = dated[index]
+            taken[index] = True
+    plain_left = _left(census, dialect.SHEET_FORMAT_PLAIN)
+    if plain_left is not None:
+        plain_left = plain_left - absent
+    leading = dialect.SHEET_FORMAT_PLAIN
+    if format_code in dialect.SHEET_FORMAT_CODE_KINDS:
+        found = dialect.SHEET_FORMAT_CODE_KINDS[format_code]
+        if isinstance(found, str):
+            leading = found
+    for index in written:
+        if index in taken:
+            continue
+        if plain_left is not None and plain_left > 0:
+            plain_left = plain_left - 1
+            continue
+        if plain_left is None and leading == dialect.SHEET_FORMAT_PLAIN:
+            continue
+        out[index] = _unclaimed_kind(census, leading, plain_left is None)
     return tuple(out)
+
+
+def _format_tier(kind: str, cell_class: str) -> int:
+    """How well a cell of this class suits a format of this kind: 0 best."""
+    if kind == dialect.SHEET_FORMAT_TEXT:
+        if cell_class in (dialect.SHEET_CELL_TEXT, dialect.SHEET_CELL_EMPTY):
+            return 0
+    elif cell_class in (dialect.SHEET_CELL_NUMBER, dialect.SHEET_CELL_DATE):
+        return 0
+    if cell_class == dialect.SHEET_CELL_BLANK:
+        return 1
+    return 2
+
+
+def _unclaimed_kind(
+    census: "dict[str, int | None]", leading: str, plain_withheld: bool
+) -> str:
+    """The kind a written cell no published count claimed wears."""
+    if _left(census, leading) is None:
+        return leading
+    if plain_withheld:
+        return dialect.SHEET_FORMAT_PLAIN
+    for kind in dialect.SHEET_FORMAT_KINDS:
+        if _left(census, kind) is None:
+            return kind
+    return dialect.SHEET_FORMAT_PLAIN
 
 
 def _code_for_kind(kind: str, published: str) -> str:
@@ -814,6 +942,14 @@ def _sheet_part(
         text = text + f'<row r="{number}">'
         for index in range(width):
             reference = column_reference(index + 1) + f"{number}"
+            # A HEADER CELL THE SOURCE LEFT BLANK IS WRITTEN BLANK (plan
+            # P4-D165). Its column is named `Unnamed: N` for its place,
+            # which is what every reader names it and what the reader
+            # names it again from a blank cell -- so writing the words
+            # into the twin's header would hand a reader of cells a name
+            # the source never had. Nothing is written in its place.
+            if names[index] == dialect.unnamed_column(index):
+                continue
             place = _place_of(items, places, _cleaned(names[index]))
             text = text + _cell(reference, "s", f"{place}", header_style)
         # The formatted blanks BEYOND the table stand on the header row.
@@ -845,6 +981,12 @@ def _sheet_part(
             value = _cleaned(cells[index][row])
             if kind == dialect.SHEET_CELL_ERROR:
                 line = line + _cell(reference, "e", value, style)
+                continue
+            if kind == dialect.SHEET_CELL_DATE and dialect.sheet_iso_date(value):
+                # A date stored as its ISO text is written back as one
+                # (plan P4-D168), never as a string a reader hands back
+                # as text.
+                line = line + _cell(reference, "d", value, style)
                 continue
             if kind == dialect.SHEET_CELL_BOOLEAN:
                 spelled = boolean_spelling(value)
@@ -962,7 +1104,7 @@ def _table_part(
         text = text + f'<autoFilter ref="{span}"/>'
     text = text + f'<tableColumns count="{width}">'
     for index in range(width):
-        shown = _escaped(_cleaned(names[index]))
+        shown = _attribute(_cleaned(names[index]))
         text = text + f'<tableColumn id="{index + 1}" name="{shown}"/>'
     text = text + "</tableColumns>"
     text = text + (
@@ -1033,7 +1175,7 @@ def _workbook_part(
         text = text + '<workbookPr date1904="1"/>'
     text = text + "<sheets>"
     for index in range(len(sheet_names)):
-        shown = _escaped(sheet_names[index])
+        shown = _attribute(sheet_names[index])
         state = ""
         if index < len(hidden) and hidden[index]:
             state = ' state="hidden"'
@@ -1207,7 +1349,9 @@ def _members(
         )
         cells += [own]
         dates += [dated]
-        classes += [cell_classes(column.cell_classes, own)]
+        classes += [
+            cell_classes(column.cell_classes, own, column.value_class)
+        ]
 
     items: "list[str]" = []
     places: "dict[str, int]" = {}
@@ -1232,7 +1376,8 @@ def _members(
     for index in range(width):
         column = form.columns[index]
         kinds = cell_format_kinds(
-            column.format_kinds, classes[index], dates[index]
+            column.format_kinds, classes[index], column.format_code,
+            dates[index],
         )
         row_styles: "list[int]" = []
         for row in range(len(kinds)):

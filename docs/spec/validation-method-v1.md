@@ -2453,7 +2453,14 @@ nothing for the file to meet: those entries are passed over, and
 `empty_rows_inside` is WITHHELD as a whole. A column's `format_code` is
 WITHHELD in the same way when the census entry for the code's own kind
 was held back, because the twin then writes no cell of that kind and
-the code appears nowhere in it.
+the code appears nowhere in it. Since the files review's repair (plan
+P4-D164) the disclosure rule withholds more -- a nought beside a
+withheld count, and the smallest counts a reader could subtract to one
+-- so a whole census is often held back, and a column then publishes
+its commonest value class BY NAME in `value_class`: `workbook.value-class`
+is checked exactly where that name is published, and WITHHELD where it
+is `null`, which is the one fact that still misses a twin writing a
+column of digit texts as numbers.
 
 4. **A hidden state a lone sheet cannot keep.** `workbook.sheet-hidden`
 IS checked -- the writer hides every sheet standing before the table's,
@@ -2467,6 +2474,15 @@ subcheck is WITHHELD there.
 the command line and never passed to the reader, so a real workbook
 whose table is not on the first visible sheet was measured at whichever
 sheet the reader settled on by itself.
+
+The row a checked workbook's names stand on is the description's where
+the sheet does not settle it (plan P4-D174). Rows of one cell above the
+reader's header row, with no frozen panes and no autofilter at that row,
+may be a title or the names themselves; the producer asks, and the
+checked file is read with its names on the row `rows_above_header` puts
+them on, where that row is one of the two readings. Where it is neither,
+the reader's own row stands and `workbook.rows-above-header` is measured
+against it.
 
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D86). The first four rules above are no longer constants: each asks

@@ -220,6 +220,15 @@ SHEET_CELL_TEXT = "text"
 SHEET_CELL_NUMBER = "number"
 SHEET_CELL_BOOLEAN = "boolean"
 SHEET_CELL_ERROR = "error"
+# A CELL STORED AS AN ISO DATE (`t="d"`, plan P4-D168). The file keeps
+# its date as text -- `2026-01-05T00:00:00` -- rather than as a number
+# wearing a date format, and every reader hands it back as a date. It
+# used to fall through to the number branch, publish `number`, and come
+# back from the twin as TEXT: pandas read datetimes from the source and
+# strings from the twin, and the twin missed `workbook.cell-classes`. It
+# is its own class now, spelled as the text the file holds and written
+# back the way the file wrote it.
+SHEET_CELL_DATE = "date"
 SHEET_CELL_CLASSES = (
     SHEET_CELL_ABSENT,
     SHEET_CELL_BLANK,
@@ -228,7 +237,40 @@ SHEET_CELL_CLASSES = (
     SHEET_CELL_NUMBER,
     SHEET_CELL_BOOLEAN,
     SHEET_CELL_ERROR,
+    SHEET_CELL_DATE,
 )
+
+# The classes that HOLD a value, in the order the twin's writer hands a
+# census out in: the ones whose cells a spelling can be told apart by
+# first, text last (plan P4-D166).
+SHEET_VALUE_CLASSES = (
+    SHEET_CELL_ERROR,
+    SHEET_CELL_BOOLEAN,
+    SHEET_CELL_DATE,
+    SHEET_CELL_NUMBER,
+    SHEET_CELL_TEXT,
+)
+
+# The error cells a spreadsheet writes, by kind. It lives here rather
+# than in `workbook` because the twin's WRITER asks it too -- an error
+# class is handed only to a cell spelled as an error (plan P4-D166) --
+# and the writer may not reach the module that parses a workbook.
+SHEET_ERROR_KINDS = (
+    "#DIV/0!",
+    "#N/A",
+    "#NAME?",
+    "#NULL!",
+    "#NUM!",
+    "#REF!",
+    "#VALUE!",
+    "#GETTING_DATA",
+    "#SPILL!",
+    "#CALC!",
+)
+
+# How a boolean cell is spelled for the column machinery.
+SHEET_BOOLEAN_TRUE = "TRUE"
+SHEET_BOOLEAN_FALSE = "FALSE"
 
 SHEET_FORMAT_PLAIN = "plain"
 SHEET_FORMAT_DATE = "date"
@@ -268,7 +310,344 @@ SHEET_KEYS = (
     "trailing_blank_rows",
 )
 
-SHEET_COLUMN_KEYS = ("cell_classes", "format_code", "format_kinds", "formulas")
+SHEET_COLUMN_KEYS = (
+    "cell_classes",
+    "format_code",
+    "format_kinds",
+    "formulas",
+    "value_class",
+)
+
+
+# -- what a census of a workbook may publish (plan P4-D164) -----------
+#
+# THE DISCLOSURE RULE, WRITTEN ONCE. Every count the workbook block
+# publishes -- a column's cell classes, its format kinds, its formulas,
+# the records holding nothing -- counts CELLS OF THE TABLE, which is to
+# say rows, and the owner's third clause says the description reveals
+# nothing about any individual. The first writing held each count to the
+# floor on its own, and a review measured two ways through it: a column
+# of sixty numbers, thirty-nine texts and one boolean published the
+# boolean's count of 1 at the default floor, and at a floor of five
+# published `60, 39, null` with every other class `0` -- so 100 - 60 - 39
+# rebuilt the count the floor had held back.
+#
+# So a census is published by these rules, and the producer and the
+# loader both ask this module rather than each keeping a copy:
+#
+# * THE LINE is the floor or two, whichever is larger. No published count
+#   is ever one, and no count's complement within the column is either.
+# * A count is SMALL where it is neither nought nor the whole column and
+#   it or its complement falls under the line. Where no count is small
+#   the census is published exactly.
+# * Where one is, every small count AND every nought is withheld
+#   together, so that a withheld key never says "some, but few" -- a
+#   reader cannot tell a withheld nought from a withheld handful.
+# * THE POOL a reader can subtract -- the column's total less every
+#   published count -- is never under the line, and holds at least two
+#   keys. Where it would, the smallest published count joins it, the
+#   earlier key on a tie, until it does or nothing is left published.
+#   A census with nothing left published stands whatever the column's
+#   total: what it leaves to subtract from is the row count alone, which
+#   is published beside it (plan P4-D174).
+#
+# A SINGLE COUNT beside its total is the same rule with nowhere to pool:
+# it is published where it is the whole, or where it and its complement
+# both reach the line, and withheld otherwise -- a nought included, for
+# the same reason.
+
+
+def sheet_line(floor: int) -> int:
+    """The smallest count a workbook census publishes: the floor, or two.
+
+    `parsing.census_floor`, the line of the one disclosure rule, under
+    the name the workbook censuses read it by (written once at the merge
+    of the files review's repair, which had stated it a second time).
+
+    Guarantees: a fixed function of the floor. Raises nothing.
+    """
+    return parsing.census_floor(floor)
+
+
+def _small(count: int, total: int, line: int) -> bool:
+    """Whether a count, or its complement, would name fewer than the line.
+
+    `parsing.census_nameable` over the count and its total, asked of a
+    count that is neither nought nor the whole: a nought and a whole are
+    not small (a whole leaves nothing over, and a nought is settled by
+    the census's own pooling rule above). ``line`` is already at least
+    two, so asking the rule at that floor holds it to that line.
+    """
+    if count <= 0 or count >= total:
+        return False
+    return not parsing.census_nameable([count], [total], line)
+
+
+def sheet_census(
+    counts: "dict[str, int]",
+    every: "tuple[str, ...]",
+    total: int,
+    floor: int,
+) -> "dict[str, int | None]":
+    """One census over a closed key space, as it may be published.
+
+    Guarantees:
+
+    - Inputs: a count per key (a key absent from ``counts`` counts
+      nought), the closed key space in its fixed order, the cells the
+      census partitions, and the settings floor.
+    - Determinism: a fixed function of the arguments. Ties are broken
+      by the order of ``every``.
+    - Errors raised: none.
+    - Boundary: the rules in the comment above, and nothing else; the
+      loader holds a published census to them through
+      `sheet_census_broken`.
+    """
+    line = sheet_line(floor)
+    held: "dict[str, int]" = {}
+    for key in every:
+        held[key] = counts[key] if key in counts else 0
+    small = False
+    for key in every:
+        if _small(held[key], total, line):
+            small = True
+    out: "dict[str, int | None]" = {}
+    if not small:
+        for key in every:
+            out[key] = held[key]
+        return out
+    pooled: "dict[str, bool]" = {}
+    for key in every:
+        if held[key] == 0 or _small(held[key], total, line):
+            pooled[key] = True
+    while True:
+        remainder = 0
+        for key in pooled:
+            remainder = remainder + held[key]
+        if len(pooled) >= 2 and (remainder == 0 or remainder >= line):
+            break
+        smallest = ""
+        for key in every:
+            if key in pooled:
+                continue
+            if not smallest or held[key] < held[smallest]:
+                smallest = key
+        if not smallest:
+            break
+        pooled[smallest] = True
+    for key in every:
+        out[key] = None if key in pooled else held[key]
+    return out
+
+
+def sheet_count(count: int, total: int, floor: int) -> "int | None":
+    """One count beside its total, as it may be published.
+
+    Published where it is the whole, or where it and its complement both
+    reach the line; withheld otherwise, a nought included, so that a
+    withheld count never says "some, but few". Guarantees: a fixed
+    function of the arguments; raises nothing.
+    """
+    if total > 0 and count == total:
+        return count
+    if count > 0 and parsing.census_nameable([count], [total], floor):
+        return count
+    return None
+
+
+def sheet_census_broken(
+    published: "dict[str, int | None]", total: int, floor: int
+) -> str:
+    """What a published census breaks of the rules above, or nothing.
+
+    The loader's half of `sheet_census`: a description may be written by
+    hand, so what is checked is the census as it stands, and every way
+    it could name a row is refused by name. Returns an empty string for
+    a census the rules allow.
+
+    Guarantees: a fixed function of the arguments; raises nothing.
+    """
+    line = sheet_line(floor)
+    withheld = 0
+    counted = 0
+    nought = False
+    for key in sorted(published):
+        found = published[key]
+        if found is None:
+            withheld = withheld + 1
+            continue
+        counted = counted + found
+        if found == 0:
+            nought = True
+        if _small(found, total, line):
+            return (
+                f"a census publishes {found} of {total} cells, and the "
+                f"line is {line}"
+            )
+    if counted > total:
+        return f"a census counts {counted} cells of {total}"
+    if not withheld:
+        if counted != total:
+            return f"a census counts {counted} cells of {total}"
+        return ""
+    if nought:
+        return "a census publishes a nought beside a count it withholds"
+    if withheld < 2:
+        return "a census withholds one count, which the others rebuild"
+    remainder = total - counted
+    # A CENSUS HELD BACK WHOLE leaves the row count as the only thing to
+    # subtract from, and the row count is published anyway: a table of
+    # eight rows at a floor of eleven withholds every count, and that
+    # names nobody. Refusing it refused the producer's own description
+    # (plan P4-D174).
+    if counted and 0 < remainder < line:
+        return (
+            f"the counts a census withholds come to {remainder}, and the "
+            f"line is {line}"
+        )
+    return ""
+
+
+def sheet_count_broken(count: "int | None", total: int, floor: int) -> str:
+    """What a published single count breaks of the rules above, or nothing."""
+    if count is None:
+        return ""
+    if sheet_count(count, total, floor) == count:
+        return ""
+    return (
+        f"a count of {count} of {total} is published, and the line is "
+        f"{sheet_line(floor)}"
+    )
+
+
+# -- which spellings a workbook cell of each class can be written with --
+#
+# ONE READING, TWO CALLERS (plan P4-D166). The twin's writer hands a
+# class only to a cell spelled the way that class is written -- an error
+# to `#N/A`, a boolean to `TRUE` -- and the reader refuses a column in
+# which a cell of one class is spelled the way another class present in
+# it is written, because there the writer cannot tell which values were
+# which. Both ask here, so the two cannot disagree about a spelling.
+
+
+def _figures_only(text: str) -> bool:
+    """Whether every character is an ASCII digit, and there is one."""
+    if not text:
+        return False
+    for character in text:
+        place = ord(character)
+        if place < 48 or place > 57:
+            return False
+    return True
+
+
+def sheet_number_spelling(text: str) -> str:
+    """The text as a workbook stores a number, or "" where it is not one.
+
+    WHAT IS DELIBERATELY REFUSED HERE. A number a workbook stores is a
+    plain spelling: an optional sign, figures, an optional point and
+    figures, an optional exponent. A grouped number (`1,234`), a
+    decimal comma (`0,5`), a bracketed negative, a percent sign or a
+    currency mark is NOT one -- in a workbook those are a FORMAT worn by
+    a plain number, never the stored value -- so a cell whose text is
+    written that way is written as text and keeps its characters.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    if not text:
+        return ""
+    body = text
+    if body[:1] in ("-", "+"):
+        body = body[1:]
+    mantissa = body
+    exponent = ""
+    place = mantissa.find("e")
+    if place < 0:
+        place = mantissa.find("E")
+    if place >= 0:
+        exponent = mantissa[place + 1 :]
+        mantissa = mantissa[:place]
+        # AN EXPONENT MARK OWES FIGURES (plan P4-D173): `1e` is text, and
+        # was written as a stored number no reader can read.
+        if exponent[:1] in ("-", "+"):
+            exponent = exponent[1:]
+        if not _figures_only(exponent):
+            return ""
+    point = mantissa.find(".")
+    if point >= 0:
+        whole = mantissa[:point]
+        fraction = mantissa[point + 1 :]
+        if whole and not _figures_only(whole):
+            return ""
+        if fraction and not _figures_only(fraction):
+            return ""
+        if not whole and not fraction:
+            return ""
+        return text
+    if not _figures_only(mantissa):
+        return ""
+    return text
+
+
+def _figures_at(text: str, start: int, count: int) -> bool:
+    """Whether `count` ASCII digits stand at `start`."""
+    return _figures_only(text[start : start + count]) and len(
+        text[start : start + count]
+    ) == count
+
+
+def sheet_iso_date(text: str) -> bool:
+    """Whether the text is how a workbook stores a date as ISO text.
+
+    `YYYY-MM-DD`, optionally followed by `T` and `hh:mm`, `hh:mm:ss` or
+    `hh:mm:ss` with a fraction; or a clock of that shape alone. That is
+    the shape a `t="d"` cell holds (plan P4-D168).
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    clock = text
+    if _figures_at(text, 0, 4) and text[4:5] == "-":
+        if not (
+            _figures_at(text, 5, 2)
+            and text[7:8] == "-"
+            and _figures_at(text, 8, 2)
+        ):
+            return False
+        if len(text) == 10:
+            return True
+        if text[10:11] != "T":
+            return False
+        clock = text[11:]
+    if not (_figures_at(clock, 0, 2) and clock[2:3] == ":"):
+        return False
+    if not _figures_at(clock, 3, 2):
+        return False
+    if len(clock) == 5:
+        return True
+    if clock[5:6] != ":" or not _figures_at(clock, 6, 2):
+        return False
+    if len(clock) == 8:
+        return True
+    return clock[8:9] == "." and _figures_only(clock[9:])
+
+
+def sheet_class_fits(kind: str, text: str) -> bool:
+    """Whether a cell holding this text can be written as this class.
+
+    Text can hold anything, and so can a class holding nothing (its cell
+    is written without its text). An error is one of the error kinds, a
+    boolean is `TRUE` or `FALSE` as the reader spells one, a date is ISO
+    text, and a number is a plain number's spelling.
+    """
+    if kind == SHEET_CELL_ERROR:
+        return text in SHEET_ERROR_KINDS
+    if kind == SHEET_CELL_BOOLEAN:
+        return text in (SHEET_BOOLEAN_TRUE, SHEET_BOOLEAN_FALSE)
+    if kind == SHEET_CELL_DATE:
+        return sheet_iso_date(text)
+    if kind == SHEET_CELL_NUMBER:
+        return sheet_number_spelling(text) != ""
+    return True
 
 
 # -- what the twin is WRITTEN with (plan P4-D79) -----------------------
@@ -456,15 +835,6 @@ def _civil_from_days(count: int) -> "tuple[int, int, int]":
 _EPOCH_1900 = _days_from_civil(1899, 12, 30)
 _EPOCH_1900_EARLY = _days_from_civil(1899, 12, 31)
 _EPOCH_1904 = _days_from_civil(1904, 1, 1)
-
-
-def _figures_only(text: str) -> bool:
-    if not text:
-        return False
-    for character in text:
-        if ord(character) < 48 or ord(character) > 57:
-            return False
-    return True
 
 
 def _plain_serial(text: str) -> bool:
@@ -688,14 +1058,25 @@ SHEET_NEUTRAL_NAME = "Sheet"
 SHEET_WITHHELD_CELL = "withheld"
 
 
+# HOW MANY FIGURES A PUBLISHED SHEET NAME MAY END IN (plan P4-D171). The
+# first writing allowed any number, stripped them for the test and then
+# published the name whole, so a sheet called `Report123456789` -- a
+# subject's own number -- reached a description at a floor of five and
+# the loader passed it. Two figures, not beginning with a nought, is
+# what the numbered sheets an application writes (`Sheet1` to `Sheet99`)
+# need, and no identifier of a person fits in it.
+SHEET_NAME_FIGURES = 2
+
+
 def sheet_name_published(name: str) -> "str | None":
     """The sheet's name where it may be published, else nothing.
 
     A name may be published when it is one of `SHEET_SAFE_NAMES`,
-    alone or followed by figures ("Data", "Sheet1", "Table12"). The
-    comparison ignores the case the person typed but the name is
-    published AS TYPED, because a reader naming the sheet has to spell
-    it the way the file does.
+    alone or followed by one or two figures that do not begin with a
+    nought ("Data", "Sheet1", "Table12"); a longer run of figures is a
+    number somebody typed and is withheld. The comparison ignores the
+    case the person typed but the name is published AS TYPED, because a
+    reader naming the sheet has to spell it the way the file does.
     """
     if not isinstance(name, str):
         raise TypeError("internal check: a sheet name was not text")
@@ -708,10 +1089,26 @@ def sheet_name_published(name: str) -> "str | None":
             figures = figures + 1
             continue
         break
+    if figures > SHEET_NAME_FIGURES:
+        return None
+    if figures and name[len(name) - figures] == "0":
+        return None
     stem = name[: len(name) - figures]
     if stem.casefold() in SHEET_SAFE_NAMES_FOLDED:
         return name
     return None
+
+
+def sheet_name_key(name: str) -> str:
+    """The key two sheet names collide under: a spreadsheet ignores case.
+
+    `Sheet1` and `sheet1` cannot stand in one workbook -- an application
+    renames the second -- so every claim on a name is made under this
+    key (plan P4-D171).
+    """
+    if not isinstance(name, str):
+        raise TypeError("internal check: a sheet name was not text")
+    return name.casefold()
 
 
 def neutral_sheet_name(position: int) -> str:
@@ -739,11 +1136,17 @@ def twin_sheet_names(published: "tuple[str | None, ...]") -> "tuple[str, ...]":
     published names are taken before a single placeholder is allocated,
     and a placeholder walks up until it finds a number no published
     name has taken.
+
+    AND A NAME IS TAKEN WHATEVER ITS CASE (plan P4-D171). The published
+    names `[null, "sheet1"]` used to allocate `Sheet1` beside `sheet1`,
+    which a spreadsheet cannot hold: openpyxl renamed the published sheet
+    `sheet11`, and the validator, asking the same rule, missed nothing.
+    Every claim is made under `sheet_name_key`.
     """
     taken: "dict[str, bool]" = {}
     for name in published:
         if name is not None:
-            taken[name] = True
+            taken[sheet_name_key(name)] = True
     out: "list[str]" = []
     for index in range(len(published)):
         published_here = published[index]
@@ -752,10 +1155,10 @@ def twin_sheet_names(published: "tuple[str | None, ...]") -> "tuple[str, ...]":
             continue
         number = index + 1
         neutral = neutral_sheet_name(number)
-        while neutral in taken:
+        while sheet_name_key(neutral) in taken:
             number = number + 1
             neutral = neutral_sheet_name(number)
-        taken[neutral] = True
+        taken[sheet_name_key(neutral)] = True
         out += [neutral]
     return tuple(out)
 
@@ -2232,6 +2635,20 @@ def _flush_ending(walk: _Walk, shown: str) -> None:
     walk.pending = ""
 
 
+def generated_column_name(position: int) -> str:
+    """The name a column of a table with no header is given, from one.
+
+    The reader names such columns this way (`reading`), and a
+    declaration naming one has to be matched against the same name here.
+    """
+    return f"column_{position}"
+
+
+def unnamed_column(index: int) -> str:
+    """The name a blank header cell is given for its place, counted from 0."""
+    return f"Unnamed: {index}"
+
+
 def named_columns(header: "tuple[str, ...]") -> "tuple[str, ...]":
     """The name each column is given from the header as it is written.
 
@@ -3111,13 +3528,23 @@ def survey(
     # published no order at all. The names are matched the way every
     # other declaration is matched: against the names the header gives,
     # after `named_columns` has settled the blank and repeated ones.
+    #
+    # AND AGAINST THE NAMES A HEADERLESS TABLE IS GIVEN (plan P4-D172). A
+    # table read with `--first-row data` has no header, and its columns
+    # are named `column_1`, `column_2`, ... -- which is how a person
+    # names one in `--decimal-comma column_2`. The names were looked up
+    # in the header alone, so the declaration was recorded and never
+    # reached the order: 120 headerless rows sorted by a decimal-comma
+    # amount published no order, and seed 4 wrote 59 descending pairs.
     declared_commas: "list[bool]" = []
     if decimal_comma_columns:
         headed_names: "tuple[str, ...]" = ()
         if header:
             headed_names = named_columns(tuple(header))
         for place in range(len(columns)):
-            spelled_name = ""
+            spelled_name = generated_column_name(place + 1)
+            if header:
+                spelled_name = ""
             if place < len(headed_names):
                 spelled_name = headed_names[place]
             declared_commas += [

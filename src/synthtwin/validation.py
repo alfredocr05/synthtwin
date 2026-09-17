@@ -4486,6 +4486,14 @@ def measure(
             # descriptions would all be measured against a different
             # reading of the same bytes.
             metadata_rows=description.settings.forced_metadata_rows,
+            # ...AND WITH ITS NAMES ON THE ROW THE DESCRIPTION PUTS THEM
+            # (plan P4-D174), where the checked workbook's sheet does not
+            # settle which row holds them.
+            published_header=(
+                description.source.workbook.rows_above_header + 1
+                if description.source.workbook is not None and headed
+                else 0
+            ),
             # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION
             # SAYS IT WAS READ (review of landing 2b.17, MAJOR). A
             # declaration the file does not bear out is not acted on
@@ -6590,6 +6598,7 @@ def _workbook_checks(
                 dialect.SHEET_FORMAT_KINDS,
             ),
             _format_code_check(name, column, entry),
+            _value_class_check(name, column, entry),
             # A twin writes no formula, whatever the source column held,
             # so this is named and not measured (see the reason above).
             _withheld(
@@ -6748,6 +6757,28 @@ def _format_code_check(
         name, _WORKBOOK_FACT, "workbook.format-code",
         column.format_code,
         _word_of(entry, "format_code"),
+    )
+
+
+def _value_class_check(
+    name: str, column: contract.WorkbookColumn, entry: object
+) -> Check:
+    """The class a column names as its commonest, where it names one.
+
+    THE FACT A WITHHELD CENSUS LEAVES STANDING (plan P4-D164). Where the
+    disclosure rule holds every count of a column's classes back, this
+    is what still says whether its cells were texts or numbers, and a
+    twin that wrote a column of digit texts as numbers misses it here.
+    Where the description names no class there is nothing to meet.
+    """
+    if column.value_class is None:
+        return _withheld(
+            name, _WORKBOOK_FACT, "workbook.value-class", _WORKBOOK_HELD_BACK
+        )
+    return _exact(
+        name, _WORKBOOK_FACT, "workbook.value-class",
+        column.value_class,
+        _word_of(entry, "value_class"),
     )
 
 

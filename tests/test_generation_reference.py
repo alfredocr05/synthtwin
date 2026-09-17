@@ -2718,7 +2718,7 @@ def _one_reading_for_each_candidate(text, candidate, at):
     return {"at_that_width": at_width, "records": total, "width": width}
 
 
-def _classed_by_their_characters(census, cells):
+def _classed_by_their_characters(census, cells, value_class=None):
     """G2.2 withdrawn: a cell's class read off the twin's own characters.
 
     This is the defect the whole seam exists to prevent: the census says
@@ -2733,6 +2733,46 @@ def _classed_by_their_characters(census, cells):
             continue
         out += ["number" if gen.sheet_number_spelling(cell) else "text"]
     return out
+
+
+def _without_the_published_value_class(census, cells, value_class=None):
+    """G2.2 step 1 withdrawn: the published commonest class is ignored."""
+    return _SHIPPED_CELL_CLASSES(census, cells, None)
+
+
+def _every_unclaimed_kind_plain(census, classes, format_code="General", dated=None):
+    """G2.2 step 2 withdrawn: a cell no count claims is written plain."""
+    return _SHIPPED_FORMAT_KINDS(census, classes, "General", dated)
+
+
+def _names_taken_by_their_exact_spelling(published):
+    """G2.2 step 9 withdrawn: a placeholder is compared as written."""
+    taken = {name: True for name in published if name is not None}
+    out = []
+    for index in range(len(published)):
+        if published[index] is not None:
+            out += [published[index]]
+            continue
+        number = index + 1
+        while f"Sheet{number}" in taken:
+            number = number + 1
+        taken[f"Sheet{number}"] = True
+        out += [f"Sheet{number}"]
+    return out
+
+
+def _carriage_return_written_raw(text):
+    """G2.2 step 11 withdrawn: a carriage return is written as itself."""
+    out = text
+    for mark, written in (
+        ("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"),
+    ):
+        out = out.replace(mark, written)
+    return out
+
+
+_SHIPPED_CELL_CLASSES = gen.sheet_cell_classes
+_SHIPPED_FORMAT_KINDS = gen.sheet_format_kinds
 
 
 # ----------------------------------------- the document cases, bound
@@ -2756,7 +2796,9 @@ DOCUMENT_CASES = (
     "delimiter_reading",
     "row_arrangement",
     "withheld_line_marks",
+    "workbook_classes_by_spelling",
     "workbook_sheet",
+    "written_form_classes",
     "written_form_lines",
 )
 
@@ -2817,6 +2859,39 @@ def test_the_written_form_is_the_file_the_method_requires() -> None:
     written = [line for line in lines[at:] if line != ""]
     for index in range(len(rows)):
         assert written[index] == dialect.data_line(rows[index], form)
+
+
+def test_each_cell_is_quoted_under_the_rule_of_its_own_class() -> None:
+    """Method G2's quoting per cell class, on the classes that disagree.
+
+    Files review MAJOR 19 (plan P4-D173): the case above holds no number
+    and no absent cell in its column of differing rules, so the oracle's
+    reading of those two classes was never held to the product's. This
+    case writes both beside text and empty cells at each class's edge --
+    `.5`, `2.5e3`, `0012`; `-`, `?`, `#N/A`, spaces, `NaT` beside `nat` --
+    and the shipped writer must write the bytes the oracle wrote alone.
+    """
+    case = _document_case("written_form_classes")
+    form = _form_of(case)
+    names = tuple(case["names"])
+    rows = tuple(tuple(row) for row in case["rows"])
+    assert dialect.twin_text(names, rows, case["write_header"], form) == (
+        case["text"]
+    ), (
+        "a cell is quoted under another class's rule than method section G2 "
+        "gives it. The oracle is the specification's answer; do not change "
+        "it to match the implementation."
+    )
+    for index in range(len(rows)):
+        for place in range(len(names)):
+            cell = rows[index][place]
+            assert dialect.cell_class(cell) == gen.written_cell_class(cell), cell
+
+
+def _absence_read_from_seven_spellings(text):
+    """The vocabulary this mirror held before plan P4-D173: seven spellings."""
+    body = text.strip().casefold()
+    return body in ("na", "n/a", "nan", "null", "none")
 
 
 def test_the_rows_stand_where_the_method_puts_them() -> None:
@@ -2952,8 +3027,14 @@ def test_the_workbook_twin_is_the_package_the_method_requires(
     would produce is in question here, and a case that generated them
     would be testing two transforms at once.
     """
-    case = _document_case("workbook_sheet")
-    profile = _workbook_profile(case, tmp_path)
+    for name in ("workbook_sheet", "workbook_classes_by_spelling"):
+        _package_matches(_document_case(name), tmp_path / name)
+
+
+def _package_matches(case: dict, folder: pathlib.Path) -> None:
+    """One workbook case's package, part by part, against the product's."""
+    folder.mkdir()
+    profile = _workbook_profile(case, folder)
     columns = tuple(tuple(column) for column in case["cells"])
     rows = tuple(
         tuple(columns[place][row] for place in range(len(columns)))
@@ -2999,6 +3080,25 @@ def _row_order_format_kinds(census: dict, classes: list) -> list:
 
 
 DOCUMENT_MUTANTS = {
+    "written_form_classes": (
+        Mutant(
+            branch="G2's rule that a cell takes the quoting of its OWN "
+            "class; the mutant writes every cell under its column's text "
+            "rule, and the numbers and absent cells of both columns move",
+            attribute="quoting_rule_for",
+            replacement=lambda column, cell: column["quoting"]["text"],
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="contract 5.4.1's whole vocabulary of absence as G2's "
+            "absent class; the mutant reads absence from the seven "
+            "spellings this mirror used to hold, and `-`, `?`, `#N/A`, the "
+            "spaces and `NaT` are quoted as text",
+            attribute="doc_reads_as_nothing",
+            replacement=_absence_read_from_seven_spellings,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
     "written_form_lines": (
         Mutant(
             branch="G2's lines before the table; the mutant writes none "
@@ -3048,6 +3148,51 @@ DOCUMENT_MUTANTS = {
             outcome=CHANGES_THE_CELLS,
         ),
     ),
+    "workbook_classes_by_spelling": (
+        Mutant(
+            branch="G2.2 step 1's rule that a class goes only to a cell "
+            "it FITS; the mutant lets every class fit every cell, and the "
+            "first column's error and boolean counts land on its labels "
+            "in row order again",
+            attribute="sheet_fits",
+            replacement=lambda kind, text: True,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 1's rule that a withheld census falls to "
+            "the column's published commonest class; the mutant ignores "
+            "it, and the second column's digit strings are written as "
+            "numbers",
+            attribute="sheet_cell_classes",
+            replacement=_without_the_published_value_class,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 2's rule that a cell no count claims wears "
+            "its published code's kind where that kind was withheld; the "
+            "mutant writes it plain, and the third column's dates lose "
+            "their format",
+            attribute="sheet_format_kinds",
+            replacement=_every_unclaimed_kind_plain,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 9's rule that a sheet name is taken whatever "
+            "its case; the mutant compares names as written, and the "
+            "withheld sheet's placeholder is `Sheet2` beside `sheet2`",
+            attribute="sheet_twin_names",
+            replacement=_names_taken_by_their_exact_spelling,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 11's character reference for a carriage "
+            "return; the mutant writes it raw, and the first column's "
+            "name reaches a reader with a line feed in it",
+            attribute="sheet_escaped",
+            replacement=_carriage_return_written_raw,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
     "workbook_sheet": (
         Mutant(
             branch="G2.2's rule that a cell's class comes from the "
@@ -3076,7 +3221,7 @@ DOCUMENT_MUTANTS = {
             "deny; the mutant hands the formats out in row order alone, "
             "and dates are written wearing the general format",
             attribute="sheet_format_kinds",
-            replacement=lambda census, classes, dated=None: (
+            replacement=lambda census, classes, format_code="General", dated=None: (
                 _row_order_format_kinds(census, classes)
             ),
             outcome=CHANGES_THE_CELLS,

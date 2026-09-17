@@ -13421,13 +13421,33 @@ DOC_SAMPLE_RECORDS = 400
 # The marks a cell of these cases may hold beside letters, digits and
 # spaces.  The class of a cell decides which quoting rule it takes, and
 # a class read wrongly writes the wrong bytes -- so this mirror reads
-# only cells it can place with certainty and stops on any other.
-DOC_TEXT_MARKS = "-_.,;|/#()\"'+:%&*[]@"
+# only cells it can place with certainty and stops on any other.  The
+# question mark and the exclamation mark joined at plan P4-D173, because
+# five of contract 5.4.1's spellings of absence are written with them and
+# a mirror that stopped on `?` could not be shown reading it as text.
+DOC_TEXT_MARKS = "-_.,;|/#()\"'+:%&*[]@?!"
 
-# The spellings this method's own neutral vocabulary uses for a cell
-# holding no value.  A cell whose text is one of them is ABSENT and not
-# text, which is a different quoting rule.
-DOC_NOTHING_SPELLINGS = ("NA", "N/A", "NaN", "null", "NULL", "None", "nan")
+# The spellings read as holding no value, as contract section 5.4.1
+# lists them: seventeen compared after trimming and a case fold, and one
+# compared byte for byte.  A cell whose text is one of them is ABSENT and
+# not text, which is a different quoting rule (method G2's quoting row).
+#
+# THE WHOLE LIST AND NOT A SAMPLE OF IT (plan P4-D173).  This mirror held
+# seven spellings of its own vocabulary, so `-`, `?`, `#N/A` and a cell of
+# spaces were classed TEXT here and ABSENT by the product: a column whose
+# absent and text cells take different quoting rules was written two ways
+# with nothing stopping, the same silent misclassification as `1,234`.
+DOC_NOTHING_SPELLINGS_FOLDED = (
+    "", "-", "--", ".", "?", "n/a", "na", "nan", "none", "null",
+    "#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!",
+)
+DOC_NOTHING_SPELLINGS_EXACT = ("NaT",)
+
+# The marks a number may be written with beyond the narrow grammar's:
+# figures, signs, a point, a comma, an apostrophe, brackets, a percent
+# and an exponent mark.  A cell of these and figures alone is refused by
+# `written_cell_class` rather than classed (plan P4-D173).
+DOC_NUMBER_MARKS = "0123456789+-.,'()%eE"
 
 
 def doc_is_a_plain_number(text):
@@ -13440,19 +13460,26 @@ def doc_is_a_plain_number(text):
     plain numbers here -- they are read as numbers by the profiler's own
     grammar, and a case whose cells need that reading is refused below
     rather than classed by a guess.
+
+    AN EXPONENT MARK WITH NO FIGURES AFTER IT IS NOT AN EXPONENT (plan
+    P4-D173). `1e` was read here as the number 1, because an empty
+    exponent was skipped rather than refused; the profiler reads it as
+    text, so the two wrote a different quoting for the same cell.
     """
     body = text
     if body[:1] in ("-", "+"):
         body = body[1:]
     mantissa = body
     exponent = ""
+    marked = False
     for marker in ("e", "E"):
         place = mantissa.find(marker)
         if place >= 0:
             exponent = mantissa[place + 1 :]
             mantissa = mantissa[:place]
+            marked = True
             break
-    if exponent:
+    if marked:
         if exponent[:1] in ("-", "+"):
             exponent = exponent[1:]
         if not exponent or not all(mark in "0123456789" for mark in exponent):
@@ -13473,10 +13500,17 @@ def doc_is_a_plain_number(text):
 
 
 def doc_reads_as_nothing(text):
-    """Whether the cell's text is one of the spellings meaning no value."""
-    body = text.strip()
-    for spelling in DOC_NOTHING_SPELLINGS:
-        if body.casefold() == spelling.casefold():
+    """Whether the cell's text is one of the spellings meaning no value.
+
+    Contract 5.4.1's two rules: the exact member matches the cell byte for
+    byte, and every other member matches after both are trimmed and
+    case-folded.
+    """
+    if text in DOC_NOTHING_SPELLINGS_EXACT:
+        return True
+    body = text.strip().casefold()
+    for spelling in DOC_NOTHING_SPELLINGS_FOLDED:
+        if body == spelling.strip().casefold():
             return True
     return False
 
@@ -13494,6 +13528,25 @@ def written_cell_class(cell):
         return "absent"
     if doc_is_a_plain_number(cell):
         return "number"
+    # A CELL THE PROFILER'S WIDER GRAMMAR MAY READ AS A NUMBER IS REFUSED,
+    # NOT CLASSED AS TEXT (plan P4-D173). The profiler reads `1,234`,
+    # `(12)`, ` 12` and `1 234` as numbers; the narrow grammar above does
+    # not, and this used to fall through to `text` -- so a form quoting
+    # numbers always and text bare wrote `"1,234";A` in the product and
+    # `1,234;A` here, with nothing stopping. A cell holding a figure and
+    # nothing but the marks a number can be written with is outside the
+    # reading this mirror states, and it stops.
+    if any(mark in "0123456789" for mark in cell) and all(
+        mark in DOC_NUMBER_MARKS or mark.isspace() for mark in cell
+    ):
+        raise AssertionError(
+            f"this oracle will not class the cell {cell!r}: it holds a "
+            "figure and only the marks a number is written with, so the "
+            "profiler's own number grammar may read it as a number while "
+            "the narrow grammar method section G2's per-class quoting is "
+            "mirrored under does not. Freeze a cell the narrow grammar "
+            "reads, or state the wider one."
+        )
     for mark in cell:
         if mark.isalpha() or mark.isdigit():
             continue
@@ -14364,7 +14417,14 @@ def chosen_delimiter(readings):
 # -- G2.2: the twin of a workbook --------------------------------------
 
 SHEET_NOTHING_CLASSES = ("absent", "blank", "empty")
-SHEET_VALUE_CLASSES = ("error", "boolean", "number", "text")
+SHEET_VALUE_CLASSES = ("error", "boolean", "date", "number", "text")
+# G2.2 step 1: the classes a value-holding cell is told apart by, in the
+# order their published counts are handed out in.
+SHEET_TOLD_BY_SPELLING = ("error", "boolean", "date", "number")
+SHEET_ERROR_KINDS = (
+    "#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!",
+    "#GETTING_DATA", "#SPILL!", "#CALC!",
+)
 SHEET_FORMAT_KINDS = ("plain", "date", "datetime", "time", "elapsed", "text")
 SHEET_WITHHELD_CELL = "withheld"
 SHEET_NEUTRAL_NAME = "Sheet"
@@ -14425,12 +14485,26 @@ SHEET_BOOK_TYPE = (
 
 
 def sheet_escaped(text):
-    """One piece of text as XML content."""
+    """One piece of text as XML content (G2.2 step 11).
+
+    A carriage return is written as its character reference, because a
+    reader turns a literal one into a line feed before the text reaches
+    it.
+    """
     out = text
     out = out.replace("&", "&amp;")
     out = out.replace("<", "&lt;")
     out = out.replace(">", "&gt;")
     out = out.replace('"', "&quot;")
+    out = out.replace("\r", "&#13;")
+    return out
+
+
+def sheet_attribute(text):
+    """One piece of text as an attribute's value (G2.2 step 11)."""
+    out = sheet_escaped(text)
+    out = out.replace("\n", "&#10;")
+    out = out.replace("\t", "&#9;")
     return out
 
 
@@ -14467,6 +14541,54 @@ def sheet_number_spelling(text):
     if not text:
         return ""
     return text if doc_is_a_plain_number(text) else ""
+
+
+def sheet_is_iso_date(text):
+    """Whether the text is ISO date text, as G2.2 step 1 states it.
+
+    `YYYY-MM-DD`, optionally followed by `T` and a clock, or a clock
+    alone; the clock `hh:mm`, `hh:mm:ss`, or `hh:mm:ss` with a point and
+    figures.
+    """
+    def figures(piece, count):
+        return len(piece) == count and all(mark in "0123456789" for mark in piece)
+
+    clock = text
+    if figures(text[0:4], 4) and text[4:5] == "-":
+        if not (figures(text[5:7], 2) and text[7:8] == "-" and figures(text[8:10], 2)):
+            return False
+        if len(text) == 10:
+            return True
+        if text[10:11] != "T":
+            return False
+        clock = text[11:]
+    if not (figures(clock[0:2], 2) and clock[2:3] == ":" and figures(clock[3:5], 2)):
+        return False
+    if len(clock) == 5:
+        return True
+    if clock[5:6] != ":" or not figures(clock[6:8], 2):
+        return False
+    if len(clock) == 8:
+        return True
+    fraction = clock[9:]
+    return (
+        clock[8:9] == "."
+        and bool(fraction)
+        and all(mark in "0123456789" for mark in fraction)
+    )
+
+
+def sheet_fits(kind, text):
+    """Whether a cell holding this text can be written as this class (G2.2)."""
+    if kind == "error":
+        return text in SHEET_ERROR_KINDS
+    if kind == "boolean":
+        return text in ("TRUE", "FALSE")
+    if kind == "date":
+        return sheet_is_iso_date(text)
+    if kind == "number":
+        return sheet_number_spelling(text) != ""
+    return True
 
 
 def sheet_boolean_spelling(text):
@@ -14518,12 +14640,19 @@ def sheet_leading(census, among):
     return best
 
 
-def sheet_cell_classes(census, cells):
+def sheet_withheld(census, kind):
+    """Whether the census held this class's count back (`null`)."""
+    return not isinstance(census.get(kind), int)
+
+
+def sheet_cell_classes(census, cells, value_class=None):
     """Which class each generated cell of one column is written as (G2.2).
 
     THE CLASS COMES FROM WHAT THE SOURCE HELD, never from what the
     twin's characters could be read as -- which is what keeps a column
-    of text whose every cell looks like a number written as TEXT.
+    of text whose every cell looks like a number written as TEXT -- and
+    a class goes only to a cell it FITS, which is what keeps an error
+    count off a column's labels.
     """
     empty_order = []
     full_order = []
@@ -14542,44 +14671,72 @@ def sheet_cell_classes(census, cells):
             out[empty_order[at]] = kind
             at = at + 1
             left = left - 1
+    withheld = [
+        kind for kind in SHEET_NOTHING_CLASSES if sheet_withheld(census, kind)
+    ]
+    rest = withheld[0] if withheld else leading_nothing
     while at < len(empty_order):
-        out[empty_order[at]] = leading_nothing
+        out[empty_order[at]] = rest
         at = at + 1
 
-    numeric = []
-    other = []
-    for index in full_order:
-        if sheet_number_spelling(cells[index]):
-            numeric += [index]
+    # Each published count of a class told apart by its spelling, handed
+    # out in row order to the cells it fits.
+    left = {
+        kind: (None if sheet_withheld(census, kind) else census[kind])
+        for kind in SHEET_VALUE_CLASSES
+    }
+    given = set()
+    for kind in SHEET_TOLD_BY_SPELLING:
+        if left[kind] is None:
             continue
-        other += [index]
-    taken = {}
-    left = sheet_wanted(census, "number")
-    for index in numeric:
-        if left <= 0:
-            break
-        out[index] = "number"
-        taken[index] = True
-        left = left - 1
+        for index in full_order:
+            if left[kind] <= 0:
+                break
+            if index in given or not sheet_fits(kind, cells[index]):
+                continue
+            out[index] = kind
+            given.add(index)
+            left[kind] = left[kind] - 1
+
+    def wanted_by_another(text):
+        return any(
+            (left[kind] is None or left[kind] > 0) and sheet_fits(kind, text)
+            for kind in SHEET_TOLD_BY_SPELLING
+        )
+
+    if left["text"] is not None:
+        for first_pass in (True, False):
+            for index in full_order:
+                if left["text"] <= 0:
+                    break
+                if index in given:
+                    continue
+                if first_pass and wanted_by_another(cells[index]):
+                    continue
+                out[index] = "text"
+                given.add(index)
+                left["text"] = left["text"] - 1
 
     leading_value = sheet_leading(census, SHEET_VALUE_CLASSES)
-    waiting = [index for index in full_order if index not in taken]
-    at = 0
-    for kind in SHEET_VALUE_CLASSES:
-        if kind == "number":
+    candidates = list(SHEET_VALUE_CLASSES)
+    if value_class is not None:
+        candidates = [value_class] + candidates
+    for index in full_order:
+        if index in given:
             continue
-        left = sheet_wanted(census, kind)
-        while left > 0 and at < len(waiting):
-            out[waiting[at]] = kind
-            at = at + 1
-            left = left - 1
-    while at < len(waiting):
-        out[waiting[at]] = leading_value
-        at = at + 1
+        text = cells[index]
+        chosen = None
+        for kind in candidates:
+            if left[kind] is None and sheet_fits(kind, text):
+                chosen = kind
+                break
+        if chosen is None:
+            chosen = leading_value if sheet_fits(leading_value, text) else "text"
+        out[index] = chosen
     return out
 
 
-def sheet_format_kinds(census, classes, dated=None):
+def sheet_format_kinds(census, classes, format_code="General", dated=None):
     """Which kind of format each cell of one column wears (G2.2 step 2).
 
     A mixture is reproduced as its COUNTS and never collapsed to the
@@ -14589,16 +14746,32 @@ def sheet_format_kinds(census, classes, dated=None):
     A date format goes to a date first: ``dated`` names per cell the
     kind of date its text was (``date``, ``datetime`` or ``""``), and
     each of those two kinds is offered to the cells of its own kind,
-    then to the cells of the other, then to every written cell in row
-    order.  A date left over after the counts keeps its own kind where
-    the census does not publish that kind as nought.
+    then to the cells of the other, then by the class tiers: a text
+    format to text and empty cells, any other to number and date cells,
+    then to blank cells, then to any cell.
+
+    A withheld count is not a licence for plain: a date no count claims
+    keeps its own kind where that kind's count was withheld, and any
+    other cell no count claims takes the kind of the column's published
+    code where that kind was withheld, else plain where plain was
+    withheld, else the first withheld kind.
     """
     written = [
         index for index in range(len(classes)) if classes[index] != "absent"
     ]
     dated = dated or ["" for _index in range(len(classes))]
+    absent = len(classes) - len(written)
     out = ["plain" for _index in range(len(classes))]
     given = set()
+
+    def suits(kind, cell_class):
+        if kind == "text":
+            if cell_class in ("text", "empty"):
+                return 0
+        elif cell_class in ("number", "date"):
+            return 0
+        return 1 if cell_class == "blank" else 2
+
     for kind in SHEET_FORMAT_KINDS:
         if kind == "plain":
             continue
@@ -14609,7 +14782,8 @@ def sheet_format_kinds(census, classes, dated=None):
             order += [
                 index for index in written if dated[index] and dated[index] != kind
             ]
-        order += written
+        for tier in (0, 1, 2):
+            order += [index for index in written if suits(kind, classes[index]) == tier]
         for index in order:
             if left <= 0:
                 break
@@ -14621,9 +14795,30 @@ def sheet_format_kinds(census, classes, dated=None):
     for index in written:
         if index in given or not dated[index]:
             continue
-        if sheet_denied(census, dated[index]):
+        if not sheet_withheld(census, dated[index]):
             continue
         out[index] = dated[index]
+        given.add(index)
+
+    plain_withheld = sheet_withheld(census, "plain")
+    plain_left = None if plain_withheld else census["plain"] - absent
+    code_kind = SHEET_FORMAT_CODE_KINDS.get(format_code, "plain")
+    for index in written:
+        if index in given:
+            continue
+        if not plain_withheld and plain_left > 0:
+            plain_left = plain_left - 1
+            continue
+        if sheet_withheld(census, code_kind):
+            out[index] = code_kind
+        elif plain_withheld:
+            out[index] = "plain"
+        else:
+            spare = [
+                kind for kind in SHEET_FORMAT_KINDS
+                if sheet_withheld(census, kind)
+            ]
+            out[index] = spare[0] if spare else "plain"
     return out
 
 
@@ -14814,8 +15009,9 @@ def sheet_published_name(name):
     """The sheet's name where it may be published, else nothing.
 
     One of the closed vocabulary of generic names, alone or followed by
-    figures.  A sheet name can hold a person's name, so what is not one
-    of those is withheld and the twin writes a neutral name.
+    one or two figures that do not begin with a nought.  A sheet name
+    can hold a person's name, so what is not one of those is withheld
+    and the twin writes a neutral name.
     """
     if not name:
         return None
@@ -14825,6 +15021,8 @@ def sheet_published_name(name):
             figures = figures + 1
             continue
         break
+    if figures > 2 or (figures and name[len(name) - figures] == "0"):
+        return None
     stem = name[: len(name) - figures]
     safe = (
         "codebook", "data", "export", "info", "notes", "page", "raw",
@@ -14841,11 +15039,13 @@ def sheet_twin_names(published):
     until it finds a number no published name has taken, so a workbook
     whose first sheet is withheld and whose second is called `Sheet1`
     does not rename the sheet whose name the description publishes.
+    A name is taken whatever its case: a spreadsheet holds no two sheets
+    whose names differ in case alone.
     """
     taken = {}
     for name in published:
         if name is not None:
-            taken[name] = True
+            taken[name.casefold()] = True
     out = []
     for index in range(len(published)):
         here = published[index]
@@ -14854,10 +15054,10 @@ def sheet_twin_names(published):
             continue
         number = index + 1
         neutral = SHEET_NEUTRAL_NAME + f"{number}"
-        while neutral in taken:
+        while neutral.casefold() in taken:
             number = number + 1
             neutral = SHEET_NEUTRAL_NAME + f"{number}"
-        taken[neutral] = True
+        taken[neutral.casefold()] = True
         out += [neutral]
     return out
 
@@ -14913,7 +15113,7 @@ def sheet_styles_part(codes):
         for index in range(len(customs)):
             text = text + (
                 f'<numFmt numFmtId="{164 + index}" '
-                f'formatCode="{sheet_escaped(customs[index])}"/>'
+                f'formatCode="{sheet_attribute(customs[index])}"/>'
             )
         text = text + "</numFmts>"
     text = text + (
@@ -15001,7 +15201,7 @@ def sheet_table_part(names, first_row, last_row, autofilter):
         text = text + f'<autoFilter ref="{span}"/>'
     text = text + f'<tableColumns count="{width}">'
     for index in range(width):
-        shown = sheet_escaped(sheet_cleaned(names[index]))
+        shown = sheet_attribute(sheet_cleaned(names[index]))
         text = text + f'<tableColumn id="{index + 1}" name="{shown}"/>'
     text = text + "</tableColumns>"
     text = text + (
@@ -15020,7 +15220,7 @@ def sheet_book_part(sheet_names, hidden, epoch_1904):
         text = text + '<workbookPr date1904="1"/>'
     text = text + "<sheets>"
     for index in range(len(sheet_names)):
-        shown = sheet_escaped(sheet_names[index])
+        shown = sheet_attribute(sheet_names[index])
         state = ' state="hidden"' if hidden[index] else ""
         text = text + (
             f'<sheet name="{shown}" sheetId="{index + 1}"{state} '
@@ -15192,6 +15392,9 @@ def sheet_table_sheet_part(
         text = text + f'<row r="{number}">'
         for index in range(width):
             reference = column_letters(index + 1) + f"{number}"
+            # A column named for a blank header cell gets no cell.
+            if names[index] == f"Unnamed: {index}":
+                continue
             place = sheet_shared_place(
                 items, places, sheet_cleaned(names[index])
             )
@@ -15226,6 +15429,9 @@ def sheet_table_sheet_part(
             value = sheet_cleaned(cells[index][row])
             if kind == "error":
                 line = line + sheet_cell_element(reference, "e", value, style)
+                continue
+            if kind == "date" and sheet_is_iso_date(value):
+                line = line + sheet_cell_element(reference, "d", value, style)
                 continue
             if kind == "boolean":
                 spelled = sheet_boolean_spelling(value)
@@ -15298,7 +15504,11 @@ def workbook_parts(block, names, cells, n_rows, write_header):
         )
         columns += [own]
         dates += [dated]
-        classes += [sheet_cell_classes(census, own)]
+        classes += [
+            sheet_cell_classes(
+                census, own, block["columns"][index]["value_class"]
+            )
+        ]
 
     items = []
     places = {}
@@ -15313,7 +15523,8 @@ def workbook_parts(block, names, cells, n_rows, write_header):
     for index in range(width):
         column = block["columns"][index]
         kinds = sheet_format_kinds(
-            column["format_kinds"], classes[index], dates[index]
+            column["format_kinds"], classes[index], column["format_code"],
+            dates[index],
         )
         row_styles = []
         for row in range(len(kinds)):
@@ -15502,6 +15713,91 @@ def _written_form_lines():
     }
 
 
+def _written_form_classes():
+    """G2's quoting per cell class, where the four classes disagree."""
+    return {
+        "why": "method section G2's quoting PER CELL CLASS on the two "
+        "classes `written_form_lines` never reaches: that case's column of "
+        "differing rules holds no number and no absent cell, so a writer "
+        "that read `1,234` as text, or `-` and `#N/A` as text, wrote the "
+        "same bytes there (files review MAJOR 19, plan P4-D173). Two "
+        "columns take opposite rules -- numbers and absent cells always "
+        "quoted in the first and text bare, text and empty cells always "
+        "quoted in the second and the rest as needed -- over cells that sit "
+        "at each class's edge: a point with no whole part, an exponent, "
+        "leading zeros, a sign; `-`, `?`, `#N/A`, a cell of spaces, `NaT` "
+        "byte for byte beside `nat`, which is text; and `3 kg`, a figure "
+        "that does not make a number. Its mutants read every cell under the text rule, which "
+        "moves the numbers and the absent cells, and read absence from the "
+        "seven spellings this mirror used to hold, which moves `-`, `?`, "
+        "`#N/A`, the spaces and `NaT`.",
+        "kind": "delimited",
+        "names": ["reading", "note"],
+        "write_header": True,
+        "rows": [
+            ["12", "North"],
+            [".5", "12"],
+            ["2.5e3", "-"],
+            ["0012", "?"],
+            ["-3", "#N/A"],
+            ["-", "   "],
+            ["?", "NaT"],
+            ["#N/A", "nat"],
+            ["   ", "3 kg"],
+            ["NaT", ".5"],
+            ["nat", ""],
+            ["3 kg", "NA"],
+            ["", "West"],
+            ["NA", "-3"],
+        ],
+        "dialect": {
+            "blank_lines": [],
+            "blank_lines_spread": None,
+            "byte_order_mark": False,
+            "columns": [
+                {
+                    "pad": None,
+                    "quoting": {
+                        "absent": "always",
+                        "empty": "bare",
+                        "number": "always",
+                        "text": "bare",
+                    },
+                    "sequence_start": None,
+                },
+                {
+                    "pad": None,
+                    "quoting": {
+                        "absent": "needed",
+                        "empty": "always",
+                        "number": "needed",
+                        "text": "always",
+                    },
+                    "sequence_start": None,
+                },
+            ],
+            "delimiter": ",",
+            "empty_rows": {"interior": 0, "leading": 0, "trailing": 0},
+            "end_of_file_mark": False,
+            "escape": "doubled",
+            "final_line_ending": True,
+            "header_quoting": "needed",
+            "header_rows": [],
+            "header_rows_quoting": "needed",
+            "initial_space": False,
+            "line_endings": [],
+            "line_endings_spread": [],
+            "preamble": [],
+            "preamble_withheld": False,
+            "row_order": None,
+            "separator_line": False,
+            "short_rows": False,
+            "trailing_delimiter": {"header": False, "rows": False},
+            "written_names": [],
+        },
+    }
+
+
 def _row_arrangement():
     """Both halves of G2.1: the sort, and the records holding nothing."""
     plain_quoting = {
@@ -15667,7 +15963,7 @@ def _workbook_sheet():
     def census(**counts):
         out = {
             "absent": 0, "blank": 0, "empty": 0, "text": 0, "number": 0,
-            "boolean": 0, "error": 0,
+            "boolean": 0, "error": 0, "date": 0,
         }
         out.update(counts)
         return out
@@ -15750,25 +16046,35 @@ def _workbook_sheet():
                     "cell_classes": census(absent=half, number=half),
                     "format_code": "mm-dd-yy",
                     "format_kinds": kinds(date=half, plain=half),
-                    "formulas": 0,
+                    "formulas": None,
+                    "value_class": "number",
                 },
                 {
                     "cell_classes": census(absent=half, text=half),
                     "format_code": "@",
                     "format_kinds": kinds(datetime=half, text=half),
-                    "formulas": 0,
+                    "formulas": None,
+                    "value_class": "text",
                 },
                 {
                     "cell_classes": census(blank=half, number=half),
                     "format_code": "m/d/yy h:mm",
-                    "format_kinds": kinds(date=None, datetime=half, plain=None),
-                    "formulas": 0,
+                    "format_kinds": kinds(
+                        date=None, datetime=half, plain=None, time=None,
+                        elapsed=None, text=None,
+                    ),
+                    "formulas": None,
+                    "value_class": "number",
                 },
                 {
                     "cell_classes": census(absent=half, number=half),
                     "format_code": "mm-dd-yy",
-                    "format_kinds": kinds(date=None, datetime=None, plain=None),
-                    "formulas": 0,
+                    "format_kinds": kinds(
+                        date=None, datetime=None, plain=None, time=None,
+                        elapsed=None, text=None,
+                    ),
+                    "formulas": None,
+                    "value_class": "number",
                 },
             ],
             "date_system": "1904",
@@ -15793,6 +16099,116 @@ def _workbook_sheet():
     }
 
 
+def _workbook_classes_by_spelling():
+    """G2.2 steps 1, 2, 7, 9 and 11 as the files review left them."""
+    withheld = {
+        "absent": None, "blank": None, "empty": None, "text": None,
+        "number": None, "boolean": None, "error": None, "date": None,
+    }
+    kinds_withheld = {
+        "plain": None, "date": None, "datetime": None, "time": None,
+        "elapsed": None, "text": None,
+    }
+    status = []
+    for row in range(11):
+        status += [("North", "South", "TRUE")[row % 3], "#N/A"]
+    codes = ["00123", ""] + [f"0{1000 + 7 * row}" for row in range(20)]
+    days = [f"2026-01-{day:02d}T00:00:00" for day in range(1, 23)]
+    amounts = [f"{10 + day}.5" for day in range(22)]
+    return {
+        "why": "method section G2.2 as the files review left it (plan "
+        "P4-D164 to P4-D171), in one table of four columns and twenty-two "
+        "rows, at the floor of eleven every case here is held to. The "
+        "first column holds eleven errors between eleven labels -- one of "
+        "them `TRUE`, which is a boolean's spelling and TEXT by its "
+        "census -- so a class goes only to a cell it FITS: handed out in "
+        "row order as before, the error count landed on the labels and "
+        "the twin carried the wrong missing values. The second "
+        "holds digit strings with ONE empty cell, so its whole census is "
+        "withheld and only its published commonest class keeps the digits "
+        "text. The third holds ISO dates written back as date cells, its "
+        "format census withheld and its published code a date, so its "
+        "cells wear the date format rather than plain. The fourth is "
+        "named for a blank header cell and gets none, and the first "
+        "column's own name carries a carriage return, written as its "
+        "character reference. The sheets are published as `Data`, "
+        "withheld and `sheet2`, so the placeholder for the withheld one "
+        "walks past `Sheet2`, which a spreadsheet cannot hold beside "
+        "`sheet2`. It carries FOUR mutants, one for each rule.",
+        "kind": "workbook",
+        "names": ["status\rcode", "code", "when", "Unnamed: 3"],
+        "n_rows": 22,
+        "write_header": True,
+        "cells": [status, codes, days, amounts],
+        "workbook": {
+            "autofilter": False,
+            "columns": [
+                {
+                    "cell_classes": {
+                        "absent": 0, "blank": 0, "empty": 0, "text": 11,
+                        "number": 0, "boolean": 0, "error": 11, "date": 0,
+                    },
+                    "format_code": "General",
+                    "format_kinds": {
+                        "plain": 22, "date": 0, "datetime": 0, "time": 0,
+                        "elapsed": 0, "text": 0,
+                    },
+                    "formulas": None,
+                    "value_class": "text",
+                },
+                {
+                    "cell_classes": dict(withheld),
+                    "format_code": "General",
+                    "format_kinds": dict(kinds_withheld),
+                    "formulas": None,
+                    "value_class": "text",
+                },
+                {
+                    "cell_classes": {
+                        "absent": 0, "blank": 0, "empty": 0, "text": 0,
+                        "number": 0, "boolean": 0, "error": 0, "date": 22,
+                    },
+                    "format_code": "yyyy\\-mm\\-dd",
+                    "format_kinds": dict(kinds_withheld),
+                    "formulas": None,
+                    "value_class": "date",
+                },
+                {
+                    "cell_classes": {
+                        "absent": 0, "blank": 0, "empty": 0, "text": 0,
+                        "number": 22, "boolean": 0, "error": 0, "date": 0,
+                    },
+                    "format_code": "General",
+                    "format_kinds": {
+                        "plain": 22, "date": 0, "datetime": 0, "time": 0,
+                        "elapsed": 0, "text": 0,
+                    },
+                    "formulas": None,
+                    "value_class": "number",
+                },
+            ],
+            "date_system": "1900",
+            "defined_names": 0,
+            "defined_table": False,
+            "empty_rows_inside": None,
+            "frozen_rows": 0,
+            "macro_project": False,
+            "rows_above_header": 0,
+            "sheet_count": 3,
+            "sheet_extents": [
+                None,
+                {"columns": 0, "rows": 0},
+                {"columns": 0, "rows": 0},
+            ],
+            "sheet_hidden": False,
+            "sheet_names": ["Data", None, "sheet2"],
+            "sheet_position": 1,
+            "trailing_blank_columns": 0,
+            "trailing_blank_rows": 0,
+        },
+    }
+
+
 DOCUMENT_PART = "documents"
 
 # The cases landing 2b.17 added for the transforms that produce a WHOLE
@@ -15802,6 +16218,8 @@ DOCUMENT_CASE_BUILDERS = {
     "row_arrangement": _row_arrangement,
     "withheld_line_marks": _withheld_line_marks,
     "workbook_sheet": _workbook_sheet,
+    "workbook_classes_by_spelling": _workbook_classes_by_spelling,
+    "written_form_classes": _written_form_classes,
     "written_form_lines": _written_form_lines,
 }
 
@@ -15836,7 +16254,10 @@ DOCUMENT_DEFINITIONS = {
     "hint, the lines before the table, the header, the rows of column "
     "descriptions, then the records with the blank lines where the form "
     "places them -- each cell written under its column's rule for its "
-    "own class (`needed` quotes when and only when the field holds the "
+    "own class -- a cell holding nothing is empty, one spelled as contract "
+    "5.4.1's vocabulary of absence is absent, one the number grammar reads "
+    "is a number, and every other is text -- (`needed` quotes when and "
+    "only when the field holds the "
     "delimiter, a quote character or a line break; `bare` only where it "
     "could not be read back; `always`; `mixed` is written `needed`), "
     "padded where its column is padded, joined by the delimiter and one "
@@ -15858,14 +16279,22 @@ DOCUMENT_DEFINITIONS = {
     "order, each carrying one fixed moment rather than the clock. Each "
     "cell's CLASS comes from the column's published census and never "
     "from the twin's own characters, the classes that hold nothing "
-    "taking the cells holding no text and the number class going first "
-    "to the cells that can carry one, with each group's remainder going "
-    "to the class the column holds most of and never to one published as "
-    "nought; each cell's format KIND likewise, an absent cell always "
-    "plain; cells holding nothing are then moved onto shared rows so "
-    "that the published records holding nothing exist; and every other "
-    "sheet is written with as many cells as it held, each carrying one "
-    "word of synthtwin's own (G2.2).",
+    "taking the cells holding no text, and each class holding a value "
+    "going only to a cell it FITS -- an error to an error kind, a boolean "
+    "to TRUE or FALSE, a date to ISO text, a number to a plain number -- "
+    "before text takes its count; a cell no published count claims takes "
+    "the column's published commonest class, or a withheld class, that "
+    "fits it, and a group's remainder never goes to a class published as "
+    "nought; each cell's format KIND likewise, a text format first to "
+    "text and a date or time format first to numbers, an absent cell "
+    "always plain, and a cell no count claims wearing its published "
+    "code's kind where that kind was withheld; cells holding nothing are "
+    "then moved onto shared rows so that the published records holding "
+    "nothing exist; a column named for a blank header cell gets no header "
+    "cell; a carriage return is written as its character reference; a "
+    "withheld sheet's placeholder is a name no published name takes in "
+    "any case; and every other sheet is written with as many cells as it "
+    "held, each carrying one word of synthtwin's own (G2.2).",
     "writable_mark": "a line before the table is published as its SHAPE "
     "and never its text: blank with the whitespace it held, a comment "
     "with the punctuation it began with, or text with nothing at all. "

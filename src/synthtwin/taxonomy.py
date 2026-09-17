@@ -2362,6 +2362,12 @@ class ColumnProfile:
         default_factory=list
     )
     n_sentinel_candidates_unpublished: int = 0
+    # EVERY SPELLING AN ABSENT CELL OF THE COLUMN HELD, published or not,
+    # the empty spelling included. NEVER WRITTEN INTO A DESCRIPTION: it is
+    # the producer's own working, handed to the workbook census so that a
+    # cell whose spelling the twin cannot reproduce is counted in the
+    # class the twin writes it as (plan P4-D174).
+    absent_spellings: tuple[str, ...] = ()
 
 
 SIGNIFICAND_BITS = 53
@@ -13328,4 +13334,13 @@ def profile_column(
         n_distinct_folded=len(cells.folded_counts),
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,
+        absent_spellings=_spellings_of(missing),
     )
+
+
+def _spellings_of(missing: "list[tuple[str, str]]") -> "tuple[str, ...]":
+    """Each spelling an absent cell held, once, in sorted order."""
+    seen: "dict[str, bool]" = {}
+    for spelling, _kind in missing:
+        seen[spelling] = True
+    return tuple(sorted(seen))

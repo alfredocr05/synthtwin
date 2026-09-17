@@ -721,6 +721,10 @@ _MAYBE_NUMBER = "number-or-nothing"
 # withholding itself -- a sheet whose name could be somebody's is not
 # published at all, and the twin writes it under a neutral name.
 _SHEET_NAME = "sheet-name-or-nothing"
+# The class most of a workbook column's value-holding cells are, by NAME
+# and without a count, or nothing where no class is held by the line
+# (plan P4-D164).
+_SHEET_VALUE_CLASS = "a-value-class-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -913,6 +917,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ),
     ("source", "workbook", "columns", _EACH, "format_code"): _WORD,
     ("source", "workbook", "columns", _EACH, "formulas"): _MAYBE_NUMBER,
+    # ONE OF SYNTHTWIN'S OWN CLASS WORDS, OR NOTHING (plan P4-D164). It
+    # names which class is commonest without saying how common, which is
+    # what a twin needs where the census beside it withheld every count.
+    ("source", "workbook", "columns", _EACH, "value_class"): (
+        _SHEET_VALUE_CLASS
+    ),
     ("source", "workbook", "date_system"): _WORD,
     ("source", "workbook", "defined_names"): _COUNT,
     ("source", "workbook", "defined_table"): _FLAG,
@@ -2193,6 +2203,10 @@ def _leaf_is_published(
         # given: a pair too rare to publish sends the column to the
         # next rule instead.
         return isinstance(value, str)
+    if kind == _SHEET_VALUE_CLASS:
+        return value is None or (
+            isinstance(value, str) and value in dialect.SHEET_VALUE_CLASSES
+        )
     if kind == _SHEET_NAME:
         # The grammar is the producer's own, asked here rather than
         # restated: a name this document publishes must be one
@@ -2647,22 +2661,32 @@ def _published_form(
     empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
     if order and order <= len(columns):
         block = columns[order - 1]
-        blank = block["n_missing_blank"] if "n_missing_blank" in block else 0
-        pooled = block["n_missing_withheld"] if "n_missing_withheld" in block else 0
-        # ...AND THE CELLS A JUDGED PASS TOOK (the integration of landings
-        # 2b.6 to 2b.10, 2026-09-16). The generator keeps those blank
-        # (contract C6-116), and since landing 2b.6 every such verdict
-        # names the published spellings its cells wore, so they are
-        # counted here as the empty cells they become. Measured before:
-        # a sorted column of dates whose twenty placeholder cells a
-        # judged pass took published its order, the twin wrote those
-        # twenty cells empty, and the twin missed `rows.order` at exit 3.
-        judged = _judged_cells(block)
-        if (
-            not isinstance(blank, int)
-            or not isinstance(pooled, int)
-            or blank + pooled + judged != empties
-        ):
+        # EVERY ABSENT CELL THE TWIN WRITES EMPTY, counted the way the
+        # generator decides it (plan P4-D173): the column's absent cells
+        # less the spellings it reproduces, where a judged pass's
+        # spellings are not reproduced (contract C6-116). It used to be
+        # the blank and pooled counts with the judged cells added, which
+        # left out every absent cell no field names -- measured: a sorted
+        # free-text column with twenty `--missing-value ZZZ` cells
+        # published its order, the twin wrote those twenty empty, and the
+        # twin missed `rows.order` while the real file passed.
+        absent_cells = block["n_missing"] if "n_missing" in block else 0
+        spellings = (
+            block["missing_by_source"] if "missing_by_source" in block else {}
+        )
+        reproduced = 0
+        if isinstance(spellings, dict):
+            for spelling in sorted(spellings):
+                held = spellings[spelling]
+                if isinstance(held, int):
+                    reproduced = reproduced + held
+        reproduced = reproduced - _judged_cells(block)
+        written_empty = -1
+        if isinstance(absent_cells, int):
+            written_empty = absent_cells - reproduced
+            if written_empty < 0:
+                written_empty = 0
+        if written_empty != empties:
             form = dataclasses.replace(form, row_order=dialect.NO_ORDER)
     # AND THE LINES BEFORE THE TABLE ARE ALREADY SHAPES. The survey
     # publishes their kind, their count and their mark, so there is
@@ -2672,6 +2696,26 @@ def _published_form(
     # title line naming a person reached the description whole (review
     # item CODEX-3).
     return form
+
+
+def _judged_spellings(block: "dict[str, object]") -> "list[str]":
+    """The `missing_by_source` spellings a `read_as_missing` verdict names."""
+    verdicts = block["sentinel_verdicts"] if "sentinel_verdicts" in block else []
+    if not isinstance(verdicts, list):
+        return []
+    named: list[str] = []
+    for verdict in verdicts:
+        if not isinstance(verdict, dict) or "verdict" not in verdict:
+            continue
+        if verdict["verdict"] != taxonomy.VERDICT_MISSING:
+            continue
+        found = verdict["spellings"] if "spellings" in verdict else []
+        if not isinstance(found, list):
+            continue
+        for spelling in found:
+            if isinstance(spelling, str) and spelling not in named:
+                named += [spelling]
+    return named
 
 
 def _judged_cells(block: "dict[str, object]") -> int:
@@ -2707,12 +2751,49 @@ def _judged_cells(block: "dict[str, object]") -> int:
 
 
 def _published_workbook(
-    table: Table, floor: int
+    table: Table,
+    floor: int,
+    columns: "list[dict[str, object]]",
+    absent_spellings: "list[tuple[str, ...]]",
 ) -> "dict[str, object] | None":
-    """The workbook block, or None where the table was not in one."""
+    """The workbook block, or None where the table was not in one.
+
+    EACH COLUMN'S CENSUS COUNTS WHAT ITS TWIN WRITES (plan P4-D174). The
+    twin writes an absent cell empty unless its spelling is one the
+    column publishes and reproduces (contract C6-115, C6-116), so a
+    workbook cell holding three spaces, `NA` or a declared missing value
+    whose spelling the floor held back comes back from the twin as a cell
+    holding nothing. The census counted it as the text it was, the twin
+    could not write that text, and the twin missed
+    `workbook.cell-classes` while the source passed -- measured on a
+    column of a hundred labels, one of them three spaces, at a floor of
+    five. So the spellings the twin writes empty are handed over, read
+    off the column blocks as published by the rule `_judged_cells` and
+    FD7 share, and such a cell is counted absent on both files alike.
+    """
     if table.book is None or table.sheet is None:
         return None
-    return workbook.document_of(table.book, table.sheet, floor)
+    emptied: "list[tuple[str, ...]]" = []
+    for index in range(len(columns)):
+        block = columns[index]
+        spellings = (
+            block["missing_by_source"] if "missing_by_source" in block else {}
+        )
+        reproduced: "dict[str, bool]" = {}
+        if isinstance(spellings, dict):
+            for spelling in sorted(spellings):
+                if isinstance(spelling, str):
+                    reproduced[spelling] = True
+        for spelling in _judged_spellings(block):
+            if spelling in reproduced:
+                del reproduced[spelling]
+        held = absent_spellings[index] if index < len(absent_spellings) else ()
+        written_empty: "list[str]" = []
+        for spelling in held:
+            if spelling not in reproduced:
+                written_empty += [spelling]
+        emptied += [tuple(written_empty)]
+    return workbook.document_of(table.book, table.sheet, floor, tuple(emptied))
 
 
 def build_document(
@@ -2810,6 +2891,7 @@ def build_document(
                     f"{taxonomy.AMBIGUOUS_DECLARED_VALUE}: {spelling}"
                 )
     columns: list[dict[str, object]] = []
+    absent_spellings: "list[tuple[str, ...]]" = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
         described = taxonomy.profile_column(
@@ -2826,6 +2908,7 @@ def build_document(
             kept_days[name] if name in kept_days else (),
         )
         columns += [_column_block(described)]
+        absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
             notes += [{"column": name, "note": note}]
     document: dict[str, object] = {
@@ -2879,7 +2962,7 @@ def build_document(
             # width, a comment, a hidden row, a hyperlink's target, the
             # document's author -- are not in it at all.
             "workbook": _published_workbook(
-                table, settings.small_cell_floor
+                table, settings.small_cell_floor, columns, absent_spellings
             ),
         },
         "n_rows": table.n_rows,

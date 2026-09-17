@@ -1069,11 +1069,16 @@ def test_a_workbook_withholding_never_swallows_a_real_miss(
     other = _written(tmp_path, "other.xlsx", workbooks.plain_book(60))
     found = _verdicts(tmp_path / "against", described, other)
 
-    # The real misses stand.
+    # The real misses stand. The census of classes is not among them any
+    # more: the titled book's one record holding nothing leaves one
+    # absent cell in every column, so the disclosure rule withholds each
+    # census whole (plan P4-D164) -- and the column's commonest class,
+    # published by name beside it, is what still tells a number from a
+    # text, and misses here.
     for subcheck in (
         "workbook.rows-above-header",
         "workbook.frozen-rows",
-        "workbook.cell-classes",
+        "workbook.value-class",
     ):
         assert subcheck in found.get("MISSED", []), found
 
@@ -1091,6 +1096,11 @@ def test_a_workbook_withholding_never_swallows_a_real_miss(
             "workbook.formulas",
             "workbook.empty-rows-inside",
             "workbook.sheet-hidden",
+            # A code whose kind's count the disclosure rule held back,
+            # and a commonest class held by fewer than the line, publish
+            # nothing for the file to meet (plan P4-D164).
+            "workbook.format-code",
+            "workbook.value-class",
         ), (name, withheld)
 
     # THE OTHER WITHHOLDING, AND ITS OWN NARROWNESS (V6.2-A2). The rules

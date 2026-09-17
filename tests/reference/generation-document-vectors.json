@@ -1,5 +1,5 @@
 {
-  "case_set": "The 5 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason.",
+  "case_set": "The 7 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason.",
   "cases": {
     "delimiter_reading": {
       "delimiter": ";",
@@ -306,6 +306,267 @@
         "withheld line"
       ]
     },
+    "workbook_classes_by_spelling": {
+      "cells": [
+        [
+          "North",
+          "#N/A",
+          "South",
+          "#N/A",
+          "TRUE",
+          "#N/A",
+          "North",
+          "#N/A",
+          "South",
+          "#N/A",
+          "TRUE",
+          "#N/A",
+          "North",
+          "#N/A",
+          "South",
+          "#N/A",
+          "TRUE",
+          "#N/A",
+          "North",
+          "#N/A",
+          "South",
+          "#N/A"
+        ],
+        [
+          "00123",
+          "",
+          "01000",
+          "01007",
+          "01014",
+          "01021",
+          "01028",
+          "01035",
+          "01042",
+          "01049",
+          "01056",
+          "01063",
+          "01070",
+          "01077",
+          "01084",
+          "01091",
+          "01098",
+          "01105",
+          "01112",
+          "01119",
+          "01126",
+          "01133"
+        ],
+        [
+          "2026-01-01T00:00:00",
+          "2026-01-02T00:00:00",
+          "2026-01-03T00:00:00",
+          "2026-01-04T00:00:00",
+          "2026-01-05T00:00:00",
+          "2026-01-06T00:00:00",
+          "2026-01-07T00:00:00",
+          "2026-01-08T00:00:00",
+          "2026-01-09T00:00:00",
+          "2026-01-10T00:00:00",
+          "2026-01-11T00:00:00",
+          "2026-01-12T00:00:00",
+          "2026-01-13T00:00:00",
+          "2026-01-14T00:00:00",
+          "2026-01-15T00:00:00",
+          "2026-01-16T00:00:00",
+          "2026-01-17T00:00:00",
+          "2026-01-18T00:00:00",
+          "2026-01-19T00:00:00",
+          "2026-01-20T00:00:00",
+          "2026-01-21T00:00:00",
+          "2026-01-22T00:00:00"
+        ],
+        [
+          "10.5",
+          "11.5",
+          "12.5",
+          "13.5",
+          "14.5",
+          "15.5",
+          "16.5",
+          "17.5",
+          "18.5",
+          "19.5",
+          "20.5",
+          "21.5",
+          "22.5",
+          "23.5",
+          "24.5",
+          "25.5",
+          "26.5",
+          "27.5",
+          "28.5",
+          "29.5",
+          "30.5",
+          "31.5"
+        ]
+      ],
+      "kind": "workbook",
+      "members": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "docProps/app.xml",
+        "docProps/core.xml",
+        "xl/workbook.xml",
+        "xl/_rels/workbook.xml.rels",
+        "xl/styles.xml",
+        "xl/sharedStrings.xml",
+        "xl/worksheets/sheet1.xml",
+        "xl/worksheets/sheet2.xml",
+        "xl/worksheets/sheet3.xml"
+      ],
+      "n_rows": 22,
+      "names": [
+        "status\rcode",
+        "code",
+        "when",
+        "Unnamed: 3"
+      ],
+      "parts": {
+        "[Content_Types].xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet3.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/><Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/><Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/></Types>",
+        "_rels/.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>",
+        "docProps/app.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>synthtwin</Application><Company></Company></Properties>",
+        "docProps/core.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title></dc:title><dc:subject></dc:subject><dc:creator></dc:creator><cp:lastModifiedBy></cp:lastModifiedBy></cp:coreProperties>",
+        "xl/_rels/workbook.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet2.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet3.xml\"/><Relationship Id=\"rId4\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/><Relationship Id=\"rId5\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings\" Target=\"sharedStrings.xml\"/></Relationships>",
+        "xl/sharedStrings.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"28\" uniqueCount=\"28\"><si><t></t></si><si><t>status&#13;code</t></si><si><t>code</t></si><si><t>when</t></si><si><t>North</t></si><si><t>00123</t></si><si><t>South</t></si><si><t>01000</t></si><si><t>01007</t></si><si><t>TRUE</t></si><si><t>01014</t></si><si><t>01021</t></si><si><t>01028</t></si><si><t>01035</t></si><si><t>01042</t></si><si><t>01049</t></si><si><t>01056</t></si><si><t>01063</t></si><si><t>01070</t></si><si><t>01077</t></si><si><t>01084</t></si><si><t>01091</t></si><si><t>01098</t></si><si><t>01105</t></si><si><t>01112</t></si><si><t>01119</t></si><si><t>01126</t></si><si><t>01133</t></si></sst>",
+        "xl/styles.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"yyyy\\-mm\\-dd\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
+        "xl/workbook.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Data\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"Sheet3\" sheetId=\"2\" r:id=\"rId2\"/><sheet name=\"sheet2\" sheetId=\"3\" r:id=\"rId3\"/></sheets></workbook>",
+        "xl/worksheets/sheet1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:D23\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\" s=\"2\"><v>1</v></c><c r=\"B1\" t=\"s\" s=\"2\"><v>2</v></c><c r=\"C1\" t=\"s\" s=\"2\"><v>3</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\"><v>4</v></c><c r=\"B2\" t=\"s\"><v>5</v></c><c r=\"C2\" t=\"d\" s=\"1\"><v>2026-01-01T00:00:00</v></c><c r=\"D2\"><v>10.5</v></c></row><row r=\"3\"><c r=\"A3\" t=\"e\"><v>#N/A</v></c><c r=\"C3\" t=\"d\" s=\"1\"><v>2026-01-02T00:00:00</v></c><c r=\"D3\"><v>11.5</v></c></row><row r=\"4\"><c r=\"A4\" t=\"s\"><v>6</v></c><c r=\"B4\" t=\"s\"><v>7</v></c><c r=\"C4\" t=\"d\" s=\"1\"><v>2026-01-03T00:00:00</v></c><c r=\"D4\"><v>12.5</v></c></row><row r=\"5\"><c r=\"A5\" t=\"e\"><v>#N/A</v></c><c r=\"B5\" t=\"s\"><v>8</v></c><c r=\"C5\" t=\"d\" s=\"1\"><v>2026-01-04T00:00:00</v></c><c r=\"D5\"><v>13.5</v></c></row><row r=\"6\"><c r=\"A6\" t=\"s\"><v>9</v></c><c r=\"B6\" t=\"s\"><v>10</v></c><c r=\"C6\" t=\"d\" s=\"1\"><v>2026-01-05T00:00:00</v></c><c r=\"D6\"><v>14.5</v></c></row><row r=\"7\"><c r=\"A7\" t=\"e\"><v>#N/A</v></c><c r=\"B7\" t=\"s\"><v>11</v></c><c r=\"C7\" t=\"d\" s=\"1\"><v>2026-01-06T00:00:00</v></c><c r=\"D7\"><v>15.5</v></c></row><row r=\"8\"><c r=\"A8\" t=\"s\"><v>4</v></c><c r=\"B8\" t=\"s\"><v>12</v></c><c r=\"C8\" t=\"d\" s=\"1\"><v>2026-01-07T00:00:00</v></c><c r=\"D8\"><v>16.5</v></c></row><row r=\"9\"><c r=\"A9\" t=\"e\"><v>#N/A</v></c><c r=\"B9\" t=\"s\"><v>13</v></c><c r=\"C9\" t=\"d\" s=\"1\"><v>2026-01-08T00:00:00</v></c><c r=\"D9\"><v>17.5</v></c></row><row r=\"10\"><c r=\"A10\" t=\"s\"><v>6</v></c><c r=\"B10\" t=\"s\"><v>14</v></c><c r=\"C10\" t=\"d\" s=\"1\"><v>2026-01-09T00:00:00</v></c><c r=\"D10\"><v>18.5</v></c></row><row r=\"11\"><c r=\"A11\" t=\"e\"><v>#N/A</v></c><c r=\"B11\" t=\"s\"><v>15</v></c><c r=\"C11\" t=\"d\" s=\"1\"><v>2026-01-10T00:00:00</v></c><c r=\"D11\"><v>19.5</v></c></row><row r=\"12\"><c r=\"A12\" t=\"s\"><v>9</v></c><c r=\"B12\" t=\"s\"><v>16</v></c><c r=\"C12\" t=\"d\" s=\"1\"><v>2026-01-11T00:00:00</v></c><c r=\"D12\"><v>20.5</v></c></row><row r=\"13\"><c r=\"A13\" t=\"e\"><v>#N/A</v></c><c r=\"B13\" t=\"s\"><v>17</v></c><c r=\"C13\" t=\"d\" s=\"1\"><v>2026-01-12T00:00:00</v></c><c r=\"D13\"><v>21.5</v></c></row><row r=\"14\"><c r=\"A14\" t=\"s\"><v>4</v></c><c r=\"B14\" t=\"s\"><v>18</v></c><c r=\"C14\" t=\"d\" s=\"1\"><v>2026-01-13T00:00:00</v></c><c r=\"D14\"><v>22.5</v></c></row><row r=\"15\"><c r=\"A15\" t=\"e\"><v>#N/A</v></c><c r=\"B15\" t=\"s\"><v>19</v></c><c r=\"C15\" t=\"d\" s=\"1\"><v>2026-01-14T00:00:00</v></c><c r=\"D15\"><v>23.5</v></c></row><row r=\"16\"><c r=\"A16\" t=\"s\"><v>6</v></c><c r=\"B16\" t=\"s\"><v>20</v></c><c r=\"C16\" t=\"d\" s=\"1\"><v>2026-01-15T00:00:00</v></c><c r=\"D16\"><v>24.5</v></c></row><row r=\"17\"><c r=\"A17\" t=\"e\"><v>#N/A</v></c><c r=\"B17\" t=\"s\"><v>21</v></c><c r=\"C17\" t=\"d\" s=\"1\"><v>2026-01-16T00:00:00</v></c><c r=\"D17\"><v>25.5</v></c></row><row r=\"18\"><c r=\"A18\" t=\"s\"><v>9</v></c><c r=\"B18\" t=\"s\"><v>22</v></c><c r=\"C18\" t=\"d\" s=\"1\"><v>2026-01-17T00:00:00</v></c><c r=\"D18\"><v>26.5</v></c></row><row r=\"19\"><c r=\"A19\" t=\"e\"><v>#N/A</v></c><c r=\"B19\" t=\"s\"><v>23</v></c><c r=\"C19\" t=\"d\" s=\"1\"><v>2026-01-18T00:00:00</v></c><c r=\"D19\"><v>27.5</v></c></row><row r=\"20\"><c r=\"A20\" t=\"s\"><v>4</v></c><c r=\"B20\" t=\"s\"><v>24</v></c><c r=\"C20\" t=\"d\" s=\"1\"><v>2026-01-19T00:00:00</v></c><c r=\"D20\"><v>28.5</v></c></row><row r=\"21\"><c r=\"A21\" t=\"e\"><v>#N/A</v></c><c r=\"B21\" t=\"s\"><v>25</v></c><c r=\"C21\" t=\"d\" s=\"1\"><v>2026-01-20T00:00:00</v></c><c r=\"D21\"><v>29.5</v></c></row><row r=\"22\"><c r=\"A22\" t=\"s\"><v>6</v></c><c r=\"B22\" t=\"s\"><v>26</v></c><c r=\"C22\" t=\"d\" s=\"1\"><v>2026-01-21T00:00:00</v></c><c r=\"D22\"><v>30.5</v></c></row><row r=\"23\"><c r=\"A23\" t=\"e\"><v>#N/A</v></c><c r=\"B23\" t=\"s\"><v>27</v></c><c r=\"C23\" t=\"d\" s=\"1\"><v>2026-01-22T00:00:00</v></c><c r=\"D23\"><v>31.5</v></c></row></sheetData></worksheet>",
+        "xl/worksheets/sheet2.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData/></worksheet>",
+        "xl/worksheets/sheet3.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr/><sheetData/></worksheet>"
+      },
+      "why": "method section G2.2 as the files review left it (plan P4-D164 to P4-D171), in one table of four columns and twenty-two rows, at the floor of eleven every case here is held to. The first column holds eleven errors between eleven labels -- one of them `TRUE`, which is a boolean's spelling and TEXT by its census -- so a class goes only to a cell it FITS: handed out in row order as before, the error count landed on the labels and the twin carried the wrong missing values. The second holds digit strings with ONE empty cell, so its whole census is withheld and only its published commonest class keeps the digits text. The third holds ISO dates written back as date cells, its format census withheld and its published code a date, so its cells wear the date format rather than plain. The fourth is named for a blank header cell and gets none, and the first column's own name carries a carriage return, written as its character reference. The sheets are published as `Data`, withheld and `sheet2`, so the placeholder for the withheld one walks past `Sheet2`, which a spreadsheet cannot hold beside `sheet2`. It carries FOUR mutants, one for each rule.",
+      "workbook": {
+        "autofilter": false,
+        "columns": [
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 0,
+              "empty": 0,
+              "error": 11,
+              "number": 0,
+              "text": 11
+            },
+            "format_code": "General",
+            "format_kinds": {
+              "date": 0,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 22,
+              "text": 0,
+              "time": 0
+            },
+            "formulas": null,
+            "value_class": "text"
+          },
+          {
+            "cell_classes": {
+              "absent": null,
+              "blank": null,
+              "boolean": null,
+              "date": null,
+              "empty": null,
+              "error": null,
+              "number": null,
+              "text": null
+            },
+            "format_code": "General",
+            "format_kinds": {
+              "date": null,
+              "datetime": null,
+              "elapsed": null,
+              "plain": null,
+              "text": null,
+              "time": null
+            },
+            "formulas": null,
+            "value_class": "text"
+          },
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 22,
+              "empty": 0,
+              "error": 0,
+              "number": 0,
+              "text": 0
+            },
+            "format_code": "yyyy\\-mm\\-dd",
+            "format_kinds": {
+              "date": null,
+              "datetime": null,
+              "elapsed": null,
+              "plain": null,
+              "text": null,
+              "time": null
+            },
+            "formulas": null,
+            "value_class": "date"
+          },
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 22,
+              "text": 0
+            },
+            "format_code": "General",
+            "format_kinds": {
+              "date": 0,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 22,
+              "text": 0,
+              "time": 0
+            },
+            "formulas": null,
+            "value_class": "number"
+          }
+        ],
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": false,
+        "empty_rows_inside": null,
+        "frozen_rows": 0,
+        "macro_project": false,
+        "rows_above_header": 0,
+        "sheet_count": 3,
+        "sheet_extents": [
+          null,
+          {
+            "columns": 0,
+            "rows": 0
+          },
+          {
+            "columns": 0,
+            "rows": 0
+          }
+        ],
+        "sheet_hidden": false,
+        "sheet_names": [
+          "Data",
+          null,
+          "sheet2"
+        ],
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0
+      },
+      "write_header": true
+    },
     "workbook_sheet": {
       "cells": [
         [
@@ -452,6 +713,7 @@
               "absent": 11,
               "blank": 0,
               "boolean": 0,
+              "date": 0,
               "empty": 0,
               "error": 0,
               "number": 11,
@@ -466,13 +728,15 @@
               "text": 0,
               "time": 0
             },
-            "formulas": 0
+            "formulas": null,
+            "value_class": "number"
           },
           {
             "cell_classes": {
               "absent": 11,
               "blank": 0,
               "boolean": 0,
+              "date": 0,
               "empty": 0,
               "error": 0,
               "number": 0,
@@ -487,13 +751,15 @@
               "text": 11,
               "time": 0
             },
-            "formulas": 0
+            "formulas": null,
+            "value_class": "text"
           },
           {
             "cell_classes": {
               "absent": 0,
               "blank": 11,
               "boolean": 0,
+              "date": 0,
               "empty": 0,
               "error": 0,
               "number": 11,
@@ -503,18 +769,20 @@
             "format_kinds": {
               "date": null,
               "datetime": 11,
-              "elapsed": 0,
+              "elapsed": null,
               "plain": null,
-              "text": 0,
-              "time": 0
+              "text": null,
+              "time": null
             },
-            "formulas": 0
+            "formulas": null,
+            "value_class": "number"
           },
           {
             "cell_classes": {
               "absent": 11,
               "blank": 0,
               "boolean": 0,
+              "date": 0,
               "empty": 0,
               "error": 0,
               "number": 11,
@@ -524,12 +792,13 @@
             "format_kinds": {
               "date": null,
               "datetime": null,
-              "elapsed": 0,
+              "elapsed": null,
               "plain": null,
-              "text": 0,
-              "time": 0
+              "text": null,
+              "time": null
             },
-            "formulas": 0
+            "formulas": null,
+            "value_class": "number"
           }
         ],
         "date_system": "1904",
@@ -561,6 +830,143 @@
         "trailing_blank_columns": 1,
         "trailing_blank_rows": 1
       },
+      "write_header": true
+    },
+    "written_form_classes": {
+      "dialect": {
+        "blank_lines": [],
+        "blank_lines_spread": null,
+        "byte_order_mark": false,
+        "columns": [
+          {
+            "pad": null,
+            "quoting": {
+              "absent": "always",
+              "empty": "bare",
+              "number": "always",
+              "text": "bare"
+            },
+            "sequence_start": null
+          },
+          {
+            "pad": null,
+            "quoting": {
+              "absent": "needed",
+              "empty": "always",
+              "number": "needed",
+              "text": "always"
+            },
+            "sequence_start": null
+          }
+        ],
+        "delimiter": ",",
+        "empty_rows": {
+          "interior": 0,
+          "leading": 0,
+          "trailing": 0
+        },
+        "end_of_file_mark": false,
+        "escape": "doubled",
+        "final_line_ending": true,
+        "header_quoting": "needed",
+        "header_rows": [],
+        "header_rows_quoting": "needed",
+        "initial_space": false,
+        "line_endings": [],
+        "line_endings_spread": [],
+        "preamble": [],
+        "preamble_withheld": false,
+        "row_order": null,
+        "separator_line": false,
+        "short_rows": false,
+        "trailing_delimiter": {
+          "header": false,
+          "rows": false
+        },
+        "written_names": []
+      },
+      "kind": "delimited",
+      "lines": [
+        "reading,note",
+        "\"12\",\"North\"",
+        "\".5\",12",
+        "\"2.5e3\",-",
+        "\"0012\",?",
+        "\"-3\",#N/A",
+        "\"-\",   ",
+        "\"?\",NaT",
+        "\"#N/A\",\"nat\"",
+        "\"   \",\"3 kg\"",
+        "\"NaT\",.5",
+        "nat,\"\"",
+        "3 kg,NA",
+        ",\"West\"",
+        "\"NA\",-3"
+      ],
+      "names": [
+        "reading",
+        "note"
+      ],
+      "rows": [
+        [
+          "12",
+          "North"
+        ],
+        [
+          ".5",
+          "12"
+        ],
+        [
+          "2.5e3",
+          "-"
+        ],
+        [
+          "0012",
+          "?"
+        ],
+        [
+          "-3",
+          "#N/A"
+        ],
+        [
+          "-",
+          "   "
+        ],
+        [
+          "?",
+          "NaT"
+        ],
+        [
+          "#N/A",
+          "nat"
+        ],
+        [
+          "   ",
+          "3 kg"
+        ],
+        [
+          "NaT",
+          ".5"
+        ],
+        [
+          "nat",
+          ""
+        ],
+        [
+          "3 kg",
+          "NA"
+        ],
+        [
+          "",
+          "West"
+        ],
+        [
+          "NA",
+          "-3"
+        ]
+      ],
+      "text": "reading,note\n\"12\",\"North\"\n\".5\",12\n\"2.5e3\",-\n\"0012\",?\n\"-3\",#N/A\n\"-\",   \n\"?\",NaT\n\"#N/A\",\"nat\"\n\"   \",\"3 kg\"\n\"NaT\",.5\nnat,\"\"\n3 kg,NA\n,\"West\"\n\"NA\",-3\n",
+      "why": "method section G2's quoting PER CELL CLASS on the two classes `written_form_lines` never reaches: that case's column of differing rules holds no number and no absent cell, so a writer that read `1,234` as text, or `-` and `#N/A` as text, wrote the same bytes there (files review MAJOR 19, plan P4-D173). Two columns take opposite rules -- numbers and absent cells always quoted in the first and text bare, text and empty cells always quoted in the second and the rest as needed -- over cells that sit at each class's edge: a point with no whole part, an exponent, leading zeros, a sign; `-`, `?`, `#N/A`, a cell of spaces, `NaT` byte for byte beside `nat`, which is text; and `3 kg`, a figure that does not make a number. Its mutants read every cell under the text rule, which moves the numbers and the absent cells, and read absence from the seven spellings this mirror used to hold, which moves `-`, `?`, `#N/A`, the spaces and `NaT`.",
       "write_header": true
     },
     "written_form_lines": {
@@ -723,9 +1129,9 @@
     "separator_allocation": "the census of marks between day and clock is spent over the parsed ranks by a smooth weighted rotation: each rank adds every named count to that name's credit, takes the name holding the most credit (the first in sorted order among equals) and takes the weights' total back from it; ranks the named counts leave over are added to the commonest name's weight. No rank is pinned and no word is drawn; a column counted in days by ordinal_space is written with a midnight clock (P4-D39). Where a cell's text is a declared absent spelling (matched whatever the case of its letters) it takes the first mark the census names, then the other common mark (a space for T or t, a T for a space) unless that is absent too, and the mark it owed is handed to the first rank, in rank order, allocated the mark it now wears whose new text is not absent and whose change leaves the column no spelling fewer, nor one value fewer once case is ignored; no rank is touched twice. An interior rank of a column counted in whole units whose unit wears only absent spellings steps to the nearest unit, earlier before later, inside its own window and then inside the published range. No frozen case declares an absent spelling, so that exception is pinned by the agreement test rather than by committed cells (G7.5).",
     "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values. M_neg is the nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the ladder gives each band and fall back to G and P where there is no ladder (G5.2b). The zero stratum holds Z cells; each other band divides its C cells by the ladder's own plateaus (G5.2a): the value at every rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with G5.4 applied where integer_valued is true, equal neighbours make a run, and runs are joined -- smallest (min(L[j],L[j+1]), 0 if Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) first, leftmost on a tie -- or the longest divided into floor(L/2) and L-floor(L/2), leftmost on a tie, until there are M of them. The even split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where there is no ladder or M >= C.",
     "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5).",
-    "workbook_sheet": "the parts of the twin's package, in the one fixed order, each carrying one fixed moment rather than the clock. Each cell's CLASS comes from the column's published census and never from the twin's own characters, the classes that hold nothing taking the cells holding no text and the number class going first to the cells that can carry one, with each group's remainder going to the class the column holds most of and never to one published as nought; each cell's format KIND likewise, an absent cell always plain; cells holding nothing are then moved onto shared rows so that the published records holding nothing exist; and every other sheet is written with as many cells as it held, each carrying one word of synthtwin's own (G2.2).",
+    "workbook_sheet": "the parts of the twin's package, in the one fixed order, each carrying one fixed moment rather than the clock. Each cell's CLASS comes from the column's published census and never from the twin's own characters, the classes that hold nothing taking the cells holding no text, and each class holding a value going only to a cell it FITS -- an error to an error kind, a boolean to TRUE or FALSE, a date to ISO text, a number to a plain number -- before text takes its count; a cell no published count claims takes the column's published commonest class, or a withheld class, that fits it, and a group's remainder never goes to a class published as nought; each cell's format KIND likewise, a text format first to text and a date or time format first to numbers, an absent cell always plain, and a cell no count claims wearing its published code's kind where that kind was withheld; cells holding nothing are then moved onto shared rows so that the published records holding nothing exist; a column named for a blank header cell gets no header cell; a carriage return is written as its character reference; a withheld sheet's placeholder is a name no published name takes in any case; and every other sheet is written with as many cells as it held, each carrying one word of synthtwin's own (G2.2).",
     "writable_mark": "a line before the table is published as its SHAPE and never its text: blank with the whitespace it held, a comment with the punctuation it began with, or text with nothing at all. The mark is then narrowed to what the twin can write -- it ends before the first quote character or delimiter, and a line whose punctuation begins with one is a line of TEXT -- because the mark is written into the twin ahead of the stand-in and a mark carrying either leaves a twin that is not a file (contract FD11, plan P4-D83).",
-    "written_form": "the twin's lines in file order -- the separator hint, the lines before the table, the header, the rows of column descriptions, then the records with the blank lines where the form places them -- each cell written under its column's rule for its own class (`needed` quotes when and only when the field holds the delimiter, a quote character or a line break; `bare` only where it could not be read back; `always`; `mixed` is written `needed`), padded where its column is padded, joined by the delimiter and one space where the form has one, with a trailing delimiter where the form says so. A byte-order mark leads where the form has one, each line takes the next ending of the runs, the last takes none unless the form ends its last line, and the end-of-file mark follows (G2)."
+    "written_form": "the twin's lines in file order -- the separator hint, the lines before the table, the header, the rows of column descriptions, then the records with the blank lines where the form places them -- each cell written under its column's rule for its own class -- a cell holding nothing is empty, one spelled as contract 5.4.1's vocabulary of absence is absent, one the number grammar reads is a number, and every other is text -- (`needed` quotes when and only when the field holds the delimiter, a quote character or a line break; `bare` only where it could not be read back; `always`; `mixed` is written `needed`), padded where its column is padded, joined by the delimiter and one space where the form has one, with a trailing delimiter where the form says so. A byte-order mark leads where the form has one, each line takes the next ending of the runs, the last takes none unless the form ends its last line, and the end-of-file mark follows (G2)."
   },
   "generated_by": "tools/reference/make_generation_reference_vectors.py",
   "method": "docs/spec/generation-method-v1.md",

@@ -734,7 +734,13 @@ cell present; FD7 the sort column is a column, not the row sequence, holding no
 empty cell and no absent cell the twin writes empty outside the records
 holding nothing, in three or more rows (the order is read over the
 records that hold something, and the twin sorts those around its
-records of nothing); FD8 written header cells stand
+records of nothing). The cells the twin writes empty are counted the way
+the generator decides them: the column's absent cells less the
+`missing_by_source` spellings it reproduces, a spelling a judged pass
+put there not being reproduced (C6-115, C6-116). They were counted as the
+blank and pooled cells with the judged ones added, which missed every
+absent cell no field names -- a free-text column's `--missing-value`
+cells -- and a twin then missed `rows.order` (plan P4-D173); FD8 written header cells stand
 under a header read from the file, in order, and name every column what
 the description names it; FD9 rows of column descriptions only under
 such a header, exactly as many of them as the person declared and no
@@ -836,33 +842,92 @@ rule and what it does and does not withhold on a workbook.
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
 | `autofilter` | boolean | — | the sheet or its defined table carries a filter |
-| `columns` | array of objects `{cell_classes, format_kinds, formulas}` | one per column | the census of what each column's cells WERE, below |
+| `columns` | array of objects `{cell_classes, format_code, format_kinds, formulas, value_class}` | one per column | the census of what each column's cells WERE, below |
 | `date_system` | string | `1900`, `1904` | which epoch the workbook counts its dates from; the 1904 system shifts every date by 1,462 days |
 | `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
 | `defined_table` | boolean | — | the sheet carries a defined table |
-| `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the smallest group held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held to the smallest group exactly as a census is (WB3): one such record names the row that holds it, and one short of the whole names the row that does not |
-| `frozen_rows` | integer | ≥ 0 | how many rows are frozen at the top of the sheet |
+| `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the disclosure rule held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held exactly as a census is (WB3, plan P4-D164): published where it is every record or reaches the line at both ends, and `null` otherwise -- a nought included, so that a withheld count is never told from a real nought |
+| `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet. A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D169) |
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
-| `rows_above_header` | integer | ≥ 0 | rows of content standing above the header — a title, a merged banner, a note |
+| `rows_above_header` | integer | ≥ 0 | rows standing above the header — a title, a merged banner, a note, and the blank rows between. The header is the first row of content holding two cells or more, or the one row a table one column wide begins with, or the written row index (one cell short, missing its first); a title above a table holds one. Where rows of one cell stand above that header and the sheet neither freezes its panes nor starts its autofilter at the header row, those rows may be the names themselves and the profile stops and asks; `--first-row names` then puts the names on the first row of content (plan P4-D174). `0` where the person declared with `--first-row data` that every row is a record (plan P4-D165) |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
-| `sheet_extents` | array of object-or-`null` | one per sheet, in workbook order | the block of cells each sheet that is NOT the table's holds, as `{rows, columns}` counted from the first cell, and `null` for the sheet the table was read from, whose own facts describe it. A sheet holding nothing is `0` by `0`. The twin writes a sheet of that shape carrying one word of synthtwin's own in every cell (WB7) |
+| `sheet_extents` | array of object-or-`null` | one per sheet, in workbook order | the block of cells each sheet that is NOT the table's holds, as `{rows, columns}` counted from the first cell, and `null` for the sheet the table was read from, whose own facts describe it. A sheet holding nothing is `0` by `0`, and no block reaches two rows, however few columns (WB7, plan P4-D170). The twin writes a sheet of that shape carrying one word of synthtwin's own in every cell |
 | `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
-| `sheet_names` | array of string-or-`null` | one per sheet, in workbook order | each sheet's name where it may be published, `null` where it was WITHHELD. A name may be published only when it is one this version would publish itself -- one of `dialect.SHEET_SAFE_NAMES`, optionally followed by figures -- because a sheet name can hold a person's name. A withheld sheet is written under a neutral name |
+| `sheet_names` | array of string-or-`null` | one per sheet, in workbook order | each sheet's name where it may be published, `null` where it was WITHHELD. A name may be published only when it is one this version would publish itself -- one of `dialect.SHEET_SAFE_NAMES`, optionally followed by ONE OR TWO figures not beginning with a nought -- because a sheet name can hold a person's name, and a longer run of figures can be a subject's number (`Report123456789` was published whole until plan P4-D171). No two published names are one name in any case. A withheld sheet is written under a neutral name no published name takes in any case |
 | `sheet_position` | integer | ≥ 1 | WHICH sheet the table was read from, by its place in workbook order |
 | `trailing_blank_columns` | integer | ≥ 0 | columns of formatted blanks standing beyond the table |
 | `trailing_blank_rows` | integer | ≥ 0 | rows of formatted blanks standing below the table |
 
-**A column's census — exactly four keys.** `format_code` is the number
+**A column's census — exactly five keys.** `format_code` is the number
 format the column's twin WEARS: one of `dialect.SHEET_FORMAT_CODES`,
 which is Excel's own built-in vocabulary plus one canonical code per
-kind, and never a code out of the person's file. `cell_classes` counts the
-class of every cell of that column, over the closed set `absent`,
-`blank`, `empty`, `text`, `number`, `boolean`, `error`
-(`workbook.CELL_CLASSES`); `format_kinds` counts what kind of thing
-each cell's number format makes of it, over `plain`, `date`,
-`datetime`, `time`, `elapsed`, `text` (`workbook.FORMAT_KINDS`);
-`formulas` counts the cells carrying a formula. Every count is a whole
-number, or `null` where the smallest group held it back.
+kind, and never a code out of the person's file; it is the commonest
+code AMONG THE CELLS HOLDING A VALUE where that code is worn by the line,
+else the canonical code of the commonest kind among them where that kind
+is worn by the line, else the general format (plan P4-D164). `cell_classes`
+counts the class of every cell of that column, over the closed set
+`absent`, `blank`, `empty`, `text`, `number`, `boolean`, `error`, `date`
+(`workbook.CELL_CLASSES`), counting a cell holding a value whose spelling
+the column reads as absent and does not reproduce -- a spelling under the
+floor, or one a judged pass reads as missing -- as `absent`, the class
+its twin writes it as (plan P4-D174); `date` is a cell the file stores as ISO date
+text (`t="d"`), which every reader hands back as a date and which used to
+be counted a number and written back as text (plan P4-D168).
+`format_kinds` counts what kind of thing each cell's number format makes
+of it, over `plain`, `date`, `datetime`, `time`, `elapsed`, `text`
+(`workbook.FORMAT_KINDS`); a colour, a currency and a condition written
+in square brackets are not read as tokens of a date, while an elapsed
+count (`[h]`, `[mm]`) is (plan P4-D169). `formulas` counts the cells
+carrying a formula. `value_class` names the class most of the column's
+value-holding cells are -- `error`, `boolean`, `date`, `number` or `text`
+-- WITHOUT a count, and is `null` where no class is held by the line; it
+is what still tells a twin a column of digit texts from a column of
+numbers where the census beside it withheld every count (WB8). Every
+count is a whole number, or `null` where the disclosure rule held it
+back.
+
+**The disclosure rule every count here keeps** (plan P4-D164,
+`dialect.sheet_census`, `dialect.sheet_count`). THE LINE is the smallest
+group or two, whichever is larger. A census publishes every count
+exactly where none is SMALL -- neither nought nor the whole column, and
+under the line or leaving a complement under it. Where one is, every
+small count and every nought is withheld together, so a withheld key
+never says "some, but few"; and the counts withheld, taken together, are
+never under the line and number at least two, the smallest published
+count joining them until they are. A census with nothing left published
+stands in a table shorter than the line: the row count beside it is all
+a reader can subtract from, and it names nobody (plan P4-D174). A single count -- `formulas`,
+`empty_rows_inside` -- is published where it is the whole or reaches the
+line at both ends, and withheld otherwise, a nought included. A review
+measured the rule this replaced: sixty numbers, thirty-nine texts and one
+boolean published `60, 39, null` beside noughts at a floor of five, and
+100 - 60 - 39 rebuilt the count of one.
+
+**A column mixing how its cells are stored is refused** (plan P4-D166,
+`errors.workbook_column_mixes_storage`). The description publishes how
+many cells are of each class and wear each kind, and the column's values
+as one distribution -- nothing that says which values the numbers were.
+Where two value classes stand in a column and a cell of one is spelled
+the way the other is written (thirty numbers of 10 beside thirty texts
+of `1000`), or where the column's NUMBER cells wear more than one kind of
+format (dates beside plain numbers), a twin cannot keep which value was
+stored which way -- measured, a calculation over the numeric cells gave
+15150 on the twin against 300 on the source with every fact held -- so
+the profile is refused and the person told how to make the column one
+type.
+
+**A stored number is read without its writer's noise** (plan P4-D174).
+A number cell's stored text holding a point or an exponent is read as
+the shortest spelling of the same binary64 wherever that spelling needs
+fewer significant figures than the stored text, in the same notation --
+an exponent keeps its letter, its sign and its count of figures, and a
+leading plus stays -- so a trailing nought after a point, which pads a
+width and is no noise, is kept (`workbook.stored_number_spelling`, the
+one reading of the noise kept at the merge of this repair into the
+integration, which had written its own): openpyxl stores 73.1 as `73.09999999999999`
+and Excel as `73.099999999999994`, and the figures were published as a
+fraction width of fourteen that the person's unchanged workbook then
+failed. No other stored text is moved.
 
 **Why the classes are the cell's own and not a reader's.** A workbook
 cell is typed, and what a reader shows a person is derived from the
@@ -893,7 +958,10 @@ cells where a table stood, and statistics taken from it would be false
 while the file still opened. Such a workbook is REFUSED, in a sentence
 naming BOTH sheets and saying that each table has to be saved in a
 workbook of its own (`errors.workbook_other_sheet_holds_a_table`); a
-block of two rows and two columns is where that line falls (WB7).
+block of two rows is where that line falls, however many columns it
+spans (WB7). It fell at two rows AND two columns until plan P4-D170,
+and a sheet holding a header over thirty values in one column was
+accepted and written back as a column of withheld words.
 
 That sentence used to ask which sheet held the table and tell the
 person to run the command again with `--sheet`, and landing 2b.17's
@@ -906,25 +974,30 @@ a person back to the command line for a second refusal is worse than a
 plain one, so the sentence now names the only thing that does settle
 it.
 
-**Invariants WB1-WB7** (`contract.INVARIANTS`): WB1 one column census
+**Invariants WB1-WB8** (`contract.INVARIANTS`): WB1 one column census
 per column; WB2 the sheet the table was read from is one the workbook
 has, counted from one; WB3 every published count of cells, and the count
-of records holding nothing, is nought, or all of them, or clears the
-smallest group at both ends, so that neither the count nor its
-complement names one row; WB4 the records holding nothing inside the
+of records holding nothing, is all of them or reaches the line at both
+ends, and a census that withholds a count withholds at least two,
+publishes no nought beside them and leaves them together at nought, at
+the line or more, or at the whole column where nothing is published, so
+that no count, complement or difference a reader can take names one row; WB4 the records holding nothing inside the
 table are no more than the table itself holds, and no more rows are
 frozen than the sheet has; WB5 a workbook names one sheet for every
-sheet it has, and every name it publishes is one this version would
-publish itself; WB6 the number format a column's twin wears is one of
-the published codes, and its kind is one the column's own census does
-not say no cell wears; WB7 a workbook describes the block of cells held
-by every sheet that is not the table's and none for the sheet the table
-was read from, and no such block reaches two rows and two columns.
+sheet it has, every name it publishes is one this version would
+publish itself, and no two of them are one name in any case; WB6 the
+number format a column's twin wears is one of the published codes, and
+its kind is one the column's own census does not say no cell wears; WB7
+a workbook describes the block of cells held by every sheet that is not
+the table's and none for the sheet the table was read from, and no such
+block reaches two rows; WB8 the class a column names as its commonest is
+one its own census does not say no cell holds.
 
-**Which counts the smallest group holds, and which it does not.** Every
-per-column census, and `empty_rows_inside`, count ROWS OF THE TABLE, so
-each is held to the floor and published as `null` where it would name
-one row (WB3). The layout counts are exempt and each for the same
+**Which counts the disclosure rule holds, and which it does not.** Every
+per-column census, each column's `formulas` and `empty_rows_inside`
+count ROWS OF THE TABLE, so each is held by the rule above and published
+as `null` where it, its complement or a difference would name one row
+(WB3). The layout counts are exempt and each for the same
 reason: `rows_above_header`, `trailing_blank_rows`,
 `trailing_blank_columns`, `frozen_rows`, `defined_names`, `sheet_count`
 and `sheet_position` count the SHEET'S FURNITURE and not its records --

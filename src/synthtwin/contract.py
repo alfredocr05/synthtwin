@@ -461,6 +461,28 @@ def _judged_cells(column: "ColumnBlock") -> int:
             total = total + column.missing_by_source[spelling]
     return total
 
+
+def _written_empty(column: "ColumnBlock") -> int:
+    """How many of a column's absent cells the twin writes EMPTY (plan P4-D173).
+
+    The generator's rule (contract C6-115, C6-116) read from the other
+    side: every absent cell is written empty except a `missing_by_source`
+    spelling a judged pass did not put there. So this is the column's
+    absent cells less the spellings reproduced -- and NOT the blank and
+    pooled counts added up, which is what FD7 counted until a review
+    measured the gap: a free-text column publishes no spelling of the
+    twenty cells `--missing-value ZZZ` made absent, counts them in
+    `n_missing` alone, and the twin wrote all twenty empty while the
+    order was published. The real file validated and the twin missed
+    `rows.order`.
+    """
+    reproduced = 0
+    for spelling in sorted(column.missing_by_source):
+        reproduced = reproduced + column.missing_by_source[spelling]
+    reproduced = reproduced - _judged_cells(column)
+    left = column.n_missing - reproduced
+    return left if left > 0 else 0
+
 VERDICTS = (VERDICT_MISSING, "kept_as_a_number")
 
 REASON_OUTLIER_AND_FREQUENT = "outlier_and_frequent"
@@ -1084,9 +1106,13 @@ INVARIANTS = {
     ),
     "WB3": (
         "every published count of cells, and the count of records "
-        "holding nothing, is nought, or all of them, or clears the "
-        "smallest group at both ends, so that neither the count nor "
-        "its complement names one row"
+        "holding nothing, is all of them or reaches the line -- the "
+        "smallest group, and never under two -- at both ends; a census "
+        "that withholds a count withholds at least two, publishes no "
+        "nought beside them, and leaves them together at nought, at "
+        "the line or more, or at the whole column where nothing is "
+        "published, so that no count, no complement and no difference "
+        "a reader can take names one row"
     ),
     "WB4": (
         "the records holding nothing inside the table are no more than "
@@ -1094,8 +1120,9 @@ INVARIANTS = {
         "sheet has"
     ),
     "WB5": (
-        "a workbook names one sheet for every sheet it has, and every "
-        "name it publishes is one this version would publish itself"
+        "a workbook names one sheet for every sheet it has, every "
+        "name it publishes is one this version would publish itself, "
+        "and no two of them are the same name whatever their case"
     ),
     "WB6": (
         "the number format a column's twin wears is one of the codes "
@@ -1106,8 +1133,12 @@ INVARIANTS = {
         "a workbook describes the block of cells held by every sheet "
         "that is not the table's, and none for the sheet the table was "
         "read from; a block is nought by nought or reaches at most one "
-        "row or at most one column, because a block of two rows and two "
-        "columns is a table this description does not carry"
+        "row, because a block of two rows is records of a table this "
+        "description does not carry, however many columns it spans"
+    ),
+    "WB8": (
+        "the class a workbook column names as its commonest is one its "
+        "own census does not say no cell holds"
     ),
     # THE FIRST WB5 AND WB6 WERE WRITTEN AND TAKEN OUT AGAIN, and the reason
     # is worth keeping. One said that a column's cell classes are the
@@ -4098,6 +4129,10 @@ class WorkbookColumn:
     format_code: str
     format_kinds: "dict[str, int | None]"
     formulas: "int | None"
+    # The class most of the column's value-holding cells are, named
+    # without a count, or None where no class is held by the line (plan
+    # P4-D164). One of `dialect.SHEET_VALUE_CLASSES`.
+    value_class: "str | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4205,6 +4240,13 @@ def _sheet_extents(
     return tuple(out)
 
 
+def _value_class(value: object, where: str) -> "str | None":
+    """A column's commonest value class, by name, or nothing (P4-D164)."""
+    if value is None:
+        return None
+    return _one_of(value, "value_class", where, dialect.SHEET_VALUE_CLASSES)
+
+
 def _workbook_block(value: object) -> "WorkbookForm | None":
     """The workbook block, typed, or None where the file was not one.
 
@@ -4241,6 +4283,7 @@ def _workbook_block(value: object) -> "WorkbookForm | None":
                 ),
                 format_kinds=wearing,
                 formulas=_held_count(entry["formulas"], "formulas", where),
+                value_class=_value_class(entry["value_class"], where),
             )
         ]
     return WorkbookForm(
@@ -4282,7 +4325,7 @@ def _workbook_rules(
     n_rows: int,
     floor: int,
 ) -> None:
-    """The invariants that tie a workbook block to the table (WB1-WB6)."""
+    """The invariants that tie a workbook block to the table (WB1-WB8)."""
     form = source.workbook
     if form is None:
         return
@@ -4300,43 +4343,51 @@ def _workbook_rules(
             f"the table was read from sheet {form.sheet_position}",
             f"the workbook has {form.sheet_count}",
         )
+    # ONE RULE FOR EVERY COUNT OF CELLS, AND IT IS THE PRODUCER'S OWN
+    # (plan P4-D164). Each census was held to the floor count by count,
+    # and a review measured the gap: `60, 39, null` over a hundred cells,
+    # beside noughts, handed a reader the withheld count of one by
+    # subtraction, and the loader passed it at a floor of five. The rules
+    # are `dialect.sheet_census`'s, checked here by the function written
+    # beside them.
     for column in form.columns:
-        for kind in dialect.SHEET_CELL_CLASSES:
-            counted = column.cell_classes[kind]
-            if counted is None:
-                continue
-            if counted and counted != n_rows and (
-                counted < floor or n_rows - counted < floor
-            ):
+        for census in (column.cell_classes, column.format_kinds):
+            trouble = dialect.sheet_census_broken(census, n_rows, floor)
+            if trouble:
                 raise _broken(
-                    "WB3", where,
-                    f"a census publishes {counted} of {n_rows} cells",
-                    f"the smallest group is {floor}",
+                    "WB3", where, trouble,
+                    "no count, complement or difference of fewer than "
+                    "the line",
                 )
-        for code in sorted(column.format_kinds):
-            wearing = column.format_kinds[code]
-            if wearing is None:
-                continue
-            if wearing and wearing != n_rows and (
-                wearing < floor or n_rows - wearing < floor
-            ):
-                raise _broken(
-                    "WB3", where,
-                    f"a census publishes {wearing} of {n_rows} cells",
-                    f"the smallest group is {floor}",
-                )
-        if column.formulas is not None and column.formulas > n_rows:
+        trouble = dialect.sheet_count_broken(column.formulas, n_rows, floor)
+        if trouble or (
+            column.formulas is not None and column.formulas > n_rows
+        ):
             raise _broken(
                 "WB3", where,
-                f"a column publishes {column.formulas} cells holding a formula",
-                f"the table has {n_rows} rows",
+                trouble
+                or f"a column publishes {column.formulas} cells holding a "
+                "formula",
+                f"the table has {n_rows} rows, and no count of fewer than "
+                "the line is published",
             )
+        # WB8: the commonest class a column names is one it holds.
+        if column.value_class is not None:
+            holding = column.cell_classes[column.value_class]
+            if holding is not None and holding == 0:
+                raise _broken(
+                    "WB8", where,
+                    f"a column names {column.value_class} as its "
+                    "commonest class",
+                    "a class its own census does not say no cell holds",
+                )
     if len(form.sheet_names) != form.sheet_count:
         raise _broken(
             "WB5", where,
             f"the workbook names {len(form.sheet_names)} sheets",
             f"it has {form.sheet_count}",
         )
+    claimed: "dict[str, bool]" = {}
     for name in form.sheet_names:
         if name is None:
             continue
@@ -4346,6 +4397,16 @@ def _workbook_rules(
                 f"a sheet is named '{name}'",
                 "a name this version would publish itself",
             )
+        # A SPREADSHEET HOLDS NO TWO SHEETS OF ONE NAME IN ANY CASE (plan
+        # P4-D171), so a description naming two could only be written
+        # back under a name the application chose.
+        if dialect.sheet_name_key(name) in claimed:
+            raise _broken(
+                "WB5", where,
+                f"two sheets are named '{name}' whatever their case",
+                "no two sheets of one name",
+            )
+        claimed[dialect.sheet_name_key(name)] = True
     # WHAT EVERY OTHER SHEET HOLDS (WB7, plan P4-D82). The twin writes
     # each such sheet with a block of this shape, so a description that
     # named a block for the table's own sheet, left one out, or asked
@@ -4376,12 +4437,12 @@ def _workbook_rules(
                 f"sheet {index + 1} describes no block of cells",
                 "one for every sheet that is not the table's",
             )
-        if extent[0] >= 2 and extent[1] >= 2:
+        if extent[0] >= 2:
             raise _broken(
                 "WB7", where,
                 f"sheet {index + 1} holds {extent[0]} rows and "
                 f"{extent[1]} columns of cells",
-                "a block of at most one row or at most one column",
+                "a block of at most one row",
             )
         if (extent[0] == 0) != (extent[1] == 0):
             raise _broken(
@@ -4408,19 +4469,18 @@ def _workbook_rules(
                 "the table",
                 f"the table has {n_rows} rows",
             )
-        # THE RECORDS HOLDING NOTHING ARE A COUNT OF ROWS, so the floor
+        # THE RECORDS HOLDING NOTHING ARE A COUNT OF ROWS, so the rule
         # that holds every census holds this too (repair of landing
-        # 2b.10). One such record inside a table names that row as
-        # surely as a census of one cell does, and the description
-        # published it raw at every floor until this rule.
-        counted = form.empty_rows_inside
-        if counted and counted != n_rows and (
-            counted < floor or n_rows - counted < floor
-        ):
+        # 2b.10, plan P4-D164). One such record inside a table names that
+        # row as surely as a census of one cell does.
+        trouble = dialect.sheet_count_broken(
+            form.empty_rows_inside, n_rows, floor
+        )
+        if trouble:
             raise _broken(
                 "WB3", where,
-                f"{counted} of {n_rows} records hold nothing",
-                f"the smallest group is {floor}",
+                f"{form.empty_rows_inside} of {n_rows} records hold nothing",
+                f"the line is {dialect.sheet_line(floor)}",
             )
     if form.frozen_rows > n_rows + form.rows_above_header + 1:
         raise _broken(
@@ -4745,10 +4805,7 @@ def _dialect_rules(
             at > width
             or n_rows < 3
             or sequences[at - 1]
-            or columns[at - 1].n_missing_blank
-            + columns[at - 1].n_missing_withheld
-            + _judged_cells(columns[at - 1])
-            != empties
+            or _written_empty(columns[at - 1]) != empties
         ):
             raise _broken(
                 "FD7", where,

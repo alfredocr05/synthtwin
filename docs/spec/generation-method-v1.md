@@ -112,7 +112,7 @@ line ending — every row below reads as it did before P4-D86:
 | quote character | `"` (U+0022) |
 | doubling | an embedded `"` is written twice inside a quoted field, or after a backslash where `escape` is `backslash` (and a backslash is then written after one too) |
 | escape character | none, or the backslash where `escape` is `backslash` |
-| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
+| quoting | per column and per cell class (`absent`, `empty`, `number`, `text`) — a cell holding no character is `empty`; one whose text is a spelling of absence in contract 5.4.1's vocabulary (seventeen matched after trimming and a case fold, `NaT` byte for byte) is `absent`; one the profiler's number grammar reads as a number is `number`; every other cell is `text` (plan P4-D173): `needed` — quoted when and only when the field contains the delimiter, a quote character, a carriage return or a line feed (a backslash too under backslash escaping, a leading space under `initial_space`); `bare` — quoted only where it could not be read back otherwise; `always`; `mixed` is written `needed`. The header and the metadata rows take `header_quoting` and `header_rows_quoting` — **plus the two canonical exceptions below** |
 | lines that are not records | the `sep=` line, the `preamble` lines, the header, the `header_rows`, and `blank_lines` standing after `after` data records, in that order; where `blank_lines_spread` counts them instead, its `lines` blank lines stand evenly from after `first` records to after `last` (`dialect.spread_places`) |
 | a record's width | a trailing delimiter where `trailing_delimiter` says so; trailing empty cells left out where `short_rows`; a padded column's cells padded with spaces to its width where shorter |
 | header row | written when `source.header_source` is `file`; not written when it is `generated` |
@@ -276,29 +276,58 @@ limit rather than claiming past it, and what it freezes is the TEXT of
 each member.
 
 **Step 1 — the class of each cell** (`cell_classes`). One column's
-generated cells and its published `cell_classes` census go in; one
-class per cell comes out. A count the smallest group held back (`null`)
-counts as NONE ASKED FOR, and a count published as `0` is a FACT that
-no cell has that class; the two are never read the same way.
+generated cells, its published `cell_classes` census and its published
+`value_class` go in; one class per cell comes out. A count the smallest
+group held back (`null`) counts as NONE ASKED FOR BY NUMBER, and a
+count published as `0` is a FACT that no cell has that class; the two
+are never read the same way.
+
+A class FITS a cell's text where the cell can be written as that class
+(plan P4-D166): `text` fits every text; `error` fits one of the error
+kinds (`#DIV/0!`, `#N/A`, `#NAME?`, `#NULL!`, `#NUM!`, `#REF!`,
+`#VALUE!`, `#GETTING_DATA`, `#SPILL!`, `#CALC!`); `boolean` fits `TRUE`
+and `FALSE`; `date` fits ISO text — `YYYY-MM-DD`, optionally followed
+by `T` and a clock, or a clock alone, the clock being `hh:mm`, `hh:mm:ss`
+or `hh:mm:ss` with a point and figures; and `number` fits the text a
+workbook stores as a number (an optional sign, figures, an optional
+point with figures on one side or both, and an optional exponent whose
+mark is followed by an optional sign and at least one figure — never a
+grouped number, a decimal comma, a bracketed negative, a percent or a
+currency mark, which in a workbook are a FORMAT worn by a plain number
+and not the stored value).
 
 - The cells holding no text take the three classes that hold nothing —
   `absent`, `blank`, `empty`, in that order — each handed out in row
-  order to as many of those cells as its published count names.
-- The cells holding text take the four that hold a value. The `number`
-  class goes FIRST and only to cells whose text a workbook would store
-  as a number (an optional sign, figures, an optional point and
-  figures, an optional exponent — never a grouped number, a decimal
-  comma, a bracketed negative, a percent or a currency mark, which in a
-  workbook are a FORMAT worn by a plain number and not the stored
-  value). The remaining cells then take `error`, `boolean` and `text`
-  in that order, in row order, by their published counts.
-- Whatever is left over in each group takes that group's LEADING class:
-  the one the column holds most of, ties going to the earlier of the
-  order above, **except that a class published as nought is never the
-  leading one**. A withheld count is not a licence to write none, and a
-  published nought is not a count to fall back on; the remainder goes
-  to a class whose number was not published rather than to one the
-  description denies.
+  order to as many of those cells as its published count names. What
+  is left takes the first of those three whose count was WITHHELD, and
+  where none was, the group's LEADING class (below).
+- The cells holding text take the five that hold a value. First
+  `error`, `boolean`, `date` and `number`, in that order: each class
+  whose count is published is handed out in row order to as many
+  cells, not yet given a class, that it FITS as its count names. Then
+  `text`, by its published count, in row order: first to the cells no
+  class still wanting cells fits — a class wants cells where its count
+  was withheld or is not yet spent — and then to any cell left.
+- Every text cell still without a class takes, in this order of
+  candidates — the published `value_class` where there is one, then
+  `error`, `boolean`, `date`, `number`, `text` — the first candidate
+  whose count was withheld and which fits the cell; where none, the
+  group's LEADING class if it fits; and `text` otherwise.
+- A group's LEADING class is the one the column holds most of by its
+  published counts, ties going to the earlier of the order above,
+  **except that a class published as nought is never the leading one**.
+  A withheld count is not a licence to write none, and a published
+  nought is not a count to fall back on.
+
+WHY A CLASS GOES ONLY TO A CELL IT FITS (plan P4-D166). The first
+writing handed the error, boolean and text counts out in row order to
+whatever the cells held, so a column of forty `#N/A` errors, forty
+`North` and forty `South` got a twin marking twenty-six labels as
+errors, and pandas read 27, 27 and 66 missing against 40, 40 and 40.
+WHY `value_class` DECIDES WHERE A COUNT WAS WITHHELD (plan P4-D164): a
+census held back whole because one cell was unlike the rest leaves the
+twin nothing else to tell a column of digit texts from a column of
+numbers by.
 
 **Step 0 — a date is written back as the day count it was read as**
 (repair of the stage-2b integration). The reader hands the column
@@ -320,15 +349,28 @@ majority: the census publishes a count per kind and the twin owes a
 cell per count. An ABSENT cell is always `plain`, because nothing is
 written for it and every reader sees the general format there — so the
 kinds that are not plain are handed out, in the order `date`,
-`datetime`, `time`, `elapsed`, `text`, in row order, among the cells
-that ARE written, and `plain` takes the rest. **A date format goes to a
-date first:** the `date` and `datetime` counts are each offered to the
-cells holding a date of their own kind, then to the cells holding a
-date of the other kind, and only then to every written cell in row
-order. **And a date left over keeps its own kind** where the census
-does not publish that kind as nought: a count the smallest group held
+`datetime`, `time`, `elapsed`, `text`, each by its published count,
+among the cells that ARE written and not yet given a kind. **A date
+format goes to a date first:** the `date` and `datetime` counts are each
+offered to the cells holding a date of their own kind, then to the cells
+holding a date of the other kind. Every count is then offered in three
+passes in row order: a `text` format first to `text` and `empty` cells
+and any other kind first to `number` and `date` cells, then to `blank`
+cells, then to any cell. **A date left over keeps its own kind** where
+the census held that kind's count back: a count the smallest group held
 back is not a licence to write none, and a date wearing the general
-format reads back as a bare day count.
+format reads back as a bare day count; a published count is never
+exceeded. The written cells left then take `plain` up to
+the published `plain` count less the absent cells; where `plain` was
+withheld, or its count is spent, each remaining cell takes the kind of
+the column's published `format_code` where that kind's count was
+withheld, else `plain` where plain was withheld, else the first kind in
+the order `plain`, `date`, `datetime`, `time`, `elapsed`, `text` whose
+count was withheld, else `plain` (plan P4-D166: twenty date cells at a
+floor of eleven, their counts withheld and `plain` published as nought,
+were written `plain 20`). The two orders -- the date's own kind, and
+the class tiers -- were composed at the merge of the files review's
+repair into the integration, which had each rewritten this step.
 
 **Step 3 — the code each cell is written with.** The column's own
 published `format_code` is used for the kind it IS; a cell of any other
@@ -382,13 +424,17 @@ the rows —
 
 - the rows above the header, one empty-string cell apiece;
 - the header, where `source.header_source` is `file`, one shared-string
-  cell per column in the header's own style, followed by one blank cell
+  cell per column in the header's own style — except that a column named
+  `Unnamed: N`, N its place counted from nought, is written with NO
+  cell, because that is the name a blank header cell is given and a
+  reader names it so again (plan P4-D165) — followed by one blank cell
   for each column of formatted blanks beyond the table;
 - each record: an `absent` cell is written as NO CELL AT ALL, a `blank`
   as a cell holding nothing in its style, an `empty` as the empty
   string, an `error` and a `boolean` and a `number` as their own kinds
-  where the text can carry them and as shared text where it cannot, and
-  anything else as shared text. A row placed as a record holding
+  where the text can carry them and as shared text where it cannot, a
+  `date` as an ISO date cell (`t="d"`) holding its text where the text
+  is ISO text (plan P4-D168), and anything else as shared text. A row placed as a record holding
   nothing is written with no cells at all, and so is a row every one of
   whose cells turned out to be absent;
 - the rows of formatted blanks below the table, one blank cell apiece.
@@ -414,7 +460,9 @@ description and the reader asks which sheet the table is on.
 written under the name the description publishes for it, and a sheet
 whose name was withheld under a neutral one — the published names
 claimed first, and a placeholder walking up until it finds a number no
-published name has taken. Every sheet BEFORE the chosen one is hidden,
+published name has taken, a name being TAKEN whatever its case, because
+a spreadsheet holds no two sheets whose names differ in case alone
+(plan P4-D171). Every sheet BEFORE the chosen one is hidden,
 so the chosen sheet is the first visible one and a reader that opens
 the workbook without naming a sheet lands on the table; the chosen
 sheet keeps the hidden state the description publishes, and the sheets
@@ -429,6 +477,15 @@ writes it. The table is built IN THE ORDER THE SHEETS ARE WRITTEN, one
 sheet at a time in workbook order, and within the chosen sheet in the
 order above: the empty string first, then the header's names, then each
 record's cells in row and column order. Edge spaces are preserved.
+
+**Step 11 — how text is written inside the markup.** In element text
+`&`, `<`, `>` and `"` are written `&amp;`, `&lt;`, `&gt;` and `&quot;`,
+and a carriage return is written `&#13;`; in an attribute's value a line
+feed is written `&#10;` and a tab `&#9;` as well. A reader turns a
+literal carriage return into a line feed before any text reaches it, so
+a header `line`, carriage return, `name` came back from the twin as
+`line`, line feed, `name` and the twin missed its own header (plan
+P4-D167).
 
 **What a twin workbook NEVER carries**, each one a way a spreadsheet
 file can act on the person who opens it: no formula, whatever a cell's
@@ -9346,7 +9403,11 @@ unchanged -- and two for G7.3's choice of the middles and its heaps (the
 skeptic of that review, plan P4-D138), which no flat case reaches -- and
 five for the transforms that produce a WHOLE DOCUMENT rather than
 one column's cells, which landings 2b.9, 2b.10 and 2b.11 left with no
-second implementation of any kind (landing 2b.17).
+second implementation of any kind (landing 2b.17), and one more for the
+rules of G2.2 the files review repaired -- a class handed only to a
+cell it fits, a withheld census falling to the published commonest
+class and code, a date cell, a blank header cell, a carriage return and
+a placeholder taken whatever its case (plan P4-D164 to P4-D171).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -9388,8 +9449,9 @@ is a gap in this section's own terms and it is named as one.
 **All fifty-two are required.** Landing 2b.6 withdrew one of the
 cases named above, `accidental_midnight`, with the rule it pinned, so
 fifty-three are named and fifty-two stand (counted at the integration of
-landings 2b.6 to 2b.10, 2026-09-16, and again at the repair pass of the
-final Codex review of the number censuses, which added two). The
+landings 2b.6 to 2b.10, 2026-09-16, again at the repair pass of the
+final Codex review of the number censuses, which added two, and at the
+files review's repair, which added two). The
 first nine are the first committed file, the next twenty the second,
 the next sixteen -- the cases the carried landings 2b.2, 2b.3 and
 2b.4 added, less the one landing 2b.6 withdrew -- the third, and the
@@ -9465,9 +9527,11 @@ case passed, which is the failure the count exists to prevent:
 | `reserved_name_floor` | G7.5's reservation (plan P4-D132): sixty day-first textual dates publishing `title-abbreviated-space-no-comma` at eleven -- the floor -- beside thirty `upper-abbreviated-hyphen-no-comma` and nineteen `upper-either-hyphen-no-comma`, whose twin holds fewer dates outside May than the real column, so a proportional share gives the title-case style fewer than eleven. Its mutant spends the class by the rotation alone and the style falls under the floor |
 
 | `written_form_lines` | G2's written form end to end: an `sep=` hint, a byte-order mark, four lines before the table in three runs, an always-quoted header, a left-padded column, a second column taking three DIFFERENT quoting rules over its four cell classes, a trailing delimiter on the records and none on the header, a blank line after the third record, two runs of line endings, no ending on the last line and an end-of-file mark after it |
+| `written_form_classes` | G2's quoting per cell class on the two classes `written_form_lines` never reaches (files review MAJOR 19, plan P4-D173): two columns under opposite rules, numbers and absent cells always quoted in one and text bare, text and empty cells always quoted in the other, over `.5`, `2.5e3`, `0012` and `-3`; `-`, `?`, `#N/A`, a cell of spaces and `NaT` read as absent under contract 5.4.1's vocabulary, beside `nat` and `3 kg`, which are text. It carries TWO mutants: every cell under the text rule, and absence read from seven spellings |
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
+| `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |
 | `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |
 
 Each case is small enough to read by hand — at most a few dozen cells —
