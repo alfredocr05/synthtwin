@@ -2525,6 +2525,7 @@
         "layout_forms": {
           "@@": 20
         },
+        "layout_prefixes": {},
         "max_length": 2,
         "min_length": 2,
         "missing_by_class": {
@@ -2655,6 +2656,7 @@
           "&%%": 11,
           "@%%": 22
         },
+        "layout_prefixes": {},
         "max_length": 3,
         "min_length": 3,
         "missing_by_class": {

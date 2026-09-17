@@ -116,7 +116,9 @@ on its own, it asks you rather than guessing.
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
 table, and it never contains a value from a column you named with
-`--identifier` or a line of free text -- but it does contain the
+`--identifier` or a line of free text -- apart from the text every
+value of such a column opens with, like `REC` or `ABC-`, where enough
+rows share it -- but it does contain the
 smallest and largest values of your numeric and date columns, the points
 in between that describe their shape, and, for each label, the exact
 spellings your file used for it together with how many rows wrote it
@@ -202,7 +204,10 @@ than being quietly dropped.
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
-that column's description. It takes a column name -- any column, whatever
+that column's description. The one thing of theirs the description does
+carry is text every value opens with, like `REC` or `ABC-`, where at
+least your smallest group of rows shares it, so the twin's values open
+with it too. It takes a column name -- any column, whatever
 that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.

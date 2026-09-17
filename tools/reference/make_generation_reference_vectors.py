@@ -7262,6 +7262,80 @@ def layout_offer(column):
     return [name for name in sorted(census) if name != WITHHELD]
 
 
+# ------------------------- the literal PREFIX of a record number (7.12a)
+#
+# Owner ruling of 2026-09-17, item 1, and method G9.6a, written from the
+# rule statement.  `layout_prefixes` maps `(column)` to the text every
+# present cell opens with, or a named layout to the text its own cells
+# open with.  A prefixed layout is written as its TEMPLATE: the layout
+# with its opening marks replaced by the prefix, filled as a layout is
+# filled -- a placeholder from the step, every other character standing
+# as itself.
+
+PREFIX_OF_THE_COLUMN = "(column)"
+
+
+def prefix_layout(text):
+    """The layout of a prefix or a template: each letter marked by its case."""
+    built = ""
+    for character in text:
+        if "a" <= character <= "z":
+            built += LAYOUT_LOWER
+        elif "A" <= character <= "Z":
+            built += LAYOUT_UPPER
+        else:
+            built += character
+    return built
+
+
+def templated_census(column):
+    """The census keyed by TEMPLATE (method G9.6a).
+
+    A function of its own so the frozen cases' registered mutant can take
+    it away: with the layouts left as they were published, the opening
+    letters are filled from the step, and the committed cells move.
+    """
+    census = column.get("layout_forms") or {}
+    prefixes = column.get("layout_prefixes") or {}
+    whole = prefixes.get(PREFIX_OF_THE_COLUMN, "")
+    templated = {}
+    for name in sorted(census):
+        prefix = prefixes.get(name, whole)
+        if name == WITHHELD or not prefix:
+            templated[name] = census[name]
+        else:
+            templated[prefix + name[len(prefix):]] = census[name]
+    return templated
+
+
+def wears_template(candidate, template, convention):
+    """The cell recounts into the template's layout and holds its letters."""
+    if layout_of(candidate, convention) != prefix_layout(template):
+        return False
+    return all(
+        candidate[place] == mark
+        for place, mark in enumerate(template)
+        if _ascii_letter(mark)
+    )
+
+
+def worn_template(candidate, convention, keys):
+    """The key of ``keys`` a cell is counted under, or its own layout."""
+    for template in sorted(keys):
+        if wears_template(candidate, template, convention):
+            return template
+    return layout_of(candidate, convention)
+
+
+def breaks_a_prefix(candidate, convention, prefixes):
+    """Whether a cell does not open with a published prefix it owes (G9.6a)."""
+    if PREFIX_OF_THE_COLUMN in prefixes:
+        prefix = prefixes[PREFIX_OF_THE_COLUMN]
+    else:
+        prefix = prefixes.get(layout_of(candidate, convention), "")
+    return bool(prefix) and not candidate.startswith(prefix)
+
+
 # Contract section 14.4's vocabulary of "no value", written from that
 # section: seventeen spellings matched after trimming and case folding,
 # and one matched byte for byte.
@@ -7300,7 +7374,7 @@ def _fits_its_slot(candidate, layout, convention, band, whole_numbers, holes=())
     WAS WRITTEN TO -- `%%%%` filled at a step whose leading figure is
     nought spells `0123`, whose layout is `!%%%`.
     """
-    if layout_of(candidate, convention) != layout:
+    if not wears_template(candidate, layout, convention):
         return False
     if reads_as_absent(candidate, holes):
         return False
@@ -7517,8 +7591,8 @@ def partner_layouts(layout, convention, count, column, offered):
             break
         if len(member) < column["min_length"]:
             continue
-        if layout_of(member, convention) in offered:
-            worn.append(layout_of(member, convention))
+        if worn_template(member, convention, offered) in offered:
+            worn.append(worn_template(member, convention, offered))
     return worn + [""] * (count - len(worn))
 
 
@@ -7640,6 +7714,7 @@ def layout_stand_in(
     already started.  None where no mix serves.
     """
     tried = 0
+    named = {prefix_layout(name) for name in census}
     for base, kinds in bases:
         if len(base) not in lengths:
             continue
@@ -7648,7 +7723,7 @@ def layout_stand_in(
             mix = layout_mix(base, kinds, mixed[base])
             mixed[base] += 1
             tried += 1
-            if mix in census:
+            if mix in census or prefix_layout(mix) in named:
                 continue
             if not _layout_admits(mix, convention, band, whole_numbers):
                 continue
@@ -7892,6 +7967,21 @@ def _identifier_recount(column, content):
                     "above is wrong; do not move the published fact to meet "
                     "it."
                 )
+    # THE PUBLISHED PREFIXES, RECOUNTED (contract section 7.12a): no cell
+    # a prefix governs opens otherwise.
+    prefixes = column.get("layout_prefixes") or {}
+    if prefixes:
+        convention = layout_convention(list(content))
+        broken = sum(
+            1 for cell in content if breaks_a_prefix(cell, convention, prefixes)
+        )
+        if broken:
+            raise AssertionError(
+                f"{broken} cells this oracle built do not open with a prefix "
+                "the case publishes for them. Contract section 7.12a makes "
+                "the prefix EXACT-OBSERVABLE, so the construction above is "
+                "wrong; do not move the published fact to meet it."
+            )
 
 
 def _is_a_number(text):
@@ -7925,6 +8015,48 @@ def _is_a_whole_number(text):
     except ValueError:
         return False
     return value.denominator == 1
+
+
+def opened_with_prefix(
+    spelling, prefixes, convention, used, band, whole_numbers, holes, offered,
+):
+    """A cell of the band walk given the prefix it owes (method G9.6a).
+
+    Written from the rule statement.  Where the column publishes a prefix
+    for the whole column, or for the layout the spelling wears, the
+    spelling's opening is overwritten with it; the result is taken only
+    where it is unwritten, reads as absent to no reader, keeps the slot's
+    band and its reading as a number, and wears no named layout the
+    spelling did not.  Otherwise the spelling stands.
+    """
+    if not prefixes:
+        return spelling
+    own = layout_of(spelling, convention)
+    prefix = prefixes.get(PREFIX_OF_THE_COLUMN, prefixes.get(own, ""))
+    if PREFIX_OF_THE_COLUMN not in prefixes and own not in prefixes:
+        prefix = ""
+    if not prefix or len(spelling) <= len(prefix) or spelling.startswith(prefix):
+        return spelling
+    candidate = prefix + spelling[len(prefix):]
+    if candidate in used or reads_as_absent(candidate, holes):
+        return spelling
+    moved = layout_of(candidate, convention)
+    if moved != own and moved in {prefix_layout(name) for name in offered}:
+        return spelling
+    bare, before = candidate.strip(), spelling.strip()
+    digits = bool(bare) and set(bare) <= DIGIT_CHARACTERS
+    coded = bool(bare) and set(bare) <= CODE_CHARACTERS
+    if band == FIGURES and not digits:
+        return spelling
+    if band == CODE_BAND and (digits or not coded):
+        return spelling
+    if band not in (FIGURES, CODE_BAND) and (digits or coded):
+        return spelling
+    if _is_a_number(bare) != _is_a_number(before):
+        return spelling
+    if whole_numbers and not _is_a_whole_number(bare):
+        return spelling
+    return candidate
 
 
 def _identifier_content(column):
@@ -7987,6 +8119,12 @@ def _identifier_content(column):
         )
     whole_numbers = column["all_whole_numbers"]
     low, high = column["min_length"], column["max_length"]
+    # THE CONSTRUCTION READS THE CENSUS BY TEMPLATE (method G9.6a): every
+    # prefixed layout is written with its prefix standing in it.  The
+    # recounts below read the column as published.
+    view = dict(column)
+    view["layout_forms"] = templated_census(column)
+    prefixes = column.get("layout_prefixes") or {}
     _classes, bands = _packed_bands(
         groups, column, _class_quotas(column), whole_numbers, low, high
     )
@@ -8089,15 +8227,15 @@ def _identifier_content(column):
         # a floored census gives a column whose layouts are all held back --
         # the band enumeration below is reached unchanged, which is why
         # those cases keep their committed cells.
-        offered = layout_offer(column)
-        census = column.get("layout_forms") or {}
+        offered = layout_offer(view)
+        census = view.get("layout_forms") or {}
         quotas = {name: census[name] for name in offered}
         # Each layout's walk starts at its own step (plan P4-D128): the k-th
         # layout in sorted order at 1 + k * 4096, and a mix, when first read,
         # at the next such step after every walk already started.
         steps = {name: 1 + k * LAYOUT_STEPS for k, name in enumerate(offered)}
         convention = _convention_of_the_keys(offered)
-        bases = layout_stand_in_bases(column)
+        bases = layout_stand_in_bases(view)
         mixed = {}
         preferred = [""] * identities_wanted
         # WHICH PARTNERS EACH IDENTITY IS HANDED (G9.3 step 4): the k-th
@@ -8108,12 +8246,12 @@ def _identifier_content(column):
                 groups[identities_wanted + taking]
             )
         paired = bool(offered) and partners_wear_published_layouts(
-            column, convention, demands
+            view, convention, demands
         )
         predicted = {}
         if offered:
             preferred = layout_preferences(
-                column,
+                view,
                 groups[:identities_wanted],
                 [f"{_classes[p]}/{bands[p]}" for p in range(identities_wanted)],
                 bands,
@@ -8165,8 +8303,8 @@ def _identifier_content(column):
                 if paired and demands.get(position):
                     owed = demands[position]
                     worn = partner_layouts(
-                        layout_of(laid, convention), convention, len(owed),
-                        column, offered,
+                        worn_template(laid, convention, quotas), convention,
+                        len(owed), view, offered,
                     )
                     slots = [
                         taking for taking in range(partners_wanted)
@@ -8177,13 +8315,19 @@ def _identifier_content(column):
                         if worn[order] in quotas:
                             quotas[worn[order]] -= owed[order]
                 continue
-            identities.append(
-                take(
-                    bands[position],
-                    slot_lengths(position, low, high),
-                    letters_needed,
-                )
+            walked = take(
+                bands[position],
+                slot_lengths(position, low, high),
+                letters_needed,
             )
+            opened = opened_with_prefix(
+                walked, prefixes, convention, used, bands[position],
+                whole_numbers, holes, offered,
+            )
+            if opened != walked:
+                used.discard(walked)
+                used.add(opened)
+            identities.append(opened)
 
         partners = []
         # Partners are assigned to identities in ascending identity order,
@@ -8209,11 +8353,16 @@ def _identifier_content(column):
             size = groups[slot]
             if paired and predicted.get(taking) in quotas:
                 quotas[predicted[taking]] += size
-            unnamed = first = None
+            unnamed = first = unopened = None
             for candidate in partner_family(identities[position], high):
                 if candidate in used or len(candidate) not in window:
                     continue
                 if reads_as_absent(candidate, holes):
+                    continue
+                # A MEMBER NOT OPENING WITH A PREFIX IT OWES is taken only
+                # where no member keeps it (method G9.6a).
+                if prefixes and breaks_a_prefix(candidate, convention, prefixes):
+                    unopened = unopened or candidate
                     continue
                 if not paired:
                     partner = candidate
@@ -8222,7 +8371,7 @@ def _identifier_content(column):
                 # P4-D157): the first wearing a published layout with its
                 # cells left, else the first wearing none, else the first.
                 first = first or candidate
-                worn = layout_of(candidate, convention)
+                worn = worn_template(candidate, convention, quotas)
                 if worn in quotas:
                     if quotas[worn] >= size:
                         partner = candidate
@@ -8231,9 +8380,11 @@ def _identifier_content(column):
                 unnamed = unnamed or candidate
             if paired and partner is None:
                 partner = unnamed or first
+            if partner is None:
+                partner = unopened
             if paired and partner is not None:
-                if layout_of(partner, convention) in quotas:
-                    quotas[layout_of(partner, convention)] -= size
+                if worn_template(partner, convention, quotas) in quotas:
+                    quotas[worn_template(partner, convention, quotas)] -= size
             if partner is None:
                 raise AssertionError(
                     f"the identities carry {len(partners)} partners and the profile "
@@ -8271,7 +8422,7 @@ def _identifier_content(column):
     # fold-collision partner, whose layout its parent's spelling decides.
     if layouts_short(column, content) and partners_owed == 0:
         repacked = packed_layouts(
-            groups, column, _class_quotas(column), whole_numbers, low, high
+            groups, view, _class_quotas(column), whole_numbers, low, high
         )
         if repacked is not None:
             content = lay(repacked[0], repacked[1], repacked[2])
@@ -10311,6 +10462,11 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # frozen before landing 2b.18 keep their committed cells.
     if role == "identifier" and "layout_forms" not in block:
         block["layout_forms"] = {}
+    # ...and the literal prefixes (contract 7.12a, owner ruling of
+    # 2026-09-17, item 1), REQUIRED on the identifier role and empty on
+    # every case frozen before that ruling.
+    if role == "identifier" and "layout_prefixes" not in block:
+        block["layout_prefixes"] = {}
     # The census of SPELLINGS (contract 7.13), REQUIRED on the count role
     # and forbidden everywhere else, and EMPTY on every count case frozen
     # before landing 2b.18's second part: none of their source columns
@@ -12771,6 +12927,58 @@ def _identifier_signed_layout():
         "check of 7.12 stops the oracle.",
         "column": column,
         "rows": 12,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_column_prefix():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=18, n_distinct_folded=18,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=7, max_length=7, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 12, "2": 6},
+        layout_forms={"@@@%%%%": 24},
+        layout_prefixes={"(column)": "REC"},
+    )
+    return {
+        "why": "a declared identifier every present cell of which opens with "
+        "the literal prefix `REC` (contract section 7.12a, owner ruling of "
+        "2026-09-17, item 1). G9.6a writes a prefixed layout as its TEMPLATE, "
+        "`REC%%%%`: the prefix stands in every cell and only the four figures "
+        "are filled from the step, so the room is ten thousand and the "
+        "eighteen identities stay different. This case's mutant withdraws "
+        "the templates, the three letters are filled from the step as the "
+        "layout's own marks, and the cells move.",
+        "column": column,
+        "rows": 24,
+        "identifier_declared": True,
+    }
+
+
+def _identifier_layout_prefixes():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
+        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        min_length=6, max_length=6, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=24,
+        n_distinct_by_occurrences={"1": 24},
+        layout_forms={"@%%%%%": 12, "@@%%%%": 12},
+        layout_prefixes={"@%%%%%": "E", "@@%%%%": "ST"},
+    )
+    return {
+        "why": "a declared identifier holding two layouts, each publishing a "
+        "prefix of its own, `E` before five figures and `ST` before four "
+        "(contract section 7.12a; the per-layout reading of the owner's "
+        "ruling of 2026-09-17, item 1). Each layout is written as its own "
+        "template, so the smooth weighted rotation spreads `E%%%%%` and "
+        "`ST%%%%` over the identities exactly as it spread the layouts, and "
+        "every cell of a layout opens with that layout's prefix. This case's "
+        "mutant withdraws the templates, and the cells move.",
+        "column": column,
+        "rows": 24,
         "identifier_declared": True,
     }
 
@@ -17632,6 +17840,10 @@ THIRD_BRANCH_CASE_BUILDERS = {
 
 FOURTH_BRANCH_CASE_BUILDERS = {
     "grouped_thousands": _grouped_thousands,
+    # The literal prefix of a record number (owner ruling of 2026-09-17,
+    # item 1; method G9.6a), for the whole column and per layout.
+    "identifier_column_prefix": _identifier_column_prefix,
+    "identifier_layout_prefixes": _identifier_layout_prefixes,
     "numbers_carry_the_average": _numbers_carry_the_average,
     "pooled_level_sizes": _pooled_level_sizes,
     "saturated_levels": _saturated_levels,
@@ -17764,8 +17976,10 @@ _FOURTH_BRANCH_ACCOUNT = (
     "published levels are its strata (plan P4-D178), the census of "
     "marks held at a thousand (plan P4-D185), and the numbers of a free-text "
     "column carrying what the walk of G9.5 step 5 could not spend (plan "
-    "P4-D190), and the sizes of the held-back labels read off their pooled "
-    "total (plan P4-D201, owner ruling of 2026-09-17). They are computed by the same "
+    "P4-D190), the sizes of the held-back labels read off their pooled "
+    "total (plan P4-D201, owner ruling of 2026-09-17), and a record number's "
+    "literal prefix written as part of its layout, for the whole column and "
+    "per layout (plan P4-D202, owner ruling of 2026-09-17). They are computed by the same "
     "oracle and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -17802,6 +18016,26 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "identifier_column_prefix": (
+        3061740411821215145, 5874610367343361219, 8763751094270247612,
+        5493714875881230449, 14547900339701097427, 5360483490234401489,
+        10536803725042870699, 4634121734832662942, 12292684201773665750,
+        17987454090803019818, 1507538563068616686, 4860554217819105754,
+        14236841435124810691, 15509084887108510108, 17949580744652508096,
+        9325913314935363107, 11330670882483395081, 10939684036886110394,
+        12789058582849516048, 16138779007688339459, 8201492361247696221,
+        494462450164762963, 1473961589368021212,
+    ),
+    "identifier_layout_prefixes": (
+        17551090684801377981, 16650619119811956828, 12704379148014193341,
+        1470516867917299906, 14234896628325533118, 13760769856689378753,
+        15843287095454313940, 6686001451241062572, 6483221652129005370,
+        10018969653191239690, 16987001854715402434, 6364668551598740481,
+        17253496263519568448, 17194042364863309276, 16445183733654758925,
+        729837871655531995, 7004220985266061634, 10678429518161287340,
+        13216182509454129256, 11526912948551648022, 14395194102043263527,
+        15958569293869687487, 13828546498280174558,
+    ),
     "pooled_level_sizes": (
         14503370031981946312, 10866797266022480803, 8287125103648255445,
         11108705830317081577, 16333968570406870456, 10030759462676471524,

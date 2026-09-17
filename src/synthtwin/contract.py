@@ -750,6 +750,14 @@ IDENTIFIER_KEYS = (
     # LOOKS like -- so a column of UUIDs published every fact it had and
     # its twin still wrote `A----------------------------------J`.
     "layout_forms",
+    # THE EIGHTH KEY, AND THE ONE TEXT OF THE TABLE THIS BLOCK CARRIES
+    # (owner ruling of 2026-09-17, item 1; contract 7.12a). A layout
+    # says a letter stood at a position and never which one, so `REC`
+    # in front of every record number came back as three random
+    # capitals and `^REC\d{7}$` matched 800 real cells and 0 twin ones.
+    # The owner ruled a constant prefix published where the column
+    # clears the smallest group size; invariants LP1 and LP2 hold it.
+    "layout_prefixes",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -1747,6 +1755,15 @@ INVARIANTS = {
     "LF6": (
         "every key of a layout census is written under one convention"
     ),
+    "LP1": (
+        "a prefix is published for the whole column alone, or for layouts "
+        "the census names, only beside a census naming a layout, and a "
+        "hexadecimal census publishes none"
+    ),
+    "LP2": (
+        "a prefix is the opening every layout it is published for starts "
+        "with, and a figure or a letter stands after it in each of them"
+    ),
 }
 
 
@@ -2395,6 +2412,12 @@ class IdentifierFacts:
     # of one and no fragment of one -- which is what lets it stand in a
     # block invariant I3 governs.
     layout_forms: "dict[str, int]"
+    # THE LITERAL PREFIX (7.12a; owner ruling of 2026-09-17, item 1).
+    # `(column)` mapped to the text every present cell opens with, or
+    # each named layout mapped to the text its own cells open with. The
+    # one fragment of the table this block may carry, by that ruling,
+    # which amends I3 for this case only. Empty on every other column.
+    layout_prefixes: "dict[str, str]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -10522,6 +10545,107 @@ def _layout_forms(
     return layouts
 
 
+def _layout_prefixes(
+    mapping: "dict[str, object]",
+    where: str,
+    layouts: "dict[str, int]",
+) -> "dict[str, str]":
+    """The literal prefixes of a declared column, checked (7.12a).
+
+    OWNER RULING OF 2026-09-17, ITEM 1. The one text of the table an
+    identifier block may carry is the literal opening every present cell
+    -- or every cell of one named layout -- shares, and it is checked
+    here rather than trusted, because it is text: a value that is not a
+    prefix `parsing.is_a_literal_prefix` admits, or a key that is neither
+    `(column)` nor a named layout, is a hand-edited document that could
+    carry a record number in the one field allowed text.
+
+    NO REFUSAL QUOTES A PREFIX. It is text out of the table, and a
+    refusal names the key and the layout it stands under instead.
+
+    Raises ProfileError for a wrong type, a prefix that is not one, and
+    LP1 and LP2. That a `(column)` prefix stands on a column reaching the
+    line needs no check of its own: LP1 puts it beside a named layout,
+    and LF1 puts that layout's cells, all of them present, at the line.
+    """
+    found = _mapping(mapping["layout_prefixes"], "layout_prefixes", where)
+    prefixes: "dict[str, str]" = {}
+    for scope in sorted(found):
+        text = found[scope]
+        if not isinstance(text, str) or not parsing.is_a_literal_prefix(text):
+            raise _out_of_range(
+                "layout_prefixes",
+                where,
+                "an entry that is not a prefix",
+                "a literal prefix: ASCII letters, the marks - . / _ : # * "
+                "( ) [ ] + , { } and single spaces inside it, with at "
+                "least one letter and no figure",
+            )
+        prefixes[scope] = text
+    if not prefixes:
+        return prefixes
+    named: "list[str]" = []
+    for name in sorted(layouts):
+        if name != WITHHELD:
+            named += [name]
+    if not named:
+        raise _broken(
+            "LP1",
+            where,
+            f"{len(prefixes)} prefix(es) published",
+            "the layout census names no layout",
+        )
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes and len(prefixes) > 1:
+        raise _broken(
+            "LP1",
+            where,
+            f"a prefix for the whole column beside {len(prefixes) - 1} "
+            "for layouts",
+            "the whole column's prefix is written alone",
+        )
+    if _layout_is_hexadecimal(layouts):
+        raise _broken(
+            "LP1",
+            where,
+            f"{len(prefixes)} prefix(es) published",
+            "the layout census is hexadecimal",
+        )
+    for scope in sorted(prefixes):
+        governed = named
+        if scope != parsing.PREFIX_OF_THE_COLUMN:
+            if scope not in named:
+                raise _broken(
+                    "LP1",
+                    where,
+                    "a prefix published for a layout the census does not "
+                    "name",
+                    f"the census names {len(named)} layout(s)",
+                )
+            governed = [scope]
+        opening = parsing.prefix_layout(prefixes[scope])
+        for layout in governed:
+            after = layout[len(opening):]
+            if layout[: len(opening)] != opening or not _holds_a_placeholder(
+                after
+            ):
+                raise _broken(
+                    "LP2",
+                    where,
+                    f"the layout '{layout}' does not open with the "
+                    "prefix's own layout",
+                    "a prefix opens every layout it is published for",
+                )
+    return prefixes
+
+
+def _holds_a_placeholder(text: str) -> bool:
+    """Whether a stretch of a layout marks at least one figure or letter."""
+    for character in text:
+        if character in "%!@&~^":
+            return True
+    return False
+
+
 # The characters a layout key may hold for every cell wearing it to lie
 # inside the alphabet `n_code_alphabet` counts, and inside the one
 # `n_all_digits` counts (C6-131b).
@@ -10838,6 +10962,7 @@ def _identifier_facts(
         None,
     )
     _pattern_closes(pairs, where, "I2", n_distinct, n_present)
+    layouts = _layout_forms(mapping, where, floor)
     return IdentifierFacts(
         min_length=smallest,
         max_length=largest,
@@ -10853,7 +10978,8 @@ def _identifier_facts(
             "the number of values the column holds",
         ),
         n_distinct_by_occurrences=pattern,
-        layout_forms=_layout_forms(mapping, where, floor),
+        layout_forms=layouts,
+        layout_prefixes=_layout_prefixes(mapping, where, layouts),
     )
 
 

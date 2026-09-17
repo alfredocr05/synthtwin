@@ -2404,17 +2404,31 @@ def workbook_other_sheet_holds_a_table(
     command line for a second refusal costs them a run and their
     confidence in the first. The sentence names the one thing that
     does settle it: one table per workbook.
+
+    AND IT ASKS WHICH SHEET IS THE TABLE AGAIN, BY THE OWNER'S RULING OF
+    2026-09-17 (item 3, plan P4-D203). The workbook stays refused --
+    contract rule WB7 stands -- and the refusal names the sheet it found
+    and asks which of the two is the table, pointing to `--sheet`. What
+    the review measured still holds, so the question is put with the
+    step that makes the answer work: naming a sheet of THIS workbook is
+    refused again whichever is named, so the person is asked to save a
+    copy without the other table's sheet and name their table's sheet
+    on that copy, and the sentence says why naming it here is not
+    enough.
     """
     return (
         f"The file {path} holds a table on the sheet '{_shown(named)}' as "
         f"well as on '{_shown(chosen)}', and synthtwin describes one "
-        f"table at a time. Its twin would carry '{_shown(named)}' with "
-        f"nothing on it, so anybody who opened that sheet would find "
-        f"rows on your workbook and an empty sheet on the twin. Naming "
-        f"a sheet does not settle this: whichever of the two you name, "
-        f"the OTHER one is then the sheet holding a table synthtwin "
-        f"cannot carry. Please save each table in a workbook of its "
-        f"own, and run the command again on the one you want described."
+        f"table per workbook, so it cannot describe this workbook as it "
+        f"stands: its twin would carry '{_shown(named)}' with nothing on "
+        f"it, and anybody who opened that sheet would find rows on your "
+        f"workbook and an empty sheet on the twin. Which of the two "
+        f"sheets is your table? Please save a copy of the workbook with "
+        f"the other sheet deleted or moved to a workbook of its own, and "
+        f"run the command again on that copy with --sheet followed by the "
+        f"name of the sheet that is your table. Naming a sheet on this "
+        f"workbook as it stands is not enough: whichever of the two you "
+        f"name, the other one still holds a table."
     )
 
 
@@ -2487,10 +2501,12 @@ def checked_workbook_other_sheet_holds_a_table(
     return (
         f"The file {path} holds a table on sheet number {position} as "
         f"well as on sheet number {chosen}, and synthtwin checks one "
-        f"table at a time. Please save each table in a workbook of its "
-        f"own, and run the command again on the one you want checked. "
-        f"synthtwin does not print the sheets' names: this file may not "
-        f"be your own table."
+        f"table per workbook. Which of the two sheets is the table you "
+        f"want checked? Please save a copy of the workbook with the other "
+        f"sheet deleted or moved to a workbook of its own, and run the "
+        f"command again on that copy with --sheet followed by the name of "
+        f"the sheet that holds the table. synthtwin does not print the "
+        f"sheets' names: this file may not be your own table."
     )
 
 

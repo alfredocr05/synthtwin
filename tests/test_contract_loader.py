@@ -1367,6 +1367,43 @@ def battery() -> list[Mutation]:
             "a layout census whose keys say two conventions",
             edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
         ),
+        # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
+        # item 1, plan P4-D202). `record_code` is `R` and five figures on
+        # 240 rows, so the base description publishes `{"(column)": "R"}`
+        # beside `{"@%%%%%": 240}`.
+        Mutation(
+            "LP1",
+            "a prefix for the whole column beside a prefix for a layout",
+            edit(
+                "record_code",
+                layout_prefixes={"(column)": "R", "@%%%%%": "R"},
+            ),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix for a layout the census does not name",
+            edit("record_code", layout_prefixes={"@@%%%%": "RE"}),
+        ),
+        Mutation(
+            "LP2",
+            "a prefix whose own layout does not open the census's layout",
+            edit("record_code", layout_prefixes={"(column)": "RE"}),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix beside a layout census that names no layout",
+            edit(
+                "record_code",
+                layout_forms={},
+                layout_prefixes={"(column)": "R"},
+            ),
+        ),
+        Mutation(
+            "R16",
+            "a prefix holding a figure",
+            edit("record_code", layout_prefixes={"(column)": "R0"}),
+            names="layout_prefixes",
+        ),
         Mutation(
             "P8",
             "two width censuses that are each possible and not both",

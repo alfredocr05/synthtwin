@@ -396,10 +396,14 @@ THIRD_BRANCH_CASES = (
 # landing 2b added -- G6.5a's walks reach by reach (plan P4-D183), its two
 # fills of plans P4-D176 and P4-D178, the census of marks held at a
 # thousand (plan P4-D185), and the numbers of a free-text column carrying
-# the average (plan P4-D190), and the sizes of the held-back labels read
-# off their pooled total (plan P4-D201). Sorted, like the tuples above.
+# the average (plan P4-D190), the sizes of the held-back labels read
+# off their pooled total (plan P4-D201), and a record number's literal
+# prefix written as part of its layout (plan P4-D202). Sorted, like the
+# tuples above.
 FOURTH_BRANCH_CASES = (
     "grouped_thousands",
+    "identifier_column_prefix",
+    "identifier_layout_prefixes",
     "numbers_carry_the_average",
     "pooled_level_sizes",
     "saturated_levels",
@@ -483,6 +487,8 @@ SEEDS = {
     "numbers_carry_the_average": 180,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
+    "identifier_column_prefix": 182,
+    "identifier_layout_prefixes": 183,
     "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
@@ -523,6 +529,8 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_signed_layout",
         "identifier_layout_partners",
         "identifier_layout_packing",
+        "identifier_column_prefix",
+        "identifier_layout_prefixes",
     }
 )
 
@@ -2154,12 +2162,34 @@ def _thousands_not_held(column, values, *_rest):
     return values
 
 
+def _prefixes_not_templated(column: dict) -> dict:
+    """Plan P4-D202 withdrawn: the census is read as published, no template."""
+    return dict(column.get("layout_forms") or {})
+
+
 def _no_layout_packing(*_arguments, **_keywords):
     """G9.6's layout packing withdrawn (plan P4-D182): no packing is found."""
     return None
 
 
 CASE_MUTANTS = {
+    "identifier_column_prefix": Mutant(
+        branch="G9.6a's templates, which write a published prefix as part "
+        "of its layout (plan P4-D202, owner ruling of 2026-09-17); the mutant "
+        "leaves every layout as published, the prefix's letters are filled "
+        "from the step, and the recount of 7.12a stops the oracle",
+        attribute="templated_census",
+        replacement=_prefixes_not_templated,
+        outcome="do not open with a prefix the case publishes",
+    ),
+    "identifier_layout_prefixes": Mutant(
+        branch="G9.6a's templates, per layout (plan P4-D202); the mutant "
+        "leaves both layouts as published, and the recount of 7.12a stops "
+        "the oracle",
+        attribute="templated_census",
+        replacement=_prefixes_not_templated,
+        outcome="do not open with a prefix the case publishes",
+    ),
     "saturated_tenths": Mutant(
         branch="plan P4-D176's fill of a saturated grid of tenths; the mutant "
         "keeps the fill on the integers alone, and the walk places the "

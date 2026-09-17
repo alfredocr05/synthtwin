@@ -20786,6 +20786,11 @@ def _identifier_cells(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         raise _wrong_facts(column.name)
+    # A PUBLISHED PREFIX IS WRITTEN BY EVERY WALK BELOW AS PART OF ITS
+    # LAYOUT (owner ruling of 2026-09-17, item 1; method G9.6a). See
+    # `_templated_facts`: on a column publishing none this is the
+    # description itself, and not one step below moves.
+    facts = _templated_facts(facts)
     total = len(groups)
     folded = min(column.n_distinct_folded, total)
     partners = total - folded
@@ -21186,6 +21191,11 @@ def _laid_identifiers(
     if assigned is not None:
         preferred = [assigned[place] for place in order]
     stand_ins = _layout_stand_in_bases(facts)
+    # THE PREFIXES A PARTNER OWES (method G9.6a); None on every column
+    # publishing none, which leaves the partner walk exactly as it was.
+    owed_prefixes: "tuple[str, dict[str, str]] | None" = None
+    if facts.layout_prefixes:
+        owed_prefixes = (convention, facts.layout_prefixes)
     admitted: dict[str, bool] = {}
     mixed: dict[str, int] = {}
     short = [0 for _cell in range(len(_CLASSES) * width)]
@@ -21219,7 +21229,7 @@ def _laid_identifiers(
             worn = (convention, quotas, groups[index])
         partner = _partner_of(
             index, folded, spellings, families, used, windows, worn=worn,
-            holes=holes,
+            holes=holes, prefixes=owed_prefixes,
         )
         if index >= folded >= 1 and index >= 1:
             if partner is None:
@@ -21229,7 +21239,7 @@ def _laid_identifiers(
         if partner is not None:
             spellings += [_take(partner, used)]
             if worn is not None:
-                taken_layout = parsing.layout_form(partner, convention)
+                taken_layout = _layout_worn(partner, convention, quotas)
                 if taken_layout in quotas:
                     quotas[taken_layout] = (
                         quotas[taken_layout] - groups[index]
@@ -21267,7 +21277,7 @@ def _laid_identifiers(
             # identity laid after it spends the cells they will wear.
             if paired and index < len(demands) and demands[index]:
                 _debit_partner_layouts(
-                    parsing.layout_form(laid, convention), convention,
+                    _layout_worn(laid, convention, quotas), convention,
                     demands[index], groups, facts, quotas, predicted,
                 )
             continue
@@ -21294,6 +21304,9 @@ def _laid_identifiers(
             )
             if again:
                 repeated = repeated + 1
+        spelling = _opened_with_prefix(
+            spelling, kind, band, facts, convention, used, holes
+        )
         _claim(spelling, used)
         spellings += [spelling]
     if repeated or len(set(spellings)) < total:
@@ -21369,6 +21382,140 @@ def _layout_convention(facts: contract.IdentifierFacts) -> str:
             if character == parsing.LAYOUT_UPPER_HEX:
                 return parsing.LAYOUT_HEX_UPPER
     return parsing.LAYOUT_PLAIN
+
+
+def _templated_facts(
+    facts: contract.IdentifierFacts,
+) -> contract.IdentifierFacts:
+    """The description with every prefixed layout written as its TEMPLATE.
+
+    THE PREFIX IS PART OF THE LAYOUT IT OPENS (owner ruling of 2026-09-17,
+    item 1; method G9.6a). A template is the layout with its opening
+    marks replaced by the published prefix itself: `@@@%%%%%%%` under the
+    prefix `REC` is `REC%%%%%%%`. Every walk of G9.6 reads a layout's
+    characters one by one, fills a placeholder from the step and leaves
+    every other character as it stands, so a template is filled exactly
+    as a layout is -- the prefix standing where it stood in every real
+    cell -- and its room is the room of its placeholders alone, which is
+    what keeps the made-up values different from one another.
+
+    `(column)` gives every named layout the column's prefix; a layout
+    entry gives its own layout its own. The pool keeps its key. Where the
+    description publishes no prefix this is the description itself.
+
+    Guarantees: a fixed function of the description; no randomness and
+    no I/O.
+    """
+    if not facts.layout_prefixes:
+        return facts
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    templated: dict[str, int] = {}
+    for layout in sorted(facts.layout_forms):
+        prefix = whole
+        if layout in facts.layout_prefixes:
+            prefix = facts.layout_prefixes[layout]
+        if layout == contract.WITHHELD or not prefix:
+            templated[layout] = facts.layout_forms[layout]
+            continue
+        templated[prefix + layout[len(prefix):]] = facts.layout_forms[layout]
+    return dataclasses.replace(facts, layout_forms=templated)
+
+
+def _wears_template(candidate: str, template: str, convention: str) -> bool:
+    """Whether one cell recounts into a layout and opens with its prefix.
+
+    The cell's own layout, read by the census's own reader, is the
+    template's layout (`parsing.prefix_layout`), and every LETTER the
+    template holds -- a letter is only ever there as a published prefix,
+    since no layout holds one -- stands in the cell at its own place. On
+    a template holding no letter this is exactly the layout test.
+    """
+    if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
+        template
+    ):
+        return False
+    for place in range(len(template)):
+        mark = template[place]
+        if ("a" <= mark <= "z" or "A" <= mark <= "Z") and (
+            candidate[place] != mark
+        ):
+            return False
+    return True
+
+
+def _layout_worn(
+    candidate: str, convention: str, keys: "dict[str, int] | list[str]"
+) -> str:
+    """The key of ``keys`` one cell is counted under, or its own layout.
+
+    ``keys`` is a mapping or a list of templates. The first, in sorted
+    order, that the cell `_wears_template` is the answer; failing all, the cell's
+    own layout, which on a column publishing a prefix is a key nothing
+    names -- a cell of a prefixed layout that does not open with the
+    prefix is not a cell that layout's count may take.
+    """
+    layout = parsing.layout_form(candidate, convention)
+    for template in sorted(keys):
+        if template == layout:
+            return template
+        if parsing.prefix_layout(template) == layout and _wears_template(
+            candidate, template, convention
+        ):
+            return template
+    return layout
+
+
+def _opened_with_prefix(
+    spelling: str,
+    kind: str,
+    band: str,
+    facts: contract.IdentifierFacts,
+    convention: str,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> str:
+    """A cell of the walk given the prefix it owes, where that is safe.
+
+    THE WALK OF G9.2 WRITES NO PREFIX, AND A PUBLISHED ONE IS OWED BY
+    EVERY CELL IT GOVERNS (method G9.6a). A group no named layout and no
+    stand-in serves is written by the walk; where the column publishes a
+    prefix for the whole column, or for the layout this spelling wears,
+    the spelling's opening is overwritten with the prefix -- and the
+    result is taken only where it is still free, still reads as the
+    slot's class and band, is no hole and no date, and wears no NAMED
+    layout the spelling did not, so no count the walk already met moves.
+    Otherwise the spelling stands and the recount names the cell.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return spelling
+    prefix = ""
+    own = parsing.layout_form(spelling, convention)
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+        prefix = prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    elif own in prefixes:
+        prefix = prefixes[own]
+    if not prefix or len(spelling) <= len(prefix):
+        return spelling
+    if spelling[: len(prefix)] == prefix:
+        return spelling
+    candidate = prefix + spelling[len(prefix):]
+    if not _free(candidate, used):
+        return spelling
+    if parsing.classify_number(candidate) != _reads_as(kind):
+        return spelling
+    if not _reads_in_band(candidate, band):
+        return spelling
+    if _is_a_hole_spelling(candidate, holes) or _reads_as_a_date(candidate):
+        return spelling
+    moved = parsing.layout_form(candidate, convention)
+    if moved != own:
+        for template in _named_layouts(facts):
+            if parsing.prefix_layout(template) == moved:
+                return spelling
+    return candidate
 
 
 def _layout_holds_a_letter(layout: str) -> bool:
@@ -21579,7 +21726,7 @@ def _fits_its_slot(
         return False
     if _reads_as_a_date(candidate):
         return False
-    if parsing.layout_form(candidate, convention) != layout:
+    if not _wears_template(candidate, layout, convention):
         # THE CELL MUST RECOUNT INTO THE LAYOUT IT WAS WRITTEN TO,
         # and this is the guard that makes the census a census
         # rather than a decoration. A layout is filled from a
@@ -21889,7 +22036,7 @@ def _partner_layouts(
         order = order + 1
         if member is None:
             break
-        found = parsing.layout_form(member, convention)
+        found = _layout_worn(member, convention, named)
         if found in named:
             worn += [found]
     while len(worn) < count:
@@ -22154,6 +22301,14 @@ def _layout_stand_in(
     binding one, so the recount of every published layout is untouched.
     """
     census = facts.layout_forms
+    # A MIX IS STEPPED OVER WHERE ITS OWN LAYOUT IS A NAMED ONE, prefix or
+    # no prefix (method G9.6a): a named layout's template carries its
+    # prefix, so a mix of another prefix wearing the same layout would be
+    # counted into it. On a column publishing no prefix every template is
+    # its layout and this is the check that always stood.
+    real: "dict[str, int]" = {}
+    for template in sorted(census):
+        real[parsing.prefix_layout(template)] = 1
     tried = 0
     for base, kinds in bases:
         if len(base) < window[0]:
@@ -22166,7 +22321,7 @@ def _layout_stand_in(
             mix = _layout_mix(base, kinds, mixed[base])
             mixed[base] = mixed[base] + 1
             tried = tried + 1
-            if mix in census:
+            if mix in census or parsing.prefix_layout(mix) in real:
                 continue
             asked = f"{kind} {band} {mix}"
             if asked not in admitted:
@@ -23512,6 +23667,7 @@ def _partner_of(
     carried: "dict[int, int] | None" = None,
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
+    prefixes: "tuple[str, dict[str, str]] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -23628,7 +23784,7 @@ def _partner_of(
                     continue
                 found = _partner_from(
                     parent_place, index, spellings, used, shortest, longest,
-                    worn, holes,
+                    worn, holes, prefixes,
                 )
                 if found is None:
                     continue
@@ -23650,8 +23806,16 @@ def _partner_from(
     longest: "int | None",
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
+    prefixes: "tuple[str, dict[str, str]] | None" = None,
 ) -> "str | None":
     """One parent's family, walked from its own start (G9.3 step 2).
+
+    ``prefixes``, on a column of record numbers publishing a literal
+    prefix (owner ruling of 2026-09-17, item 1; method G9.6a), is the
+    convention and the published prefixes. A member that does not open
+    with a prefix it owes -- a case flip of `REC1234567` is `rEC1234567`
+    -- is taken only where no member of the family keeps it, so the
+    edge-spaced copy comes first there.
 
     ``worn``, on a column of record numbers whose partners can wear a
     named layout, is the convention, the layouts' remaining counts and
@@ -23666,6 +23830,7 @@ def _partner_from(
     steps = len(used) + 1
     unnamed: "str | None" = None
     first: "str | None" = None
+    unopened: "str | None" = None
     while steps > 0:
         candidate = _partner_at(parent, order, shortest, longest)
         if candidate is None:
@@ -23676,11 +23841,17 @@ def _partner_from(
             continue
         if holes and _is_a_hole_spelling(candidate, holes):
             continue
+        if prefixes is not None and _breaks_a_prefix(
+            candidate, prefixes[0], prefixes[1]
+        ):
+            if unopened is None:
+                unopened = candidate
+            continue
         if worn is None:
             return candidate
         if first is None:
             first = candidate
-        layout = parsing.layout_form(candidate, worn[0])
+        layout = _layout_worn(candidate, worn[0], worn[1])
         if layout in worn[1]:
             if worn[1][layout] >= worn[2]:
                 return candidate
@@ -23689,7 +23860,27 @@ def _partner_from(
             unnamed = candidate
     if unnamed is not None:
         return unnamed
-    return first
+    if first is not None:
+        return first
+    return unopened
+
+
+def _breaks_a_prefix(
+    candidate: str, convention: str, prefixes: "dict[str, str]"
+) -> bool:
+    """Whether one cell fails to open with a published prefix it owes.
+
+    `(column)` is owed by every cell; a layout entry by the cells that
+    wear that layout, read by the census's own reader (method G9.6a).
+    """
+    prefix = ""
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+        prefix = prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    else:
+        layout = parsing.layout_form(candidate, convention)
+        if layout in prefixes:
+            prefix = prefixes[layout]
+    return bool(prefix) and candidate[: len(prefix)] != prefix
 
 
 def _length_windows(
@@ -29689,13 +29880,18 @@ def _layout_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    named = _named_layouts(facts)
-    if not named:
-        return []
     present = [
         cell for cell in _present_of(written, _hole_spellings(column))
         if parsing.trimmed(cell)
     ]
+    # THE PREFIX IS RECOUNTED BESIDE THE CENSUS (owner ruling of
+    # 2026-09-17, item 1; method G9.6a), and on a column publishing a
+    # prefix and no layout as well: a cell it governs that does not open
+    # with it is a cell a pattern developed on the twin reads otherwise.
+    prefix_notes = _prefix_notes(column, facts, present)
+    named = _named_layouts(facts)
+    if not named:
+        return prefix_notes
     counted = taxonomy.layout_census(present, floor, len(set(present)))
     pool = 0
     if contract.WITHHELD in facts.layout_forms:
@@ -29713,6 +29909,45 @@ def _layout_notes(
             found,
             "The twin does not write this many record numbers in this "
             "layout, so a pattern, a length test or a case test developed "
+            "against the twin selects a different number of rows here "
+            "than it will on the real table.",
+        )
+    return notes + prefix_notes
+
+
+def _prefix_notes(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    present: "list[str]",
+) -> "list[Deviation]":
+    """Name every published prefix some cell it governs does not open with.
+
+    `(column)` governs every present cell and a layout entry the cells
+    wearing that layout, read by the census's own reader. The count owed
+    is nought such cells, and the line names how many the twin wrote.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return []
+    convention = _layout_convention(facts)
+    notes: list[Deviation] = []
+    for scope in sorted(prefixes):
+        prefix = prefixes[scope]
+        missing = 0
+        for cell in present:
+            if scope != parsing.PREFIX_OF_THE_COLUMN and (
+                parsing.layout_form(cell, convention) != scope
+            ):
+                continue
+            if cell[: len(prefix)] != prefix:
+                missing = missing + 1
+        notes += _named_miss(
+            column,
+            f"layout_prefixes.{scope}",
+            0,
+            missing,
+            "This many record numbers the published prefix governs do not "
+            "open with it, so a pattern or a starts-with test developed "
             "against the twin selects a different number of rows here "
             "than it will on the real table.",
         )

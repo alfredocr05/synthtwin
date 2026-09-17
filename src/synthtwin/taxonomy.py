@@ -549,6 +549,17 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # right default and it is why the entry is written here with its
     # reason rather than added quietly.
     "layout_forms",
+    # THE ONE ENTRY HERE THAT DOES CARRY TEXT OF THE TABLE, AND IT IS
+    # HERE BY THE OWNER'S RULING OF 2026-09-17, item 1 (contract 7.12a).
+    # A literal prefix every present cell of a declared record number
+    # opens with -- `REC`, `P`, `ABC-` -- is a fragment of every value
+    # in its column and of nobody's value in particular; the owner ruled
+    # it published where the column clears the smallest group size, and
+    # amended invariants I3 and F3 for this case only. It is admitted on
+    # a checked property as the two censuses are: `profile` refuses any
+    # prefix `parsing.is_a_literal_prefix` refuses and any key that is
+    # neither `(column)` nor a layout, whatever built it.
+    "layout_prefixes",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -6016,6 +6027,75 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     if written_pool and pooled >= 2:
         published[SUPPRESSED_LABEL] = pooled
     return published
+
+
+def _layout_prefixes(
+    cells: _Cells, layouts: "dict[str, int]"
+) -> "dict[str, str]":
+    """The literal text a declared column's cells open with (7.12a).
+
+    OWNER RULING OF 2026-09-17, ITEM 1. A layout says what KIND of
+    character stood at each position, so `REC1234567` published
+    `@@@%%%%%%%` and its twin wrote `FPQ7317879`: measured at 800 rows
+    (landing 2b.15), `^REC\\d{7}$` matched 800 real cells and 0 twin
+    cells, and `^P\\d{5}$` 800 and 30, both files at exit 0. The owner
+    ruled that a constant prefix is published where the column clears
+    the smallest group size, amending invariants I3 and F3 for this case
+    only.
+
+    TWO SCOPES, AND THE FIRST WINS:
+
+    - `(column)`, where `parsing.literal_prefix` finds one over every
+      present cell. Nothing else is then written.
+    - otherwise one entry per NAMED layout whose own cells share one.
+      A column of `REC` and seven figures beside `E` and six publishes
+      `{"@%%%%%%": "E", "@@@%%%%%%%": "REC"}`. This per-layout extension
+      is the landing's reading of the ruling and is flagged to the owner.
+
+    EVERY ENTRY ASKS THE DISCLOSURE RULE (`parsing.prefix_nameable`):
+    the cells opening with the prefix reach the line, and the present
+    cells that do not are nought or reach it too, so no entry says that
+    one row of the table is written otherwise.
+
+    Guarantees: accepts a tally and its published layout census; returns
+    a mapping from `(column)` or a named layout to a literal prefix.
+    Determinism: a function of the arguments; keys in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    convention = parsing.layout_convention(cells.present)
+    present = len(cells.present)
+    # ONLY BESIDE A CENSUS THAT NAMES A LAYOUT (invariant LP1). The twin
+    # writes a prefix as part of a named layout's template; with none
+    # named, every cell falls to the band walk, whose own shapes the
+    # prefix cannot be laid over without spellings colliding -- measured
+    # on 120 `S` and five figures whose census C6-131b emptied, the twin
+    # held 43 cells not opening with `S` and missed at exit 3.
+    named = [layout for layout in sorted(layouts) if layout != SUPPRESSED_LABEL]
+    if not named:
+        return {}
+    whole = parsing.literal_prefix(cells.present, convention)
+    if whole and parsing.prefix_nameable(present, present, floor):
+        return {parsing.PREFIX_OF_THE_COLUMN: whole}
+    found: "dict[str, str]" = {}
+    for layout in sorted(layouts):
+        if layout == SUPPRESSED_LABEL:
+            continue
+        wearing = [
+            value
+            for value in cells.present
+            if parsing.layout_form(value, convention) == layout
+        ]
+        prefix = parsing.literal_prefix(wearing, convention)
+        if not prefix:
+            continue
+        carrying = 0
+        for value in cells.present:
+            if value[: len(prefix)] == prefix:
+                carrying = carrying + 1
+        if parsing.prefix_nameable(carrying, present, floor):
+            found[layout] = prefix
+    return found
 
 
 # The characters a layout key may hold for every cell wearing it to lie
@@ -12621,6 +12701,7 @@ def _identifier_verdict(
     # why "how often they repeat" joined it with the field that made it
     # true (review item P1-R8-F4).
     notes += [note(NOTE_IDENTIFIER_WITHHELD)]
+    layouts = _layout_forms(cells)
     return _Verdict(
         role=ROLE_IDENTIFIER,
         evidence=note(EVIDENCE_DECLARED_IDENTIFIER),
@@ -12638,7 +12719,14 @@ def _identifier_verdict(
             # and between them they said nothing about their SHAPE --
             # which is why a column of UUIDs published every fact it
             # had and its twin matched none of its own rows.
-            "layout_forms": _layout_forms(cells),
+            "layout_forms": layouts,
+            # THE ONE LITERAL RUN THE BLOCK CARRIES, BY RULING (owner
+            # ruling of 2026-09-17, item 1; contract 7.12a). Where every
+            # present cell opens with the same text -- `REC`, `P`, `ABC-`
+            # -- or every cell of one named layout does, that text is
+            # published, so a pattern written against the twin selects
+            # the rows it selects on the table. See `_layout_prefixes`.
+            "layout_prefixes": _layout_prefixes(cells, layouts),
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review

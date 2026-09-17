@@ -879,7 +879,7 @@ def all_hidden_book() -> bytes:
     )
 
 
-def two_table_book(n_rows: int = 20) -> bytes:
+def two_table_book(n_rows: int = 20, keep: str = "") -> bytes:
     """Two sheets, each holding a TABLE, which synthtwin cannot twin.
 
     synthtwin describes ONE table, and the twin writes every other sheet
@@ -887,6 +887,10 @@ def two_table_book(n_rows: int = 20) -> bytes:
     second sheet of the twin would meet a frame of withheld cells where
     a table stood. The workbook is refused instead, naming the sheet
     (plan P4-D82).
+
+    ``keep`` names one of the two sheets, `Data` or `Codebook`, and builds
+    the COPY the refusal asks for instead: that sheet alone, under its own
+    name (owner ruling of 2026-09-17, item 3, plan P4-D203).
     """
     strings = ["reading", "site", "amount", "recorded_on"] + list(SITES)
     head = [
@@ -897,6 +901,18 @@ def two_table_book(n_rows: int = 20) -> bytes:
     ]
     body: "list[tuple[int, list[str]]]" = [(1, head)] + _rows_of(n_rows)
     page = sheet(body, dimension=f"A1:D{n_rows + 1}")
+    if keep:
+        return package(
+            [
+                ("[Content_Types].xml", _content_types(1, True, False, False)),
+                ("_rels/.rels", _root_rels()),
+                ("xl/workbook.xml", _workbook([(keep, "")])),
+                ("xl/_rels/workbook.xml.rels", _workbook_rels(1, True)),
+                ("xl/styles.xml", _styles()),
+                ("xl/sharedStrings.xml", _shared_strings(strings)),
+                ("xl/worksheets/sheet1.xml", page),
+            ]
+        )
     return package(
         [
             ("[Content_Types].xml", _content_types(2, True, False, False)),

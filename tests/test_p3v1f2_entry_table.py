@@ -4184,6 +4184,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # letter, so the census goes MISSED -- which is what shows
             # this subcheck can fail at all.
             ("digits-record_code", "forms.published.@%%%%%"),
+            # THE LITERAL PREFIX (contract 7.12a, owner ruling of
+            # 2026-09-17, item 1). The column is `R` and five figures, so
+            # it publishes `{"(column)": "R"}`; written in figures alone
+            # no cell opens with `R`, and the prefix goes MISSED.
+            ("digits-record_code", "prefix.(column)"),
             ('quoted-record_code', 'bytes.quoting'),
             # NO ORDER IS REGISTERED ON `record_code` (contract FD12, plan
             # P4-D76): an order is never published of a declared record
@@ -5789,6 +5794,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # the every-role fixture's declared column actually publishes needs
     # a row here.
     ("identifier", "forms.published.@%%%%%"): "identifier.layout_forms",
+    # ...and the literal prefix (contract 7.12a, owner ruling of
+    # 2026-09-17, item 1): one subcheck per published scope, and the
+    # every-role fixture's declared column publishes the whole column's.
+    ("identifier", "prefix.(column)"): "identifier.layout_prefixes",
     ("free_text", "forms.published.%%%%-%"): "free_text.shape_forms",
     ("label", "forms.published.@%%"): "label.shape_forms",
     ("label", "forms.published.@%%.%"): "label.shape_forms",

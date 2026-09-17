@@ -16078,6 +16078,7 @@ def _identifier_checks(
         name, "identifier.layout_forms", facts.layout_forms, recounted,
         floor, "layout_forms",
     )
+    checks = checks + _prefix_checks(name, facts, present)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
         # REPORT-ONLY in this corner, listed rather than checked (owner
         # decision 6; review item P3-V1-F4).
@@ -16090,6 +16091,56 @@ def _identifier_checks(
             block,
         )
     ]
+    return checks
+
+
+def _prefix_checks(
+    name: str, facts: contract.IdentifierFacts, present: "list[str]"
+) -> "list[Check]":
+    """The published literal prefixes, recounted on the measured file.
+
+    OWNER RULING OF 2026-09-17, ITEM 1 (contract 7.12a, validation
+    method V3.6). `(column)` says every present cell opens with the
+    prefix, and a layout entry says every cell wearing that layout does,
+    so each is one exact obligation: no cell it governs opens otherwise.
+    The layout a cell wears is read under the convention the file's own
+    cells decide, as the census's recount reads it (C6-128).
+
+    NEITHER THE PREFIX NOR THE COUNT IS PRINTED. The published side is
+    said in words, because the prefix is text of the table and one
+    report may be handed to somebody holding no file, and the measured
+    side is a count of the file's cells, kept back on a miss as every
+    such count is.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return []
+    convention = parsing.layout_convention(present)
+    checks: "list[Check]" = []
+    for scope in sorted(prefixes):
+        prefix = prefixes[scope]
+        opens_otherwise = 0
+        for cell in present:
+            if scope != parsing.PREFIX_OF_THE_COLUMN and (
+                parsing.layout_form(cell, convention) != scope
+            ):
+                continue
+            if cell[: len(prefix)] != prefix:
+                opens_otherwise = opens_otherwise + 1
+        governed = "every present cell"
+        if scope != parsing.PREFIX_OF_THE_COLUMN:
+            governed = f"every cell written in the layout {scope}"
+        checks += [
+            _silent(
+                name,
+                "identifier.layout_prefixes",
+                f"prefix.{scope}",
+                f"{governed} opens with the prefix the description "
+                "publishes for it",
+                opens_otherwise == 0,
+                _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+            )
+        ]
     return checks
 
 

@@ -258,7 +258,16 @@ MEMBER_SUBCHECK = "format.member"
 # the wide list read 417 and the frozen 407 read 408; with it set
 # aside, BOTH digests come back character for character, which is what
 # says the landing added an obligation and moved nothing else.
-LAYOUT_SUBCHECKS = ("forms.published.@%%%%%",)
+LAYOUT_SUBCHECKS = (
+    "forms.published.@%%%%%",
+    # ...and the ONE check the owner's ruling of 2026-09-17 added (item
+    # 1, plan P4-D202), set aside on the same doctrine: `record_code` is
+    # `R` and five figures, so it publishes `{"(column)": "R"}` and the
+    # run files `prefix.(column)` beside the layout. MEASURED before this
+    # entry was written: with it left in the wide list read 417, and set
+    # aside both digests came back character for character.
+    "prefix.(column)",
+)
 # ...and it is SET ASIDE rather than folded into either baseline, which
 # is this file's doctrine for an obligation that arrived: re-recording
 # 416 as 417 would retire the only thing the baseline buys. Both frozen
@@ -358,7 +367,15 @@ NARROW_COLUMN_DIGESTS = {
     # order digest below is the one 2b.8 recorded over the same cells as
     # written. Measured on the merged twin, whose bytes equal the tree's
     # before the merge.
-    "record_code": "24257362c21a19cb5c1108f3d2fed83c",
+    # RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17, item 1 (plan
+    # P4-D202), and again only this column moved: `record_code` is `R`
+    # and five figures, so it publishes `{"(column)": "R"}` and every one
+    # of its 240 twin cells now opens with `R` where it opened with a
+    # letter filled from the step. MEASURED before re-recording: every
+    # other column of the demonstration's twin is byte-identical, the
+    # 240 cells are still 240 different values wearing `@%%%%%`, and the
+    # quality report holds the new obligation.
+    "record_code": "a14f1696c9160fc472c68099dd9e4257",
     "region": "ba323f8f897027f35f93eb5e6add6ccc",
     "visits": "39c2d46a66ba3ecd62edfd441b0e47c0",
     # RE-RECORDED at the integer-grid landing, and again on 2026-09-04
@@ -444,7 +461,9 @@ NARROW_COLUMN_DIGESTS = {
 NARROW_COLUMN_ORDER_DIGESTS = {
     # MERGED (2026-09-16): landing 2b.8's cells as written, the digest
     # it recorded before landing 2b.10 changed how the sorted ones are taken.
-    "record_code": "831384cc2284883fa8bb0b535966ba11",
+    # Re-recorded for plan P4-D202 with the sorted digest above: the
+    # same 240 cells, as written, each now opening with the prefix `R`.
+    "record_code": "b01184fc67597fdbcb3139cae1b051b1",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # Re-recorded for plan P4-D183 with the sorted digest above: the same
@@ -562,6 +581,7 @@ def test_widening_the_demonstration_lost_no_obligation(
     )
     assert laid == [
         "record_code|identifier.layout_forms|forms.published.@%%%%%",
+        "record_code|identifier.layout_prefixes|prefix.(column)",
     ], laid
     # ...and the three spelling checks, on the four numeric-family
     # columns and nowhere else (landing 2b.2).
@@ -1247,8 +1267,13 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # (`[7]`), `answer` and `batch` (`[]`) and `note` (182 sizes), and the
 # twin digest below holds, because the sizes read off each pool are the
 # sizes the table had.
+# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17, item 1 (plan
+# P4-D202): read as a diff against the ruling's first part, the
+# description gains exactly `"layout_prefixes": {"(column)": "R"}` on
+# `record_code`, whose 240 cells are `R` and five figures, and nothing
+# else moves.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "e3063829ebc63adb37dcb70096fa9ec88082990a069c08c24f41cd4728890358"
+    "0892a289107aac107d542c58a6ef920ccfb79aa89d16bab02ae8118b5fc5c28f"
 )
 
 
@@ -1446,9 +1471,13 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # plan P4-D179): only `dose` moved, 12 cells, each written at the other
 # of its two published widths with the census exact; the description
 # digest held and no verdict of the quality report moved.
+# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17, item 1 (plan
+# P4-D202): diffed cell by cell against the ruling's first part, only
+# `record_code` moved, and every one of its 240 cells now opens with the
+# published `R` -- `Z09235` became `R55235` -- with 240 different values
+# before and after and every other column byte-identical.
 GOLDEN_TWIN_SHA256 = (
-    # Re-recorded for plan P4-D183: see `reading` above.
-    "986926831ae32c0025e1d22aea40530168d252052b6783aeb7dea706f9aae784"
+    "9379e54c095936ee3614e58239fc1cce8e129ac28cf9f7d918bfef130e2b76d9"
 )
 
 
@@ -2596,9 +2625,11 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # left with the key they checked -- on `region`, `answer`, `batch` and
 # `note`, all HELD before -- so 535 obligations became 531 and 467 HELD
 # became 463. No other line moved and no verdict moved.
+# RE-RECORDED FOR ITEM 1 OF THE SAME RULING (plan P4-D202): one
+# obligation arrived, `prefix.(column)` on `record_code`, HELD, so 531
+# became 532 and 463 HELD became 464. No other line moved.
 GOLDEN_QUALITY_SHA256 = (
-    # Re-recorded for plan P4-D183: `reading`'s three measured moments.
-    "857616399b3d674a01951bc74f3b87b5490e5a90c3bd5c3eff17cf5170ae77a0"
+    "c02eb65df177884e4f953bd9377f107a7e4325d190b480e13b05ca5c76f48682"
 )
 
 

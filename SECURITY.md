@@ -667,9 +667,24 @@ Stated here so that no reader has to discover them independently:
     the time of day of every one of those rows, which the published
     ends and ladder already show for eleven of them.
 
+  * **The literal prefix of a declared record number, by the owner's
+    ruling of 2026-09-17** (item 1; contract 6 section 7.12a, plan
+    P4-D202) — `layout_prefixes` on a column named with `--identifier`.
+    **What it adds:** TEXT OF THE TABLE on a column that published none
+    before: the opening every present cell shares, such as `REC`, `P` or
+    `ABC-`, or the opening every cell of one published layout shares.
+    It is a fragment of every value in its column and of no one value in
+    particular; it holds no figure, a figure or letter of every value
+    stands after it, and it is published only where the cells opening
+    with it reach the smallest group size and the cells that do not are
+    none or reach it too. The per-layout form is this version's reading
+    of the ruling and is put to the owner. A local prefix — a
+    department code, a site's own letters — is therefore on the page
+    wherever a whole declared column wears it.
+
   **What none of it changes:** no cell of a nothing-publishing column
-  is published, the floor still governs every named spelling except
-  where this entry says otherwise, and the description still carries no
+  is published, beyond the prefix above, the floor still governs every
+  named spelling except where this entry says otherwise, and the description still carries no
   fact that crosses two columns. The authority is contract 6 section
   12, which prices every row of the inventory; this entry exists so
   that an institution reading THIS document is not told less than the

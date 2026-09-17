@@ -7452,11 +7452,13 @@ packing rule applying here IN FULL — both margins and the shape search
   written a nought, and a filling whose next figure is also a nought is
   stepped over by the recount guard, because that cell is one nought
   deeper (plan P4-D126). The mark stands only where the whole cell is
-  figures, so it can name no text anybody chose. **WHAT IS NOT WRITTEN BACK IS A LITERAL RUN** — a record
-  prefix, or `ABC-` in front of a study number — because a literal run
-  is a fragment of every value in its column, which contract invariants
-  I3 and F3 forbid; it waits for the owner's ruling on clause 3, and
-  until then the twin writes the layout's own alphabet in its place;
+  figures, so it can name no text anybody chose. **A LITERAL RUN IS
+  WRITTEN BACK ONLY AS A PUBLISHED PREFIX** — a record prefix, or `ABC-`
+  in front of a study number — by the owner's ruling of 2026-09-17, item
+  1, which settled clause 3 for that case and amended contract invariants
+  I3 and F3 for it alone; G9.6a states how. Any other literal run is a
+  fragment the description does not carry, and the twin writes the
+  layout's own alphabet in its place;
 - **a fold-collision partner wears the layout its identity reserved**
   (plan P4-D157). A partner is its parent's spelling with a case turned
   over or an edge space added (G9.3), so a case flip wears a layout --
@@ -7591,6 +7593,57 @@ not take it, and the generation report says the same thing to the
 person holding the twin. An independent implementer is bound by the
 counts, not by this shortfall: writing fewer such cells while meeting
 every published count conforms.
+
+### G9.6a The literal prefix (owner ruling of 2026-09-17, item 1)
+
+Contract section 7.12a publishes `layout_prefixes`: `(column)` mapped to
+the text every present cell opens with, or each named layout mapped to
+the text its own cells open with (plan P4-D202). Before the ruling the
+twin of `REC1234567` was `FPQ7317879`: measured at 800 rows, `^REC\d{7}$`
+matched 800 real cells and 0 twin cells, and `^P\d{5}$` 800 and 30.
+
+1. **A prefixed layout is written as its TEMPLATE.** The template is the
+   layout with its opening marks replaced by the prefix — `@@@%%%%%%%`
+   under `REC` is `REC%%%%%%%`; under `(column)` every named layout takes
+   the column's prefix. Every walk of G9.6 above reads the template in
+   place of the layout: the fill leaves every character that is not a
+   placeholder standing, so the prefix stands where every real cell
+   holds it and only the placeholders after it are filled; the room of a
+   template is the room of its placeholders, which is what keeps the
+   made-up values different; the rotation, the offer, the packing and
+   the partner layouts spread the census over the templates exactly as
+   they spread the layouts. Templates are offered in sorted order, as
+   layouts are.
+2. **A cell is counted into a template only where it wears it**: its own
+   layout, read by the census's reader, is the template's layout with
+   every letter marked by its case, and every letter of the template
+   stands in the cell at its place. On a template holding no letter this
+   is the layout test and nothing more, so a column publishing no prefix
+   is written byte for byte as before.
+3. **The mixes are made over templates**, whose letters are not kinds,
+   and a mix whose own layout is a named one is stepped over, prefix or
+   no prefix.
+4. **A cell of the band walk (G9.2) owes a prefix** where the column
+   publishes one for the whole column, or for the layout the walk's cell
+   wears. Its opening is overwritten with the prefix, and the result is
+   taken only where it is unwritten, reads as the slot's class and band,
+   is no spelling read as absent and no date, and wears no named layout
+   the walk's cell did not; otherwise the walk's cell stands.
+5. **A fold-collision partner not opening with a prefix it owes** is
+   taken only where no member of its family does: a case flip of
+   `REC1234567` is `rEC1234567`, and the edge-spaced `REC1234567 ` is
+   taken before it.
+
+The cells a prefix governs are recounted beside the layout census, and
+the report names a prefix some such cell does not open with. **What this
+does not reach**, measured: pooled cells the band walk writes keep its
+shapes, so 790 `P` and five figures beside ten `P` and six at a floor of
+eleven write all 800 twin cells opening with `P` while `^P\d{5,6}$`
+matches 790; and a partner pinned to a length only a case flip reaches
+writes one flipped prefix, which the report names. Frozen cases
+`identifier_column_prefix` and `identifier_layout_prefixes` pin steps 1
+and 2; the oracle states steps 3 to 5 from this text and no frozen case
+reaches them.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is
@@ -9702,7 +9755,11 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All seventy-six are required.** The count is taken off the committed
+**The owner's rulings of 2026-09-17 add two more to the sixth file**:
+`identifier_column_prefix` and `identifier_layout_prefixes`, G9.6a's
+templates for the whole column and per layout (plan P4-D202).
+
+**All seventy-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9716,7 +9773,7 @@ holds eighteen; the fourth,
 `tests/reference/generation-document-vectors.json`, holds eight; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
-six (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+eight (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9772,6 +9829,8 @@ case passed, which is the failure the count exists to prevent:
 | `saturated_tenths` | G6.5a's fill of a saturated written grid (plan P4-D176): thirty-three readings at one place publishing twenty-two different numbers between the ends 0.1 and 2.2, which hold exactly twenty-two tenths, so the strata take those tenths in order, each once. Its mutant keeps the fill on the integers alone, and the cells move |
 | `saturated_levels` | G6.5a's fill of a column whose published levels are its strata (plan P4-D178): thirty-three readings at one place of the four levels 2.0, 3.2, 6.5 and 15.0, each named by two rungs or more, the mode 6.5, four different values published; the rungs name more than four numbers, so the levels are the numbers two rungs or more name with the ends and the mode, and the strata take them in order. Its mutant withdraws the fill and the walk writes `4.6` |
 | `separated_in_order` | G6.5a's walks taken reach by reach (plan P4-D183): `signed_pads` publishing eleven different values and twenty-two spellings, twenty-two strata over 100 to 110; every stratum is walked inside its own share first, so the thirteenth takes 105 inside its share. Its mutant takes the three reaches stratum by stratum, the tenth stratum walks out of its share onto 105, and the cells move |
+| `identifier_column_prefix` | G9.6a's TEMPLATE for the whole column (plan P4-D202, owner ruling of 2026-09-17): a declared identifier publishing `{"@@@%%%%": 24}` and `{"(column)": "REC"}` over twelve identities written once and six twice; every cell is `REC` and four figures filled from the step, `REC1816`, `REC2632`, and the eighteen stay different. Its mutant reads the census as published, the letters are filled from the step, and the recount of 7.12a stops the oracle |
+| `identifier_layout_prefixes` | G9.6a's templates per layout (plan P4-D202): `{"@%%%%%": 12, "@@%%%%": 12}` with `{"@%%%%%": "E", "@@%%%%": "ST"}` over twenty-four identities; the rotation spreads `E%%%%%` and `ST%%%%` over them as it spread the layouts, `E30816`, `ST7553`. Its mutant reads the census as published, and the recount of 7.12a stops the oracle |
 | `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |

@@ -765,6 +765,11 @@ _BIN = "histogram-bin-number"
 _EMPTY_BIN = "histogram-bin-number-holding-nothing"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
+# The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
+# item 1): its keys, `(column)` or a layout, and its values, a literal
+# prefix `parsing.is_a_literal_prefix` admits.
+_PREFIX_SCOPE = "the-column-or-a-layout-a-record-number-could-not-be-spelled-with"
+_LITERAL_PREFIX = "a-literal-prefix-of-letters-and-marks-with-no-figure"
 _MOMENT_TEXT = "canonical-datetime"
 _OFFSET = "utc-offset"
 _SENTINEL = "numeric-sentinel-spelling"
@@ -1458,6 +1463,14 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "layout_forms"): _OBJECT,
     ("columns", _EACH, "layout_forms", _KEY_OF): _LAYOUT_FORM,
     ("columns", _EACH, "layout_forms", _ANY_KEY): _FLOORED_ENTRY,
+    # The literal prefix a declared identifier's cells open with (owner
+    # ruling 2026-09-17, item 1; contract 7.12a): the one text of the
+    # table this block carries, and only under that ruling. Its keys are
+    # `(column)` or a layout, and its values are letters and marks with
+    # no figure, which is all `parsing.literal_prefix` ever writes.
+    ("columns", _EACH, "layout_prefixes"): _OBJECT,
+    ("columns", _EACH, "layout_prefixes", _KEY_OF): _PREFIX_SCOPE,
+    ("columns", _EACH, "layout_prefixes", _ANY_KEY): _LITERAL_PREFIX,
     ("columns", _EACH, "n_distinct_by_occurrences"): _OBJECT,
     ("columns", _EACH, "n_distinct_by_occurrences", _KEY_OF): _DIGITS,
     ("columns", _EACH, "n_distinct_by_occurrences", _ANY_KEY): _COUNT,
@@ -2250,6 +2263,12 @@ def _leaf_is_published(
         return 0 <= value < parsing.HISTOGRAM_BINS
     if kind == _SHAPE_FORM:
         return _is_shape_form(value)
+    if kind == _PREFIX_SCOPE:
+        if value == parsing.PREFIX_OF_THE_COLUMN:
+            return True
+        return value != taxonomy.SUPPRESSED_LABEL and _is_layout_form(value)
+    if kind == _LITERAL_PREFIX:
+        return isinstance(value, str) and parsing.is_a_literal_prefix(value)
     if kind == _LAYOUT_FORM:
         return _is_layout_form(value)
     if kind == _MOMENT_TEXT:
