@@ -2044,7 +2044,8 @@ def _pads_on_the_padded_form_alone(
 
 
 def _apart_without_the_fill(
-    wanted, figures, values, sizes, starts, bands, ladder, numeric
+    wanted, figures, values, sizes, starts, bands, ladder, numeric,
+    mode=None, point_free=False, integer_valued=False,
 ):
     """Plan P4-D147's fill withdrawn: the walk alone, as it ran before.
 
@@ -2056,6 +2057,7 @@ def _apart_without_the_fill(
     return gen_apart_values(
         wanted + 1 if wanted is not None else None,
         figures, values, sizes, starts, bands, ladder, numeric,
+        mode, point_free, integer_valued,
     )
 
 

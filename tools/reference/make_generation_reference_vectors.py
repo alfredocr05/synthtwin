@@ -2866,8 +2866,117 @@ def apart_inside(value, figures, band, share, ends, written):
     return None
 
 
+def _exact_decimal(value):
+    """A double's shortest round-trip decimal, held exactly."""
+    digits, decpt = shortest_round_trip(value)
+    exact = fractions.Fraction(int(digits or "0"), 1)
+    exact = exact * fractions.Fraction(10) ** (decpt - len(digits))
+    return -exact if value < 0 else exact
+
+
+def _on_grid(value, figures):
+    """Whether a double's grid text at ``figures`` reads back as itself."""
+    text = grid_text(value, figures)
+    try:
+        return float(text) == value
+    except ValueError:
+        return False
+
+
+def _band_holds(band, value):
+    return (
+        (band != "zero" or value == 0)
+        and (band != "negative" or value < 0)
+        and (band != "positive" or value > 0)
+    )
+
+
+def saturated_grid(wanted, figures, total, bands, ladder):
+    """The points of a grid with no spare one, in order, or None -- G6.5a.
+
+    Plan P4-D147 on the integers, and plan P4-D176 on every written grid:
+    where the strata number ``wanted``, both published ends are points of
+    the grid and the points from one to the other number ``wanted``, the
+    strata take those points in ascending order, unless a sign band would
+    not hold its point.  The points are counted as exact decimals, so no
+    step drifts.
+    """
+    if ladder is None or wanted is None or total != wanted or total < 2:
+        return None
+    if figures == 0:
+        if not (float(ladder[0]).is_integer() and float(ladder[-1]).is_integer()):
+            return None
+        if ladder[-1] - ladder[0] + 1 != wanted:
+            return None
+        filled = [float(ladder[0] + place) for place in range(total)]
+    else:
+        if not (_on_grid(ladder[0], figures) and _on_grid(ladder[-1], figures)):
+            return None
+        unit = fractions.Fraction(1, 10 ** figures)
+        low = _exact_decimal(ladder[0])
+        high = _exact_decimal(ladder[-1])
+        if (high - low) / unit + 1 != wanted:
+            return None
+        filled = [
+            float(_fraction_text(low + place * unit, figures))
+            for place in range(total)
+        ]
+    if all(_band_holds(bands[place], filled[place]) for place in range(total)):
+        return filled
+    return None
+
+
+def saturated_levels(
+    wanted, figures, values, bands, ladder, mode, point_free, integer_valued
+):
+    """The published levels themselves, in order, or None -- G6.5a.
+
+    Plan P4-D178.  The different numbers the hundred and one rungs and the
+    mode name, or, where those are more than ``wanted``, the numbers two
+    rungs or more name with the two ends and the mode; where that set
+    holds exactly ``wanted`` numbers, every one a point of the grid, the
+    strata take them in ascending order -- unless a sign band would not
+    hold its number, a stratum not in the zero band would take nought, or,
+    on a column writing some cell point-free, a stratum would change
+    whether its number has a point-free spelling.
+    """
+    total = len(values)
+    if ladder is None or wanted is None or total != wanted or total < 2:
+        return None
+    named = {}
+    for rung in ladder:
+        named[rung] = named.get(rung, 0) + 1
+    levels = set(named)
+    if mode is not None:
+        levels.add(mode)
+    if len(levels) != wanted:
+        levels = {rung for rung in named if named[rung] >= 2}
+        levels.update((ladder[0], ladder[-1]))
+        if mode is not None:
+            levels.add(mode)
+        if len(levels) != wanted:
+            return None
+    given = sorted(levels)
+    for place, value in enumerate(given):
+        if figures == 0 and not float(value).is_integer():
+            return None
+        if figures > 0 and not _on_grid(value, figures):
+            return None
+        if not _band_holds(bands[place], value):
+            return None
+        if bands[place] != "zero" and value == 0:
+            return None
+        if point_free and (
+            (point_free_spelling(value, integer_valued) is None)
+            != (point_free_spelling(values[place], integer_valued) is None)
+        ):
+            return None
+    return [float(value) for value in given]
+
+
 def apart_values(
-    wanted, figures, values, sizes, starts, bands, ladder, numeric
+    wanted, figures, values, sizes, starts, bands, ladder, numeric,
+    mode=None, point_free=False, integer_valued=False,
 ):
     """Two strata are two cells, so they are written two ways -- G6.5a.
 
@@ -2878,36 +2987,25 @@ def apart_values(
     zero stratum.  It stops as soon as the count of different texts
     reaches the published ``n_distinct_values``.
 
-    A GRID WITH NO SPARE POINT IS FILLED, NOT WALKED (plan P4-D147).
-    Where the grid is the integers, there are exactly as many strata as
-    ``wanted``, and the integers from the published ``min`` to the
-    published ``max`` number exactly that many, the strata take those
-    integers in ascending order, each once -- unless some stratum's sign
-    band would not hold its integer, and then the walk runs.
+    A GRID WITH NO SPARE POINT IS FILLED, NOT WALKED (plans P4-D147 and
+    P4-D176, `saturated_grid`), and A COLUMN WHOSE PUBLISHED LEVELS ARE
+    ITS STRATA TAKES THEM (plan P4-D178, `saturated_levels`); where
+    neither answers, the walk runs.
     """
     if figures < 0:
         return values
     total = len(values)
     if total < 2:
         return values
-    if (
-        figures == 0
-        and ladder is not None
-        and wanted is not None
-        and total == wanted
-        and float(ladder[0]).is_integer()
-        and float(ladder[-1]).is_integer()
-        and ladder[-1] - ladder[0] + 1 == wanted
-    ):
-        filled = [ladder[0] + place for place in range(total)]
-        held_bands = all(
-            (bands[place] != "zero" or filled[place] == 0)
-            and (bands[place] != "negative" or filled[place] < 0)
-            and (bands[place] != "positive" or filled[place] > 0)
-            for place in range(total)
-        )
-        if held_bands:
-            return [float(value) for value in filled]
+    filled = saturated_grid(wanted, figures, total, bands, ladder)
+    if filled is not None:
+        return filled
+    filled = saturated_levels(
+        wanted, figures, values, bands, ladder, mode, point_free,
+        integer_valued,
+    )
+    if filled is not None:
+        return filled
     moved = list(values)
     texts = [grid_text(value, figures) for value in moved]
     held = {}
@@ -9279,6 +9377,9 @@ def _numeric_content(column):
         bands,
         ladder,
         numeric,
+        column.get("mode"),
+        demand > 0,
+        integer_valued,
     )
     cell_values = []
     for index, size in enumerate(sizes):

@@ -8949,7 +8949,9 @@ This is what makes the key safe on `free_text`, whose F3 promises that
 no fragment of a value stands anywhere in the block.
 
 **C6-31e (invariants).** **SF1.** Every NAMED form's count is at least
-`small_cell_floor`; a LOWER-CASE key's count, and the count of the
+`small_cell_floor` and at least two, whatever the floor (plan P4-D181):
+below that line a form is pooled where the floor pools and counted
+nowhere at a floor of one; a LOWER-CASE key's count, and the count of the
 form's own key where it stands beside one, is at least two as well; and
 the census holds no `(withheld)` count of one.
 **SF3.**
@@ -8959,7 +8961,12 @@ the formless cells C6-31b excludes are present cells this census does
 not count — and, where the census counts any cell, never exactly one
 less than `n_present`; on a free-text column the named forms made only
 of `%`, `@`, `&`, `-` and `_` count, where they count any cell, never
-exactly one less than `n_code_alphabet` (plan P4-D160). **SF5.** A lower-case key is named only on a column whose
+exactly one less than `n_code_alphabet`, nor than `n_code_alphabet` less
+`n_all_digits` (plan P4-D160, P4-D175); and the named forms no number
+can be written in -- a form with no `%`, with two letter marks, or with a
+mark other than `.`, `,`, `+`, `-`, `(` and `)` -- count, where they
+count any cell, never exactly one less than `n_not_numeric` (plan
+P4-D175). **SF5.** A lower-case key is named only on a column whose
 `n_distinct` equals its `n_distinct_folded`.
 
 **Disposition: EXACT-OBSERVABLE**, on the same terms as the two width
@@ -9869,8 +9876,8 @@ stated in full at section 7.9.
 
 | id | statement |
 |---|---|
-| SF1 | every NAMED form's count is at least `small_cell_floor`, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well, and the census holds no `(withheld)` count of one |
-| SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere — and, where any cell is counted, never exactly one less; on free text the forms of the code alphabet never count exactly one less than `n_code_alphabet` |
+| SF1 | every NAMED form's count is at least `small_cell_floor` and at least two, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well, and the census holds no `(withheld)` count of one |
+| SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere — and, where any cell is counted, never exactly one less; the forms no number can be written in never count exactly one less than `n_not_numeric`; on free text the forms of the code alphabet never count exactly one less than `n_code_alphabet`, nor than `n_code_alphabet` less `n_all_digits` |
 | SF5 | a lower-case key is named only where `n_distinct` equals `n_distinct_folded` |
 | LF1 | every NAMED layout's count is at least the line: `small_cell_floor`, and never under two |
 | LF2 | the `(withheld)` count, where written, is at least two |

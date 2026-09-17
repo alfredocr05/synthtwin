@@ -989,10 +989,18 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     # cells are pooled -- so the witness keeps the arm it was built for:
     # measured, the move fails at 30 seeds of 40, every stuck value
     # positive, exactly as before.
+    #
+    # AND ITS UPPER CLUSTER SITS AT EIGHT, NOT TWENTY-FIVE, SINCE PLAN
+    # P4-D177. That column writes no cell point-free, so a stuck stratum
+    # may now take the far edge of its stretch whatever its written form,
+    # and the move succeeded at all forty seeds -- the witness no longer
+    # reached the reporting path. With the upper cluster tight at eight,
+    # measured: the move fails at 20 seeds of 40, every stuck value
+    # positive.
     draw = random.Random(0)
     rows = (
         [f"{round(draw.gauss(-30, 1), 2)}" for _index in range(150)]
-        + [f"{round(draw.gauss(25, 2), 2)}" for _index in range(100)]
+        + [f"{round(draw.gauss(8, 0.5), 2)}" for _index in range(100)]
     )
     lowest, highest, barred = _empty_of(rows)
     assert barred, "this column is chosen for having an empty middle"

@@ -659,10 +659,31 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         # subtracts the deviation it expects would stay green if the
         # report fell silent -- and silence is exactly what A-P4-15
         # trades the quota for, so silence is the thing to pin.
+        # AND WHERE THE WIDTHS ARE MET NOTHING IS SAID (plan P4-D179,
+        # 2026-09-17). A pinned value takes the width its own value needs
+        # where the census names it, so `52.75` is written at two places
+        # rather than `52.750` at three, and at 14 of these 21 runs the
+        # twin now writes fourteen cells at two places and thirty-four at
+        # three -- the thirty published and the pool of four -- where every
+        # run missed both before. The recount decides which runs owe a
+        # note, and a run that meets the census must owe none.
         spoken = [
             note for note in twin.deviations if note.fact == "fraction_widths"
         ]
-        assert spoken, seed
+        written: "dict[str, int]" = {}
+        for cell in present:
+            if "." in cell:
+                width = f"{len(cell.split('.')[1])}"
+                written[width] = written.get(width, 0) + 1
+        pool = column["fraction_widths"].get("(withheld)", 0)
+        met = all(
+            column["fraction_widths"][width]
+            <= written.get(width, 0)
+            <= column["fraction_widths"][width] + pool
+            for width in column["fraction_widths"]
+            if width != "(withheld)"
+        )
+        assert bool(spoken) == (not met), (seed, written, spoken)
         for note in spoken:
             assert note.column == "amount", seed
             assert "figure(s) after the point" in note.published, seed

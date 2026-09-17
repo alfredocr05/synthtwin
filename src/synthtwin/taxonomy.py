@@ -5542,7 +5542,9 @@ def _stand_in_level_remarks(levels: _Levels) -> "list[Note]":
     return said
 
 
-def _level_details(levels: _Levels, cells: _Cells) -> dict[str, object]:
+def _level_details(
+    levels: _Levels, cells: _Cells, with_text_total: bool = True
+) -> dict[str, object]:
     """The published block a label-publishing role carries.
 
     ...AND THE FORMS ITS CELLS WERE WRITTEN IN, ON ALL FOUR OF THEM
@@ -5563,7 +5565,7 @@ def _level_details(levels: _Levels, cells: _Cells) -> dict[str, object]:
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
         "suppressed_level_counts": levels.suppressed_counts,
-        "shape_forms": _shape_forms(cells),
+        "shape_forms": _shape_forms(cells, False, with_text_total),
     }
 
 
@@ -5838,7 +5840,7 @@ def layout_census(
             counts[layout] = counts[layout] + 1
             continue
         counts[layout] = 1
-    line = max(floor, 2)
+    line = parsing.census_floor(floor)
     room_needed = raw_distinct + floor
     depth = deepest
     while depth >= 2:
@@ -6031,7 +6033,9 @@ def _layout_to_take_back(named: "dict[str, int]", marks: str) -> str:
     return best
 
 
-def _shape_forms(cells: _Cells, with_code_total: bool = False) -> dict[str, int]:
+def _shape_forms(
+    cells: _Cells, with_code_total: bool = False, with_text_total: bool = True
+) -> dict[str, int]:
     """How many present cells wore each written form, under the floor.
 
     THE FACT THAT LETS A HELD-BACK VALUE HAVE A STAND-IN THAT LOOKS
@@ -6141,19 +6145,25 @@ def _shape_forms(cells: _Cells, with_code_total: bool = False) -> dict[str, int]
     census = _form_census(counts, lower, cells, room_needed)
     # NO COUNT OF ONE AND NO COMPLEMENT OF ONE, OVER THE WHOLE CENSUS
     # (plan P4-D160), asked of the shared rule the loader asks.
-    return _form_disclosure(census, cells, with_code_total)
+    return _form_disclosure(census, cells, with_code_total, with_text_total)
 
 
 def _form_disclosure(
-    census: "dict[str, int]", cells: _Cells, with_code_total: bool
+    census: "dict[str, int]",
+    cells: _Cells,
+    with_code_total: bool,
+    with_text_total: bool = True,
 ) -> "dict[str, int]":
     """The form census with no reading of it naming one row (P4-D160).
 
     THE DISCLOSURE RULE OF P4-D150, ASKED OF THE FORM CENSUS WHATEVER ITS
-    KEYS. A reader holds the pool and two totals beside the census:
-    `n_present`, which every form the census counts lies inside, and, on
-    a free-text column, `n_code_alphabet`, which every form made of
-    figures, letters, the hyphen and the underscore lies inside. MEASURED
+    KEYS. A reader holds the pool and up to four totals beside the
+    census: `n_present`, which every form the census counts lies inside;
+    `n_not_numeric`, which every form no number can wear lies inside
+    (plan P4-D175); and, on a free-text column, `n_code_alphabet` and
+    `n_code_alphabet` less `n_all_digits`, which every form made of
+    figures, letters, the hyphen and the underscore lies inside, because
+    a form carries two kinds and a cell of figures alone has none. MEASURED
     before this rule, at a floor of twenty: 799 `ABC-00001` beside one
     `WXYZ-123456` published `{"@@@-%%%%%": 799, "(withheld)": 1}`, a pool
     of one; and 799 of them beside one sentence too long to have a form
@@ -6166,7 +6176,9 @@ def _form_disclosure(
     - a difference of one against `n_present` gives the pool up where it
       is written, which makes it one plus the pool;
     - otherwise the smallest family of named keys that total covers is no
-      longer named.
+      longer named. MEASURED before the two totals P4-D175 added: 400
+      five-figure numbers, 399 codes and one `hello` at a floor of eleven
+      published `{"&&&-%%%": 399}` beside `n_not_numeric` 400.
 
     A FAMILY is a form's own key and its lower-case key, taken back
     together, because a lower-case key named alone counts the form's
@@ -6186,12 +6198,35 @@ def _form_disclosure(
             pooled = census[key]
             continue
         named[key] = census[key]
+    # THE READINGS, IN THE ORDER THE LOADER ASKS THEM. The first is the
+    # only one the pool is counted in; the others count the named keys
+    # of one kind, because the pool names no form and so no kind. The
+    # last two were added by plan P4-D175: 400 figures, 399 codes and one
+    # `hello` published `{"&&&-%%%": 399}` beside `n_code_alphabet` 800,
+    # `n_all_digits` 400 and `n_not_numeric` 400, and 800 - 400 - 399 and
+    # 400 - 399 are both one. A form carries two kinds, so no cell of
+    # figures alone has one, and a code form counts cells inside
+    # `n_code_alphabet` less `n_all_digits`.
+    kinds = [_FORM_ANY]
+    totals = [len(cells.present)]
+    if with_code_total:
+        kinds += [_FORM_CODE, _FORM_CODE]
+        totals += [cells.code_alphabet, cells.code_alphabet - cells.all_digits]
+    # THE LABEL HALF OF A COMPOUND COLUMN PUBLISHES NO `n_not_numeric` of
+    # its own, and every cell of it is text, so its `n_present` is the
+    # reading this one would be.
+    if with_text_total:
+        kinds += [_FORM_TEXT]
+        totals += [cells.n_not_numeric]
     while named or pooled:
-        readings = [(len(cells.present), _form_cells_within(named, "") + pooled)]
-        if with_code_total:
-            readings += [
-                (cells.code_alphabet, _form_cells_within(named, _FORM_CODE_MARKS))
-            ]
+        readings: list[tuple[int, int]] = []
+        place = 0
+        for total in totals:
+            covered = _form_cells_within(named, kinds[place])
+            if place == 0:
+                covered = covered + pooled
+            readings += [(total, covered)]
+            place = place + 1
         pool = {SUPPRESSED_LABEL: pooled} if pooled else {}
         failed = parsing.census_names_one_row(pool, readings)
         if failed == -1:
@@ -6200,7 +6235,7 @@ def _form_disclosure(
             if not named:
                 pooled = 0
                 continue
-            family = _form_family_to_take_back(named, "")
+            family = _form_family_to_take_back(named, _FORM_ANY)
             for key in family:
                 pooled = pooled + named[key]
                 del named[key]
@@ -6208,8 +6243,7 @@ def _form_disclosure(
         if failed == 0 and pooled:
             pooled = 0
             continue
-        marks = "" if failed == 0 else _FORM_CODE_MARKS
-        for key in _form_family_to_take_back(named, marks):
+        for key in _form_family_to_take_back(named, kinds[failed]):
             del named[key]
     published: dict[str, int] = {}
     for key in sorted(named):
@@ -6219,34 +6253,53 @@ def _form_disclosure(
     return published
 
 
+# The three kinds of form key a reading of the census counts: every key;
+# a key made only of figures, letters, the hyphen and the underscore, so
+# inside `n_code_alphabet`; and a key no number can wear, so inside
+# `n_not_numeric` (`parsing.form_never_a_number`, plan P4-D175).
+_FORM_ANY = ""
+_FORM_CODE = "code"
+_FORM_TEXT = "text"
+
+
+def _form_of_kind(key: str, kind: str) -> bool:
+    """Whether a form key is of one of the three kinds a reading counts."""
+    if kind == _FORM_CODE:
+        return _layout_within(key, _FORM_CODE_MARKS)
+    if kind == _FORM_TEXT:
+        return parsing.form_never_a_number(key)
+    return True
+
+
 # The characters a form key may hold for every cell wearing it to lie
 # inside the code alphabet `n_code_alphabet` counts: figures, letters of
 # either case, the hyphen and the underscore.
 _FORM_CODE_MARKS = "%@&-_"
 
 
-def _form_cells_within(named: "dict[str, int]", marks: str) -> int:
-    """How many cells the named forms made only of ``marks`` count."""
+def _form_cells_within(named: "dict[str, int]", kind: str) -> int:
+    """How many cells the named forms of one kind count."""
     counted = 0
     for key in sorted(named):
-        if _layout_within(key, marks):
+        if _form_of_kind(key, kind):
             counted = counted + named[key]
     return counted
 
 
 def _form_family_to_take_back(
-    named: "dict[str, int]", marks: str
+    named: "dict[str, int]", kind: str
 ) -> "list[str]":
-    """The smallest family of named keys made of ``marks``, as a list.
+    """The smallest family of named keys of one kind, as a list.
 
     A family is a form blind to case and its lower-case key; its size is
     the cells both count; the earliest blind form in sorted order wins a
-    tie. There is always one where any key of ``marks`` is named, because
-    a lower-case key is made of the same marks as its form.
+    tie. There is always one where any key of the kind is named, because
+    a lower-case key is of the same kind as its form: `&` and `@` are
+    the same mark to both `_FORM_CODE_MARKS` and a number's exponent.
     """
     sizes: dict[str, int] = {}
     for key in sorted(named):
-        if not _layout_within(key, marks):
+        if not _form_of_kind(key, kind):
             continue
         blind = _blind_form(key)
         sizes[blind] = (sizes[blind] if blind in sizes else 0) + named[key]
@@ -6314,8 +6367,16 @@ def _form_census(
                     continue
                 published_counts[key] = split[key]
             continue
-        if counts[form] >= floor:
+        # NEVER A NAMED COUNT OF ONE, WHATEVER THE FLOOR (plan P4-D181).
+        # A free-text column publishes no value, and at the default floor
+        # of one a census naming `{"@@-%%%%%%": 1}` beside 799 other codes
+        # singled out the one row written that way. Under the line the
+        # form is pooled where the floor pools, and counted nowhere at a
+        # floor of one, where a pool is not written (invariant S13).
+        if counts[form] >= parsing.census_floor(floor):
             published_counts[form] = counts[form]
+            continue
+        if floor < 2:
             continue
         withheld = withheld + counts[form]
     if withheld:
@@ -6370,7 +6431,7 @@ def _lower_case_split(
     Guarantees: returns {} or a mapping of the keys to name. Raises
     nothing. No I/O.
     """
-    line = max(floor, 2)
+    line = parsing.census_floor(floor)
     lower_key = parsing.lower_case_form(form)
     if not lower_key or lowered < line:
         return {}
@@ -6481,7 +6542,7 @@ def _number_spellings(cells: _Cells) -> dict[str, int]:
         written[text] = (written[text] if text in written else 0) + 1
     if numbers < 1:
         return {}
-    line = max(cells.settings.small_cell_floor, 2)
+    line = parsing.census_floor(cells.settings.small_cell_floor)
     seen: dict[str, int] = {}
     twice = False
     for spelling in sorted(written):
@@ -9498,7 +9559,7 @@ def _compound_details(
         "n_numeric_distinct": numeric_cells.raw_distinct,
         "n_numeric_distinct_folded": len(numeric_cells.folded_counts),
         "numbers": _numeric_details(numeric_cells, whole_everywhere),
-        "labels": _level_details(levels, label_cells),
+        "labels": _level_details(levels, label_cells, False),
     }
     # THE LABEL HALF'S OWN COUNT OF DIFFERENT VALUES, which invariant
     # B2 is stated over: published levels and held-back levels together

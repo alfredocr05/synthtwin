@@ -33,6 +33,7 @@ a property somebody noticed:
 
 import copy
 import pathlib
+import re
 import tempfile
 
 import pytest
@@ -420,8 +421,32 @@ def test_the_twin_report_does_not_warn_where_nothing_changed() -> None:
     _document, described, _table = _described(values)
     twin = generation.generate(described, 6)
     page = rendering.report(described, twin)
-    assert "which IS that form" in page
-    assert "it is NOT kept" not in page
+    assert "and the twin keeps it" in page
+    assert "NOT kept" not in page
+
+
+def test_the_twin_report_says_a_month_first_stamp_is_kept() -> None:
+    """A month-first stamp column keeps its spelling, and the page says so.
+
+    Plan P4-D180: since landing 2b.6 the twin writes `11/14/2021 23:46`
+    for such a column, and the page said it wrote the international form
+    and that code with an explicit format had to change.
+    """
+    values = [
+        f"{1 + place % 12:02d}/{1 + place % 28:02d}/2021 "
+        f"{place % 24:02d}:{place % 60:02d}"
+        for place in range(120)
+    ]
+    _document, described, _table = _described(values)
+    twin = generation.generate(described, 6)
+    written = [cell for cell in twin.columns[0] if cell]
+    assert written and all(
+        re.fullmatch(r"\d\d/\d\d/\d{4} \d\d:\d\d", cell) for cell in written
+    ), written[:5]
+    page = rendering.report(described, twin)
+    assert "and the twin keeps it" in page
+    assert "NOT kept" not in page
+    assert "international form" not in page
 
 
 # -- amendment A-P4-1 item 2: the two slashed stamp members -----------

@@ -2803,12 +2803,18 @@ def _width_places(
     EXACT-OBSERVABLE facts of their own, so a snap that moved one of
     them would buy a published width with a published rung. A pinned
     cell counts toward a width only where its value ALREADY fits it,
-    and where it fits several it takes the largest still-unfilled one,
-    walked in the plan's stated order -- minimum, maximum, zero -- so
-    that no byte is left to an implementation's taste.
+    and where it fits several it takes the width its own value needs
+    where the census names that one (plan P4-D179) and otherwise the
+    largest still-unfilled one, walked in the plan's stated order --
+    minimum, maximum, zero -- so that no byte is left to an
+    implementation's taste.
 
     THE REST ARE SERVED LARGEST WIDTH FIRST, against the cells whose
-    drawn values need the most figures. A wide value put into a narrow
+    drawn values need the most figures. A value is snapped to a narrower
+    width only where the snap stays in its stretch and reads as no number
+    another value holds or a snap has already written; a value that
+    already fits a width is not snapped, so its stretch is not asked
+    (plan P4-D179). A wide value put into a narrow
     width loses figures it needed; a narrow value put into a wide width
     is padded and loses nothing. So the cells that need the most are
     matched to the widths that hold the most, and what rounding remains
@@ -2849,7 +2855,15 @@ def _width_places(
     for value in pinned_order:
         members = pinned_groups[value]
         need = _fraction_need(value)
-        for width in sorted(quotas, reverse=True):
+        # ITS OWN WIDTH FIRST, WHERE THE CENSUS NAMES IT (plan P4-D179).
+        # A pinned value took the largest width it fitted, so a published
+        # minimum of 0.3 on a column exported by the shortest round trip
+        # -- `0.3` beside `1.23`, whose census counts exactly the cells
+        # each value needs -- was written `0.30` four times and the one-
+        # place count came back four short at every seed. Where the
+        # census names the width the value needs and it holds the group,
+        # that is the width; otherwise the largest, as before.
+        for width in _pinned_width_order(quotas, need, len(members)):
             if quotas[width] < len(members) or need > width:
                 continue
             quotas[width] = quotas[width] - len(members)
@@ -2890,6 +2904,12 @@ def _width_places(
             everywhere[value] = everywhere[value] + 1
             continue
         everywhere[value] = 1
+    # THE NUMBERS A SNAP HAS ALREADY WRITTEN, so no second value snaps
+    # onto one (plan P4-D179). A value keeping its own number lands on it.
+    landed: dict[float, int] = {}
+    for index in range(len(styles)):
+        if places[index] >= 0:
+            landed[_snapped_to(holds[index], places[index])] = 1
     for _need, value in sorted(order):
         members = groups[value]
         alone = everywhere[value] == len(members)
@@ -2908,7 +2928,30 @@ def _width_places(
                 # `0.500` beside `0.5`, two spellings of one number
                 # bought with a width quota that closed either way.
                 continue
-            if _snaps_away(value, width, bounds, ends):
+            # A VALUE THAT ALREADY FITS THE WIDTH IS NOT SNAPPED AT ALL
+            # (plan P4-D179), so the snap's reach is not asked of it: a
+            # one-rank stratum holding `1.2` has a stretch narrower than
+            # the half-hundredth a snap at one place may move, and it was
+            # refused the width it is written at, leaving 116 of 191
+            # one-place cells to be written at two.
+            if need > width and _snaps_away(value, width, bounds, ends):
+                continue
+            # ...AND A SNAP NEVER LANDS ON A NUMBER ANOTHER VALUE HOLDS
+            # WHERE THE VALUE'S OWN WIDTH IS A PUBLISHED ONE (plan
+            # P4-D179). Two values a hundredth apart are two numbers, and
+            # a snap to one place wrote one of them as the other: 400
+            # readings written at one to three places came back holding
+            # one number fewer than published at seeds 4 and 7. Where the
+            # value's own width is NOT published, refusing the snap writes
+            # the cell at that width -- `36.001675000000006`, sixteen cells
+            # at fifteen places on a spreadsheet column of tenths -- which
+            # misses a width census and prints a number no source wrote,
+            # so there the snap is taken as before.
+            if (
+                need > width
+                and need in quotas
+                and _snaps_onto(value, width, everywhere, landed)
+            ):
                 continue
             whole = width
             break
@@ -2925,7 +2968,42 @@ def _width_places(
         quotas[whole] = quotas[whole] - len(members)
         for index in members:
             places[index] = whole
+        landed[_snapped_to(value, whole)] = 1
     return _some_fraction_survives(places, styles, holds, whole_column)
+
+
+def _pinned_width_order(
+    quotas: "dict[int, int]", need: int, size: int
+) -> "list[int]":
+    """The widths a pinned value is offered, in order (plan P4-D179).
+
+    Its own width first, where the census names it and it holds the
+    group; then every width, largest first, as before.
+    """
+    ordered = sorted(quotas, reverse=True)
+    if need in quotas and quotas[need] >= size:
+        return [need] + ordered
+    return ordered
+
+
+def _snapped_to(value: float, width: int) -> float:
+    """The number one value reads back as once written at ``width``."""
+    sign, figures, place = _digits_and_point(value)
+    read = parsing.parse_number(_at_width(sign, figures, place, width))
+    return value if read is None else read
+
+
+def _snaps_onto(
+    value: float,
+    width: int,
+    everywhere: "dict[float, int]",
+    landed: "dict[float, int]",
+) -> bool:
+    """Whether writing ``value`` at ``width`` reads as a number already held."""
+    read = _snapped_to(value, width)
+    if read == value:
+        return False
+    return read in everywhere or read in landed
 
 
 def _pad_need(value: float, whole_column: bool) -> int:
@@ -9328,6 +9406,11 @@ def _numeric_content(
     # that census is REPORT-ONLY with its shortfalls named.
     values, clear_notes = _clear_enough(column, facts, layout, values)
     notes = notes + clear_notes
+    # AND A COLUMN OF SEVERAL WIDTHS HOLDS AS MANY CELLS ON EACH NARROWER
+    # GRID AS ITS CENSUS COUNTS THERE (plan P4-D179): see
+    # `_widths_exchanged`. Last among the value passes, because it moves
+    # no value to a place no stratum held and so undoes none of them.
+    values = _widths_exchanged(column, facts, layout, values)
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -9810,9 +9893,10 @@ def _dominant_grid(
     written from a value on that grid. Measured on 96 twins of six
     multi-width shapes at 400 and 2,000 rows, floors 1 and 11, two seeds
     each: twins exiting 3 went from 72 to 44, no twin that passed before
-    missed after, and every real table still passed. What is left is a
+    missed after, and every real table still passed. What was left, a
     width count off by a few cells where too few grid values end in a
-    zero, and it is named on the twin's page.
+    zero, is closed by `_widths_exchanged` (plan P4-D179), and what that
+    cannot close is named on the twin's page.
 
     Guarantees: accepts a column and its numeric block; returns a width
     of one or more, or -1. Determinism: a fixed function of the two.
@@ -10324,6 +10408,11 @@ def _apart_enough(
     saturated = _saturated_integers(layout, rungs, values, figures, facts)
     if saturated is not None:
         return saturated
+    # AND A COLUMN WHOSE PUBLISHED VALUES ARE EXACTLY ITS STRATA TAKES
+    # THEM (plan P4-D178): see `_saturated_levels`.
+    levels = _saturated_levels(layout, rungs, values, figures, facts)
+    if levels is not None:
+        return levels
     moved = [value for value in values]
     # EVERY TEXT THE WHOLE COLUMN WOULD WRITE, COUNTED BEFORE ANYTHING
     # MOVES (review item P4-R56-R2-F2). This counted only the texts the
@@ -10393,50 +10482,70 @@ def _saturated_integers(
     figures: int,
     facts: contract.NumericFacts,
 ) -> "list[float] | None":
-    """Every integer between the ends, once each, where nothing less will do.
+    """Every point of the grid between the ends, once each, where nothing less will do.
 
     THE WALK CANNOT FILL A GRID THAT HAS NO SPARE POINT (plan P4-D147,
     the final Codex review of the merge, item 6). The separation walk of
     G6.5a moves a stratum that shares a text to the nearest FREE grid
     point within its reach, and where the published ends leave exactly
-    as many integers as the column publishes different values, there is
-    no spare point anywhere: a stratum that walks lands on a point
+    as many grid points as the column publishes different values, there
+    is no spare point anywhere: a stratum that walks lands on a point
     another stratum still needs. Measured on 400 rows of `+1.0` to
     `+400.0` beside a column of labels, default floor: the twin wrote 400
     different spellings of 395 numbers at seed 4, 392 at seed 1 and 391
     at seed 7, missing `distinct.n_distinct_values`, while the real
     table met it.
 
-    So where the column is on the integer grid, it has exactly as many
-    strata as the different values it publishes, and the integers from
-    its smallest published end to its largest number exactly that count,
-    the strata are given those integers in their own ascending order,
-    each once. That is the only assignment meeting both obligations, and
-    it keeps both ends, every sign band and the order the ladder put the
-    strata in; where any stratum's band would not hold its integer the
-    rule stands aside and the walk runs as before.
+    ON EVERY GRID, NOT ONLY THE INTEGERS (plan P4-D176). The fill first
+    stood on the integer grid alone, and a column written at one place
+    has a grid too: 120 amounts `0.1` to `12.0` publish 120 different
+    numbers between ends holding exactly 120 tenths, and the twin held
+    119 at seeds 4, 0 and 1, with or without a decimal comma or a
+    header, missing `distinct.n_distinct_values`. The grid is counted in
+    whole grid UNITS read off each end's grid text, so no step drifts.
+
+    So where the column is on a written grid, it has exactly as many
+    strata as the different values it publishes, both published ends are
+    points of that grid and the points from one to the other number
+    exactly that count, the strata are given those points in their own
+    ascending order, each once. That is the only assignment meeting both
+    obligations, and it keeps both ends, every sign band and the order
+    the ladder put the strata in; where any stratum's band would not hold
+    its point the rule stands aside and the walk runs as before.
 
     Guarantees: accepts the layout, the published rungs, the stratum
     values, the grid's figures after the point and the numeric block;
-    returns the integers in stratum order, or None where the case does
-    not hold. Determinism: a fixed function of the inputs. Raises
+    returns the grid points in stratum order, or None where the case
+    does not hold. Determinism: a fixed function of the inputs. Raises
     nothing. No I/O of any kind.
     """
     wanted = facts.n_distinct_values
-    if figures != 0 or rungs is None or wanted is None:
+    if figures < 0 or rungs is None or wanted is None:
         return None
     total = len(values)
     if total < 2 or total != wanted:
         return None
     low = rungs[0]
     high = rungs[-1]
-    if low != _whole_valued(low) or high != _whole_valued(high):
-        return None
-    if high - low + 1.0 != float(wanted):
-        return None
+    if figures == 0:
+        if low != _whole_valued(low) or high != _whole_valued(high):
+            return None
+        if high - low + 1.0 != float(wanted):
+            return None
+    first = -1
+    if figures > 0:
+        if _on_the_grid(low, figures) != low or _on_the_grid(high, figures) != high:
+            return None
+        bottom = _grid_units(_grid_text(low, figures), figures)
+        top = _grid_units(_grid_text(high, figures), figures)
+        if bottom is None or top is None or top - bottom + 1 != wanted:
+            return None
+        first = bottom
     given: "list[float]" = []
     for place in range(total):
         value = low + float(place)
+        if figures > 0:
+            value = float(_grid_at(first + place, figures))
         band = layout.bands[place]
         if band == _BAND_ZERO and value != 0.0:
             return None
@@ -10445,6 +10554,104 @@ def _saturated_integers(
         if band == _BAND_POSITIVE and value <= 0.0:
             return None
         given += [value]
+    return given
+
+
+def _saturated_levels(
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+    figures: int,
+    facts: contract.NumericFacts,
+) -> "list[float] | None":
+    """The published values themselves, where they are exactly as many as the strata.
+
+    A COLUMN OF A FEW LEVELS PUBLISHES EVERY ONE OF THEM (plan P4-D178).
+    The hundred and one rungs of the ladder and the mode are values the
+    description prints, and a column of discounts drawn from 2, 3, 5,
+    7.5, 10 and 15 prints exactly those six, beside `n_distinct_values`
+    6. The ladder rule of G5.3 drew each stratum at a random rank inside
+    its share and interpolated between two rungs where the rank fell
+    between them, so a stratum came out 8.5 or 1.3 -- a value no cell of
+    the column holds -- and the walks after it moved it off the level it
+    stood for: measured over eight seeds on 2,000 rows, six twins wrote a
+    whole level at a value the source never held (`7.4` 225 times, `1.3`
+    199 times) and lost the published `p75` of 10.0 or a quantity of 1.5
+    outright, while validation passed.
+
+    So where the column is on a written grid, it has exactly as many
+    strata as the different values it publishes, and the rungs and the
+    mode hold exactly that many different values -- or, where they hold
+    more, the numbers two rungs or more name, the two ends and the mode
+    hold exactly that many -- every one a point of that grid, the strata are given those values in their own ascending
+    order, each once. The two pinned ends are the first and last of them
+    by construction. The rule stands aside where any stratum's sign band
+    would not hold its value, and, on a column that writes some cells
+    point-free, where any stratum would change whether its value has a
+    point-free spelling, because G6.4's carrier walk has already placed
+    that count.
+
+    Guarantees: accepts the layout, the published rungs, the stratum
+    values, the grid's figures after the point and the numeric block;
+    returns the published values in stratum order, or None where the case
+    does not hold. Determinism: a fixed function of the inputs. Raises
+    nothing. No I/O of any kind.
+    """
+    wanted = facts.n_distinct_values
+    if figures < 0 or rungs is None or wanted is None:
+        return None
+    total = len(values)
+    if total < 2 or total != wanted:
+        return None
+    held: "dict[float, int]" = {}
+    for rung in rungs:
+        held[rung] = (held[rung] + 1) if rung in held else 1
+    seen: "dict[float, int]" = {}
+    for rung in sorted(held):
+        seen[rung] = 1
+    if facts.mode is not None:
+        seen[facts.mode] = 1
+    if len(seen) != wanted:
+        # A RUNG BETWEEN TWO LEVELS IS NOT A LEVEL. Where a percentile
+        # falls on the boundary of two levels the ladder interpolates, and
+        # the rung is a number no cell holds, named once. So the levels
+        # are read a second way: the numbers two rungs or more name, the
+        # two ends and the mode -- 2,000 quantities of eleven levels named
+        # 2.25 once beside eleven levels named nine times each.
+        seen = {}
+        for rung in sorted(held):
+            if held[rung] >= 2:
+                seen[rung] = 1
+        seen[rungs[0]] = 1
+        seen[rungs[len(rungs) - 1]] = 1
+        if facts.mode is not None:
+            seen[facts.mode] = 1
+        if len(seen) != wanted:
+            return None
+    point_free = _whole_demand(facts) > 0
+    given: "list[float]" = []
+    place = 0
+    for value in sorted(seen):
+        if figures == 0 and value != _whole_valued(value):
+            return None
+        if figures > 0 and _on_the_grid(value, figures) != value:
+            return None
+        band = layout.bands[place]
+        if band == _BAND_ZERO and value != 0.0:
+            return None
+        if band == _BAND_NEGATIVE and value >= 0.0:
+            return None
+        if band == _BAND_POSITIVE and value <= 0.0:
+            return None
+        if band != _BAND_ZERO and value == 0.0:
+            return None
+        if point_free and (
+            _carries_plainly(value, facts.integer_valued)
+            != _carries_plainly(values[place], facts.integer_valued)
+        ):
+            return None
+        given += [value]
+        place = place + 1
     return given
 
 
@@ -12027,6 +12234,7 @@ def _cleared_value(
     whole_column: bool,
     widths: "tuple[int, ...]",
     grid: int = -1,
+    point_free: bool = True,
 ) -> "float | None":
     """A value outside the empty stretch this one landed in (G6.7).
 
@@ -12097,6 +12305,20 @@ def _cleared_value(
     REPORT-ONLY, so where they meet this one gives way and the report
     names the stretch instead.
 
+    ...BUT ONLY ON A COLUMN THAT WRITES SOME CELL POINT-FREE (plan
+    P4-D177). ``point_free`` is False where the styles map asks for no
+    point-free cell at all, the withheld remainder included, and there
+    every cell carries a point whatever its value, so a whole value is
+    written `10.0` and moving onto it changes no form and no carrier.
+    MEASURED before this: 1,423 discounts drawn from 2, 3, 5, 7.5, 10 and
+    15, written at one place, publish `empty_edges` [7.5, 10.0] and a
+    `p75` of 10.0. A stratum drawn at 8.5 inside that stretch could not
+    take the free edge 10.0 because 8.5 has a point and 10 has a
+    point-free spelling, so the loose walk put it at 7.4, and at seed 1
+    the twin held 225 cells of 7.4 and no 10.0 at all while validation
+    passed. Six seeds of eight moved a whole level of that column or of
+    its sibling of eleven quantities.
+
     NEVER ACROSS ZERO, which is the rule every sibling pass in this
     file keeps, so the counts of negative and zero values stand.
 
@@ -12160,7 +12382,7 @@ def _cleared_value(
         return None
     if not sole:
         return None
-    plainly = _carries_plainly(value, whole_column)
+    plainly = point_free and _carries_plainly(value, whole_column)
     figures = _figure_count(value, whole_column) if plainly else 0
     # FOUR WALKS, IN ORDER OF HOW MUCH THEY ASK FOR: the nearer edge
     # then the further one refusing every published stretch, and then
@@ -12263,7 +12485,7 @@ def _cleared_value(
                 continue
             if band == _BAND_POSITIVE and not found > 0.0:
                 continue
-            if _carries_plainly(found, whole_column) != plainly:
+            if point_free and _carries_plainly(found, whole_column) != plainly:
                 continue
             if plainly and _figure_count(found, whole_column) != figures:
                 continue
@@ -12613,6 +12835,347 @@ def _clear_enough(
     return moved, notes
 
 
+# HOW LARGE A SEARCH `_widths_exchanged` MAY RUN EXACTLY: strata times
+# the cells to move. Past it the exchanges are taken greedily, largest
+# first, which still moves the count toward the census and never past it.
+_WIDTH_EXCHANGE_SEARCH = 400000
+
+
+def _widths_exchanged(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+) -> "list[float]":
+    """Two neighbouring strata trade values so the widths can be met (G6.6.6).
+
+    A NARROW WIDTH NEEDS A VALUE THAT FITS IT, AND THE VALUES WERE DRAWN
+    FIRST (plan P4-D179, the final skeptic's MAJOR finding). A column R,
+    Python or a spreadsheet exports by the shortest round trip writes a
+    two-place measurement ending in nought at one place -- `1.1` beside
+    `1.23` -- so its census counts exactly the cells whose VALUE needs one
+    place: 2,000 creatinine readings publish `fraction_widths {"1": 182,
+    "2": 1801}` beside seventeen whole numbers. The twin's strata came off
+    the ladder holding 172 cells on the tenths, `_width_places` cannot
+    write a value needing two places at one without moving it out of its
+    stretch, and every seed missed both widths, in CSV and in a workbook.
+
+    So where the census names two widths or more, holds nothing back,
+    and with the point-free styles it names covers every numeric cell,
+    the cells whose value needs no more figures than each width but the
+    largest are counted against the widths that hold them, and where
+    fewer fit than the census counts, pairs of NEIGHBOURING strata -- one
+    needing up to that width, the next needing the next width up --
+    exchange values. The
+    exchange moves the difference of the two strata's sizes across the
+    boundary and changes nothing else about the column: the same values
+    are held, each by one stratum, so the count of different numbers,
+    every empty stretch and every sign count stand, and each cell moves
+    only to the value beside its own. A pair is chosen only where
+    neither stratum is pinned, in the zero band, whole, or holding the
+    published mode, and both are in one sign band. The pairs are chosen
+    so their differences add up to the shortfall exactly, disjoint and
+    fewest in stratum order where that search is small enough, and
+    otherwise the largest that still fit, walked from the bottom. What no
+    exchange closes -- a column of nearly all different values, whose
+    strata hold one cell each -- is closed by moving strata to the
+    nearest number of the narrower class strictly between the two numbers
+    beside them (`_width_move_targets`).
+
+    Guarantees: accepts one numeric block, its layout and the stratum
+    values; returns the same values, some pairs of neighbours exchanged.
+    Determinism: a fixed function of the inputs. Raises nothing. No I/O.
+    """
+    census = facts.fraction_widths
+    widths: "list[int]" = []
+    covered = _named_whole_demand(facts)
+    for key in sorted(census):
+        if key == contract.WITHHELD or not key:
+            return values
+        for letter in key:
+            if letter not in _DIGITS:
+                return values
+        widths += [int(key)]
+        covered = covered + census[key]
+    total = len(values)
+    if len(widths) < 2 or covered != column.n_numeric or total < 4:
+        return values
+    widths = sorted(widths)
+    moved = [value for value in values]
+    # A STRATUM THAT HAS EXCHANGED ITS VALUE DOES NOT ALSO MOVE, so the
+    # "strictly between its neighbours" rule of a move reads neighbours
+    # that stand in stratum order.
+    frozen: "dict[int, int]" = {}
+    for rank in range(len(widths) - 1):
+        narrow = widths[rank]
+        wide = widths[rank + 1]
+        below = widths[rank - 1] if rank >= 1 else -1
+        target = _named_whole_demand(facts)
+        for key in sorted(census):
+            if int(key) <= narrow:
+                target = target + census[key]
+        held = 0
+        for place in range(total):
+            if _fraction_need(moved[place]) <= narrow:
+                held = held + layout.sizes[place]
+        short = target - held
+        # ONLY A SHORTFALL IS ACTED ON. Where more cells fit the narrow
+        # width than it counts, the rest are written at a wider one with
+        # zeros after them, which `_width_places` already does: a dose
+        # column of tenths writing eighty cells `55.40 mg` beside 160
+        # `55.4 mg` publishes `{"1": 160, "2": 80}`, and moving eighty of
+        # its values off the tenths to meet that would invent hundredths
+        # the column never held.
+        if short <= 0:
+            continue
+        gains: "list[int]" = []
+        for place in range(total - 1):
+            gains += [
+                _width_exchange_gain(
+                    facts, layout, moved, place, below, narrow, wide, short
+                )
+            ]
+        chosen = _width_exchanges(gains, short)
+        for place in chosen:
+            kept = moved[place]
+            moved[place] = moved[place + 1]
+            moved[place + 1] = kept
+            short = short - gains[place]
+            frozen[place] = 1
+            frozen[place + 1] = 1
+        if short == 0:
+            continue
+        # WHAT NO EXCHANGE CAN CLOSE IS CLOSED BY A MOVE BETWEEN
+        # NEIGHBOURS. A column of nearly all different values has strata
+        # of one cell each, so every exchange gains nought; there a
+        # stratum moves to the nearest number of the other width class
+        # that lies strictly between the two numbers beside it and in its
+        # own bin, so no value passes another and none is held twice.
+        targets = _width_move_targets(
+            facts, layout, moved, below, narrow, wide, frozen
+        )
+        # THE SEARCH RUNS OVER THE STRATA IN THE ORDER OF THEIR NUMBERS,
+        # not their places: the passes before this one can leave a stratum
+        # out of place, and two moves are kept apart by never choosing two
+        # strata next to each other IN VALUE, so the open stretches they
+        # move inside cannot overlap and no number is held twice.
+        ranked: "list[tuple[float, int]]" = []
+        for place in range(total):
+            ranked += [(moved[place], place)]
+        ranked = sorted(ranked)
+        sizes: "list[int]" = []
+        for rank_place in range(total - 1):
+            place = ranked[rank_place][1]
+            if targets[place] is None:
+                sizes += [0]
+                continue
+            sizes += [layout.sizes[place]]
+        for rank_place in _width_exchanges(sizes, short):
+            place = ranked[rank_place][1]
+            found = targets[place]
+            if found is not None:
+                moved[place] = found
+                frozen[place] = 1
+    return moved
+
+
+def _width_move_targets(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    below: int,
+    narrow: int,
+    wide: int,
+    frozen: "dict[int, int]",
+) -> "list[float | None]":
+    """Per stratum, the number of the narrower width class it may move to, or None.
+
+    A stratum needing more than ``narrow`` figures and at most ``wide``
+    may move to a number needing more than ``below`` and at most
+    ``narrow``. The
+    number is the nearest such, walked outward one unit of the finer
+    width at a time and at most `_GRID_REACH` units, that lies strictly
+    between the next smaller and the next larger number any stratum holds
+    and in the same histogram bin; a stratum that is pinned, in the zero
+    band, holds the mode, holds a whole number, shares its number with
+    another stratum, or has already exchanged or moved is given None.
+    """
+    total = len(values)
+    order = sorted(values)
+    seen: "dict[float, int]" = {}
+    for value in values:
+        seen[value] = (seen[value] + 1) if value in seen else 1
+    index: "dict[float, int]" = {}
+    for place in range(len(order)):
+        index[order[place]] = place
+    ends = _bin_ends(facts)
+    found: "list[float | None]" = []
+    for place in range(total):
+        value = values[place]
+        found += [None]
+        if place == 0 or place == total - 1 or place in frozen:
+            continue
+        if layout.bands[place] == _BAND_ZERO or seen[value] > 1:
+            continue
+        if facts.mode is not None and value == facts.mode:
+            continue
+        if _carries_plainly(value, facts.integer_valued):
+            continue
+        need = _fraction_need(value)
+        if not narrow < need <= wide:
+            continue
+        at = index[value]
+        if at <= 0 or at >= len(order) - 1:
+            continue
+        low = order[at - 1]
+        high = order[at + 1]
+        figures = narrow
+        unit = _grid_units(_grid_text(value, figures), figures)
+        if unit is None:
+            continue
+        for reach in range(_GRID_REACH + 1):
+            chosen = None
+            for step in ((-reach, reach) if reach else (0,)):
+                candidate = _on_the_grid(float(_grid_at(unit + step, figures)), figures)
+                if candidate is None or candidate == value:
+                    continue
+                if not low < candidate < high:
+                    continue
+                if _carries_plainly(candidate, facts.integer_valued):
+                    continue
+                if (candidate < 0.0) != (value < 0.0):
+                    continue
+                if not below < _fraction_need(candidate) <= narrow:
+                    continue
+                if ends is not None and parsing.histogram_bin(
+                    candidate, ends[0], ends[1]
+                ) != parsing.histogram_bin(value, ends[0], ends[1]):
+                    continue
+                chosen = candidate
+                break
+            if chosen is not None:
+                found[place] = chosen
+                break
+            if reach and (
+                float(_grid_at(unit - reach, figures)) <= low
+                and float(_grid_at(unit + reach, figures)) >= high
+            ):
+                break
+    return found
+
+
+def _width_exchange_gain(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    place: int,
+    below: int,
+    narrow: int,
+    wide: int,
+    short: int,
+) -> int:
+    """What exchanging stratum ``place`` with the next adds to the narrow count, or 0.
+
+    Nought where the pair may not exchange, or where the exchange lowers
+    the count or raises it past the shortfall ``short``, which is above
+    nought.
+    """
+    total = len(values)
+    if place <= 0 or place + 1 >= total - 1:
+        return 0
+    first = values[place]
+    second = values[place + 1]
+    if layout.bands[place] != layout.bands[place + 1]:
+        return 0
+    if layout.bands[place] == _BAND_ZERO:
+        return 0
+    for value in (first, second):
+        if facts.mode is not None and value == facts.mode:
+            return 0
+        if _carries_plainly(value, facts.integer_valued):
+            return 0
+    need_first = _fraction_need(first)
+    need_second = _fraction_need(second)
+    fits_first = below < need_first <= narrow
+    fits_second = below < need_second <= narrow
+    wide_first = narrow < need_first <= wide
+    wide_second = narrow < need_second <= wide
+    gain = 0
+    if fits_first and wide_second:
+        gain = layout.sizes[place + 1] - layout.sizes[place]
+    elif wide_first and fits_second:
+        gain = layout.sizes[place] - layout.sizes[place + 1]
+    if 0 < gain <= short:
+        return gain
+    return 0
+
+
+def _width_exchanges(gains: "list[int]", short: int) -> "list[int]":
+    """Disjoint neighbouring pairs whose gains add up to ``short``, above nought.
+
+    Pair ``i`` is strata ``i`` and ``i + 1``, so two chosen pairs never
+    share a stratum. Exactly where the search fits `_WIDTH_EXCHANGE_SEARCH`,
+    by the reachable sums over the pairs in order, taking the pair at the
+    latest place that completes a sum, which makes the fewest-pairs
+    question moot and the answer a fixed function of the gains; greedily
+    from the bottom, largest gain first, where it does not.
+    """
+    size = short
+    count = len(gains)
+    if count * (size + 1) <= _WIDTH_EXCHANGE_SEARCH:
+        # reach[i][s] holds 1 where a sum of s is reachable from the
+        # pairs before place i with no pair touching stratum i; took[i][s]
+        # holds 1 where that sum was first reached by taking pair i - 2.
+        reach: "list[list[int]]" = []
+        took: "list[list[int]]" = []
+        for _index in range(count + 2):
+            reach += [[0 for _sum in range(size + 1)]]
+            took += [[0 for _sum in range(size + 1)]]
+        reach[0][0] = 1
+        reach[1][0] = 1
+        for place in range(count):
+            gain = gains[place]
+            for total in range(size + 1):
+                if reach[place + 1][total] and not reach[place + 2][total]:
+                    reach[place + 2][total] = 1
+                if gain <= 0 or total + gain > size:
+                    continue
+                if reach[place][total] and not reach[place + 2][total + gain]:
+                    reach[place + 2][total + gain] = 1
+                    took[place + 2][total + gain] = 1
+        if reach[count + 1][size] or reach[count][size]:
+            chosen: "list[int]" = []
+            at = count + 1 if reach[count + 1][size] else count
+            left = size
+            while at >= 2 and left > 0:
+                if took[at][left]:
+                    chosen += [at - 2]
+                    left = left - gains[at - 2]
+                    at = at - 2
+                    continue
+                at = at - 1
+            if left == 0:
+                return sorted(chosen)
+    chosen = []
+    used: "dict[int, int]" = {}
+    left = size
+    order: "list[tuple[int, int]]" = []
+    for place in range(count):
+        if gains[place] > 0:
+            order += [(-gains[place], place)]
+    for negative, place in sorted(order):
+        gain = -negative
+        if gain > left or place in used or place + 1 in used:
+            continue
+        chosen += [place]
+        used[place] = 1
+        used[place + 1] = 1
+        left = left - gain
+        if left == 0:
+            break
+    return sorted(chosen)
+
+
 def _cleared_into(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
@@ -12659,6 +13222,7 @@ def _cleared_into(
         facts.integer_valued,
         widths,
         grid,
+        _whole_demand(facts) > 0,
     )
     if found is None:
         # NO NOTE IS WRITTEN HERE, and that is the repair of review

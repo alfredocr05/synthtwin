@@ -15758,7 +15758,7 @@ def _form_recount(
     line, and not at all where they are not: a file writing the column in
     capitals still misses the key.
     """
-    line = max(floor, 2)
+    line = parsing.census_floor(floor)
     counted: "dict[str, int]" = {}
     strays: "dict[str, int]" = {}
     for cell in cells:

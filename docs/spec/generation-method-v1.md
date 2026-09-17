@@ -1029,6 +1029,52 @@ exit 3 at every floor; money written by the shortest round trip
 (`{1: 213, 2: 1787}`) missed both widths and the count of different
 numbers. On 96 twins of six multi-width shapes, twins exiting 3 went
 from 72 to 44, and none that passed before missed after.
+
+**AND A NARROWER WIDTH HAS THE VALUES IT NEEDS** (plan P4-D179). Where
+`fraction_widths` names two widths or more, none pooled, and the named
+widths and named point-free counts cover every numeric cell, then after
+G6.7, for each named width `w` but the largest, in ascending order, with
+`u` the next named width up and `b` the next one down (or none): let the
+TARGET be the named point-free count plus every named count at a width
+of `w` or less, and HELD the cells of every stratum whose value needs
+`w` figures or fewer after the point. Where held is below the target,
+and only then — a surplus is written at a wider width with zeros after
+it, as a column of tenths writing `55.40` beside `55.4` does — the
+shortfall is closed in two steps. First, NEIGHBOURING strata `i` and
+`i + 1` exchange values, where neither is pinned, in the zero band,
+whole, or holding the `mode`, both are in one sign band, and one needs
+more than `b` and at most `w` figures while the other needs more than
+`w` and at most `u`; the exchange adds the difference of their sizes,
+and pairs are chosen disjoint so their gains add to the shortfall
+exactly — by reachable sums over the pairs in stratum order, the pair
+at the latest place completing a sum, where strata times shortfall is at
+most 400,000, and otherwise the largest gain that still fits first,
+walked from the bottom. Second, what remains is closed by MOVES over
+the strata in ascending order of value, never two neighbours in value:
+a stratum needing more than `w` and at most `u` figures, not pinned, not
+in the zero band, not holding the `mode`, not whole, not sharing its
+number, and not already exchanged or moved, takes the nearest number of
+the grid of `w` figures — walked outward one unit, the lower first, at
+most 64 units — that needs more than `b` and at most `w` figures, lies
+strictly between the next smaller and the next larger number any
+stratum holds, has no point-free spelling, keeps the sign, and stands in
+the same histogram bin; moves are chosen by the same sum rule over their
+sizes. MEASURED before this clause: 2,000 two-place readings written by
+the shortest round trip (`1.1` beside `1.23`) held 168 to 178 one-place
+cells against a published 182 at every seed, in a CSV and in a
+workbook; on a battery of six shortest-round-trip shapes at two floors
+and four seeds the twins exiting 3 went from 19 of 48 to none.
+
+**THE WIDTH A CELL IS WRITTEN AT, three rules the shortfall rule needs**
+(plan P4-D179). A pinned value takes the width its own value needs where
+the census names that width and it holds the value's cells, and
+otherwise the largest still-unfilled width it fits, as before; a value
+that already fits a width is written at it without its stretch being
+asked, since nothing is snapped; and a value whose own width is a named
+one is never snapped to a width at which it reads as a number another
+value holds or a snap has already written -- where its own width is not
+named, refusing the snap would write the cell at that width, a number no
+source wrote at a width the census does not have, so the snap is taken.
 The second is how a spreadsheet writes tenths, `37` beside `37.4`, and
 how a zero-inflated column writes `0` beside `2.5`: a point-free cell is
 the grid point whose last `f` figures are zero, so every number of such
@@ -2797,6 +2843,36 @@ walked landed on a point another stratum still needed, and the twin wrote
 400 different spellings of 395, 392 and 391 numbers at seeds 4, 1 and 7
 while the real table held 400.
 
+**AND ON EVERY WRITTEN GRID, NOT ONLY THE INTEGERS** (plan P4-D176, the
+final skeptic of the merged repairs). Where the grid is `f > 0` figures,
+both published ends are points of it — each end's grid text at `f`
+reads back as that end — and the points from `min` to `max`, counted in
+whole grid units off the two grid texts, number exactly the count of
+different values, the strata take those points in ascending order, each
+once, under the same sign-band condition. Measured before this clause:
+120 amounts `0.1` to `12.0`, with or without a decimal comma, held 119
+numbers at seeds 4, 0 and 1.
+
+**A COLUMN WHOSE PUBLISHED LEVELS ARE ITS STRATA TAKES THEM** (plan
+P4-D178), where the fill above does not answer. Let `R` be the different
+numbers the hundred and one rungs and the published `mode` name. Where
+`R` holds more numbers than the count of different values, let `R` be
+instead the numbers two rungs or more name, together with the two ends
+and the `mode`: a rung on the boundary of two levels is interpolated and
+names a number no cell holds, once. Where the column has exactly as many
+strata as the count of different values, `R` holds exactly that many,
+and every member is a point of the grid (a whole number on the integer
+grid), the strata take the members of `R` in ascending order, each once,
+and the walk below does not run — unless a sign band would not hold its
+member, a stratum outside the zero band would take nought, or, on a
+column whose styles map asks for any point-free cell (the withheld
+remainder counting as `plain`), a stratum would change whether its value
+has a point-free spelling. Measured before this clause over eight seeds
+on 2,000 quantities of eleven levels and 1,423 discounts of six: six
+twins of eight wrote a whole level at a number the source never held —
+`7.4` 225 times, `1.3` 199 times — and lost a published rung, with
+validation at exit 0.
+
 **IN WHAT ORDER.** The strata are visited in ascending index, ONCE
 each, and a stratum the walk could not move is not returned to. Which
 stratum is repaired first decides which grid points the later ones find
@@ -3180,7 +3256,14 @@ Every stratum so identified moves, subject to:
 4. keeping its WRITTEN FORM — a value that carries no point moves to a
    value that carries no point, and one that carries a point moves to
    one that carries a point — so the point-free count G6.4 met and the
-   held-back pool are untouched;
+   held-back pool are untouched. This rule is asked only of a column
+   whose styles map asks for a point-free cell, the withheld remainder
+   counting as `plain` (plan P4-D177): on any other column every cell is
+   written with a point whatever its value, so `10` is written `10.0`
+   and a move onto it changes no form. Measured before: a stratum at
+   8.5 inside the published stretch 7.5 to 10.0 of a column of six
+   discounts could not take the free edge 10.0 and went to 7.4, and the
+   twin held 225 cells of 7.4 and no 10.0 while validation passed;
 5. landing on no value another stratum holds, AND on no value that
    would be WRITTEN the way another stratum's value can be written, at
    any width the fraction census could reach either of them at. The

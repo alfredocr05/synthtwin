@@ -1399,18 +1399,6 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     ]
 
 
-# The date readings whose own spelling IS what the twin writes. A
-# column read under one of these gets the same text back, so telling
-# its reader that the spelling changed would be a false warning
-# (review item P4-DATE3-F5).
-_SPELLINGS_THE_TWIN_KEEPS = (
-    "iso-date",
-    "iso-datetime",
-    "iso-month",
-    "year-quarter",
-)
-
-
 def _named_census(facts: contract.DatetimeFacts) -> bool:
     """Whether the census of marks names at least one mark."""
     for name in facts.datetime_separators:
@@ -1467,23 +1455,27 @@ def _mark_lines(facts: contract.DatetimeFacts) -> "list[str]":
 
 
 def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
-    """The date spelling the twin does not keep (residual R-P2-7).
+    """The date spelling the twin keeps, or the one part of it it does not.
 
-    ...OR DOES, AND THE TWO CASES SAY DIFFERENT THINGS. The twin writes
-    the international form. Where the column was already read in it --
-    a column of ISO dates, of ISO stamps, of months, of quarters --
-    nothing about the spelling changed and the reader is told so;
-    telling such a reader to change an explicit format would send them
-    to fix code that is not broken (review item P4-DATE3-F5).
+    SINCE LANDING 2b.6 THE TWIN WRITES EVERY READING IN ITS OWN SPELLING,
+    and this paragraph went on saying otherwise until plan P4-D180: a
+    column of `03/17/2024 14:05` stamps was written `11/14/2021 23:46`
+    in its twin while the page beside it said the twin wrote the
+    international form, that the spelling was NOT kept, and that code
+    reading the dates with an explicit format needed that format changed
+    -- a warning that sends somebody to change working code, which is
+    what review item P4-DATE3-F5 closed for the ISO readings alone. The
+    one part of a spelling the twin can still lose is the mark between
+    the day and the clock where every mark was held back, and that is
+    the one case this paragraph now warns about.
     """
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return []
     lines = [
-        "  The twin writes this column's dates in the international form",
-        "  (2024-03-15; 2024-03 for a column of months, 2024-Q1 for a",
-        "  column of quarters), at the same precision your table had and",
-        "  with an offset only where the description records one.",
+        "  The twin writes this column's dates in the spelling your table",
+        "  wrote them in, at the same precision your table had and with an",
+        "  offset only where the description records one.",
     ]
     # THE TWO SPELLINGS PLAN P4-D39 KEEPS, said where a person meets the
     # twin. Only on a column that writes a clock: a whole date has no mark
@@ -1494,27 +1486,25 @@ def _datetime_lines(column: contract.ColumnBlock) -> "list[str]":
             "  Every moment of this column stood at midnight, so every moment",
             "  of the twin's column stands at midnight too.",
         ]
-    keeps_the_spelling = facts.parser_family in _SPELLINGS_THE_TWIN_KEEPS
     if facts.resolution == "datetime" and not _named_census(facts):
         # With every mark held back the twin writes a T, which need not
         # be what the table wrote (stage 2 audit).
-        keeps_the_spelling = False
-    if keeps_the_spelling:
         return lines + [
             (
                 f"  Your table's own spelling was read as "
-                f"'{_shown(facts.parser_family)}', which IS that form, so"
+                f"'{_shown(facts.parser_family)}', and its mark between the"
             ),
-            "  code that reads these dates with an explicit format needs no",
-            "  change for the twin.",
+            "  day and the time of day is NOT kept: code that reads dates",
+            "  with an explicit format may need that format changed for the",
+            "  twin.",
         ]
     return lines + [
         (
             f"  Your table's own spelling was read as "
-            f"'{_shown(facts.parser_family)}', and it is NOT kept:"
+            f"'{_shown(facts.parser_family)}', and the twin keeps it, so"
         ),
-        "  code that reads dates with an explicit format needs that format",
-        "  changed for the twin.",
+        "  code that reads these dates with an explicit format needs no",
+        "  change for the twin.",
     ]
 
 

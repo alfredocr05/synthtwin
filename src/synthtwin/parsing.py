@@ -1766,6 +1766,56 @@ def census_names_one_row(
     return -1
 
 
+# The characters a form key of a cell read as a number can hold: figures,
+# the point and the comma, a sign, accounting brackets, and the one
+# letter an exponent is written with, in either case (plan P4-D175).
+_NUMBER_FORM_MARKS = SHAPE_DIGIT + SHAPE_LETTER + SHAPE_LOWER + ".,+-()"
+
+
+def form_never_a_number(key: str) -> bool:
+    """Whether no cell written in this form can be read as a number.
+
+    THE THIRD TOTAL A READER HOLDS BESIDE THE FORM CENSUS (plan P4-D175,
+    closing the final skeptic's BLOCKER). Every role that carries
+    `shape_forms` publishes `n_not_numeric`, and a named form no number
+    can wear counts cells inside that total, so a census naming 399
+    `&&&-%%%` codes beside `n_not_numeric` 400 said that exactly one cell
+    of the column was text of some other shape -- measured on 400
+    five-figure numbers, 399 codes and one `hello` at a floor of eleven.
+    The answer is read off the KEY alone, so the producer and the loader
+    ask one question and a reader can ask it too: a number as
+    `parse_number` reads it is written in figures, points and commas, a
+    sign, accounting brackets and at most one exponent letter, which
+    stands after a figure or a point and before a figure or a sign. So a
+    key with no figure, any other mark, a second letter, or a letter
+    anywhere else is never one. The answer errs toward False (a key that
+    might be a number), which only ever leaves a total out of the
+    question -- the direction that publishes less.
+
+    Guarantees: accepts a form key; returns a bool. Determinism: a
+    function of the key alone. Raises nothing. No I/O of any kind.
+    """
+    figures = 0
+    letters = 0
+    before = ""
+    place = 0
+    for character in key:
+        if character not in _NUMBER_FORM_MARKS:
+            return True
+        if character == SHAPE_DIGIT:
+            figures = figures + 1
+        elif character == SHAPE_LETTER or character == SHAPE_LOWER:
+            letters = letters + 1
+            after = key[place + 1 : place + 2]
+            if before not in (SHAPE_DIGIT, ".") or after not in (
+                SHAPE_DIGIT, "+", "-"
+            ):
+                return True
+        before = character
+        place = place + 1
+    return figures == 0 or letters > 1
+
+
 # -- the LAYOUT of a record number (contract 7.12) --------------------
 #
 # WHY THIS IS NOT `shape_form` WITH A LARGER LIMIT, stated here because

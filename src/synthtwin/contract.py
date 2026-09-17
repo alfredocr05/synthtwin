@@ -1690,15 +1690,18 @@ INVARIANTS = {
     # round 1 finding 9).
     "SF1": (
         "every written form the census names was written by at least "
-        "the smallest group size, and a lower-case key, with the form's "
+        "the smallest group size and by at least two cells, and a "
+        "lower-case key, with the form's "
         "own key beside it, by at least two cells as well, and the "
         "census holds no pool of one cell"
     ),
     "SF3": (
         "the census counts no more cells than the column has present, "
         "a cell too long to have a form being counted nowhere, and, where "
-        "it counts any, never exactly one fewer, nor, on a column of free "
-        "text, exactly one fewer than n_code_alphabet among its forms of "
+        "it counts any, never exactly one fewer, nor exactly one fewer "
+        "than n_not_numeric among its forms no number is written in, nor, "
+        "on a column of free text, exactly one fewer than n_code_alphabet, "
+        "or than n_code_alphabet less n_all_digits, among its forms of "
         "that alphabet"
     ),
     "SC1": (
@@ -7041,7 +7044,7 @@ def _compound_label_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         suppressed_level_counts=sizes,
-        shape_forms=_shape_forms(mapping, where, floor),
+        shape_forms=_shape_forms(mapping, where, floor, False, False),
     )
 
 
@@ -10067,6 +10070,7 @@ def _shape_forms(
     where: str,
     floor: int,
     with_code_total: bool = False,
+    with_text_total: bool = True,
 ) -> "dict[str, int]":
     """The census of written forms, checked key by key (C6-D18).
 
@@ -10124,12 +10128,13 @@ def _shape_forms(
                 "- . / _ : # * ( ) [ ] + , -- carrying at least two "
                 "of those three kinds",
             )
-        if forms[name] < floor:
+        if forms[name] < parsing.census_floor(floor):
             raise _broken(
                 "SF1",
                 where,
                 f"the form '{name}' was written by {forms[name]} cells",
-                f"the smallest group size is {floor}",
+                f"a form is named only at {parsing.census_floor(floor)} "
+                "cells or more: the smallest group size, and never under two",
             )
         _lower_case_key_line(forms, name, where, floor)
         if parsing.SHAPE_LOWER in name:
@@ -10149,7 +10154,9 @@ def _shape_forms(
                     f"the column holds {distinct} different values that "
                     f"fold to {folded_distinct}",
                 )
-    _form_census_names_no_row(mapping, forms, where, present, with_code_total)
+    _form_census_names_no_row(
+        mapping, forms, where, present, with_code_total, with_text_total
+    )
     return forms
 
 
@@ -10159,6 +10166,7 @@ def _form_census_names_no_row(
     where: str,
     present: int,
     with_code_total: bool,
+    with_text_total: bool = True,
 ) -> None:
     """SF1 and SF3's last lines: no reading names one row (plan P4-D160).
 
@@ -10166,7 +10174,10 @@ def _form_census_names_no_row(
     the same three readings: the pool, which is never one; `n_present`
     less every cell the census counts, the pool included; and, on a
     free-text column, `n_code_alphabet` less the cells of the named forms
-    made of figures, letters, the hyphen and the underscore. A census
+    made of figures, letters, the hyphen and the underscore, and
+    `n_code_alphabet` less `n_all_digits` less the same cells; and
+    `n_not_numeric` less the cells of the named forms no number can be
+    written in (`parsing.form_never_a_number`, plan P4-D175). A census
     that counts no cell is asked nothing: it leaves nothing to subtract.
 
     Raises ProfileError for SF1 (a pool of one) and SF3 (a difference of
@@ -10175,6 +10186,7 @@ def _form_census_names_no_row(
     pool: "dict[str, int]" = {}
     counted = 0
     coded = 0
+    texted = 0
     for name in sorted(forms):
         counted = counted + forms[name]
         if name == WITHHELD:
@@ -10182,6 +10194,8 @@ def _form_census_names_no_row(
             continue
         if _layout_within(name, _FORM_CODE_MARKS):
             coded = coded + forms[name]
+        if parsing.form_never_a_number(name):
+            texted = texted + forms[name]
     if parsing.census_names_one_row(pool, []) == -2:
         raise _broken(
             "SF1",
@@ -10196,15 +10210,38 @@ def _form_census_names_no_row(
             f"the census counts {counted} cells",
             f"the column holds {present} present cells, one more",
         )
-    if not with_code_total:
+    if with_code_total:
+        total = _whole(mapping["n_code_alphabet"], "n_code_alphabet", where, 0)
+        if parsing.census_names_one_row({}, [(total, coded)]) == 0:
+            raise _broken(
+                "SF3",
+                where,
+                f"the forms inside the code alphabet count {coded} cells",
+                f"n_code_alphabet is {total}, one more",
+            )
+        # A FORM CARRIES TWO KINDS, so no cell of figures alone wears one
+        # and a code form counts cells of the code alphabet that are not
+        # figures alone (plan P4-D175).
+        digits = _whole(mapping["n_all_digits"], "n_all_digits", where, 0)
+        if parsing.census_names_one_row({}, [(total - digits, coded)]) == 0:
+            raise _broken(
+                "SF3",
+                where,
+                f"the forms inside the code alphabet count {coded} cells",
+                f"n_code_alphabet less n_all_digits is {total - digits}, "
+                "one more",
+            )
+    if not with_text_total:
+        # The label half of a compound column publishes no
+        # `n_not_numeric`; every cell of it is text.
         return
-    total = _whole(mapping["n_code_alphabet"], "n_code_alphabet", where, 0)
-    if parsing.census_names_one_row({}, [(total, coded)]) == 0:
+    text = _whole(mapping["n_not_numeric"], "n_not_numeric", where, 0)
+    if parsing.census_names_one_row({}, [(text, texted)]) == 0:
         raise _broken(
             "SF3",
             where,
-            f"the forms inside the code alphabet count {coded} cells",
-            f"n_code_alphabet is {total}, one more",
+            f"the forms no number can be written in count {texted} cells",
+            f"n_not_numeric is {text}, one more",
         )
 
 
@@ -10236,7 +10273,7 @@ def _lower_case_key_line(
     """
     if parsing.SHAPE_LOWER not in name:
         return
-    line = max(floor, 2)
+    line = parsing.census_floor(floor)
     partner = ""
     for character in name:
         partner = partner + (
@@ -10288,7 +10325,7 @@ def _number_spellings(
     )
     if not spellings:
         return spellings
-    line = max(frame.floor, 2)
+    line = parsing.census_floor(frame.floor)
     total = 0
     zeros = 0
     seen: "dict[str, int]" = {}
@@ -10384,7 +10421,7 @@ def _layout_forms(
             f"the census counts {counted} cells",
             f"the column holds {present} present cells",
         )
-    line = max(floor, 2)
+    line = parsing.census_floor(floor)
     for name in sorted(layouts):
         if name == WITHHELD:
             # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE

@@ -394,7 +394,15 @@ NARROW_COLUMN_DIGESTS = {
     # repair: the same widths census (160 four-character and 80 five), the
     # same 180 different cells, every other column byte-identical, and no
     # verdict of the quality report moved.
-    "dose": "21da77fdbb6b90a2eb7327ef6729526e",
+    # RE-RECORDED AT THE REPAIR PASS AFTER THE FINAL SKEPTIC (2026-09-17,
+    # plan P4-D179). A pinned value now takes the width its own value
+    # needs where the census names it, so the published ends `10.0 mg`
+    # and `189.7 mg` (five cells) are written at one place and six other
+    # cells take the second place instead. MEASURED cell by cell against
+    # a7ae404: 12 cells of `dose` differ, every value is the same number,
+    # the census is still 160 at one place and 80 at two, and every other
+    # column is byte-identical.
+    "dose": "b1f8940a719df22cd6b0186556eabb01",
     "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
@@ -427,7 +435,10 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # RE-RECORDED AT THE REPAIR OF THE STAGE-2b INTEGRATION: the cells
     # themselves moved (see `dose` in the sorted digests above), so the
     # digest of the cells as written moves with them.
-    "dose": "7dc6eb8715f8789f075a90827ddc69cc",
+    # RE-RECORDED AT THE REPAIR PASS AFTER THE FINAL SKEPTIC (2026-09-17,
+    # plan P4-D179): the same 12 cells as the sorted digest above, in
+    # the places they stood; no cell moved place.
+    "dose": "b240a95d4658408ca5d8428c9aaa99e0",
     "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -1392,8 +1403,12 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # two moves compose. Diffed cell by cell: against the merged dates tree
 # only `pressure` (50 cells) differs, against the numbers branch only
 # `recorded_on` (90) and `dose` (228); the description digest held.
+# RE-RECORDED AT THE REPAIR PASS AFTER THE FINAL SKEPTIC (2026-09-17,
+# plan P4-D179): only `dose` moved, 12 cells, each written at the other
+# of its two published widths with the census exact; the description
+# digest held and no verdict of the quality report moved.
 GOLDEN_TWIN_SHA256 = (
-    "d9dda20800186d5f45b09f923e3d3556372f3f344a21dd9866e2e75a512474a7"
+    "6d9b8f06d2e3f4d13bef94a7931dfbf57a72712e403ca139e52a3df1ce953b4e"
 )
 
 
@@ -1861,8 +1876,12 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # RE-RECORDED AT THE MERGE OF carried-fix-numbers (2026-09-16): against
 # the numbers branch only the achieved values of `recorded_on` and
 # `dose` differ; against the merged dates tree only `pressure`'s.
+# RE-RECORDED AT THE REPAIR PASS AFTER THE FINAL SKEPTIC (2026-09-17,
+# plan P4-D180): the one paragraph that moved is the date column's, which
+# said the twin writes the international form; it now says the twin keeps
+# the column's own spelling. Diffed line by line: that paragraph alone.
 GOLDEN_REPORT_SHA256 = (
-    "1b5469534b819e80ea2b19d7030301cf09f13aec64dc5f206b810ad80a46a75d"
+    "2d0053aee73de161073bc5f4434f6095968acd7d81ccc1c9530c8630aec7e075"
 )
 
 

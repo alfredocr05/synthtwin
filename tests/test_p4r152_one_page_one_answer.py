@@ -164,16 +164,20 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
     stays in the deviations exactly as it was. A filter that dropped
     every count would have made the report quieter, not honester.
 
-    THE WITNESS IS THE HUNDRED AND ONE FAR VALUE, 150 (measured at the
-    merge of the number review's repair into the integration). Plan
-    P4-D147 fills a saturated integer grid with its integers in order,
-    so `_the_hundred` -- a hundred integers between the ends 1 and 100
-    -- now holds all hundred and names no shortfall at all. One value
-    past the grid's end leaves the column unsaturated, and its twin
-    holds 99 numbers of 101 at this seed.
+    THE WITNESS IS THE HUNDRED AND TWO FAR VALUES, 150 AND 151 (measured
+    at the repair pass after the final skeptic). Plan P4-D147 fills a
+    saturated integer grid with its integers in order, so `_the_hundred`
+    -- a hundred integers between the ends 1 and 100 -- holds all
+    hundred and names no shortfall at all. One value past the grid's end
+    was the witness until plan P4-D178: its hundred and one rungs and
+    mode are exactly its hundred and one numbers, so its strata now take
+    those and it holds all of them too. A second far value leaves the
+    rungs one number short of the count, and its twin holds 100 numbers
+    of 102 at this seed.
     """
     _loaded, twin = _twin(
-        tmp_path, [f"{number}" for number in range(2, 101)] + ["1", "150"]
+        tmp_path,
+        [f"{number}" for number in range(2, 101)] + ["1", "150", "151"],
     )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named
