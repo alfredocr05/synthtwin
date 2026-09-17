@@ -4434,6 +4434,14 @@ def measure(
             # descriptions would all be measured against a different
             # reading of the same bytes.
             metadata_rows=description.settings.forced_metadata_rows,
+            # ...AND WITH ITS NAMES ON THE ROW THE DESCRIPTION PUTS THEM
+            # (plan P4-D170), where the checked workbook's sheet does not
+            # settle which row holds them.
+            published_header=(
+                description.source.workbook.rows_above_header + 1
+                if description.source.workbook is not None and headed
+                else 0
+            ),
             # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION
             # SAYS IT WAS READ (review of landing 2b.17, MAJOR). A
             # declaration the file does not bear out is not acted on

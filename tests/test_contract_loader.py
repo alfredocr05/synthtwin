@@ -1671,6 +1671,17 @@ def battery() -> list[Mutation]:
             "WB3", "a census publishing a nought beside a withheld count",
             _form_workbook_census_nought_beside_a_withheld_count,
         ),
+        # The repair pass after the files review (plan P4-D170): each of
+        # WB3's two subtraction rules, on a census publishing no nought,
+        # so that nothing but the rule named can refuse it.
+        Mutation(
+            "WB3", "a census whose one withheld count no nought gives away",
+            _form_workbook_census_withholds_one_count,
+        ),
+        Mutation(
+            "WB3", "a census whose withheld counts come to fewer than the line",
+            _form_workbook_census_withholds_under_the_line,
+        ),
         Mutation(
             "WB5", "two sheets of one name in different cases",
             _form_workbook_two_sheets_of_one_name,
@@ -1968,6 +1979,31 @@ def _form_workbook_census_nought_beside_a_withheld_count(
     census["number"] = 200
     census["text"] = None
     census["boolean"] = None
+
+
+def _form_workbook_census_withholds_one_count(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # Every class holds cells and every count but one is published, so
+    # the one withheld is the row count less the others (plan P4-D170).
+    census = block["columns"][0]["cell_classes"]
+    for kind in workbook.CELL_CLASSES:
+        census[kind] = 30
+    census["number"] = rows - 30 * 7
+    census["date"] = None
+
+
+def _form_workbook_census_withholds_under_the_line(document: Document) -> None:
+    block = _workbook_block(document, 16, 120)
+    rows = typing.cast(int, document["n_rows"])
+    # Two counts withheld, no nought beside them, and together they come
+    # to five cells at a floor of eleven (plan P4-D170).
+    census = block["columns"][0]["cell_classes"]
+    for kind in workbook.CELL_CLASSES:
+        census[kind] = 30
+    census["number"] = rows - 30 * 5 - 5
+    census["date"] = None
+    census["error"] = None
 
 
 def _form_workbook_two_sheets_of_one_name(document: Document) -> None:

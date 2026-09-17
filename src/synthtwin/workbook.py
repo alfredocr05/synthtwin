@@ -184,6 +184,14 @@ def _opens_markup(after: bytes) -> bool:
     Letters are compared without their case, byte by byte, and an element
     name has to END there -- a space, a line break, `>` or `/` -- so
     `<tablespoon` is not `<table`. A comment needs no ending.
+
+    AND AN ELEMENT'S NAME ENDING IN A SPACE IS NOT ENOUGH (plan P4-D170).
+    A header cell `<body temp` or `<table 2` ends the name in a space too,
+    and such a table was refused as a web page. What follows a space in
+    markup is the tag's end or an attribute -- a name and `=` -- so an
+    element name is markup where it is followed by `>` or `/`, or by
+    spaces and then one of those or an attribute. A declaration (`<?xml`,
+    `<!doctype`) keeps the plain rule: nothing a table writes opens so.
     """
     for opening in _MARKUP_OPENINGS:
         if len(after) < len(opening):
@@ -202,9 +210,49 @@ def _opens_markup(after: bytes) -> bool:
             return True
         if len(after) == len(opening):
             return True
-        if after[len(opening)] in (32, 9, 10, 13, 62, 47):
+        if opening[0] in (63, 33):
+            if after[len(opening)] in (32, 9, 10, 13, 62, 47):
+                return True
+            continue
+        if _tag_goes_on(after[len(opening) :]):
             return True
     return False
+
+
+def _tag_goes_on(rest: bytes) -> bool:
+    """Whether the bytes after an element's name read as the rest of a tag.
+
+    `>` or `/` straight away; or spaces, and then `>`, `/`, the next
+    tag's `<`, the end of the bytes read, or an attribute -- a name of
+    letters, figures, `_`, `:`, `.` or `-` beginning with a letter, `_`
+    or `:`, then spaces and `=`.
+    """
+    at = 0
+    if at < len(rest) and rest[at] in (62, 47):
+        return True
+    spaced = False
+    while at < len(rest) and rest[at] in (32, 9, 10, 13):
+        at = at + 1
+        spaced = True
+    if not spaced:
+        return False
+    if at >= len(rest) or rest[at] in (62, 47, 60):
+        return True
+    first = rest[at]
+    if not (_is_letter(first) or first in (95, 58)):
+        return False
+    while at < len(rest) and (
+        _is_letter(rest[at]) or 48 <= rest[at] <= 57 or rest[at] in (95, 58, 46, 45)
+    ):
+        at = at + 1
+    while at < len(rest) and rest[at] in (32, 9, 10, 13):
+        at = at + 1
+    return at < len(rest) and rest[at] == 61
+
+
+def _is_letter(held: int) -> bool:
+    """Whether one byte is an ASCII letter."""
+    return 65 <= held <= 90 or 97 <= held <= 122
 
 
 # -- the package, opened under every cap -------------------------------
@@ -501,6 +549,120 @@ class Cell:
     number_format: str
     formula: bool
     cached: bool
+
+
+# THE NOISE A WRITER LEAVES IN A STORED NUMBER (plan P4-D170). A workbook
+# stores a number as the text of a binary64, and the writers do not agree
+# on how many figures that text carries: openpyxl writes sixteen
+# significant figures and Excel seventeen, so the value typed as 73.1 is
+# stored `73.09999999999999` or `73.099999999999994` -- the SAME binary64
+# as `73.1`, which is what every reader hands back. The column machinery
+# read those figures as the cell's spelling, published a fraction width
+# of fourteen beside a width of one, and the person's own unchanged
+# workbook then failed `styles.spelled` against its own description.
+# Such a text is read as the shortest spelling of the same value, in the
+# same notation. Nothing a person could mean is moved: the shorter text
+# is the very number stored, and a text of fewer than sixteen figures,
+# or with no shorter spelling of its value, is kept as the file holds it.
+NOISY_FIGURES = 16
+
+
+def stored_number(text: str) -> str:
+    """A stored number's text, read as the shortest spelling of its value.
+
+    Guarantees: a fixed function of the text; raises nothing but the
+    type check. Returns the text unchanged unless it holds a point or an
+    exponent, carries at least `NOISY_FIGURES` significant figures, and
+    a shorter text in the same notation reads back as exactly the same
+    binary64. A whole number with no point is never rewritten: every
+    reader reads it as a whole number, whatever its length.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a stored number was not text")
+    body = text
+    if body[:1] in ("-", "+"):
+        body = body[1:]
+    mantissa = body
+    mark = ""
+    exponent = ""
+    place = mantissa.find("e")
+    if place < 0:
+        place = mantissa.find("E")
+    if place >= 0:
+        mark = mantissa[place]
+        exponent = mantissa[place + 1 :]
+        mantissa = mantissa[:place]
+    point = mantissa.find(".")
+    if point < 0 and not mark:
+        return text
+    figures = mantissa
+    if point >= 0:
+        figures = mantissa[:point] + mantissa[point + 1 :]
+    if not figures or not _all_figures(figures):
+        return text
+    # A TRAILING NOUGHT IS PADDING, NEVER NOISE: a writer's sixteen or
+    # seventeen figures are the shortest-of-that-many spelling, which
+    # never ends in a nought after the point, while a fraction padded to
+    # a width -- synthtwin's own twin writes `45353.39257371100` for a
+    # published width of eleven -- does, and is kept.
+    if point >= 0 and mantissa[len(mantissa) - 1 :] == "0":
+        return text
+    leading = 0
+    while leading < len(figures) and figures[leading] == "0":
+        leading = leading + 1
+    if len(figures) - leading < NOISY_FIGURES:
+        return text
+    try:
+        value = float(text)
+    except ValueError:
+        return text
+    if value != value or value in (float("inf"), float("-inf")):
+        return text
+    shortest = ""
+    if not mark:
+        for precision in range(1, 18):
+            candidate = f"{value:.{precision}g}"
+            if float(candidate) == value:
+                shortest = candidate
+                break
+        if not shortest or "e" in shortest:
+            return text
+    else:
+        for precision in range(0, 17):
+            candidate = f"{value:.{precision}e}"
+            if float(candidate) == value:
+                shortest = _in_the_exponent_of(candidate, mark, exponent)
+                break
+    if not shortest or len(shortest) >= len(text) or float(shortest) != value:
+        return text
+    if text[:1] == "+" and shortest[:1] != "-":
+        shortest = "+" + shortest
+    return shortest
+
+
+def _in_the_exponent_of(candidate: str, mark: str, exponent: str) -> str:
+    """A `1.5e-05` spelling rewritten with the source's exponent letter and width."""
+    if not isinstance(candidate, str):
+        raise TypeError("internal check: an exponent spelling was not text")
+    if not isinstance(exponent, str):
+        raise TypeError("internal check: an exponent spelling was not text")
+    place = candidate.find("e")
+    if place < 0:
+        return ""
+    head = candidate[:place]
+    power = candidate[place + 1 :]
+    negative = power[:1] == "-"
+    if power[:1] in ("-", "+"):
+        power = power[1:]
+    while len(power) > 1 and power[:1] == "0":
+        power = power[1:]
+    width = exponent
+    if width[:1] in ("-", "+"):
+        width = width[1:]
+    while len(power) < len(width):
+        power = "0" + power
+    sign = "-" if negative else ("+" if exponent[:1] == "+" else "")
+    return f"{head}{mark}{sign}{power}"
 
 
 def _marked(marks: "dict[str, str]", key: str, fallback: str) -> str:
@@ -1150,7 +1312,7 @@ def sheet_cells(
         if 0 <= walk.style < len(walk.formats):
             code = walk.formats[walk.style]
         kind = CELL_NUMBER
-        held = walk.value
+        held = stored_number(walk.value)
         if walk.marked_kind == "s":
             kind = CELL_TEXT
             place = _whole_number(walk.value, -1)
@@ -1435,6 +1597,11 @@ class Sheet:
     empty_rows_inside: int
     trailing_blank_rows: int
     trailing_blank_columns: int
+    # WHICH ROW HOLDS THE NAMES IS NOT SETTLED (plan P4-D170): the header
+    # rule stepped over rows of one cell that nothing in the sheet marks
+    # as furniture, so those rows may be the names themselves. The
+    # profile path asks; see `_header_unsettled`.
+    header_unsettled: bool = False
 
 
 def _table_width(widths: "list[int]") -> int:
@@ -1498,8 +1665,60 @@ def _header_row_of(
     return content_rows[0]
 
 
+def _first_row_of(reference: str) -> int:
+    """The first row a range such as `A4:D200` names, or 0."""
+    if not isinstance(reference, str):
+        raise TypeError("internal check: a range was not text")
+    place = reference.find(":")
+    return reference_row(reference if place < 0 else reference[:place])
+
+
+def _header_unsettled(
+    reading: Reading, content_rows: "list[int]", header_row: int
+) -> bool:
+    """Whether the rows the header rule stepped over may be the names.
+
+    THE HEADER RULE CANNOT TELL A TITLE FROM A HEADER OF ONE NAME (plan
+    P4-D170). A title above a table is one cell; so is a header that
+    names one column and leaves the others blank. Measured: `subject` in
+    `A1`, `B1` and `C1` blank, over forty-one records of three texts --
+    the rule stepped over row 1, the first RECORD became the names and
+    was published whole, while pandas named the source's columns
+    `subject`, `Unnamed: 1`, `Unnamed: 2`. Nothing in the values can
+    settle it: a record of three texts looks like names. What CAN is
+    what the sheet says of itself, each a thing a person does to a
+    header and never to a record: the rows frozen at the top end at that
+    row, or the autofilter -- a defined table's included -- begins at it.
+
+    ONLY WHAT A TWIN CARRIES COUNTS. A merged banner says the same, and
+    was measured as evidence and taken out again: the twin writes the
+    rows above its header as cells holding nothing and merges nothing,
+    so the twin of a book settled by its banner was not settled by
+    anything and could not be described again. The frozen rows and the
+    autofilter are published and written back.
+
+    Where neither holds, the rows stepped over are not settled.
+    Guarantees: a fixed function of the arguments; raises nothing.
+    """
+    stepped: "list[int]" = []
+    for number in content_rows:
+        if number < header_row:
+            stepped += [number]
+    if not stepped:
+        return False
+    if reading.frozen_rows == header_row:
+        return False
+    if reading.autofilter and _first_row_of(reading.autofilter) == header_row:
+        return False
+    return True
+
+
 def table_of(
-    reading: Reading, shown: str = "", records_from_the_top: bool = False
+    reading: Reading,
+    shown: str = "",
+    records_from_the_top: bool = False,
+    names_on_top: bool = False,
+    published_header: int = 0,
 ) -> Sheet:
     """The table a sheet holds: its names, its cells and where it sits.
 
@@ -1512,6 +1731,14 @@ def table_of(
     record, and the columns are named by the caller. The workbook branch
     of the reader used to drop that declaration, so a person who said
     their first row was a record still had it published as names.
+
+    WHERE THE HEADER IS NOT SETTLED (`_header_unsettled`, plan P4-D170),
+    ``names_on_top`` is the person's `--first-row names`: the first row
+    of content holds the names, as every reader takes it. The validator
+    passes ``published_header`` instead -- the row the description's
+    `rows_above_header` puts the names on -- and it settles the reading
+    where it is one of the two. Otherwise the header rule's row stands
+    and the sheet says it is unsettled.
 
     THE COLUMNS START AT THE SHEET'S FIRST COLUMN (plan P4-D161). A table
     whose header begins in `C1` is three columns wide to every reader --
@@ -1569,11 +1796,20 @@ def table_of(
         widths += [width]
     wanted = _table_width(widths)
     header_row = 0
+    unsettled = False
     top = content_rows[0] if content_rows[0] < 1 else 1
     if not records_from_the_top:
         header_row = _header_row_of(
             held, content_rows, widths, wanted, first_column
         )
+        unsettled = _header_unsettled(reading, content_rows, header_row)
+        if unsettled and (
+            names_on_top or published_header == content_rows[0]
+        ):
+            header_row = content_rows[0]
+            unsettled = False
+        elif unsettled and published_header == header_row:
+            unsettled = False
         top = header_row + 1
     span = (last_row - top + 1) * (last_column - first_column + 1)
     if span > MAXIMUM_CELLS:
@@ -1656,6 +1892,7 @@ def table_of(
         empty_rows_inside=empty_inside,
         trailing_blank_rows=trailing_rows,
         trailing_blank_columns=trailing_columns,
+        header_unsettled=unsettled,
     )
 
 
@@ -1960,14 +2197,46 @@ def _published_extents(reading: Reading) -> "list[object]":
     return out
 
 
+def as_the_twin_writes(
+    classes: "list[str]", texts: "list[str]", emptied: "tuple[str, ...]"
+) -> "list[str]":
+    """A column's cell classes, with each cell the twin writes empty absent.
+
+    ``emptied`` holds the spellings of absent cells whose spelling the
+    column does not reproduce (plan P4-D170): a cell holding a value that
+    reads as one of them is written holding nothing, so it is counted as
+    a cell holding nothing -- absent -- and every other cell keeps its
+    class. Guarantees: a fixed function of the arguments; raises nothing.
+    """
+    wanted: "dict[str, bool]" = {}
+    for spelling in emptied:
+        wanted[spelling] = True
+    out: "list[str]" = []
+    for index in range(len(classes)):
+        kind = classes[index]
+        if (
+            kind in dialect.SHEET_VALUE_CLASSES
+            and index < len(texts)
+            and texts[index] in wanted
+        ):
+            kind = CELL_ABSENT
+        out += [kind]
+    return out
+
+
 def document_of(
-    reading: Reading, sheet: Sheet, floor: int
+    reading: Reading,
+    sheet: Sheet,
+    floor: int,
+    emptied: "tuple[tuple[str, ...], ...]" = (),
 ) -> "dict[str, object]":
     """The workbook as the description publishes it (contract 4.3b).
 
     Every key is always present, so the loader can require exactly this
     key set; a fact the workbook does not carry, or one the disclosure
     rule of `dialect.sheet_census` holds back, is `null` or nought.
+    ``emptied`` is, per column, the absent spellings the twin writes
+    empty (`as_the_twin_writes`); left out, no cell is moved.
     """
     position = 0
     for index in range(len(reading.sheets)):
@@ -1984,17 +2253,20 @@ def document_of(
                 if carried:
                     formulas = formulas + 1
         kinds = _format_census(sheet.formats[index], total, floor)
+        classes = sheet.classes[index]
+        if index < len(emptied):
+            classes = as_the_twin_writes(
+                classes, sheet.columns[index], emptied[index]
+            )
         columns += [
             {
-                "cell_classes": _census(
-                    sheet.classes[index], CELL_CLASSES, total, floor
-                ),
+                "cell_classes": _census(classes, CELL_CLASSES, total, floor),
                 "format_kinds": kinds,
                 "format_code": _leading_code(
-                    sheet.classes[index], sheet.formats[index], kinds, floor
+                    classes, sheet.formats[index], kinds, floor
                 ),
                 "formulas": dialect.sheet_count(formulas, total, floor),
-                "value_class": _value_class(sheet.classes[index], floor),
+                "value_class": _value_class(classes, floor),
             }
         ]
     return {

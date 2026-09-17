@@ -1109,9 +1109,10 @@ INVARIANTS = {
         "holding nothing, is all of them or reaches the line -- the "
         "smallest group, and never under two -- at both ends; a census "
         "that withholds a count withholds at least two, publishes no "
-        "nought beside them, and leaves them together at nought or at "
-        "the line or more, so that no count, no complement and no "
-        "difference a reader can take names one row"
+        "nought beside them, and leaves them together at nought, at "
+        "the line or more, or at the whole column where nothing is "
+        "published, so that no count, no complement and no difference "
+        "a reader can take names one row"
     ),
     "WB4": (
         "the records holding nothing inside the table are no more than "

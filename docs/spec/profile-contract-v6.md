@@ -849,7 +849,7 @@ rule and what it does and does not withhold on a workbook.
 | `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the disclosure rule held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held exactly as a census is (WB3, plan P4-D160): published where it is every record or reaches the line at both ends, and `null` otherwise -- a nought included, so that a withheld count is never told from a real nought |
 | `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet. A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D165) |
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
-| `rows_above_header` | integer | ≥ 0 | rows standing above the header — a title, a merged banner, a note, and the blank rows between. The header is the first row of content holding two cells or more, or the one row a table one column wide begins with, or the written row index (one cell short, missing its first); a title above a table holds one. `0` where the person declared with `--first-row data` that every row is a record (plan P4-D161) |
+| `rows_above_header` | integer | ≥ 0 | rows standing above the header — a title, a merged banner, a note, and the blank rows between. The header is the first row of content holding two cells or more, or the one row a table one column wide begins with, or the written row index (one cell short, missing its first); a title above a table holds one. Where rows of one cell stand above that header and the sheet neither freezes its panes nor starts its autofilter at the header row, those rows may be the names themselves and the profile stops and asks; `--first-row names` then puts the names on the first row of content (plan P4-D170). `0` where the person declared with `--first-row data` that every row is a record (plan P4-D161) |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
 | `sheet_extents` | array of object-or-`null` | one per sheet, in workbook order | the block of cells each sheet that is NOT the table's holds, as `{rows, columns}` counted from the first cell, and `null` for the sheet the table was read from, whose own facts describe it. A sheet holding nothing is `0` by `0`, and no block reaches two rows, however few columns (WB7, plan P4-D166). The twin writes a sheet of that shape carrying one word of synthtwin's own in every cell |
 | `sheet_hidden` | boolean | — | the sheet the table was read from is hidden |
@@ -867,7 +867,10 @@ else the canonical code of the commonest kind among them where that kind
 is worn by the line, else the general format (plan P4-D160). `cell_classes`
 counts the class of every cell of that column, over the closed set
 `absent`, `blank`, `empty`, `text`, `number`, `boolean`, `error`, `date`
-(`workbook.CELL_CLASSES`); `date` is a cell the file stores as ISO date
+(`workbook.CELL_CLASSES`), counting a cell holding a value whose spelling
+the column reads as absent and does not reproduce -- a spelling under the
+floor, or one a judged pass reads as missing -- as `absent`, the class
+its twin writes it as (plan P4-D170); `date` is a cell the file stores as ISO date
 text (`t="d"`), which every reader hands back as a date and which used to
 be counted a number and written back as text (plan P4-D164).
 `format_kinds` counts what kind of thing each cell's number format makes
@@ -891,7 +894,9 @@ under the line or leaving a complement under it. Where one is, every
 small count and every nought is withheld together, so a withheld key
 never says "some, but few"; and the counts withheld, taken together, are
 never under the line and number at least two, the smallest published
-count joining them until they are. A single count -- `formulas`,
+count joining them until they are. A census with nothing left published
+stands in a table shorter than the line: the row count beside it is all
+a reader can subtract from, and it names nobody (plan P4-D170). A single count -- `formulas`,
 `empty_rows_inside` -- is published where it is the whole or reaches the
 line at both ends, and withheld otherwise, a nought included. A review
 measured the rule this replaced: sixty numbers, thirty-nine texts and one
@@ -910,6 +915,15 @@ stored which way -- measured, a calculation over the numeric cells gave
 15150 on the twin against 300 on the source with every fact held -- so
 the profile is refused and the person told how to make the column one
 type.
+
+**A stored number is read without its writer's noise** (plan P4-D170).
+A number cell's stored text holding a point or an exponent, sixteen
+significant figures or more and no trailing nought after its point is
+read as the shortest spelling, in the same notation, of the same binary64
+(`workbook.stored_number`): openpyxl stores 73.1 as `73.09999999999999`
+and Excel as `73.099999999999994`, and the figures were published as a
+fraction width of fourteen that the person's unchanged workbook then
+failed. No other stored text is moved.
 
 **Why the classes are the cell's own and not a reader's.** A workbook
 cell is typed, and what a reader shows a person is derived from the
@@ -961,9 +975,9 @@ per column; WB2 the sheet the table was read from is one the workbook
 has, counted from one; WB3 every published count of cells, and the count
 of records holding nothing, is all of them or reaches the line at both
 ends, and a census that withholds a count withholds at least two,
-publishes no nought beside them and leaves them together at nought or at
-the line or more, so that no count, complement or difference a reader
-can take names one row; WB4 the records holding nothing inside the
+publishes no nought beside them and leaves them together at nought, at
+the line or more, or at the whole column where nothing is published, so
+that no count, complement or difference a reader can take names one row; WB4 the records holding nothing inside the
 table are no more than the table itself holds, and no more rows are
 frozen than the sheet has; WB5 a workbook names one sheet for every
 sheet it has, every name it publishes is one this version would

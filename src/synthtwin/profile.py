@@ -2681,6 +2681,26 @@ def _published_form(
     return form
 
 
+def _judged_spellings(block: "dict[str, object]") -> "list[str]":
+    """The `missing_by_source` spellings a `read_as_missing` verdict names."""
+    verdicts = block["sentinel_verdicts"] if "sentinel_verdicts" in block else []
+    if not isinstance(verdicts, list):
+        return []
+    named: list[str] = []
+    for verdict in verdicts:
+        if not isinstance(verdict, dict) or "verdict" not in verdict:
+            continue
+        if verdict["verdict"] != taxonomy.VERDICT_MISSING:
+            continue
+        found = verdict["spellings"] if "spellings" in verdict else []
+        if not isinstance(found, list):
+            continue
+        for spelling in found:
+            if isinstance(spelling, str) and spelling not in named:
+                named += [spelling]
+    return named
+
+
 def _judged_cells(block: "dict[str, object]") -> int:
     """How many absent cells of a column block a judged pass took.
 
@@ -2714,12 +2734,49 @@ def _judged_cells(block: "dict[str, object]") -> int:
 
 
 def _published_workbook(
-    table: Table, floor: int
+    table: Table,
+    floor: int,
+    columns: "list[dict[str, object]]",
+    absent_spellings: "list[tuple[str, ...]]",
 ) -> "dict[str, object] | None":
-    """The workbook block, or None where the table was not in one."""
+    """The workbook block, or None where the table was not in one.
+
+    EACH COLUMN'S CENSUS COUNTS WHAT ITS TWIN WRITES (plan P4-D170). The
+    twin writes an absent cell empty unless its spelling is one the
+    column publishes and reproduces (contract C6-115, C6-116), so a
+    workbook cell holding three spaces, `NA` or a declared missing value
+    whose spelling the floor held back comes back from the twin as a cell
+    holding nothing. The census counted it as the text it was, the twin
+    could not write that text, and the twin missed
+    `workbook.cell-classes` while the source passed -- measured on a
+    column of a hundred labels, one of them three spaces, at a floor of
+    five. So the spellings the twin writes empty are handed over, read
+    off the column blocks as published by the rule `_judged_cells` and
+    FD7 share, and such a cell is counted absent on both files alike.
+    """
     if table.book is None or table.sheet is None:
         return None
-    return workbook.document_of(table.book, table.sheet, floor)
+    emptied: "list[tuple[str, ...]]" = []
+    for index in range(len(columns)):
+        block = columns[index]
+        spellings = (
+            block["missing_by_source"] if "missing_by_source" in block else {}
+        )
+        reproduced: "dict[str, bool]" = {}
+        if isinstance(spellings, dict):
+            for spelling in sorted(spellings):
+                if isinstance(spelling, str):
+                    reproduced[spelling] = True
+        for spelling in _judged_spellings(block):
+            if spelling in reproduced:
+                del reproduced[spelling]
+        held = absent_spellings[index] if index < len(absent_spellings) else ()
+        written_empty: "list[str]" = []
+        for spelling in held:
+            if spelling not in reproduced:
+                written_empty += [spelling]
+        emptied += [tuple(written_empty)]
+    return workbook.document_of(table.book, table.sheet, floor, tuple(emptied))
 
 
 def build_document(
@@ -2806,6 +2863,7 @@ def build_document(
                     f"{taxonomy.AMBIGUOUS_DECLARED_VALUE}: {spelling}"
                 )
     columns: list[dict[str, object]] = []
+    absent_spellings: "list[tuple[str, ...]]" = []
     notes: list[dict[str, str]] = []
     for position, name in enumerate(table.column_names, start=1):
         described = taxonomy.profile_column(
@@ -2821,6 +2879,7 @@ def build_document(
             name in read_as_pairs,
         )
         columns += [_column_block(described)]
+        absent_spellings += [described.absent_spellings]
         for note in described.publication_notes:
             notes += [{"column": name, "note": note}]
     document: dict[str, object] = {
@@ -2874,7 +2933,7 @@ def build_document(
             # width, a comment, a hidden row, a hyperlink's target, the
             # document's author -- are not in it at all.
             "workbook": _published_workbook(
-                table, settings.small_cell_floor
+                table, settings.small_cell_floor, columns, absent_spellings
             ),
         },
         "n_rows": table.n_rows,

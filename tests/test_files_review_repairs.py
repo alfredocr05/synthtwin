@@ -1027,3 +1027,299 @@ def test_a_mostly_empty_date_column_keeps_its_date_format(
     column = result["document"]["source"]["workbook"]["columns"][0]
     assert column["format_code"] == dialect.SHEET_CANONICAL_FORMAT_CODES["date"], column
     assert str(pandas.read_excel(result["twin"])["when"].dtype).startswith("datetime64")
+
+
+# -- the repair pass after the files review (plan P4-D170) -------------
+#
+# Each test below is a reproduction a second, independent reading of the
+# repairs above measured on the repaired tree: a header of one name, a
+# table shorter than the line, whitespace cells under the floor, the
+# noise a writer leaves in a stored number, the loader's two subtraction
+# rules, and a first header cell opening like a tag.
+
+
+def _one_name_over_text_records(pane: str = "", merged: bool = False) -> bytes:
+    """`subject` in A1 (B1, C1 blank) over forty-one records of three texts."""
+    strings = ["subject", "CASE-ZEBRA-471", "amber", "Northfield"]
+    grid = {
+        1: [_cell("A1", "0", "s")],
+        2: [_cell("A2", "1", "s"), _cell("B2", "2", "s"), _cell("C2", "3", "s")],
+    }
+    for place in range(40):
+        number = 3 + place
+        strings += [f"CASE-{1000 + place}", ["red", "blue"][place % 2],
+                    ["Eastham", "Westbury", "Southport"][place % 3]]
+        top = len(strings)
+        grid[number] = [
+            _cell(f"A{number}", f"{top - 3}", "s"),
+            _cell(f"B{number}", f"{top - 2}", "s"),
+            _cell(f"C{number}", f"{top - 1}", "s"),
+        ]
+    data = _book([("Data", _rows(grid))], strings, pane=pane)
+    if not merged:
+        return data
+    # A banner: the one cell of row 1 merged across the table's columns.
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as source, zipfile.ZipFile(
+        buffer, "w", zipfile.ZIP_DEFLATED
+    ) as bundle:
+        for entry in source.infolist():
+            held = source.read(entry.filename)
+            if entry.filename == "xl/worksheets/sheet1.xml":
+                held = held.replace(
+                    b"</sheetData>",
+                    b'</sheetData><mergeCells count="1"><mergeCell ref="A1:C1"/></mergeCells>',
+                )
+            bundle.writestr(entry, held)
+    return buffer.getvalue()
+
+
+def test_a_header_of_one_name_is_asked_about(tmp_path: pathlib.Path) -> None:
+    """A header naming one column is not stepped over as a title (P4-D170).
+
+    THE REPRODUCTION. `subject` in `A1` with `B1` and `C1` blank, over
+    forty-one records of three texts, at a floor of five: the header rule
+    took the one-cell row for a title, the first record became the names
+    -- `CASE-ZEBRA-471`, `amber`, `Northfield`, published whole -- and
+    both files validated, while pandas named the source's columns
+    `subject`, `Unnamed: 1`, `Unnamed: 2`. Nothing in the sheet says the
+    row is a title, so the run stops and asks, quoting no cell; with
+    `--first-row names` the first row is the names and the round trip
+    holds.
+    """
+    pandas = pytest.importorskip("pandas")
+    source = tmp_path / "one-name.xlsx"
+    source.write_bytes(_one_name_over_text_records())
+    code, said = _exit_of(["profile", str(source), "--out-dir", str(tmp_path),
+                           "--smallest-group", "5"])
+    assert code != 0
+    assert "--first-row names" in said
+    assert "ZEBRA" not in said and "Northfield" not in said
+    assert not (tmp_path / "one-name-profile.json").exists()
+
+    declared = tmp_path / "declared"
+    result = _trip(declared, "one-name", _one_name_over_text_records(),
+                   ("--smallest-group", "5", "--first-row", "names"))
+    _held(result)
+    document = result["document"]
+    assert [one["name"] for one in document["columns"]] == [
+        "subject", "Unnamed: 1", "Unnamed: 2",
+    ]
+    assert document["n_rows"] == 41
+    assert b"ZEBRA" not in result["described"].read_bytes()
+    assert list(pandas.read_excel(result["twin"]).columns) == list(
+        pandas.read_excel(result["source"]).columns
+    )
+
+
+def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> None:
+    """Frozen panes or a filter on the names settle the header (P4-D170).
+
+    The same rows, with the panes frozen below row 2 or the autofilter
+    on row 2, are a title above the names: the run is not stopped, one
+    row stands above the header, and the twin -- which carries both --
+    is described again without a question. A merged banner alone is
+    asked about, because a twin merges nothing.
+    """
+    frozen = tmp_path / "frozen"
+    pane = ('<sheetViews><sheetView workbookViewId="0"><pane ySplit="2" '
+            'topLeftCell="A3" activePane="bottomLeft" state="frozen"/>'
+            "</sheetView></sheetViews>")
+    result = _trip(frozen, "frozen", _one_name_over_text_records(pane=pane),
+                   ("--smallest-group", "5"))
+    _held(result)
+    assert result["document"]["source"]["workbook"]["rows_above_header"] == 1
+    assert [one["name"] for one in result["document"]["columns"]] != [
+        "subject", "Unnamed: 1", "Unnamed: 2",
+    ]
+    filtered = tmp_path / "filtered"
+    result = _trip(filtered, "filtered",
+                   _one_name_over_text_records(pane='<autoFilter ref="A2:C42"/>'),
+                   ("--smallest-group", "5"))
+    _held(result)
+    assert result["document"]["source"]["workbook"]["rows_above_header"] == 1
+    banner = tmp_path / "banner.xlsx"
+    banner.write_bytes(_one_name_over_text_records(merged=True))
+    with pytest.raises(errors.ProfileError) as raised:
+        reading.read_table(str(banner))
+    assert "--first-row names" in f"{raised.value}"
+
+
+def _short_table(rows: int) -> bytes:
+    grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
+    for place in range(rows):
+        number = 2 + place
+        cells = [_cell(f"B{number}", f"{10 + place * 3}")]
+        if place == 1:
+            cells = [_cell(f"A{number}", "2", "s")] + cells
+        elif place > 1:
+            cells = [_cell(f"A{number}", f"{place * 7}")] + cells
+        grid[number] = cells
+    return _book([("Data", _rows(grid))], ["v", "k", "note"])
+
+
+@pytest.mark.parametrize("rows, floor", [(8, "11"), (4, "5")])
+def test_a_table_shorter_than_the_line_loads_its_own_census(
+    tmp_path: pathlib.Path, rows: int, floor: str
+) -> None:
+    """A census held back whole stands in a table shorter than the line (P4-D170).
+
+    THE REPRODUCTION. Eight rows at a floor of eleven, a column of one
+    absent cell, one text and six numbers: the producer withheld every
+    count -- nothing else it could do -- and the loader refused that
+    census because the eight withheld cells were fewer than the line,
+    so `generate` said the description had been changed since it was
+    written. What a census with nothing published leaves to subtract
+    from is the row count alone, which names nobody.
+    """
+    result = _trip(tmp_path, "short", _short_table(rows), ("--smallest-group", floor))
+    _held(result)
+    census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
+    assert set(census.values()) == {None}, census
+    assert dialect.sheet_census_broken(census, rows, int(floor)) == ""
+
+
+def test_every_census_the_producer_writes_is_one_the_loader_takes() -> None:
+    """The producer's census and the loader's rule agree, exhaustively (P4-D170).
+
+    Every split of up to fifteen cells among three classes, at floors of
+    one, two, five and eleven: the census `sheet_census` publishes is one
+    `sheet_census_broken` accepts. The rule the loader enforces and the
+    rule the producer follows are written beside each other, and a table
+    shorter than the line is where they parted.
+    """
+    every = dialect.SHEET_CELL_CLASSES
+    for total in range(0, 16):
+        for first in range(0, total + 1):
+            for second in range(0, total - first + 1):
+                counts = {"number": first, "text": second, "absent": total - first - second}
+                for floor in (1, 2, 5, 11):
+                    published = dialect.sheet_census(counts, every, total, floor)
+                    assert dialect.sheet_census_broken(published, total, floor) == "", (
+                        counts, total, floor, published,
+                    )
+
+
+def test_the_loader_refuses_each_subtraction_a_census_could_leave() -> None:
+    """Each of WB3's two subtraction rules refuses on its own (P4-D170).
+
+    Neither census publishes a nought, so only the rule named can refuse
+    it: one withheld count beside every other class published rebuilds
+    that count by subtraction, and two withheld counts that come to five
+    at a floor of eleven are a difference under the line.
+    """
+    one_withheld = {
+        "absent": 30, "blank": 30, "boolean": 30, "date": None, "empty": 30,
+        "error": 30, "number": 30, "text": 30,
+    }
+    assert "withholds one count" in dialect.sheet_census_broken(one_withheld, 240, 11)
+    under_the_line = {
+        "absent": 30, "blank": 30, "boolean": 30, "date": None, "empty": 30,
+        "error": None, "number": 85, "text": 30,
+    }
+    assert "come to 5" in dialect.sheet_census_broken(under_the_line, 240, 11)
+
+
+def _spaced(cells: int) -> bytes:
+    strings = ["v", "k", "North", "South", "   "]
+    grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
+    for place in range(100):
+        number = 2 + place
+        label = "4" if place < cells else ("2" if place % 2 else "3")
+        grid[number] = [_cell(f"A{number}", label, "s"), _cell(f"B{number}", f"{place % 4}")]
+    return _book([("Data", _rows(grid))], strings)
+
+
+@pytest.mark.parametrize("cells", [1, 3])
+def test_a_cell_of_spaces_under_the_floor_is_counted_as_its_twin_writes_it(
+    tmp_path: pathlib.Path, cells: int
+) -> None:
+    """A cell the twin writes empty is counted as a cell holding nothing (P4-D170).
+
+    THE REPRODUCTION. A hundred labels, one or three of them three
+    spaces, at a floor of five: the spelling is under the floor and not
+    published, so the twin writes those cells empty -- and the census
+    counted them as text, published `text 100`, and the twin missed
+    `workbook.cell-classes` while the source passed. The census counts
+    what the twin writes, on both files alike.
+    """
+    result = _trip(tmp_path, "spaced", _spaced(cells), ("--smallest-group", "5"))
+    _held(result)
+    column = result["document"]["columns"][0]
+    assert column["missing_by_source"] == {}
+    census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
+    assert census["text"] != 100, census
+
+
+def test_a_judged_sentinel_is_counted_as_its_twin_writes_it(tmp_path: pathlib.Path) -> None:
+    """The cells a judged pass reads as missing are written empty, and counted so.
+
+    Two hundred and forty ages, every twelfth `-999`: the judged pass
+    reads the twenty as missing and the twin writes them empty, while the
+    census counted `number 240` and the twin missed
+    `workbook.cell-classes` (plan P4-D170).
+    """
+    rnd = random.Random(5)
+    grid = {1: [_cell("A1", "0", "s")]}
+    for place in range(240):
+        number = 2 + place
+        value = "-999" if place % 12 == 0 else f"{rnd.randint(20, 90)}"
+        grid[number] = [_cell(f"A{number}", value)]
+    result = _trip(tmp_path, "sentinel", _book([("Data", _rows(grid))], ["age"]),
+                   ("--smallest-group", "5"))
+    _held(result)
+    census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
+    assert census["absent"] == 20 and census["number"] == 220, census
+
+
+def test_a_stored_number_is_read_without_its_writers_noise(tmp_path: pathlib.Path) -> None:
+    """`73.09999999999999` is the stored 73.1, and is read so (plan P4-D170).
+
+    THE REPRODUCTION. openpyxl stores a weight of 73.1 as
+    `73.09999999999999` and Excel as `73.099999999999994`, the same
+    binary64 either way. The column machinery read those figures as the
+    cell's spelling, published fraction widths of one and fourteen, and
+    the person's own unchanged workbook failed `styles.spelled` against
+    its own description.
+    """
+    rnd = random.Random(3)
+    grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
+    for place in range(200):
+        number = 2 + place
+        weight = round(rnd.gauss(72, 12), 1)
+        grid[number] = [_cell(f"A{number}", f"{place + 1}"),
+                        _cell(f"B{number}", f"{weight:.16g}")]
+    result = _trip(tmp_path, "weights", _book([("Data", _rows(grid))], ["id", "weight"]))
+    _held(result)
+    widths = result["document"]["columns"][1]["fraction_widths"]
+    assert sorted(widths) == ["1"], widths
+    for noisy, read in (
+        ("73.09999999999999", "73.1"), ("73.099999999999994", "73.1"),
+        ("6.9000000000000006E-2", "6.9E-2"), ("+73.09999999999999", "+73.1"),
+    ):
+        assert workbook.stored_number(noisy) == read
+    # A different binary64, a whole number, a text too short to be noise
+    # and a fraction padded to a published width -- the twin writes
+    # `45353.39257371100` for a width of eleven -- are kept as the file
+    # holds them.
+    for kept in ("0.30000000000000004", "12345678901234567", "73.10", "1e999",
+                 "45353.39257371100"):
+        assert workbook.stored_number(kept) == kept
+
+
+def test_a_header_opening_like_a_tag_name_is_read(tmp_path: pathlib.Path) -> None:
+    """`<body temp` is a header cell, not a web page (plan P4-D170).
+
+    A name ending in a space was enough to call the file markup, so a
+    delimited table whose first header was `<body temp` or `<table 2`
+    was refused. Markup's name is followed by the tag's end or an
+    attribute.
+    """
+    source = tmp_path / "temps.csv"
+    source.write_bytes(b"<body temp,x\n1,2\n3,4\n5,6\n")
+    found = reading.read_table(str(source), first_row=reading.FIRST_ROW_NAMES)
+    assert found.column_names == ["<body temp", "x"]
+    assert workbook.kind_of(b"<table 2,x\n1,2\n") == workbook.KIND_OTHER
+    for page in (b'<html lang="en">', b"<table border=1>", b"<body/>",
+                 b"<html\n  xmlns:o='x'>", b"<table>\n<tr>"):
+        assert workbook.kind_of(page) == workbook.KIND_MARKUP, page

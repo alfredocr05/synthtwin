@@ -2374,6 +2374,15 @@ the command line and never passed to the reader, so a real workbook
 whose table is not on the first visible sheet was measured at whichever
 sheet the reader settled on by itself.
 
+The row a checked workbook's names stand on is the description's where
+the sheet does not settle it (plan P4-D170). Rows of one cell above the
+reader's header row, with no frozen panes and no autofilter at that row,
+may be a title or the names themselves; the producer asks, and the
+checked file is read with its names on the row `rows_above_header` puts
+them on, where that row is one of the two readings. Where it is neither,
+the reader's own row stands and `workbook.rows-above-header` is measured
+against it.
+
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D86). The first four rules above are no longer constants: each asks
 what `source.encoding` and `source.dialect` record — the encoding

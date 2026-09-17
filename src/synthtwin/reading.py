@@ -1103,6 +1103,7 @@ def _read_workbook_table(
     wanted: str,
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
+    published_header: int = 0,
 ) -> Table:
     """One sheet of a workbook, as a table of text (plan P4-D77).
 
@@ -1137,7 +1138,24 @@ def _read_workbook_table(
     parts = opened_workbook(table_path, shown)
     reading = workbook.read_parts(parts, shown, wanted, positions)
     records = first_row == FIRST_ROW_DATA
-    sheet = workbook.table_of(reading, shown, records)
+    # WHICH ROW HOLDS THE NAMES, WHERE THE SHEET DOES NOT SETTLE IT (plan
+    # P4-D170). A row of one cell above the header rule's row may be a
+    # title or the names of a table that leaves its other names blank,
+    # and taking it for a title published a person's record as the names.
+    # The person's `--first-row names` says the first row holds them; the
+    # validator settles it by the description it checks against; and an
+    # undeclared profile is stopped and asked, quoting nothing.
+    sheet = workbook.table_of(
+        reading, shown, records,
+        names_on_top=first_row == FIRST_ROW_NAMES and not positions,
+        published_header=published_header if positions else 0,
+    )
+    if sheet.header_unsettled and not positions and first_row == FIRST_ROW_AUTOMATIC:
+        raise errors.ProfileError(
+            errors.workbook_header_row_unsettled(
+                shown, len(sheet.columns), sheet.header_row
+            )
+        )
     if not sheet.columns:
         if positions:
             raise errors.ProfileError(
@@ -1234,8 +1252,13 @@ def read_table(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
+    published_header: int = 0,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``published_header`` is the validator's alone: the row a workbook
+    description puts its names on, which settles a checked workbook's
+    header where the sheet leaves it unsettled (plan P4-D170).
 
     ``encoding``, where given, is a description's published encoding,
     and the bytes are read in it wherever they can be
@@ -1392,7 +1415,8 @@ def read_table(
                 errors.delimiter_declared_on_a_workbook(shown)
             )
         return _read_workbook_table(
-            f"{table_path}", shown, sheet, first_row, refusals
+            f"{table_path}", shown, sheet, first_row, refusals,
+            published_header,
         )
     try:
         found = _read_authoritatively(

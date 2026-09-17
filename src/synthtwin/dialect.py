@@ -347,6 +347,9 @@ SHEET_COLUMN_KEYS = (
 #   published count -- is never under the line, and holds at least two
 #   keys. Where it would, the smallest published count joins it, the
 #   earlier key on a tie, until it does or nothing is left published.
+#   A census with nothing left published stands whatever the column's
+#   total: what it leaves to subtract from is the row count alone, which
+#   is published beside it (plan P4-D170).
 #
 # A SINGLE COUNT beside its total is the same rule with nowhere to pool:
 # it is published where it is the whole, or where it and its complement
@@ -484,7 +487,12 @@ def sheet_census_broken(
     if withheld < 2:
         return "a census withholds one count, which the others rebuild"
     remainder = total - counted
-    if 0 < remainder < line:
+    # A CENSUS HELD BACK WHOLE leaves the row count as the only thing to
+    # subtract from, and the row count is published anyway: a table of
+    # eight rows at a floor of eleven withholds every count, and that
+    # names nobody. Refusing it refused the producer's own description
+    # (plan P4-D170).
+    if counted and 0 < remainder < line:
         return (
             f"the counts a census withholds come to {remainder}, and the "
             f"line is {line}"
