@@ -4656,6 +4656,7 @@ def _placeholder_verdicts(
     format_name: str,
     settings: Settings,
     decimal_comma: bool = False,
+    kept_days: "tuple[str, ...]" = (),
 ) -> "dict[str, tuple[bool, str, int]]":
     """Decide, for each placeholder day present, whether it means "missing".
 
@@ -4679,6 +4680,18 @@ def _placeholder_verdicts(
     of this package counts in, so no floating-point value is formed
     anywhere near a calendar and the answer is the same on every
     machine.
+
+    AND A DAY THIS COLUMN'S OWN DESCRIPTION RECORDS AS KEPT is kept
+    (plan P4-D136). `kept_days` is handed over by the validator alone:
+    the placeholder days a description it checks against published as
+    `kept_by_you` in THIS column. A person who typed `01/01/1900` after
+    `--keep-value` kept the cells spelled that way, and the settings
+    block records only the vocabulary's own `1900-01-01` -- so without
+    this the checked file's placeholder cells were judged as holes,
+    and the table checked against its own description went from 500
+    values to 470 and missed 14 obligations. It is asked of this column
+    and no other, which is exactly how far the person's spelling reached.
+    `synthtwin profile` never passes it.
 
     Returns placeholder -> (is missing, reason code, occurrences).
     """
@@ -4713,7 +4726,7 @@ def _placeholder_verdicts(
         # taken out over their instruction. So the declaration is asked
         # of the CELLS that denote this candidate, and of the canonical
         # spelling too, because a person may type either.
-        if _declared_spelling(candidate, kept):
+        if _declared_spelling(candidate, kept) or candidate in kept_days:
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
         if _kept_by_spelling(present, format_name, candidate, kept):
@@ -8083,41 +8096,41 @@ def _datetime_details(
 
 
 def _floored_census(
-    counts: "dict[str, int]", settings: Settings
+    counts: "dict[str, int]", population: int, settings: Settings
 ) -> "dict[str, int]":
-    """One census of written forms, held to the smallest group size.
+    """One census of written forms, held to the disclosure rule (P4-D131).
 
-    `_offset_counts`' rule exactly, written once for the four censuses
-    landing 2b.6 adds: a name is published where its count reaches the
-    floor, and the rest pool under `(withheld)`. A form held by one row
-    describes how THAT row was written, which is why none of these is
-    published bare.
+    `parsing.disclosed_census` exactly, written once for the four
+    censuses landing 2b.6 added and asked of each with the total the
+    document already publishes for the cells it counts over.
 
-    Guarantees: accepts a tally and the run's settings; returns the
-    published census. Determinism: a function of the two. Raises nothing.
-    No I/O of any kind.
+    WHAT IT REPLACES AND WHY (review of 158c811, item 1). This census
+    used to take `_offset_counts`' rule: a name published where its count
+    reached the smallest group size, the rest pooled under `(withheld)`.
+    At the default size of one that published a count of one outright,
+    and at any size it pooled into a key that named the one form left:
+    400 moments at noon, one of them written with a lower-case `z`,
+    published `{"lower": 1, "upper": 399}` by default and
+    `{"upper": 399, "(withheld)": 1}` at a floor of eleven, and both
+    descriptions loaded. A form held by one row describes how THAT row
+    was written.
+
+    Guarantees: accepts a tally, the published total it counts over and
+    the run's settings; returns the published census. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
     """
-    published: "dict[str, int]" = {}
-    withheld = 0
-    for key in sorted(counts):
-        if counts[key] >= settings.small_cell_floor:
-            published[key] = counts[key]
-        else:
-            withheld = withheld + counts[key]
-    if withheld:
-        published[parsing.MISSING_WITHHELD] = withheld
-    return published
+    return parsing.disclosed_census(
+        counts, population, settings.small_cell_floor
+    )
 
 
-def _width_counts(
-    sources: "list[str]", format_name: str, settings: Settings
-) -> "dict[str, int]":
-    """How many parsed cells wrote each joint width convention (2b.6).
+def width_tally(sources: "list[str]", format_name: str) -> "dict[str, int]":
+    """How many cells wrote each width word, before any floor (2b.6, P4-D132).
 
     Counted over the cells that could SHOW one -- a field below ten --
-    so a column of dates every one of which falls after the ninth of a
-    month above September publishes an empty census, honestly: nothing
-    in it says how it would have written a single figure.
+    and NOT folded; `parsing.folded_width_tally` folds it. The validator
+    asks this of a file's own cells, so the producer and the checker
+    count one way.
     """
     counts: "dict[str, int]" = {}
     for value in sources:
@@ -8128,17 +8141,15 @@ def _width_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    return _floored_census(counts, settings)
+    return counts
 
 
-def _name_style_counts(
-    sources: "list[str]", format_name: str, settings: Settings
-) -> "dict[str, int]":
-    """How many parsed cells wrote each joint month-name style (2b.6).
+def name_style_tally(sources: "list[str]", format_name: str) -> "dict[str, int]":
+    """How many cells wrote each month-name style, before any floor (2b.6).
 
-    A cell whose month is MAY is counted under no key: `May` is its own
-    abbreviation, so that cell says nothing about whether the column
-    writes names in full.
+    NOT folded; `parsing.folded_name_tally` folds a name of May into the
+    length its column's other cells wrote. A spelling outside the three
+    cases is counted under no key.
     """
     counts: "dict[str, int]" = {}
     for value in sources:
@@ -8149,7 +8160,48 @@ def _name_style_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    return _floored_census(counts, settings)
+    return counts
+
+
+def _width_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each width convention (2b.6, P4-D139).
+
+    Counted over the cells that could SHOW one -- a field below ten --
+    so a column of dates every one of which falls after the ninth of a
+    month above September publishes an empty census, honestly: nothing
+    in it says how it would have written a single figure.
+
+    AND WHAT THE NAMED COUNTS LEAVE OVER IS COUNTED AGAINST THOSE CELLS,
+    not against every parsed cell (plan P4-D139; skeptic of the review of
+    158c811, finding 2). A date whose two fields are both ten or more was
+    written with no convention at all, so it is no form a reader could
+    learn by subtraction; counted as one, a single `12/25/2019` among 244
+    dates written `m/d/yyyy` left a remainder of one, the census was
+    withheld whole, and 212 of the twin's 245 cells were written
+    `04/14/2020`. One-field counts are folded into the joint words first
+    (`parsing.folded_width_tally`).
+    """
+    counts = parsing.folded_width_tally(width_tally(sources, format_name))
+    shown = 0
+    for name in counts:
+        shown = shown + counts[name]
+    return _floored_census(counts, shown, settings)
+
+
+def _name_style_counts(
+    sources: "list[str]", format_name: str, settings: Settings
+) -> "dict[str, int]":
+    """How many parsed cells wrote each joint month-name style (2b.6).
+
+    A cell whose month is MAY shows no length and is folded into the
+    style of the same case, mark and comma its column's other cells
+    wrote (`parsing.folded_name_tally`, plan P4-D139); it keeps its
+    `either` word only where no other cell wrote those three.
+    """
+    counts = parsing.folded_name_tally(name_style_tally(sources, format_name))
+    return _floored_census(counts, len(sources), settings)
 
 
 def _marker_counts(
@@ -8165,7 +8217,7 @@ def _marker_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    return _floored_census(counts, settings)
+    return _floored_census(counts, len(sources), settings)
 
 
 def _zulu_counts(
@@ -8193,7 +8245,7 @@ def _zulu_counts(
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    return _floored_census(counts, settings)
+    return _floored_census(counts, offsets["Z"], settings)
 
 
 def _separator_counts(
@@ -8324,9 +8376,7 @@ def _midnight_count(
     for value in sources:
         if parsing.clock_at_midnight(value, format_name):
             counted = counted + 1
-    floor = settings.small_cell_floor
-    if floor < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
-        floor = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    floor = parsing.disclosure_line(settings.small_cell_floor)
     if counted == len(sources):
         return counted if counted >= floor else None
     if counted >= floor and len(sources) - counted >= floor:
@@ -12507,6 +12557,7 @@ def profile_column(
     forced_measurement: bool = False,
     forced_decimal_comma: bool = False,
     described_as_pair: bool = False,
+    kept_placeholder_days: "tuple[str, ...]" = (),
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -12536,6 +12587,10 @@ def profile_column(
       slashed pair of whole numbers from the values, so the checked
       file is read the way the description was (plan P4-D40,
       validation method V2.2-A2). `_decide` states what it moves.
+    - ``kept_placeholder_days`` is not a declaration either, and no person
+      sets it: the validator hands over the placeholder days the checked
+      description published as `kept_by_you` in this column, so the file
+      keeps them exactly as the description did (plan P4-D136).
     - Errors raised: TypeError if a value is not text (an internal
       invariant: both readers produce text), and ValueError when the
       settings name one value BOTH as data and as "no value" -- there
@@ -12684,7 +12739,11 @@ def profile_column(
             reading = _remainder_reading(present, settings)
             if reading is not None:
                 day_verdicts = _placeholder_verdicts(
-                    present, reading, settings, forced_decimal_comma
+                    present,
+                    reading,
+                    settings,
+                    forced_decimal_comma,
+                    kept_placeholder_days,
                 )
                 withheld_days = sorted(
                     candidate

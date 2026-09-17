@@ -934,9 +934,10 @@ REGISTRY += (
     ),
     # THE FOUR CENSUSES OF HOW THE DATES WERE WRITTEN (landing 2b.6,
     # plan P4-D61), which are what let the twin be written in the
-    # member that read the real column instead of in ISO. Each owes a
-    # file its KEY SET and each key's floor rather than its count, and
-    # the plan and the contract both say so.
+    # member that read the real column instead of in ISO. The widths and
+    # the month names owe a file their KEY SET and each key's floor
+    # rather than their count; the two marker cases owe it every count
+    # exactly (plan P4-D134); and the plan and the contract both say so.
     Fact(
         "datetime",
         "date_field_widths",

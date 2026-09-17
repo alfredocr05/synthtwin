@@ -2911,13 +2911,21 @@ def field_text(value, padded):
 
 
 def pair_widths(width):
-    """One joint width word as a padding decision per field."""
+    """One width word as a padding decision per field (G7.5, P4-D132).
+
+    A joint word decides both fields; a one-field word decides its own
+    field and leaves the other padded.
+    """
     if width == "unpadded":
         return False, False
     if width == "first-padded":
         return True, False
     if width == "second-padded":
         return False, True
+    if width == "first-field-unpadded":
+        return False, True
+    if width == "second-field-unpadded":
+        return True, False
     return True, True
 
 
@@ -3076,27 +3084,12 @@ def interpolated_ordinal(position, denominator, rungs):
 
 
 def census_weights(census, permitted):
-    """How many ranks each written form is owed (method G7.5, 2b.6).
+    """How many ranks each written form is owed (method G7.5, P4-D131).
 
-    Every named count as published, and a withheld pool split EVENLY
-    over the forms the census leaves unnamed, a remainder going one each
-    in the vocabulary's own order -- the rule the marks already follow.
+    Every form of ``permitted`` the census names, at its published count.
+    A census of written forms names no pool, so nothing is split.
     """
-    weights = {
-        name: count for name, count in census.items() if name != "(withheld)"
-    }
-    if "(withheld)" not in census:
-        return weights
-    unnamed = [name for name in permitted if name not in census]
-    if not unnamed:
-        return weights
-    pool = census["(withheld)"]
-    share, rest = divmod(pool, len(unnamed))
-    for place, name in enumerate(unnamed):
-        given = share + (1 if place < rest else 0)
-        if given > 0:
-            weights[name] = given
-    return weights
+    return {name: census[name] for name in permitted if name in census}
 
 
 def rotated(weights, count):
@@ -3141,23 +3134,78 @@ def commonest_of(census, default):
     return best or default
 
 
-FIELD_WIDTH_STYLES = ("padded", "unpadded", "first-padded", "second-padded")
+FIELD_WIDTH_BOTH = ("padded", "unpadded", "first-padded", "second-padded")
+FIELD_WIDTH_FIRST = ("first-field-padded", "first-field-unpadded")
+FIELD_WIDTH_SECOND = ("second-field-padded", "second-field-unpadded")
 FIELD_WIDTH_STYLES_ONE_FIELD = ("padded", "unpadded")
 QUARTER_MARKER_CASES = ("upper", "lower")
 ZULU_CASES = ("upper", "lower")
 
 
-def month_name_styles_of(member):
-    """Which joint month-name styles one member's cells can show."""
+def month_name_styles_of(member, length_words=("abbreviated", "full")):
+    """The joint month-name styles one member's cells can show, at the
+    given lengths: ``("either",)`` for a cell of May (P4-D133)."""
     built = []
     for case in ("upper", "title", "lower"):
-        for length in ("abbreviated", "full"):
+        for length in length_words:
             for mark in ("space", "hyphen"):
                 for comma in ("comma", "no-comma"):
                     if member == "textual-day-first-date" and comma == "comma":
                         continue
                     built.append(f"{case}-{length}-{mark}-{comma}")
     return tuple(built)
+
+
+def reserved(weights, count, floor):
+    """One form per place, every named form given its published least
+    (method G7.5, P4-D132).
+
+    The rotation alone where it gives every form with a positive weight at
+    least min(weight, line), line being the floor and never below two.
+    Otherwise, unless those leasts come to more than the places: reserve
+    the leasts, share the places left by the rotation over what each form
+    is owed beyond its least (over the leasts where nobody is owed more),
+    and spread the finished counts by the rotation.
+    """
+    spread = rotated(weights, count)
+    line = max(floor, 2)
+    least = {name: min(weight, line) for name, weight in weights.items() if weight > 0}
+    if all(spread.count(name) >= need for name, need in least.items()):
+        return spread
+    if sum(least.values()) > count:
+        return spread
+    beyond = {name: weights[name] - need for name, need in least.items() if weights[name] > need}
+    for name in rotated(beyond or dict(least), count - sum(least.values())):
+        least[name] += 1
+    return rotated(least, count)
+
+
+def joint_width_of(census):
+    """The commonest joint word; else the joint word of the commonest
+    first-field and second-field words, a field with none padded (P4-D132)."""
+    joint = commonest_of(census_weights(census, FIELD_WIDTH_BOTH), "")
+    if joint:
+        return joint
+    first = commonest_of(census_weights(census, FIELD_WIDTH_FIRST), "first-field-padded")
+    second = commonest_of(census_weights(census, FIELD_WIDTH_SECOND), "second-field-padded")
+    pads = (first == "first-field-padded", second == "second-field-padded")
+    return {(True, True): "padded", (True, False): "first-padded",
+            (False, True): "second-padded", (False, False): "unpadded"}[pads]
+
+
+def field_weights(census, which):
+    """A one-field class's weights: its own two words where the census counts
+    them, else the joint words' padding of that field, summed (P4-D132)."""
+    words = FIELD_WIDTH_FIRST if which == 1 else FIELD_WIDTH_SECOND
+    owed = census_weights(census, words)
+    if owed:
+        return owed
+    for name in FIELD_WIDTH_BOTH:
+        if name in census:
+            padded = pair_widths(name)[which - 1]
+            word = words[0] if padded else words[1]
+            owed[word] = owed.get(word, 0) + census[name]
+    return owed
 
 
 def written_fields(column, ordinals, offsets, parsed, space, resolution):
@@ -3194,65 +3242,90 @@ def written_fields(column, ordinals, offsets, parsed, space, resolution):
     return fields
 
 
-def written_styles(column, fields, parsed, resolution, offsets):
+def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL_CELL_FLOOR):
     """The four written forms every rank takes (method G7.5, 2b.6).
 
-    Each census is spent over the ranks that CAN show it -- a field
-    below ten, a month that is not May, a cell carrying a zulu marker --
-    and a rank outside that set takes the column's commonest form.  The
-    two joint width words say something about BOTH fields, so they are
-    spent only on the ranks whose two fields are both below ten.
+    WIDTHS (P4-D132): a rank whose two numeric fields are both below ten
+    takes a joint word; one whose first field alone is, a first-field word
+    written as ``padded`` or ``unpadded``; one whose second alone is, a
+    second-field word likewise -- first and second in the member's own
+    field order.  A textual member's day is its one field.  A class with no
+    count of its own takes ``field_weights``; a rank showing nothing takes
+    ``joint_width_of``.  NAMES (P4-D133): a rank of May takes the census's
+    ``either`` words and every other rank its words naming a length; a
+    class with none takes the other's words, an ``either`` word at the
+    abbreviated length or a named length as ``either``.  Every class is
+    spent by ``reserved``.  Markers over every quarter rank and zulu cases
+    over the ranks carrying ``Z``, by ``reserved`` too.
     """
     member = column["format"]
     widths_census = column.get("date_field_widths", {})
     names_census = column.get("month_name_styles", {})
     marker_census = column.get("quarter_marker_case", {})
     zulu_census = column.get("zulu_case", {})
-    width_fallback = commonest_of(widths_census, DEFAULT_WIDTH)
+    width_fallback = joint_width_of(widths_census)
     name_fallback = commonest_of(names_census, DEFAULT_NAME_STYLE)
     widths = [width_fallback] * parsed
     if widths_census:
-        permitted = FIELD_WIDTH_STYLES
-        if member in TEXTUAL_MEMBERS:
-            permitted = FIELD_WIDTH_STYLES_ONE_FIELD
-        weights = census_weights(widths_census, permitted)
-        plain = {
-            name: weight
-            for name, weight in weights.items()
-            if name in ("padded", "unpadded")
-        }
-        both, single = [], []
+        both, first, second = [], [], []
         for rank, (month, day) in enumerate(fields):
             if member in TEXTUAL_MEMBERS:
                 if day < 10:
-                    single.append(rank)
+                    first.append(rank)
                 continue
-            low = (1 if month < 10 else 0) + (1 if day < 10 else 0)
-            if low == 2:
+            low = (month < 10, day < 10)
+            if member in DAY_FIRST_MEMBERS:
+                low = (day < 10, month < 10)
+            if low == (True, True):
                 both.append(rank)
-            elif low == 1:
-                single.append(rank)
-        for rank, form in zip(both, rotated(weights, len(both))):
-            widths[rank] = form
-        over = plain or {width_fallback: 1}
-        for rank, form in zip(single, rotated(over, len(single))):
-            widths[rank] = form
+            elif low[0]:
+                first.append(rank)
+            elif low[1]:
+                second.append(rank)
+        if member in TEXTUAL_MEMBERS:
+            weights = census_weights(widths_census, FIELD_WIDTH_STYLES_ONE_FIELD) or {width_fallback: 1}
+            for rank, form in zip(first, reserved(weights, len(first), floor)):
+                widths[rank] = form
+        else:
+            weights = census_weights(widths_census, FIELD_WIDTH_BOTH) or {width_fallback: 1}
+            for rank, form in zip(both, reserved(weights, len(both), floor)):
+                widths[rank] = form
+            for which, ranks in ((1, first), (2, second)):
+                words = FIELD_WIDTH_FIRST if which == 1 else FIELD_WIDTH_SECOND
+                owed = field_weights(widths_census, which) or {words[0]: 1}
+                for rank, form in zip(ranks, reserved(owed, len(ranks), floor)):
+                    widths[rank] = "unpadded" if form.endswith("-unpadded") else "padded"
     names = [name_fallback] * parsed
     if names_census:
-        places = [rank for rank, (month, _day) in enumerate(fields) if month != 5]
-        spread = rotated(census_weights(names_census, month_name_styles_of(member)), len(places))
-        for rank, form in zip(places, spread):
-            names[rank] = form
+        resolved = month_name_styles_of(member)
+        either = month_name_styles_of(member, ("either",))
+        may = [rank for rank, (month, _day) in enumerate(fields) if month == 5]
+        rest = [rank for rank, (month, _day) in enumerate(fields) if month != 5]
+        for places, words, others, length in (
+            (rest, resolved, either, "abbreviated"),
+            (may, either, resolved, "either"),
+        ):
+            owed = census_weights(names_census, words)
+            if not owed:
+                for name in others:
+                    if name in names_census:
+                        case, _length, mark, comma = name_parts(name)
+                        moved = f"{case}-{length}-{mark}-{comma}"
+                        owed[moved] = owed.get(moved, 0) + names_census[name]
+            if not owed:
+                continue
+            for rank, form in zip(places, reserved(owed, len(places), floor)):
+                names[rank] = form
     markers = [commonest_of(marker_census, "upper")] * parsed
-    if marker_census and resolution == "quarter":
-        spread = rotated(census_weights(marker_census, QUARTER_MARKER_CASES), parsed)
-        for rank, form in enumerate(spread):
+    weights = census_weights(marker_census, QUARTER_MARKER_CASES)
+    if weights and resolution == "quarter":
+        for rank, form in enumerate(reserved(weights, parsed, floor)):
             markers[rank] = form
     zulus = [commonest_of(zulu_census, "upper")] * parsed
-    if zulu_census:
-        places = [rank for rank in range(parsed) if offsets[rank] == "Z"]
-        spread = rotated(census_weights(zulu_census, ZULU_CASES), len(places))
-        for rank, form in zip(places, spread):
+    weights = census_weights(zulu_census, ZULU_CASES)
+    places = [rank for rank in range(parsed) if offsets[rank] == "Z"]
+    if weights and places:
+        for rank, form in zip(places, reserved(weights, len(places), floor)):
             zulus[rank] = form
     return list(zip(widths, names, markers, zulus))
 
@@ -5341,12 +5414,125 @@ def pin_bounds(rungs, parsed):
     return lows, highs
 
 
+PIN_STEPS = 2 ** 20
+PIN_PASSES = 128
+
+
+def pin_places(pins):
+    """Where inside its own unit each pinned rank stands (method G7.3, P4-D130, P4-D138).
+
+    Written from the rule statement.  A unit of the ordinal space is a
+    stretch, split into ``PIN_STEPS`` steps.  Two sets of places are
+    built, and in both the first pin stands at the first step of its unit
+    and the last pin at the step one past its unit's end.
+
+    THE MIDDLES: every other pin at its unit's middle step.
+
+    THE STRAIGHTEST: a heap -- two or more pins sharing a unit that holds
+    neither the first pin nor the last -- stands at its unit's middle step
+    and never moves; every other pin starts at its unit's middle step and
+    then, ``PIN_PASSES`` times, in rank order, moves to the step on the
+    straight line between its two neighbours' current steps at its own
+    rank -- floor division -- kept between its unit's first and last step.
+
+    With fewer than three pins the straightest is taken.  Otherwise each
+    set is scored by ``bend_of_places`` and the middles are taken only
+    where they score strictly less.  Returns rank -> step.
+    """
+    ranks = sorted(pins)
+    if not ranks:
+        return {}
+    middles = {rank: pins[rank] * PIN_STEPS + PIN_STEPS // 2 for rank in ranks}
+    middles[ranks[0]] = pins[ranks[0]] * PIN_STEPS
+    middles[ranks[-1]] = pins[ranks[-1]] * PIN_STEPS + PIN_STEPS
+    end_units = {pins[ranks[0]], pins[ranks[-1]]}
+    on_unit = {}
+    for rank in ranks:
+        on_unit[pins[rank]] = on_unit.get(pins[rank], 0) + 1
+    heap = {
+        rank: pins[rank] not in end_units and on_unit[pins[rank]] >= 2
+        for rank in ranks
+    }
+    straightest = dict(middles)
+    for _pass in range(PIN_PASSES):
+        for index in range(1, len(ranks) - 1):
+            here = ranks[index]
+            if heap[here]:
+                continue
+            before, after = ranks[index - 1], ranks[index + 1]
+            line = straightest[before] + (
+                (here - before) * (straightest[after] - straightest[before])
+            ) // (after - before)
+            first = pins[here] * PIN_STEPS
+            straightest[here] = min(max(line, first), first + PIN_STEPS - 1)
+    if len(ranks) < 3:
+        return straightest
+    if bend_of_places(pins, middles) < bend_of_places(pins, straightest):
+        return middles
+    return straightest
+
+
+COUNT_SCALE = 2 ** 32
+
+
+def unit_count(pins, at, unit):
+    """How many ranks a set of places spreads onto one unit, in COUNT_SCALE parts.
+
+    One for each pin on the unit.  The ranks strictly between two
+    neighbouring pins all count on the first pin's unit where the two
+    share a unit or their stretch is empty; otherwise each unit takes
+    ``between * overlap * COUNT_SCALE // stretch`` of them, with
+    ``overlap`` the steps of the stretch inside the unit.
+    """
+    ranks = sorted(pins)
+    low, high = unit * PIN_STEPS, unit * PIN_STEPS + PIN_STEPS
+    total = COUNT_SCALE * sum(1 for rank in ranks if pins[rank] == unit)
+    for below, above in zip(ranks, ranks[1:]):
+        between = above - below - 1
+        if between <= 0:
+            continue
+        start, stop = at[below], at[above]
+        if pins[below] == pins[above] or stop <= start:
+            if pins[below] == unit:
+                total += between * COUNT_SCALE
+            continue
+        overlap = min(stop, high) - max(start, low)
+        if overlap > 0:
+            total += (between * overlap * COUNT_SCALE) // (stop - start)
+    return total
+
+
+def bend_of_places(pins, at):
+    """The proportional bend of a set of places' unit counts (P4-D138).
+
+    Over each unit strictly between the first pin's unit and the last
+    pin's unit that is a pinned unit or next to one, with ``c`` a unit's
+    count plus one whole rank, the sum of the squares of
+    ``c(u-1) * c(u+1) * COUNT_SCALE // c(u)**2 - COUNT_SCALE``.
+    """
+    ranks = sorted(pins)
+    first, last = pins[ranks[0]], pins[ranks[-1]]
+    units = sorted(
+        {unit for rank in ranks for unit in (pins[rank] - 1, pins[rank], pins[rank] + 1)
+         if first < unit < last}
+    )
+    bend = 0
+    for unit in units:
+        before = unit_count(pins, at, unit - 1) + COUNT_SCALE
+        here = unit_count(pins, at, unit) + COUNT_SCALE
+        after = unit_count(pins, at, unit + 1) + COUNT_SCALE
+        ratio = (before * after * COUNT_SCALE) // (here * here)
+        bend += (ratio - COUNT_SCALE) ** 2
+    return bend
+
+
 def spread_ordinals(rungs, parsed, words):
     """Every rank's instant -- method G7.3 as landing 2b.6 rewrites it.
 
     The published tail pins the two ends and the nine interior rungs to
     their published values.  Every OTHER rank takes an INDEPENDENT draw
-    inside the gap between the two pinned ranks either side of it, in
+    inside the gap between the two pinned ranks either side of it, across
+    the stretch between the two pins' places (``pin_places``, P4-D130), in
     the column's own ordinal space, and the draws inside one gap are
     sorted, so the ranks stay ascending.
 
@@ -5371,15 +5557,19 @@ def spread_ordinals(rungs, parsed, words):
     for rank, value in pins.items():
         ordinals[rank] = value
     places = sorted(pins)
+    steps = pin_places(pins)
     for step in range(len(places) - 1):
         below = places[step]
         above = places[step + 1]
         low = ordinals[below]
         high = ordinals[above]
+        start = steps[below]
+        stop = steps[above]
         drawn = []
         for _rank in range(below + 1, above):
             word = next(words)
-            drawn.append(min(low + (word * (high - low + 1)) // TWO64, high))
+            place = start + (word * (stop - start)) // TWO64 if stop > start else start
+            drawn.append(min(max(place // PIN_STEPS, low), high))
         drawn.sort()
         for place, value in enumerate(drawn):
             ordinals[below + 1 + place] = value
@@ -9774,6 +9964,228 @@ def _date_only():
     }
 
 
+def _date_gap_places():
+    """A short study span whose rungs fall on shared days (plan P4-D130).
+
+    Forty dates over ten days: four of the pins stand on the first day
+    and three on the last, and the gaps between the others are one to
+    three days wide -- the shape where WHERE a pin stands inside its own
+    day decides how many of a gap's ranks each day receives.
+    """
+    rungs = [
+        "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-03",
+        "2024-03-05", "2024-03-08", "2024-03-09", "2024-03-10", "2024-03-10",
+        "2024-03-10",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=40, n_missing=0, n_distinct=10, n_distinct_folded=10,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 40},
+    )
+    return {
+        "why": "the places G7.3 gives its pins inside their own days (plan "
+        "P4-D130): the first pin at the start of its day, the last at the end "
+        "of its own, every other on the straightest count the pins allow, and "
+        "a gap's ranks drawn across the stretch between two places. Drawn over "
+        "each gap's two pinned days whole, a pinned day took a day's share from "
+        "each side of it -- a spike at every rung of a short study span -- and "
+        "that is this case's mutant.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
+def _date_thinning_week():
+    """A week of dates thinning out from its first day (plan P4-D138).
+
+    Forty dates, a dozen on the first day and one on the last: the five
+    lowest pins share the first day, and every other gap is a day or two
+    wide. The straightest count gives the first day only the ranks its
+    pins span, so the middles bend the count less and are taken.
+    """
+    rungs = [
+        "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-01", "2024-03-01",
+        "2024-03-02", "2024-03-03", "2024-03-05", "2024-03-05", "2024-03-06",
+        "2024-03-07",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=40, n_missing=0, n_distinct=7, n_distinct_folded=7,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 40},
+    )
+    return {
+        "why": "G7.3's choice between its two sets of places (plan P4-D138): on "
+        "a week whose dates thin out from the first day, every pin at its "
+        "unit's middle bends the count from day to day less than the "
+        "straightest count does, so the middles are taken. The straightest "
+        "count alone gave the first day only the ranks its pins span -- 0.57 "
+        "of a thinning week's real first day -- and that is this case's "
+        "mutant.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
+def _date_peak_heap():
+    """Forty dates peaking over a week, two pins on each of three days (P4-D138).
+
+    The pins at the tenth and twenty-fifth percents share a day, the
+    fiftieth and seventy-fifth share the next, the ninetieth and
+    ninety-fifth the one after: three heaps, none holding an end, each
+    standing at its unit's middle in the straightest count, which is
+    taken.
+    """
+    rungs = [
+        "2024-03-02", "2024-03-02", "2024-03-02", "2024-03-04", "2024-03-04",
+        "2024-03-05", "2024-03-05", "2024-03-06", "2024-03-06", "2024-03-06",
+        "2024-03-07",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=40, n_missing=0, n_distinct=6, n_distinct_folded=6,
+        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 40},
+    )
+    return {
+        "why": "G7.3's heaps (plan P4-D138): two or more pins on a day holding "
+        "neither end stand at that day's middle in the straightest count and "
+        "do not move. Moved onto the straight line like any other pin, a "
+        "peak's day kept only the ranks its pins span -- 0.74 of a peaked "
+        "fortnight's real peak -- and that is this case's mutant.",
+        "column": column,
+        "rows": 40,
+        "identifier_declared": False,
+    }
+
+
+def _month_first_widths():
+    """A month-first column counting each class of width by its own words.
+
+    Eighty dates over a year, eleven of them written with both fields
+    padded, eleven with neither, and the dates whose month alone is below
+    ten written unpadded thirty times and padded eleven (plan P4-D132).
+    """
+    rungs = [
+        "2024-01-02", "2024-01-05", "2024-01-20", "2024-02-09", "2024-04-01",
+        "2024-06-15", "2024-09-05", "2024-10-28", "2024-11-19", "2024-12-10",
+        "2024-12-30",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=80, n_missing=0, n_distinct=70, n_distinct_folded=70,
+        n_numeric=0, n_not_numeric=80, n_out_of_range=0, n_contradictory=0,
+        format="month-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 80},
+        date_field_widths={
+            "padded": 11, "unpadded": 11,
+            "first-field-padded": 11, "first-field-unpadded": 30,
+        },
+    )
+    return {
+        "why": "the classes of width of G7.5 (plan P4-D132): a date whose "
+        "month alone is below ten is written from the first-field words the "
+        "census counts for such dates, and not from the joint words of dates "
+        "whose two fields both are. This case's mutant writes that class as "
+        "the joint words pad its field, eleven to eleven, and the dates whose "
+        "month alone shows a width take the other padding.",
+        "column": column,
+        "rows": 80,
+        "identifier_declared": False,
+    }
+
+
+def _may_month_names():
+    """A textual column whose cells of May wrote their own style (P4-D133)."""
+    rungs = [
+        "2024-01-03", "2024-01-10", "2024-02-01", "2024-03-15", "2024-05-02",
+        "2024-05-14", "2024-05-28", "2024-08-11", "2024-10-02", "2024-12-01",
+        "2024-12-20",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=55, n_distinct_folded=55,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
+        format="textual-day-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 60},
+        month_name_styles={
+            "title-either-space-no-comma": 20,
+            "upper-abbreviated-hyphen-no-comma": 40,
+        },
+    )
+    return {
+        "why": "the length a name of May shows, which is either (plan P4-D133): "
+        "a rank of May is written from the census's `either` words, here a "
+        "title-case name between spaces, and every other rank from the words "
+        "that name a length. This case's mutant offers the ranks of May no "
+        "`either` word, so they take the other ranks' upper-case name between "
+        "hyphens.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+    }
+
+
+def _reserved_name_floor():
+    """A named style at the floor, in a class the twin holds fewer of (P4-D132)."""
+    rungs = [
+        "2024-03-02", "2024-03-05", "2024-03-20", "2024-04-10", "2024-05-01",
+        "2024-05-15", "2024-05-31", "2024-06-20", "2024-07-02", "2024-07-20",
+        "2024-07-30",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=40, n_distinct_folded=40,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
+        format="textual-day-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 60},
+        month_name_styles={
+            "title-abbreviated-space-no-comma": 11,
+            "upper-abbreviated-hyphen-no-comma": 30,
+            "upper-either-hyphen-no-comma": 19,
+        },
+    )
+    return {
+        "why": "the reservation of G7.5 (plan P4-D132): a form the census names "
+        "at the floor keeps the floor in a twin whose own class of ranks is "
+        "smaller than the real column's, where a proportional share falls "
+        "under it. This case's mutant spends the class by the rotation alone.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+    }
+
+
 def _quarter():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
@@ -11129,6 +11541,19 @@ SECOND_BRANCH_PART = "branches-2"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
+    # THE FOUR CASES OF THE REVIEW OF 158c811 (plans P4-D130, P4-D132 and
+    # P4-D133). No frozen case in any of the three files published a
+    # non-empty census of written forms, so every allocation of G7.5 could
+    # have been withdrawn with every committed byte unchanged, and G7.3's
+    # places were pinned by none. They go in this file, which has the room.
+    # AND TWO MORE FROM ITS SKEPTIC (plan P4-D138): G7.3's choice of the
+    # middles and its heaps, each with its own mutant.
+    "date_gap_places": _date_gap_places,
+    "date_peak_heap": _date_peak_heap,
+    "date_thinning_week": _date_thinning_week,
+    "may_month_names": _may_month_names,
+    "month_first_widths": _month_first_widths,
+    "reserved_name_floor": _reserved_name_floor,
     "identifier_fold_collisions": _identifier_fold_collisions,
     "identifier_whole_numbers": _identifier_whole_numbers,
     "label_variants": _label_variants,
@@ -14840,6 +15265,227 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "date_peak_heap": (
+        14766693206355676505, 6992157754349396863, 7838749716675263788,
+        6260884635299288984, 16683963525250038006, 2929686537832769934,
+        2071875313487354258, 13349647098881792378, 1551110936622519113,
+        1353110449592196458, 17307339043402969394, 6151673706957319088,
+        1919595005328611936, 8476328626393059232, 15247229415546912329,
+        6517722599748709312, 11553436059773369373, 11269210997479015415,
+        6167618492286883184, 14625991199064179370, 8138596820396397001,
+        8539488409251745151, 779240757970203613, 16679182503145436217,
+        11982031602075414604, 5508324759865584647, 2610525744345252956,
+        8749227166237231008, 18242928711690456347, 7498450071216871015,
+        736853949146623621, 6729718628367637034, 14304344870152288214,
+        7616852576711505503, 8381666801314064950, 13780545569617316078,
+        4826664362350657762, 3492663118806061649, 6089009591588996131,
+        17756337892691158891, 16719592472474065696, 72079691224040853,
+        6523895488822866630, 5647034530723381259, 5029885900170472086,
+        12793461229313348238, 1303226997728965567, 8258220809841507654,
+        11130630313922382584, 9676368676516251084, 4659117894285289725,
+        2201284052227080037, 7227452119973509919, 13727759001878204432,
+        9795480541515733080, 6434767888092282255, 994462249439909175,
+        12118406020017173180, 15104171236716321650, 6920231579164432269,
+        4962820653922746784, 12434911003628762574, 1656476672774081503,
+        3791232627580938504, 15974657973910230499, 5129423072227879236,
+        18191266426893455499, 2844670899663405278, 11703772692705477423,
+        7065468433315722716, 385531002873873270, 5614027444090623099,
+        10561073587658038565, 1483354294859502419, 6996927556167716518,
+        10118285601421975715, 13817057510851749147,
+    ),
+    "date_thinning_week": (
+        11079678160230914977, 4954812553690575453, 16055455646014030800,
+        3862566106636356417, 16245795031161184184, 12569060163420238655,
+        5009103289862267414, 14215352683306337838, 4865000564004434859,
+        16796880053323686440, 5194306685916341992, 7847678842380058076,
+        5230705852901393350, 11798063569124903186, 6075326664027947,
+        9455656810271046659, 11701532591040608264, 3579216433710878606,
+        12411381346985564628, 2716908277590758005, 11965093471224593099,
+        12633817745152957120, 2274065125571139258, 15394111227982530067,
+        15649011496529710023, 15469938750659786732, 15777769424741237768,
+        17891270777846587067, 7705746092959135942, 17068665242803066670,
+        515995206931573676, 9324249909376588643, 8872584017910170190,
+        14932960399753190805, 15607457803414003521, 17750121684488565463,
+        1599950418171924953, 5060213957147658689, 1603727249314529272,
+        8126335040947758948, 2053321559920411412, 11189687114212635589,
+        4268490824490242005, 8703147062316955401, 10322674905973002807,
+        17787473613551231505, 519604157333400118, 41980820982561003,
+        667108904226507373, 2318141621240746246, 14441661313213643469,
+        18302446780740922673, 11646858179307892659, 5015360047219947662,
+        5412554084687807230, 6731110393170337823, 12901609537192193203,
+        12967157853018607235, 3839606383366968531, 4603813393130198212,
+        528261728206944320, 1797334392541920177, 7207154503668962165,
+        13126400342626726343, 13379377835769567197, 14867530458230300932,
+        15140659055465307474, 11011854492896435342, 1323904669204375680,
+        11120658615021462214, 16172915239446243357, 13518863192834238754,
+        11381489319053512577, 17182182428581280277, 351165963239372741,
+        17316092617392718017, 12973131163195499433,
+    ),
+    "date_gap_places": (
+        13582273234154262364, 18398104693322419879, 34070170978230141,
+        3341762675134395213, 9954870715852195741, 11074722499558924578,
+        7086877514108549857, 5428095448531052280, 9858665311344715186,
+        14335373683300192717, 13568817218928113682, 7443554488824773121,
+        1507543091965614910, 15036176574875485406, 11305006835104430484,
+        3919574237267079812, 4662566541854203892, 2785393505384254902,
+        18167102002877775314, 5359666550153224208, 7236600271796893858,
+        17385850831391360195, 3925679704441438369, 3038158995283776929,
+        15701766632821214956, 13026092740937741156, 2498239939632209053,
+        17296191950373657039, 6847993915250886595, 12485244363494887806,
+        51361926512820441, 12713452909872939155, 17194683308519976880,
+        9494292973446406325, 14730974571768802911, 2841443329483980571,
+        2667530140144481129, 11380515728777247132, 737974217191884336,
+        10391720074859047821, 18293336038511823674, 3525874951485151382,
+        4517838858738345043, 3258589018767612300, 6706364538686908349,
+        11182159666482384533, 3516022594493227618, 6308409673052286782,
+        11850633565165211552, 7679926888191552712, 1657569582579748018,
+        11972005199951131055, 10028842102051215123, 12742782212818117389,
+        9933968653272506701, 496418581426523829, 14144889129156548452,
+        15965513364425147980, 374061103416361254, 15654188217680370882,
+        6455266257794122148, 7385787955482912886, 10113432378818351743,
+        15354656899906861865, 734920368336317215, 3847523236932794809,
+        4146042310942044437, 11197141226713801472, 16678001095954234764,
+        8611373354917936658, 15212068172050906663, 12694360102965796299,
+        2455431899680794908, 6257650374097338146, 5035423415907333659,
+        3519908956784654975, 4766840363336960650,
+    ),
+    "may_month_names": (
+        7624411207500017663, 18018633891298768539, 9327666861298971719,
+        12069654061041524425, 13056208526174774753, 16270608102264184673,
+        7136254884387832689, 2146649404055757979, 8299392471497780641,
+        2314006865244965464, 6452669892852346852, 14498537279786915597,
+        5807170461159552380, 13761051749839567673, 13496788994203422708,
+        17658594639995542130, 11946899400267459287, 8643193479102873906,
+        7601562399756904492, 5111893150072507382, 10575175848735182819,
+        8657697069614245099, 13726072828175306438, 5859875945738675844,
+        808640240039876655, 9923500839825069631, 17981466901741366856,
+        7759697397388857000, 9890344465002701988, 16504403711328310884,
+        5583668501587289150, 12607117446844355094, 6416464472314343483,
+        7592797837861997308, 15138115336174373457, 4935601597921276445,
+        10758720803369674723, 6964314223450828242, 15292528797945022755,
+        13740842348072460030, 15396328783190958164, 7719600006794446018,
+        905991238421201453, 56940693478711805, 11659378853640090815,
+        13667056686878142958, 13591130304668766307, 5611183999838444833,
+        14486748888324642628, 805064969381655923, 5779178795863039304,
+        2517284497528460800, 7660217245323276297, 3944086074187690930,
+        5372858886023790304, 6782654724682573173, 16671154529923172776,
+        15562778397555716616, 17512210119283651415, 11567803277685074371,
+        14850724956931474721, 15592690270084742326, 385981727893807494,
+        15848880712555865719, 8137220622671396494, 7656217565899852781,
+        1144373002008331905, 6602777931861346560, 17841643452398935496,
+        2506193253089931904, 1309043816144866151, 7708036139903193080,
+        9025252944961652358, 8967701710532311394, 3487065727761632458,
+        9934413647790001839, 8563300156939537552, 2760514152702228199,
+        8868029545318544314, 12562004475371503752, 14190205986353647595,
+        2629143075635293573, 10487506365024993360, 6739891884306616565,
+        1878536241103684347, 3042520936062070123, 1224816337772787332,
+        15859284841252763922, 8399253708832300187, 8231292199958444561,
+        267999977985944891, 15329268351129830934, 8625128670384588298,
+        9629229551755704301, 2212292450141092125, 17951824220492435690,
+        16538119457046801484, 229215839790942484, 6009309351158102581,
+        5338620045300819643, 8893160517664995548, 5217683502981550127,
+        3717397070281156217, 13501784885117613869, 14595536583200122307,
+        8729445688262197857, 11804382767031582502, 16547910807485101073,
+        4421150326374061424, 16014603019965692538, 4310419175388662263,
+        8399851095629229409, 4524278052714247995, 12760947352800175382,
+        15556524842886129440, 8137365897068648256, 2026758182161805605,
+    ),
+    "month_first_widths": (
+        411179136531786142, 1982861595377018348, 11950373906050309963,
+        17721752918347183196, 14209512559177407037, 16754303442300708120,
+        4204783424237075846, 4681831488814884530, 6446403972659101316,
+        8427775216937654035, 10211324520233377560, 14897660508276153688,
+        4119102538551897917, 11528631760795248871, 13680582909623253025,
+        5050023849856481481, 15426892616632391898, 1344415077473076424,
+        3548945409361116972, 11196694034525503384, 14134339850899949647,
+        15165696423381130897, 928241016773350984, 15642353362727755533,
+        17362049571715137677, 15242205530261741041, 12959114041094333088,
+        16865646998156285503, 15816863424214543421, 9801909270355076948,
+        13728644927686090528, 1786202545825901014, 15538461658316695806,
+        9644221894854668897, 6086745284886571550, 3127861309882536035,
+        18132025607915282028, 2842718885136013032, 17241930218749103116,
+        11769528337410745237, 3850826887315116052, 1002220865474413709,
+        14075977698047610473, 5313044812902553181, 9210600903144167403,
+        13576584346228663122, 3663643525571522422, 3552571132942207646,
+        9565653044739084407, 4476061822367667314, 15935959815877436672,
+        6403099971614457318, 11088012163186082225, 11095367244768531463,
+        11941700571575285519, 2379930996147948145, 1955096052585405554,
+        17049134867150053668, 10774395072817291487, 9843786281826380692,
+        14492276334385789553, 11074664596990320200, 7818360990588182762,
+        1867696055970647816, 11200790933624410449, 638309788351256812,
+        3787310517169562468, 16403101154199417981, 10657160950261735322,
+        6221448103850843730, 13661847569940294117, 10163873516409404965,
+        16988335295198201096, 6396025306240461033, 3887233775807296745,
+        8914788032463173469, 9452505947385594084, 17417394955496580473,
+        2352815866357263676, 17437323303254055949, 3459099539059255397,
+        18255219232487623935, 3768917603948231104, 17440364014431786452,
+        12948655395728103603, 10157491014976767066, 12206205453975203626,
+        9202583578927681270, 7851036029079190878, 2975664875499536293,
+        9901783940380317614, 3605211869800606754, 18312056231403621872,
+        1973696451736411069, 7942003875206605288, 14917770109698994816,
+        12389731789689874765, 3638949933892086143, 7073925058834514027,
+        9316046909703266377, 138078049388591866, 11961864247517425040,
+        2931561304536649676, 9384740067447835997, 11724434961959452881,
+        9119066722579331924, 6406834048616516286, 15635722290643100831,
+        14905501778878416464, 6406021435679565582, 9883646930997604554,
+        8466450575998059501, 4819874132864666478, 11682646618220050432,
+        9908875432428958714, 4932027330917746235, 4372836446734248766,
+        632371899483025425, 15686285522474206717, 8328887754863586730,
+        10327989218327734635, 5345580297214523348, 82455626676672626,
+        16094329303020788750, 12338479874812628152, 6799900024413448020,
+        1888286422515864212, 15445931168191014177, 9567541687797507218,
+        13794241483115522894, 14903833624867689943, 14042228942360637079,
+        15290286991052671256, 5057162519325636383, 13694753004799791277,
+        16009584575343888391, 3066718014106726196, 15632463617834816528,
+        9499652758200475511, 8230973084346629935, 12098504964439687067,
+        502274704102108626, 1940995440909574143, 16454116080535054363,
+        3585997863464261346, 10755140139989322426, 15131322259882437229,
+        6873497722355805633, 10278296925117640323, 4366553848268032246,
+        15479383200039777841, 17238311582049077504, 552055450390777709,
+        10716461978115377217, 8303388334756885260, 3449629778044979667,
+        17813848995454805689,
+    ),
+    "reserved_name_floor": (
+        14623874773869021584, 1101037575172097884, 5528030038320947979,
+        1699340121551730223, 5454536252365829639, 1333847586185654792,
+        17367226935657727899, 15206410914701422190, 9158671040774120562,
+        2847321121796634861, 3399716060311506324, 9499599905314123420,
+        3051216536723952660, 1208495941364316850, 14853431797248919579,
+        3319744482987375808, 15502635411836727604, 2103947150920060691,
+        12132576086552238465, 16326155779624797612, 13388441183058422449,
+        8076135440911114655, 1565888969560626412, 4520163913881794397,
+        11893059189667771165, 12455213725711919012, 9141233052823609683,
+        14085275310457618459, 15253271526096648295, 4451797894901836087,
+        3987687593621620212, 15308600684770179542, 17341966074345044894,
+        2732801519954006964, 12626772174586582950, 10293069316180546743,
+        1437633474046423043, 5153890254976745998, 6340772465703091576,
+        464993280591146766, 3703185578599393983, 5466984106213162016,
+        14681180694026834037, 13125109837185110329, 14331615095099845517,
+        8888473045443467731, 8601508638089744456, 7464430089623489557,
+        8218178065693237477, 9437984029933491426, 8897354558295532528,
+        12354909706614814710, 7348291356150268448, 9417309548711967136,
+        9485351808358171794, 10326315335785634363, 11443964344319546858,
+        1173689839334216406, 11661854196924763153, 15673530368129812832,
+        6620251914062754495, 501558566552455045, 6602903477725220906,
+        14373863816331114938, 13666727983278221077, 628751199085098848,
+        13536575237492494218, 10462784050771066947, 6733380652916483413,
+        4161010082677869325, 5708465227444101763, 10033966980455710473,
+        14712806327218517384, 8633916700064892745, 15444497031438146400,
+        2110329586575307916, 8117987480605378558, 5902837482755024816,
+        17328345872520175831, 11460201502140085074, 9545891024025883835,
+        16794107050916823933, 14532499305748203100, 4701332688300008424,
+        17192204656337117218, 6244928794548366517, 2300924658641544161,
+        5537922084714231767, 2298268045110366501, 738218565872598432,
+        18106830409664396687, 741004680788995115, 17738663479198600070,
+        18176114160339740264, 794059215261464934, 8841952738601512434,
+        11047982240278322272, 8332516584242874547, 12289793846246020017,
+        13655851112103408406, 13455720045157898040, 6210290200932685741,
+        11366821022591337199, 11595059985168785951, 940556683472547086,
+        17234113755524698283, 12024101677787473005, 12261416769281802181,
+        11150656840147725573, 13012614294713038304, 17412104601454545783,
+        15105031069839681244, 2100161541399946618, 2233435826553224402,
+        3002586960114501916, 990047594424617782, 4949717121568885802,
+    ),
     "date_only": (
         17405102656223811442, 6630147816760228827, 14477104582272359118,
         10907157359294391350, 5429403641982895397, 17021284587681472559,
@@ -15527,6 +16173,12 @@ INTEGER_COLUMN_MAPS = frozenset({
     # The census of SPELLINGS on a count column (contract 7.13, landing
     # 2b.18 part 2), a map of counts keyed by the spellings themselves.
     "number_spellings",
+    # The four censuses of how a column's dates were WRITTEN (landing
+    # 2b.6, contract C6-25d to C6-25g), maps of counts keyed by a form's
+    # word. No case published a non-empty one until the review of 158c811
+    # froze four (plans P4-D130, P4-D132, P4-D133).
+    "date_field_widths", "month_name_styles", "quarter_marker_case",
+    "zulu_case",
 })
 # The whole-number keys a NUMERIC PART of a joined column may carry
 # (contract 6.7 read at that depth).  It is deliberately narrower than

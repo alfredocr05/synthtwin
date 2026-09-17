@@ -175,13 +175,28 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         reinstate(monkeypatch)
 
 
+def _seen_at(index: int) -> str:
+    """A time of day over four morning hours, sixty different in 240 rows."""
+    return f"{8 + index % 4:02d}:{(index * 7) % 60:02d}:00"
+
+
 def _dated_table() -> str:
-    """One column of dates and one of readings, over a whole year.
+    """One column of dates, one of readings and one of times of day.
 
     Deterministic and written out, so the ladder the description
     publishes and the windows G12.4 draws around it are the same on
-    every machine. The dates are what put a window wholly below the
-    value it stands beside, which is what this file is about.
+    every machine.
+
+    THE TIMES OF DAY ARE THE WITNESS NOW, AND THE DATES ARE NOT (plan
+    P4-D130's landing, repairing this file's failure after landing 2b.6).
+    The dates were what put a window wholly below the value it stands
+    beside: G12.4 drew each rung's window as a band. Landing 2b.6 pinned
+    every interior rung to its published value and made that window a
+    point, so no date rung's window can miss its own value any more --
+    measured on this table, none does -- and this file failed its own
+    non-vacuity check on every run. A column of clock times still
+    reaches the corner, on its distinctness envelope and at its last
+    rung, so it is what keeps the repair of P3-V10-F5 exercised.
     """
     rows = []
     for index in range(240):
@@ -189,9 +204,10 @@ def _dated_table() -> str:
             [
                 f"2024-{index % 12 + 1:02d}-{index % 28 + 1:02d}",
                 f"{(index * 37) % 883 + 10}",
+                _seen_at(index),
             ]
         ]
-    return fixtures.rows_to_csv(["recorded_on", "reading"], rows)
+    return fixtures.rows_to_csv(["recorded_on", "reading", "seen_at"], rows)
 
 
 def _tailed_table() -> str:
@@ -265,6 +281,37 @@ def test_the_witness_has_a_window_that_misses_its_own_value(
         assert check.verdict == validation.HELD
 
 
+def test_the_dated_table_s_times_reach_the_instant_envelope_corner(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Non-vacuity on the dated table itself, through its times of day.
+
+    Kept beside the tailed witness at the merge of the date review's
+    repair: the tailed column reaches the corner on its mean and spread,
+    and the times of day reach it on their distinctness envelope and on
+    their last clock rung (`_within_clock`), so the two witnesses see
+    different envelopes and neither stands in for the other. Measured at
+    that merge: `seen_at` distinctness twice and `clock-ladder.p99`.
+    """
+    outcome, _description = _outcome(tmp_path)
+    outside = [
+        check
+        for check in outcome.checks
+        if "does NOT reach the" in "\n".join(check.note)
+    ]
+    assert outside, (
+        "no obligation of this table has a window that misses the "
+        "description's own value, so this file can no longer see the "
+        "defect it exists for"
+    )
+    for check in outside:
+        assert check.verdict == validation.HELD, check
+        assert check.achieved in ("that same time", "60.0"), check
+    # ...and it is the column of times that reaches it: a date rung's
+    # window is a point on its published value since landing 2b.6.
+    assert {check.column for check in outside} == {"seen_at"}
+
+
 def test_no_line_says_the_file_holds_the_value_and_misses_it(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -296,10 +343,12 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "table-quality.txt").read_text("utf-8")
     assert "0  MISSED" in report
-    # ...and the line the reviewer read is now HELD, with the window
-    # still explaining itself underneath.
+    # ...and the line the reviewer read is now HELD.
     assert "date-ladder.p99 [datetime.date_percentiles]: HELD" in report
     assert "the file was found to hold: that same value" in report
+    # ...with a window that misses its own value still explaining itself
+    # underneath, on the column of times that reaches that corner.
+    assert "the file holds the description's own value exactly" in report
     # ...and the window that does not reach its own value is on the
     # tailed table now (see `_tailed_table`), which misses nothing either.
     tailed = fixtures.write(tmp_path, "tailed.csv", _tailed_table())
@@ -330,12 +379,13 @@ def test_a_file_that_holds_something_else_is_still_judged_by_the_window(
             [
                 f"2025-{index % 12 + 1:02d}-{index % 28 + 1:02d}",
                 f"{(index * 37) % 883 + 10}",
+                _seen_at(index),
             ]
         ]
     other = fixtures.write(
         tmp_path,
         "moved.csv",
-        fixtures.rows_to_csv(["recorded_on", "reading"], moved),
+        fixtures.rows_to_csv(["recorded_on", "reading", "seen_at"], moved),
     )
     outcome = validation.measure(description, f"{other}")
     rungs = [

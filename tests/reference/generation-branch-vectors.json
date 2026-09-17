@@ -3691,7 +3691,7 @@
     },
     "leap_second_endpoint": {
       "cells": [
-        "2016-12-31T23:37:03",
+        "2016-12-31T23:37:02",
         "2016-12-31T23:50:00",
         "2016-12-31T23:40:00",
         "2016-12-31T23:21:25",
@@ -3781,13 +3781,13 @@
         "2016-12-31T23:27:17",
         "2016-12-31T23:30:00",
         "2016-12-31T23:34:20",
-        "2016-12-31T23:37:03",
+        "2016-12-31T23:37:02",
         "2016-12-31T23:40:00",
         "2016-12-31T23:50:00",
         "2016-12-31T23:55:00",
         "2016-12-31T23:59:60"
       ],
-      "csv_bytes": "2016-12-31T23:37:03\n2016-12-31T23:50:00\n2016-12-31T23:40:00\n2016-12-31T23:21:25\n2016-12-31T23:55:00\n2016-12-31T23:27:17\n2016-12-31T23:34:20\n2016-12-31T23:20:00\n2016-12-31T23:59:60\n2016-12-31T23:30:00\n2016-12-31T23:00:00\n2016-12-31T23:15:00\n",
+      "csv_bytes": "2016-12-31T23:37:02\n2016-12-31T23:50:00\n2016-12-31T23:40:00\n2016-12-31T23:21:25\n2016-12-31T23:55:00\n2016-12-31T23:27:17\n2016-12-31T23:34:20\n2016-12-31T23:20:00\n2016-12-31T23:59:60\n2016-12-31T23:30:00\n2016-12-31T23:00:00\n2016-12-31T23:15:00\n",
       "float64": [],
       "why": "the endpoint route of G7.5, on the one published end the ordinal space of G7.1 cannot hold. The latest cell carries a seconds field of 60, which the profile contract's canonical form admits because the shipped reader accepts one; the whole-second space has one place for 23:59:59 and the next for the following midnight and none for it. So the two ends are built from the published endpoint's own four fields -- the date with HH:MM and a seconds field of 00, moved to this cell's clock, then the published seconds field written back unchanged -- and the space below is left to the ten interior ranks it is exact for. The clock here is the local one, which is the only clock the contract's D10 lets this end stand on: on the shared clock every cell is written on its own offset's wall clock, so D10 refuses that pair in the description instead. An implementation that sent these two cells through the ordinal route writes the following minute for the second of them and every other byte of this case unchanged, which is exactly the regression this case is frozen to stop.",
       "word_budget": {

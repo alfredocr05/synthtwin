@@ -3473,8 +3473,23 @@ are in ascending order and each appears once; no spelling is named by
 two decisions of one column, because a cell is taken out once; the
 cells those spellings cover never outnumber `n_occurrences`, because a
 decision cannot have removed more cells than the rows it says held its
-candidate; and a decision whose `verdict` is `kept_as_a_number` names
-none, because it took no cell out of the column.
+candidate; on a column that publishes values of the table, the cells
+the `read_as_missing` decisions took out and name no spelling for —
+each decision's `n_occurrences` less the cells its spellings cover,
+added over ALL of them — are at most `n_missing_withheld`, because a
+spelling the floor did not let the column name goes to that one pool
+and nowhere else, and the pool is spent once (plan P4-D135); and a
+decision whose `verdict` is `kept_as_a_number` names none, because it
+took no cell out of the column.
+
+**The omission part closes what the two before it left open (review of
+158c811, plan P4-D135).** They bound a decision's named spellings from
+above, so a decision edited to name NONE of the spellings it took out
+still loaded: twenty judged `1900-01-01 00:00:00` beside a pool of
+nought. With the link gone the validator read that spelling as a
+declaration reaching the whole table, and an unchanged second column
+fell from 500 values to 420 with 13 obligations missed. No producer
+writes that document.
 
 **The last two parts are what make the key CHECKABLE rather than
 merely published, and they were added by landing 2b.14 (P4-D95).** The
@@ -4036,16 +4051,16 @@ ISO reading below may still claim the column.
 | `datetime_separators` | object | `lower_t`, `space`, `upper_t` or `(withheld)` → count | how many parsed cells wrote each mark between the day and the clock, under the floor; `{}` where `resolution` is not `datetime` |
 | `all_at_midnight` | boolean | — | `true` where every parsed cell of a datetime column names exactly midnight on its own wall clock, the parsed cells reach the floor, and on the `utc` clock no offset is pooled |
 | `n_at_midnight` | integer ≥ 2, or `null` | — | how many parsed cells name exactly midnight on their own wall clock, where at least the floor — never fewer than two — did and at least that many did not, or every parsed cell did and they reach that floor; `null` otherwise, a real nought included (landing 2b.6) |
-| `date_field_widths` | object | `padded`, `unpadded`, `first-padded`, `second-padded` or `(withheld)` → count | how many parsed cells wrote each JOINT width convention over their month and day fields, counted only over the cells that could show one, under the floor; `{}` on a member whose fields are of fixed width (landing 2b.6) |
-| `month_name_styles` | object | one of the TWENTY-FOUR joint style words, or `(withheld)` → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — counted over the cells whose month is not May, under the floor; `{}` outside the two textual members (landing 2b.6) |
-| `quarter_marker_case` | object | `upper`, `lower` or `(withheld)` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the floor; `{}` outside `year-quarter` (landing 2b.6) |
-| `zulu_case` | object | `upper`, `lower` or `(withheld)` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the floor; `{}` unless `utc_offsets` NAMES `Z` (landing 2b.6) |
+| `date_field_widths` | object | `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded` → count | how many parsed cells wrote each width convention — a JOINT word where both month and day are below ten, the word of the one field that showed otherwise — counted only over the cells that could show one, a one-field count folded into the joint word agreeing with it (P4-D139), under the disclosure rule of P4-D131; `{}` on a member whose fields are of fixed width, and where the census is withheld whole (landing 2b.6) |
+| `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
+| `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
+| `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
 the `datetime_separators` names with THREE, and the four written-form
-vocabularies landing 2b.6 added: `date_field_widths` with FOUR,
-`month_name_styles` with TWENTY-FOUR, `quarter_marker_case` with TWO and
+vocabularies landing 2b.6 added: `date_field_widths` with EIGHT,
+`month_name_styles` with THIRTY-SIX, `quarter_marker_case` with TWO and
 `zulu_case` with TWO — and the first three are
 each written again below inside a table that BINDS it: the
 twenty formats are the rows of the next table, where D1 fixes each one's
@@ -4292,38 +4307,81 @@ a member alone does not fix a spelling. `month-first-date` is written
 `17 March 2024`; `textual-month-first-date` makes the comma of
 `Mar 17, 2024` optional; `year-quarter` reads either case of its
 marker; and the zulu reading folds `z` onto `Z`. Each census counts
-FORMS and never a value, and each is held to `small_cell_floor` with a
-`(withheld)` pool exactly as `datetime_separators` is, because a form
-used by one row describes how THAT row was written.
+FORMS and never a value, and each is held to THE DISCLOSURE RULE OF
+PLAN P4-D131, `parsing.census_discloses`, because a form used by one
+row describes how THAT row was written: every named count reaches
+`small_cell_floor` and never falls below two; NOTHING IS POOLED, since
+a census of a handful of forms cannot pool without naming what it pools
+— `{"upper": 399, "(withheld)": 1}` named the one row that wrote `z`;
+and the cells the named counts leave over of the total they count over
+are none or at least that many — `n_present - n_unparsed` for the names
+and the quarter's marker, `utc_offsets["Z"]` for `zulu_case`, and for
+`date_field_widths` the cells that could SHOW a width, which the block
+does not publish (plan P4-D139): a date whose two fields are both ten or
+more wrote no convention, so it is no form a reader could learn by
+subtraction. A census failing any of the three is published `{}`, which
+is also what a column that cannot show the convention publishes.
+*Amended by the review of 158c811:* this paragraph said each census was
+held to `small_cell_floor` with a `(withheld)` pool exactly as
+`datetime_separators` is. *Amended again by its skeptic (plan P4-D139):*
+it counted the widths' remainder over `n_present - n_unparsed`, and one
+`12/25/2019` among 244 dates written `m/d/yyyy` withheld the census whole
+and had 212 of the twin's 245 cells written padded.
 
 - **C6-25d (`date_field_widths`).** Keys `padded`, `unpadded`,
-  `first-padded`, `second-padded`, plus `(withheld)`. ONE WORD PER CELL
-  AND NOT ONE PER FIELD: on a column half written `%m/%d/%Y` and half
-  `m/d/yyyy`, no real cell mixes the two, and two independent censuses
-  would let a twin write about half its eligible cells as `03/5/2024`,
-  a style no row used. `padded` means every field that could show a
-  width was padded, `unpadded` that every one was not, and the two
-  joint words that the first or the second field alone was. Counted
-  over the cells that could SHOW a width — a field below ten — so the
-  total is at most the parsed cells and is usually fewer. `{}` on
-  every member of fixed field width; on the two textual members only
-  `padded` and `unpadded` can appear, the month there being a name.
-  D17 holds it.
+  `first-padded`, `second-padded`, `first-field-padded`,
+  `first-field-unpadded`, `second-field-padded`, `second-field-unpadded`.
+  ONE WORD PER CELL AND NOT ONE PER FIELD: on a column half written
+  `%m/%d/%Y` and half `m/d/yyyy`, no real cell mixes the two, and two
+  independent censuses would let a twin write about half its eligible
+  cells as `03/5/2024`, a style no row used. On a cell whose two numeric
+  fields are BOTH below ten, `padded` means both were padded, `unpadded`
+  that neither was, and `first-padded` and `second-padded` that the
+  first or the second alone was. On a cell where only ONE field is below
+  ten, the word names that field — `first-field-padded` and so on — in
+  the member's own field order (plan P4-D132): counted under the bare
+  `padded` or `unpadded` instead, as the first revision did, a column
+  written `m/dd/yyyy` published words its twin spent on cells showing
+  both fields, and 106 of 400 twin cells were written `5/4/2024` or
+  `08/28/2022`. AND A ONE-FIELD COUNT IS FOLDED INTO A JOINT WORD
+  (plan P4-D139): a cell showing one field is consistent with the two
+  joint words that pad that field its way, and it is counted under
+  whichever of them the column's cells showing both fields wrote more
+  often — `padded`, `unpadded`, `first-padded`, `second-padded` order on
+  a tie — keeping its one-field word only where no cell wrote either.
+  Counted apart, those classes held a twin to how many of its dates
+  happen to fall past the ninth or in October to December: 150 dates
+  written `m/d/yyyy` at a floor of eleven published
+  `second-field-unpadded: 14`, and a twin holding fewer such dates failed
+  its own check. Counted over the cells that could SHOW a width, so the
+  total is at most the parsed cells and is usually fewer. `{}` on every
+  member of fixed field width; on the two textual members only `padded`
+  and `unpadded` can appear, the month there being a name and the day
+  the one field. D17 holds it.
 - **C6-25e (`month_name_styles`).** Keys are the joint word
   `<case>-<length>-<mark>-<comma>` over `upper`/`title`/`lower`,
-  `abbreviated`/`full`, `space`/`hyphen` and `comma`/`no-comma` — 24 in
-  all — plus `(withheld)`. Joint for C6-25d's reason: a hand-entered
-  column mixing `17-MAR-2024` with `17 Mar 2024` carries its case and
-  its mark together, and independent censuses would invent
-  `17 MAR 2024`. Counted over the parsed cells whose month is NOT May,
-  whose two written forms are one word, so nothing in such a cell says
-  whether the column abbreviates. `{}` outside the two textual members,
-  and on `textual-day-first-date` only the twelve `no-comma` styles can
-  appear: a comma there would follow a month name, which no member of
-  this contract reads. D18 holds it.
-- **C6-25f (`quarter_marker_case`).** Keys `upper`, `lower`,
-  `(withheld)`. `{}` outside `year-quarter`. D19 holds it.
-- **C6-25g (`zulu_case`).** Keys `upper`, `lower`, `(withheld)`. `{}`
+  `abbreviated`/`full`/`either`, `space`/`hyphen` and `comma`/`no-comma`
+  — 36 in all. Joint for C6-25d's reason: a hand-entered column mixing
+  `17-MAR-2024` with `17 Mar 2024` carries its case and its mark
+  together, and independent censuses would invent `17 MAR 2024`. A cell
+  whose month is MAY shows no length, its two written forms being one
+  word, and is counted with the length `either` (plan P4-D133): it still
+  shows its case, its mark and its comma. Counted under no key instead,
+  as the first revision did, a column of `17-MAY-2024` published `{}`
+  and its twin was written `25 May 2024`. AND A NAME OF MAY IS FOLDED
+  INTO A LENGTH (plan P4-D139): it is counted under the style of the
+  same case, mark and comma its column's other cells wrote more often —
+  `abbreviated` on a tie — and keeps the length `either` only where no
+  other cell wrote that case, mark and comma. Counted apart, one
+  `15-MAY-2023` among 269 `DD-MON-YYYY` dates was a count of one, the
+  census was withheld whole, and the twin was written `20 Jan 2022`.
+  `{}` outside the two textual
+  members, and on `textual-day-first-date` only the eighteen `no-comma`
+  styles can appear: a comma there would follow a month name, which no
+  member of this contract reads. D18 holds it.
+- **C6-25f (`quarter_marker_case`).** Keys `upper`, `lower`. `{}`
+  outside `year-quarter`. D19 holds it.
+- **C6-25g (`zulu_case`).** Keys `upper`, `lower`. `{}`
   unless `utc_offsets` NAMES `Z`: the case census counts a subset of
   the cells carrying one offset, so publishing it beside a POOLED `Z`
   would hand back the count the pool exists to withhold — the same
@@ -4333,18 +4391,28 @@ used by one row describes how THAT row was written.
   the shared-clock reading when it is one offset written two ways. D20
   holds it.
 
-**The four are EXACT-OBSERVABLE IN THEIR KEY SET, and that is stated
-here rather than left to be discovered.** What a file is held to is
-every convention the description names, each on at least a floor's
-worth of that file's own cells, and no convention the description does
-not name beyond what its `(withheld)` pool covers. It is NOT held to
-the counts, and the reason is the same fact that makes the counts
-interesting: whether a cell can SHOW a convention depends on its own
-value, so how many cells of a file could carry one is a fact about that
-file's values, and a twin whose interior instants fall a day either
-side of the real ones carries a different number of them. A count check
-would accuse a faithful twin. The validation method states the
-measurement.
+**Two are EXACT-OBSERVABLE IN THEIR KEY SET and two are EXACT, and that
+is stated here rather than left to be discovered (plan P4-D134).** What a
+file is held to on `date_field_widths` and `month_name_styles` is every
+convention the description names, each on at least a floor's worth of
+that file's own cells — counted on those cells as the producer counts
+and folds them, not read off the file's own floored description, and a
+one-field width or an `either` name owed on a floor's worth or on every
+cell of that kind the file holds, whichever is fewer (plan P4-D139) —
+and no convention the description does not name beyond the cells the
+named counts leave over of their total. Those two
+are NOT held to the counts, and the reason is the same fact that makes
+the counts interesting: whether a cell can SHOW a width or a name's
+length depends on its own value, so how many cells of a file could carry
+one is a fact about that file's values, and a twin whose interior
+instants fall a day either side of the real ones carries a different
+number of them. A count check would accuse a faithful twin. The case of
+a quarter's marker and of a zulu marker is shown by EVERY cell those
+censuses count over, and a twin writes exactly the published number of
+each, so `quarter_marker_case` and `zulu_case` are held COUNT FOR COUNT:
+held only as a set, a file with eighty lower-case and 320 upper-case
+markers turned the other way round met both. The validation method
+states the measurement.
 
 **The census and both midnight facts are EXACT-OBSERVABLE** (plan
 P4-D39, added after the freeze; held to a file since landing 2b.3). A
@@ -4618,10 +4686,21 @@ there.
 
 **Invariant D17 (the joint width census, landing 2b.6).** Every key of
 `date_field_widths` is `padded`, `unpadded`, `first-padded`,
-`second-padded` or `(withheld)`; every key other than `(withheld)` maps
-to a count at least the floor; and the `(withheld)` count is at most
-(floor − 1) times the number of permitted words the census leaves
-unnamed. The census is `{}` unless `format` is one of the six
+`second-padded`, `first-field-padded`, `first-field-unpadded`,
+`second-field-padded` or `second-field-unpadded`, and `(withheld)` is
+none of them; and every key maps to a count at least the floor and
+never below two — the first two parts of the disclosure rule of plan
+P4-D131, `parsing.census_discloses`, whose third part D18 to D20 hold
+over the totals their blocks publish. *Amended by the review of
+158c811:* D17 admitted a `(withheld)` pool of at most (floor − 1) times
+the words the census left unnamed, and a count at a floor of one, and
+both named one row. *Amended by its skeptic (plan P4-D139):* D17 also
+held `n_present - n_unparsed` less the census's total to nought or that
+same number, and a date showing no width at all is not a form: the
+remainder is taken over the cells that could show a width, which the
+block does not publish, so the producer holds it and the loader cannot.
+The
+census is `{}` unless `format` is one of the six
 variable-width members — `month-first-date`, `day-first-date`,
 `two-digit-month-first-date`, `two-digit-day-first-date`,
 `month-first-datetime`, `day-first-datetime` — or one of the two
@@ -4632,29 +4711,32 @@ bound is a ceiling rather than an equality because only a field below
 ten can show a width at all.
 
 **Invariant D18 (the joint month-name census, landing 2b.6).** Every
-key of `month_name_styles` is one of the twenty-four joint style words
+key of `month_name_styles` is one of the thirty-six joint style words
 — `<case>-<length>-<mark>-<comma>` over `upper`, `title`, `lower` ×
-`abbreviated`, `full` × `space`, `hyphen` × `comma`, `no-comma` — or
-`(withheld)`, and on `textual-day-first-date` one of the twelve ending
+`abbreviated`, `full`, `either` × `space`, `hyphen` × `comma`,
+`no-comma` — and on `textual-day-first-date` one of the eighteen ending
 `-no-comma`, a comma there following a month name, which no member of
-this contract reads. Every named key maps to a count at least the
-floor, and the pool is bounded as D17 bounds its own. The census is
-`{}` unless `format` is one of the two textual members, and its values
-sum to at most `n_present - n_unparsed`: a cell whose month is May can
-show no length, `May` being its own abbreviation, and is counted under
-no key.
+this contract reads. The census is held to the disclosure rule of plan
+P4-D131 over `n_present - n_unparsed`: every count at least the floor
+and never below two, and what the counts leave over of that total
+nought or at least that many. It is `{}` unless `format` is one of the
+two textual members, and its values sum to at most
+`n_present - n_unparsed`: a cell whose month is May shows no length,
+`May` being its own abbreviation, and is counted under the length its
+column's other cells of the same case, mark and comma wrote, or with the
+length `either` where none did (plans P4-D133 and P4-D139).
 
 **Invariant D19 (the quarter marker's case, landing 2b.6).** Every key
-of `quarter_marker_case` is `upper`, `lower` or `(withheld)`; every
-named key maps to a count at least the floor; the pool is bounded as
-D17 bounds its own; the census is `{}` unless `format` is
-`year-quarter`; and its values sum to at most `n_present - n_unparsed`.
+of `quarter_marker_case` is `upper` or `lower`; the census is held to
+D18's disclosure rule over `n_present - n_unparsed`; it is `{}` unless
+`format` is `year-quarter`;
+and its values sum to at most `n_present - n_unparsed`.
 
 **Invariant D20 (the zulu marker's case, landing 2b.6).** Every key of
-`zulu_case` is `upper`, `lower` or `(withheld)`; every named key maps
-to a count at least the floor; the pool is bounded as D17 bounds its
-own; the census is `{}` unless `utc_offsets` NAMES `Z`; and its values
-sum to at most `utc_offsets["Z"]`. The key-set rule is the one D4 makes
+`zulu_case` is `upper` or `lower`; the census is held to D18's
+disclosure rule over `utc_offsets["Z"]`, the total it counts over; it
+is `{}` unless `utc_offsets` NAMES `Z`; and its values sum to at most
+`utc_offsets["Z"]`. The key-set rule is the one D4 makes
 for the endpoint offsets and for the same reason: this census counts a
 subset of the cells carrying ONE offset, so publishing it beside a
 POOLED `Z` would hand back in one field the count another field of the
@@ -9472,10 +9554,10 @@ it answers to.
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
-| D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor; the `(withheld)` count is at most (floor − 1) times the number of permitted words the census leaves unnamed; the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
-| D18 | every key of `month_name_styles` is one of the twenty-four joint style words or `(withheld)`, and on `textual-day-first-date` one of the twelve `no-comma` words; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `format` is one of the two textual members; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
-| D19 | every key of `quarter_marker_case` is `upper`, `lower` or `(withheld)`; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
-| D20 | every key of `zulu_case` is `upper`, `lower` or `(withheld)`; every named key maps to a count at least the floor; the pool is bounded as D17 bounds its own; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
+| D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`, never `(withheld)`; every key maps to a count at least the floor and never below two (the disclosure rule, P4-D131, whose remainder the producer holds over the cells that could show a width, P4-D139); the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D18 | every key of `month_name_styles` is one of the thirty-six joint style words, a name of May with the length `either` (P4-D133), and on `textual-day-first-date` one of the eighteen `no-comma` words; the census is held to the disclosure rule over `n_present - n_unparsed`, a count at least the floor and never below two and a remainder of nought or at least that many; the census is `{}` unless `format` is one of the two textual members; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D19 | every key of `quarter_marker_case` is `upper` or `lower`; the census is held to D18's disclosure rule; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 
@@ -9485,7 +9567,7 @@ it answers to.
 | V2 | `candidate` is `(withheld)` on exactly the columns where `missing_by_source` is empty for N3's reason — a column whose publication class permits no value of the table anywhere in its block. Naming a candidate there would publish a value out of a column that publishes none, and on every other column no candidate reads `(withheld)` | yes |
 | V3 | `verdict` is `read_as_missing` only when `reason` is `outlier_and_frequent`; the other four reasons all keep the candidate as an ordinary number of the column | yes |
 | V4 | entries appear in three groups, in this order, and the rule is TOTAL over the candidates this format permits: (1) NUMBERS, ascending by the number; (2) CALENDAR DAY SPELLINGS, ascending by the candidate text; (3) `(withheld)`, ordered by `n_occurrences`, then `verdict`, then `reason`, so no position can say which of two withheld candidates is the smaller. The datetime section states the rule entire, with the reason it is written total rather than for the mixed case alone | yes |
-| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences`, and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
+| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences`, the cells a column's `read_as_missing` decisions took out and name no spelling for come, over all of them, to at most `n_missing_withheld` on a column that publishes values (P4-D135), and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
 
 ---
 
@@ -10007,7 +10089,7 @@ form, the stand-in is written in it (7.9.1).
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count |
-| `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET (landing 2b.6, plan P4-D61, the reversal of owner decision 5). Every convention the description names must come back on at least a floor's worth of the file's own cells, and no convention it does not name beyond what its `(withheld)` pool covers. The COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
+| `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET for the first two and EXACT for the last two (landing 2b.6, plan P4-D61, the reversal of owner decision 5; plan P4-D134). Every convention the description names must come back on at least a floor's worth of the file's own cells — on the two marker censuses at exactly its published count, since every cell they count over shows the marker — and no convention it does not name beyond the cells the named counts leave over. On the first two each convention is counted on the file's own cells as the producer folds them, and a one-field width or an `either` name is owed on a floor's worth or on every cell of that kind the file holds, whichever is fewer (plan P4-D139). On the first two the COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -11782,20 +11864,21 @@ exactly `iso-date` and `iso-datetime`. No other key set conforms.
 two or more or else `null` (landing 2b.3; the absent state and the floor
 of two, landing 2b.6), on the `datetime` block alone.
 
-**The four written-form vocabularies — 4, 24, 2 and 2**, each plus the
-pooled key (6.6.2 C6-25d to C6-25g, D17 to D20; landing 2b.6):
+**The four written-form vocabularies — 8, 36, 2 and 2**, with no pooled
+key (6.6.2 C6-25d to C6-25g, D17 to D20; landing 2b.6, and plans P4-D131
+to P4-D133):
 
-- **`date_field_widths` keys — 4:** `padded`, `unpadded`,
-  `first-padded`, `second-padded`; and `(withheld)`. On a textual member
-  only the first two.
-- **`month_name_styles` keys — 24:** every
+- **`date_field_widths` keys — 8:** `padded`, `unpadded`,
+  `first-padded`, `second-padded`, `first-field-padded`,
+  `first-field-unpadded`, `second-field-padded`, `second-field-unpadded`.
+  On a textual member only the first two.
+- **`month_name_styles` keys — 36:** every
   `<case>-<length>-<mark>-<comma>` over `upper`, `title`, `lower` ×
-  `abbreviated`, `full` × `space`, `hyphen` × `comma`, `no-comma`; and
-  `(withheld)`. On `textual-day-first-date` only the twelve ending
+  `abbreviated`, `full`, `either` × `space`, `hyphen` × `comma`,
+  `no-comma`. On `textual-day-first-date` only the eighteen ending
   `-no-comma`.
-- **`quarter_marker_case` keys — 2:** `upper`, `lower`; and
-  `(withheld)`.
-- **`zulu_case` keys — 2:** `upper`, `lower`; and `(withheld)`.
+- **`quarter_marker_case` keys — 2:** `upper`, `lower`.
+- **`zulu_case` keys — 2:** `upper`, `lower`.
 
 ### 14.7 Numeric spelling
 

@@ -341,8 +341,15 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     declared day at 16 of them and not at the other 24. Seed 0 is one of
     the 24, so leaving it here would have left this test asserting a
     repair it never triggered -- the very thing the closure review found
-    the first version of it doing. At seeds 1, 4 and 8 it fires, and the
+    the first version of it doing. At seeds 1, 4 and 8 it fired, and the
     twin still exits 3 with exactly the mark census missed.
+
+    AND IT MOVED FROM 4 TO 2 WHEN A GAP'S DRAWS STOPPED GIVING ITS TWO
+    PINNED DAYS A WHOLE DAY'S MASS EACH (plan P4-D130). Measured again over
+    seeds 0 to 39: a present rank lands on the declared day at 21 of them
+    -- 0, 2, 3, 6, 7, 9, 11, 13, 14, 15, 16, 19, 20, 23, 26, 27, 31, 35,
+    36, 38 and 39 -- and at every one of the 21 the twin exits 3 with the
+    mark census and nothing else missed. Seed 4 is not among them.
     """
     cells = _days(220, " 00:00:00", 51) + ["2025-06-01 00:00:00"] * 20
     first, second, written, twin_exit, _real = _round_trip(
@@ -350,7 +357,7 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
         cells,
         ("--missing-value", "2025-06-01 00:00:00"),
         False,
-        seed="4",
+        seed="2",
     )
     # The twenty absent cells are written in their declared spelling, and
     # no present value wears it: described again, the twin holds exactly

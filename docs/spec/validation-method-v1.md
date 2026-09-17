@@ -1217,26 +1217,52 @@ rather than in ISO:
   goes back to ISO. It is LISTED, not checked, on an `iso-mixed` column
   NOT wholly at midnight, where the twin writes every value with a time
   of day and so reads back as `iso-datetime` (residual R-P4-12).
-- each of `date_field_widths`, `month_name_styles`,
-  `quarter_marker_case` and `zulu_case` is compared as a KEY SET and
-  not as a count: every convention the description names must appear on
-  at least a floor's worth of the file's own cells
-  (`widths.<word>`, `names.<word>`, `markers.<word>`, `zulu.<word>`),
-  and the cells wearing a convention the description does NOT name,
-  the file's own pool included, are at most the published pool widened
+- each of `date_field_widths` and `month_name_styles` is compared as a
+  KEY SET and not as a count: every convention the description names
+  must appear on at least a floor's worth of the file's own cells
+  (`widths.<word>`, `names.<word>`), and the cells wearing a convention
+  the description does NOT name are at most the cells the named counts
+  leave over of the total the description publishes for them, widened
   by any cells the file holds beyond the published total
   (`<family>.unnamed`). The counts themselves are NOT compared, and the
   reason is the fact that makes them interesting: whether a cell can
-  show a convention depends on its own value — a day above the ninth
-  shows no field width, a month of May shows no name length — so how
-  many of a file's cells could carry one is a fact about that file's
-  values, and a faithful twin whose interior instants fall a day either
-  side of the real ones carries a different number of them. A count
-  check would accuse the tool's own twin.
+  show a width or a name's length depends on its own value — a day
+  above the ninth shows no field width, a month of May shows no name
+  length — so how many of a file's cells could carry one is a fact about
+  that file's values, and a faithful twin whose interior instants fall a
+  day either side of the real ones carries a different number of them.
+  A count check would accuse the tool's own twin. THOSE CELLS ARE
+  COUNTED ON THE FILE ITSELF (plan P4-D139), by the producer's own tally
+  and its folds — a one-field width into the joint word agreeing with
+  it, a name of May into its column's length — and not read off the
+  file's floored description, which withholds a census whole where what
+  it leaves over is a handful: a twin whose dates put seven cells in May
+  beside a published `either` style of eleven was told it missed every
+  style, on four seeds of eight. A convention only a date's value can
+  show — a one-field width, an `either` name — is owed on a floor's
+  worth of the file's cells or on every cell of that kind the file
+  holds, whichever is fewer. A count the file's description does not
+  name is printed as not named, and an unnamed total under the line as
+  fewer than it, never as the number.
+- each of `quarter_marker_case` and `zulu_case` is compared COUNT FOR
+  COUNT (`markers.<word>`, `zulu.<word>`), and the unnamed cells are
+  held to nought (plan P4-D134). Every cell those two count over shows
+  its marker — every quarter, every value carrying `Z` — and a twin
+  writes exactly the published number of each, so the uncertainty
+  above does not arise. *Amended by the review of 158c811:* both were
+  compared as a key set, and a file holding eighty lower-case and 320
+  upper-case zulu markers turned the other way round met both.
+- a convention the FILE's own description does not name is printed as
+  not named there and never as a count (plan P4-D134): that description
+  holds each census to the disclosure rule of plan P4-D131, so an absent
+  key can stand for a handful of cells or for a census withheld whole.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside
-  `year-quarter`, the zulu case where no `Z` is named. `resolution_mix`
+  `year-quarter`, the zulu case where no `Z` is named. It is listed in
+  other words where the member CAN show it and the census is empty, for
+  that census names no value that showed one or was held back whole,
+  and the listing does not say which. `resolution_mix`
   stays listed on every column: on a single-member column it restates
   `format` and `n_unparsed`, both checked, and a check that cannot fail
   on its own is what this method exists to refuse.

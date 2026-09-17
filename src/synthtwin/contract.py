@@ -1236,7 +1236,9 @@ INVARIANTS = {
         "its absent cells, each once and in order, no spelling is "
         "named by two decisions of one column, the cells those "
         "spellings cover never outnumber the rows the decision says "
-        "held its candidate, and a decision that kept its candidate "
+        "held its candidate, the cells the column's decisions took out "
+        "and name no spelling for fit among the absent cells whose "
+        "spellings it holds back, and a decision that kept its candidate "
         "as a number names none"
     ),
     "M3": (
@@ -1410,25 +1412,30 @@ INVARIANTS = {
     "D17": (
         "the joint width a cell wrote its month and day fields at is "
         "counted only for a member whose fields can show one, is named "
-        "only when at least the smallest group size of cells wrote it, "
-        "and comes to no more than the values that read as dates"
+        "only when at least the smallest group size of cells wrote it "
+        "and never fewer than two, names no pool, and comes to no more "
+        "than the values that read as dates"
     ),
     "D18": (
         "the case, length, mark and comma a cell wrote a month NAME with "
         "are counted only for the two textual members, only in the "
-        "combinations that member can write, and only where at least the "
-        "smallest group size of cells wrote each"
+        "combinations that member can write -- a name of May with its "
+        "length as either -- and only where at least the smallest group "
+        "size of cells, and never fewer than two, wrote each, with no pool "
+        "and none or at least that many of the values over"
     ),
     "D19": (
         "the case of a quarter's marker is counted only for a column of "
         "quarters, and named only when at least the smallest group size "
-        "of cells wrote it"
+        "of cells, and never fewer than two, wrote it, with no pool and "
+        "none or at least that many of the values over"
     ),
     "D20": (
         "the case of a zulu offset marker is counted only where the "
         "offset map names 'Z', comes to no more than the values carrying "
-        "it, and is named only when at least the smallest group size of "
-        "cells wrote it"
+        "it while leaving none of them over or at least the smallest group "
+        "size, names no pool, and is named only when at least the smallest "
+        "group size of cells, and never fewer than two, wrote it"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -5765,6 +5772,7 @@ def _sentinel_verdicts(
     floor: int,
     publishes_nothing: bool,
     counts: "dict[str, int]",
+    n_withheld: int = 0,
 ) -> "tuple[SentinelVerdict, ...]":
     """What was decided about each named stand-in number, and why (5.5).
 
@@ -5900,7 +5908,62 @@ def _sentinel_verdicts(
             )
         ]
         place = place + 1
+    _unnamed_judged_cells(entries, where, publishes_nothing, counts, n_withheld)
     return tuple(entries)
+
+
+def _unnamed_judged_cells(
+    entries: "list[SentinelVerdict]",
+    where: str,
+    publishes_nothing: bool,
+    counts: "dict[str, int]",
+    n_withheld: int,
+) -> None:
+    """V5's last part: a judged cell no spelling names is a pooled cell.
+
+    A decision that read its candidate as "no value" took out
+    `n_occurrences` cells. Those its `spellings` name are counted under
+    those keys; every OTHER one was pooled, because a spelling the floor
+    did not let the column name goes to `n_missing_withheld` and nowhere
+    else. So the cells the decisions of one column leave unnamed, added
+    over ALL of them, fit in that one pool -- the pool is spent once, not
+    once per decision (plan P4-D135).
+
+    WHY (review of 158c811, item 6). The two parts before it bound a
+    decision's named spellings from above and left the omission open: a
+    judged decision taking twenty `1900-01-01 00:00:00` cells, edited to
+    name no spelling beside a pool of nought, loaded -- and with the link
+    gone the validator read that spelling as a declaration reaching the
+    whole table, so an unchanged second column fell from 500 values to
+    420 and missed 13 obligations. No producer writes that document: the
+    twenty cells are counted under a key or in the pool, and nowhere else.
+
+    A column that publishes no value of the table accounts for no absent
+    cell by spelling at all (C5-N3), so there is nothing here to add up.
+
+    Guarantees: accepts the column's decisions, where they stand, whether
+    the column publishes values, its hole spellings with their counts and
+    its pooled count; returns nothing. Raises ProfileError for V5. No I/O.
+    """
+    if publishes_nothing:
+        return
+    unnamed = 0
+    for entry in entries:
+        if entry.verdict != VERDICT_MISSING:
+            continue
+        covered = 0
+        for spelling in entry.spellings:
+            covered = covered + counts[spelling]
+        unnamed = unnamed + (entry.n_occurrences - covered)
+    if unnamed > n_withheld:
+        raise _broken(
+            "V5",
+            where,
+            f"the decisions that read a stand-in as no value leave "
+            f"{unnamed} of the cells they took out named by no spelling",
+            f"the column holds back the spellings of {n_withheld} absent "
+            f"cell(s)",
+        )
 
 
 def _reads_as_a_number(text: str, key: str, where: str) -> float:
@@ -6057,6 +6120,7 @@ def _column(
         frame.floor,
         publishes_nothing,
         by_source,
+        n_withheld,
     )
     unpublished = _whole(
         mapping["n_sentinel_candidates_unpublished"],
@@ -7366,6 +7430,7 @@ def _datetime_facts(
         or parser_family in parsing.TEXTUAL_MEMBERS,
         n_present - unparsed,
         "D17",
+        False,
     )
     name_styles = _written_census(
         mapping,
@@ -7476,9 +7541,7 @@ def _counted_at_midnight(
     Guarantees: accepts the facts already read; returns nothing. Raises
     ProfileError for D15. No I/O of any kind.
     """
-    least = floor
-    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
-        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    least = parsing.disclosure_line(floor)
     if counted is None:
         if midnight:
             raise _broken(
@@ -7559,6 +7622,37 @@ def _name_vocabulary(parser_family: str) -> "tuple[str, ...]":
     return parsing.MONTH_NAME_STYLES
 
 
+def written_forms_of_an_instant(facts: "DatetimeFacts") -> int:
+    """How many written forms one instant of this column can take (P4-D137).
+
+    The product, over the four censuses of how the dates were written, of
+    how many forms each names -- one where it names none. One value is
+    written in one form per census, and a twin spreads each census's named
+    forms over its cells, so one day of a month-first column can come back
+    `3/5/2024` and `03/05/2024`, and one quarter `2024-Q1` and `2024-q1`:
+    two different cells a count of distinct values counts twice. The
+    generator's report (method G12.5) and the validator both multiply the
+    ways an instant is written by this, because a bound that leaves it out
+    calls a faithful twin of a mixed column MISSED: 300 quarters over twelve
+    years, a quarter of them written `q`, publish 81 different values
+    against an upper end of 48, and both the table and its twin were told
+    so.
+
+    Guarantees: accepts loaded datetime facts; returns a whole number of
+    at least one. Determinism: a function of the facts. Raises nothing.
+    No I/O of any kind.
+    """
+    forms = 1
+    for census in (
+        facts.date_field_widths,
+        facts.month_name_styles,
+        facts.quarter_marker_case,
+        facts.zulu_case,
+    ):
+        forms = forms * max(1, len(census))
+    return forms
+
+
 def _written_census(
     mapping: "dict[str, object]",
     key: str,
@@ -7568,18 +7662,30 @@ def _written_census(
     reachable: bool,
     most: int,
     rule: str,
+    remainder_published: bool = True,
 ) -> "dict[str, int]":
     """One census of HOW a column's dates were written (landing 2b.6).
 
     The four censuses that reverse owner decision 5 are held by one rule
     each, and this is the shape of all four -- written once, because four
     copies of a floor rule are four things to keep in step. In order: a
-    key outside the member's own vocabulary is refused; every named count
-    reaches the floor, since a form held by one row describes how that
-    row was written; a withheld pool is at most the floor less one for
-    each form the census leaves unnamed, exactly as D12 bounds the marks;
-    a member that cannot show the convention at all carries an empty
-    census; and the total is at most the cells that could carry one.
+    key outside the member's own vocabulary is refused, and `(withheld)`
+    is outside every one of them; every named count reaches the floor
+    and never falls below two, since a form held by one row describes how
+    that row was written; a member that cannot show the convention at all
+    carries an empty census; the total is at most the cells that could
+    carry one; and what the named counts leave over of that published
+    total is none or reaches the same line (plan P4-D131). The last three
+    are `parsing.census_discloses`, the producer's own rule, asked here
+    rather than written a second time.
+
+    WHY NO POOL, AND WHY THE REMAINDER (review of 158c811, item 1). The
+    pool used to be bounded as D12 bounds the marks' pool, and that bound
+    let a census of two forms publish `{"upper": 399, "(withheld)": 1}`:
+    with one form left the pool is that form's count, so the loader
+    accepted a description naming the one row that wrote a lower-case
+    `z`. And where no pool is written, the published total less the named
+    counts is the same count by subtraction.
 
     THE TOTAL IS A CEILING AND NOT AN EQUALITY, and that is a real
     difference from D13 rather than a looser copy of it. Whether a cell
@@ -7590,30 +7696,40 @@ def _written_census(
     them. What the twin is held to is the SET of conventions and each
     one's floor, which is what `_written_form_checks` measures.
 
+    AND THE WIDTHS' REMAINDER IS NOT A NUMBER THE DOCUMENT PUBLISHES
+    (`remainder_published` false; plan P4-D139). A date whose two fields
+    are both ten or more shows no width, so what the width census leaves
+    over is counted against the cells that COULD show one, which no field
+    of the block states: the published ceiling less the named counts is
+    those cells plus any form held back, and a reader cannot part the two.
+    The producer holds that remainder (`taxonomy._width_counts`); here a
+    width census is held to its vocabulary, its line, no pool and the
+    ceiling.
+
     Guarantees: accepts the datetime block, the census's key, where it
     stands, the floor, the member's vocabulary, whether the member can
-    show the convention, the ceiling on the total and the invariant's
-    name; returns the census. Raises ProfileError for a key outside the
+    show the convention, the ceiling on the total, the invariant's name
+    and whether the remainder over the ceiling is published; returns the
+    census. Raises ProfileError for a key outside the
     vocabulary and for the named invariant. No I/O of any kind.
     """
     value: object = mapping[key] if key in mapping else {}
     census = _counts(value, key, where, 1)
+    line = parsing.disclosure_line(floor)
     for name in sorted(census):
-        if name == WITHHELD:
-            continue
         if name not in permitted:
             raise _out_of_range(
                 f"{key} -> {name}",
                 where,
                 f"'{name}'",
-                _listed(permitted + (WITHHELD,)),
+                _listed(permitted),
             )
-        if census[name] < floor:
+        if census[name] < line:
             raise _broken(
                 rule,
                 where,
                 f"the written form '{name}' was used by {census[name]} rows",
-                f"the smallest group size is {floor}",
+                f"a published count names at least {line} of them",
             )
     total = _added(census)
     if not reachable:
@@ -7625,25 +7741,22 @@ def _written_census(
                 "no cell of this column's dates can show it",
             )
         return census
-    if WITHHELD in census:
-        unnamed = 0
-        for name in permitted:
-            if name not in census:
-                unnamed = unnamed + 1
-        if census[WITHHELD] > (floor - 1) * unnamed:
-            raise _broken(
-                rule,
-                where,
-                f"{census[WITHHELD]} values' written forms are held back",
-                f"{unnamed} form(s) are left unnamed, and each of them was "
-                f"used by fewer than {floor} rows",
-            )
     if total > most:
         raise _broken(
             rule,
             where,
             f"the counted written forms come to {total}",
             f"at most {most} of the column's values could show one",
+        )
+    if not remainder_published:
+        return census
+    if total and not parsing.census_discloses(census, most, floor):
+        raise _broken(
+            rule,
+            where,
+            f"the counted written forms leave {most - total} of {most} "
+            f"values over",
+            f"what a census leaves over is none or at least {line}",
         )
     return census
 
