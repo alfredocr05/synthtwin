@@ -7710,6 +7710,73 @@ def _name_vocabulary(parser_family: str) -> "tuple[str, ...]":
     return parsing.MONTH_NAME_STYLES
 
 
+def midnight_withheld_for_its_size(facts: "DatetimeFacts") -> bool:
+    """Whether `n_at_midnight` is withheld because a side was too small.
+
+    THE ONE READING OF A WITHHELD COUNT (plan P4-D191), asked by the
+    generator and the validator alike. The describing step withholds the
+    count for three reasons (`taxonomy._midnight_count`): the column is
+    not one of moments; it is read on the shared clock with its offsets
+    pooled; or too few moments stood at midnight, or too few did not. A
+    column wholly at midnight publishes `all_at_midnight` instead. Only
+    the third says anything about a file's own count: fewer than the line
+    at midnight, or fewer than the line off it.
+
+    Guarantees: accepts loaded datetime facts; returns a bool. A function
+    of the facts. Raises nothing. No I/O of any kind.
+    """
+    if facts.resolution != "datetime" or facts.n_at_midnight is not None:
+        return False
+    if facts.all_at_midnight:
+        return False
+    return not (facts.datetimes_read_at != "local" and WITHHELD in facts.utc_offsets)
+
+
+def datetime_counts_reachable(column: "ColumnBlock") -> bool:
+    """Whether method G7.3's count pass reaches a date column's distinct count.
+
+    THE ONE STATEMENT OF WHERE THE CONSTRUCTION REACHES IT (plan
+    P4-D192), asked by the generator's pass and report and by the
+    validator alike. The pass counts different written UNITS -- days, or
+    minutes or seconds at the column's precision -- so it reaches the
+    count of different cells only where one instant is written one way:
+    read on the column's own clock; at `date` or `datetime` resolution;
+    carrying no offset at all and no pooled offset; writing at most one
+    mark between day and clock and pooling none; each census of written
+    forms naming at most one form; writing no bare date beside moments;
+    and publishing the same count folded as raw.
+
+    Guarantees: accepts a loaded column block; returns False for any
+    column not of dates. A function of the block. Raises nothing. No I/O
+    of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (DatetimeFacts,)):
+        return False
+    if facts.datetimes_read_at != "local":
+        return False
+    if facts.resolution not in ("date", "datetime"):
+        return False
+    for key in facts.utc_offsets:
+        if key != NO_OFFSET:
+            return False
+    if WITHHELD in facts.datetime_separators or len(facts.datetime_separators) > 1:
+        return False
+    for census in (
+        facts.date_field_widths,
+        facts.month_name_styles,
+        facts.quarter_marker_case,
+        facts.zulu_case,
+    ):
+        if len(census) > 1:
+            return False
+    if facts.parser_family == FORMAT_ISO_MIXED and (
+        "iso-date" in facts.resolution_mix and facts.resolution_mix["iso-date"] > 0
+    ):
+        return False
+    return column.n_distinct == column.n_distinct_folded
+
+
 def written_forms_of_an_instant(facts: "DatetimeFacts") -> int:
     """How many written forms one instant of this column can take (P4-D137).
 

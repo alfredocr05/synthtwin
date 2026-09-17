@@ -4580,8 +4580,66 @@ alone.
   instant, and describing the twin again gave back an `earliest` the
   report had said nothing about.
 
-`n_distinct` and `n_distinct_folded` on a datetime column are
-APPROXIMATED under **the envelope of G12.5**, which is the one the
+**The count passes, after every rank's instant and before any cell is
+spelled** (plans P4-D191 and P4-D192). Each rank drawn between two
+pinned ranks may move anywhere inside that gap: the gap's ranks are a
+multiset, sorted again afterwards, and every pinned rank still reads off
+its published value. Three counts the published facts fix are reached
+that way.
+
+- **A count at midnight withheld for its size** (P4-D191,
+  `contract.midnight_withheld_for_its_size`: a column of moments, not
+  wholly at midnight, not read on the shared clock with its offsets
+  pooled). On a column counted in seconds, each rank asked on its own
+  wall clock -- its offset applied on the shared clock -- with the line
+  two or the floor: where the eleven published instants
+  stand at midnight no more than half the time, every unpinned rank
+  that is not a bare date and is written at midnight at the column's
+  precision is moved one precision step later, or earlier where later
+  leaves its gap, in rank order until fewer than the line stand there;
+  otherwise every unpinned rank off midnight takes the nearest midnight
+  inside its gap, in rank order, until fewer than the line stand off it
+  and never all. Nothing moves where fewer than the line already stand
+  on either side.
+- **The widths** (P4-D192), on a column read on its own clock, writing
+  no bare date, counted in days or in seconds, whose member shows
+  widths and whose census names exactly ONE convention: every cell
+  showing a width wears it, so the ranks whose day shows one -- a
+  numeric field below ten, or a textual member's day below ten -- must
+  number that count. While they do not, each unpinned rank of the kind
+  in surplus is offered the nearest instant a whole number of days away
+  inside its gap whose day is of the other kind, earlier first at one
+  distance, and the offers are taken nearest first, ties to the lower
+  rank, until the count holds.
+- **The different values** (P4-D192), on the same columns, where one
+  instant is written one way (`contract.datetime_counts_reachable`: no
+  offset carried and none pooled, one mark at most and none pooled, each
+  written-form census naming at most one form, no bare date beside
+  moments) and the two published counts agree: the different
+  written units -- days, or minutes or seconds at the column's
+  precision -- must number `n_distinct` less the stand-ins. Too many:
+  each unpinned run sorted, a run of ranks on one unit holding no pinned
+  rank moves whole onto the instant of the rank just below or just
+  above it, where that lies inside its gap and is of the same width kind
+  and midnight standing -- nearest first, then the shorter run, then the
+  lower rank. Too few: each unpinned rank sharing its unit is offered
+  the nearest unit no rank holds inside its gap, of the same width kind
+  and midnight standing, earlier first, nearest first, ties to the lower
+  rank.
+
+The two passes of P4-D192 run in that order, again while either moved,
+at most four times, and each unpinned run is then sorted. What they do
+not reach is recounted from the finished cells and named as a deviation
+of `n_distinct`, `n_distinct_folded`, `date_field_widths` or
+`n_at_midnight`. Measured on the final skeptic's clinical export of
+2,000 rows at seeds 4 and 11: `n_distinct` 1077, `date_field_widths
+{"unpadded": 1635}` and a withheld discharge count at midnight all come
+back exactly, where the twins held 1065 and 1107, 1657 and 1667, and two.
+
+`n_distinct` and `n_distinct_folded` on a datetime column are EXACT
+where the published count lies inside **the envelope of G12.5** and the
+pass above applies, which it reaches (plan P4-D192), and APPROXIMATED
+under that envelope everywhere else, which is the one the
 profile contract's matrix names for them (contract 9.6) and the one this
 document derives from the rank windows of G12.4. An earlier revision
 sent them to G5.6's numeric rung envelope with `g_max = 1`, which is a
@@ -8965,8 +9023,13 @@ holds far more; the envelope says what the CONSTRUCTION guarantees, and
 the published count is printed beside it. Where the two disagree, the
 recount of G12 names `n_distinct` as a deviation, so the reader is told
 both that the published count was missed and how many different values
-the twin does hold. Making the twin's cardinality exact is not in this
-phase's method; saying so plainly, every run, is.
+the twin does hold. *Amended by plan P4-D192:* the twin's cardinality is
+now made exact wherever the published count lies inside this envelope
+on a column G7.3's count pass applies to
+(`contract.datetime_counts_reachable`), and a count the pass cannot reach
+there is a deviation rather than a measurement inside a range. Outside
+the envelope, and on every other column, the count stays approximated
+under it.
 
 ### G12.6 The bounds on `length.mean`, `length.p50` and `words.mean`
 
@@ -9628,7 +9691,9 @@ the rules of G2.2 part 2 of the carried items changed -- a count spread
 over the cells its class fits, and a code published as the source wrote
 it and read for its kind off the code (plans P4-D187 and P4-D189), and
 one for the numbers of a free-text column carrying what the walk of
-G9.5 step 5 could not spend (plan P4-D190).
+G9.5 step 5 could not spend (plan P4-D190), and three for G7.3's count
+passes -- a withheld count at midnight kept on its side, and the counts of
+widths and of different dates reached (plans P4-D191 and P4-D192).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -9667,7 +9732,7 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All seventy-five are required.** The count is taken off the committed
+**All seventy-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9681,7 +9746,7 @@ holds eighteen; the fourth,
 `tests/reference/generation-document-vectors.json`, holds eight; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
-five (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+eight (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9761,6 +9826,9 @@ case passed, which is the failure the count exists to prevent:
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
+| `date_distinct_reached` | G7.3's pass on the count of different values (plan P4-D192): sixty ISO dates over thirty days publishing twelve different days, one more than its pins hold, reached by runs of ranks on one day moving whole onto a neighbour's day inside their gaps. Its mutant withdraws the pass and the twin holds more days |
+| `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `unpadded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass |
+| `midnight_withheld_kept` | G7.3's rule for a withheld count at midnight (plan P4-D191): sixty moments to the minute whose pins stand a minute either side of midnight in turn, so about half the ranks between a `23:59` and the next `00:01` land at midnight; the published instants stand off it, so fewer than the line of eleven may, and the ranks at midnight step a minute later. Its mutant leaves them there |
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
 | `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
 | `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |

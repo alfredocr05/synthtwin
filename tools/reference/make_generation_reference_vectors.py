@@ -5760,6 +5760,10 @@ def _datetime_content(column):
             for rank in range(parsed)
         ]
         ordinals = snapped_to_midnight(column, ordinals, shifts)
+    # A withheld count at midnight kept on its side (plan P4-D191), and
+    # the counts of different values and of widths reached (P4-D192).
+    ordinals = kept_off_midnight(column, ordinals, parsed, whole, gap_lows, gap_highs, offsets=offsets)
+    ordinals = units_settled(column, ordinals, parsed, whole, gap_lows, gap_highs)
     holes = set(column.get("missing_by_source", {}))
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
@@ -6297,6 +6301,315 @@ def snapped_to_midnight(column, ordinals, shifts):
 
 SLASHED_STAMPS = ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime")
 MARKS_BY_COMMONNESS = ("upper_t", "space", "lower_t")
+
+
+def midnight_withheld_for_its_size(column):
+    """Whether n_at_midnight is withheld because one side was too small
+    (plan P4-D191): a column of moments, not wholly at midnight, and not
+    read on the shared clock with its offsets pooled."""
+    return (
+        column["resolution"] == "datetime"
+        and column.get("n_at_midnight") is None
+        and not column.get("all_at_midnight", False)
+        and not (
+            column["datetimes_read_at"] != "local"
+            and WITHHELD in column.get("utc_offsets", {})
+        )
+    )
+
+
+def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_SMALL_CELL_FLOOR, offsets=None):
+    """Method G7.3's midnight rule for a withheld count (plan P4-D191).
+
+    Fewer than the line -- two, or the floor -- may stand at midnight, or
+    fewer than the line off it, each rank asked on its own wall clock. On
+    a column counted in seconds, the side is the one most of the published instants
+    (the ends and the nine rungs) stand on: off midnight, the unpinned
+    ranks written at midnight step one precision unit later, or earlier
+    where later leaves the gap, in rank order until fewer than the line
+    stand there; at midnight, the unpinned ranks off it take the nearest
+    midnight inside their gap, in rank order, until fewer than the line
+    stand off it, never all of them.
+    """
+    ordinals = list(ordinals)
+    if parsed < 3 or not midnight_withheld_for_its_size(column):
+        return ordinals
+    if ordinal_space(column) != "datetime":
+        return ordinals
+    step = 60 if column["time_precision"] == "minute" else 1
+    line = max(2, floor)
+    pinned = ranks_the_tail_pins(parsed)
+    shifts = [
+        offset_form(offsets[rank])[1]
+        if column["datetimes_read_at"] == "utc" and offsets is not None else 0
+        for rank in range(parsed)
+    ]
+    at = sum(1 for rank in range(parsed) if written_at_midnight(ordinals[rank], shifts[rank], step))
+    pins = sum(1 for flag in pinned if flag)
+    pins_at = sum(
+        1 for rank in range(parsed)
+        if pinned[rank] and written_at_midnight(ordinals[rank], shifts[rank], step)
+    )
+    if at < line or parsed - at < line:
+        return ordinals
+    if 2 * pins_at <= pins:
+        for rank in range(parsed):
+            if at < line:
+                break
+            if pinned[rank] or whole[rank] or not written_at_midnight(ordinals[rank], shifts[rank], step):
+                continue
+            if ordinals[rank] + step <= highs[rank]:
+                ordinals[rank] += step
+            elif ordinals[rank] - step >= lows[rank]:
+                ordinals[rank] -= step
+            else:
+                continue
+            at -= 1
+        return ordinals
+    for rank in range(parsed):
+        if parsed - at < line or parsed - at <= 1:
+            break
+        if pinned[rank] or whole[rank] or written_at_midnight(ordinals[rank], shifts[rank], step):
+            continue
+        found = nearest_midnight(ordinals[rank], shifts[rank], lows[rank], highs[rank])
+        if found is None:
+            continue
+        ordinals[rank] = found
+        at += 1
+    return ordinals
+
+
+def date_counts_reachable(column):
+    """Where method G7.3's count pass reaches the count of different values
+    (plan P4-D192): read on the column's own clock, at date or datetime
+    resolution, carrying no offset and pooling none, writing at most one
+    mark between day and clock and pooling none, each census of written
+    forms naming at most one form, no bare date beside moments, and the
+    same count published folded as raw."""
+    if column["datetimes_read_at"] != "local" or column["resolution"] not in ("date", "datetime"):
+        return False
+    if any(key != "(none)" for key in column.get("utc_offsets", {})):
+        return False
+    marks = column.get("datetime_separators", {})
+    if WITHHELD in marks or len(marks) > 1:
+        return False
+    for key in ("date_field_widths", "month_name_styles", "quarter_marker_case", "zulu_case"):
+        if len(column.get(key, {})) > 1:
+            return False
+    if column["format"] == "iso-mixed" and column.get("resolution_mix", {}).get("iso-date", 0) > 0:
+        return False
+    return column["n_distinct"] == column["n_distinct_folded"]
+
+
+def shows_a_width(column, day_number):
+    """A written date shows a field's width where a numeric field is below
+    ten; a textual member's month is a name, so only its day can."""
+    _year, month, day = civil_from_days(day_number)
+    if column["format"] in TEXTUAL_MEMBERS:
+        return day < 10
+    return month < 10 or day < 10
+
+
+def units_settled(column, ordinals, parsed, whole, lows, highs):
+    """Method G7.3's two count passes (plan P4-D192).
+
+    On a column read on its own clock, writing no bare date, counted in
+    days or in seconds: (1) where the member shows widths and the census
+    names one convention, ranks the tail does not pin move whole days to
+    the nearest day of the other kind inside their gap until as many show
+    a width as the convention counts -- nearest move first, ties to the
+    lower rank, the earlier day first at one distance; (2) where one
+    instant is written one way and the two published counts agree, ranks
+    move until the different written units -- days, or the precision's
+    minutes or seconds -- number `n_distinct` less the stand-ins: too
+    many, with each unpinned run sorted, a run of ranks on one unit
+    holding no pinned rank moves whole onto the instant of the rank just
+    below or above it, inside its gap, of the same width kind and midnight
+    standing, nearest first, then the shorter run, then the lower rank;
+    too few, a rank sharing its unit moves to the nearest free
+    unit inside its gap keeping both; nearest first, ties to the lower
+    rank. The two passes run in that order, again while either moved, at
+    most four times; then each run of unpinned ranks is sorted.
+    """
+    ordinals = list(ordinals)
+    if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
+        return ordinals
+    space = ordinal_space(column)
+    if space not in ("date", "datetime"):
+        return ordinals
+    day = 1 if space == "date" else 86400
+    step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
+    pinned = [
+        flag or lows[rank] >= highs[rank]
+        for rank, flag in enumerate(ranks_the_tail_pins(parsed))
+    ]
+    census = column.get("date_field_widths", {})
+    widths = None
+    if len(census) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    ):
+        widths = next(iter(census.values()))
+    distinct = None
+    if date_counts_reachable(column):
+        distinct = column["n_distinct"] - column["n_unparsed"]
+    if widths is None and distinct is None:
+        return ordinals
+
+    for _round in range(4):
+        changed = False
+        if widths is not None:
+            changed = widths_pass(column, ordinals, pinned, lows, highs, day, widths) or changed
+        if distinct is not None:
+            changed = distinct_pass(
+                column, ordinals, pinned, lows, highs, day, step, distinct, widths is not None
+            ) or changed
+        if not changed:
+            break
+    sort_unpinned_runs(ordinals, pinned)
+    return ordinals
+
+
+def sort_unpinned_runs(ordinals, pinned):
+    """Sort, in place, each run of ranks the published tail does not pin."""
+    start = 0
+    while start < len(ordinals):
+        if pinned[start]:
+            start += 1
+            continue
+        end = start
+        while end < len(ordinals) and not pinned[end]:
+            end += 1
+        ordinals[start:end] = sorted(ordinals[start:end])
+        start = end
+
+
+def nearest_fitting(value, low, high, fits, by):
+    """The nearest instant a whole number of ``by`` away, inside
+    [low, high], for which ``fits`` holds; the earlier first at one
+    distance; None where none lies inside."""
+    away = 1
+    while True:
+        earlier, later = value - away * by, value + away * by
+        if earlier < low and later > high:
+            return None
+        for candidate in (earlier, later):
+            if low <= candidate <= high and fits(candidate):
+                return candidate
+        away += 1
+
+
+def widths_pass(column, ordinals, pinned, lows, highs, day, widths):
+    """Pass 1 of `units_settled` (plan P4-D192): the widths count."""
+    parsed = len(ordinals)
+    showing = sum(1 for value in ordinals if shows_a_width(column, value // day))
+    if showing == widths:
+        return False
+    fewer = showing > widths
+    options, bare = [], set()
+    for rank in range(parsed):
+        if pinned[rank] or shows_a_width(column, ordinals[rank] // day) != fewer:
+            continue
+        if (lows[rank], highs[rank]) in bare:
+            continue
+        found = nearest_fitting(
+            ordinals[rank], lows[rank], highs[rank],
+            lambda candidate: shows_a_width(column, candidate // day) != fewer,
+            day,
+        )
+        if found is None:
+            if day == 1:
+                bare.add((lows[rank], highs[rank]))
+            continue
+        options.append((abs(found - ordinals[rank]), rank, found))
+    changed = False
+    for _distance, rank, found in sorted(options):
+        if showing == widths:
+            break
+        ordinals[rank] = found
+        showing += -1 if fewer else 1
+        changed = True
+    return changed
+
+
+def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, widths):
+    """Pass 2 of `units_settled` (plan P4-D192): the count of different units."""
+    parsed = len(ordinals)
+    unit = step if day == 86400 else 1
+
+    def standing(value, target):
+        if widths and shows_a_width(column, value // day) != shows_a_width(column, target // day):
+            return False
+        return day != 86400 or written_at_midnight(value, 0, step) == written_at_midnight(target, 0, step)
+
+    held = {}
+    for value in ordinals:
+        held[value // unit] = held.get(value // unit, 0) + 1
+    count = len(held)
+    changed = False
+    if count > distinct:
+        sort_unpinned_runs(ordinals, pinned)
+        options = []
+        first = 0
+        while first < parsed:
+            last = first
+            while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
+                last += 1
+            if not any(pinned[first:last + 1]):
+                for other in (first - 1, last + 1):
+                    if not 0 <= other < parsed:
+                        continue
+                    target = ordinals[other]
+                    if lows[first] <= target <= highs[first] and standing(ordinals[first], target):
+                        options.append((abs(target - ordinals[first]), last - first + 1, first, other))
+            first = last + 1
+        for _distance, size, first, other in sorted(options):
+            if count == distinct:
+                break
+            own = ordinals[first] // unit
+            target = ordinals[other]
+            if target // unit == own or held[own] != size or held.get(target // unit, 0) <= 0:
+                continue
+            if not lows[first] <= target <= highs[first]:
+                continue
+            if any(value // unit != own for value in ordinals[first:first + size]):
+                continue
+            if not standing(ordinals[first], target):
+                continue
+            ordinals[first:first + size] = [target] * size
+            held[own] = 0
+            held[target // unit] += size
+            count -= 1
+            changed = True
+    elif count < distinct:
+        options, full = [], set()
+        for rank in range(parsed):
+            if pinned[rank] or held[ordinals[rank] // unit] < 2:
+                continue
+            if (lows[rank], highs[rank]) in full:
+                continue
+            value = ordinals[rank]
+            found = nearest_fitting(
+                value, lows[rank], highs[rank],
+                lambda candidate, value=value: held.get(candidate // unit, 0) == 0 and standing(value, candidate),
+                unit,
+            )
+            if found is None:
+                if not widths and day == 1:
+                    full.add((lows[rank], highs[rank]))
+                continue
+            options.append((abs(found - value), rank, found))
+        for _distance, rank, found in sorted(options):
+            if count == distinct:
+                break
+            own = ordinals[rank] // unit
+            if held[own] < 2 or held.get(found // unit, 0) > 0:
+                continue
+            held[own] -= 1
+            held[found // unit] = 1
+            ordinals[rank] = found
+            count += 1
+            changed = True
+    return changed
 
 
 def permitted_marks(column):
@@ -12222,6 +12535,123 @@ def _free_text_joint():
     }
 
 
+def _date_widths_reached():
+    """A month-first column whose cells showing a width are counted (P4-D192).
+
+    Eighty dates over a year leaning into its last quarter, where a day
+    past the ninth of October, November or December shows no width. The
+    census names one convention, `unpadded`, on forty-four cells, so the
+    twin's cells showing a width must be forty-four: each gap's ranks move
+    a whole day at a time to the nearest day of the other kind, nearest
+    first, until they are.
+    """
+    rungs = [
+        "2024-01-03", "2024-02-20", "2024-04-11", "2024-06-01", "2024-09-28",
+        "2024-10-08", "2024-10-21", "2024-11-06", "2024-11-25", "2024-12-14",
+        "2024-12-30",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=80, n_missing=0, n_distinct=60, n_distinct_folded=60,
+        n_numeric=0, n_not_numeric=80, n_out_of_range=0, n_contradictory=0,
+        format="month-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 80},
+        date_field_widths={"unpadded": 44},
+    )
+    return {
+        "why": "the widths count of G7.3's count passes (plan P4-D192): a "
+        "census naming one convention is worn by every cell showing a width, "
+        "so the twin holds as many dates whose day shows one as the census "
+        "counts, moving ranks whole days inside their gaps. Drawn alone, the "
+        "ranks put a different number of dates in the last quarter's days past "
+        "the ninth, and that is this case's mutant.",
+        "column": column,
+        "rows": 80,
+        "identifier_declared": False,
+    }
+
+
+def _date_distinct_reached():
+    """A month of dates holding fewer different days than its ranks (P4-D192).
+
+    Sixty ISO dates over thirty days publishing twelve different days, one
+    more than the eleven the pins hold: runs of ranks on one day move whole
+    onto a neighbouring rank's day, nearest first, until twelve are held.
+    """
+    rungs = [
+        "2024-03-01", "2024-03-02", "2024-03-04", "2024-03-07", "2024-03-10",
+        "2024-03-15", "2024-03-18", "2024-03-22", "2024-03-26", "2024-03-28",
+        "2024-03-30",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 60},
+    )
+    return {
+        "why": "the count of different values of G7.3's count passes (plan "
+        "P4-D192): one instant written one way, so the different days the twin "
+        "holds must be the published twelve, reached by moving runs of ranks on "
+        "one day whole onto a neighbour's inside their gaps. Drawn alone, the "
+        "ranks spread over more days, and that is this case's mutant.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+    }
+
+
+def _midnight_withheld_kept():
+    """Moments to the minute whose count at midnight was withheld (P4-D191).
+
+    Sixty moments over twelve days whose pins stand a minute before and a
+    minute after midnight in turn, so the ranks drawn between a `23:59` and
+    the next day's `00:01` land in the minute of midnight about half the
+    time. The description publishes no `n_at_midnight`, and its pins stand
+    off midnight, so fewer than the line of eleven may stand there: the
+    ranks written at midnight step a minute later, in rank order, until
+    fewer do.
+    """
+    rungs = []
+    for index in range(11):
+        clock = "23:59:00" if index % 2 == 0 else "00:01:00"
+        rungs += [f"2024-03-{1 + index:02d} {clock}"]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=60, n_distinct_folded=60,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="minute",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 60},
+        resolution_mix={"iso-datetime": 60},
+        datetime_separators={"space": 60},
+        all_at_midnight=False, n_at_midnight=None,
+    )
+    return {
+        "why": "G7.3's rule for a count at midnight the description withholds "
+        "(plan P4-D191): withheld because too few stood on one side, so the "
+        "twin keeps fewer than the line on the side its published instants "
+        "stand on. Left where they were drawn, a dozen or more ranks stand in "
+        "the minute of midnight -- a count the description would publish -- "
+        "and that is this case's mutant.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+    }
+
+
 def _numbers_carry_the_average():
     """What the walk could not spend goes to the numbers (plan P4-D190).
 
@@ -17452,7 +17882,10 @@ THIRD_BRANCH_CASE_BUILDERS = {
 }
 
 FOURTH_BRANCH_CASE_BUILDERS = {
+    "date_distinct_reached": _date_distinct_reached,
+    "date_widths_reached": _date_widths_reached,
     "grouped_thousands": _grouped_thousands,
+    "midnight_withheld_kept": _midnight_withheld_kept,
     "numbers_carry_the_average": _numbers_carry_the_average,
     "saturated_levels": _saturated_levels,
     "saturated_tenths": _saturated_tenths,
@@ -17582,9 +18015,11 @@ _FOURTH_BRANCH_ACCOUNT = (
     "of landing 2b: G6.5a's walks taken reach by reach (plan P4-D183), the "
     "fill of a saturated grid of tenths (plan P4-D176) and of a column whose "
     "published levels are its strata (plan P4-D178), the census of "
-    "marks held at a thousand (plan P4-D185), and the numbers of a free-text "
+    "marks held at a thousand (plan P4-D185), the numbers of a free-text "
     "column carrying what the walk of G9.5 step 5 could not spend (plan "
-    "P4-D190). They are computed by the same "
+    "P4-D190), a withheld count at midnight kept on its side (plan P4-D191), "
+    "and the counts of different dates and of widths reached (plan P4-D192). "
+    "They are computed by the same "
     "oracle and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -17621,6 +18056,143 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "midnight_withheld_kept": (
+        17551090684801377981, 16650619119811956828, 12704379148014193341,
+        1470516867917299906, 14234896628325533118, 13760769856689378753,
+        15843287095454313940, 6686001451241062572, 6483221652129005370,
+        10018969653191239690, 16987001854715402434, 6364668551598740481,
+        17253496263519568448, 17194042364863309276, 16445183733654758925,
+        729837871655531995, 7004220985266061634, 10678429518161287340,
+        13216182509454129256, 11526912948551648022, 14395194102043263527,
+        15958569293869687487, 13828546498280174558, 14781750980734635530,
+        17115347366413959801, 10329361025022159271, 7309268652589156511,
+        1941344405543320325, 3513104732651651517, 9082848050828434811,
+        9347148726960988599, 8171118197025816307, 14139289071174730690,
+        14476290504645707955, 12736271519091695104, 13248514608869633059,
+        10048460179392272910, 6808865592907123790, 10489182374973375518,
+        3764126484771282562, 17401434261529277290, 1997699371249332940,
+        3853191120774194654, 12111613831027796587, 8257035804968719541,
+        3281518542951413774, 16902457925941960027, 1577314926174456385,
+        3571721316330339128, 3632759249961684891, 6036857599048762757,
+        17072643571230322550, 12212353607130513097, 5032079857479771423,
+        15279184147750535392, 13921927448296970884, 2714826505722387395,
+        14885795702968293240, 5487718275570894882, 16506489437856182174,
+        1827811738924048769, 17894970178715192409, 2752034617290294828,
+        8858913980465724092, 9006281645932868736, 2220937795758718553,
+        17993301598516268751, 10646006485186826300, 10789759814116224441,
+        16186222206038569500, 500265645373097072, 17080651452242860349,
+        16859383448578883026, 5624084903747257919, 7618968780481998127,
+        10390956201801329345, 12454952179642059359, 15647070938746437427,
+        7868321390031446875, 17288709147328421915, 9434797129881810119,
+        3427540836201938837, 17962470418559468859, 10086523397953569829,
+        9426069394118860687, 2854347107458092323, 1446532671212469644,
+        14374862207223311175, 2529715503210935193, 10738895422622507309,
+        14667472936507844622, 9914567021678529474, 4014399186248788985,
+        13235508742897569089, 12789114728251350580, 7483063860254813273,
+        3549092466026791545, 3909187779161451529, 4894517832606607801,
+        12564778331872822250, 7054617904358594782, 14056521888433651558,
+        17699851006796334062, 18424361737082109850, 3425867695814959981,
+        15011293075503690962, 7911628907359117596, 10345259859604758229,
+        5262758336534277671, 12387325111195293438, 8823330775828479160,
+        5051212590319471477, 8907346585770479000, 957770307745227181,
+        7401665936957252591, 344460183265729817, 8437626280411890725,
+    ),
+    "date_distinct_reached": (
+        3061740411821215145, 5874610367343361219, 8763751094270247612,
+        5493714875881230449, 14547900339701097427, 5360483490234401489,
+        10536803725042870699, 4634121734832662942, 12292684201773665750,
+        17987454090803019818, 1507538563068616686, 4860554217819105754,
+        14236841435124810691, 15509084887108510108, 17949580744652508096,
+        9325913314935363107, 11330670882483395081, 10939684036886110394,
+        12789058582849516048, 16138779007688339459, 8201492361247696221,
+        494462450164762963, 1473961589368021212, 9483618607550906872,
+        9614792647402016706, 2981809199062673534, 17115982138301997372,
+        1268285901671485301, 17607254743267843318, 12141787224787381149,
+        9034400403592133886, 17081299476408104357, 11310060175648228244,
+        8213513764028967930, 1550143625696853061, 5193568581522395178,
+        18320759549461543706, 343353679643274651, 16981091010189984772,
+        1127335032250988769, 7343830754429533202, 13395638553958401302,
+        3853518119418589390, 14060982124727088882, 6249284790269974799,
+        962254871324899203, 1647226141620182462, 6866328845694261142,
+        160857479074612337, 11769048251495170020, 12479270054270521114,
+        4612285415428455993, 13083930477738099837, 12743223112995699494,
+        14101723170551195202, 8835222895573899099, 13378102330388601998,
+        4621241356165817604, 2080566113816425086, 8745400614187005844,
+        17652316012369031400, 16817846441060845372, 9578084047924620891,
+        17039589895084922008, 4126375629404365791, 1841946999524808557,
+        9632250933746799816, 6578030056972447976, 14408466671101935866,
+        5897769537137918415, 13637386315398282076, 9137744193588285091,
+        2887561890750385031, 18052727225356459682, 6489222072630471669,
+        16492792467628536747, 5915660275593679722, 18408678847220776332,
+        15851753409565695000, 5027477187603294052, 17077304762508798865,
+        11877061373591312776, 15705890308291817016, 17456467651633765256,
+        7458870914002113179, 7745945286074027623, 9485252949926794105,
+        14919001102759425039, 15687636180685884189, 10978122644559632805,
+        1380565965767859697, 5732771784453050942, 7648682236438550391,
+        6703324466218905672, 7258176069208112796, 10513181526446384844,
+        8516956228476194337, 8187423479071580641, 4939897912566353509,
+        239009515722984464, 1570302549466705920, 5023156146789521265,
+        13334069172946418087, 4507255431079682827, 7654605772621032415,
+        389311098498436713, 6814052246240330990, 13384822115742354385,
+        11437338394895598663, 11966325123866449203, 927239868501970815,
+        87775699129378448, 14758693293188921953, 837610758122112120,
+        1255785365733462255, 4005496808730151489, 9737744793259259161,
+    ),
+    "date_widths_reached": (
+        14503370031981946312, 10866797266022480803, 8287125103648255445,
+        11108705830317081577, 16333968570406870456, 10030759462676471524,
+        14139967319966187385, 8452089710054864625, 6709729794954378509,
+        6209031230569317548, 10616107825243607814, 17490282079299735511,
+        8201042098641689693, 16475121054896813466, 15947340541416902269,
+        17811804237383367440, 14348986573916741728, 914223630667449887,
+        1803977476998879168, 2470995526265008042, 6114870152074773036,
+        5014545139925030887, 10597310505843796866, 10269221740081601114,
+        7689241243174046839, 14168138758025302740, 16925239941123661715,
+        7620178991453369610, 9756488692190460251, 13308397254140816106,
+        10018343273389482918, 3251745803743674210, 11794400615492374491,
+        3930763003594469912, 16314861076756185012, 5708820582558523157,
+        1832331693607467705, 3789485779610978932, 10634189693522173346,
+        16591361099430093667, 8780048720305331841, 2746001561619615445,
+        14432653669150635819, 5763991315859282061, 15213806625919386031,
+        5419991622837870749, 2967813317392210345, 15554097204915943944,
+        3888979100133777966, 11092673691278721043, 4790282693615546005,
+        10723327437146037336, 2021117712388464576, 5810880655291830001,
+        11786649536620733553, 13179049003775934508, 4115665128465393703,
+        806615668816766861, 17462785602845384858, 8475917443231798752,
+        15086460086292982161, 12150375907463746851, 1044975256463954909,
+        17126109290499727251, 18388857861338452997, 17020926993482274192,
+        12331286796224238311, 9529525800305607780, 11003782314987078866,
+        17700898285568263616, 6235643088442936131, 15536858090847099423,
+        9201596883156673215, 13557277156284579949, 8335572171055100393,
+        15761648759211362206, 12750000349006915295, 12927329853368049432,
+        590043870235632632, 8009178086869916013, 14369347757295465224,
+        9682355851595937045, 5864586321055381623, 9220114625122944486,
+        3034213714221929396, 657582775195887908, 10208500871916544518,
+        11042177312424398297, 10608005239736782652, 1535639717428092810,
+        12113558023538034880, 17155130600877507601, 16080438896949696516,
+        10084651684459338283, 16163908490087433660, 10406579554241953501,
+        12983462217381843630, 10737209616061932065, 11966988928689263393,
+        4632107896951899985, 11927270826016244903, 16822010694655451858,
+        4772409169570224244, 9258912185553840493, 15249215780016786025,
+        6303212565181813929, 6543914570309209687, 15764336083159214746,
+        7989279621966642204, 12832292108602039993, 14023964090594969013,
+        10816787447296866385, 7258562043135517985, 10824819768088642885,
+        9111501418007739449, 1250847132368556878, 1806959428513740802,
+        453816639670605496, 4972379801067700487, 16256446635078432001,
+        6869595703439404471, 50762772331071480, 9915576901993371334,
+        13161554416627718301, 15690530119825638023, 3703525155988520456,
+        8285714569848074989, 17784870520283344874, 14163079622034647007,
+        6814863221425407060, 3019970333774057811, 9220860368507287000,
+        14738739462793145024, 13036750704111579758, 1818890063891153570,
+        7402611035981723568, 4973011594125508496, 8477407492454146055,
+        8441849475738023893, 10859725886648518445, 15041772982091045833,
+        7661393699094030752, 7952595765015330510, 934561596451465384,
+        6014435017725633725, 8766297133615031409, 5172576490018880616,
+        6306293910861366171, 13976761765960603492, 6968752022453786186,
+        2288397721481960300, 1245103124046357554, 5413929969708689040,
+        15713347547806987945, 16103736577416861924, 9183068736795409678,
+        8622311728014625025,
+    ),
     "numbers_carry_the_average": (
         10626364091995481622, 12324380702380665290, 10206021613485447140,
         3833008408733653600, 3279155949837417361, 9726853267425906631,

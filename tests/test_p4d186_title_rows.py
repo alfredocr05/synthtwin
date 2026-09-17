@@ -107,7 +107,7 @@ def test_the_workbook_and_the_text_file_of_the_same_rows_agree(
         book = tmp_path / f"shape{number}.xlsx"
         book.write_bytes(_titled(title, names, rows))
         text = tmp_path / f"shape{number}.csv"
-        text.write_text(_as_lines(title, names, rows), encoding="utf-8")
+        text.write_text(_as_lines(title, names, rows), encoding="utf-8", newline="")
         outcomes = []
         for path in (book, text):
             try:
@@ -123,6 +123,7 @@ def test_the_workbook_and_the_text_file_of_the_same_rows_agree(
     commas.write_text(
         _as_lines("subject,,", ["CASE-ZEBRA-471", "amber", "Northfield"], records),
         encoding="utf-8",
+        newline="",
     )
     read_book = reading.read_table(str(word))
     read_text = reading.read_table(str(commas))

@@ -14713,6 +14713,18 @@ def _datetime_content(
     notes = notes + marked
     if snapping:
         ordinals = _snapped_to_midnight(facts, ordinals, offsets)
+    # A COUNT AT MIDNIGHT THE DESCRIPTION WITHHOLDS IS STILL A COUNT THE
+    # TWIN OWES (plan P4-D191), and the date counts the construction can
+    # reach are reached (plan P4-D192), each by moving ranks inside their
+    # own gaps, before any cell is spelled.
+    ordinals = _kept_off_midnight(
+        facts, ordinals, parsed, whole, gap_lows, gap_highs,
+        plan.small_cell_floor, offsets,
+    )
+    ordinals = _units_settled(
+        column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
+        plan.small_cell_floor,
+    )
     # The spellings ANY column publishes among its absent cells, so that
     # no cell this run writes wears one (review item P4-DATE-F2). Its own
     # column's alone was enough while every stamp wore a `T`; once a cell
@@ -14814,7 +14826,8 @@ def _datetime_content(
             column, facts, "latest", facts.latest, cells[parsed - 1], holes
         )
     notes = notes + _midnight_notes(column, facts, cells)
-    notes = notes + _midnight_count_notes(column, facts, cells)
+    notes = notes + _midnight_count_notes(column, facts, cells, plan.small_cell_floor)
+    notes = notes + _date_count_notes(column, facts, cells)
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
@@ -15742,6 +15755,23 @@ def _marks_in_words(counts: "dict[str, int]") -> str:
     return shown
 
 
+def _midnight_reading(facts: contract.DatetimeFacts) -> str:
+    """The member a written cell is asked whether it stands at midnight under.
+
+    The joint ISO reading for an ISO column, so a bare date counts as
+    midnight of its day, as the describing step counts it (landing 2b.3);
+    the column's own member otherwise. ASKED UNDER THE JOINT ISO READING
+    ALONE, a month-first moment `04/07/2022 00:00` read as no date at all,
+    so the recounts below found no value at midnight on any column not
+    written in ISO since its cells took their source's spelling (landing
+    2b.6) -- measured at plan P4-D191, where thirty-four such cells went
+    unnamed.
+    """
+    if facts.parser_family in _ISO_MARK_MEMBERS:
+        return contract.FORMAT_ISO_MIXED
+    return facts.parser_family
+
+
 def _midnight_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -15766,7 +15796,7 @@ def _midnight_notes(
         # Read jointly, so a bare date counts as midnight of its day, as
         # the describing step counts it (landing 2b.3); a cell with a clock
         # answers exactly as it does under `iso-datetime`.
-        if not parsing.clock_at_midnight(cell, contract.FORMAT_ISO_MIXED):
+        if not parsing.clock_at_midnight(cell, _midnight_reading(facts)):
             off = off + 1
     if off == 0:
         return []
@@ -15787,6 +15817,7 @@ def _midnight_count_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     cells: "list[str]",
+    floor: int = 0,
 ) -> "list[Deviation]":
     """Name a column partly at midnight whose twin reaches another count.
 
@@ -15798,11 +15829,34 @@ def _midnight_count_notes(
     written; returns at most one deviation. No I/O of any kind.
     """
     counted = facts.n_at_midnight
+    if contract.midnight_withheld_for_its_size(facts):
+        # WITHHELD FOR ITS SIZE, THE COUNT IS STILL OWED ON ONE SIDE (plan
+        # P4-D191): fewer than the line at midnight, or fewer than the line
+        # off it. A twin holding a count its description would publish is
+        # named, as the describing step would publish it.
+        line = parsing.census_floor(floor)
+        found = 0
+        for cell in cells:
+            if parsing.clock_at_midnight(cell, _midnight_reading(facts)):
+                found = found + 1
+        if found < line or len(cells) - found < line:
+            return []
+        return [
+            _deviation(
+                column.name,
+                "n_at_midnight",
+                "a count too small on one side to publish",
+                f"{found} of the twin's values stand at midnight",
+                "The description withholds this count because too few of "
+                "your values stood at midnight, or too few did not, and the "
+                "twin could not keep its own count on that side.",
+            )
+        ]
     if counted is None or counted <= 0 or facts.all_at_midnight:
         return []
     found = 0
     for cell in cells:
-        if parsing.clock_at_midnight(cell, contract.FORMAT_ISO_MIXED):
+        if parsing.clock_at_midnight(cell, _midnight_reading(facts)):
             found = found + 1
     if found == counted:
         return []
@@ -15817,6 +15871,73 @@ def _midnight_count_notes(
             "midnight, so the twin holds this many.",
         )
     ]
+
+
+def _date_count_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Name a date column's counts the twin did not reach (plan P4-D192).
+
+    A RECOUNT of the cells this run wrote. `n_distinct` is the parsed
+    cells' different spellings with the stand-ins, each different from
+    every other cell, added. A census of widths naming one convention is
+    the count of cells wearing it, tallied and folded exactly as the
+    describing step tallies them (`taxonomy.width_tally`,
+    `parsing.folded_width_tally`). `_units_settled` reaches both where the
+    construction allows; what it does not reach was passing silently,
+    because the validator held the first to a wide envelope and the
+    second to its floor.
+    """
+    notes: "list[Deviation]" = []
+    different: "dict[str, int]" = {}
+    folded: "dict[str, int]" = {}
+    for cell in cells:
+        different[cell] = 1
+        folded[parsing.folded(cell)] = 1
+    for name, published, found in (
+        ("n_distinct", column.n_distinct, len(different) + facts.n_unparsed),
+        (
+            "n_distinct_folded",
+            column.n_distinct_folded,
+            len(folded) + facts.n_unparsed,
+        ),
+    ):
+        if found == published:
+            continue
+        notes += [
+            _deviation(
+                column.name,
+                name,
+                f"{published} different values",
+                f"{found} different values",
+                "Each value is drawn between the dates the published ladder "
+                "pins, and moving values inside that room could not bring "
+                "the twin to the published count.",
+            )
+        ]
+    census = facts.date_field_widths
+    if len(census) == 1:
+        tally = parsing.folded_width_tally(
+            taxonomy.width_tally(cells, facts.parser_family)
+        )
+        for key in census:
+            held = tally[key] if key in tally else 0
+            if held != census[key]:
+                notes += [
+                    _deviation(
+                        column.name,
+                        "date_field_widths",
+                        f"{census[key]} values written {key}",
+                        f"{held} values written {key}",
+                        "Whether a date shows how wide it writes its fields "
+                        "depends on its day, and moving values inside the "
+                        "room the published ladder leaves could not bring "
+                        "the twin to the published count.",
+                    )
+                ]
+    return notes
 
 
 def _offset_allocation(
@@ -16587,6 +16708,470 @@ def _nearest_midnight(
     if day > last:
         day = last
     return day - shift
+
+
+def _kept_off_midnight(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    floor: int,
+    offsets: "list[str] | None" = None,
+) -> "list[int]":
+    """Keep a withheld count at midnight on the side it was withheld from.
+
+    THE TWIN WROTE A COUNT ITS DESCRIPTION SAYS NOBODY HAD (plan
+    P4-D191, final skeptic). A column of discharge times between seven
+    and seven publishes no `n_at_midnight`, because none stood at
+    midnight -- and its twin, drawing clock times across the day, wrote
+    two, which its own description then published. The withholding says
+    that fewer than the line (`parsing.census_floor`) stood at midnight
+    or fewer than the line did not. So, on a column of moments counted
+    in seconds whose count is withheld for its size, each rank asked on
+    its own wall clock (`contract.midnight_withheld_for_its_size`):
+
+    * where the published instants -- the two ends and the nine rungs --
+      stand mostly off midnight, every rank the tail does not pin and
+      that is written at midnight is moved one step of the precision
+      later, or earlier where later would leave its gap, until fewer
+      than the line stand there;
+    * where they stand mostly at midnight, the ranks the tail does not
+      pin are moved onto the nearest midnight inside their gaps, in rank
+      order, until fewer than the line stand off it -- and never every
+      rank, since the column is not all at midnight.
+
+    A bare-date rank of an `iso-mixed` column is left as it is. Guarantees:
+    returns one instant per rank; a function of the arguments; draws no
+    word; raises nothing. No I/O of any kind.
+    """
+    moved = [value for value in ordinals]
+    if parsed < 3 or not contract.midnight_withheld_for_its_size(facts):
+        return moved
+    if _ordinal_space(facts) != "datetime":
+        return moved
+    step = 60 if facts.time_precision == "minute" else 1
+    line = parsing.census_floor(floor)
+    pinned = _ranks_the_tail_pins(parsed)
+    # MIDNIGHT ON EACH RANK'S OWN WALL CLOCK, as the describing step asks
+    # it: on the shared clock a rank's offset moves its local time.
+    shifts = [0 for _rank in range(parsed)]
+    if facts.datetimes_read_at == "utc" and offsets is not None:
+        for rank in range(parsed):
+            shifts[rank] = _offset_seconds(offsets[rank])
+    at = 0
+    pins_at = 0
+    pins = 0
+    for rank in range(parsed):
+        here = _written_at_midnight(moved[rank], shifts[rank], step)
+        if here:
+            at = at + 1
+        if pinned[rank]:
+            pins = pins + 1
+            if here:
+                pins_at = pins_at + 1
+    if at < line or parsed - at < line:
+        return moved
+    if 2 * pins_at <= pins:
+        for rank in range(parsed):
+            if at < line:
+                break
+            if pinned[rank] or whole[rank]:
+                continue
+            if not _written_at_midnight(moved[rank], shifts[rank], step):
+                continue
+            if moved[rank] + step <= gap_highs[rank]:
+                moved[rank] = moved[rank] + step
+            elif moved[rank] - step >= gap_lows[rank]:
+                moved[rank] = moved[rank] - step
+            else:
+                continue
+            at = at - 1
+        return moved
+    for rank in range(parsed):
+        if parsed - at < line or parsed - at <= 1:
+            break
+        if pinned[rank] or whole[rank]:
+            continue
+        if _written_at_midnight(moved[rank], shifts[rank], step):
+            continue
+        found = _nearest_midnight(
+            moved[rank], shifts[rank], gap_lows[rank], gap_highs[rank]
+        )
+        if found is None:
+            continue
+        moved[rank] = found
+        at = at + 1
+    return moved
+
+
+def _shows_a_width(facts: contract.DatetimeFacts, day_number: int) -> bool:
+    """Whether a date written on this day shows a field's width (P4-D192).
+
+    A field shows its width only below ten; a textual member writes its
+    month as a name, so its day is the one field that can.
+    """
+    _year, month, day = parsing.civil_from_days(day_number)
+    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+        return day < 10
+    return month < 10 or day < 10
+
+
+def _units_settled(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    floor: int,
+) -> "list[int]":
+    """Reach the published count of different values and of widths (P4-D192).
+
+    TWO EXACT COUNTS CAME BACK APPROXIMATELY, AND VALIDATION PASSED (the
+    final skeptic's MINOR). A month-first date column of 2,000 rows
+    published `n_distinct` 1077 and `date_field_widths {"unpadded":
+    1635}`; its twin held 1065 and 1107 different dates and 1657 and 1667
+    cells showing a width, at two seeds, and both files validated. Each
+    rank is drawn inside its gap between two pinned values (method G7.3),
+    and a gap's ranks are a multiset: any of its values may move inside
+    the gap, the gap's ranks sorted again, and every pinned rank still
+    reads off its published value. So, where the column is read on its
+    own clock and writes no bare date:
+
+    1. THE WIDTHS. Where the member can show a width and the census names
+       exactly one convention, every cell showing a width wears it, so the
+       count of ranks whose day shows one must be the published count.
+       While it is not, the rank moved is the one the tail does not pin
+       whose nearest day of the other kind inside its gap is nearest --
+       a whole day at a time, keeping its clock -- ties to the lower rank
+       and then to the earlier day.
+    2. THE DIFFERENT VALUES. Where one instant is written one way and
+       the two published counts agree (`contract.datetime_counts_reachable`), the count of different written units -- a day, or a minute
+       or a second at the column's precision -- less the stand-ins must
+       be the published count. Too many: each gap's ranks sorted, a RUN
+       of ranks on one unit holding no pinned rank moves whole onto the
+       instant of the rank just below or just above it, where that lies
+       inside its gap and is of the same width kind and midnight
+       standing -- nearest first, then the shorter run, then the lower
+       rank. Too few: a rank sharing its unit moves to the nearest unit no rank
+       holds inside its gap, of the same width kind, not onto a midnight
+       it did not stand at and not off one it did, nearest first, ties to
+       the lower rank and then to the earlier unit.
+
+    The two are taken in that order, and again, at most four times,
+    while either moved. Each gap's ranks are then sorted. What the passes
+    cannot reach is recounted from the finished cells and named in the
+    report (`_distinct_count_notes`, `_width_count_notes`).
+
+    Guarantees: returns one instant per rank; a function of the
+    arguments; draws no word; raises nothing. No I/O of any kind.
+    """
+    moved = [value for value in ordinals]
+    if parsed < 3 or facts.datetimes_read_at != "local":
+        return moved
+    for flag in whole:
+        if flag:
+            return moved
+    space = _ordinal_space(facts)
+    if space not in ("date", "datetime"):
+        return moved
+    day = 1 if space == "date" else 86400
+    step = 1
+    if space == "datetime" and facts.time_precision == "minute":
+        step = 60
+    pinned = _ranks_the_tail_pins(parsed)
+    for rank in range(parsed):
+        if gap_lows[rank] >= gap_highs[rank]:
+            pinned[rank] = True
+    widths = -1
+    census = facts.date_field_widths
+    if (
+        len(census) == 1
+        and (
+            facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
+            or facts.parser_family in parsing.TEXTUAL_MEMBERS
+        )
+    ):
+        for key in census:
+            widths = census[key]
+    distinct = -1
+    if contract.datetime_counts_reachable(column):
+        distinct = column.n_distinct - facts.n_unparsed
+    if widths < 0 and distinct < 0:
+        return moved
+    for _round in range(4):
+        changed = False
+        if widths >= 0:
+            changed = _widths_reached(
+                facts, moved, pinned, gap_lows, gap_highs, day, step, widths
+            ) or changed
+        if distinct >= 0:
+            changed = _distinct_reached(
+                facts, moved, pinned, gap_lows, gap_highs, day, step,
+                distinct, widths >= 0,
+            ) or changed
+        if not changed:
+            break
+    _runs_sorted(moved, pinned)
+    return moved
+
+
+def _widths_reached(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    wanted: int,
+) -> bool:
+    """Step 1 of `_units_settled`: move ranks until the widths count holds."""
+    parsed = len(moved)
+    showing = 0
+    for rank in range(parsed):
+        if _shows_a_width(facts, moved[rank] // day):
+            showing = showing + 1
+    if showing == wanted:
+        return False
+    fewer = showing > wanted
+    options: "list[tuple[int, int, int]]" = []
+    # A gap holding no day of the other kind holds none for any rank.
+    bare: "dict[tuple[int, int], bool]" = {}
+    for rank in range(parsed):
+        if pinned[rank]:
+            continue
+        if _shows_a_width(facts, moved[rank] // day) != fewer:
+            continue
+        if (lows[rank], highs[rank]) in bare:
+            continue
+        found = _nearest_day_of_kind(
+            facts, moved[rank], lows[rank], highs[rank], day, step, not fewer
+        )
+        if found is None:
+            if day == 1:
+                bare[(lows[rank], highs[rank])] = True
+            continue
+        options += [(abs(found - moved[rank]), rank, found)]
+    changed = False
+    for option in sorted(options):
+        if showing == wanted:
+            break
+        moved[option[1]] = option[2]
+        showing = showing - 1 if fewer else showing + 1
+        changed = True
+    return changed
+
+
+def _nearest_day_of_kind(
+    facts: contract.DatetimeFacts,
+    value: int,
+    lowest: int,
+    highest: int,
+    day: int,
+    step: int,
+    showing: bool,
+) -> "int | None":
+    """The nearest instant a whole number of days away whose day shows or not.
+
+    Inside `[lowest, highest]`, earlier before later at one distance, and
+    kept off a midnight the instant did not stand at (moving by whole days
+    keeps the clock, so none is gained or lost). None where there is none.
+    """
+    away = 1
+    while True:
+        earlier = value - away * day
+        later = value + away * day
+        if earlier < lowest and later > highest:
+            return None
+        for candidate in (earlier, later):
+            if candidate < lowest or candidate > highest:
+                continue
+            if _shows_a_width(facts, candidate // day) == showing:
+                return candidate
+        away = away + 1
+
+
+def _distinct_reached(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    wanted: int,
+    widths: bool,
+) -> bool:
+    """Step 2 of `_units_settled`: move ranks until the distinct count holds."""
+    parsed = len(moved)
+    unit = step if day == 86400 else 1
+    held: "dict[int, int]" = {}
+    for rank in range(parsed):
+        key = moved[rank] // unit
+        held[key] = (held[key] if key in held else 0) + 1
+    count = len(held)
+    if count == wanted:
+        return False
+    changed = False
+    if count > wanted:
+        _runs_sorted(moved, pinned)
+        # A RUN IS EVERY RANK ON ONE UNIT, consecutive once each gap's ranks
+        # are sorted; a run holding no pinned rank lies inside one gap and
+        # may move whole onto the unit just below or just above it.
+        options: "list[tuple[int, int, int, int]]" = []
+        first = 0
+        while first < parsed:
+            last = first
+            while last + 1 < parsed and moved[last + 1] // unit == moved[first] // unit:
+                last = last + 1
+            loose = True
+            for rank in range(first, last + 1):
+                if pinned[rank]:
+                    loose = False
+            if loose:
+                for other in (first - 1, last + 1):
+                    if other < 0 or other >= parsed:
+                        continue
+                    target = moved[other]
+                    if target < lows[first] or target > highs[first]:
+                        continue
+                    if not _same_standing(facts, moved[first], target, day, step, widths):
+                        continue
+                    options += [
+                        (abs(target - moved[first]), last - first + 1, first, other)
+                    ]
+            first = last + 1
+        for option in sorted(options):
+            if count == wanted:
+                break
+            first = option[2]
+            size = option[1]
+            own = moved[first] // unit
+            target = moved[option[3]]
+            if target // unit == own or held[own] != size:
+                continue
+            if target // unit not in held or held[target // unit] <= 0:
+                continue
+            if target < lows[first] or target > highs[first]:
+                continue
+            steady = True
+            for rank in range(first, first + size):
+                if moved[rank] // unit != own:
+                    steady = False
+            if not steady or not _same_standing(
+                facts, moved[first], target, day, step, widths
+            ):
+                continue
+            for rank in range(first, first + size):
+                moved[rank] = target
+            held[own] = 0
+            held[target // unit] = held[target // unit] + size
+            count = count - 1
+            changed = True
+        return changed
+    splits: "list[tuple[int, int, int]]" = []
+    # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
+    # it is searched once: a column of moments to the minute over months
+    # would otherwise search every shared rank's whole gap again.
+    full: "dict[tuple[int, int], bool]" = {}
+    for rank in range(parsed):
+        if pinned[rank] or held[moved[rank] // unit] < 2:
+            continue
+        if (lows[rank], highs[rank]) in full:
+            continue
+        found = _nearest_free_unit(
+            facts, moved[rank], lows[rank], highs[rank], day, step, unit, held,
+            widths,
+        )
+        if found is None:
+            if not widths and day == 1:
+                full[(lows[rank], highs[rank])] = True
+            continue
+        splits += [(abs(found - moved[rank]), rank, found)]
+    for split in sorted(splits):
+        if count == wanted:
+            break
+        rank = split[1]
+        own = moved[rank] // unit
+        found = split[2]
+        if held[own] < 2 or (found // unit in held and held[found // unit] > 0):
+            continue
+        held[own] = held[own] - 1
+        held[found // unit] = 1
+        moved[rank] = found
+        count = count + 1
+        changed = True
+    return changed
+
+
+def _runs_sorted(moved: "list[int]", pinned: "list[bool]") -> None:
+    """Sort each run of ranks the tail does not pin, in place."""
+    start = 0
+    parsed = len(moved)
+    while start < parsed:
+        if pinned[start]:
+            start = start + 1
+            continue
+        end = start
+        while end < parsed and not pinned[end]:
+            end = end + 1
+        run = sorted(moved[start:end])
+        for index in range(len(run)):
+            moved[start + index] = run[index]
+        start = end
+
+
+def _same_standing(
+    facts: contract.DatetimeFacts,
+    value: int,
+    target: int,
+    day: int,
+    step: int,
+    widths: bool,
+) -> bool:
+    """Whether moving between these instants keeps what the counts hold."""
+    if widths and _shows_a_width(facts, value // day) != _shows_a_width(
+        facts, target // day
+    ):
+        return False
+    if day == 86400:
+        return _written_at_midnight(value, 0, step) == _written_at_midnight(
+            target, 0, step
+        )
+    return True
+
+
+def _nearest_free_unit(
+    facts: contract.DatetimeFacts,
+    value: int,
+    lowest: int,
+    highest: int,
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+) -> "int | None":
+    """The nearest instant on a unit no rank holds, keeping its standing."""
+    away = 1
+    while True:
+        earlier = value - away * unit
+        later = value + away * unit
+        if earlier < lowest and later > highest:
+            return None
+        for candidate in (earlier, later):
+            if candidate < lowest or candidate > highest:
+                continue
+            key = candidate // unit
+            if key in held and held[key] > 0:
+                continue
+            if _same_standing(facts, value, candidate, day, step, widths):
+                return candidate
+        away = away + 1
 
 
 def _form_allocation(facts: contract.DatetimeFacts, parsed: int) -> "list[bool]":
@@ -31584,6 +32169,15 @@ def _datetime_approximations(
         published = column.n_distinct
         if place == 3:
             published = column.n_distinct_folded
+        # INSIDE THE ENVELOPE THE COUNT IS EXACT (plan P4-D192): the
+        # construction reaches it (`_units_settled`), the validator holds
+        # it exactly there, and a miss is a deviation
+        # (`_date_count_notes`) rather than a measurement inside a range.
+        if (
+            contract.datetime_counts_reachable(column)
+            and lowest_count <= published <= highest_count
+        ):
+            continue
         found_facts += [
             Approximation(
                 column=column.name,

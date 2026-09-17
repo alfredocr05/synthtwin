@@ -8421,6 +8421,29 @@ def _distinctness_checks(
             # the construction writes a value per rank and holds far
             # more identities than the published count, so the matrix
             # sets both counts APPROXIMATED here and nowhere else.
+            #
+            # ...EXCEPT WHERE THE CONSTRUCTION REACHES THE COUNT (plan
+            # P4-D192). The generator moves ranks inside their gaps until
+            # the published count is held, wherever that count lies inside
+            # G12.5's envelope; a twin holding 1107 different dates against
+            # 1077 was WITHIN-BOUND of a window from 11 to 1460 and passed
+            # in silence. Inside the envelope the count is EXACT; outside
+            # it, where the construction cannot reach, the window stands.
+            window = _datetime_distinct_window(column, facts)
+            if (
+                contract.datetime_counts_reachable(column)
+                and window[0] <= published <= window[1]
+            ):
+                checks += [
+                    _exact(
+                        name,
+                        fact,
+                        subcheck,
+                        _shown_count(published),
+                        None if measured is None else _shown_count(measured),
+                    )
+                ]
+                continue
             checks += [
                 _within(
                     name,
@@ -14388,9 +14411,17 @@ def _written_form_checks(
         for named in census:
             published_total = published_total + census[named]
         left_over = max(0, population - published_total)
+        # ONE CONVENTION IS WORN BY EVERY CELL SHOWING A WIDTH, so its
+        # count is the count of such cells, which the generator reaches
+        # (plan P4-D192): EXACT, counted on the file's own cells as the
+        # producer tallies and folds them. 1635 real against 1667 twin
+        # cells passed at its floor before.
+        counted_exactly = key == "date_field_widths" and len(census) == 1
         for named in sorted(census):
             asked = (
-                _shown_count(census[named]) if exact else _at_least(floor)
+                _shown_count(census[named])
+                if exact or counted_exactly
+                else _at_least(floor)
             )
             if measured is None:
                 checks += [
@@ -14431,6 +14462,8 @@ def _written_form_checks(
                 ]
                 continue
             met = _written_form_met(key, named, raw, tally, floor)
+            if counted_exactly:
+                met = (tally[named] if named in tally else 0) == census[named]
             shown = _FORM_NOT_NAMED
             if named in measured:
                 shown = _shown_count(measured[named])
@@ -14685,6 +14718,26 @@ def _midnight_checks(
     # (the owner's twin definition, clause 3). The field is absent on
     # both, and `_datetime_listings` lists it instead of checking it.
     counted = facts.n_at_midnight
+    # A COUNT WITHHELD FOR ITS SIZE IS CHECKED ON ITS SIDE (plan P4-D191).
+    # It says fewer than the line stood at midnight or fewer than the line
+    # did not, so a file owes a count its own description withholds too.
+    # A twin of discharge times between seven and seven wrote two values
+    # at midnight, its own description published them, and the report
+    # listed the fact as asking nothing. No number is printed for a file
+    # whose count is withheld, as for every count the file's description
+    # holds back.
+    if contract.midnight_withheld_for_its_size(facts):
+        seen = _count_at(block, "n_at_midnight")
+        checks += [
+            Check(
+                name,
+                "datetime.n_at_midnight",
+                "midnight.withheld",
+                HELD if seen is None else MISSED,
+                _COUNT_OUTSIDE_THE_BAND,
+                _COUNT_OUTSIDE_THE_BAND if seen is None else _shown_count(seen),
+            )
+        ]
     if counted is not None and counted > 0:
         seen = _count_at(block, "n_at_midnight")
         if seen is None:
@@ -16344,7 +16397,9 @@ def _listings(
                 # whose count either side of the floor would have named a
                 # single person: one obligation is checked or listed,
                 # never both.
-                if facts.n_at_midnight is None or facts.n_at_midnight <= 0:
+                if (
+                    facts.n_at_midnight is None or facts.n_at_midnight <= 0
+                ) and not contract.midnight_withheld_for_its_size(facts):
                     listings += [
                         Listing(
                             column.name,

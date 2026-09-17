@@ -1205,6 +1205,20 @@ floor, so the real table meets its description by construction:
   value there, and one holding all but a single value there, the three
   being one state on purpose (landing 2b.6).
 
+**Amended 2026-09-17 (plan P4-D191): a count withheld for its size is
+checked on its side.** Where `n_at_midnight` is absent because too few
+values stood at midnight or too few did not
+(`contract.midnight_withheld_for_its_size`: a column of moments, not
+wholly at midnight, and not read on the shared clock with its offsets
+pooled), the file owes a count its own description withholds too
+(`midnight.withheld`): HELD where the file's description publishes none,
+MISSED where it publishes one. It was LISTED as asking nothing, and a
+twin of discharge times between seven and seven that wrote two values at
+midnight -- a count its own description published -- passed. The line
+prints no number for a file whose count is withheld. The count stays
+LISTED where it is absent for the other reason, offsets pooled on the
+shared clock.
+
 **Amended 2026-09-15 (landing 2b.6): the MEMBER is an obligation, and
 how the dates were written is four more.** The owner reversed decision
 5, so the twin is written in the member that read the real column
@@ -1224,8 +1238,14 @@ rather than in ISO:
   the description does NOT name are at most the cells the named counts
   leave over of the total the description publishes for them, widened
   by any cells the file holds beyond the published total
-  (`<family>.unnamed`). The counts themselves are NOT compared, and the
-  reason is the fact that makes them interesting: whether a cell can
+  (`<family>.unnamed`). *Amended 2026-09-17 (plan P4-D192):* a census
+  of widths naming ONE convention is compared COUNT FOR COUNT on the
+  file's own folded tally, because that convention is worn by every cell
+  showing a width and the generator reaches the count of such cells by
+  moving ranks inside their gaps; 1635 real cells against 1667 twin cells
+  passed at the floor before. For every other census the counts
+  themselves are NOT compared, and the reason is the fact that makes
+  them interesting: whether a cell can
   show a width or a name's length depends on its own value — a day
   above the ninth shows no field width, a month of May shows no name
   length — so how many of a file's cells could carry one is a fact about
@@ -1282,6 +1302,19 @@ overlap and applies no correction, and the rung checks are drawn from
 the same gaps: a rank a rung is selected from has a window of ONE VALUE,
 its published one, so each of the nine is checked at the value rather
 than inside a band around it.
+
+**Amended 2026-09-17 (plan P4-D192): inside G12.5's envelope the count
+is exact.** A column of dates whose published `n_distinct` or
+`n_distinct_folded` lies inside the envelope this section draws, and
+which method G7.3's count pass applies to
+(`contract.datetime_counts_reachable`: read on its own clock, one
+instant written one way), is held to it EXACTLY (`distinct.n_distinct`, HELD or MISSED), because method
+G7.3's count pass moves ranks inside their gaps until the published
+count is held wherever the construction can reach it; a twin holding
+1107 different dates against a published 1077 was WITHIN-BOUND of an
+envelope from 11 to 1460 and passed. Where the published count lies
+outside the envelope, or on a column the pass does not apply to, the
+window stands, WITHIN-BOUND as before.
 
 **Amended 2026-09-15 (landing 2b.3, rewritten by the repair pass of
 landing 2b.6): a judged spelling is not a declaration, and the

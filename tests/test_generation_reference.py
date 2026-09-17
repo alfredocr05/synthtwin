@@ -395,10 +395,15 @@ THIRD_BRANCH_CASES = (
 # The sixth committed file: the cases the repair of the carried items of
 # landing 2b added -- G6.5a's walks reach by reach (plan P4-D183), its two
 # fills of plans P4-D176 and P4-D178, the census of marks held at a
-# thousand (plan P4-D185), and the numbers of a free-text column carrying
-# the average (plan P4-D190). Sorted, like the tuples above.
+# thousand (plan P4-D185), the numbers of a free-text column carrying
+# the average (plan P4-D190), a withheld count at midnight kept on its side
+# (plan P4-D191), and the counts of different dates and widths reached
+# (plan P4-D192). Sorted, like the tuples above.
 FOURTH_BRANCH_CASES = (
+    "date_distinct_reached",
+    "date_widths_reached",
     "grouped_thousands",
+    "midnight_withheld_kept",
     "numbers_carry_the_average",
     "saturated_levels",
     "saturated_tenths",
@@ -479,6 +484,9 @@ SEEDS = {
     "grouped_thousands": 175,
     # Part 2 of the carried items takes 180 onward.
     "numbers_carry_the_average": 180,
+    "date_widths_reached": 181,
+    "date_distinct_reached": 182,
+    "midnight_withheld_kept": 183,
     "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
@@ -2169,6 +2177,30 @@ CASE_MUTANTS = {
         "out of its share onto a point a later stratum held inside its own",
         attribute="separation_reaches",
         replacement=_reaches_stratum_by_stratum,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_widths_reached": Mutant(
+        branch="plan P4-D192's widths pass; the mutant leaves the ranks where "
+        "they were drawn, and a different number of dates show a width than "
+        "the one convention the census names counts",
+        attribute="widths_pass",
+        replacement=lambda *arguments: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_distinct_reached": Mutant(
+        branch="plan P4-D192's pass on the count of different values; the "
+        "mutant leaves the ranks where they were drawn, and the twin holds "
+        "more different days than the description publishes",
+        attribute="distinct_pass",
+        replacement=lambda *arguments: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "midnight_withheld_kept": Mutant(
+        branch="plan P4-D191's rule for a withheld count at midnight; the "
+        "mutant leaves the ranks where they were drawn, and a count the "
+        "description would publish stands in the minute of midnight",
+        attribute="kept_off_midnight",
+        replacement=lambda column, ordinals, *arguments, **keywords: list(ordinals),
         outcome=CHANGES_THE_CELLS,
     ),
     "numbers_carry_the_average": Mutant(

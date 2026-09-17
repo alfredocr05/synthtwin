@@ -33,7 +33,7 @@ def _table() -> str:
 
 
 def _report(folder: pathlib.Path, name: str) -> str:
-    return (folder / f"{name}-twin-report.txt").read_text(encoding="utf-8")
+    return (folder / f"{name}-twin-report.txt").read_text(encoding="utf-8", newline="")
 
 
 def test_a_withheld_sheet_name_is_named_in_the_report(tmp_path: pathlib.Path) -> None:
@@ -71,6 +71,7 @@ def test_a_delimited_report_carries_no_workbook_paragraph(tmp_path: pathlib.Path
     source.write_text(
         "arm,score\n" + "".join(f"{['Low', 'High'][row % 2]},{100 + row}\n" for row in range(40)),
         encoding="utf-8",
+        newline="",
     )
     result = _trip(tmp_path / "csv", "plain", source.read_bytes(), suffix=".csv")
     _held(result)
