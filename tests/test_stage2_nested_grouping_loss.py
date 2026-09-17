@@ -55,9 +55,12 @@ def test_the_numbers_beside_labels_too_small_to_prove_their_mark_say_so(
     tmp_path: pathlib.Path,
 ) -> None:
     folder = tmp_path / "compound"
-    # ONE NEGATIVE READING, so plan P4-D185's move across a thousand, which
-    # would keep the mark this test needs lost, does not reach the column.
-    cells = [f"{100 + 47.3 * i:.2f}" for i in range(17)] + ["-3.25"] + ["1,040.16", "1,091.80"] + ["pending"] * 5
+    # ONE READING WRITTEN WITH AN EXPONENT, so plan P4-D185's move across a
+    # thousand, which would keep the mark this test needs lost, does not
+    # reach the column: that rule asks for the decimal and plain forms
+    # alone. A negative reading kept it out until plan P4-D194 took the
+    # rule to the negative side.
+    cells = [f"{100 + 47.3 * i:.2f}" for i in range(17)] + ["3.25e0"] + ["1,040.16", "1,091.80"] + ["pending"] * 5
     first, second, _written, _t, _r = _round_trip(
         folder, cells, ("--smallest-group", "2"), False, seed="1"
     )
