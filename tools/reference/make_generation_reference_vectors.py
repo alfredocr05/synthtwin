@@ -2667,6 +2667,137 @@ def commonest_width_grid(fraction_widths, numeric, point_free):
     return best
 
 
+def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor):
+    """As many cells at a thousand or more as the marks census counts -- G6.1.
+
+    Plan P4-D185, written from the rule statement.  Only on a column whose
+    every numeric cell is on one grid, holding no negative value, naming
+    no field width and no form but ``decimal`` and ``plain``.  ``C`` is the
+    census's cells, named and pooled; ``K`` the cells whose values reach a
+    thousand.  Where ``K < C``, the run of strata just below a thousand,
+    from the highest down while their cells do not pass ``C - K``, takes
+    the lowest free grid points of a thousand or more, in order, each below
+    the value of the stratum above the run; where ``C < K < C + line``,
+    the run from a thousand up, from the lowest while their cells do not
+    pass ``K - C``, takes the highest free grid points below a thousand,
+    in order, each above the value of the stratum below it.  A stratum
+    moves only where its text is its own, never the first or the last,
+    and the run moves whole or not at all.  Free points are looked for at
+    most sixty-four past the run's own length, and a point whose text does
+    not survive being read and written again is passed over.
+    """
+    census = column.get("thousands_marks") or {}
+    total = len(values)
+    if total < 3 or not census:
+        return values
+    owed = sum(census.values())
+    figures = grid_of(column.get("fraction_widths", {}), integer_valued, numeric)
+    if figures < 0 or column.get("n_negative", 0) > 0 or column.get("pad_widths"):
+        return values
+    if any(
+        style not in ("decimal", "plain", "(withheld)")
+        for style in column["numeric_styles"]
+    ):
+        return values
+    reached = sum(sizes[place] for place in range(total) if values[place] >= 1000.0)
+    texts = [grid_text(value, figures) for value in values]
+    held = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    unit = fractions.Fraction(1, 10 ** figures)
+    thousand = fractions.Fraction(1000)
+
+    def free_points(start, stride, count):
+        found = []
+        point = start
+        looked = 0
+        while len(found) < count and looked < count + 64:
+            looked += 1
+            spelt = _fraction_text(point, figures)
+            point += stride
+            if spelt in held or grid_text(float(spelt), figures) != spelt:
+                continue
+            found.append(float(spelt))
+        return found if len(found) == count else None
+
+    def movable(place):
+        return (
+            0 < place < total - 1
+            and held[texts[place]] == 1
+            and bands[place] == "positive"
+        )
+
+    run = []
+    if reached < owed:
+        wanted = owed - reached
+        place = max(p for p in range(total) if values[p] < 1000.0) if any(
+            value < 1000.0 for value in values
+        ) else -1
+        while wanted > 0 and movable(place) and sizes[place] <= wanted:
+            run.insert(0, place)
+            wanted -= sizes[place]
+            place -= 1
+        if not run:
+            return values
+        points = free_points(thousand, unit, len(run))
+        if points is None:
+            return values
+        if run[-1] + 1 < total and points[-1] >= values[run[-1] + 1]:
+            return values
+    elif owed < reached < owed + max(floor, 2):
+        wanted = reached - owed
+        place = min(p for p in range(total) if values[p] >= 1000.0)
+        while wanted > 0 and movable(place) and sizes[place] <= wanted:
+            run.append(place)
+            wanted -= sizes[place]
+            place += 1
+        if not run:
+            return values
+        points = free_points(thousand - unit, -unit, len(run))
+        if points is None:
+            return values
+        points = list(reversed(points))
+        if points[0] <= values[run[0] - 1]:
+            return values
+    else:
+        return values
+    moved = list(values)
+    for step, place in enumerate(run):
+        moved[place] = points[step]
+    return moved
+
+
+def separation_reaches():
+    """The reaches of G6.5a's walks, in the order each round takes them.
+
+    Plan P4-D183: every stratum inside its own share (0), then every
+    stratum on its neighbours' ground (1), then every stratum by the
+    distance its share is wide (2).  A function of its own so the frozen
+    case's registered mutant can put back the order it replaced -- one
+    walk reaching as far as it may, stratum by stratum -- and move cells.
+    """
+    return (0, 1, 2)
+
+
+def finest_grid(fraction_widths):
+    """The finest width a census names, or -1 -- G6.5a, amendment A-P4-55.
+
+    Where the census names several widths, or one that does not cover
+    every numeric cell, the separation walks the grid of the most figures
+    any cell is written with: two values that read alike there ARE one
+    number.  -1 for an empty census, or one holding a key that is not a
+    run of figures.
+    """
+    if not fraction_widths:
+        return -1
+    finest = -1
+    for width in fraction_widths:
+        if not width or not all(letter in "0123456789" for letter in width):
+            return -1
+        finest = max(finest, int(width))
+    return finest
+
+
 def grid_of(fraction_widths, integer_valued, numeric):
     """Which grid every numeric cell of this column is written on -- G6.5a.
 
@@ -2794,7 +2925,7 @@ def _fraction_text(point, figures):
     return "%s%s.%s" % (sign, body[:cut], body[cut:])
 
 
-def apart_inside(value, figures, band, share, ends, written):
+def apart_inside(value, figures, band, share, ends, written, reach=64, whole=None):
     """The nearest free point of the grid inside this share -- G6.5a.
 
     Outward one grid step at a time from the value's own grid TEXT read
@@ -2833,8 +2964,9 @@ def apart_inside(value, figures, band, share, ends, written):
     if value < 0:
         seated = -seated
     placed = _snapped_fraction(seated, figures)
+    limit = reach
     reach = 1
-    while reach <= 64:
+    while reach <= limit:
         for step in (-reach, reach):
             point = placed + step * unit
             spelt = _fraction_text(point, figures)
@@ -2847,6 +2979,11 @@ def apart_inside(value, figures, band, share, ends, written):
             if grid_text(candidate, figures) != spelt:
                 continue
             if spelt in written:
+                continue
+            # THE STRATUM'S OWN KIND, where the column writes some cells
+            # with no point (amendment A-P4-55): a whole value moves only
+            # onto a whole number and a fractional one only off them.
+            if whole is not None and float(candidate).is_integer() != whole:
                 continue
             if band == "negative" and candidate >= 0.0:
                 continue
@@ -2976,7 +3113,7 @@ def saturated_levels(
 
 def apart_values(
     wanted, figures, values, sizes, starts, bands, ladder, numeric,
-    mode=None, point_free=False, integer_valued=False,
+    mode=None, point_free=False, integer_valued=False, keep_whole=False,
 ):
     """Two strata are two cells, so they are written two ways -- G6.5a.
 
@@ -3016,32 +3153,71 @@ def apart_values(
     # falls to nought. A tally beside it would believe an addition
     # rather than the column.
     ends = None if ladder is None else (ladder[0], ladder[-1])
-    for place in range(total):
+
+    def walk(reach):
+        for place in range(total):
+            if wanted is not None and len(held) >= wanted:
+                return
+            text = texts[place]
+            if held[text] <= 1:
+                continue
+            if place == 0 or (place == total - 1 and total >= 2):
+                continue
+            if bands[place] == "zero":
+                continue
+            share = None
+            if ladder is not None:
+                share = (
+                    ladder_at(ladder, starts[place], numeric),
+                    ladder_at(ladder, starts[place] + sizes[place], numeric),
+                )
+            kind = float(moved[place]).is_integer() if keep_whole else None
+            want = apart_inside(
+                moved[place], figures, bands[place], share, ends, held,
+                64, kind,
+            )
+            if want is None and share is not None and reach >= 1:
+                # The neighbours' ground: the share widened by its own
+                # width on either side (amendment A-P4-55).
+                width = abs(share[1] - share[0])
+                want = apart_inside(
+                    moved[place], figures, bands[place],
+                    (share[0] - width, share[1] + width), ends, held, 64, kind,
+                )
+            if want is None and share is not None and reach >= 2:
+                # And by distance: as many grid steps as the share is wide,
+                # at most sixty-four, anywhere between the published ends.
+                width = abs(share[1] - share[0])
+                unit = 1.0
+                for _each in range(figures):
+                    unit = unit / 10.0
+                steps = int(width / unit) + 1 if unit > 0.0 else 1
+                want = apart_inside(
+                    moved[place], figures, bands[place], None, ends, held,
+                    min(steps, 64), kind,
+                )
+            if want is None:
+                continue
+            fresh = grid_text(want, figures)
+            held[text] = held[text] - 1
+            held[fresh] = held.get(fresh, 0) + 1
+            texts[place] = fresh
+            moved[place] = want
+
+    # THREE ROUNDS, AND IN EACH ROUND EVERY STRATUM INSIDE ITS OWN SHARE
+    # FIRST (amendment A-P4-55, plan P4-D183): the share walk, then the
+    # neighbours' ground, then the distance walk, the count asked after
+    # each; a round that moves nothing ends it.
+    for _round in range(3):
+        before_round = len(held)
+        for reach in separation_reaches():
+            walk(reach)
+            if wanted is not None and len(held) >= wanted:
+                break
         if wanted is not None and len(held) >= wanted:
             break
-        text = texts[place]
-        if held[text] <= 1:
-            continue
-        if place == 0 or (place == total - 1 and total >= 2):
-            continue
-        if bands[place] == "zero":
-            continue
-        share = None
-        if ladder is not None:
-            share = (
-                ladder_at(ladder, starts[place], numeric),
-                ladder_at(ladder, starts[place] + sizes[place], numeric),
-            )
-        want = apart_inside(
-            moved[place], figures, bands[place], share, ends, held
-        )
-        if want is None:
-            continue
-        fresh = grid_text(want, figures)
-        held[text] = held[text] - 1
-        held[fresh] = held.get(fresh, 0) + 1
-        texts[place] = fresh
-        moved[place] = want
+        if len(held) == before_round:
+            break
     return moved
 
 
@@ -7240,7 +7416,7 @@ def partners_wear_published_layouts(column, convention, demands):
 
 def _offer_a_layout(
     quotas, steps, lengths, convention, used, band, whole_numbers,
-    covering, letters_needed, preferred, holes=(), owes=False,
+    covering, letters_needed, preferred, holes=(), owes=False, only=False,
 ):
     """The layout this slot takes, spelled (G9.6), or None.
 
@@ -7251,9 +7427,13 @@ def _offer_a_layout(
     guaranteeing a character with a case is offered first, and where
     none fits the ordinary offer is taken rather than the slot being
     spent.
+
+    ``only`` says the packing settled this slot's layout (plan P4-D182):
+    the slot is offered ``preferred`` alone, and nothing where that is
+    empty, because every other layout's count is spoken for.
     """
     offered = ([preferred] if preferred else []) + [
-        name for name in sorted(quotas) if name != preferred
+        name for name in sorted(quotas) if name != preferred and not only
     ]
     for asking in ((True, False) if letters_needed else (False,)):
         for layout in offered:
@@ -7359,6 +7539,144 @@ def layout_stand_in(
             if found is not None:
                 return found
     return None
+
+
+def packed_layouts(groups, column, quotas, whole_numbers, low, high):
+    """Class, band AND named layout for every group, or None -- G9.6.
+
+    Plan P4-D182, written from the rule statement.  The census of
+    layouts is packed as a THIRD MARGIN of the grid `_packed_bands`
+    packs: a cell is a class, a band and either one named layout or no
+    named layout, the named layouts' quotas are their published counts in
+    sorted order and the last quota is the present cells the census names
+    no layout for.  A group may take a named layout only where it covers
+    no more cells than that layout counts, the layout's length is one its
+    slot may hold, and a slot of that class and band can wear it; no
+    named layout is open to every class and band the group may stand in.
+
+    The grid is packed FIRST WITH NO END PINNED, and the two groups that
+    carry the published ends are read off the answer: the first group
+    that can be written at the shortest length -- packed to a named
+    layout of that length, or packed to none in a class and band with a
+    spelling that long -- and the first other group that can be written
+    at the longest.  Only where that finds nothing are the ends pinned
+    onto the first two groups, as `_packed_bands` pins them.  This oracle
+    lays a column out with its ends on the first two groups, so a case
+    whose answer carries them elsewhere is refused rather than frozen.
+    None where no assignment of whole groups meets all three margins.
+    """
+    offered = layout_offer(column)
+    census = column.get("layout_forms") or {}
+    convention = _convention_of_the_keys(offered)
+    bands_owed = _band_quotas(column)
+    class_margin = tuple((name, quotas[name]) for name in IDENTIFIER_CLASSES)
+    band_margin = tuple((band, bands_owed[band]) for band in IDENTIFIER_BANDS)
+    unnamed = column["n_present"] - sum(census[name] for name in offered)
+    if unnamed < 0:
+        return None
+    layout_margin = tuple(
+        [(name, census[name]) for name in offered] + [("", unnamed)]
+    )
+    margins = (class_margin, band_margin, layout_margin)
+
+    def permitted_for(lengths_of):
+        permitted = []
+        for slot, size in enumerate(groups):
+            cells = set()
+            lengths = lengths_of(slot)
+            for name in IDENTIFIER_CLASSES:
+                for band in IDENTIFIER_BANDS:
+                    if not any(
+                        _identifier_pair(name, band, whole_numbers, length)
+                        for length in lengths
+                    ):
+                        continue
+                    cells.add((name, band, ""))
+                    for layout in offered:
+                        if size > census[layout] or len(layout) not in lengths:
+                            continue
+                        if _layout_admits_class(
+                            layout, convention, name, band, whole_numbers
+                        ):
+                            cells.add((name, band, layout))
+            permitted.append((size, frozenset(cells)))
+        return permitted
+
+    everywhere = tuple(range(low, high + 1))
+    packed = _packed_grid(
+        permitted_for(lambda slot: everywhere), margins, demanded=False
+    )
+    if packed is not None:
+        carriers = []
+        for end in ((low,) if high <= low else (low, high)):
+            for slot, (name, band, layout) in enumerate(packed):
+                if slot in carriers:
+                    continue
+                if layout:
+                    fits = len(layout) == end
+                else:
+                    fits = _identifier_pair(name, band, whole_numbers, end)
+                if fits:
+                    carriers.append(slot)
+                    break
+        if high <= low or len(carriers) == 2:
+            if high > low and carriers != [0, 1]:
+                raise AssertionError(
+                    "the layout packing carries the published ends on groups "
+                    f"{carriers}, and this oracle lays a column out with its "
+                    "ends on the first two groups: it freezes no case for "
+                    "that shape and states no expected cells for it"
+                )
+            return (
+                [cell[0] for cell in packed],
+                [cell[1] for cell in packed],
+                [cell[2] for cell in packed],
+            )
+    packed = _packed_grid(
+        permitted_for(lambda slot: slot_lengths(slot, low, high)),
+        margins,
+        demanded=False,
+    )
+    if packed is None:
+        return None
+    return (
+        [cell[0] for cell in packed],
+        [cell[1] for cell in packed],
+        [cell[2] for cell in packed],
+    )
+
+
+def _layout_admits_class(layout, convention, name, band, whole_numbers):
+    """`_layout_admits`, and the filling reads as the slot's own class."""
+    for step in range(min(layout_room(layout), LAYOUT_ADMISSION_STEPS)):
+        candidate = filled_layout(layout, step)
+        if candidate[:1] in FORMULA_OPENINGS and not _a_signed_number(layout):
+            return False
+        if _is_a_number(candidate.strip()) != (name == "number"):
+            continue
+        if _fits_its_slot(candidate, layout, convention, band, whole_numbers):
+            return True
+    return False
+
+
+def layouts_short(column, content):
+    """Whether a named layout of the census is worn fewer or more times.
+
+    The check of contract 7.12 that `_identifier_recount` makes, asked as
+    a question rather than a refusal, so the packing of plan P4-D182 can
+    be offered where the first packing's cells miss it.
+    """
+    census = column.get("layout_forms") or {}
+    named = {name: count for name, count in census.items() if name != WITHHELD}
+    if not named:
+        return False
+    convention = layout_convention(list(content))
+    worn = {}
+    for cell in content:
+        layout = layout_of(cell, convention)
+        if layout:
+            worn[layout] = worn.get(layout, 0) + 1
+    return any(worn.get(name, 0) != named[name] for name in named)
 
 
 def _identifier_recount(column, content):
@@ -7529,8 +7847,11 @@ def _identifier_content(column):
     -- its naive tail replaced by G9.6's choice rule, and step 5 built
     on top of that -- BEFORE the case could be added.  The same holds for
     the step's layout trigger (plan P4-D163), which looks further only
-    where the first layout leaves a named layout short: this oracle stops
-    at the check of 7.12 for exactly that description.
+    where the first layout leaves a named layout short -- with ONE
+    exception, which this oracle does model: where no group owes a
+    partner, the census is first packed as a third margin (plan P4-D182,
+    `packed_layouts`), and only where that too leaves a layout short does
+    this oracle stop at the check of 7.12.
     """
     occurrences = column["n_distinct_by_occurrences"]
     groups = []
@@ -7548,270 +7869,291 @@ def _identifier_content(column):
     _classes, bands = _packed_bands(
         groups, column, _class_quotas(column), whole_numbers, low, high
     )
-    partners_wanted = distinct - column["n_distinct_folded"]
-    identities_wanted = column["n_distinct_folded"]
-    used = set()
-    # The spellings a reader reads as absent: contract section 14.4's
-    # vocabulary, and the column's own published hole spellings, which on
-    # a one-column document are every spelling the document declares
-    # absent (plan P4-D158).
-    holes = tuple(sorted(column.get("missing_by_source") or {}))
 
-    def take(band, lengths, letters_needed):
-        """The first unused spelling of this band at the first length that has one.
+    def lay(_classes, bands, assigned=None):
+        """Every present cell, from one packing (and its layouts, plan P4-D182)."""
+        partners_wanted = distinct - column["n_distinct_folded"]
+        identities_wanted = column["n_distinct_folded"]
+        used = set()
+        # The spellings a reader reads as absent: contract section 14.4's
+        # vocabulary, and the column's own published hole spellings, which on
+        # a one-column document are every spelling the document declares
+        # absent (plan P4-D158).
+        holes = tuple(sorted(column.get("missing_by_source") or {}))
 
-        The walk over one family visits that family's indices in order
-        and stops at the family's own size, which G9.4 computes before
-        the walk begins, so it ends whether or not it produces a value.
+        def take(band, lengths, letters_needed):
+            """The first unused spelling of this band at the first length that has one.
 
-        The fold-collision ask of G9.3 is an ASK (G9.2): a pass that
-        insists on a letter-bearing candidate and finds none puts the
-        walk back exactly where that pass began and takes it again
-        without the ask, so the ask can never spend a family the
-        ordinary rule could still have used.  A pass that finds nothing
-        adds nothing to ``used``, which is what makes the rewind exact.
-        """
-        families = []
-        for length in lengths:
-            family = identifier_family(band, whole_numbers, length)
-            if family is not None and family[1] >= 1:
-                families.append(family)
-        # THE LONE 0 IS TAKEN LATE (plan P4-D162): after every number
-        # shorter than the shortest named layout of figures alone two or
-        # more figures long, or after every published length where none
-        # is named, where the slot may hold one figure and that length --
-        # so a column of 1 to 800 is not written holding 0.
-        late = 0
-        if whole_numbers and band == FIGURES and low == 1 and high >= 2:
-            late = high
-            for layout in sorted(column.get("layout_forms") or {}):
-                if (
-                    layout != "(withheld)"
-                    and len(layout) >= 2
-                    and set(layout) == {"%"}
-                ):
-                    late = min(late, len(layout) - 1)
-            if late < 2 or 1 not in lengths or late not in lengths:
-                late = 0
-        if not families:
-            raise AssertionError(
-                f"the published length range holds no whole-number spelling "
-                f"of the {band} band, which is the corner method section G9.6 "
-                "names: the published facts cannot all hold, so a shipped run "
-                "refuses generation for that description before any cell is "
-                "built (G12, review item P2-C5-F4). This oracle freezes no "
-                "case for that corner and states no expected cells for it"
-            )
-        for ask in (True, False) if letters_needed else (False,):
-            for alphabet, block, leading, suffix in families:
-                # Walked lazily: a family of six code-alphabet places holds
-                # tens of billions of spellings, and the walk stops at the
-                # first one it takes.
-                def spellings(alphabet=alphabet, block=block, leading=leading,
-                              suffix=suffix):
-                    for index in range(len(alphabet) ** block):
-                        one = enumerated_spelling(alphabet, block, index, leading)
-                        if late and block == 1 and one + suffix == "0":
-                            continue
-                        yield one + suffix
-                    if late and block == late:
-                        yield "0"
+            The walk over one family visits that family's indices in order
+            and stops at the family's own size, which G9.4 computes before
+            the walk begins, so it ends whether or not it produces a value.
 
-                for candidate in spellings():
-                    if candidate in used:
-                        continue
-                    if reads_as_absent(candidate, holes):
-                        continue
-                    if ask and not any(char.isalpha() for char in candidate):
-                        continue
-                    used.add(candidate)
-                    return candidate
-        raise AssertionError(
-            f"the {band} band's domain is exhausted, which is owner decision "
-            "6's infeasible corner: G9.4 says a declared identifier repeats "
-            "there rather than refusing, and three distinctness facts become "
-            "REPORT-ONLY. This oracle freezes no case for that corner and "
-            "states no expected cells for it"
-        )
-
-    # THE PUBLISHED LAYOUT IS OFFERED FIRST (contract 7.12, method
-    # G9.6).  The census counts CELLS and this walk spends GROUPS, and
-    # every cell of a group carries the same spelling, so a group takes
-    # the first published layout, in sorted order, whose remaining count
-    # is at least the number of cells that group covers and whose length
-    # its own slot may hold.  Where nothing is offered -- which is every
-    # case frozen before landing 2b.18, each publishing the empty census
-    # a floored census gives a column whose layouts are all held back --
-    # the band enumeration below is reached unchanged, which is why
-    # those cases keep their committed cells.
-    offered = layout_offer(column)
-    census = column.get("layout_forms") or {}
-    quotas = {name: census[name] for name in offered}
-    # Each layout's walk starts at its own step (plan P4-D128): the k-th
-    # layout in sorted order at 1 + k * 4096, and a mix, when first read,
-    # at the next such step after every walk already started.
-    steps = {name: 1 + k * LAYOUT_STEPS for k, name in enumerate(offered)}
-    convention = _convention_of_the_keys(offered)
-    bases = layout_stand_in_bases(column)
-    mixed = {}
-    preferred = [""] * identities_wanted
-    # WHICH PARTNERS EACH IDENTITY IS HANDED (G9.3 step 4): the k-th
-    # partner goes to the (k mod identities)-th identity.
-    demands = {}
-    for taking in range(partners_wanted):
-        demands.setdefault(taking % identities_wanted, []).append(
-            groups[identities_wanted + taking]
-        )
-    paired = bool(offered) and partners_wear_published_layouts(
-        column, convention, demands
-    )
-    predicted = {}
-    if offered:
-        preferred = layout_preferences(
-            column,
-            groups[:identities_wanted],
-            [f"{_classes[p]}/{bands[p]}" for p in range(identities_wanted)],
-            bands,
-            [slot_lengths(p, low, high) for p in range(identities_wanted)],
-            {0, 1} if high > low else {0},
-            demands,
-        )
-
-    identities = []
-    for position in range(identities_wanted):
-        letters_needed = position < partners_wanted
-        laid = None
-        if offered:
-            laid = _offer_a_layout(
-                quotas,
-                steps,
-                slot_lengths(position, low, high),
-                convention,
-                used,
-                bands[position],
-                whole_numbers,
-                groups[position],
-                letters_needed,
-                preferred[position],
-                holes,
-                bool(demands.get(position)),
-            )
-        if laid is None and bases:
-            laid = layout_stand_in(
-                bases,
-                census,
-                mixed,
-                steps,
-                slot_lengths(position, low, high),
-                convention,
-                used,
-                bands[position],
-                whole_numbers,
-                holes,
-            )
-        if laid is not None:
-            used.add(laid)
-            identities.append(laid)
-            # Its partners' cells are debited with it, off the layout it
-            # took, and remembered by partner (plan P4-D157).
-            if paired and demands.get(position):
-                owed = demands[position]
-                worn = partner_layouts(
-                    layout_of(laid, convention), convention, len(owed),
-                    column, offered,
+            The fold-collision ask of G9.3 is an ASK (G9.2): a pass that
+            insists on a letter-bearing candidate and finds none puts the
+            walk back exactly where that pass began and takes it again
+            without the ask, so the ask can never spend a family the
+            ordinary rule could still have used.  A pass that finds nothing
+            adds nothing to ``used``, which is what makes the rewind exact.
+            """
+            families = []
+            for length in lengths:
+                family = identifier_family(band, whole_numbers, length)
+                if family is not None and family[1] >= 1:
+                    families.append(family)
+            # THE LONE 0 IS TAKEN LATE (plan P4-D162): after every number
+            # shorter than the shortest named layout of figures alone two or
+            # more figures long, or after every published length where none
+            # is named, where the slot may hold one figure and that length --
+            # so a column of 1 to 800 is not written holding 0.
+            late = 0
+            if whole_numbers and band == FIGURES and low == 1 and high >= 2:
+                late = high
+                for layout in sorted(column.get("layout_forms") or {}):
+                    if (
+                        layout != "(withheld)"
+                        and len(layout) >= 2
+                        and set(layout) == {"%"}
+                    ):
+                        late = min(late, len(layout) - 1)
+                if late < 2 or 1 not in lengths or late not in lengths:
+                    late = 0
+            if not families:
+                raise AssertionError(
+                    f"the published length range holds no whole-number spelling "
+                    f"of the {band} band, which is the corner method section G9.6 "
+                    "names: the published facts cannot all hold, so a shipped run "
+                    "refuses generation for that description before any cell is "
+                    "built (G12, review item P2-C5-F4). This oracle freezes no "
+                    "case for that corner and states no expected cells for it"
                 )
-                slots = [
-                    taking for taking in range(partners_wanted)
-                    if taking % identities_wanted == position
-                ]
-                for order, taking in enumerate(slots):
-                    predicted[taking] = worn[order]
-                    if worn[order] in quotas:
-                        quotas[worn[order]] -= owed[order]
-            continue
-        identities.append(
-            take(
-                bands[position],
-                slot_lengths(position, low, high),
-                letters_needed,
-            )
-        )
+            for ask in (True, False) if letters_needed else (False,):
+                for alphabet, block, leading, suffix in families:
+                    # Walked lazily: a family of six code-alphabet places holds
+                    # tens of billions of spellings, and the walk stops at the
+                    # first one it takes.
+                    def spellings(alphabet=alphabet, block=block, leading=leading,
+                                  suffix=suffix):
+                        for index in range(len(alphabet) ** block):
+                            one = enumerated_spelling(alphabet, block, index, leading)
+                            if late and block == 1 and one + suffix == "0":
+                                continue
+                            yield one + suffix
+                        if late and block == late:
+                            yield "0"
 
-    partners = []
-    # Partners are assigned to identities in ascending identity order,
-    # one each, then a second each, so that the collisions are spread
-    # rather than piled on one identity (G9.3 step 4). Each one is the
-    # first member of its own identity's family (G9.3 step 2) that this
-    # column has not written and whose LENGTH the taking slot may hold
-    # (step 3): the two slots carrying the published length ends may
-    # take only that one length, and every other slot may take any
-    # length in the published range. The family is walked from its start
-    # for EVERY slot and a member one slot's window turns down is not
-    # spent, because a wider slot later on may still take it; and the
-    # count of partners a parent has already supplied decides which
-    # parent comes next, never which member is taken. Both sentences are
-    # G9.3 step 2's own rule since review item P2-C4-F4 -- an ordinal
-    # taken from the slot would step over a member nothing has written
-    # and no window has turned down.
-    for taking in range(partners_wanted):
-        slot = identities_wanted + taking
-        window = slot_lengths(slot, low, high)
-        position = taking % identities_wanted
-        partner = None
-        size = groups[slot]
-        if paired and predicted.get(taking) in quotas:
-            quotas[predicted[taking]] += size
-        unnamed = first = None
-        for candidate in partner_family(identities[position], high):
-            if candidate in used or len(candidate) not in window:
+                    for candidate in spellings():
+                        if candidate in used:
+                            continue
+                        if reads_as_absent(candidate, holes):
+                            continue
+                        if ask and not any(char.isalpha() for char in candidate):
+                            continue
+                        used.add(candidate)
+                        return candidate
+            raise AssertionError(
+                f"the {band} band's domain is exhausted, which is owner decision "
+                "6's infeasible corner: G9.4 says a declared identifier repeats "
+                "there rather than refusing, and three distinctness facts become "
+                "REPORT-ONLY. This oracle freezes no case for that corner and "
+                "states no expected cells for it"
+            )
+
+        # THE PUBLISHED LAYOUT IS OFFERED FIRST (contract 7.12, method
+        # G9.6).  The census counts CELLS and this walk spends GROUPS, and
+        # every cell of a group carries the same spelling, so a group takes
+        # the first published layout, in sorted order, whose remaining count
+        # is at least the number of cells that group covers and whose length
+        # its own slot may hold.  Where nothing is offered -- which is every
+        # case frozen before landing 2b.18, each publishing the empty census
+        # a floored census gives a column whose layouts are all held back --
+        # the band enumeration below is reached unchanged, which is why
+        # those cases keep their committed cells.
+        offered = layout_offer(column)
+        census = column.get("layout_forms") or {}
+        quotas = {name: census[name] for name in offered}
+        # Each layout's walk starts at its own step (plan P4-D128): the k-th
+        # layout in sorted order at 1 + k * 4096, and a mix, when first read,
+        # at the next such step after every walk already started.
+        steps = {name: 1 + k * LAYOUT_STEPS for k, name in enumerate(offered)}
+        convention = _convention_of_the_keys(offered)
+        bases = layout_stand_in_bases(column)
+        mixed = {}
+        preferred = [""] * identities_wanted
+        # WHICH PARTNERS EACH IDENTITY IS HANDED (G9.3 step 4): the k-th
+        # partner goes to the (k mod identities)-th identity.
+        demands = {}
+        for taking in range(partners_wanted):
+            demands.setdefault(taking % identities_wanted, []).append(
+                groups[identities_wanted + taking]
+            )
+        paired = bool(offered) and partners_wear_published_layouts(
+            column, convention, demands
+        )
+        predicted = {}
+        if offered:
+            preferred = layout_preferences(
+                column,
+                groups[:identities_wanted],
+                [f"{_classes[p]}/{bands[p]}" for p in range(identities_wanted)],
+                bands,
+                [slot_lengths(p, low, high) for p in range(identities_wanted)],
+                {0, 1} if high > low else {0},
+                demands,
+            )
+        if assigned is not None:
+            preferred = list(assigned)
+
+        identities = []
+        for position in range(identities_wanted):
+            letters_needed = position < partners_wanted
+            laid = None
+            if offered:
+                laid = _offer_a_layout(
+                    quotas,
+                    steps,
+                    slot_lengths(position, low, high),
+                    convention,
+                    used,
+                    bands[position],
+                    whole_numbers,
+                    groups[position],
+                    letters_needed,
+                    preferred[position],
+                    holes,
+                    bool(demands.get(position)),
+                    assigned is not None,
+                )
+            if laid is None and bases:
+                laid = layout_stand_in(
+                    bases,
+                    census,
+                    mixed,
+                    steps,
+                    slot_lengths(position, low, high),
+                    convention,
+                    used,
+                    bands[position],
+                    whole_numbers,
+                    holes,
+                )
+            if laid is not None:
+                used.add(laid)
+                identities.append(laid)
+                # Its partners' cells are debited with it, off the layout it
+                # took, and remembered by partner (plan P4-D157).
+                if paired and demands.get(position):
+                    owed = demands[position]
+                    worn = partner_layouts(
+                        layout_of(laid, convention), convention, len(owed),
+                        column, offered,
+                    )
+                    slots = [
+                        taking for taking in range(partners_wanted)
+                        if taking % identities_wanted == position
+                    ]
+                    for order, taking in enumerate(slots):
+                        predicted[taking] = worn[order]
+                        if worn[order] in quotas:
+                            quotas[worn[order]] -= owed[order]
                 continue
-            if reads_as_absent(candidate, holes):
-                continue
-            if not paired:
-                partner = candidate
-                break
-            # THE MEMBER A PARTNER TAKES ON A PAIRED COLUMN (plan
-            # P4-D157): the first wearing a published layout with its
-            # cells left, else the first wearing none, else the first.
-            first = first or candidate
-            worn = layout_of(candidate, convention)
-            if worn in quotas:
-                if quotas[worn] >= size:
+            identities.append(
+                take(
+                    bands[position],
+                    slot_lengths(position, low, high),
+                    letters_needed,
+                )
+            )
+
+        partners = []
+        # Partners are assigned to identities in ascending identity order,
+        # one each, then a second each, so that the collisions are spread
+        # rather than piled on one identity (G9.3 step 4). Each one is the
+        # first member of its own identity's family (G9.3 step 2) that this
+        # column has not written and whose LENGTH the taking slot may hold
+        # (step 3): the two slots carrying the published length ends may
+        # take only that one length, and every other slot may take any
+        # length in the published range. The family is walked from its start
+        # for EVERY slot and a member one slot's window turns down is not
+        # spent, because a wider slot later on may still take it; and the
+        # count of partners a parent has already supplied decides which
+        # parent comes next, never which member is taken. Both sentences are
+        # G9.3 step 2's own rule since review item P2-C4-F4 -- an ordinal
+        # taken from the slot would step over a member nothing has written
+        # and no window has turned down.
+        for taking in range(partners_wanted):
+            slot = identities_wanted + taking
+            window = slot_lengths(slot, low, high)
+            position = taking % identities_wanted
+            partner = None
+            size = groups[slot]
+            if paired and predicted.get(taking) in quotas:
+                quotas[predicted[taking]] += size
+            unnamed = first = None
+            for candidate in partner_family(identities[position], high):
+                if candidate in used or len(candidate) not in window:
+                    continue
+                if reads_as_absent(candidate, holes):
+                    continue
+                if not paired:
                     partner = candidate
                     break
-                continue
-            unnamed = unnamed or candidate
-        if paired and partner is None:
-            partner = unnamed or first
-        if paired and partner is not None:
-            if layout_of(partner, convention) in quotas:
-                quotas[layout_of(partner, convention)] -= size
-        if partner is None:
+                # THE MEMBER A PARTNER TAKES ON A PAIRED COLUMN (plan
+                # P4-D157): the first wearing a published layout with its
+                # cells left, else the first wearing none, else the first.
+                first = first or candidate
+                worn = layout_of(candidate, convention)
+                if worn in quotas:
+                    if quotas[worn] >= size:
+                        partner = candidate
+                        break
+                    continue
+                unnamed = unnamed or candidate
+            if paired and partner is None:
+                partner = unnamed or first
+            if paired and partner is not None:
+                if layout_of(partner, convention) in quotas:
+                    quotas[layout_of(partner, convention)] -= size
+            if partner is None:
+                raise AssertionError(
+                    f"the identities carry {len(partners)} partners and the profile "
+                    f"asks for {partners_wanted}, which is owner decision 6's "
+                    "infeasible corner. This oracle freezes no case for that corner "
+                    "and states no expected cells for it"
+                )
+            if bands[slot] != bands[position]:
+                raise AssertionError(
+                    "a partner stays in its identity's own band, and the packing "
+                    f"puts the group taking this one in the {bands[slot]} band "
+                    f"while its identity is in the {bands[position]} band. This "
+                    "oracle freezes no case for that shape and states no expected "
+                    "cells for it"
+                )
+            used.add(partner)
+            partners.append(partner)
+        spellings = identities + partners
+        if len(spellings) != distinct:
             raise AssertionError(
-                f"the identities carry {len(partners)} partners and the profile "
-                f"asks for {partners_wanted}, which is owner decision 6's "
-                "infeasible corner. This oracle freezes no case for that corner "
-                "and states no expected cells for it"
+                f"the construction produced {len(spellings)} spellings and the "
+                f"profile publishes {distinct}"
             )
-        if bands[slot] != bands[position]:
-            raise AssertionError(
-                "a partner stays in its identity's own band, and the packing "
-                f"puts the group taking this one in the {bands[slot]} band "
-                f"while its identity is in the {bands[position]} band. This "
-                "oracle freezes no case for that shape and states no expected "
-                "cells for it"
-            )
-        used.add(partner)
-        partners.append(partner)
-    spellings = identities + partners
-    if len(spellings) != distinct:
-        raise AssertionError(
-            f"the construction produced {len(spellings)} spellings and the "
-            f"profile publishes {distinct}"
+        content = []
+        for group, spelling in zip(groups, spellings):
+            content.extend([spelling] * group)
+        return content
+
+    content = lay(_classes, bands)
+    partners_owed = distinct - column["n_distinct_folded"]
+    # A NAMED LAYOUT THE FIRST PACKING LEAVES SHORT IS PACKED WITH THE
+    # FAMILIES (plan P4-D182, method G9.6): the census becomes a third
+    # margin of the same grid, every group is offered its packed layout
+    # alone, and the cells are built again.  Only where no group owes a
+    # fold-collision partner, whose layout its parent's spelling decides.
+    if layouts_short(column, content) and partners_owed == 0:
+        repacked = packed_layouts(
+            groups, column, _class_quotas(column), whole_numbers, low, high
         )
-    content = []
-    for group, spelling in zip(groups, spellings):
-        content.extend([spelling] * group)
+        if repacked is not None:
+            content = lay(repacked[0], repacked[1], repacked[2])
     _identifier_recount(column, content)
     return content
 
@@ -9368,18 +9710,34 @@ def _numeric_content(column):
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
     # carrier walk because that walk moves values onto whole numbers
     # and can itself land two strata on one text.
+    widths = column.get("fraction_widths", {})
+    # THE PUBLISHED MODE IS A PROVED FIELD in a case's column, and the
+    # levels fill reads the number it holds.
+    mode = column.get("mode")
+    if isinstance(mode, dict):
+        mode = mode[FLOAT64]
+    separated_on = grid_of(widths, integer_valued, numeric)
+    if separated_on < 0:
+        separated_on = finest_grid(widths)
     values = apart_values(
         column.get("n_distinct_values"),
-        grid_of(column.get("fraction_widths", {}), integer_valued, numeric),
+        separated_on,
         values,
         sizes,
         starts,
         bands,
         ladder,
         numeric,
-        column.get("mode"),
+        mode,
         demand > 0,
         integer_valued,
+        sum(widths.values()) < numeric,
+    )
+    # AND AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS
+    # (plan P4-D185), last of the value passes.
+    values = grouped_enough(
+        column, values, sizes, bands, integer_valued, numeric,
+        CASE_SMALL_CELL_FLOOR,
     )
     cell_values = []
     for index, size in enumerate(sizes):
@@ -12256,6 +12614,10 @@ SECOND_BRANCH_PART = "branches-2"
 # second and third files, each within a few kilobytes of the provenance
 # byte cap, could not hold.
 THIRD_BRANCH_PART = "branches-3"
+# The sixth file: the cases the reconciliation of G6.5a's walk (plan
+# P4-D183), the fills of plans P4-D176 and P4-D178 and the census of marks
+# at a thousand (plan P4-D185) added, which the fifth could not hold.
+FOURTH_BRANCH_PART = "branches-4"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -13175,6 +13537,201 @@ def _plus_padded_field():
     }
 
 
+def _identifier_layout_packing():
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=88, n_missing=0, n_distinct=6, n_distinct_folded=6,
+        n_numeric=0, n_not_numeric=88, n_out_of_range=0, n_contradictory=0,
+        min_length=5, max_length=5, all_whole_numbers=False,
+        n_all_digits=0, n_code_alphabet=44,
+        n_distinct_by_occurrences={"11": 4, "22": 2},
+        layout_forms={
+            "@@#%%": 11, "@@*%%": 11, "@@-%%": 22, "@@.%%": 11,
+            "@@:%%": 11, "@@_%%": 22,
+        },
+    )
+    return {
+        "why": "G9.6's layout packing (plan P4-D182): a declared identifier "
+        "of four groups of eleven rows and two of twenty-two, whose census "
+        "names two code-alphabet layouts of twenty-two cells and four "
+        "wide-alphabet layouts of eleven. The class-and-alphabet packing "
+        "fills the code band first and offers the smaller groups first, so "
+        "it gives the code band the four groups of eleven and the wide band "
+        "the two of twenty-two, and no whole group of twenty-two can wear a "
+        "layout of eleven: the first layout writes `@@.%%` and `@@:%%` "
+        "nought times. The census is then packed as a third margin of the "
+        "same grid, which gives each band the groups its layouts can take, "
+        "and every group is offered its packed layout alone. This case's "
+        "mutant withdraws the layout packing, and the check of 7.12 stops "
+        "the oracle before any byte is written.",
+        "column": column,
+        "rows": 88,
+        "identifier_declared": True,
+    }
+
+
+def _saturated_levels():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "2", "p01": "2", "p05": "2", "p10": "2",
+        "p25": "3.2", "p50": "3.2", "p75": "6.5", "p90": "6.5",
+        "p95": "15", "p99": "15", "max": "15",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "5.181818181818182"),
+                       ("std", "3.6670368270456586"),
+                       ("skew", "1.62901186981742"),
+                       ("kurtosis", "5.148273554762339"),
+                       ("numeric_share", "1"), ("mode", "6.5")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_distinct_values=4,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=33, numeric_styles={"decimal": 33},
+        mode_count=12, fraction_widths={"1": 33}, field_widths={},
+        # FOUR LEVELS, EIGHT, TEN, TWELVE AND THREE CELLS: 2.0, 3.2, 6.5 and
+        # 15.0, each named by two rungs or more, with 6.5 the mode.
+        **moments,
+    )
+    return {
+        "why": "G6.5a's fill of a column whose published levels are its "
+        "strata (plan P4-D178): thirty-three readings at one place of four "
+        "levels, 2.0, 3.2, 6.5 and 15.0, each named by at least two of the "
+        "hundred and one rungs, with the mode at 6.5 and four different "
+        "values published. The rungs name more than four numbers -- a rung "
+        "between two plateaus is interpolated -- so the levels are the "
+        "numbers two rungs or more name, with the ends and the mode, and the "
+        "four strata take them in order. The mutant withdraws the fill, and "
+        "the walk writes `4.6` for a level no source cell held.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _saturated_tenths():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "0.1", "p01": "0.132", "p05": "0.26", "p10": "0.42",
+        "p25": "0.9", "p50": "1.1", "p75": "1.4", "p90": "1.88",
+        "p95": "2.04", "p99": "2.168", "max": "2.2",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1.1333333333333333"),
+                       ("std", "0.526584909265986"),
+                       ("skew", "0.09615802208472209"),
+                       ("kurtosis", "2.687623796188785"),
+                       ("numeric_share", "1"), ("mode", "1.1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_distinct_values=22,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=33, numeric_styles={"decimal": 33},
+        mode_count=12, fraction_widths={"1": 33}, field_widths={},
+        **moments,
+    )
+    return {
+        "why": "G6.5a's fill of a saturated grid of TENTHS (plan P4-D176): "
+        "thirty-three readings at one place publishing twenty-two different "
+        "numbers between the ends 0.1 and 2.2, which hold exactly twenty-two "
+        "tenths, so the strata take those tenths in order, each once. The "
+        "mutant withdraws the fill on a written grid and leaves the integer "
+        "one, and the walk places the strata elsewhere.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _separated_in_order():
+    built = _signed_pads()
+    column = built["column"]
+    # ELEVEN WHOLE NUMBERS FROM 100 TO 110, written three times each: the
+    # padded column of `signed_pads` publishing all eleven and twenty-two
+    # spellings, so its separation walk has work to do.
+    column["n_distinct"] = 22
+    column["n_distinct_folded"] = 22
+    column["n_distinct_values"] = 11
+    built["why"] = (
+        "G6.5a's reaches taken walk by walk (plan P4-D183): thirty-three "
+        "cells of the whole numbers 100 to 110, twenty-two strata publishing "
+        "eleven different values. Every stratum is walked inside its own "
+        "share before any is walked on its neighbours' ground, so the "
+        "thirteenth stratum takes 105 inside its share. The mutant takes the "
+        "three reaches stratum by stratum, as the walk did before, and the "
+        "tenth stratum walks out of its share onto 105 above the 104 after "
+        "it, and the cells move."
+    )
+    return built
+
+
+def _grouped_thousands():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "920.1", "p01": "929.7", "p05": "951.12", "p10": "952.96",
+        "p25": "984.1", "p50": "1022.2", "p75": "1068.9", "p90": "1081.84",
+        "p95": "1086.88", "p99": "1095.544", "max": "1096.6",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1021.1696969696969"),
+                       ("std", "50.85734635261952"),
+                       ("skew", "-0.1575495088527798"),
+                       ("kurtosis", "1.7838152479174922"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=33, n_distinct_folded=33,
+        n_distinct_values=33,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=33, numeric_styles={"decimal": 33},
+        mode=None, mode_count=0, fraction_widths={"1": 33}, pad_widths={},
+        field_widths={}, group_separator=",",
+        # TWENTY OF THE THIRTY-THREE readings reach a thousand, and every
+        # one of them was written with a comma.
+        thousands_marks={",": 20},
+        **moments,
+    )
+    return {
+        "why": "G6.1's census of marks held at a thousand (plan P4-D185): "
+        "thirty-three different readings at one place between 920.1 and "
+        "1096.6, twenty of them a thousand or more and written with a comma. "
+        "The ladder puts one stratum fewer at a thousand or more, so the "
+        "highest stratum below a thousand takes the lowest free tenth of a "
+        "thousand or more, below the stratum above it, and twenty cells are "
+        "written with a comma. The mutant withdraws the rule, and the "
+        "stratum stays below a thousand and bare.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _saturated_integers():
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "1", "p01": "1.32", "p05": "2.6", "p10": "4.2",
@@ -13217,7 +13774,7 @@ def _saturated_integers():
         "integers -- so there is no spare grid point and the strata are "
         "given those integers in order, each once: every whole number from "
         "one to twenty-two is written. The mutant withdraws the fill and "
-        "runs the walk alone, which leaves nineteen different numbers, "
+        "runs the walk alone, which leaves twenty-one different numbers, "
         "because every stratum that moves lands on a point another stratum "
         "still needs.",
         "column": column,
@@ -16346,6 +16903,7 @@ _DOCUMENT_ACCOUNT = (
     "fourth file because the third holds 245567 bytes against the "
     "provenance manifest's byte cap, which leaves room for no case of "
     "any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
+    " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -16589,6 +17147,8 @@ SECOND_BRANCH_CASE_BUILDERS = {
 # width, and the saturated integer grid.
 THIRD_BRANCH_CASE_BUILDERS = {
     "bare_mark_remainder": _bare_mark_remainder,
+    # G9.6's layout packing (plan P4-D182), which fits beside them.
+    "identifier_layout_packing": _identifier_layout_packing,
     "plus_padded_field": _plus_padded_field,
     "pooled_mark_cells": _pooled_mark_cells,
     "saturated_integers": _saturated_integers,
@@ -16597,7 +17157,15 @@ THIRD_BRANCH_CASE_BUILDERS = {
     "unpublished_majority_marks": _unpublished_majority_marks,
 }
 
+FOURTH_BRANCH_CASE_BUILDERS = {
+    "grouped_thousands": _grouped_thousands,
+    "saturated_levels": _saturated_levels,
+    "saturated_tenths": _saturated_tenths,
+    "separated_in_order": _separated_in_order,
+}
+
 CASE_SETS = {
+    FOURTH_BRANCH_PART: FOURTH_BRANCH_CASE_BUILDERS,
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
     SECOND_BRANCH_PART: SECOND_BRANCH_CASE_BUILDERS,
@@ -16610,6 +17178,7 @@ CASE_BUILDERS = {
     **BRANCH_CASE_BUILDERS,
     **SECOND_BRANCH_CASE_BUILDERS,
     **THIRD_BRANCH_CASE_BUILDERS,
+    **FOURTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -16637,6 +17206,7 @@ _NAMED_ACCOUNT = (
     "proof layer, four files, because a committed fixture must stay under "
     "the provenance manifest's byte cap and these already spend most of "
     "it. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
+    " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -16667,6 +17237,7 @@ _BRANCH_ACCOUNT = (
     "produce a whole DOCUMENT rather than one column's cells are the "
     "fourth, tests/reference/generation-document-vectors.json, for that "
     "same reason again. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
+    " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -16688,6 +17259,7 @@ _SECOND_BRANCH_ACCOUNT = (
     "fourth file, tests/reference/generation-document-vectors.json, "
     "opened because this one holds 245567 bytes against that cap and has "
     "room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
+    " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -16705,10 +17277,31 @@ _THIRD_BRANCH_ACCOUNT = (
     "tests/reference/generation-branch-vectors-2.json and "
     "tests/reference/generation-document-vectors.json, and live in a fifth "
     "file only because the second and third each stand within a few "
-    "kilobytes of the provenance manifest's byte cap."
+    "kilobytes of the provenance manifest's byte cap. The layout packing "
+    "of a declared identifier (plan P4-D182) fits beside them."
+    " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
+)
+
+_FOURTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the repair of the carried items "
+    "of landing 2b: G6.5a's walks taken reach by reach (plan P4-D183), the "
+    "fill of a saturated grid of tenths (plan P4-D176) and of a column whose "
+    "published levels are its strata (plan P4-D178), and the census of "
+    "marks held at a thousand (plan P4-D185). They are computed by the same "
+    "oracle and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json and "
+    "tests/reference/generation-document-vectors.json, and live in a sixth "
+    "file only because the fifth stands within a few kilobytes of the "
+    "provenance manifest's byte cap."
 )
 
 CASE_SET_ACCOUNTS = {
+    FOURTH_BRANCH_PART: (
+        f"The {len(FOURTH_BRANCH_CASE_BUILDERS)} {_FOURTH_BRANCH_ACCOUNT}"
+    ),
     THIRD_BRANCH_PART: (
         f"The {len(THIRD_BRANCH_CASE_BUILDERS)} {_THIRD_BRANCH_ACCOUNT}"
     ),
@@ -17012,6 +17605,114 @@ GIVEN_WORDS = {
         15378872738563111551, 14372216327767465923, 11389554098232228365,
         9811363188700176784, 15109080552199181041, 14800070410420609622,
         4630607423294290951,
+    ),
+    "identifier_layout_packing": (
+        2133445670946539098, 11981192592242442652, 10590080120497718362,
+        2873831576859777791, 14691394533195391903, 6960121324938299066,
+        6864737569749334100, 14869315022140156599, 16968290254832028037,
+        5645913014257962301, 13066870849114815344, 9340397039500233319,
+        10182114925467700576, 2097201764946789935, 9866926844510420059,
+        4730807059393854279, 8758714791461785548, 4746865290939205165,
+        5862885024567401376, 7086486961727365988, 16023757274257844766,
+        5579323079509963844, 953824599976055511, 13253607986884489203,
+        11581242300632279511, 2853535824041280845, 12998511296963757887,
+        4193238102763151999, 14135930288177834819, 4116316145845327410,
+        14567619838209041966, 14127649457793223153, 4735969490069522297,
+        7367495102748624401, 13502886630143229924, 7311416373004073758,
+        14189303352631987021, 3547133639880423604, 3737092542043582233,
+        16315758591796193756, 16044769024858297099, 11520132607229236167,
+        16245689211597603055, 14021403906309388758, 16843212092882274907,
+        8423358473771967612, 86063611898626637, 12426668096033639842,
+        4507278949400584981, 1135750359633044887, 8705752165939891696,
+        13439801069961426753, 16688779884370038781, 5756434633376951189,
+        13798635845593858936, 7202896243676816013, 1728208303232906376,
+        15266522445212351309, 17113158684710626050, 6109070393417281268,
+        664113016435541617, 18342136840665693534, 7836730298500805326,
+        1728371594612039943, 6827507768706501140, 12297261894398137284,
+        7670253390345383337, 7645774422493251043, 8958665183747190690,
+        12814485477245598738, 16385352943234104771, 5699628160137858854,
+        16135631896510165742, 16856857133637666360, 13115401875083798471,
+        9874359980855131462, 15072624225022042877, 15768674062192538527,
+        10598217203527022344, 7843501903378271152, 16318887542207898663,
+        516211843469013799, 13938422710030144739, 9671003108732408407,
+        6838044191481520333, 1629336804731282581, 6280493944316425496,
+    ),
+    "grouped_thousands": (
+        10390682183339692644, 9709370117967825422, 1372135379889647302,
+        797770577654099785, 2059790281346799348, 5809501225432164383,
+        14853133582192799163, 4179684481535051309, 4625664472293759910,
+        5990395913938564001, 13157394052974122422, 14286365859936689720,
+        17146589981717906051, 16066197736220705519, 17303559612018801585,
+        11495140397646416117, 4462410273845329648, 16232650578599091989,
+        3329199271902338807, 14795963718401349756, 6204604198220237244,
+        5321820312771371471, 10242919181991826863, 14966208708333309526,
+        2060593695541399422, 852927086334939308, 4719829434531730015,
+        6482149258410386223, 10432785415879352139, 4510105822620746293,
+        1996075189852565409, 12410475006317560029, 7938441945924962221,
+        1629741512823749819, 7370505432670325408, 14293540600515971891,
+        7212269041450258622, 8408971025494151927, 13048797574411966705,
+        17707692510942992751, 11779135534545971196, 7426863932049670845,
+        614321125549422288, 15438947051010758225, 982307153398426982,
+        3839575058364275966, 6345803081246716224, 14385672579639797466,
+        11121322036425621047, 14819602634791337062, 13109639223323109304,
+        3508217396645203032, 8820429240431121788, 8288121219677707094,
+        5053074673881699973, 9825486303775514040, 9274500925110878753,
+        9677241593423573480, 16400367825954858004, 7456068766970619122,
+        8021429493413364028, 3142289566579720811, 8820810108656237450,
+    ),
+    "saturated_levels": (
+        8789877641477584451, 14061771737494511513, 8492866395041342171,
+        13064620638720277127, 3689484532654513670, 3766860248324257315,
+        14441056460575882611, 13192628943897223606, 12739264937288114779,
+        1882456247130088232, 16796672780467978087, 5809247065094172459,
+        9571706159049136460, 7614245059267381523, 5433360213451458586,
+        14085150011940750490, 16595808210465114085, 18042535707410537438,
+        1771121451650387029, 6619488517674498275, 16402812875543374449,
+        3061434956137513573, 5700837183761211429, 15090668173431700156,
+        3963563055271773100, 7610192062330998712, 13958065400964255909,
+        4342087006595381866, 3563334622968888497, 14712353890326176370,
+        12746088402424799577, 17061171485078427565, 7392803631007743490,
+        2713251227109512726,
+    ),
+    "saturated_tenths": (
+        4984763646974463998, 716103067423287981, 15074666484794473745,
+        14878593753724019072, 11105398073562172977, 6416581269359930381,
+        1712818984024196130, 9080840327248245155, 1889021173754608625,
+        7833099873658681513, 15550149982404660089, 14831192675479380791,
+        716718993118661328, 2610152525058997562, 3993651508691504232,
+        1452656520331701246, 694088508874988200, 17559094681620418242,
+        18391224952021625716, 16872764544456532931, 828445734486120416,
+        15276387572753110033, 17727615588666294074, 2724589288697796876,
+        4430597342985768167, 13199553917031906621, 9257698873507771352,
+        13922538599275867805, 1499485798835382966, 11564759450904159921,
+        10718968918846684004, 2719701454904616416, 8032361673053953483,
+        16678186435369128231, 18226735024736992849, 10671742016647448392,
+        11076209537418418687, 17815594684644229472, 15927319255364401078,
+        16585763707187574832, 10598665134041044592, 3635732530539702086,
+        3715561364890015233, 7875301453500344443, 5656052095118657969,
+        9201843469929726796, 17725008181634169157, 15997173712771747604,
+        6481159937467421349, 5043800076391680734, 7338855808358865470,
+        14937651906208576329,
+    ),
+    "separated_in_order": (
+        13212319373645991198, 3124858977475633898, 13010056197012345531,
+        4264904321941588231, 17383293044662711306, 12411720386434298775,
+        8024866301577146682, 2749438196418611484, 6219451852441515048,
+        17283582658421246541, 6222816430999155403, 17733799514538467927,
+        8683638793174787581, 12957134877525461792, 17376073554016844179,
+        339335848901217406, 143123105700361814, 8887644370560360123,
+        13396192934278525122, 11377940140862159552, 11266547905149177465,
+        8626284110326026960, 1610467004518196393, 7255042512922810081,
+        4431569082447787604, 12692686399018873006, 11909838672017454383,
+        12090785649312243742, 7230969391896325039, 1757209359893068939,
+        15380960111715861860, 16721858549975570198, 2014827285520046748,
+        4917272234921210154, 13591257825598483686, 2024586551144361539,
+        9076499461175541656, 6101882392942214126, 2232447955143357544,
+        14237503022909562119, 10753502952628846387, 7252923574144308443,
+        10924290978578477268, 9393162400314167372, 17226066490847573428,
+        6427255367641620637, 15109245959838334317, 3523195627623299933,
+        2245074948595071685, 7848834666989494380, 17945467848151263025,
+        6079415186056573731,
     ),
     "signed_pads": (
         13212319373645991198, 3124858977475633898, 13010056197012345531,

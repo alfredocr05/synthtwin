@@ -130,6 +130,16 @@ THIRD_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-3.json"
 )
+# THE SIXTH FILE (the repair of the carried items of landing 2b, plans
+# P4-D176, P4-D178, P4-D183 and P4-D185).
+FOURTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_4.py"
+)
+FOURTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-4.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -175,6 +185,10 @@ def _second_branch_document() -> dict:
 
 def _third_branch_document() -> dict:
     return json.loads(THIRD_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _fourth_branch_document() -> dict:
+    return json.loads(FOURTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -366,6 +380,10 @@ SECOND_BRANCH_CASES = (
 # unchanged. Sorted, like the tuples above.
 THIRD_BRANCH_CASES = (
     "bare_mark_remainder",
+    # G9.6's LAYOUT PACKING (plan P4-D182): a census no class-and-alphabet
+    # packing can lay out, which the packing with the census as a third
+    # margin lays out exactly.
+    "identifier_layout_packing",
     "plus_padded_field",
     "pooled_mark_cells",
     "saturated_integers",
@@ -374,8 +392,25 @@ THIRD_BRANCH_CASES = (
     "unpublished_majority_marks",
 )
 
+# The sixth committed file: the cases the repair of the carried items of
+# landing 2b added -- G6.5a's walks reach by reach (plan P4-D183), its two
+# fills of plans P4-D176 and P4-D178, and the census of marks held at a
+# thousand (plan P4-D185). Sorted, like the tuples above.
+FOURTH_BRANCH_CASES = (
+    "grouped_thousands",
+    "saturated_levels",
+    "saturated_tenths",
+    "separated_in_order",
+)
+
 ALL_CASES = tuple(
-    sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES + THIRD_BRANCH_CASES)
+    sorted(
+        REQUIRED_CASES
+        + BRANCH_CASES
+        + SECOND_BRANCH_CASES
+        + THIRD_BRANCH_CASES
+        + FOURTH_BRANCH_CASES
+    )
 )
 
 # Which seed's opening words each case is given. This mapping lives here
@@ -433,6 +468,14 @@ SEEDS = {
     "unpublished_majority_marks": 164,
     "spread_conventions": 165,
     "signed_pads": 166,
+    # The repair of the carried items of landing 2b. `separated_in_order`
+    # is `signed_pads` publishing eleven values, and takes its seed: the
+    # opening words at that seed are the ones whose walk the reaches move.
+    "separated_in_order": 166,
+    "saturated_tenths": 168,
+    "saturated_levels": 169,
+    "grouped_thousands": 175,
+    "identifier_layout_packing": 167,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
     # case is given, and each case's committed cells were chosen from
@@ -471,12 +514,15 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_absent_words",
         "identifier_signed_layout",
         "identifier_layout_partners",
+        "identifier_layout_packing",
     }
 )
 
 def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
-    if name in THIRD_BRANCH_CASES:
+    if name in FOURTH_BRANCH_CASES:
+        document = _fourth_branch_document()
+    elif name in THIRD_BRANCH_CASES:
         document = _third_branch_document()
     elif name in SECOND_BRANCH_CASES:
         document = _second_branch_document()
@@ -655,12 +701,14 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     branch = _branch_document()
     second = _second_branch_document()
     third = _third_branch_document()
+    fourth = _fourth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
     assert tuple(sorted(third["cases"])) == THIRD_BRANCH_CASES
+    assert tuple(sorted(fourth["cases"])) == FOURTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, third, papers)
+    every = (named, branch, second, third, fourth, papers)
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -673,6 +721,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (branch, BRANCH_VECTORS),
         (second, SECOND_BRANCH_VECTORS),
         (third, THIRD_BRANCH_VECTORS),
+        (fourth, FOURTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -693,6 +742,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         BRANCH_GENERATOR,
         SECOND_BRANCH_GENERATOR,
         THIRD_BRANCH_GENERATOR,
+        FOURTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -925,6 +975,8 @@ SECOND_BRANCH_PUBLISHED_NUMBERS = 336
 SECOND_BRANCH_NAMED_COUNTS = 370
 THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
 THIRD_BRANCH_NAMED_COUNTS = 339
+FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
+FOURTH_BRANCH_NAMED_COUNTS = 270
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -953,6 +1005,12 @@ COMMITTED_FILES = (
         THIRD_BRANCH_NAMED_COUNTS,
     ),
     (
+        FOURTH_BRANCH_VECTORS,
+        gen.FOURTH_BRANCH_PART,
+        FOURTH_BRANCH_PUBLISHED_NUMBERS,
+        FOURTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -966,7 +1024,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1008,7 +1066,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1027,7 +1085,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1981,6 +2039,7 @@ def _notations_from_the_majority(census, default, styles, values):
 gen_mark_places = gen.mark_places
 gen_pad_places = gen.pad_places
 gen_apart_values = gen.apart_values
+gen_saturated_grid = gen.saturated_grid
 gen_plus_cells_by_value = gen.plus_cells_by_value
 
 
@@ -2043,25 +2102,87 @@ def _pads_on_the_padded_form_alone(
     return gen_pad_places(census, masked, values, integer_valued, forms)
 
 
-def _apart_without_the_fill(
-    wanted, figures, values, sizes, starts, bands, ladder, numeric,
-    mode=None, point_free=False, integer_valued=False,
-):
-    """Plan P4-D147's fill withdrawn: the walk alone, as it ran before.
+def _apart_without_the_fill(*_arguments, **_keywords):
+    """Plan P4-D147's fill withdrawn: the grid is never recognised.
 
-    The fill answers only where the strata number exactly ``wanted``;
-    asking the rule with a count one larger keeps every step of the walk
-    and stops the fill from recognising the grid, and the walk's own stop
-    at the published count is never reached earlier by one more.
+    It asked the rule with a count one larger, which kept every step of
+    the walk and stopped the fill -- and once the walk reaches as far as
+    amendment A-P4-55 lets it (plan P4-D183), that walk ALSO passes the
+    published count and writes all twenty-two, so the mutant moved no
+    cell. Withdrawing the fill itself leaves the walk at the published
+    count, and it stops at twenty-one.
     """
-    return gen_apart_values(
-        wanted + 1 if wanted is not None else None,
-        figures, values, sizes, starts, bands, ladder, numeric,
-        mode, point_free, integer_valued,
-    )
+    return None
+
+
+def _no_tenths_fill(wanted, figures, total, bands, ladder):
+    """Plan P4-D176's fill withdrawn on a written grid, the integers' kept."""
+    if figures > 0:
+        return None
+    return gen_saturated_grid(wanted, figures, total, bands, ladder)
+
+
+def _no_levels_fill(*_arguments, **_keywords):
+    """Plan P4-D178's fill withdrawn: no column's levels are its strata."""
+    return None
+
+
+def _reaches_stratum_by_stratum():
+    """Plan P4-D183 withdrawn: one walk reaching as far as it may."""
+    return (2,)
+
+
+def _thousands_not_held(column, values, *_rest):
+    """Plan P4-D185 withdrawn: the values come back as the ladder left them."""
+    return values
+
+
+def _no_layout_packing(*_arguments, **_keywords):
+    """G9.6's layout packing withdrawn (plan P4-D182): no packing is found."""
+    return None
 
 
 CASE_MUTANTS = {
+    "saturated_tenths": Mutant(
+        branch="plan P4-D176's fill of a saturated grid of tenths; the mutant "
+        "keeps the fill on the integers alone, and the walk places the "
+        "strata elsewhere",
+        attribute="saturated_grid",
+        replacement=_no_tenths_fill,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "saturated_levels": Mutant(
+        branch="plan P4-D178's fill of a column's published levels; the "
+        "mutant withdraws it, and the walk writes a level no source cell "
+        "held",
+        attribute="saturated_levels",
+        replacement=_no_levels_fill,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "separated_in_order": Mutant(
+        branch="plan P4-D183's walks taken reach by reach; the mutant takes "
+        "all three reaches stratum by stratum, and an early stratum walks "
+        "out of its share onto a point a later stratum held inside its own",
+        attribute="separation_reaches",
+        replacement=_reaches_stratum_by_stratum,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "grouped_thousands": Mutant(
+        branch="plan P4-D185's census of marks held at a thousand; the mutant "
+        "leaves the values where the ladder put them, and one reading fewer "
+        "reaches a thousand and wears a comma",
+        attribute="grouped_enough",
+        replacement=_thousands_not_held,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "identifier_layout_packing": Mutant(
+        branch="G9.6's layout packing (plan P4-D182); the mutant finds no "
+        "packing of the census, the column keeps its class-and-alphabet "
+        "packing, and the check of 7.12 finds the wide layouts unworn",
+        attribute="packed_layouts",
+        replacement=_no_layout_packing,
+        outcome="wear the layout '@@#%%' 0 times",
+    ),
     "bare_mark_remainder": Mutant(
         branch="plan P4-D142's bare remainder; the mutant writes every "
         "groupable cell no named count covers with the published mark, as "
@@ -2089,9 +2210,9 @@ CASE_MUTANTS = {
     ),
     "saturated_integers": Mutant(
         branch="plan P4-D147's fill of a saturated integer grid; the mutant "
-        "runs the walk alone, which lands strata on points other strata "
-        "still need",
-        attribute="apart_values",
+        "withdraws the fill and the walk alone, which lands strata on points "
+        "other strata still need, writes twenty-one numbers",
+        attribute="saturated_grid",
         replacement=_apart_without_the_fill,
         outcome=CHANGES_THE_CELLS,
     ),
@@ -3264,3 +3385,62 @@ def test_each_document_case_fails_when_its_own_rule_is_reverted(
                 f"reverted ({mutant.branch}), so no committed byte holds "
                 "that branch up"
             )
+
+
+# -------------------------------------- the count G14.3 states, off the files
+
+
+METHOD_TEXT = REPOSITORY / "docs" / "spec" / "generation-method-v1.md"
+
+_UNITS = (
+    "zero one two three four five six seven eight nine ten eleven twelve "
+    "thirteen fourteen fifteen sixteen seventeen eighteen nineteen"
+).split()
+_TENS = "twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _in_words(number: int) -> str:
+    """A count below a hundred as the method writes it: `seventy-three`."""
+    if number < 20:
+        return _UNITS[number]
+    tens = _TENS[number // 10 - 2]
+    return tens if number % 10 == 0 else f"{tens}-{_UNITS[number % 10]}"
+
+
+def test_the_method_states_the_count_the_committed_files_hold() -> None:
+    """G14.3's count sentence, held to the six committed case sets.
+
+    THE SENTENCE WENT STALE BY TWENTY-ONE CASES with every test green: it
+    said fifty-two, split nine, twenty, sixteen and seven, while the files
+    held seventy-three, because each repair that added a case added a
+    clause to the growth list and moved no number. So the total and each
+    file's own count are read out of the section and compared with the
+    files, and the table's rows with the case names.
+
+    Mutation: adding a case to any file, or writing any other number into
+    the sentence, turns this red.
+    """
+    text = METHOD_TEXT.read_text(encoding="utf-8")
+    section = text[text.index("### G14.3"):text.index("### G14.4")]
+    assert f"**All {_in_words(len(EVERY_CASE))} are required.**" in section
+    held = (
+        (VECTORS, _document()),
+        (BRANCH_VECTORS, _branch_document()),
+        (SECOND_BRANCH_VECTORS, _second_branch_document()),
+        (DOCUMENT_VECTORS, _document_document()),
+        (THIRD_BRANCH_VECTORS, _third_branch_document()),
+        (FOURTH_BRANCH_VECTORS, _fourth_branch_document()),
+    )
+    flat = " ".join(section.split())
+    for path, document in held:
+        said = (
+            f"`tests/reference/{path.name}`, holds "
+            f"{_in_words(len(document['cases']))}"
+        )
+        assert said in flat, (path.name, len(document["cases"]))
+    rows = sorted(
+        line.split("`")[1]
+        for line in section.splitlines()
+        if line.startswith("| `")
+    )
+    assert tuple(rows) == EVERY_CASE

@@ -353,7 +353,16 @@ NARROW_COLUMN_DIGESTS = {
     # where it held 177 at some seeds before. MEASURED before
     # re-recording, which is what the sentence beside the twin digest
     # asks for.
-    "reading": "dc10f984d2fd088116d2302297a51302",
+    # RE-RECORDED AT THE REPAIR OF THE CARRIED ITEMS OF LANDING 2b
+    # (2026-09-17, plan P4-D183). G6.5a now walks every stratum inside its
+    # own share before any on wider ground, so four of `reading`'s strata
+    # land on the neighbouring whole number instead: MEASURED cell by cell
+    # against 7d4278b, 10 cells of this column differ (144/145, 47/48,
+    # 171/172 and 28/29 trade places), every other column is
+    # byte-identical, the report's variance, skew and kurtosis of this
+    # column move in their fourth figure, and the quality report still
+    # holds 467 obligations with nothing missed.
+    "reading": "098660ff8d21500dd0cd3a74629cf021",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
@@ -422,7 +431,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     "record_code": "831384cc2284883fa8bb0b535966ba11",
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
-    "reading": "01d11476294ade427eb6806b3155e7b6",
+    # Re-recorded for plan P4-D183 with the sorted digest above: the same
+    # ten cells, as written.
+    "reading": "7cba14b078ef72e8e17b5cc013a9b68e",
     "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
@@ -1408,7 +1419,8 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # of its two published widths with the census exact; the description
 # digest held and no verdict of the quality report moved.
 GOLDEN_TWIN_SHA256 = (
-    "6d9b8f06d2e3f4d13bef94a7931dfbf57a72712e403ca139e52a3df1ce953b4e"
+    # Re-recorded for plan P4-D183: see `reading` above.
+    "986926831ae32c0025e1d22aea40530168d252052b6783aeb7dea706f9aae784"
 )
 
 
@@ -1881,7 +1893,8 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # said the twin writes the international form; it now says the twin keeps
 # the column's own spelling. Diffed line by line: that paragraph alone.
 GOLDEN_REPORT_SHA256 = (
-    "2d0053aee73de161073bc5f4434f6095968acd7d81ccc1c9530c8630aec7e075"
+    # Re-recorded for plan P4-D183: `reading`'s three moments, as held.
+    "4d257e6e1db854ae68b5a24802234c3b30fdbadc89930241fca1fcfd0b51c270"
 )
 
 
@@ -2546,7 +2559,8 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # description names no more than one"), which plan P4-D142 made untrue
 # by checking a census that names one, so ONE set of words was kept.
 GOLDEN_QUALITY_SHA256 = (
-    "8065bcf82ccddf95819bfb08e358f113b1b8b12866d900706779e957ea55e81a"
+    # Re-recorded for plan P4-D183: `reading`'s three measured moments.
+    "f5e6949f7834614a4ed8a3aee75d4f863e66c61eff61fcb3d21ad25b2a607d11"
 )
 
 

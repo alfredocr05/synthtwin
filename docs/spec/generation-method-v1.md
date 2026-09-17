@@ -1925,6 +1925,8 @@ exactly one of six **styles**, and in no other form:
 
 **A mixture of conventions is written as a mixture** (landing 2b.7, 2026-09-15; plan P4-D65.2). `negative_form` and `group_separator` publish the column's MAJORITY, and writing every cell that way threw the minority away: 480 negatives with a minus beside 120 in accounting brackets came back as 600 minuses, and 200 cells grouped with a space beside 100 grouped with a narrow no-break space came back as 300 ordinary spaces, each with no deviation reported and no check missed. Where `negative_notations` names a notation, each named notation takes its count in turn from the cells holding a negative value that no earlier notation took; where `thousands_marks` names a mark, the cells that CAN be grouped are taken the same way. **EACH COUNT IS SPREAD ACROSS THE VALUES, NOT TAKEN FROM THE FIRST CELL UPWARD** (plan P4-D149, the repair pass of the final Codex review). The cells stand in stratum order, ascending, so the first version's walk put the last convention on the largest values: 1,500 amounts at a floor of eleven, 915 grouped and 585 bare with means of 489,137 and 483,357, came back with a grouped mean of 289,169, a bare mean of 795,007 and every bare cell larger than every grouped one, with every check passing. A count is placed over the cells still untaken, in cell order, by the whole-value spread rule the plus sign uses below — runs of one value offered their share, given up or taken whole to make the count exact — except that a run the count must split keeps its share on its FIRST cells, so a notation and a mark spent over one run of a negative value split it at the same cell and write the value two ways rather than four. A column whose eligible cells hold one value is therefore written exactly as before. Where `negative_notations` names no notation, or `thousands_marks` no mark, every cell wears the column's published majority — so a column publishing no mixture is written exactly as it was before this rule existed. **WHERE `thousands_marks` NAMES A MARK, THE CENSUS IS THE WHOLE OF THE GROUPED CELLS** (plan P4-D142, the final Codex review's item 3). Measured before this sentence, at a floor of eleven and seed 4: 800 prices grouped with a comma beside 400 bare published `{",": 800}` and the twin grouped all 1,200; 800 commas, 200 spaces and 200 bare came back as 1,000 commas and 200 spaces; and 600 commas beside 600 spaces, which publish no majority, came back with no grouped cell at all. So the groupable cells are spent in three parts, each by the spread just stated: each named mark takes its count, in the contract's own order of marks; a `(withheld)` remainder takes its count next, written with the first of a space, an apostrophe, U+2019, U+00A0, U+202F and U+2009 that the census does not name — never a named mark, which would add the pool to that mark's count, and neither decimal mark; and the cells still left are written with NO mark wherever they number at least the census floor max(2, `small_cell_floor`), because the census is published only beside a bare remainder of nought or at least that floor (contract C6-88), while a smaller remainder is the twin's own ladder reaching a few more values past a thousand and wears the published majority as before. A cell CAN be grouped exactly where writing it with a mark puts a mark in it, which is this section's own rule about forms, leading-zero order and four whole figures, asked of the writer rather than restated; the mark asked with is the published majority, or where the column publishes none the first mark its census names, so a column with no majority is not left with no groupable cell. A trailing minus is offered only to a cell allocated `decimal`, because the notation is written only where the figures carry a decimal point, so a cell without one would keep its minus in front and miss the census silently. Where a named count has more cells than the twin can offer, every cell it can reach takes the convention and the report names the shortfall as a deviation of that census.
 
+**AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS** (plan P4-D185). A cell carries a mark between thousands exactly where its number reaches a thousand, and the ladder places the strata near a thousand by interpolation, a rank or two either side: 2,000 lognormal amounts written `1.234,56` published `{".": 418}` and the twin wrote 416 at every seed, and over twelve such columns sixteen twins of twenty-four wrote one or two fewer and two wrote one more, the surplus named nowhere. So, as the last of the value passes of G6.5a and G6.6, on a column whose every numeric cell is on ONE grid (G6.5a's first two clauses), holding no negative value, naming no field width and no form but `decimal` and `plain`: let `C` be the census's cells, named and pooled, and `K` the cells whose values reach a thousand. Where `K < C`, the run of strata just below a thousand, from the highest down while their cells do not pass `C - K`, takes the lowest free grid points of a thousand or more, in order, the last below the value of the stratum above the run. Where `C < K < C + max(2, small_cell_floor)` -- a surplus the table cannot have held as bare cells, since the census is published only beside a bare remainder of nought or at least that floor -- the run from a thousand up, from the lowest while their cells do not pass `K - C`, takes the highest free grid points below a thousand, in order, the first above the value of the stratum below it. A free grid point is one whose text no stratum holds and whose text survives being read and written again, looked for at most sixty-four units past the run's own length. A stratum moves only where its text is its own and never the first or last stratum; the run moves whole or not at all, so the count of different values, the sign counts and the order of the strata stay where they were.
+
 **Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
 **Which decision governs which question** (P2-C1-F8). Decision 8 fixed
@@ -2816,9 +2818,19 @@ grid, because only then does a value know what text it will wear:
   width to count and its census is empty — which an implementation may
   read as "no grid" and skip the pass entirely, which is why the clause
   above does not depend on the census at all;
-- otherwise the pass does not run. Where the census names several
-  widths, which cell gets which is settled after the styles by G6.6,
-  and a value cannot know here what it will be written at.
+- otherwise, where the census names widths at all, the grid is the
+  FINEST of them (amendment A-P4-55): which cell gets which width is
+  settled after the styles by G6.6, so a value cannot know here what it
+  will be written at, but two values that read alike at the finest width
+  ARE one number, so every collision seen there is real. A census that is
+  empty on a column that is not whole-valued, or that holds a key that is
+  not a run of figures, gives no grid and the pass does not run.
+
+**A COLUMN THAT WRITES SOME CELLS WITH NO POINT KEEPS ITS WHOLE VALUES
+WHOLE** (amendment A-P4-55): where the census counts fewer cells than the
+column has numeric cells, a stratum whose value is whole moves only onto a
+whole grid point, and one whose value is not only onto a point that is not
+whole, so the plain cells keep the whole values they need.
 
 **WHICH STRATA MAY MOVE.** Only a stratum whose text is held by more
 than one stratum — moving a stratum that collides with nothing frees
@@ -2874,10 +2886,30 @@ twins of eight wrote a whole level at a number the source never held —
 validation at exit 0.
 
 **IN WHAT ORDER.** The strata are visited in ascending index, ONCE
-each, and a stratum the walk could not move is not returned to. Which
-stratum is repaired first decides which grid points the later ones find
-occupied, so the order is part of the answer and not an implementation
-detail.
+each in a walk, and a stratum a walk could not move is not returned to in
+that walk. Which stratum is repaired first decides which grid points the
+later ones find occupied, so the order is part of the answer and not an
+implementation detail.
+
+**HOW MANY WALKS, AND HOW FAR EACH REACHES** (amendment A-P4-55, plan
+P4-D183). A walk has a REACH. At reach 0 a stratum is moved as the
+paragraphs below state, inside its own share. At reach 1, where that finds
+nothing, it is asked again with its share widened by the share's own width
+on either side -- its neighbours' ground. At reach 2, where that too finds
+nothing, it is asked a third time with no share at all and at most as many
+grid steps as its share is wide, one more than the whole number of grid
+units that width holds and never more than sixty-four, still inside the
+published ends. A ROUND is a walk at reach 0, then a walk at reach 1, then
+a walk at reach 2, the count asked after each; at most three rounds are
+taken, and a round that adds no different value ends the pass. **Every
+stratum is walked inside its own share before any is walked on wider
+ground.** The three reaches were first tried stratum by stratum, and an
+early stratum took a point beyond its share that a later stratum held
+inside its own: on eleven whole numbers from 100 to 110 written three
+times each, twenty-two strata publishing eleven values, the tenth stratum
+walked from 104 onto 105, above the 104 of the stratum after it, while the
+thirteenth stratum's own share held 105 -- and the reference oracle,
+reading this section, wrote the other.
 
 **THE MOVE.** The nearest free point of the grid inside the stratum's
 own share of the ladder, walked outward one grid step at a time — the
@@ -2943,8 +2975,8 @@ wear a text another stratum has written, and must still stay in its
 sign band.
 
 **WHEN IT STOPS.** As soon as the count of different texts reaches the
-published `n_distinct_values`, and otherwise at the end of its single
-ascending pass. A stratum for which every candidate was refused keeps
+published `n_distinct_values`, and otherwise at the end of the rounds
+above. A stratum for which every candidate was refused keeps
 its value; the shortfall is then G13's to name.
 
 **MEASURED, through the real reader, producer, loader and generator at
@@ -2966,7 +2998,7 @@ twin's own report names the shortfall.
 
 **But that is this walk falling short, not the count being
 unreachable**, and an earlier writing of this paragraph said otherwise.
-The walk is greedy, ascending and single-pass, and it moves only a
+The walk is greedy and ascending, and it moves only a
 stratum that has COLLIDED. Take pinned ends `0` and `5` with interior
 values `1`, `1`, `2` and shares `[0,1]`, `[1,2]`, `[2,4]`: neither `1`
 can move, because `2` is taken and their shares reach nothing else, and
@@ -7378,9 +7410,53 @@ packing rule applying here IN FULL — both margins and the shape search
   pool leaves, so a layout the twin does not hold is named: before this
   recount a signed column wrote 0 of 800 cells to its layout, and a
   battery of 800 small mixed columns missed a layout on 488 runs, and
-  the report named none of them. What the recount names is the limit of
-  G9.4's packing, which settles each group's class and band before any
-  layout is offered;
+  the report named none of them;
+- **a named layout the first answer leaves short is PACKED with the
+  families** (plan P4-D182). The class-and-alphabet packing settles each
+  group's class and band before any layout is offered, and a layout is a
+  fact about a cell's length, class and band at once, so that packing can
+  put a group where no layout it owes can be worn: a declared column of
+  49 rows publishing `{"%%%": 12, "&-&": 8, "@_%": 10, "@_%%": 3}` wrote
+  `&-&` and `@_%%` nought times on every seed while its own values meet
+  every count. So where the first answer meets every count and every
+  collision and leaves a named layout short, and NO group owes a
+  fold-collision partner, the census is packed as a THIRD MARGIN of the
+  same grid by the same allocator and fill order: a cell is a class, a
+  band and either one named layout or none, the named layouts' quotas are
+  their published counts in sorted order and the last quota is the
+  present cells the census names no layout for. A group may take a named
+  layout only where it covers no more cells than that layout counts, the
+  layout's length is one its window holds -- exactly the end it carries,
+  where it carries one -- and a slot of that class and band can wear it by
+  the 64-filling test above; "none" is open to every class and band the
+  group may stand in. The grid is packed FIRST WITH NO END PINNED, the
+  sign family closed and then open, and the two groups carrying the
+  published ends are read off the answer: the first group, in group
+  order, that can be written at the shortest length -- packed to a named
+  layout of that length, or packed to none in a class and band holding a
+  spelling that long -- and the first OTHER group that can be written at
+  the longest, or the first two groups where the two lengths are one. Only
+  where that finds no answer, or no such pair, are the ends pinned shape
+  by shape in the order of the first tier of the search above (measured:
+  on 760 rows whose first groups are singletons, pinning first asked
+  sixteen questions with no answer and took eighty seconds; unpinned, the
+  column takes under one). At most sixteen different questions are asked
+  and at most four layouts built, and each group is then offered
+  its packed layout ALONE, a group packed to none being offered no named
+  layout at all. A layout built this way is kept only where it builds
+  every collision, files no more notes than the first answer, recounts
+  missed exactly the counts the first answer missed, reaches for no sign
+  the first answer did without, and leaves fewer named layouts short;
+  one leaving none is returned at once, before the wider search. **What
+  it does not reach, measured on the battery of 800 small mixed columns,
+  where it names a layout short on 200 runs against 376 before:** a
+  column owing a partner, whose layout its parent's spelling decides; a
+  column whose made-up cells, all of whose letters are `a` to `f` and
+  trade places with figures, read as HEXADECIMAL where the census is
+  plain, or the reverse; a layout opening with a character a spreadsheet
+  reads as a formula that no proven sign covers; and a group packed to no
+  named layout whose family writes a named one anyway. Every one of them
+  is recounted and named;
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
@@ -9242,7 +9318,9 @@ fail.
 
 ### G14.2 The vector file shape
 
-**Four committed JSON files, and ONE oracle** (review item P2-C3-F3).
+**Six committed JSON files, and ONE oracle** (review item P2-C3-F3).
+How many cases each file holds is counted once, in G14.3, off the files
+themselves; the growth list below says which cases went where and when.
 `tests/reference/generation-reference-vectors.json` carries the nine
 cases G14.3 names first, with the four the review of 158c811 added and
 the two its skeptic added (plan P4-D138), and
@@ -9264,14 +9342,23 @@ rather than one column's cells, and
 repair of the final Codex review of the number censuses added (plans
 P4-D142, P4-D145 and its amendment, P4-D147 and P4-D149), through the entry point
 `tools/reference/make_generation_branch_vectors_3.py`, because the second
-and third files each stand within a few kilobytes of the byte cap. This sentence carried the
+and third files each stand within a few kilobytes of the byte cap -- and
+beside them the layout packing of plan P4-D182, the one case of the
+carried items' repair that fit -- and
+`tests/reference/generation-branch-vectors-4.json` carries the four that
+repair added for G6.5a and the census of marks (plans P4-D176, P4-D178,
+P4-D183 and P4-D185), through the entry point
+`tools/reference/make_generation_branch_vectors_4.py`, because the fifth
+file then stood within four kilobytes of the cap. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
-next case has an obvious place to be recorded. All four are written by
+next case has an obvious place to be recorded. All six are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
 through the entry point `tools/reference/make_generation_branch_vectors.py`,
-the third through `tools/reference/make_generation_branch_vectors_2.py`
-and the fourth through `tools/reference/make_generation_document_vectors.py`,
+the third through `tools/reference/make_generation_branch_vectors_2.py`,
+the fourth through `tools/reference/make_generation_document_vectors.py`,
+the fifth through `tools/reference/make_generation_branch_vectors_3.py`
+and the sixth through `tools/reference/make_generation_branch_vectors_4.py`,
 each of which runs that oracle and asks it for its own case set — so there
 is one transform, one proof layer and one set of rules behind every file.
 Each is registered in `tools/provenance/fixture-manifest.json` with its
@@ -9490,7 +9577,11 @@ second implementation of any kind (landing 2b.17), and one more for the
 rules of G2.2 the files review repaired -- a class handed only to a
 cell it fits, a withheld census falling to the published commonest
 class and code, a date cell, a blank header cell, a carriage return and
-a placeholder taken whatever its case (plan P4-D164 to P4-D171).
+a placeholder taken whatever its case (plan P4-D164 to P4-D171), and
+one for G9.6's layout packing (plan P4-D182), and four for G6.5a's walks
+taken reach by reach (plan P4-D183), its fills of a saturated grid of
+tenths and of a column's published levels (plans P4-D176 and P4-D178),
+and the census of marks held at a thousand (plan P4-D185).
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2
@@ -9529,17 +9620,21 @@ column that mixes two conventions; those are pinned by round trips in
 `tests/test_stage2_dates_as_written.py` and not by frozen bytes. That
 is a gap in this section's own terms and it is named as one.
 
-**All fifty-two are required.** Landing 2b.6 withdrew one of the
-cases named above, `accidental_midnight`, with the rule it pinned, so
-fifty-three are named and fifty-two stand (counted at the integration of
-landings 2b.6 to 2b.10, 2026-09-16, again at the repair pass of the
-final Codex review of the number censuses, which added two, and at the
-files review's repair, which added two). The
-first nine are the first committed file, the next twenty the second,
-the next sixteen -- the cases the carried landings 2b.2, 2b.3 and
-2b.4 added, less the one landing 2b.6 withdrew -- the third, and the
-last seven the fourth
-(G14.2). **The table below is the inventory itself, and it was short of
+**All seventy-three are required.** The count is taken off the committed
+case sets and not carried forward: this sentence said fifty-two and a
+split of nine, twenty, sixteen and seven while the six files held
+seventy-three, because each repair that added a case added a clause to
+the list above and moved no number here. Landing 2b.6 withdrew one of
+the cases named above, `accidental_midnight`, with the rule it pinned,
+and it is in no file. The first file,
+`tests/reference/generation-reference-vectors.json`, holds fifteen; the
+second, `tests/reference/generation-branch-vectors.json`, holds
+twenty-one; the third, `tests/reference/generation-branch-vectors-2.json`,
+holds eighteen; the fourth,
+`tests/reference/generation-document-vectors.json`, holds seven; the
+fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
+and the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
+four (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9567,6 +9662,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_signed_layout` | G9.6's proven sign (plan P4-D156): a declared identifier of twelve signed whole numbers publishing `{"-%%%%": 12}`, every cell a minus and four figures. Its mutant refuses the sign and the check of 7.12 finds the layout worn nought times |
 | `identifier_absent_words` | G9.6's refusal of a spelling read as absent (plan P4-D158): a declared identifier publishing `{"@@": 20}`, whose layout walk reaches `NA` at its thirteenth filling and steps over it. Its mutant reads nothing as absent, `NA` is written, and the cells move |
 | `identifier_layout_partners` | G9.6's partner layouts (plan P4-D157): twenty-two identities and eleven partners publishing `{"@%%": 22, "&%%": 11}`, the identities owed partners visited first and debited with them. Its mutant predicts no partner wears a layout, and the check of 7.12 finds `&%%` worn fourteen times |
+| `identifier_layout_packing` | G9.6's layout packing (plan P4-D182): a declared identifier of four groups of eleven rows and two of twenty-two publishing `{"@@#%%": 11, "@@*%%": 11, "@@-%%": 22, "@@.%%": 11, "@@:%%": 11, "@@_%%": 22}`, two code-alphabet layouts of twenty-two cells and four wide-alphabet layouts of eleven. The class-and-alphabet packing gives the code band the four groups of eleven and the wide band the two of twenty-two, which no layout of eleven can take; packed with the census as a third margin, the wide band takes the groups of eleven and each group is offered its own layout alone. Its mutant finds no layout packing and the check of 7.12 finds `@@#%%` worn nought times |
 | `identifier_layout` | G9.6's LAYOUT OFFER (contract 7.12): a declared identifier publishing `layout_forms` `{"@%%%%%": 12, "@@%%%%": 12}` over twelve identities written once and six written twice, whose cells are written to those layouts rather than by the band enumeration; the fill is a counter taken apart LEFTMOST FIRST from step one, spread by the exact golden section of the room — `L30816`, `W60632`, `H01458` — and the census is spread over the identities by the smooth weighted rotation, largest group first. Its mutant withdraws the rotation, every singleton then takes `@%%%%%` and every repeat `@@%%%%`, and the cells move; withdrawing the offer altogether stops the oracle at the check of 7.12 |
 | `numeric_point_free_styles` | G6.1's literal `decimal`, `leading_zero` and `leading_plus` placements, G6.4's tie order, and G5.3's clamp |
 | `leap_second_endpoint` | G7.5's endpoint-fields route on a `local`-clock end whose seconds field is `60`, which the ordinal space of G7.1 has no place for |
@@ -9591,6 +9687,10 @@ case passed, which is the failure the count exists to prevent:
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |
 | `spread_conventions` | G6.1's spread of both censuses of conventions (plan P4-D149): the twenty-two whole numbers from minus 1,021 to minus 1,000, published with `thousands_marks: {",": 11}` and `negative_notations: {"brackets": 11, "minus": 11}`, so the brackets, the minus signs, the grouped cells and the bare ones each fall across the whole range of values rather than on its most negative half |
+| `saturated_tenths` | G6.5a's fill of a saturated written grid (plan P4-D176): thirty-three readings at one place publishing twenty-two different numbers between the ends 0.1 and 2.2, which hold exactly twenty-two tenths, so the strata take those tenths in order, each once. Its mutant keeps the fill on the integers alone, and the cells move |
+| `saturated_levels` | G6.5a's fill of a column whose published levels are its strata (plan P4-D178): thirty-three readings at one place of the four levels 2.0, 3.2, 6.5 and 15.0, each named by two rungs or more, the mode 6.5, four different values published; the rungs name more than four numbers, so the levels are the numbers two rungs or more name with the ends and the mode, and the strata take them in order. Its mutant withdraws the fill and the walk writes `4.6` |
+| `separated_in_order` | G6.5a's walks taken reach by reach (plan P4-D183): `signed_pads` publishing eleven different values and twenty-two spellings, twenty-two strata over 100 to 110; every stratum is walked inside its own share first, so the thirteenth takes 105 inside its share. Its mutant takes the three reaches stratum by stratum, the tenth stratum walks out of its share onto 105, and the cells move |
+| `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |
 | `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |

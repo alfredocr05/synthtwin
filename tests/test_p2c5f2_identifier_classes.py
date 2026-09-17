@@ -90,20 +90,24 @@ CLASS_FACTS = (
 
 
 # How many of the battery's 800 runs name a layout the twin did not hold:
-# 488 when the twin's report began recounting layouts (plan P4-D157), and
+# 488 when the twin's report began recounting layouts (plan P4-D157),
 # 376 once a layout shortfall became a reason for the packing to look
-# further (plan P4-D163).
-LAYOUT_SHORT_RUNS = 376
+# further (plan P4-D163), and 200 once the census was packed as a third
+# margin with the classes and alphabets (plan P4-D182).
+LAYOUT_SHORT_RUNS = 200
 
 
 def _beside_the_layouts(twin: generation.Twin) -> "list[str]":
     """The deviations a twin names, the layout census's own set aside.
 
     THE LAYOUT CENSUS IS RECOUNTED SINCE PLAN P4-D157, and on the small
-    mixed columns this file builds it is MISSED on a measured 376 of 800
-    runs (488 before plan P4-D163): G9.4's packing chooses each group's class and alphabet band
-    before any layout is offered, and a layout a group's band cannot wear
-    is not written. Those misses were there before the recount and
+    mixed columns this file builds it is MISSED on a measured 200 of 800
+    runs (488 before plan P4-D163 and 376 before plan P4-D182, which packs
+    the census with the classes and alphabets). What is left is the
+    shapes method G9.6 names that packing as not reaching: a column owing
+    a fold-collision partner, made-up cells that read under the other
+    alphabet convention, a layout opening with a formula character, and a
+    family that writes a named layout for a group packed to none. Those misses were there before the recount and
     `synthtwin validate` reported every one; the twin's own report now
     names them rather than saying nothing. What THIS file holds to is the
     class, alphabet and fold packing, so the layout shortfall is set

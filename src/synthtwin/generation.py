@@ -9411,6 +9411,13 @@ def _numeric_content(
     # `_widths_exchanged`. Last among the value passes, because it moves
     # no value to a place no stratum held and so undoes none of them.
     values = _widths_exchanged(column, facts, layout, values)
+    # AND AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS
+    # (plan P4-D185): see `_grouped_enough`. Last of all, because it moves
+    # a value only between its two neighbours and onto a text no other
+    # stratum holds, so it undoes none of the passes above.
+    values = _grouped_enough(
+        column, facts, layout, values, plan.small_cell_floor
+    )
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -9428,6 +9435,163 @@ def _numeric_content(
     # at one width and not at another.
     notes = notes + _gap_notes(column, facts, cells)
     return _numeric_tail(column, facts, layout, cells, notes)
+
+
+# The styles a cell of which a thousand is always grouped where it is a
+# thousand or more (plan P4-D185): an ordinary decimal and a plain whole
+# number. Every other form -- an exponent, a leading nought, a leading
+# plus -- decides for itself whether a mark is written.
+_GROUPED_AT_A_THOUSAND = ("decimal", "plain")
+
+
+def _grouped_enough(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    floor: int,
+) -> "list[float]":
+    """Hold as many cells at a thousand or more as the marks census counts.
+
+    THE CENSUS OF MARKS IS A COUNT OF CELLS OF FOUR FIGURES OR MORE, and
+    the values stage never read it (plan P4-D185). `thousands_marks`
+    counts the cells written with a mark between thousands, and a cell
+    carries one exactly where its number reaches a thousand; the ladder
+    places the strata around a thousand by interpolation, and a rank or
+    two either side of it is not a fact the ladder fixes. MEASURED on
+    2,000 lognormal amounts written `1.234,56`: the census published 418
+    and the twin wrote 416 at every seed, and over twelve such columns
+    sixteen of twenty-four twins wrote one or two fewer and two wrote one
+    more -- the one more with nothing named, because a surplus under the
+    census line is written with the mark (plan P4-D142).
+
+    THE RULE, on a column whose every numeric cell is on one grid
+    (`_pinned_fraction`), holds no negative value, publishes no field
+    width, and names no form but `decimal` and `plain`. Let `C` be the
+    census's cells, named and pooled, and `K` the cells whose values
+    reach a thousand. Where `K` is below `C`, the strata just below a
+    thousand, from the highest down and while their cells do not pass
+    `C - K`, are moved up to the lowest free grid points of a thousand or
+    more, in order, each below the value of the stratum above the moved
+    run. Where `K` passes `C` by fewer cells than the census line
+    (`parsing.census_floor`) -- a surplus the table cannot have held as
+    bare cells, since the census publishes only where those number
+    nought or reach the line -- the strata from a thousand up are moved
+    down to the highest free grid points below a thousand, in order, each
+    above the value of the stratum below the run. A stratum moves only
+    where its text is its own, and never the first or last stratum, whose
+    values are the published ends; the whole run moves or none of it
+    does, so the published count of different values and every sign
+    count stay where they were.
+
+    Guarantees: returns one value per stratum, the order of the values
+    unchanged. A fixed function of its arguments. Raises nothing. No I/O.
+    """
+    total = len(values)
+    census = facts.thousands_marks
+    if total < 3 or not census:
+        return values
+    owed = 0
+    for key in census:
+        owed = owed + census[key]
+    figures = _pinned_fraction(column, facts)
+    if figures < 0 or facts.n_negative > 0 or facts.pad_widths:
+        return values
+    for style in facts.numeric_styles:
+        if style != contract.WITHHELD and style not in _GROUPED_AT_A_THOUSAND:
+            return values
+    reached = 0
+    for place in range(total):
+        if values[place] >= 1000.0:
+            reached = reached + layout.sizes[place]
+    texts = [_grid_text(value, figures) for value in values]
+    held: dict[str, int] = {}
+    for text in texts:
+        held[text] = (held[text] if text in held else 0) + 1
+    boundary = _grid_units(_grid_text(1000.0, figures), figures)
+    if boundary is None:
+        return values
+    if reached < owed:
+        wanted = owed - reached
+        top = -1
+        for place in range(total):
+            if values[place] < 1000.0:
+                top = place
+        run: list[int] = []
+        place = top
+        while wanted > 0 and 0 < place < total - 1:
+            if held[texts[place]] != 1 or layout.bands[place] != _BAND_POSITIVE:
+                break
+            if layout.sizes[place] > wanted:
+                break
+            run = [place] + run
+            wanted = wanted - layout.sizes[place]
+            place = place - 1
+        if not run:
+            return values
+        ceiling = values[run[-1] + 1] if run[-1] + 1 < total else None
+        points = _free_grid_points(boundary, 1, len(run), figures, held)
+        if not points:
+            return values
+        if ceiling is not None and float(_grid_at(points[-1], figures)) >= ceiling:
+            return values
+    elif owed < reached < owed + parsing.census_floor(floor):
+        wanted = reached - owed
+        low = total
+        for place in range(total - 1, -1, -1):
+            if values[place] >= 1000.0:
+                low = place
+        run = []
+        place = low
+        while wanted > 0 and 0 < place < total - 1:
+            if held[texts[place]] != 1 or layout.bands[place] != _BAND_POSITIVE:
+                break
+            if layout.sizes[place] > wanted:
+                break
+            run = run + [place]
+            wanted = wanted - layout.sizes[place]
+            place = place + 1
+        if not run:
+            return values
+        below = _free_grid_points(boundary - 1, -1, len(run), figures, held)
+        if not below:
+            return values
+        points = [below[len(below) - 1 - step] for step in range(len(below))]
+        floor_value = values[run[0] - 1]
+        if float(_grid_at(points[0], figures)) <= floor_value:
+            return values
+    else:
+        return values
+    moved = [value for value in values]
+    for step in range(len(run)):
+        moved[run[step]] = float(_grid_at(points[step], figures))
+    return moved
+
+
+def _free_grid_points(
+    start: int, stride: int, count: int, figures: int, held: "dict[str, int]"
+) -> "list[int]":
+    """``count`` grid units from ``start`` by ``stride`` whose text is free.
+
+    A unit whose text does not survive being read back and written again
+    is passed over, as G6.5a's walk passes it over; the walk looks at
+    most sixty-four units past what it needs, and answers what it found.
+    """
+    found: list[int] = []
+    unit = start
+    looked = 0
+    while len(found) < count and looked < count + _GRID_REACH:
+        looked = looked + 1
+        spelt = _grid_at(unit, figures)
+        unit = unit + stride
+        if spelt in held:
+            continue
+        if _grid_text(float(spelt), figures) != spelt:
+            continue
+        found += [unit - stride]
+    if len(found) < count:
+        return []
+    return found
 
 
 def _spelled_census(census: "dict[str, int]") -> "list[str]":
@@ -10454,20 +10618,38 @@ def _apart_enough(
     # seed of three with a single walk. Three walks is the bound: a
     # walk that moves nothing ends it, and a column still moving after
     # three is one this pass does not settle.
+    #
+    # AND EACH WALK REACHES NO FURTHER THAN THE ONE BEFORE IT NEEDED (plan
+    # P4-D183). The three reaches of a stratum -- its own share, its
+    # neighbours' ground, the distance its share is wide -- were tried
+    # stratum by stratum, so an early stratum took a point beyond its own
+    # share that a later stratum had inside its own. MEASURED on eleven
+    # whole numbers from 100 to 110 written three times each, 22 strata
+    # publishing 11 different values: the tenth stratum, holding 104
+    # beside the eleventh, walked out of its share onto 105 -- above the
+    # 104 after it -- where the thirteenth stratum's own share held 105,
+    # and the reference oracle, reading method G6.5a, wrote the other.
+    # So every stratum is walked inside its own share first, then every
+    # stratum on its neighbours' ground, then every stratum by distance,
+    # and the count is asked after each walk.
     for _round in range(3):
         before_round = len(held)
-        moved, texts, held = _apart_walk(
-            column,
-            facts,
-            layout,
-            rungs,
-            moved,
-            texts,
-            held,
-            figures,
-            wanted,
-            keep_whole,
-        )
+        for reach in range(3):
+            moved, texts, held = _apart_walk(
+                column,
+                facts,
+                layout,
+                rungs,
+                moved,
+                texts,
+                held,
+                figures,
+                wanted,
+                keep_whole,
+                reach,
+            )
+            if wanted is not None and len(held) >= wanted:
+                break
         if wanted is not None and len(held) >= wanted:
             break
         if len(held) == before_round:
@@ -10666,12 +10848,17 @@ def _apart_walk(
     figures: int,
     wanted: "int | None",
     keep_whole: bool = False,
+    reach: int = 2,
 ) -> "tuple[list[float], list[str], dict[str, int]]":
     """One walk of the separation (amendment A-P4-55).
 
     Split out of `_apart_enough` so the walk can be taken more than
     once: a stratum passed over early may have a free point once a
     later one has moved off the text it wanted.
+
+    ``reach`` is how far this walk looks (plan P4-D183): 0 inside each
+    stratum's own share alone, 1 on its neighbours' ground as well, and
+    2 by the distance its share is wide as well.
     """
     total = len(moved)
     for place in range(total):
@@ -10711,7 +10898,7 @@ def _apart_walk(
             kind,
         )
 
-        if want is None and share is not None:
+        if want is None and share is not None and reach >= 1:
             # AND WHERE ITS OWN SHARE HOLDS NO FREE POINT, THE STRATUM
             # LOOKS BEYOND IT (amendment A-P4-55). The share is what
             # keeps a moved stratum near the rung the ladder put it on,
@@ -10768,7 +10955,7 @@ def _apart_walk(
                 kind,
             )
 
-        if want is None and share is not None:
+        if want is None and share is not None and reach >= 2:
             width = abs(share[1] - share[0])
             unit = math.ldexp(1.0, 0)
             for _each in range(figures):
@@ -20439,11 +20626,26 @@ def _identifier_cells(
                         if laid_short == 0:
                             return built, notes
                         if best is None or laid_short < best_short:
+                            first = best is None
                             if best is None:
                                 best_missed = missed
                                 best_signed = shapes[step][2]
                             best = (built, notes)
                             best_short = laid_short
+                            if first:
+                                # THE LAYOUT IS PACKED WITH THE FAMILIES
+                                # before any wider search (plan P4-D182):
+                                # see `_layout_packed`.
+                                packed = _layout_packed(
+                                    column, facts, groups, folded, partners,
+                                    holes, floor, allowance, best_missed,
+                                    best_signed,
+                                )
+                                if packed is not None and packed[2] < best_short:
+                                    if packed[2] == 0:
+                                        return packed[0], packed[1]
+                                    best = (packed[0], packed[1])
+                                    best_short = packed[2]
                         break
                     moved = False
                     for cell in range(room):
@@ -20464,6 +20666,67 @@ def _identifier_cells(
             f"has been written."
         )
     return kept
+
+
+# How many layouts packed with their families may be BUILT on one column
+# (plan P4-D182). Each build is a whole walk of the column; the first
+# packing found answers every description measured, and the bound is
+# stated so a column that does not has a walk that ends.
+_LAYOUT_PACKED_LOOKS = 4
+
+
+def _layout_packed(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    holes: "tuple[str, ...]",
+    floor: int,
+    allowance: int,
+    missed: "frozenset[str]",
+    signed: bool,
+) -> "tuple[list[str], list[Deviation], int] | None":
+    """The column laid out over packings that settle every group's layout.
+
+    Asked only where the first answer met every count and every
+    collision and left a named layout short (plan P4-D182). Each packing
+    `_layout_packings` finds, in its order and at most
+    `_LAYOUT_PACKED_LOOKS` of them, is laid out with every group offered
+    its packed layout alone, and a layout is a candidate only where it
+    trades nothing for the census: every collision built, no more notes
+    than the first answer filed, EXACTLY the counts the first answer
+    missed recounted missed off the cells, and no reach for the sign the
+    first answer did without. The candidate leaving the fewest named
+    layouts short is returned with that number, the first on a tie, and
+    the first leaving none at once; None where no candidate qualifies.
+
+    Guarantees: a fixed function of the description; no randomness and
+    no I/O.
+    """
+    room = len(_CLASSES) * len(_BANDS)
+    best: "tuple[list[str], list[Deviation], int] | None" = None
+    found = _layout_packings(
+        column, facts, groups, folded, partners, _LAYOUT_PACKED_QUESTIONS
+    )
+    for look in range(min(len(found), _LAYOUT_PACKED_LOOKS)):
+        shape, worn = found[look]
+        if shape[2] and not signed:
+            continue
+        built, notes, short, _supply = _laid_identifiers(
+            column, facts, groups, folded, partners, shape,
+            [-1 for _cell in range(room)], (), holes, worn,
+        )
+        if not _fully_folded(short) or len(notes) > allowance:
+            continue
+        if _identifier_shortfall(column, facts, built) != missed:
+            continue
+        laid_short = len(_layout_notes(column, built, floor))
+        if laid_short == 0:
+            return built, notes, 0
+        if best is None or laid_short < best[2]:
+            best = (built, notes, laid_short)
+    return best
 
 
 def _fully_folded(short: "list[int]") -> bool:
@@ -20566,8 +20829,15 @@ def _laid_identifiers(
     caps: "list[int]",
     asked: "tuple[int, ...]",
     holes: "tuple[str, ...]" = (),
+    assigned: "list[str] | None" = None,
 ) -> "tuple[list[str], list[Deviation], list[int], list[int]]":
     """One whole layout of a column of record numbers, and what it cost.
+
+    ``assigned`` is the named layout, or "" for none, that
+    `_layout_packings` settled for each group in group order (plan
+    P4-D182). Where it is given each group is offered THAT layout and no
+    other, and a group settled to none is offered no named layout at all,
+    so no group spends a count another was packed to pay.
 
     ``holes`` is every spelling this column's walks may not invent (plan
     P4-D158): the column's own published hole spellings and every
@@ -20656,6 +20926,8 @@ def _laid_identifiers(
         facts, families, kinds, bands, groups, windows, carriers, folded,
         convention, demands,
     )
+    if assigned is not None:
+        preferred = [assigned[place] for place in order]
     stand_ins = _layout_stand_in_bases(facts)
     admitted: dict[str, bool] = {}
     mixed: dict[str, int] = {}
@@ -20718,6 +20990,7 @@ def _laid_identifiers(
             kind, band, windows[index], convention, quotas, steps,
             groups[index], used, letter, preferred[index], holes,
             index < len(demands) and len(demands[index]) > 0,
+            assigned is not None,
         )
         if laid is None and stand_ins:
             # A GROUP NO NAMED LAYOUT CAN TAKE -- the pool's cells, the
@@ -21442,8 +21715,14 @@ def _layout_identifier(
     preferred: str,
     holes: "tuple[str, ...]" = (),
     owes: bool = False,
+    only: bool = False,
 ) -> "str | None":
     """One record number written to a published layout, or None (7.12).
+
+    ``only`` says the packing settled this group's layout (plan P4-D182):
+    the group is then offered ``preferred`` alone, or nothing where that
+    is "", because every other layout's count is spoken for by the groups
+    the packing gave it.
 
     THE CENSUS COUNTS CELLS AND THIS WALK SPENDS GROUPS, and the rule
     that settles them is stated rather than left to the arithmetic:
@@ -21483,7 +21762,7 @@ def _layout_identifier(
     if preferred != "":
         offered += [preferred]
     for layout in sorted(quotas):
-        if layout != preferred:
+        if layout != preferred and not only:
             offered += [layout]
     for asking in ((True, False) if letter else (False,)):
         for layout in offered:
@@ -22159,6 +22438,293 @@ def _identifier_packings(
                         signing,
                     )]
     return found
+
+
+# HOW MANY DIFFERENT QUESTIONS THE LAYOUT PACKING MAY PUT TO THE
+# ALLOCATOR on one column (plan P4-D182). One question is one choice of
+# end carriers and of the sign, handed over as one permission vector; a
+# description whose own values answer it is answered by the first shape
+# in almost every case, and a walk over every pair of a column of eight
+# hundred groups would be quadratic in the groups for nothing.
+_LAYOUT_PACKED_QUESTIONS = 16
+
+
+def _layout_packings(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    budget: int,
+) -> "list[tuple[tuple[list[int], tuple[int, int], bool], list[str]]]":
+    """Packings of G9.6 that settle every group's LAYOUT with its family.
+
+    THE LIMIT G9.4'S PACKING HAD, AND WHY A THIRD MARGIN IS THE ANSWER
+    (plan P4-D182). The class-and-alphabet packing chooses each group's
+    class and band before any layout is offered, and a layout is a
+    fact about a CELL -- its length, its class and its band all at once
+    -- so a packing blind to the census can put a group where no layout
+    it owes can be worn. MEASURED on a declared identifier of 49 rows
+    publishing `{"%%%": 12, "&-&": 8, "@_%": 10, "@_%%": 3}`: the
+    packing met all six counts with the twelve singletons as NUMBERS, the
+    eight-row group as figures and the five-row group in the code band,
+    and the twin wrote `&-&` nought times, `@_%` twice and `@_%%` nought
+    times on every seed, while the table's own values are an assignment
+    that meets every count and every layout. On 800 small producer
+    columns (review item P2-C5-F2's battery) 376 runs named a layout
+    short before this packing and 200 after it; what it does not reach is
+    stated in method G9.6.
+
+    So the census is packed as a THIRD MARGIN over the same grid: a cell
+    is a class, a band and either one named layout or no named layout at
+    all, the named layouts' quotas are their published counts, and the
+    quota of "no named layout" is the present cells the census names no
+    layout for. A group may take a named layout only where its size is
+    no more than that layout's count, the layout's length is one the
+    group's own window holds -- exactly the end it carries, where it
+    carries one -- and `_layout_admits` says the class and band can wear
+    it; "no named layout" is open to every class and band the group may
+    stand in. The allocator is `_allotted_over`, whose fill order four
+    roles already share, so which exact answer is taken is stated rather
+    than left to the arithmetic.
+
+    The shapes are offered in the order of `_identifier_packings`' first
+    tier -- the sign family closed and then open, and within each the
+    end carriers in `_shape_choices` order, a shape whose carrier sizes
+    or permissions repeat one already asked being stepped over -- and
+    at most ``budget`` different questions are put to the allocator.
+
+    ONLY WHERE NO GROUP OWES A FOLD-COLLISION PARTNER. A partner wears
+    the layout its parent's spelling hands it (plan P4-D157), which no
+    packing of groups can settle before the spellings exist, and which
+    `_layout_preferences` already debits identity by identity; such a
+    column keeps the search it had.
+
+    Guarantees: reads only the description; returns every packing found,
+    each with the named layout or "" per group, in group order; a fixed
+    function of its arguments, with no randomness and no I/O.
+    """
+    named = _named_layouts(facts)
+    total = len(groups)
+    if not named or partners > 0 or total < 1:
+        return []
+    convention = _layout_convention(facts)
+    width = len(_BANDS)
+    pairs = len(_CLASSES) * width
+    slots = len(named) + 1
+    classes = [
+        column.n_numeric,
+        column.n_out_of_range,
+        column.n_contradictory,
+        column.n_not_numeric,
+    ]
+    alphabets = [
+        facts.n_all_digits,
+        facts.n_code_alphabet - facts.n_all_digits,
+        column.n_present - facts.n_code_alphabet,
+    ]
+    wearing: list[int] = []
+    unnamed = column.n_present
+    for layout in named:
+        wearing += [facts.layout_forms[layout]]
+        unnamed = unnamed - facts.layout_forms[layout]
+    if unnamed < 0:
+        return []
+    wearing += [unnamed]
+    cells = pairs * slots
+    margins = [
+        (classes, [(cell // slots) // width for cell in range(cells)]),
+        (
+            alphabets,
+            [
+                (cell // slots) - ((cell // slots) // width) * width
+                for cell in range(cells)
+            ],
+        ),
+        (wearing, [cell - (cell // slots) * slots for cell in range(cells)]),
+    ]
+    admits: dict[tuple[int, int], bool] = {}
+    found: list[tuple[tuple[list[int], tuple[int, int], bool], list[str]]] = []
+    answers: dict[tuple[int, ...], "list[int] | None"] = {}
+    # FIRST WITH NO END PINNED (plan P4-D182). A named layout is one mark
+    # per character, so a group packed to one carries its length with it,
+    # and the two groups that carry the published ends can be read off the
+    # answer rather than guessed before it: on a column of 760 rows whose
+    # first two groups are singletons, pinning an end onto each shape in
+    # turn asked the allocator sixteen questions that had no answer, at
+    # about five seconds each.
+    for signing in (False, True):
+        loose = _identifier_windows(facts, total, (-1, -1), signing)
+        allowed = _layout_masks(
+            facts, groups, loose, (-1, -1), named, convention, admits
+        )
+        question = tuple(allowed)
+        if question in answers:
+            continue
+        answers[question] = _allotted_over(groups, margins, allowed)
+        together = answers[question]
+        if together is None:
+            continue
+        carriers = _layout_carriers(facts, together, named, signing)
+        if carriers is None:
+            continue
+        found += [_layout_answer(
+            facts, groups, folded, partners, together, named, carriers,
+            signing,
+        )]
+        return found
+    for signing in (False, True):
+        sized: dict[tuple[int, int], int] = {}
+        for carriers in _shape_choices(total):
+            if len(answers) >= budget:
+                return found
+            shape = (groups[carriers[0]], groups[carriers[1]])
+            if shape in sized:
+                continue
+            sized[shape] = 1
+            permits = _identifier_windows(facts, total, carriers, signing)
+            allowed = _layout_masks(
+                facts, groups, permits, carriers, named, convention, admits
+            )
+            question = tuple(allowed)
+            if question in answers:
+                continue
+            answers[question] = _allotted_over(groups, margins, allowed)
+            together = answers[question]
+            if together is None:
+                continue
+            found += [_layout_answer(
+                facts, groups, folded, partners, together, named, carriers,
+                signing,
+            )]
+    return found
+
+
+def _layout_masks(
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    permits: "list[int]",
+    carriers: "tuple[int, int]",
+    named: "list[str]",
+    convention: str,
+    admits: "dict[tuple[int, int], bool]",
+) -> "list[int]":
+    """The cells of the layout grid each group may take (plan P4-D182)."""
+    width = len(_BANDS)
+    pairs = len(_CLASSES) * width
+    slots = len(named) + 1
+    allowed: list[int] = []
+    for place in range(len(groups)):
+        shortest = facts.min_length
+        longest = facts.max_length
+        if place == carriers[0]:
+            longest = facts.min_length
+        elif place == carriers[1] and facts.max_length > facts.min_length:
+            shortest = facts.max_length
+        mask = 0
+        for pair in range(pairs):
+            if (permits[place] >> pair) & 1 == 0:
+                continue
+            mask = mask | (1 << (pair * slots + slots - 1))
+            for index in range(len(named)):
+                layout = named[index]
+                if groups[place] > facts.layout_forms[layout]:
+                    continue
+                if not shortest <= len(layout) <= longest:
+                    continue
+                if (pair, index) not in admits:
+                    admits[(pair, index)] = _layout_admits(
+                        _CLASSES[pair // width],
+                        _BANDS[pair - (pair // width) * width],
+                        layout,
+                        convention,
+                    )
+                if admits[(pair, index)]:
+                    mask = mask | (1 << (pair * slots + index))
+        allowed += [mask]
+    return allowed
+
+
+def _layout_carriers(
+    facts: contract.IdentifierFacts,
+    together: "list[int]",
+    named: "list[str]",
+    signing: bool,
+) -> "tuple[int, int] | None":
+    """The two groups of an unpinned layout packing that carry the ends.
+
+    The first group, in group order, that can be written at the shortest
+    published length -- one packed to a named layout of exactly that
+    length, or one packed to none whose class and band hold a spelling of
+    that length -- carries it; the first OTHER group that can be written
+    at the longest carries that. Where the two lengths are one, the first
+    two groups carry them. None where no such pair exists, and the pinned
+    shapes are asked instead.
+    """
+    total = len(together)
+    if facts.max_length <= facts.min_length:
+        return (0, 1) if total >= 2 else (0, 0)
+    width = len(_BANDS)
+    slots = len(named) + 1
+    ends = [facts.min_length, facts.max_length]
+    chosen = [-1, -1]
+    for end in range(2):
+        for place in range(total):
+            if place == chosen[0]:
+                continue
+            pair = together[place] // slots
+            index = together[place] - pair * slots
+            if index < len(named):
+                fits = len(named[index]) == ends[end]
+            else:
+                fits = _identifier_room(
+                    _CLASSES[pair // width],
+                    _BANDS[pair - (pair // width) * width],
+                    facts,
+                    ends[end],
+                    signing,
+                ) > 0
+            if fits:
+                chosen[end] = place
+                break
+        if chosen[end] < 0:
+            return None
+    return (chosen[0], chosen[1])
+
+
+def _layout_answer(
+    facts: contract.IdentifierFacts,
+    groups: "tuple[int, ...]",
+    folded: int,
+    partners: int,
+    together: "list[int]",
+    named: "list[str]",
+    carriers: "tuple[int, int]",
+    signing: bool,
+) -> "tuple[tuple[list[int], tuple[int, int], bool], list[str]]":
+    """One layout packing as the shape `_laid_identifiers` takes (P4-D182)."""
+    slots = len(named) + 1
+    total = len(groups)
+    packed = [cell // slots for cell in together]
+    worn: list[str] = []
+    for cell in together:
+        index = cell - (cell // slots) * slots
+        worn += [named[index] if index < len(named) else ""]
+    return (
+        (
+            _collision_slots(
+                packed,
+                groups,
+                folded,
+                partners,
+                _identifier_windows(facts, total, carriers, signing),
+                _caseless_slots(packed, facts, carriers, total),
+            ),
+            carriers,
+            signing,
+        ),
+        worn,
+    )
 
 
 def _identifier_families(
@@ -27315,6 +27881,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 elsewhere,
             )
             + _value_count_notes(view, measured)
+            + _joined_value_count_notes(view, measured)
             + _half_distinct_notes(column, written, halves)
             + _form_notes(column, written, halves)
             + _level_form_notes(column, written, halves)
@@ -27457,6 +28024,40 @@ def _folded_excess_reason(column: contract.ColumnBlock) -> str:
         "how often a value repeats is not a fact this column's rule "
         "holds on to."
     )
+
+
+def _joined_value_count_notes(
+    column: contract.ColumnBlock, written: "list[str]"
+) -> "list[Deviation]":
+    """Name a position of a joined column holding the wrong count of numbers.
+
+    EVERY POSITION PUBLISHES ITS OWN `n_distinct_values`, and the count a
+    grouping by that position meets is that one (plan P4-D184). The
+    recount above asks a column's quantitative block, which a joined
+    column does not have -- its numbers live under `parts[i]` -- so a
+    position holding a number fewer than the table was named nowhere:
+    measured on the joined battery of review round P4-G3-R1, twelve
+    columns of three and four positions at four seeds, 88 positions came
+    back one or two numbers short with no line in the report. The count is
+    the plain column's rule, asked of each position's own numbers -- the
+    cells that split into the published number of pieces, every piece a
+    number -- and named with the plain column's sentence under
+    `parts[i].n_distinct_values`.
+
+    Guarantees: accepts the column and its written cells; returns one
+    deviation per position whose count differs, empty for every other
+    role. Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.JoinedFacts):
+        return []
+    notes: list[Deviation] = []
+    for place in range(facts.n_parts):
+        mine = _joined_position_numbers(written, facts, place)
+        notes += _position_notes(
+            place, _value_count_notes(_part_view(column, place), mine)
+        )
+    return notes
 
 
 def _value_count_notes(
