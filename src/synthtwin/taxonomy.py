@@ -549,6 +549,17 @@ KEYS_THAT_CARRY_NO_VALUE = (
     # right default and it is why the entry is written here with its
     # reason rather than added quietly.
     "layout_forms",
+    # THE ONE ENTRY HERE THAT DOES CARRY TEXT OF THE TABLE, AND IT IS
+    # HERE BY THE OWNER'S RULING OF 2026-09-17, item 1 (contract 7.12a).
+    # A literal prefix every present cell of a declared record number
+    # opens with -- `REC`, `P`, `ABC-` -- is a fragment of every value
+    # in its column and of nobody's value in particular; the owner ruled
+    # it published where the column clears the smallest group size, and
+    # amended invariants I3 and F3 for this case only. It is admitted on
+    # a checked property as the two censuses are: `profile` refuses any
+    # prefix `parsing.is_a_literal_prefix` refuses and any key that is
+    # neither `(column)` nor a layout, whatever built it.
+    "layout_prefixes",
     "max_length",
     "min_length",
     "n_all_digits",
@@ -4945,12 +4956,16 @@ def _published_day_verdicts(
 
 @dataclasses.dataclass(frozen=True)
 class _Levels:
-    """The published level list and everything pooled out of it."""
+    """The published level list and everything pooled out of it.
+
+    The pool is two numbers and no sizes (owner ruling of 2026-09-17,
+    item 2, option A; plan P4-D201): how many labels were held back and
+    how many rows they covered together.
+    """
 
     published: list[dict[str, object]]
     suppressed_levels: int
     suppressed_rows: int
-    suppressed_counts: list[int]
 
 
 def _variants(
@@ -5078,10 +5093,26 @@ def _levels(
     spellings the shape the source's held-back spellings actually
     wore, which the column-wide `shape_forms` census cannot say.
 
-    `suppressed_counts` is the anonymous multiset of the withheld
-    levels' sizes. Without it a binary column split 1/9 and one split
-    5/5 serialise to the same profile, so a generator built from the
-    profile alone cannot reproduce either (review item P1-R1-F9).
+    THE HELD-BACK LABELS ARE PUBLISHED AS A POOL, and only as a pool
+    (owner ruling of 2026-09-17, item 2, option A; plan P4-D201): how
+    many there were and how many rows they covered together. Their sizes
+    one by one stood here as `suppressed_counts` since review item
+    P1-R1-F9, so that a column split 1/9 and one split 5/5 serialised
+    apart; the ruling gives that up, and a twin writes its invented
+    labels at sizes a fixed rule reads off the pool.
+
+    A POOL OF ONE ROW STANDS, AND IS PUT TO THE OWNER. A pool of one row
+    names the one row whose value is none of the published labels, and
+    `n_present` less the published counts reads it whether or not it is
+    printed, so no key this function leaves out can hide it. The first
+    writing of the ruling held the smallest published label back beside
+    such a pool; the repair pass of 2026-09-17 withdrew that, because the
+    label it held back had cleared the floor and the twin then wrote none
+    of it -- measured: 400 `north`, 15 `south` and one `west` at a floor
+    of eleven gave `south` 0 twin rows against 15, and a lab column's
+    `>1000` on 11 rows 0 against 11. The ruling asks for neither, so the
+    published labels stand as the floor admits them and the pool of one
+    is a stated limit awaiting the owner (plan P4-D201).
 
     There is no "beyond the cap" outcome here any more. `categorical_
     ceiling` decides the ROLE again, as the plan says (review item
@@ -5098,7 +5129,6 @@ def _levels(
     entries: list[dict[str, object]] = []
     suppressed_levels = 0
     suppressed_rows = 0
-    suppressed_counts: list[int] = []
     for label in ordered:
         count = counts[label]
         if count >= settings.small_cell_floor:
@@ -5124,12 +5154,10 @@ def _levels(
         else:
             suppressed_levels = suppressed_levels + 1
             suppressed_rows = suppressed_rows + count
-            suppressed_counts += [count]
     return _Levels(
         published=entries,
         suppressed_levels=suppressed_levels,
         suppressed_rows=suppressed_rows,
-        suppressed_counts=sorted(suppressed_counts),
     )
 
 
@@ -5564,7 +5592,6 @@ def _level_details(
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
-        "suppressed_level_counts": levels.suppressed_counts,
         "shape_forms": _shape_forms(cells, False, with_text_total),
     }
 
@@ -5979,6 +6006,75 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
     if written_pool and pooled >= 2:
         published[SUPPRESSED_LABEL] = pooled
     return published
+
+
+def _layout_prefixes(
+    cells: _Cells, layouts: "dict[str, int]"
+) -> "dict[str, str]":
+    """The literal text a declared column's cells open with (7.12a).
+
+    OWNER RULING OF 2026-09-17, ITEM 1. A layout says what KIND of
+    character stood at each position, so `REC1234567` published
+    `@@@%%%%%%%` and its twin wrote `FPQ7317879`: measured at 800 rows
+    (landing 2b.15), `^REC\\d{7}$` matched 800 real cells and 0 twin
+    cells, and `^P\\d{5}$` 800 and 30, both files at exit 0. The owner
+    ruled that a constant prefix is published where the column clears
+    the smallest group size, amending invariants I3 and F3 for this case
+    only.
+
+    TWO SCOPES, AND THE FIRST WINS:
+
+    - `(column)`, where `parsing.literal_prefix` finds one over every
+      present cell. Nothing else is then written.
+    - otherwise one entry per NAMED layout whose own cells share one.
+      A column of `REC` and seven figures beside `E` and six publishes
+      `{"@%%%%%%": "E", "@@@%%%%%%%": "REC"}`. This per-layout extension
+      is the landing's reading of the ruling and is flagged to the owner.
+
+    EVERY ENTRY ASKS THE DISCLOSURE RULE (`parsing.prefix_nameable`):
+    the cells opening with the prefix reach the line, and the present
+    cells that do not are nought or reach it too, so no entry says that
+    one row of the table is written otherwise.
+
+    Guarantees: accepts a tally and its published layout census; returns
+    a mapping from `(column)` or a named layout to a literal prefix.
+    Determinism: a function of the arguments; keys in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    convention = parsing.layout_convention(cells.present)
+    present = len(cells.present)
+    # ONLY BESIDE A CENSUS THAT NAMES A LAYOUT (invariant LP1). The twin
+    # writes a prefix as part of a named layout's template; with none
+    # named, every cell falls to the band walk, whose own shapes the
+    # prefix cannot be laid over without spellings colliding -- measured
+    # on 120 `S` and five figures whose census C6-131b emptied, the twin
+    # held 43 cells not opening with `S` and missed at exit 3.
+    named = [layout for layout in sorted(layouts) if layout != SUPPRESSED_LABEL]
+    if not named:
+        return {}
+    whole = parsing.literal_prefix(cells.present, convention)
+    if whole and parsing.prefix_nameable(present, present, floor):
+        return {parsing.PREFIX_OF_THE_COLUMN: whole}
+    found: "dict[str, str]" = {}
+    for layout in sorted(layouts):
+        if layout == SUPPRESSED_LABEL:
+            continue
+        wearing = [
+            value
+            for value in cells.present
+            if parsing.layout_form(value, convention) == layout
+        ]
+        prefix = parsing.literal_prefix(wearing, convention)
+        if not prefix:
+            continue
+        carrying = 0
+        for value in cells.present:
+            if value[: len(prefix)] == prefix:
+                carrying = carrying + 1
+        if parsing.prefix_nameable(carrying, present, floor):
+            found[layout] = prefix
+    return found
 
 
 # The characters a layout key may hold for every cell wearing it to lie
@@ -12455,9 +12551,10 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     mapping is a function of the group SIZES alone: rename every value,
     or shuffle every row, and it does not move. No spelling, no order,
     no row position and no link to any other column reaches it. It is
-    the same class of fact as `suppressed_level_counts`, which publishes
-    the sizes of the withheld levels for the same reason -- and the
-    reason was checked here rather than assumed:
+    the same class of fact the sizes of a label column's withheld levels
+    were, published for the same reason until the owner's ruling of
+    2026-09-17 pooled those sizes into one total (plan P4-D201) -- and
+    the reason was checked here rather than assumed:
 
     * at the extremes it adds nothing that was not already published.
       One present value gives ``{"1": 1}``; every value different gives
@@ -12471,8 +12568,8 @@ def _n_distinct_by_occurrences(present: list[str]) -> dict[str, int]:
     * what it does disclose, and this is stated rather than waved away:
       the sizes themselves. A mapping containing ``"1": 1`` says that
       some one row holds a value no other row holds. That is a count
-      about an unnamed group, which is precisely what
-      `suppressed_level_counts` already publishes, and it is why the
+      about an unnamed group, which is precisely what the withheld
+      level sizes published until that ruling, and it is why the
       profile is described as real-derived material rather than as
       anonymous.
 
@@ -12507,9 +12604,10 @@ def _multiplicity_map(sizes: list[int]) -> dict[str, int]:
     routine. This said THREE and then named two; the miscount came from
     the contract's own section heading and was found while transcribing
     that section for the self-contained version 6. There is no third:
-    this function has exactly two callers, and the only candidate --
-    `suppressed_level_counts` -- is a sorted array of integers rather
-    than a mapping. `_n_distinct_by_occurrences` above states what this class
+    this function has exactly two callers, and the only candidate -- the
+    withheld level sizes -- was a sorted array of integers rather than a
+    mapping, and is published as one pooled total since the owner's
+    ruling of 2026-09-17 (plan P4-D201). `_n_distinct_by_occurrences` above states what this class
     of fact does and does not disclose; that statement holds for every
     caller, because none of them passes anything but group sizes.
 
@@ -12582,6 +12680,7 @@ def _identifier_verdict(
     # why "how often they repeat" joined it with the field that made it
     # true (review item P1-R8-F4).
     notes += [note(NOTE_IDENTIFIER_WITHHELD)]
+    layouts = _layout_forms(cells)
     return _Verdict(
         role=ROLE_IDENTIFIER,
         evidence=note(EVIDENCE_DECLARED_IDENTIFIER),
@@ -12599,7 +12698,14 @@ def _identifier_verdict(
             # and between them they said nothing about their SHAPE --
             # which is why a column of UUIDs published every fact it
             # had and its twin matched none of its own rows.
-            "layout_forms": _layout_forms(cells),
+            "layout_forms": layouts,
+            # THE ONE LITERAL RUN THE BLOCK CARRIES, BY RULING (owner
+            # ruling of 2026-09-17, item 1; contract 7.12a). Where every
+            # present cell opens with the same text -- `REC`, `P`, `ABC-`
+            # -- or every cell of one named layout does, that text is
+            # published, so a pattern written against the twin selects
+            # the rows it selects on the table. See `_layout_prefixes`.
+            "layout_prefixes": _layout_prefixes(cells, layouts),
             # The shape of repetition, with no value attached to it: the
             # one fact a generator needs to rebuild a column of codes
             # that repeat, and the one this block did not carry (review

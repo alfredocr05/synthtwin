@@ -1149,6 +1149,9 @@ def _families_of(band: str, length: int, whole: bool) -> "dict[str, int]":
         # and not about any published layout, so the census is empty
         # here and the walk is unchanged by landing 2b.18.
         layout_forms={},
+        # ...and no literal prefix either (owner ruling of 2026-09-17,
+        # item 1): the walk is about the alphabet, not a published opening.
+        layout_prefixes={},
     )
     found: dict[str, int] = {}
     for kind in generation._CLASSES:

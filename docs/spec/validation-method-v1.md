@@ -1069,7 +1069,20 @@ wearing that word, and it is the same exposure A-P3-29 took for a
 built-in word the person declared and A8 took for a stand-in number,
 said now about the one route those two left standing.
 
-**WHAT IS NOT CLOSED, at its size.** The two presence COUNTS are read
+**WHAT WAS NOT CLOSED, at its size, and is closed by the owner's ruling
+of 2026-09-17 (option A, plan P4-D200).** Where the SUBMITTED
+description's column pools hole spellings -- its `n_missing_withheld` is
+above nought -- the cells the blank split reads as values and the
+measured file's own description reads as holes count as holes, so the
+table the description was written from holds both presence counts. The
+guard that proved the pool honest now checks the pool's TOTAL: those
+cells count as holes only up to the published pool, and each one past it
+counts as the value the split reads it as. A description that pools
+nothing is therefore measured by blankness exactly as before, and the
+round-2 witness -- a description of EMPTY holes and a file spelling them
+`n/a` -- is still missed; so is a file spelling more holes than the pool
+holds. The text below is the residual as it stood until that ruling.
+The two presence COUNTS are read
 over the weaker publication of V2.4-A3's second half — `missing_by_class`
 says how many holes are non-blank without saying what they spell — so a
 column whose non-blank holes are pooled below the floor still has those
@@ -1748,6 +1761,16 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   own layouts its description may name, and a conforming file whose
   made-up cells left one cell off its named layouts would have a layout
   it holds at the published count taken back and be reported MISSED.
+
+  **`layout_prefixes` IS CHECKED BESIDE IT, BEFORE THE CORNER AND INSIDE
+  IT** (contract 7.12a, owner ruling of 2026-09-17, item 1, plan
+  P4-D202), for the same reason. Each published scope is one exact
+  obligation, subcheck `prefix.<scope>`: under `(column)` no present cell
+  of the measured file opens otherwise, and under a layout no cell the
+  census's reader files under that layout — the convention decided over
+  the file's own cells — opens otherwise. The published side is said in
+  words and the prefix is not printed, and the measured side is a count
+  of the file's cells and is kept back on a miss as such counts are.
   **The form census of 7.9 is recounted off the cells too, under the
   SUBMITTED census's case convention** (plan P4-D159): a cell counts
   under the key `parsing.census_form` files it under in that census, so

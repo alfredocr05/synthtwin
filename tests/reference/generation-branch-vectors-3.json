@@ -907,6 +907,7 @@
           "@@:%%": 11,
           "@@_%%": 22
         },
+        "layout_prefixes": {},
         "max_length": 5,
         "min_length": 5,
         "missing_by_class": {

@@ -1364,7 +1364,6 @@ REGISTRY += _facts(
     EXACT_OBSERVABLE,
     "levels",
     "suppressed_levels",
-    "suppressed_level_counts",
     "suppressed_rows",
 )
 REGISTRY += [
@@ -1625,6 +1624,11 @@ REGISTRY += _facts(
     # DISTINCTNESS facts and says nothing about what a cell LOOKS
     # like -- so it carries no `authorized` entry.
     "layout_forms",
+    # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
+    # item 1, plan P4-D202). EXACT-OBSERVABLE: a person opens the twin
+    # and finds every cell the prefix governs opening with it. Owed
+    # inside the infeasible corner for the reason the layouts are.
+    "layout_prefixes",
 )
 REGISTRY += [
     Fact(

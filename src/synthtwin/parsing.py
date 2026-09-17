@@ -2255,6 +2255,179 @@ def layout_room(name: str) -> int:
     return room
 
 
+# -- the literal PREFIX of a record number (owner ruling 2026-09-17) ---
+#
+# THE ONE FRAGMENT A LAYOUT CENSUS MAY CARRY, AND ONLY BY RULING. A
+# layout replaces every letter of a cell with a mark saying its case,
+# so `P00123`, `REC1234567` and `ABC-1234` came back as `X17879`,
+# `FPQ7317879` and `JOD-7879`: measured at 800 rows (landing 2b.15),
+# `^P\d{5}$` matched 800 real cells and 30 twin cells, `^REC\d{7}$` 800
+# and 0, `^ABC-\d{4}$` 800 and 0, and both files validated at exit 0.
+# The owner's ruling of 2026-09-17, item 1, settles clause 3 for this
+# case: where every present cell of a declared record number opens with
+# the SAME literal text and the column clears the smallest group size,
+# that text is published and the twin writes it. It amends contract
+# invariants I3 and F3 for this case and no other.
+
+# The key of `layout_prefixes` that says EVERY present cell of the
+# column opens with the prefix. It holds lower-case letters, which no
+# layout ever holds, so it can never be mistaken for a layout key.
+PREFIX_OF_THE_COLUMN = "(column)"
+
+
+def literal_prefix(values: "list[str]", convention: str) -> str:
+    """The literal text every one of ``values`` opens with, or "".
+
+    THE ONE DEFINITION (owner ruling 2026-09-17, item 1; contract 7.12a).
+    The producer asks it of a column's present cells and of the cells of
+    each named layout, and nothing else restates it. The prefix is the
+    longest opening every value shares, cut back by four rules, each of
+    which keeps what is published a label the column's writer put in
+    front of the number rather than part of anybody's number:
+
+    1. NO FIGURE. It stops before the first figure, so `P00123` beside
+       `P00456` publishes `P` and not `P00`: the noughts are part of
+       the number, and saying every number is below a thousand is a fact
+       about values.
+    2. A FIGURE OR A LETTER OF EVERY VALUE STANDS AFTER IT, so no value
+       is ever published whole -- not even as a prefix and the marks its
+       layout already names: `no#` in front of every `no##` would be.
+    3. NO HALF A RUN OF LETTERS. Where it ends in a letter and some value
+       goes on with another letter, it is cut back to the last character
+       that is not a letter: `REC` beside `REX` publishes nothing, and
+       `ST-A123` beside `ST-B456` publishes `ST-`.
+    4. ONLY CHARACTERS A LAYOUT CARRIES AS THEY ARE: ASCII letters, the
+       marks of `LAYOUT_MARKS`, and a single space that does not open the
+       prefix or stand beside another. An opening holding anything else
+       publishes nothing, and so does one holding no letter at all,
+       because marks alone are already in the layout.
+
+    NOTHING IN A HEXADECIMAL COLUMN, where a letter is a figure of base
+    sixteen and falls under rule 1.
+
+    Guarantees: accepts a list of strings and a member of
+    `LAYOUT_CONVENTIONS`; returns "" or a string satisfying
+    `is_a_literal_prefix`. Determinism: a function of the arguments.
+    Raises TypeError for anything that is not a list of strings. No I/O
+    of any kind.
+    """
+    if not isinstance(values, list):
+        raise TypeError(_NOT_TEXT)
+    if convention != LAYOUT_PLAIN or not values:
+        return ""
+    common = ""
+    shortest = -1
+    first = True
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError(_NOT_TEXT)
+        # Where this value's last figure or letter stands: the prefix
+        # must end before it (rule 2).
+        last = -1
+        place = 0
+        for character in value:
+            if _is_a_digit(character) or _is_a_letter(character):
+                last = place
+            place = place + 1
+        if first:
+            common = value
+            shortest = last
+            first = False
+            continue
+        shortest = min(shortest, last)
+        place = 0
+        while (
+            place < len(common)
+            and place < len(value)
+            and common[place] == value[place]
+        ):
+            place = place + 1
+        common = common[:place]
+    place = 0
+    while place < len(common) and not _is_a_digit(common[place]):
+        place = place + 1
+    common = common[: min(place, max(shortest, 0))]
+    while common and _is_a_letter(common[len(common) - 1]):
+        goes_on = False
+        for value in values:
+            if _is_a_letter(value[len(common)]):
+                goes_on = True
+        if not goes_on:
+            break
+        common = common[: len(common) - 1]
+    if not is_a_literal_prefix(common):
+        return ""
+    return common
+
+
+def is_a_literal_prefix(text: str) -> bool:
+    """Whether one published prefix is text `literal_prefix` can write.
+
+    One to `LAYOUT_FORM_LIMIT` less one characters, every one an ASCII
+    letter, a mark of `LAYOUT_MARKS` or a single space that does not open
+    it and does not follow another space, with at least one letter and no
+    figure. The producer, the loader and the publication guard ask this
+    one predicate. A key carrying a placeholder is refused here, so no
+    prefix can be read as a layout.
+
+    Raises TypeError if handed anything that is not a string instance.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) >= LAYOUT_FORM_LIMIT:
+        return False
+    letters = 0
+    before = ""
+    for character in text:
+        if _is_a_letter(character):
+            letters = letters + 1
+        elif character == LAYOUT_SPACE:
+            if before in ("", LAYOUT_SPACE):
+                return False
+        elif character not in LAYOUT_MARKS:
+            return False
+        before = character
+    return letters >= 1
+
+
+def prefix_layout(text: str) -> str:
+    """The layout a plain column gives a literal prefix, mark by mark.
+
+    Every letter becomes `LAYOUT_UPPER` or `LAYOUT_LOWER` by its case and
+    every other character stands as itself, so a prefix belongs to a
+    layout exactly where the layout opens with this. Raises TypeError if
+    handed anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    built = ""
+    for character in text:
+        if "a" <= character <= "z":
+            built = built + LAYOUT_LOWER
+        elif "A" <= character <= "Z":
+            built = built + LAYOUT_UPPER
+        else:
+            built = built + character
+    return built
+
+
+def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
+    """Whether a prefix ``carrying`` of ``present`` cells open with may print.
+
+    THE DISCLOSURE RULE, asked once and not restated: `census_nameable`
+    with the cells opening with the prefix as the count and the column's
+    present cells as the population a reader subtracts it from. So the
+    cells carrying it reach the line, and the cells NOT carrying it are
+    nought -- the whole column -- or reach the line too. A prefix that
+    every cell of one layout wears, and all but one cell of the column,
+    would otherwise say that one row of the table is written otherwise.
+
+    Guarantees: a fixed function of the three. Raises nothing. No I/O.
+    """
+    return census_nameable([carrying], [present], floor)
+
+
 # What one cell says about the comma inside it.
 COMMA_NONE = "no-comma"
 COMMA_GROUPED = "proves-a-thousands-separator"

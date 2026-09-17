@@ -920,6 +920,33 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 f"themselves are not in the profile."
             ),
         ]
+        # THE ONE TEXT OF THE TABLE THIS ROLE CARRIES, said where the
+        # person reads what the column publishes (owner ruling of
+        # 2026-09-17, item 1; contract 7.12a). A summary that promised
+        # nothing of the column and stayed silent about a published prefix
+        # would claim less than the profile holds.
+        prefixes: dict[str, object] = {}
+        if "layout_prefixes" in column:
+            prefixes = _map_of(column["layout_prefixes"])
+        for scope in sorted(prefixes):
+            opening = _text_of(prefixes[scope])
+            if scope == parsing.PREFIX_OF_THE_COLUMN:
+                lines += [
+                    (
+                        f"    Every value opens with the same text, "
+                        f"'{opening}', and the profile records that text so "
+                        f"the twin's values open with it too."
+                    )
+                ]
+                continue
+            lines += [
+                (
+                    f"    Every value written in the layout {_text_of(scope)} "
+                    f"opens with the same text, '{opening}', and the profile "
+                    f"records that text so the twin's values in that layout "
+                    f"open with it too."
+                )
+            ]
         # What the profile records about REPETITION, which is a fact
         # about the column and not a value of it (review item P1-R8-F4).
         # It goes before the sentence about who decided the role so that

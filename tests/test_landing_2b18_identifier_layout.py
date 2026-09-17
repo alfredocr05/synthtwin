@@ -19,11 +19,12 @@ expression, a length test and a case test -- and run UNCHANGED on the
 real table, asserting the same match count on both. That is the whole
 point of the landing: code developed on the twin runs on the table.
 
-Two limits are pinned here as limits rather than left to be
+Two limits were pinned here as limits rather than left to be
 rediscovered, each with its measured numbers: the LITERAL RUN, which
-invariants I3 and F3 forbid this version to publish and which waits
-for the owner's ruling on clause 3, and the SMALL-SUPPLY rule, which
-refuses a layout that would name the values it describes.
+invariants I3 and F3 forbade this version to publish until the owner's
+ruling of 2026-09-17 (item 1, plan P4-D202) published a shared prefix --
+the test that pinned it now pins the ruling -- and the SMALL-SUPPLY rule,
+which refuses a layout that would name the values it describes.
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -471,26 +472,29 @@ def test_a_code_column_at_a_floor_of_twenty_keeps_its_length_mix(
 # ----------------------------------------------- the two limits, pinned
 
 
-def test_the_literal_run_is_not_published_and_this_is_what_that_costs(
+def test_the_literal_run_is_published_by_ruling_and_the_twin_writes_it(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The owner's clause-3 question, pinned with its own numbers.
+    """The owner's clause-3 question, answered (ruling of 2026-09-17, item 1).
 
-    A constant run shared by a whole column is a character-for-
-    character fragment of every value in it, which contract invariants
-    I3 and F3 forbid, so this version does not write one back. What
-    that costs is exactly and only the literal: the layout-level
-    pattern already matches every twin cell, and the prefix predicate
-    matches none. **If the owner rules the literal publishable, this
-    test is the one that changes**, and it says so here so the change
-    is deliberate.
+    This test pinned the cost of NOT publishing a constant run: the
+    layout-level pattern matched every twin cell and the prefix predicate
+    none, with a note that it is the test that changes if the owner rules
+    the literal publishable. The owner so ruled, and invariants I3 and F3
+    are amended for that case (contract 7.12a, plan P4-D202). The column
+    here holds `REC` and seven figures beside `E` and six, so no prefix is
+    shared by the whole column and each layout publishes its own -- the
+    per-layout reading of the ruling, flagged to the owner.
     """
     cells = mixed_length_cells(1)
     got = _round_trip(tmp_path / "literal", cells)
     twin = got["cells"]
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
+    assert got["source"]["layout_prefixes"] == {
+        "@%%%%%%": "E", "@@@%%%%%%%": "REC",
+    }
 
-    # What the published facts DO buy: the shape, the widths, the case.
+    # What the layouts bought before the ruling: the shape, the widths.
     layout_rule = re.compile(r"([A-Z]{3}[0-9]{7}|[A-Z][0-9]{6})")
     assert _matching(twin, layout_rule.pattern) == len(twin)
     assert _matching(cells, layout_rule.pattern) == len(cells)
@@ -503,17 +507,18 @@ def test_the_literal_run_is_not_published_and_this_is_what_that_costs(
 
     assert widths(twin) == widths(cells)
 
-    # ...and what they do NOT buy, which is the question being put.
-    prefix = "REC"
-    real_prefixed = len([cell for cell in cells if cell[:3] == prefix])
-    twin_prefixed = len([cell for cell in twin if cell[:3] == prefix])
-    assert real_prefixed > 0
-    assert twin_prefixed == 0, (
-        "the twin writes the source's literal run. If that is now "
-        "intended, the owner has ruled on clause 3 and contract "
-        "invariants I3 and F3 have been amended -- check that before "
-        "changing this test."
-    )
+    # ...and what the ruling buys: the literal pattern selects the same rows.
+    literal = r"(REC[0-9]{7}|E[0-9]{6})"
+    assert _matching(twin, literal) == _matching(cells, literal) == len(cells)
+    for prefix in ("REC", "E"):
+        real_prefixed = len(
+            [cell for cell in cells if cell[: len(prefix)] == prefix]
+        )
+        twin_prefixed = len(
+            [cell for cell in twin if cell[: len(prefix)] == prefix]
+        )
+        assert real_prefixed > 0
+        assert twin_prefixed == real_prefixed
 
 
 @pytest.mark.parametrize("source_seed", SOURCE_SEEDS)

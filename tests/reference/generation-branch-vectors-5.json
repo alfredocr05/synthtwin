@@ -1987,6 +1987,7 @@
           "@%%%": 22,
           "@-%%": 11
         },
+        "layout_prefixes": {},
         "max_length": 4,
         "min_length": 4,
         "missing_by_class": {

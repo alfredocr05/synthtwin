@@ -31,7 +31,9 @@ import tempfile
 
 import pytest
 
-from synthtwin import contract, errors, parsing, profile, reading, taxonomy
+from synthtwin import (
+    contract, errors, generation, parsing, profile, reading, taxonomy,
+)
 from tests import fixtures
 from tests.test_landing_2b18_identifier_layout import _round_trip
 
@@ -591,14 +593,29 @@ def test_the_published_shape_covers_the_largest_places_first(
     order the walk meets them, singles first, ten groups of three would
     be `group-N`; spent largest first, every row of `b-` to `z-` wears
     the shape and only the fifteen single rows do not.
+
+    SINCE THE OWNER'S RULING OF 2026-09-17 (item 2, option A; plan
+    P4-D201) the forty groups are published as a pool of ninety rows, and
+    G8.3 reads their sizes off it: fourteen of one, eleven of two, seven
+    of three, seven of four and one of five. The rule this pins is
+    unchanged -- the shape's twenty-five spellings go to the twenty-five
+    places writing most rows -- and it now covers 74 rows where the
+    table's own groups of three covered 75, so the twin writes one cell
+    of the shape fewer than the table. Measured: the pattern and the
+    length count 100 on the table and 99 on the twin; the case count
+    holds at 115.
     """
     cells = short_lower_codes_beside_rare_longer_ones()
     got = _round_trip(tmp_path, cells, seed="4", floor=20, declared=False)
     assert got["source"]["shape_forms"] == {"(withheld)": 15}
     assert (got["twin_exit"], got["real_exit"]) == (0, 0)
-    _same_on_both(
-        _checks(
-            cells, got["cells"], r"[a-z]-",
-            lambda cell: len(cell) == 2, str.islower,
-        )
+    sizes = generation.held_back_sizes(40, 90, 20, (), (90,))
+    largest = sum(sorted(sizes)[-25:])
+    assert largest == 74
+    checks = _checks(
+        cells, got["cells"], r"[a-z]-",
+        lambda cell: len(cell) == 2, str.islower,
     )
+    assert checks["regex"] == (100, 25 + largest), checks
+    assert checks["length"] == (100, 25 + largest), checks
+    _same_on_both({"case": checks["case"]})

@@ -32,10 +32,10 @@ on the files themselves.
   any column;
 - **P4-D159** validation recounts a form under the submitted census's case
   convention;
-- review item 8, residual R-P3-11, is NOT closed: it waits on an owner
-  ruling. The repair pass closed it (its plan P4-D161), and the merge
-  into the integration withdrew that closure, so the residual is pinned
-  here at its size and the round-2 witness beside it.
+- review item 8, residual R-P3-11, is closed by the owner's ruling of
+  2026-09-17, option A (plan P4-D200): pooled missing-value words count
+  as absent up to the pool's total, so the real table holds its own
+  presence counts, and the round-2 witness beside it is still missed.
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -710,22 +710,21 @@ def test_a_faithful_form_is_not_missed_when_its_case_convention_changes(
     _both_pass(result)
 
 
-# ------------------ residual R-P3-11 (review item 8), open for the owner
+# ------------------ residual R-P3-11 (review item 8), closed 2026-09-17
 
 
-def test_a_real_table_whose_hole_spellings_are_pooled_still_misses_two_counts(
+def test_a_real_table_whose_hole_spellings_are_pooled_holds_both_counts(
     tmp_path: pathlib.Path,
 ) -> None:
     """280 record numbers beside ten `NA` and ten `N/A`, at a floor of twenty.
 
-    Neither spelling reaches the floor, so the description pools both, and
-    the real file is counted by blankness: 300 present and nought missing
-    against its own 280 and 20, exit 3 on both presence counts and on
-    nothing else. THAT IS RESIDUAL R-P3-11, AND IT IS OPEN BY DECISION:
-    closing it reverses A-P3-5 clause 1, which is a ruling pending with the
-    owner. The repair of the labels review closed it (its plan P4-D161);
-    the merge into the integration withdrew the closure and pins the
-    residual at its size so it cannot grow unseen.
+    Neither spelling reaches the floor, so the description pools both.
+    Counted by blankness the real file was 300 present and nought missing
+    against its own 280 and 20, exit 3 on exactly the two presence counts
+    -- residual R-P3-11, pinned here at that size until the owner ruled.
+    The ruling of 2026-09-17 took option A (plan P4-D200): the pooled
+    words count as absent, up to the pool's total of twenty, so the table
+    passes its own description and its twin still does.
     """
     cells = [f"R{index:07d}" for index in range(280)] + ["NA"] * 10 + [
         "N/A"
@@ -738,20 +737,12 @@ def test_a_real_table_whose_hole_spellings_are_pooled_still_misses_two_counts(
     assert (column["n_present"], column["n_missing"]) == (280, 20)
     assert column["n_missing_withheld"] == 20
     assert result["generated"] == 0
-    assert (result["twin_exit"], result["real_exit"]) == (0, 3)
-    missed = [
-        line.strip()
-        for line in (
-            tmp_path / "real_exit" / "real-quality.txt"
-        ).read_text(encoding="utf-8").splitlines()
-        if line.rstrip().endswith("MISSED")
-    ]
-    # A missed line may stand more than once on the page; what is pinned
-    # is WHICH obligations are missed, and that there are two.
-    assert sorted(set(missed)) == [
-        "presence.n_missing [universal.n_missing]: MISSED",
-        "presence.n_present [universal.n_present]: MISSED",
-    ], missed
+    assert (result["twin_exit"], result["real_exit"]) == (0, 0)
+    report = (tmp_path / "real_exit" / "real-quality.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "presence.n_present [universal.n_present]: HELD" in report
+    assert "presence.n_missing [universal.n_missing]: HELD" in report
 
 
 def test_a_file_spelling_a_description_s_empty_holes_is_still_missed(

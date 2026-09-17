@@ -632,7 +632,10 @@ def test_the_class_split_takes_an_exact_subset_before_the_one_pass_walk(
         tmp_path / "split", cells, ("--smallest-group", "6"), True, "5"
     )
     assert first["role"] == "long_tail_labels"
-    assert first["suppressed_level_counts"] == [3, 3, 5]
+    # The pool the table's own 3, 3 and 5 make (plan P4-D201); the twin
+    # writes it as 2, 4 and 5, and six numbers are `2 + 4`.
+    assert (first["suppressed_levels"], first["suppressed_rows"]) == (3, 11)
+    assert generation.held_back_sizes(3, 11, 6, (6,), (5,)) == (2, 4, 5)
     assert second["n_numeric"] == first["n_numeric"]
     assert twin_exit == 0 and real_exit == 0
     owed = {" number": 6, " out_of_range": 0, " contradictory": 0}

@@ -450,8 +450,11 @@ def test_nothing_that_varies_between_runs_is_written(
 # quoting, `forced_delimiter`, `forced_metadata_rows`, `workbook` and
 # `used_fallback_encoding`. Against landing 2b.10's own tree only
 # landings 2b.6's, 2b.7's and 2b.8's keys moved. Nothing else moved.
+# RE-RECORDED FOR THE OWNER'S RULING OF 2026-09-17 (item 2, option A;
+# plan P4-D201), read as a diff against 039df54: `suppressed_level_counts`
+# left `region`, `answer`, `batch` and `note`, and nothing else moved.
 GOLDEN_SHA256 = (
-    "2cdd4cf3392edf17bdfde930cc26085fdf0d2d8a3736320258102eff0fdec140"
+    "4be3be38e6a758f7eafb1302d0c2be5966bf36aca678391f623fdc9995cf8122"
 )
 
 

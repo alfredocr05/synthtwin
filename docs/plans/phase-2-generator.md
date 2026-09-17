@@ -694,7 +694,11 @@ count plus the pooled `(withheld)` value. It is owed INSIDE owner
 decision 6's infeasible corner as well as outside it, because that
 corner lowers three DISTINCTNESS facts and says nothing about what a
 cell looks like — a twin whose record numbers repeat still writes every
-one of them to a published layout (landing 2b.18, plan P4-D120). **In that decision's infeasible
+one of them to a published layout (landing 2b.18, plan P4-D120). `layout_prefixes` EXACT-OBSERVABLE
+on the same terms, inside the corner as well as outside it: every cell a
+published prefix governs -- every present cell for `(column)`, every cell
+of that layout for a layout entry -- opens with it (contract section
+7.12a, owner ruling of 2026-09-17, item 1, plan P4-D202). **In that decision's infeasible
 corner, THREE distinctness facts are REPORT-ONLY, not one**
 (P2-R4-F4, and the same gap found independently in an implementer
 probe): raw `n_distinct`, `n_distinct_folded`, and

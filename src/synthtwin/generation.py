@@ -17884,6 +17884,244 @@ def _pin_offset(
 # -- columns of labels (method G8) ------------------------------------
 
 
+def held_back_sizes(
+    held_back: int,
+    rows: int,
+    floor: int,
+    debts: "tuple[int, ...]" = (),
+    words: "tuple[int, ...]" = (),
+) -> "tuple[int, ...]":
+    """How many rows each invented held-back label covers (method G8.3).
+
+    OWNER RULING OF 2026-09-17, ITEM 2, OPTION A (plan P4-D201). A label
+    column publishes how many labels the floor held back and how many
+    rows they covered together, and no size of any one of them. So the
+    sizes the twin writes are a fixed rule of those two, the floor, and
+    the DEBTS the published facts leave the held-back cells to pay:
+    ``debts``, each a count of cells a numeric class or one of its forms
+    still owes, and ``words``, each a count a form reading as no number
+    owes, the last being the cells left over (`_held_back_debts`).
+
+    1. Each debt takes the fewest labels that pay it with every label
+       below the floor: its cells over one less than the floor, rounded
+       up. Where the debts do not come to ``rows``, or need more labels
+       than were held back, the pool is one word debt instead.
+    2. The labels left over are handed out one at a time, each to the
+       debt whose labels are then the largest on average, the earlier
+       debt on a tie, in four rounds: a NUMBER debt until its average
+       is no more than `(cap + 2) / 3`, the average of the rising sizes
+       of step 3, ``cap`` being one less than the floor; then a word
+       FORM's debt until it has a label per cell; then the cells owing
+       no form, the same; then any debt, a label per cell at most.
+    3. Each debt's cells are shared out over its labels by `_ramp`:
+       one row each, the rest in proportion to the square of each
+       label's place, so the sizes rise from one row toward the floor.
+
+    WHY EACH STEP. The debts are what let G8.3a's class split and the
+    form walk settle every published count exactly: written ones first,
+    `1, 1, 1, 1, 18`, amounts given beside `PRN` and `held` at a floor
+    of twenty owed fourteen cells of `%.%` that no set of the sizes made,
+    and the twin missed `%.%` at 38 against 34. A number's labels stop at
+    the ramp's own average because the walk sets the largest groups
+    nearest the published numbers and steps outward one value per label:
+    shared evenly with the words, 232 labels of one or two rows walked
+    integers beside comments out to 2.22 times the table's spread; given
+    the words first, 63 labels held it at 0.69; at the ramp's average it
+    is 0.87, the table's own sizes having given 0.91. A word held back
+    below the floor is written by one row where the pool allows, which is
+    the long tail's own shape. And the ramp puts many small labels
+    beside a few near the floor, which kept readings at a floor of twenty
+    at 1.06 of the table's spread where an even share gave 1.48. A
+    form's cells take their labels before the cells owing no form
+    because a column of more held-back labels than `_shared_out` will
+    search is settled by its one-pass walk, which hands out the largest
+    labels first and overshoots a debt it cannot finish in ones: codes
+    of figures, a hyphen and capitals at a floor of twenty missed two
+    forms by a cell each while every debt shared the labels evenly.
+
+    So every invented label stays below the floor -- the loader's B4
+    refuses a pool too large for that -- and the answer rises.
+
+    Guarantees:
+
+    - Inputs: the held-back label count, their pooled rows, the settings
+      floor, and the two tuples of debts `_held_back_debts` gives.
+    - Determinism: a fixed function of the five.
+    - Errors raised: none. No I/O.
+    - Boundary: the answer has ``held_back`` entries summing to
+      ``rows``, each at least one and below the floor wherever B4 holds;
+      an empty pool gives an empty answer.
+    """
+    if held_back <= 0:
+        return ()
+    cap = floor - 1
+    if cap < 1:
+        cap = 1
+    numbers = [debt for debt in debts if debt > 0]
+    buckets = numbers + [debt for debt in words if debt > 0]
+    total = 0
+    for debt in buckets:
+        total = total + debt
+    labels = [0 - ((0 - debt) // cap) for debt in buckets]
+    needed = 0
+    for count in labels:
+        needed = needed + count
+    first = len(numbers)
+    # THE CELLS OWING NO FORM are the last word debt, where there are any.
+    rest = -1
+    if words and words[len(words) - 1] > 0:
+        rest = len(buckets) - 1
+    if total != rows or needed > held_back or not buckets:
+        buckets = [rows]
+        labels = [0 - ((0 - rows) // cap)]
+        needed = labels[0]
+        first = 0
+        rest = 0
+    # A NUMBER DEBT TAKES LABELS DOWN TO THE AVERAGE ITS RAMP HAS: sizes
+    # rising from one row to one below the floor as the square of their
+    # place average a third of the way up, `(cap + 2) / 3`.
+    reach = [labels[place] for place in range(len(buckets))]
+    for place in range(first):
+        reach[place] = 0 - ((0 - 3 * buckets[place]) // (cap + 2))
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    # ...A FORM OF WORDS THEN TAKES ONE LABEL PER CELL, and what is still
+    # left goes to every debt, the cells owing no form among them, one
+    # label per cell at most.
+    for place in range(first, len(buckets)):
+        if place != rest:
+            reach[place] = buckets[place]
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    if rest >= 0:
+        reach[rest] = buckets[rest]
+    needed = _labels_given(buckets, labels, reach, needed, held_back)
+    needed = _labels_given(buckets, labels, buckets, needed, held_back)
+    sizes: "list[int]" = []
+    for place in range(len(buckets)):
+        if labels[place] >= 1:
+            sizes += _ramp(buckets[place], labels[place], cap)
+    return tuple(sorted(sizes))
+
+
+def _labels_given(
+    buckets: "list[int]",
+    labels: "list[int]",
+    reach: "list[int]",
+    needed: int,
+    held_back: int,
+) -> int:
+    """Labels handed one at a time to the debt largest on average.
+
+    Only a debt still under its ``reach`` takes one, the earlier debt on a
+    tie; ``labels`` is updated in place, and the new count is returned.
+    """
+    while needed < held_back:
+        best = -1
+        for place in range(len(buckets)):
+            if labels[place] >= reach[place]:
+                continue
+            if best < 0 or (
+                buckets[place] * labels[best] > buckets[best] * labels[place]
+            ):
+                best = place
+        if best < 0:
+            return needed
+        labels[best] = labels[best] + 1
+        needed = needed + 1
+    return needed
+
+
+def _ramp(cells: int, count: int, cap: int) -> "list[int]":
+    """``cells`` shared over ``count`` labels rising from one row.
+
+    Every label holds one row; what is left is shared in proportion to
+    the square of the label's place, one to ``count``, the whole rows a
+    remainder leaves going to the largest remainders (the later place on
+    a tie); and a label past ``cap`` gives what it holds past it to the
+    label before it, from the last one down. The answer rises and stays
+    at or below ``cap`` wherever ``cells`` is at most ``count`` times
+    ``cap``.
+    """
+    spare = cells - count
+    weights = [(place + 1) * (place + 1) for place in range(count)]
+    weight = 0
+    for each in weights:
+        weight = weight + each
+    sizes = [1 + spare * weights[place] // weight for place in range(count)]
+    given = 0
+    for size in sizes:
+        given = given + size
+    left = cells - given
+    ranked = sorted(
+        [
+            (0 - (spare * weights[place]) % weight, 0 - place)
+            for place in range(count)
+        ]
+    )
+    for step in range(left):
+        chosen = 0 - ranked[step][1]
+        sizes[chosen] = sizes[chosen] + 1
+    for place in range(count - 1, 0, -1):
+        if sizes[place] > cap:
+            sizes[place - 1] = sizes[place - 1] + sizes[place] - cap
+            sizes[place] = cap
+    return sizes
+
+
+def _held_back_debts(
+    owing: "dict[str, int]",
+    debts: "dict[str, int]",
+    rows: int,
+    decimal_comma: bool,
+) -> "tuple[tuple[int, ...], tuple[int, ...]]":
+    """What the held-back cells owe, one debt at a time (plan P4-D201).
+
+    The order `held_back_sizes` reads: for each numeric class in the
+    order G8.3a settles them, each census form reading as that class,
+    by the form's own spelling, at most what the class still owes, then
+    what the class owes wearing no named form; then each census form
+    reading as no number, by its spelling; then the cells left over.
+    Every count is one the description publishes or one the published
+    spellings leave (`_classes_owed`, `_forms_owed`), so the answer is a
+    function of the description alone.
+
+    Guarantees: accepts the form debts, the class debts, the pooled rows
+    and the column's decimal mark; returns counts of nought or more, in
+    the order stated. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    found: "list[int]" = []
+    wordy: "list[int]" = []
+    spent = 0
+    for name in _OWED_CLASSES:
+        owed = debts[name]
+        if owed <= 0:
+            continue
+        reads_as = _owed_reading(name)
+        left = owed
+        for form in sorted(owing):
+            if owing[form] <= 0 or left <= 0:
+                continue
+            if _form_reading(form, decimal_comma) != reads_as:
+                continue
+            part = owing[form]
+            if part > left:
+                part = left
+            found += [part]
+            left = left - part
+        if left > 0:
+            found += [left]
+        spent = spent + owed
+    for form in sorted(owing):
+        if owing[form] <= 0:
+            continue
+        if _form_reading(form, decimal_comma) != parsing.NOT_A_NUMBER:
+            continue
+        wordy += [owing[form]]
+        spent = spent + owing[form]
+    wordy += [rows - spent]
+    return tuple(found), tuple(wordy)
+
+
 def _label_content(
     plan: "_ColumnPlan",
     short: "list[int] | None" = None,
@@ -18003,7 +18241,9 @@ def _label_content(
     # groups, which before this rule were all written as words -- so a
     # column of readings beside two labels lost every held-back reading
     # and code parsing its numbers crashed on the twin.
-    sizes = facts.suppressed_level_counts
+    # THE SIZES ARE READ OFF THE POOL (owner ruling of 2026-09-17, item
+    # 2, option A; plan P4-D201), because no size of any one held-back
+    # label is published any more.
     # EVERY ABSENT SPELLING OF THE TABLE, not only this column's
     # (integration repair of landing 2b.4). A made-up number is refused on
     # a spelling the profiler reads as absent, and `--missing-value 5`
@@ -18013,6 +18253,16 @@ def _label_content(
     holes = _all_holes_of(plan)
     comma = plan.decimal_comma
     debts = _classes_owed(column, cells, comma)
+    numbers_owed, words_owed = _held_back_debts(
+        owing, debts, facts.suppressed_rows, comma
+    )
+    sizes = held_back_sizes(
+        facts.suppressed_levels,
+        facts.suppressed_rows,
+        plan.small_cell_floor,
+        numbers_owed,
+        words_owed,
+    )
     # ASKED WHILE `cells` HOLDS THE PUBLISHED SPELLINGS ALONE, before any
     # stand-in joins them, so the answer is about what the DESCRIPTION
     # published and not about what the twin went on to write.
@@ -18896,7 +19146,7 @@ def _shared_out(
     taken instead and the twin's own report names whatever it missed.
 
     The search is a function of the description alone -- the sizes come
-    from `suppressed_level_counts`, the debts from the census and the
+    from `held_back_sizes` over the pooled total, the debts from the census and the
     cells already written -- so two implementations reading one
     document reach the same arrangement.
     """
@@ -20265,11 +20515,13 @@ _CLASS_SUPPLY_REASON = (
 # carried.
 _HELD_BACK_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels."
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one."
 )
 _HELD_BACK_NUMBERS_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place, stepped "
     "outward from the smallest and the largest number this column "
     "published, at as many decimal places as those numbers were "
@@ -20279,7 +20531,8 @@ _HELD_BACK_NUMBERS_REASON = (
 )
 _HELD_BACK_UNPLACED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place -- but "
     "this column published no number at all, so nothing in the "
     "description says where they lie: they count upward from the "
@@ -20313,7 +20566,8 @@ _HELD_BACK_UNPLACED_REASON = (
 # still worked out from the published numbers alone.
 _HELD_BACK_UNSPELLED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
-    "keeps their number and their sizes but not the labels. Where "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place -- but "
     "every number this column published is written in a way this "
     "version cannot step from, such as an exponent, a grouping mark "
@@ -21687,6 +21941,11 @@ def _identifier_cells(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         raise _wrong_facts(column.name)
+    # A PUBLISHED PREFIX IS WRITTEN BY EVERY WALK BELOW AS PART OF ITS
+    # LAYOUT (owner ruling of 2026-09-17, item 1; method G9.6a). See
+    # `_templated_facts`: on a column publishing none this is the
+    # description itself, and not one step below moves.
+    facts = _templated_facts(facts)
     total = len(groups)
     folded = min(column.n_distinct_folded, total)
     partners = total - folded
@@ -22091,6 +22350,11 @@ def _laid_identifiers(
     if assigned is not None:
         preferred = [assigned[place] for place in order]
     stand_ins = _layout_stand_in_bases(facts)
+    # THE PREFIXES A PARTNER OWES (method G9.6a); None on every column
+    # publishing none, which leaves the partner walk exactly as it was.
+    owed_prefixes: "tuple[str, dict[str, str]] | None" = None
+    if facts.layout_prefixes:
+        owed_prefixes = (convention, facts.layout_prefixes)
     admitted: dict[str, bool] = {}
     mixed: dict[str, int] = {}
     short = [0 for _cell in range(len(_CLASSES) * width)]
@@ -22124,7 +22388,7 @@ def _laid_identifiers(
             worn = (convention, quotas, groups[index])
         partner = _partner_of(
             index, folded, spellings, families, used, windows, worn=worn,
-            holes=holes,
+            holes=holes, prefixes=owed_prefixes,
         )
         if index >= folded >= 1 and index >= 1:
             if partner is None:
@@ -22134,7 +22398,7 @@ def _laid_identifiers(
         if partner is not None:
             spellings += [_take(partner, used)]
             if worn is not None:
-                taken_layout = parsing.layout_form(partner, convention)
+                taken_layout = _layout_worn(partner, convention, quotas)
                 if taken_layout in quotas:
                     quotas[taken_layout] = (
                         quotas[taken_layout] - groups[index]
@@ -22172,7 +22436,7 @@ def _laid_identifiers(
             # identity laid after it spends the cells they will wear.
             if paired and index < len(demands) and demands[index]:
                 _debit_partner_layouts(
-                    parsing.layout_form(laid, convention), convention,
+                    _layout_worn(laid, convention, quotas), convention,
                     demands[index], groups, facts, quotas, predicted,
                 )
             continue
@@ -22199,6 +22463,9 @@ def _laid_identifiers(
             )
             if again:
                 repeated = repeated + 1
+        spelling = _opened_with_prefix(
+            spelling, kind, band, facts, convention, used, holes
+        )
         _claim(spelling, used)
         spellings += [spelling]
     if repeated or len(set(spellings)) < total:
@@ -22274,6 +22541,140 @@ def _layout_convention(facts: contract.IdentifierFacts) -> str:
             if character == parsing.LAYOUT_UPPER_HEX:
                 return parsing.LAYOUT_HEX_UPPER
     return parsing.LAYOUT_PLAIN
+
+
+def _templated_facts(
+    facts: contract.IdentifierFacts,
+) -> contract.IdentifierFacts:
+    """The description with every prefixed layout written as its TEMPLATE.
+
+    THE PREFIX IS PART OF THE LAYOUT IT OPENS (owner ruling of 2026-09-17,
+    item 1; method G9.6a). A template is the layout with its opening
+    marks replaced by the published prefix itself: `@@@%%%%%%%` under the
+    prefix `REC` is `REC%%%%%%%`. Every walk of G9.6 reads a layout's
+    characters one by one, fills a placeholder from the step and leaves
+    every other character as it stands, so a template is filled exactly
+    as a layout is -- the prefix standing where it stood in every real
+    cell -- and its room is the room of its placeholders alone, which is
+    what keeps the made-up values different from one another.
+
+    `(column)` gives every named layout the column's prefix; a layout
+    entry gives its own layout its own. The pool keeps its key. Where the
+    description publishes no prefix this is the description itself.
+
+    Guarantees: a fixed function of the description; no randomness and
+    no I/O.
+    """
+    if not facts.layout_prefixes:
+        return facts
+    whole = ""
+    if parsing.PREFIX_OF_THE_COLUMN in facts.layout_prefixes:
+        whole = facts.layout_prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    templated: dict[str, int] = {}
+    for layout in sorted(facts.layout_forms):
+        prefix = whole
+        if layout in facts.layout_prefixes:
+            prefix = facts.layout_prefixes[layout]
+        if layout == contract.WITHHELD or not prefix:
+            templated[layout] = facts.layout_forms[layout]
+            continue
+        templated[prefix + layout[len(prefix):]] = facts.layout_forms[layout]
+    return dataclasses.replace(facts, layout_forms=templated)
+
+
+def _wears_template(candidate: str, template: str, convention: str) -> bool:
+    """Whether one cell recounts into a layout and opens with its prefix.
+
+    The cell's own layout, read by the census's own reader, is the
+    template's layout (`parsing.prefix_layout`), and every LETTER the
+    template holds -- a letter is only ever there as a published prefix,
+    since no layout holds one -- stands in the cell at its own place. On
+    a template holding no letter this is exactly the layout test.
+    """
+    if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
+        template
+    ):
+        return False
+    for place in range(len(template)):
+        mark = template[place]
+        if ("a" <= mark <= "z" or "A" <= mark <= "Z") and (
+            candidate[place] != mark
+        ):
+            return False
+    return True
+
+
+def _layout_worn(
+    candidate: str, convention: str, keys: "dict[str, int] | list[str]"
+) -> str:
+    """The key of ``keys`` one cell is counted under, or its own layout.
+
+    ``keys`` is a mapping or a list of templates. The first, in sorted
+    order, that the cell `_wears_template` is the answer; failing all, the cell's
+    own layout, which on a column publishing a prefix is a key nothing
+    names -- a cell of a prefixed layout that does not open with the
+    prefix is not a cell that layout's count may take.
+    """
+    layout = parsing.layout_form(candidate, convention)
+    for template in sorted(keys):
+        if template == layout:
+            return template
+        if parsing.prefix_layout(template) == layout and _wears_template(
+            candidate, template, convention
+        ):
+            return template
+    return layout
+
+
+def _opened_with_prefix(
+    spelling: str,
+    kind: str,
+    band: str,
+    facts: contract.IdentifierFacts,
+    convention: str,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> str:
+    """A cell of the walk given the prefix it owes, where that is safe.
+
+    THE WALK OF G9.2 WRITES NO PREFIX, AND A PUBLISHED ONE IS OWED BY
+    EVERY CELL IT GOVERNS (method G9.6a). A group no named layout and no
+    stand-in serves is written by the walk; where the column publishes a
+    prefix for the whole column, or for the layout this spelling wears,
+    the spelling's opening is overwritten with the prefix -- and the
+    result is taken only where it is still free, still reads as the
+    slot's class and band, is no hole and no date, and wears no NAMED
+    layout the spelling did not, so no count the walk already met moves.
+    Otherwise the spelling stands and the recount names the cell.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return spelling
+    prefix = ""
+    own = parsing.layout_form(spelling, convention)
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+        prefix = prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    elif own in prefixes:
+        prefix = prefixes[own]
+    if not prefix or len(spelling) <= len(prefix):
+        return spelling
+    if spelling[: len(prefix)] == prefix:
+        return spelling
+    candidate = prefix + spelling[len(prefix):]
+    if not _free(candidate, used):
+        return spelling
+    if parsing.classify_number(candidate) != _reads_as(kind):
+        return spelling
+    if not _reads_in_band(candidate, band):
+        return spelling
+    if _is_a_hole_spelling(candidate, holes) or _reads_as_a_date(candidate):
+        return spelling
+    moved = parsing.layout_form(candidate, convention)
+    if moved != own:
+        for template in _named_layouts(facts):
+            if parsing.prefix_layout(template) == moved:
+                return spelling
+    return candidate
 
 
 def _layout_holds_a_letter(layout: str) -> bool:
@@ -22484,7 +22885,7 @@ def _fits_its_slot(
         return False
     if _reads_as_a_date(candidate):
         return False
-    if parsing.layout_form(candidate, convention) != layout:
+    if not _wears_template(candidate, layout, convention):
         # THE CELL MUST RECOUNT INTO THE LAYOUT IT WAS WRITTEN TO,
         # and this is the guard that makes the census a census
         # rather than a decoration. A layout is filled from a
@@ -22807,7 +23208,7 @@ def _partner_layouts(
         order = order + 1
         if member is None:
             break
-        found = parsing.layout_form(member, convention)
+        found = _layout_worn(member, convention, named)
         if found in named:
             worn += [found]
     while len(worn) < count:
@@ -23072,6 +23473,14 @@ def _layout_stand_in(
     binding one, so the recount of every published layout is untouched.
     """
     census = facts.layout_forms
+    # A MIX IS STEPPED OVER WHERE ITS OWN LAYOUT IS A NAMED ONE, prefix or
+    # no prefix (method G9.6a): a named layout's template carries its
+    # prefix, so a mix of another prefix wearing the same layout would be
+    # counted into it. On a column publishing no prefix every template is
+    # its layout and this is the check that always stood.
+    real: "dict[str, int]" = {}
+    for template in sorted(census):
+        real[parsing.prefix_layout(template)] = 1
     tried = 0
     for base, kinds in bases:
         if len(base) < window[0]:
@@ -23084,7 +23493,7 @@ def _layout_stand_in(
             mix = _layout_mix(base, kinds, mixed[base])
             mixed[base] = mixed[base] + 1
             tried = tried + 1
-            if mix in census:
+            if mix in census or parsing.prefix_layout(mix) in real:
                 continue
             asked = f"{kind} {band} {mix}"
             if asked not in admitted:
@@ -24430,6 +24839,7 @@ def _partner_of(
     carried: "dict[int, int] | None" = None,
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
+    prefixes: "tuple[str, dict[str, str]] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
 
@@ -24546,7 +24956,7 @@ def _partner_of(
                     continue
                 found = _partner_from(
                     parent_place, index, spellings, used, shortest, longest,
-                    worn, holes,
+                    worn, holes, prefixes,
                 )
                 if found is None:
                     continue
@@ -24568,8 +24978,16 @@ def _partner_from(
     longest: "int | None",
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
+    prefixes: "tuple[str, dict[str, str]] | None" = None,
 ) -> "str | None":
     """One parent's family, walked from its own start (G9.3 step 2).
+
+    ``prefixes``, on a column of record numbers publishing a literal
+    prefix (owner ruling of 2026-09-17, item 1; method G9.6a), is the
+    convention and the published prefixes. A member that does not open
+    with a prefix it owes -- a case flip of `REC1234567` is `rEC1234567`
+    -- is taken only where no member of the family keeps it, so the
+    edge-spaced copy comes first there.
 
     ``worn``, on a column of record numbers whose partners can wear a
     named layout, is the convention, the layouts' remaining counts and
@@ -24584,6 +25002,7 @@ def _partner_from(
     steps = len(used) + 1
     unnamed: "str | None" = None
     first: "str | None" = None
+    unopened: "str | None" = None
     while steps > 0:
         candidate = _partner_at(parent, order, shortest, longest)
         if candidate is None:
@@ -24594,11 +25013,17 @@ def _partner_from(
             continue
         if holes and _is_a_hole_spelling(candidate, holes):
             continue
+        if prefixes is not None and _breaks_a_prefix(
+            candidate, prefixes[0], prefixes[1]
+        ):
+            if unopened is None:
+                unopened = candidate
+            continue
         if worn is None:
             return candidate
         if first is None:
             first = candidate
-        layout = parsing.layout_form(candidate, worn[0])
+        layout = _layout_worn(candidate, worn[0], worn[1])
         if layout in worn[1]:
             if worn[1][layout] >= worn[2]:
                 return candidate
@@ -24607,7 +25032,27 @@ def _partner_from(
             unnamed = candidate
     if unnamed is not None:
         return unnamed
-    return first
+    if first is not None:
+        return first
+    return unopened
+
+
+def _breaks_a_prefix(
+    candidate: str, convention: str, prefixes: "dict[str, str]"
+) -> bool:
+    """Whether one cell fails to open with a published prefix it owes.
+
+    `(column)` is owed by every cell; a layout entry by the cells that
+    wear that layout, read by the census's own reader (method G9.6a).
+    """
+    prefix = ""
+    if parsing.PREFIX_OF_THE_COLUMN in prefixes:
+        prefix = prefixes[parsing.PREFIX_OF_THE_COLUMN]
+    else:
+        layout = parsing.layout_form(candidate, convention)
+        if layout in prefixes:
+            prefix = prefixes[layout]
+    return bool(prefix) and candidate[: len(prefix)] != prefix
 
 
 def _length_windows(
@@ -30738,13 +31183,18 @@ def _layout_notes(
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         return []
-    named = _named_layouts(facts)
-    if not named:
-        return []
     present = [
         cell for cell in _present_of(written, _hole_spellings(column))
         if parsing.trimmed(cell)
     ]
+    # THE PREFIX IS RECOUNTED BESIDE THE CENSUS (owner ruling of
+    # 2026-09-17, item 1; method G9.6a), and on a column publishing a
+    # prefix and no layout as well: a cell it governs that does not open
+    # with it is a cell a pattern developed on the twin reads otherwise.
+    prefix_notes = _prefix_notes(column, facts, present)
+    named = _named_layouts(facts)
+    if not named:
+        return prefix_notes
     counted = taxonomy.layout_census(present, floor, len(set(present)))
     pool = 0
     if contract.WITHHELD in facts.layout_forms:
@@ -30762,6 +31212,45 @@ def _layout_notes(
             found,
             "The twin does not write this many record numbers in this "
             "layout, so a pattern, a length test or a case test developed "
+            "against the twin selects a different number of rows here "
+            "than it will on the real table.",
+        )
+    return notes + prefix_notes
+
+
+def _prefix_notes(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    present: "list[str]",
+) -> "list[Deviation]":
+    """Name every published prefix some cell it governs does not open with.
+
+    `(column)` governs every present cell and a layout entry the cells
+    wearing that layout, read by the census's own reader. The count owed
+    is nought such cells, and the line names how many the twin wrote.
+    """
+    prefixes = facts.layout_prefixes
+    if not prefixes:
+        return []
+    convention = _layout_convention(facts)
+    notes: list[Deviation] = []
+    for scope in sorted(prefixes):
+        prefix = prefixes[scope]
+        missing = 0
+        for cell in present:
+            if scope != parsing.PREFIX_OF_THE_COLUMN and (
+                parsing.layout_form(cell, convention) != scope
+            ):
+                continue
+            if cell[: len(prefix)] != prefix:
+                missing = missing + 1
+        notes += _named_miss(
+            column,
+            f"layout_prefixes.{scope}",
+            0,
+            missing,
+            "This many record numbers the published prefix governs do not "
+            "open with it, so a pattern or a starts-with test developed "
             "against the twin selects a different number of rows here "
             "than it will on the real table.",
         )

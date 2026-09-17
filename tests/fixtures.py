@@ -451,8 +451,9 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
     something back is given a column here:
 
     * `region` -- one label that about seven rows share, so the floor
-      suppresses a LEVEL and fills `suppressed_levels`,
-      `suppressed_rows` and `suppressed_level_counts`;
+      suppresses a LEVEL and fills `suppressed_levels` and
+      `suppressed_rows`, the pooled total that has stood alone since the
+      owner's ruling of 2026-09-17 (plan P4-D201);
     * `visits` -- blank cells plus three rare spellings of "no value",
       so `missing_by_source` pools a REMAINDER and `missing_by_class`
       pools the class those spellings fell into;

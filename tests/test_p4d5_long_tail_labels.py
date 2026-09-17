@@ -17,7 +17,7 @@ rather than a property somebody noticed:
 - the role sits last but one, so every rule that reads a column better
   still claims it first -- a column of clock times with a repeated time
   is a column of clock times;
-- it publishes the five shared label keys and NOT `level_ceiling`,
+- it publishes the four shared label keys and NOT `level_ceiling`,
   whose invariant a long tail breaks by definition; the ceiling it
   passed is in its evidence sentence instead;
 - the loader refuses a document claiming the role with no level that
@@ -198,7 +198,6 @@ def test_it_publishes_the_four_label_keys_and_not_the_ceiling() -> None:
         "levels",
         "suppressed_levels",
         "suppressed_rows",
-        "suppressed_level_counts",
     ):
         assert key in block
     assert "level_ceiling" not in block
@@ -250,7 +249,6 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
     ]
     block["suppressed_levels"] = 220
     block["suppressed_rows"] = 220
-    block["suppressed_level_counts"] = [1] * 220
     # The free-text keys go with the role that carried them: the
     # format has no optional keys, so a block claiming this role
     # carries the four label keys and nothing else its role does not

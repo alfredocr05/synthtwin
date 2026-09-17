@@ -312,7 +312,7 @@ def edit_level(_column: str, _index: int, **changes: object) -> Change:
 def _relabelled_as_a_long_tail(_column: str) -> Change:
     """Give a set of categories the long tail's role and key set.
 
-    The role's key set is the five shared label keys, the form census
+    The role's key set is the four shared label keys, the form census
     among them (P4-D18), so the relabelling supplies one -- otherwise the
     document is refused for a missing key and never reaches LT2, which
     is the rule this mutation exists to break.
@@ -354,9 +354,6 @@ def _long_tail_below_its_line(_column: str) -> Change:
         # DIFFERENT values did not change, and B2 counts the published
         # and the held-back levels against it.
         block["suppressed_rows"] = block["suppressed_rows"] + given
-        sizes = list(block["suppressed_level_counts"])
-        sizes[0] = sizes[0] + given
-        block["suppressed_level_counts"] = sorted(sizes)
     return change
 
 
@@ -809,12 +806,12 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "B4", "a held-back label with no size beside it",
-            edit("region", suppressed_level_counts=[]),
+            "B4", "labels held back on fewer rows than their number",
+            edit("region", suppressed_rows=0),
         ),
         Mutation(
-            "B5", "a label held back that the floor would have published",
-            edit("region", suppressed_level_counts=[20]),
+            "B4", "a pool too large to be written below the floor",
+            edit("region", suppressed_rows=11),
         ),
         Mutation(
             "B5", "a label published below the floor",
@@ -1338,6 +1335,43 @@ def battery() -> list[Mutation]:
             "LF6",
             "a layout census whose keys say two conventions",
             edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
+        ),
+        # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
+        # item 1, plan P4-D202). `record_code` is `R` and five figures on
+        # 240 rows, so the base description publishes `{"(column)": "R"}`
+        # beside `{"@%%%%%": 240}`.
+        Mutation(
+            "LP1",
+            "a prefix for the whole column beside a prefix for a layout",
+            edit(
+                "record_code",
+                layout_prefixes={"(column)": "R", "@%%%%%": "R"},
+            ),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix for a layout the census does not name",
+            edit("record_code", layout_prefixes={"@@%%%%": "RE"}),
+        ),
+        Mutation(
+            "LP2",
+            "a prefix whose own layout does not open the census's layout",
+            edit("record_code", layout_prefixes={"(column)": "RE"}),
+        ),
+        Mutation(
+            "LP1",
+            "a prefix beside a layout census that names no layout",
+            edit(
+                "record_code",
+                layout_forms={},
+                layout_prefixes={"(column)": "R"},
+            ),
+        ),
+        Mutation(
+            "R16",
+            "a prefix holding a figure",
+            edit("record_code", layout_prefixes={"(column)": "R0"}),
+            names="layout_prefixes",
         ),
         Mutation(
             "P8",

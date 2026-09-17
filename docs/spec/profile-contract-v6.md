@@ -982,6 +982,19 @@ a person back to the command line for a second refusal is worse than a
 plain one, so the sentence now names the only thing that does settle
 it.
 
+**The owner's ruling of 2026-09-17, item 3, keeps the refusal and has it
+ask again** (plan P4-D203). A workbook with a second table on another
+sheet stays refused and WB7 stands; the sentence names the sheet it
+found, asks which sheet is the table, and points to
+`--sheet` — on a COPY of the workbook with every other sheet that holds
+a table deleted or moved to a workbook of its own (the refusal stops at
+the first other such sheet, so a workbook may hold more than the two it
+names; wording repaired the same day), and it says that naming a
+sheet of the workbook as it stands is not enough, which is what the
+measurement above showed. The questions file cannot carry this question:
+it is written by a `profile` run that described a table, and this
+refusal stops the run before any table is described.
+
 **Invariants WB1-WB8** (`contract.INVARIANTS`): WB1 one column census
 per column; WB2 the sheet the table was read from is one the workbook
 has, counted from one; WB3 every published count of cells, and the count
@@ -1400,7 +1413,7 @@ the existence of that person's value together with how many people
 share it. That is not a route to a disclosure; it is the disclosure.
 The producer publishes the same facts it always did, and the floor
 decides which of them are named — so the loss is exactly the pooling
-that `(withheld)`, `suppressed_levels`, `suppressed_level_counts`,
+that `(withheld)`, `suppressed_levels`, `suppressed_rows`,
 `variants_withheld` and the pooled remainders of this contract exist
 to perform. On whose authority: the owner's, ruled on 2026-08-14 with
 the consequence stated to them and accepted.
@@ -1424,7 +1437,7 @@ empty, so every field that carries what the floor held back is empty
 or zero. Every one of these is empty or zero, and this list is the
 whole of it:
 
-`suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`;
+`suppressed_levels`; `suppressed_rows`;
 every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `n_missing_withheld`; and the `(withheld)` ENTRIES of
 `missing_by_class`, `utc_offsets`, `datetime_separators`,
@@ -1477,10 +1490,11 @@ format requires.
 
 **Why S13 is a rule of its own, and not left to the invariants it
 overlaps.** For three fields a floor of one is caught by an existing
-rule: B5 reads `suppressed_level_counts` against the range below the
-floor, the multiplicity rules read `variants_withheld`'s keys against
-it, and B4 ties `suppressed_levels` and `suppressed_rows` to the
-sizes. For the others it is not. N2, D3, P2 and P6 each say a
+rule: the multiplicity rules read `variants_withheld`'s keys against
+the range below the floor, and B4 holds `suppressed_rows` between
+`suppressed_levels` and `suppressed_levels` times one less than the
+floor, which at a floor of one is nought for both. For the others it
+is not. N2, D3, P2 and P6 each say a
 PUBLISHED count is at least the floor, and each exempts the pooled
 `(withheld)` remainder — because the remainder is what the published
 counts were pooled OUT of, and at every floor above one no bound on it
@@ -3298,9 +3312,11 @@ always has named quantities to check them against.
 | `n_distinct_by_occurrences` | different RAW present values of one column | invariants U3 (`numeric_unrepresentable`), I2 (`identifier`) and F2 (`free_text`); its shape, class and disposition at section 7.2 |
 | `variants_withheld` | different spellings of one published label that stayed below the floor | section 7.4: W4 closes its weighted sum inside the level entry, W5 holds every key between 1 and `small_cell_floor - 1` |
 
-`suppressed_level_counts` (section 6.3) is the same CLASS of fact —
-sizes of unnamed groups — but it is NOT this shape: it is a sorted
-array, not a map, and that shape does not move.
+The sizes of a label column's held-back levels were the same CLASS of
+fact — sizes of unnamed groups — published as a sorted array rather
+than a map. Since the owner's ruling of 2026-09-17 (item 2, option A;
+plan P4-D201) they are not published at all: section 6.3 publishes only
+their pooled total, `suppressed_rows`.
 
 ---
 
@@ -3916,12 +3932,12 @@ method states that rule (`docs/spec/generation-method-v1.md` G10.5).
 ### 6.3 The label roles: shared shape
 
 `constant`, `binary`, `categorical` and `long_tail_labels` all publish
-LEVELS. Their FIVE shared keys are specified once here; sections 6.4
+LEVELS. Their FOUR shared keys are specified once here; sections 6.4
 and 6.5, section 6.6.1, and the section for `long_tail_labels` state
 only what each adds or restricts. The four are the labels publication
 class, and the forbidden-key matrix admits `levels` on no other role.
 
-**THE FIFTH SHARED KEY IS `shape_forms`, AND IT STANDS ON ALL FOUR**
+**THE FOURTH SHARED KEY IS `shape_forms`, AND IT STANDS ON ALL FOUR**
 because whether a label role holds levels back is a fact about the
 FLOOR and not about the role. Section 6.11's matrix is the authority
 on where it stands; section 7.9 states what it holds.
@@ -3930,8 +3946,7 @@ on where it stands; section 7.9 states what it holds.
 |---|---|---|
 | `levels` | array of level entries | the published labels and their counts, section 6.3.1 |
 | `suppressed_levels` | integer ≥ 0 | how many labels the floor held back |
-| `suppressed_rows` | integer ≥ 0 | how many rows those held-back labels covered in total |
-| `suppressed_level_counts` | array of integers | the sizes of the held-back labels, sorted ascending |
+| `suppressed_rows` | integer ≥ 0 | how many rows those held-back labels covered in total — the POOLED TOTAL, and the only size of them this format publishes |
 | `shape_forms` | object | the census of WRITTEN FORMS the column's cells wore, section 7.9; REQUIRED on all four label roles, written even when empty |
 
 The floor named throughout this section is `small_cell_floor`, the
@@ -3940,8 +3955,24 @@ setting of section 4.4. Every rule below that reads it is written as
 value the document carries; at a floor of one the second half is the
 empty range, so a description written at that floor holds nothing back
 at all. Invariant S13 states that as a rule and lists every field it
-reaches — this section's `suppressed_levels`, `suppressed_rows`,
-`suppressed_level_counts` and `variants_withheld` among them.
+reaches — this section's `suppressed_levels`, `suppressed_rows` and
+`variants_withheld` among them.
+
+**THE HELD-BACK LABELS ARE PUBLISHED AS A POOL** (owner ruling of
+2026-09-17, item 2, option A; plan P4-D201). How many labels the floor
+held back, and how many rows they covered together — and no size of any
+one of them. Until that ruling a sorted array `suppressed_level_counts`
+gave each size; it is withdrawn, and a document carrying it is refused
+as carrying a key this format does not have.
+
+What the pool still lets a reader work out, stated rather than waved
+away (repair pass of 2026-09-17): every held-back label covers at least
+one row, so where `suppressed_rows` is less than twice
+`suppressed_levels` at least `2 * suppressed_levels - suppressed_rows`
+of them are provably single rows, and where `suppressed_levels` is 1
+that one label's size is the pool itself. That is a count about unnamed
+groups, the class `n_distinct_by_occurrences` already publishes, and it
+is put to the owner beside the pool of one (invariant B4).
 
 #### 6.3.1 A level entry
 
@@ -3982,16 +4013,21 @@ normalized identity everywhere. What the table actually held is in
 **Invariant B3 (row completeness).**
 `sum(entry.count for entry in levels) + suppressed_rows == n_present`.
 
-**Invariant B4 (the suppressed multiset).**
-`len(suppressed_level_counts) == suppressed_levels` and
-`sum(suppressed_level_counts) == suppressed_rows`, and the array is
-sorted ascending — non-decreasing, because two held-back labels may
-cover the same number of rows and the array is a multiset of sizes, not
-a set.
+**Invariant B4 (the held-back pool).** Every held-back label covers at
+least one row and fewer rows than the floor, so
+`suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)`;
+at a floor of one both are therefore nought. **A pool of one row is
+not refused** (owner ruling of 2026-09-17, item 2, option A; plan
+P4-D201, repair pass of the same day). A pool of one row names the one
+row whose value is none of the published labels, and `n_present` less
+the published counts reads it whether or not `suppressed_rows` is
+printed, so no key can hide it; the first writing of the ruling held
+the smallest published label back beside such a pool, and that was
+withdrawn because the label it held back had cleared the floor and the
+twin then wrote none of it. The pool of one stands as a stated limit
+awaiting the owner's ruling.
 
-**Invariant B5 (the floor, both ways).** Every `entry.count` is at least
-the floor. Every element of `suppressed_level_counts` is at least 1 and
-below the floor.
+**Invariant B5 (the floor).** Every `entry.count` is at least the floor.
 
 **Invariant B6 (label order).** `levels` is ordered by descending
 `count`, and among equal counts by ascending `label`. Order is part of
@@ -4006,16 +4042,17 @@ conforming sequence.
 column every one of whose labels fell below the floor. `n_distinct_folded`
 then equals `suppressed_levels` and `n_present` equals `suppressed_rows`.
 
-`levels`, `suppressed_levels`, `suppressed_level_counts` and
-`suppressed_rows` are EXACT-OBSERVABLE: the twin writes each published
-label at exactly its count and invents that many neutral labels at
-exactly the held-back sizes.
+`levels`, `suppressed_levels` and `suppressed_rows` are
+EXACT-OBSERVABLE: the twin writes each published label at exactly its
+count and invents exactly `suppressed_levels` neutral labels covering
+exactly `suppressed_rows` rows together, at the sizes the generation
+method reads off that pooled total (method G8.3), each below the floor.
 
 ### 6.4 `constant`
 
 Every present cell is the same folded identity.
 
-**Added keys:** the five shared label keys of section 6.3 and nothing
+**Added keys:** the four shared label keys of section 6.3 and nothing
 else. `level_ceiling` is FORBIDDEN on this role: it is `categorical`'s
 own key, and this format has no optional keys, so it is absent rather
 than sometimes-present.
@@ -4031,7 +4068,7 @@ value itself is not published. C2 is what C1 and B2 come to together.
 
 Exactly two folded identities.
 
-**Added keys:** the five shared label keys of section 6.3 and nothing
+**Added keys:** the four shared label keys of section 6.3 and nothing
 else. `level_ceiling` is FORBIDDEN on this role, for the reason section
 6.4 gives.
 
@@ -4061,7 +4098,7 @@ At most a ceiling of different folded identities, each shared by rows.
 It is rule 8 of the order in section 5.2, so it claims only a column
 every earlier rule declined.
 
-**Added keys:** the five shared label keys of section 6.3, plus:
+**Added keys:** the four shared label keys of section 6.3, plus:
 
 | key | JSON type | range | meaning | disposition |
 |---|---|---|---|---|
@@ -5384,11 +5421,12 @@ taking: when the guess was right it published no more than free text
 publishes, and when it was wrong it destroyed a distribution the twin
 exists to reproduce.
 
-**Added keys** — seven, beyond the universal keys of section 5.1:
+**Added keys** — eight, beyond the universal keys of section 5.1:
 
 | key | JSON type | range | meaning |
 |---|---|---|---|
 | `layout_forms` | object | section 7.12 | how many present cells were written in each shared LAYOUT, under the floor, with the pooled key `(withheld)` |
+| `layout_prefixes` | object | section 7.12a | the literal text every present cell opens with, under the key `(column)`, or the text every cell of one named layout opens with, under that layout; `{}` where there is none (owner ruling of 2026-09-17, item 1) |
 | `min_length` | integer ≥ 1 | ≤ `max_length` | the shortest present value's length in characters |
 | `max_length` | integer ≥ 1 | ≥ `min_length` | the longest present value's length in characters |
 | `all_whole_numbers` | boolean | — | true when every present cell is a whole number and there is at least one |
@@ -5409,6 +5447,10 @@ on the table, so no line of either report named it. It is NOT
 under another name: that census belongs to the five label roles, is
 forbidden here by C6-31b, stops at twenty-four characters and marks a
 letter without its case, and each of those three would lose a UUID.
+
+`layout_prefixes` is this role's alone as well, and it is the ONE key of
+the block that carries text of the table, by the owner's ruling of
+2026-09-17 (section 7.12a and invariant I3 below).
 
 None of the other six is this role's alone except `all_whole_numbers`. A
 `numeric_unrepresentable` block carries `min_length` and `max_length`
@@ -5442,11 +5484,16 @@ every `sentinel_verdicts` entry has `candidate == "(withheld)"`
 (N3, V2). It is a property of the whole BLOCK: no value of the column,
 no spelling of one and no fragment of one stands anywhere in it — and a
 vocabulary member is none of those three, being this package's own word
-and the same in every installation. What is published is the role,
-the counts, the shortest and longest length, whether every value is a
-whole number, how many cells are all digits or all code alphabet, the
-shape of repetition, and the census of LAYOUTS (7.12) — lengths and
-counts, never values.
+and the same in every installation — WITH ONE EXCEPTION, AMENDED BY THE
+OWNER'S RULING OF 2026-09-17 (item 1, plan P4-D202): the literal prefix
+of section 7.12a, a fragment every present cell of the column opens
+with, or every cell of one named layout, published only where invariant
+LP1 and the disclosure rule of 7.12a admit it. That is the only fragment
+this invariant admits and `layout_prefixes` the only key it may stand
+in. What is published is the role, the counts, the shortest and longest
+length, whether every value is a whole number, how many cells are all
+digits or all code alphabet, the shape of repetition, the census of
+LAYOUTS (7.12) — lengths and counts, never values — and that prefix.
 
 **THE LAYOUT CENSUS STANDS INSIDE I3, AND IT IS THE ONE KEY OF THIS
 BLOCK A READER COULD MISTAKE FOR A FRAGMENT**, so the ground is
@@ -5460,15 +5507,24 @@ the same in every installation. So no value of the column, no spelling
 of one and no fragment of one stands in a key, which is exactly what
 this invariant requires of the whole block.
 
-**AND A LITERAL RUN IS A FRAGMENT AND IS NOT PUBLISHED** (landing
-2b.15, landing 2b.18). A constant run of letters shared by a whole
-column — a hospital's own record prefix, or `ABC-` in front of a study
-number — is a character-for-character fragment of every value in that
-column, which this invariant and F3 forbid. It is a POPULATION-wide
-fragment rather than any one person's, which is what makes it a
-question for the owner rather than a settled refusal; until that ruling
-it is not published and this version's twin writes the layout's own
-alphabet in its place.
+**A LITERAL RUN IS A FRAGMENT, AND BY THE OWNER'S RULING OF 2026-09-17
+ONE KIND OF IT IS PUBLISHED** (landing 2b.15, landing 2b.18; ruling item
+1, plan P4-D202). A constant run shared by a whole column — a hospital's
+own record prefix, or `ABC-` in front of a study number — is a
+character-for-character fragment of every value in that column, which
+this invariant and F3 forbade. It is a POPULATION-wide fragment rather
+than any one person's, which made it a question for the owner rather
+than a settled refusal, and while it waited the twin wrote the layout's
+own alphabet in its place: measured at 800 rows, `^P\d{5}$` matched 800
+real cells and 30 twin cells, `^REC\d{7}$` 800 and 0, and both files
+passed. The owner ruled it published where every present cell carries
+the same prefix and the column clears the smallest group size, and this
+invariant is amended for that case ONLY: section 7.12a states the rule,
+and the per-layout reading of it — each named layout's own prefix where
+the whole column shares none — is flagged to the owner as this
+version's extension of the ruling. No other literal run of a cell is
+published: a run that is not an opening, a run holding a figure, and a
+run that stops inside a run of letters are not.
 
 **Invariant I4.** `min_length >= 1`. A present cell of length zero is
 a blank, and a blank is absent.
@@ -5568,7 +5624,12 @@ key of `missing_by_source` names a member of the published vocabulary
 every `sentinel_verdicts` entry has `candidate == "(withheld)"`
 (N3, V2). As at I3 this binds the whole BLOCK, not any one field: no
 value, no spelling of one and no fragment of one stands anywhere in
-it.
+it. **The owner's ruling of 2026-09-17, item 1, amends this invariant
+for the case it names and no other** (plan P4-D202): the literal prefix
+of section 7.12a is admitted where a block carries `layout_prefixes`,
+and that key stands on the declared `identifier` role alone (6.11). A
+`free_text` block carries no layout census and no prefix, so on this
+role the amendment admits nothing and F3 binds exactly as it did.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
@@ -5736,7 +5797,7 @@ one row of the table below:
 |---|---|---|
 | labels | `constant`, `binary`, `categorical`, `long_tail_labels` | the values themselves appear, folded, with counts, and only when at least `small_cell_floor` rows share them |
 | ranges | `count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers` | no spelling appears; order statistics computed from the values do. TWO named exceptions, each confined by section 6.11 to its own keys: C6-9's, at `affix_prefix`, `affix_suffix` and the `prefix`/`suffix` of each `affix_variants` entry — a column may wear a SET of wrappers (C6-7a) and every member of the vocabulary is published on the same terms as the commonest, which is what the exception was always about — and section 6.15's, at `separator` |
-| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict |
+| nothing | `numeric_unrepresentable`, `identifier`, `free_text` | no value, no spelling, no fragment of one, anywhere — not in levels, not in `missing_by_source`, not in the evidence, not in a remark, not in a publication note, not in a sentinel verdict. ONE named exception, by the owner's ruling of 2026-09-17 (item 1): the literal prefix of section 7.12a, confined by section 6.11 to `layout_prefixes` on `identifier` |
 | **no value-publishing class** | `empty` | it has no value to publish, and it is NOT thereby a nothing-publishing column (C6-51) |
 
 The three value-publishing classes carry exactly twelve of the
@@ -5749,7 +5810,10 @@ fourth class would have to be given a meaning everywhere the three
 are enforced; an exception is confined by one matrix, which is where
 section 6.11 confines it. The labels class is untouched by it, and
 the nothing class's "no value, no spelling, no fragment of one"
-sentence is untouched by it.
+sentence is untouched by it. **The prefix exception is an exception in
+the same sense** (owner ruling of 2026-09-17, item 1): it is confined by
+the same matrix to one key of one role, and every other key of a
+nothing-publishing block stands under that sentence exactly as before.
 
 #### `empty`, and the fourth bucket
 
@@ -5862,7 +5926,6 @@ rather than a list of its own, so the two cannot part again.
 | `levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_rows` | | | ● | ● | ● | ● | | | | | | | | | |
-| `suppressed_level_counts` | | | ● | ● | ● | ● | | | | | | | | | |
 | `level_ceiling` | | | | | ● | | | | | | | | | | |
 | `format` | | | | | | | ● | | | | | | | | |
 | `resolution` | | | | | | | ● | | | | | | | | |
@@ -5937,6 +6000,7 @@ rather than a list of its own, so the two cannot part again.
 | `max_length` | | ● | | | | | | | | | | ● | | | |
 | `all_whole_numbers` | | | | | | | | | | | | ● | | | |
 | `layout_forms` | | | | | | | | | | | | ● | | | |
+| `layout_prefixes` | | | | | | | | | | | | ● | | | |
 | `length` | | | | | | | | | | | | | ● | | |
 | `words` | | | | | | | | | | | | | ● | | |
 | `n_all_digits` | | | | | | | | | | | | ● | ● | | |
@@ -5959,11 +6023,11 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Ninety-nine rows, one hundred and eighty-eight marked cells**,
-distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
+**Ninety-nine rows, one hundred and eighty-five marked cells**,
+distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 4,
+`binary` 4, `categorical` 5, `long_tail_labels` 4, `datetime` 20,
 `time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
-`identifier` 7, `free_text` 6, `joined_numbers` 8,
+`identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
@@ -5977,7 +6041,10 @@ short on four roles at once — `datetime` 15 against 16, `count` and
 landing added `layout_forms` to the `idn` column, which made the
 sentence wrong in a new way as well as an old one, so both are repaired
 here and the numbers above are taken from the matrix by
-`tests/test_p4d18_role_topology.py` rather than counted by hand.
+`tests/test_p4d18_role_topology.py` rather than counted by hand. The owner's ruling of 2026-09-17 (item 2, option A; plan
+P4-D201) then withdrew the `suppressed_level_counts` row, one mark on
+each of the four label roles, and item 1 of the same ruling (plan
+P4-D202) added the `layout_prefixes` row, one mark on `identifier`.
 
 **AND RESTATED AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.8**
 (2026-09-16). Landing 2b.6 added four keys to `datetime` and marked none
@@ -6915,8 +6982,8 @@ reader will expect them and their absence is a decision.
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
   per-column `n_rows` echo, which Q1 confines to those three.
-- **Every label key.** `levels`, `suppressed_levels`,
-  `suppressed_rows` and `suppressed_level_counts` belong to the four
+- **Every label key.** `levels`, `suppressed_levels` and
+  `suppressed_rows` belong to the four
   labels-class roles, and `level_ceiling` to `categorical` alone. This
   role is in neither place.
 
@@ -7034,10 +7101,10 @@ that is the whole of what the `max` buys. Which levels of an admitted
 column are then SHOWN is the floor's question and moves with it;
 whether the column is admitted is this line's question and does not.
 
-**Added keys:** the five shared label keys of section 6.3 and nothing
+**Added keys:** the four shared label keys of section 6.3 and nothing
 else — `levels`, whose entries carry exactly `label`, `count`,
 `variants` and `variants_withheld` under section 6.3.1;
-`suppressed_levels`; `suppressed_rows`; `suppressed_level_counts`; and
+`suppressed_levels`; `suppressed_rows`; and
 `shape_forms`, the census of written forms section 7.9 states. Their
 JSON types and meanings are section 6.3's, identically, and `variants`
 and `variants_withheld` are specified in full in section 7.4.
@@ -7069,8 +7136,7 @@ B1 through B8 are stated in section 6.3.2 over a block that carries
 `levels`, not over a list of roles, so each binds a `long_tail_labels`
 block identically and none needs widening or restating here: B1
 (published identity is normalized), B2 (level completeness), B3 (row
-completeness), B4 (the suppressed multiset), B5 (the floor, both
-ways), B6 (label order), B7 (labels are distinct) and B8 (levels may
+completeness), B4 (the held-back pool), B5 (the floor), B6 (label order), B7 (labels are distinct) and B8 (levels may
 be empty).
 
 **What B8 comes to on this role, which is not what it comes to on the
@@ -7128,10 +7194,11 @@ own, and it is priced as one in this document's disclosure inventory
 rather than left to be discovered.
 
 **Disposition, and what the twin owes.** `levels`,
-`suppressed_levels`, `suppressed_rows` and `suppressed_level_counts`
-are EXACT-OBSERVABLE, as section 6.3.2 states for every label role:
-the twin writes each published label at exactly its count and invents
-that many neutral labels at exactly the held-back sizes. The published
+`suppressed_levels` and `suppressed_rows` are EXACT-OBSERVABLE, as
+section 6.3.2 states for every label role: the twin writes each
+published label at exactly its count and invents that many neutral
+labels covering the pooled rows together, at the sizes the generation
+method reads off the pool. The published
 spellings go in byte for byte, under section 7.4's own
 EXACT-OBSERVABLE rule for `variants` and `variants_withheld`, fold
 collisions included. There is no generation rule of this role's own,
@@ -7156,23 +7223,18 @@ second is narrower than its key looks.
   now guards sentences too; and the profiler's summary names every
   column whose labels will be visible BEFORE anything is written,
   long-tail columns included.
-- **The sizes of the BELOW-FLOOR folded identities**, through
-  `suppressed_level_counts`. A free-text column already publishes a
-  repetition map over its raw present values, so anonymous group sizes
-  are not themselves new. That map groups RAW spellings; this multiset
-  groups FOLDED identities. **The additional fact is therefore exactly
-  which unnamed spellings share a trim-and-case identity — counts
-  only, never a spelling** — a fact about below-floor cells the
-  repetition map does not carry. It is stated at this width because a
-  reader who prices only the first bullet would be approving something
-  this role does not do.
+- **The NUMBER and the POOLED ROWS of the BELOW-FLOOR folded
+  identities**, through `suppressed_levels` and `suppressed_rows`.
+  Until the owner's ruling of 2026-09-17 (item 2, option A; plan
+  P4-D201) the size of each one was published too, as a sorted array,
+  which told a reader which unnamed spellings shared a trim-and-case
+  identity; that array is withdrawn, and what remains is two counts
+  about the unnamed groups taken together — never a spelling, and never
+  the size of any one of them.
 
-**Document size, stated rather than found later.**
-`suppressed_level_counts` holds one integer per below-floor level, and
-on this role there may be many of them: their number is bounded by
-nothing but `n_rows`. No cap is imposed, because a cap would contract
-a domain this format has promised, and B4's equalities would then be
-unwritable.
+**Document size, stated rather than found later.** The pool is two
+integers whatever the number of below-floor levels, so this role's
+block no longer grows with them.
 
 ### 6.15 `joined_numbers`
 
@@ -7488,8 +7550,9 @@ the rule off the matrix, misstates one of them.
 floor.** The map is a function of the group SIZES alone: rename every
 value, or shuffle every row, and it does not move. No spelling, no
 order, no row position and no link to any other column reaches it. It
-is the same class of fact as `suppressed_level_counts`, which publishes
-the sizes of the withheld levels for the same reason. What it does
+is the same class of fact the sizes of a label column's withheld levels
+were, published for the same reason until the owner's ruling of
+2026-09-17 pooled them into `suppressed_rows` (plan P4-D201). What it does
 disclose, stated rather than waved away, is the sizes themselves: a map
 containing `"1": 1` says some one row holds a value no other row holds.
 That is a count about an unnamed group, and it is why the profile is
@@ -7670,8 +7733,9 @@ only beneath the floor.
 publication of the labels class: a spelling of a label the description
 already names, held to the same line as the label itself.
 `variants_withheld` is the other class — counts about unnamed groups,
-which no floor suppresses, the same class as `suppressed_level_counts`
-and the repetition multiset. What it discloses, stated rather than
+which no floor suppresses, the same class as the repetition multiset
+and as the held-back level sizes this format published until the
+owner's ruling of 2026-09-17 pooled them (plan P4-D201). What it discloses, stated rather than
 waved away, is the group SIZES: a map containing `"1": 3` says three
 spellings of this label were each written by exactly one row, without
 saying what any of them was.
@@ -9372,13 +9436,106 @@ package reads `01586982` as 1586982. A run of noughts INSIDE a cell
 that is not figures alone — the `000123` of `S23-000123` — is not
 marked, and its twin writes those places from the figures.
 
-**AND A LITERAL RUN IS NOT PUBLISHED.** A constant run of letters
-shared by a whole column is a character-for-character fragment of
-every value in that column, which invariants I3 and F3 forbid. It is a
-population-wide fragment rather than any one person's, which is what
-makes it a question for the owner rather than a settled refusal; until
-that ruling this census names no literal and the twin writes the
-layout's own alphabet in its place.
+**AND A LITERAL RUN IS NOT A LAYOUT.** A constant run of letters shared
+by a whole column is a character-for-character fragment of every value
+in that column, which invariants I3 and F3 forbade. It is a
+population-wide fragment rather than any one person's, which made it a
+question for the owner rather than a settled refusal, and this census
+still names no literal: a layout key holds no letter. The owner's ruling
+of 2026-09-17, item 1, publishes the one literal run that ruling names,
+the prefix, in a key of its own beside this census; section 7.12a states
+it.
+
+### 7.12a `layout_prefixes`
+
+**C6-138 (what is published, and the ruling it rests on).** A declared
+identifier whose every present cell opens with the SAME literal text —
+`REC` before seven figures, `P` before five, `ABC-` before a study
+number — publishes that text, and its twin writes it, so a pattern or a
+starts-with test written against the twin selects the rows it selects on
+the table. This is the owner's ruling of 2026-09-17, item 1 (plan
+P4-D202), and it amends invariants I3 and F3 for this case ONLY. Measured
+before it, at 800 rows each: `^P\d{5}$` matched 800 real cells and 30
+twin cells, `^REC\d{7}$` 800 and 0, `^ABC-\d{4}$` 800 and 0, and every
+file validated at exit 0.
+
+**C6-139 (the prefix, stated once).** The prefix of a set of cells is
+the longest opening every one of them shares, cut back by four rules:
+(1) it holds no figure; (2) a figure or a letter of every cell stands
+after it, so no cell is ever published whole, not even as its prefix
+beside the marks its layout names; (3) where it ends in a letter and some
+cell goes on with another letter, it is cut back to its last character
+that is not a letter, so `REC` beside `REX` publishes nothing and
+`ST-A123` beside `ST-B456` publishes `ST-`; (4) it is made only of ASCII
+letters, the fifteen marks of C6-127 and single spaces neither opening it
+nor standing beside another, and holds at least one letter — an opening
+holding anything else publishes nothing, and one of marks alone is
+already in the layout. A HEXADECIMAL column (C6-128) publishes none,
+because a letter there is a figure of base sixteen. `parsing.literal_prefix`
+is the one statement of this rule.
+
+**C6-140 (the two scopes, and the disclosure rule).** The block carries
+`layout_prefixes`, REQUIRED on `identifier` and FORBIDDEN on the other
+fourteen roles (6.11), written `{}` where nothing is published — and
+`{}` wherever `layout_forms` names no layout, because the twin writes a
+prefix as part of a named layout and the band walk's own shapes cannot
+carry it without spellings colliding: measured on 120 `S` and five
+figures one of which held a stray byte, whose census C6-131b emptied, a
+published `(column)` prefix left 43 twin cells not opening with `S` and
+the twin failed at exit 3. Where the
+column's present cells have a prefix, it is published under the key
+`(column)` and nothing else is written. Otherwise, each NAMED layout of
+`layout_forms` whose own cells have a prefix publishes it under that
+layout's key. The second scope is THIS VERSION'S READING of the ruling,
+which names the whole column, and is flagged to the owner: a column of
+`REC` and seven figures beside `E` and six publishes
+`{"@%%%%%%": "E", "@@@%%%%%%%": "REC"}`. EVERY ENTRY ASKS THE DISCLOSURE
+RULE of `parsing.census_nameable`: the present cells opening with the
+prefix reach the line, and the present cells that do not are nought or
+reach it too, so no entry says that one row of the table is written
+otherwise. Under `(column)` the second half is nought by construction and
+the first is that the column clears the line.
+
+**C6-141 (invariants).** **LP1.** `(column)` stands alone; every other
+key is a layout `layout_forms` names; a census naming no layout, and a
+hexadecimal census, carry no prefix. **LP2.** Each prefix's own layout — every letter marked by its
+case, every other character as itself — opens every layout it is
+published for (every named layout under `(column)`), and a figure or a
+letter mark stands after it in each. That a `(column)` prefix stands
+on a column whose present cells reach the line needs no invariant of its
+own: LP1 puts it beside a named layout, and LF1 puts that layout's
+cells at the line. A value that is not a
+prefix by rule (4) and C6-139's figure rule is a refusal (R16), and no
+refusal quotes it.
+
+**C6-142 (the binding generation rule).** A prefixed layout is written
+as its TEMPLATE: the layout with its opening marks replaced by the
+prefix, `@@@%%%%%%%` under `REC` being `REC%%%%%%%`. Every fill of G9.6
+reads a layout character by character, fills a placeholder from the step
+and leaves every other character standing, so a template is filled as a
+layout is — the prefix standing where every real cell holds it — and a
+cell is counted into the template only where it recounts into the layout
+AND holds the prefix. The mixes of the pooled cells are made over
+templates, and a mix whose layout is a named one is stepped over. A cell
+of the band walk that owes a prefix — every cell under `(column)`, a cell
+of a prefixed layout otherwise — has its opening overwritten with it
+wherever the result is unwritten, keeps its class and band, is no hole
+and no date, and wears no named layout the walk's cell did not; a
+fold-collision partner not opening with a prefix it owes is taken only
+where no member of its family keeps it. Method G9.6a states the
+construction.
+
+**The disposition is EXACT-OBSERVABLE:** a person opens the twin and
+finds every cell a prefix governs opening with it — every present cell
+under `(column)`, every cell wearing the layout otherwise — and the
+validator recounts exactly that. **What it does not reach, measured and
+stated.** Pooled cells written by the band walk still wear that walk's
+own shapes: 790 `P` and five figures beside ten `P` and six at a floor
+of eleven wrote all 800 twin cells opening with `P`, and `^P\d{5,6}$`
+matched 790 twin cells against 800 real ones. And a column whose partner
+is pinned to a length only a case flip reaches — 750 record numbers and
+fifty of them again with a trailing space — writes one flipped prefix,
+which the twin's report and the validator both name.
 
 ---
 
@@ -9642,8 +9799,8 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B1 | every `label` is a folded identity: it equals its own trimmed, case-folded form, so a published label may never have appeared byte for byte in the table; what the table held is in `variants` | yes |
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
-| B4 | `len(suppressed_level_counts) == suppressed_levels`, `sum(...) == suppressed_rows`, and the array is sorted ascending — non-decreasing: two held-back labels may cover the same size | yes |
-| B5 | every `entry.count` is at least the floor; every element of `suppressed_level_counts` is at least 1 and below the floor | yes |
+| B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201; a pool of one row is not refused (repair pass of the same day) | yes |
+| B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |
 | B8 | `levels == []` is valid — every label fell below the floor — and then `n_distinct_folded == suppressed_levels`, `n_present == suppressed_rows` | yes |
@@ -9898,6 +10055,8 @@ stated in full at section 7.9.
 | LF4 | where the sum of all counts is at least one, it is not exactly one less than `n_present` (C6-131b) |
 | LF5 | where a named layout lies inside the code alphabet, the named layouts inside it do not count exactly one cell fewer than `n_code_alphabet`; and on a census with no hexadecimal mark, where a named layout is figures alone, those do not count exactly one cell fewer than `n_all_digits` (C6-131b) |
 | LF6 | every key is written under one convention: no `~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!` |
+| LP1 | `layout_prefixes` holds `(column)` alone, or only keys `layout_forms` names; a census naming no layout, or carrying a hexadecimal mark, carries no prefix (C6-141, owner ruling of 2026-09-17) |
+| LP2 | each prefix's own layout opens every layout it is published for, and a figure or a letter mark stands after it in each |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
 C6-31d is a refusal and not an invariant: the loader checks the key
@@ -9976,6 +10135,7 @@ document, never the table it describes.
 | XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these, beyond P6c's disclosure rule at a width both name (plan P4-D148) |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | SC-P | where a count column writes one number more than one way, every cell read as a number is written in figures alone, every spelling clears the line of 7.13 and the spellings are within the ceiling, `number_spellings` names every spelling with its count, and it is `{}` otherwise | SC1 to SC3 check a census that is published; none can see a census that should have been and was not |
+| LP-P | a `layout_prefixes` entry is written exactly where C6-139 finds a prefix over the cells of its scope and C6-140's disclosure rule admits it, `(column)` first | LP1 and LP2 check an entry that is written; none can see the source cells, so none can tell a prefix that should have been published from one that was not, nor whether the published text is the one the cells hold |
 | LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required; nor can any of LF1 to LF6 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
@@ -10285,17 +10445,17 @@ rather than on the reasoning above it.
 | `levels` (normalized `label` and `count`) | EXACT-OBSERVABLE |
 | `variants`, `variants_withheld` | EXACT-OBSERVABLE |
 | `shape_form_cells` (all four label roles) | EXACT-OBSERVABLE, per published level: a person reads the shape off each cell carrying one published label and gets the number back. It is a fact of its own beside `shape_forms` below and NOT a part of it — 7.4.8 states the three reasons no sum holds (residual R-P4-80) |
-| `suppressed_levels`, `suppressed_level_counts`, `suppressed_rows` | EXACT-OBSERVABLE |
+| `suppressed_levels`, `suppressed_rows` (the pooled total; no size of any one held-back label is published since the owner's ruling of 2026-09-17, plan P4-D201) | EXACT-OBSERVABLE |
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
 | `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, then by the made-up spellings of each published label, whose forms are fixed by that level's own `shape_form_cells` (7.4.8), and then by the STAND-INS. The description used to say nothing about which held-back spelling of a label wore that label's form, so the census could fall short of the published count OR run past it; amendment A-P4-47 publishes the fact and closes residual R-P4-34. What can still fall short is the STAND-IN half, where a form's supply is spent or every spelling of it is refused, and the report names it |
 
 The first five rows bind `long_tail_labels` exactly as they bind the
-other three label roles: it publishes the five shared label keys under
+other three label roles: it publishes the four shared label keys under
 the shared label invariants, its twin is written by the label
 construction — published variants byte-for-byte at their counts,
-made-up labels at the exact suppressed sizes, fold collisions
+made-up labels at the sizes read off the pooled total, fold collisions
 reproduced — and it carries no `level_ceiling`, so the sixth row
 reaches it with nothing to dispose. **What is no longer neutral is the
 made-up label's SPELLING**, and the seventh row is where that is
@@ -10431,6 +10591,7 @@ not modeled, exactly as a two-humped numeric column's valley is not.
 | `min_length`, `max_length`, `n_all_digits`, `n_code_alphabet` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length |
 | `all_whole_numbers` | EXACT-OBSERVABLE in every case, since owner decision 6 keeps the length. A published length range in which a value that must stand outside the figures can be no whole number at all — one character cannot be both — is a document whose own facts cannot all hold, and generation is refused before any cell is built (G12, `generation-whole-numbers-need-room`). No producer-written profile carries that pair |
 | `n_distinct`, `n_distinct_folded`, `n_distinct_by_occurrences` | EXACT-OBSERVABLE outside owner decision 6's infeasible corner; all THREE REPORT-ONLY inside it, with the report naming the achieved value beside the published one |
+| `layout_prefixes` | EXACT-OBSERVABLE: every cell a published prefix governs — every present cell under `(column)`, every cell wearing the layout otherwise — opens with it (7.12a, owner ruling of 2026-09-17, item 1). Owed inside owner decision 6's infeasible corner as well as outside it, for the reason `layout_forms` is |
 | `layout_forms` | EXACT-OBSERVABLE against the recount identity 7.12 states, on the same terms the form census stands on: a recounted layout numbers at least its published count and at most that count plus the pooled remainder. It is owed INSIDE owner decision 6's infeasible corner as well as outside it, because that corner lowers three DISTINCTNESS facts and says nothing about what a cell LOOKS like — a twin whose record numbers repeat still writes every one of them to a published layout |
 
 Two shapes a real table produces used to cost `all_whole_numbers`, and
@@ -11008,7 +11169,7 @@ to produce a stated number of distinct invented values — raw
 `n_distinct` and `n_distinct_folded` on the invention roles (section
 9.7), the fold-collision obligation, the invented spellings that
 `variants_withheld` calls for (section 7.4), and the invented labels
-that `suppressed_level_counts` calls for. Every one is finite only if
+that `suppressed_levels` calls for. Every one is finite only if
 the alphabet the generator invents from is large enough. The alphabet
 is finite, so for each there exists a description whose published
 counts exceed the domain's capacity.
@@ -11089,10 +11250,10 @@ this document, and the battery the plan requires turns red on it.
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
 | `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; on a nothing-publishing column confined to members of the published vocabulary (C6-126), which are synthtwin's own words and no table's |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
-| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover (`suppressed_levels`, `suppressed_rows`) and the ascending sizes of those levels (`suppressed_level_counts`); and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the three held-back facts publish SIZES and COUNTS of unnamed groups, floor-free; the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the three held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
+| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover together (`suppressed_levels`, `suppressed_rows`) and, since the owner's ruling of 2026-09-17 (plan P4-D201), no size of any one of them; and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the two held-back facts publish the COUNT and the POOLED ROWS of unnamed groups, floor-free, a pool of one row included, which `n_present` less the published counts reads anyway (B4; a limit put to the owner, plan P4-D201); the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the two held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
 | ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs — the two ENDPOINTS are exact values of real cells on every role, and so are the nine interior rungs of a DATE ladder and of a CLOCK ladder; a NUMERIC ladder's nine interior rungs are INTERPOLATED between the order statistics either side and are usually numbers no cell holds (corrected 2026-09-04, measured on columns of 17 to 250 drawn values); moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`), the two values each run of those bins really lies between (`empty_edges`) and the offset map; `resolution_mix`; the separator census `datetime_separators` and the flag `all_at_midnight`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the style, fraction-width, padded-width, whole-number-width, offset and separator maps floor-governed with a `(withheld)` pool; `all_at_midnight` `true` only where the parsed cells reach the floor; `empty_bins` and `empty_edges` under NO floor at all — the first being the one published fact of this format that names only where nobody is (row 20), the second naming two values a stretch lies between and no group at all (row 21); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
-| nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, and on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`) | no value, no spelling, no fragment of one — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
+| nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
 | `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 57 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
@@ -11228,7 +11389,9 @@ a marked row.
     and no count of the table — the treatment the two other declaration
     lists have.
 11. **The sizes of BELOW-FLOOR FOLDED identities on a long-tail
-    column**, via `suppressed_level_counts`. **NEW, and narrower than
+    column**, via the array `suppressed_level_counts`, WITHDRAWN by the
+    owner's ruling of 2026-09-17 (item 2, option A; plan P4-D201), which
+    publishes only their pooled total. The row as it stood: **NEW, and narrower than
     the key looks; stated at the plan's own width (P4-D5).** Row 1
     covers spellings at or above the floor and is easy to read as the
     whole of the long-tail disclosure; it is not. A free-text column
@@ -11372,8 +11535,7 @@ a marked row.
       entry is floor-governed and this argument is written exactly, so
       a below-floor group's SIZE can be named here where the map pooled
       it. It is a size of an unnamed group, never a spelling, which is
-      the treatment `n_distinct_by_occurrences` and
-      `suppressed_level_counts` already have;
+      the treatment `n_distinct_by_occurrences` already has;
     - argument 8, present cells a clock reading accepted under the form
       that came closest;
     - argument 9, present cells covered by the column's floor-clearing
@@ -11509,6 +11671,20 @@ a marked row.
     forty seeds each: the furthest such cell fell from 15.7–23.0 units
     from a real value to 1.3. The owner was shown that measurement and
     ruled "follow you recommendation" on 2026-09-04.
+
+22. **The literal prefix of a declared record number. NEW, by the
+    owner's ruling of 2026-09-17, item 1** (7.12a, plan P4-D202). TEXT
+    OF THE TABLE on a nothing-class block: the opening every present
+    cell of a declared identifier shares — `REC`, `P`, `ABC-` — or, as
+    this version reads the ruling and puts to the owner, the opening
+    every cell of one named layout shares. It is a fragment of every
+    value it governs and of no one value: it holds no figure, a figure
+    or letter of every value stands after it, it stops before a run of
+    letters goes on, and it is published only where the cells opening
+    with it reach the floor and the present cells that do not are none
+    or reach it too (C6-140). What it costs is the literal itself — a
+    local numbering scheme's letters, a site's own code — on the page
+    wherever a whole declared column, or a whole layout of one, wears it.
 
 ### 12.4 The files, and the handling rule
 

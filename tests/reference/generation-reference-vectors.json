@@ -866,6 +866,7 @@
         "all_whole_numbers": false,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "layout_forms": {},
+        "layout_prefixes": {},
         "max_length": 4,
         "min_length": 2,
         "missing_by_class": {
@@ -960,6 +961,7 @@
         "all_whole_numbers": true,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "layout_forms": {},
+        "layout_prefixes": {},
         "max_length": 5,
         "min_length": 3,
         "missing_by_class": {
@@ -1152,10 +1154,6 @@
         },
         "statistical_type": "categorical",
         "structural_role": "data",
-        "suppressed_level_counts": [
-          3,
-          7
-        ],
         "suppressed_levels": 2,
         "suppressed_rows": 10
       },
@@ -1211,7 +1209,7 @@
       ],
       "csv_bytes": "AAA-A\nNorth\nsouth\nsouth\n7-11\nPUB-Q\n7-11 \nnorth\n\"\"\n\"\"\n7-11  \nsouth\nSOuth\nSouth\n7-11  \nNorth\nNorth\nsouth\n7-11\nPUB-Q\nnOrth\n7-11 \nNorth\nsoUth\nPUB-Q\nPUB-Q\nNorth\nsOuth\n7-11\nAAA-A\n7-11\n7-11  \nNorth\nAAA-A\nPUB-Q\nsoUth\nPUB-Q\nNorth\nNorth\nNorth\n7-11 \nNorth\nPUB-Q\nsouth\nNorth\nsoUth\n7-11  \nsoUth\nsoUth\n7-11 \n",
       "float64": [],
-      "why": "the variant allocation of G8.1, including the label's own spelling offered to the largest held-back group of every level its spellings already cover; the case flips of G8.2 with a candidate skipped because a published variant already spells it; the trailing-space family a parent with no letters falls straight through to; and the neutral stand-in labels of G8.3 at their published sizes, this column publishing no census of written forms. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "why": "the variant allocation of G8.1, including the label's own spelling offered to the largest held-back group of every level its spellings already cover; the case flips of G8.2 with a candidate skipped because a published variant already spells it; the trailing-space family a parent with no letters falls straight through to; and the neutral stand-in labels of G8.3 at the sizes read off their pooled total (plan P4-D201), this column publishing no census of written forms. A label column consumes no content word, so every byte here is fixed by published counts.",
       "word_budget": {
         "content": 0,
         "placement": 49
