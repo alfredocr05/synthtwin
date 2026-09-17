@@ -659,11 +659,11 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     folder = pathlib.Path(tempfile.mkdtemp())
     values = [f"2.{10 + index}" for index in range(1, 11)]
     values = values + [f"{3 + index // 10}.{index % 10}" for index in range(50)]
-    # ...AND ONE CELL AT THREE PLACES (plan P4-D221; stage 2 closed by the
-    # owner rulings of 2026-09-17). Ten cells at two places alone are a
-    # pool below the disclosure line, which takes in the named width and
-    # leaves no width a snap is read against; ten at two and one at three
-    # are a pool of eleven beside the named fifty.
+    # ...AND ONE CELL AT THREE PLACES (plan P4-D221). Plan P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17) would count it, with the
+    # ten at two places, into the commonest width of one -- a width the
+    # published minimum of 2.11 cannot be written at -- so the census is
+    # one pool instead, and no snap is read against a width at all.
     values = values + ["2.125"]
     table = fixtures.write(
         folder, "v.csv", fixtures.single_column_table("v", values)
@@ -678,7 +678,7 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
         [],
     )
     column = document["columns"][0]
-    assert column["fraction_widths"] == {"1": 50, "(withheld)": 11}
+    assert column["fraction_widths"] == {"(withheld)": 61}
     assert column["percentiles"]["min"] == 2.11
     described = contract.load_profile(
         f"{fixtures.write_profile(folder, 'v.json', document)}"

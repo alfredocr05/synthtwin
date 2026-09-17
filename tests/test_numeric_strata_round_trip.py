@@ -419,7 +419,11 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
     now takes in the named `decimal` count, which leaves no named count to
     read a grid from; ten lower-case and one upper-case exponent are two
     forms each held by fewer than eleven cells, a pool of eleven that
-    stands beside the named 490.
+    stands beside the named 490. SINCE PLAN P4-D222 the eleven are
+    counted into the decimals and no pool is left to prove anything; the
+    width census is one pool instead, because the published minimum,
+    `-0.01`, needs two figures after the point and no width it names holds
+    them, so no grid is read either way.
     """
     draw = random.Random(17)
     cells = (
@@ -435,8 +439,8 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
             check_real=False,
             seed=seed,
         )
-        assert first["fraction_widths"] == {"1": 490}, first["fraction_widths"]
-        assert first["numeric_styles"]["(withheld)"] == 11, first["numeric_styles"]
+        assert first["fraction_widths"] == {"(withheld)": 501}, first["fraction_widths"]
+        assert first["numeric_styles"] == {"decimal": 501}, first["numeric_styles"]
         held = {float(cell) for cell in written}
         assert len(held) >= 30, (seed, len(held), first["n_distinct_values"])
     (tmp_path / "grid").mkdir()

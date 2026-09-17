@@ -536,14 +536,16 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     assert _own_description(folder, respelled, "pooled-odd") == (
         _own_description(folder, twin, "pooled-same")
     )
+    # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17) the verdict is SETTLED rather than withheld, and is the
+    # same for both files, which is what V5.1 asks: the twin wrote eleven
+    # plain cells and one decimal, and its own description counts the one
+    # decimal into `plain`, so the file that description describes holds
+    # no decimal cell to be over a ceiling.
     bad = _measure(folder, described, respelled, "pooled-odd.csv")
-    assert _verdicts(bad, "styles.canonical.decimal") == [
-        validation.WITHHELD
-    ]
-    for check in bad.checks:
-        if check.subcheck != "styles.canonical.decimal":
-            continue
-        assert check.citation == validation._GATE_POOLED
+    same = _measure(folder, described, twin, "pooled-same.csv")
+    assert _verdicts(bad, "styles.canonical.decimal") == [validation.HELD]
+    assert _verdicts(same, "styles.canonical.decimal") == [validation.HELD]
     # ...and the same description still has a file this subcheck misses
     # on: twelve cells in the form reach the publication floor, so the
     # file's own description names it and the ceiling is settled.
@@ -645,11 +647,11 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
     all, so there is nothing for a search to be run over.
 
     TEN PLAIN CELLS AND ONE PADDED, where there were two and one (plan
-    P4-D221; stage 2 closed by the owner rulings of 2026-09-17). A pool of
-    three is below the disclosure line, which now takes in the named
-    decimals and leaves no split to search; ten and one are a pool of
-    eleven that stands beside them, and every candidate walks a pool of
-    eleven or more, the only pools the loader reads beside a named form.
+    P4-D221; stage 2 closed by the owner rulings of 2026-09-17). SINCE PLAN
+    P4-D222 the eleven are counted into the decimals: the file's own
+    description names no split and no pool, and every candidate that
+    pools a share beside the named decimals is refused at the door by P6,
+    so there is no candidate left to search over at all.
     """
     folder = tmp_path / "search"
     folder.mkdir()
@@ -660,36 +662,19 @@ def test_no_candidate_description_can_pin_a_pooled_style_count(
     described, _ = _described(folder, text, None, "search")
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
-    assert facts.numeric_styles == {
-        taxonomy.SUPPRESSED_LABEL: 11,
-        parsing.STYLE_DECIMAL: 37,
-    }
-    settled: list[str] = []
+    assert facts.numeric_styles == {parsing.STYLE_DECIMAL: 48}
     for decimal in range(33, 38):
-        candidate = _with_styles(
-            folder,
-            _described(folder, text, None, "search")[1],
-            f"cand-{decimal}",
-            {
-                taxonomy.SUPPRESSED_LABEL: 48 - decimal,
-                parsing.STYLE_DECIMAL: decimal,
-            },
-        )
-        outcome = _measure(folder, candidate, text, f"cand-{decimal}.csv")
-        for check in outcome.checks:
-            pooled = check.subcheck in ("styles.spill", "styles.remainder")
-            if pooled and check.verdict != validation.WITHHELD:
-                settled = settled + [
-                    (
-                        f"decimal={decimal}: {check.subcheck} "
-                        f"{check.verdict}"
-                    )
-                ]
-    assert not settled, (
-        "a candidate description settled a subcheck whose count the "
-        "file's own description pools, so one report states a count "
-        f"that description withholds (V5.1): {settled}"
-    )
+        with pytest.raises(errors.ProfileError) as refused:
+            _with_styles(
+                folder,
+                _described(folder, text, None, "search")[1],
+                f"cand-{decimal}",
+                {
+                    taxonomy.SUPPRESSED_LABEL: 48 - decimal,
+                    parsing.STYLE_DECIMAL: decimal,
+                },
+            )
+        assert "it is called P6 " in f"{refused.value}", f"{refused.value}"
 
 
 def _with_styles(

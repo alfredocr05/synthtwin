@@ -1219,17 +1219,18 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # (2026-09-16), for the cause recorded beside the profile golden:
 # diffed both ways, the description moved against each side only in the
 # other side's keys.
-# RE-RECORDED 2026-09-17 for plan P4-D221 (stage 2 closed by the owner
-# rulings of 2026-09-17), and NO CELL OF THE TWIN MOVED. ONE value of the
-# description moved: `reading`'s `field_widths`, which published
+# RE-RECORDED 2026-09-17 for plan P4-D222 (stage 2 closed by the owner
+# rulings of 2026-09-17), which replaces plan P4-D221's recording, and NO
+# CELL OF THE TWIN MOVED. ONE value of the description moved against
+# 039df54: `reading`'s `field_widths`, which published
 # `{"2": 57, "3": 165, "(withheld)": 5}` and now publishes
-# `{"3": 165, "(withheld)": 62}` -- a pool of five below the disclosure
-# line takes in the smallest named width. MEASURED against a tree of
-# 039df54 at this seed: `diff` of the two descriptions shows those lines
-# alone, and the twin, report and quality digests below are the same on
-# both trees.
+# `{"2": 57, "3": 170}` -- the five cells at widths too rare to name are
+# counted into the commonest width. MEASURED against a tree of 039df54 at
+# this seed: `diff` of the two descriptions shows those lines alone, and
+# the twin and quality digests below are the same on both trees; the
+# report's digest moved, see there.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "27c433140b9180ffbf4bd28d372cf55bc605acdb7813e379ff9a081bf3c5dce2"
+    "0c1b4ebdb2764f72bc11ce8b90758dfb309534606ac9effb8c6cc28279b591ff"
 )
 
 
@@ -1903,7 +1904,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # the column's own spelling. Diffed line by line: that paragraph alone.
 GOLDEN_REPORT_SHA256 = (
     # Re-recorded for plan P4-D183: `reading`'s three moments, as held.
-    "4d257e6e1db854ae68b5a24802234c3b30fdbadc89930241fca1fcfd0b51c270"
+    # Re-recorded for plan P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17), MEASURED against 039df54 at this seed: `diff` shows one
+    # paragraph added and nothing else, the deviation `'reading' --
+    # field_widths`, 170 cells at three figures described and 165 held.
+    # The five cells counted into that width hold values one and two
+    # figures long, which the twin writes at their own widths as it did;
+    # its own description counts them into three figures again, so the
+    # quality report below did not move.
+    "05dff91d5d0f994ebcc04317a82f4e1c4408ef7b3a9bc8b71dd56854160a9527"
 )
 
 

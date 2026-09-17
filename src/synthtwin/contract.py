@@ -1346,7 +1346,7 @@ INVARIANTS = {
     "D3": (
         "a time offset is named only when at least the smallest group "
         "size of rows carried it, and never by fewer than two, and offsets "
-        "held back beside a named one are as many"
+        "are held back only all together"
     ),
     "D4": (
         "the offset of the first or last value is never one the "
@@ -1380,7 +1380,8 @@ INVARIANTS = {
     "D12": (
         "a mark between a moment's day and its clock is named only when at "
         "least the smallest group size of values wrote it, and never by "
-        "fewer than two, and marks are held back only all together"
+        "fewer than two, and marks are held back only all together and "
+        "only where holding them back does not say every mark was written"
     ),
     "D13": (
         "the marks between day and clock are counted over exactly the "
@@ -1641,15 +1642,16 @@ INVARIANTS = {
         "that way"
     ),
     "P6": (
-        "the cells held back from the forms map fit inside the forms "
-        "that map does not name, and beside a named form they are at "
-        "least the smallest group size and never fewer than two"
+        "the cells of a column's numbers are held back from the forms map "
+        "only all together, and only where holding them back does not say "
+        "every form was written"
     ),
     "P5": (
         "the cells counted by the figures they wrote after the point "
         "come to the cells that were written with a point, and a width "
         "is named, or cells held back, only where at least the smallest "
-        "group size and never fewer than two wrote them"
+        "group size and never fewer than two wrote them, and cells are "
+        "held back only all together"
     ),
     "P5b": (
         "the cells counted by the width of the field they wrote come "
@@ -1661,7 +1663,8 @@ INVARIANTS = {
     ),
     "P6b": (
         "every field width the census names, and the cells it holds back, "
-        "number at least the smallest group size and never fewer than two"
+        "number at least the smallest group size and never fewer than two, "
+        "and cells are held back only all together"
     ),
     "P7b": (
         "a field width narrower than two figures is a width no padded "
@@ -1677,9 +1680,9 @@ INVARIANTS = {
     "P6c": (
         "every whole-number field width the census names, and the cells "
         "it holds back, number at least the smallest group size and never "
-        "fewer than two, and at a width the padded census names too, the "
-        "cells written without a redundant zero are either nothing or at "
-        "least two"
+        "fewer than two, cells are held back only all together, and at a "
+        "width the padded census names too, the cells written without a "
+        "redundant zero are either nothing or at least two"
     ),
     "P7c": (
         "a field width of no figures at all is a width no cell written "
@@ -1688,9 +1691,7 @@ INVARIANTS = {
     "P9c": (
         "the cells counted by the width of the field they wrote come "
         "to the cells written in a form that carries no point, give or "
-        "take the cells the forms map held back, and what they count of "
-        "those held back, and what that leaves of them, is either "
-        "nothing or at least two"
+        "take the cells the forms map held back"
     ),
     # The census of written forms. Registered here because a rule this
     # module RAISES and this table does not hold reaches a person as a
@@ -7373,7 +7374,7 @@ def _datetime_facts(
                 f"a published count names at least "
                 f"{parsing.census_floor(floor)} of them",
             )
-    _pool_names_no_row(offsets, "D3", where, floor, "values' offsets")
+    _pool_stands_alone(offsets, "D3", where, "values' offsets")
     total = _added(offsets)
     if total != n_present - unparsed:
         raise _broken(
@@ -7860,36 +7861,60 @@ def _written_census(
     return census
 
 
-def _pool_names_no_row(
-    census: "dict[str, int]", rule: str, where: str, floor: int, what: str
+def _pool_stands_alone(
+    census: "dict[str, int]", rule: str, where: str, what: str
 ) -> None:
-    """D3 and D12: a pool beside named counts is a group (plan P4-D220).
+    """D3, P6, P5, P5b and P6c: no pool beside a named count (plan P4-D222).
 
-    `parsing.census_nameable` over every count printed, the pool among
-    them, and the total the census covers. A pool that is the whole
-    census prints no count of its own -- its one count is the total the
-    block already publishes -- and is the state a census reaches where
-    it cannot speak, so it is not asked. Asked here and not written a
-    second time: D2 and D13 hold the total, so what the printed counts
-    leave of it is nought, and this is the line on each of them.
+    The older spelling censuses count a name below `parsing.census_floor`
+    into the commonest named count (`parsing.absorbed_census`), so a pool
+    stands only where the census names nothing, and its one count is the
+    total the block already publishes. A pool beside a named count is a
+    count a reader subtracts, and on the branch this repairs a pool at
+    the line beside named forms gave back exact counts of one: 7, +8, 09,
+    1.5e3 and 2.5E3 among 995 prices at a floor of one published
+    `{"decimal": 995, "(withheld)": 5}`, five forms of one cell each.
 
     Guarantees: accepts a loaded census, the invariant's name, where it
-    stands, the floor and the words for what the pool holds; returns
-    nothing. Raises ProfileError for the named invariant. No I/O.
+    stands and the words for what the pool holds; returns nothing. Raises
+    ProfileError for the named invariant. No I/O of any kind.
     """
     if WITHHELD not in census or len(census) == 1:
         return
-    printed: "list[int]" = []
-    for name in sorted(census):
-        printed += [census[name]]
-    total = _added(census)
-    if not parsing.census_nameable(printed, [total], floor):
+    raise _broken(
+        rule,
+        where,
+        f"{census[WITHHELD]} {what} are held back beside a named count",
+        "a census holds its counts back only all together",
+    )
+
+
+def _census_may_speak(
+    census: "dict[str, int]",
+    rule: str,
+    where: str,
+    floor: int,
+    names: int,
+    what: str,
+) -> None:
+    """D12 and P6: a closed census pools only where a pool names no one (P4-D222).
+
+    `parsing.census_pools`, the one statement: on a closed vocabulary a
+    pool over more cells than all but one name can hold below the line
+    would say every name was written, so the producer never writes one.
+
+    Raises ProfileError for the named invariant. No I/O of any kind.
+    """
+    if WITHHELD not in census or len(census) != 1:
+        return
+    total = census[WITHHELD]
+    if not parsing.census_pools(total, floor, names):
         raise _broken(
             rule,
             where,
-            f"{census[WITHHELD]} {what} are held back beside a named count",
-            f"a published count names at least "
-            f"{parsing.census_floor(floor)} of them",
+            f"all {total} {what} are held back",
+            f"over {total} of them a census names its commonest one "
+            f"(the line is {parsing.census_floor(floor)})",
         )
 
 
@@ -7949,6 +7974,14 @@ def _separator_census(
                 f"the mark '{key}'",
                 "a census of marks names every mark or holds all of them back",
             )
+    _census_may_speak(
+        census,
+        "D12",
+        where,
+        floor,
+        parsing.separator_names(parser_family),
+        "values' marks",
+    )
     total = _added(census)
     if resolution != "datetime":
         if total != 0:
@@ -8778,6 +8811,21 @@ def _numeric_facts(
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
     fields = _field_widths(mapping, where, frame.floor, styles)
+    if WITHHELD in styles and fields:
+        # P8 FOR THE WHOLE-NUMBER FIELD WIDTHS TOO (plan P4-D222): a forms
+        # map that names nothing names no point-free form either.
+        raise _broken(
+            "P8",
+            where,
+            f"{_added(fields)} cells are counted by the width of the field "
+            f"they wrote",
+            "a form held back from the forms map has no widths published",
+        )
+    # P6's band, asked once both width censuses are read, so a width census
+    # speaking for a pooled map is refused as P8 whatever its size.
+    _census_may_speak(
+        styles, "P6", where, frame.floor, len(NUMERIC_STYLES), "numbers' forms"
+    )
     _widths_leave_no_one(where, frame.floor, styles, padded, fields)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     hollow = _empty_bins(mapping, where, used, ladder, histogram)
@@ -9283,54 +9331,17 @@ def _numeric_styles(
             f"the cells counted by the form they were written in come to {total}",
             f"{n_numeric} of the column's values read as a number",
         )
-    # P6. THE POOL CANNOT HOLD MORE THAN THE FORMS IN IT. There are
-    # exactly six ways to write a number, and a form this map names is
-    # not in the pool. Nothing checked it once, and the gap was not
-    # small: a column of two hundred and forty numbers naming `plain`
-    # and `decimal` could publish a pool of sixty, which four forms
-    # holding at most ten each cannot make. `generate` then told its
-    # reader the TWIN had missed a fact, when what had happened is that
-    # the description was altered after synthtwin wrote it.
-    #
-    # AND THE POOL NAMES NO ROW (plan P4-D221; stage 2 closed by the
-    # owner rulings of 2026-09-17). The forms map asks
-    # `parsing.census_nameable` through `parsing.pooled_census`: a form
-    # is named at `parsing.census_floor` or above, a pool beside a named
-    # form reaches that line too, and a pool below it takes in the
-    # smallest named form -- one form, since a named form reaches the
-    # line alone. So the pool holds forms each below the line, or those
-    # together with one form no larger than the smallest the map still
-    # names and fewer than the line of others. A pool that is the whole
-    # map restates the numeric count and is not asked.
-    named = 0
-    smallest = 0
-    for name in sorted(styles):
-        if name != WITHHELD:
-            named = named + 1
-            if not smallest or styles[name] < smallest:
-                smallest = styles[name]
-    pooled = styles[WITHHELD] if WITHHELD in styles else 0
-    least = _census_floor(floor)
-    if pooled and named:
-        if pooled < least:
-            raise _broken(
-                "P6",
-                where,
-                f"{pooled} cells are held back from the forms map beside "
-                f"a named form",
-                f"a published count names at least {least} of them",
-            )
-        room = (len(NUMERIC_STYLES) - named) * (least - 1)
-        if smallest + least - 1 > room:
-            room = smallest + least - 1
-        if pooled > room:
-            raise _broken(
-                "P6",
-                where,
-                f"{pooled} cells are held back from the forms map",
-                f"the {len(NUMERIC_STYLES) - named} form(s) it does not "
-                f"name can hold at most {room} cells together",
-            )
+    # P6. A POOL STANDS ALONE, AND ONLY WHERE THE MAP CANNOT SPEAK (plans
+    # P4-D221 and P4-D222; stage 2 closed by the owner rulings of
+    # 2026-09-17). The forms map asks `parsing.census_nameable` through
+    # `parsing.absorbed_census`: a form fewer cells than
+    # `parsing.census_floor` wrote is counted into the commonest named
+    # form, so a pool beside a named form is a description no producer
+    # writes, and a reader subtracts it -- five forms of one cell each
+    # read off a pool of five at a floor of one. The capacity bound this
+    # replaces, the forms the map does not name times one less than the
+    # floor, bounded exactly that pool.
+    _pool_stands_alone(styles, "P6", where, "cells' forms")
     return styles
 
 
@@ -9890,16 +9901,10 @@ def _field_widths(
                 f"a published count names at least {_census_floor(floor)} "
                 f"of them",
             )
-    if WITHHELD in widths and widths[WITHHELD] < _census_floor(floor):
-        # A POOL OF WIDTHS NAMES NO ROW (plan P4-D221).
-        raise _broken(
-            "P6c",
-            where,
-            f"{widths[WITHHELD]} cells are held back from the census of "
-            f"whole-number field widths",
-            f"a published count names at least {_census_floor(floor)} of "
-            f"them",
-        )
+    # A POOL OF WIDTHS STANDS ALONE (plan P4-D222).
+    _pool_stands_alone(
+        widths, "P6c", where, "cells' whole-number field widths"
+    )
     total = _added(widths)
     named = 0
     for style in POINT_FREE_STYLES:
@@ -9923,20 +9928,6 @@ def _field_widths(
             f"{named} cells were written in a named form that carries no "
             f"point, and {pooled} cells in all were held back from the "
             f"forms map",
-        )
-    # 3. AND WHAT IT COUNTS OF THE POOL NAMES NO ROW (plan P4-D221): the
-    #    held-back cells written whole, and what they leave of the pool,
-    #    are each nought or a group by `parsing.census_nameable`.
-    if total > named and not parsing.census_nameable(
-        [total - named], [pooled], floor
-    ):
-        raise _broken(
-            "P9c",
-            where,
-            f"{total - named} of the {pooled} cells held back from the forms "
-            f"map are counted by the width of the field they wrote",
-            f"that count, and what it leaves of them, is nought or at least "
-            f"{_census_floor(floor)}",
         )
     # AND THERE IS NO SEPARATE CEILING AGAINST `n_numeric`, which is
     # stated here rather than left as a gap. P1 makes the styles map
@@ -10033,18 +10024,9 @@ def _width_census(
                 f"of them",
             )
     total = _added(widths)
-    if WITHHELD in widths and widths[WITHHELD] < _census_floor(floor):
-        # A POOL OF WIDTHS NAMES NO ROW (plan P4-D221). A pool below the
-        # line takes in the smallest named width, and the census counts
-        # a named form's cells, at least the line of them.
-        raise _broken(
-            floor_rule,
-            where,
-            f"{widths[WITHHELD]} cells are held back from the census of "
-            f"cells {wrote}",
-            f"a published count names at least {_census_floor(floor)} of "
-            f"them",
-        )
+    # A POOL OF WIDTHS STANDS ALONE (plan P4-D222): a width below the line
+    # is counted into the commonest width.
+    _pool_stands_alone(widths, floor_rule, where, f"cells {wrote}")
     extra = styles[also] if also and also in styles else 0
     pool = styles[WITHHELD] if WITHHELD in styles else 0
     if style in styles:
@@ -10101,9 +10083,9 @@ def _pool_holds_both(
     counted the pooled cells of its own form, fewer than the floor, and
     this rule asked whether what the two censuses left over could be
     shared out among the forms left to hold it. Every such count names
-    rows: the form is held back because its cells are fewer than
-    `parsing.census_floor`, or it is the one named form a pool below the
-    line took in, and then the census's total leaves that pool behind.
+    rows: since plan P4-D222 a map holds cells back only all together,
+    where no form reaches `parsing.census_floor`, so a width census there
+    says how many of those cells wore a point or a pad.
     1,200 prices with one padded cell at a floor of eleven published
     `pad_widths {"(withheld)": 1}`. So where the forms map holds cells
     back, neither census speaks for a form it does not name, and the

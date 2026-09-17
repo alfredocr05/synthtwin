@@ -1,4 +1,4 @@
-"""The two older pooled censuses name no row (plan P4-D220).
+"""The two older censuses of a column of dates name no row (plans P4-D220, P4-D222).
 
 `utc_offsets` and `datetime_separators` were the last censuses of a
 column of dates that did not ask the one disclosure rule,
@@ -9,13 +9,23 @@ the default floor of one and `{"upper_t": 399, "(withheld)": 1}` at a
 floor of eleven, and both loaded. Stage 2 closed by the owner rulings of
 2026-09-17 with this carried to the landing that repairs it.
 
+THE FIRST REPAIR (P4-D220) pooled what it could not name, and a pool below
+the line took the commonest named count in with it, so ONE odd cell pooled
+the whole census and the twin lost the column's own spelling: one `T` among
+space-separated moments came back as `T` on nearly every row, and one `Z`
+among `+01:00` and `+02:00` came back as half the column with no offset.
+THE SECOND (P4-D222) counts a name below the line into the commonest named
+count, as ruling 4 of 2026-09-17 counts missing-value words below a raised
+floor as absent: the description is that of the table with its rare
+spellings written the commonest way, the table passes it, and the twin
+writes the column as its writer did.
+
 THE GATE, held literally: a 400-row column with one `lower_t` cell,
 described at floors one and eleven, built, described again, and both the
 twin and the real table validated at exit 0 -- and the description names
 nothing about that cell. "Names nothing" is measured, not read: the same
 table with that one cell written with a SPACE instead gives a
-byte-identical description, so no reader of the description can tell
-which mark the row wore. The offsets are held to the same gate with one
+byte-identical description. The offsets are held to the same gate with one
 row at `+01:00` among 399 at `Z`.
 
 Every table is built by seeded neutral code at runtime (plan D13).
@@ -35,22 +45,22 @@ ROWS = 400
 LONE = 137
 
 
-def _moments(mark: str = "T", suffix: str = "") -> "list[str]":
-    """Four hundred moments seven hours apart, at no midnight, one mark each."""
+def _moments(mark: str = "T", suffix: str = "", rows: int = ROWS) -> "list[str]":
+    """Moments seven hours apart, at no midnight, one mark each."""
     start = datetime.datetime(2024, 1, 1, 12, 5)
     return [
         (start + datetime.timedelta(hours=7 * place)).strftime(
             f"%Y-%m-%d{mark}%H:%M:%S"
         )
         + suffix
-        for place in range(ROWS)
+        for place in range(rows)
     ]
 
 
-def _respelled(cells: "list[str]", mark: str) -> "list[str]":
-    """The same cells with the one at `LONE` written with another mark."""
+def _respelled(cells: "list[str]", mark: str, place: int = LONE) -> "list[str]":
+    """The same cells with the one at ``place`` written with another mark."""
     made = list(cells)
-    made[LONE] = made[LONE][:10] + mark + made[LONE][11:]
+    made[place] = made[place][:10] + mark + made[place][11:]
     return made
 
 
@@ -81,12 +91,11 @@ def test_one_lower_case_t_among_four_hundred_is_named_nowhere(
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "lone-t", cells, ("--smallest-group", f"{floor}"), True
     )
-    assert first["datetime_separators"] == {"(withheld)": ROWS}
+    assert first["datetime_separators"] == {"upper_t": ROWS}
     assert second["datetime_separators"] == first["datetime_separators"]
     assert (twin_exit, real_exit) == (0, 0)
-    # The twin still meets a space and a `t`, one value each.
     marks = [cell[10] for cell in written]
-    assert (marks.count("t"), marks.count(" "), marks.count("T")) == (1, 1, ROWS - 2)
+    assert marks.count("T") == ROWS
     # NAMES NOTHING, measured: the row written with a space instead of a
     # `t` gives the same description, byte for byte.
     as_t = _description_bytes(tmp_path / "as-t", cells, floor)
@@ -98,50 +107,163 @@ def test_one_lower_case_t_among_four_hundred_is_named_nowhere(
 
 
 @pytest.mark.parametrize("floor", [1, 11])
+def test_one_t_among_space_separated_moments_leaves_the_twin_its_spaces(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """The final skeptic's second BLOCKER: one odd mark flipped the whole column.
+
+    Measured on the first repair: 5,000 moments written with a space, one
+    of them with `T`, published one pool and the twin wrote `T` on 4,998
+    rows, so code parsing the twin's `%Y-%m-%dT%H:%M:%S` failed on every
+    real row but one. Here 2,000 moments carry the same shape.
+    """
+    cells = _respelled(_moments(" ", rows=2000), "T", 11)
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "spaces", cells, ("--smallest-group", f"{floor}"), True
+    )
+    assert first["datetime_separators"] == {"space": 2000}
+    assert (twin_exit, real_exit) == (0, 0)
+    assert [cell[10] for cell in written].count(" ") == 2000
+
+
+@pytest.mark.parametrize("floor", [1, 11])
 def test_one_offset_among_four_hundred_is_named_nowhere(
     tmp_path: pathlib.Path, floor: int
 ) -> None:
     """THE GATE for the offsets: nothing published names the one `+01:00`.
 
-    A pool beside `Z` below the line took `Z` in with it, so the map is
-    one pool; the twin writes those values with no offset, as the report
-    says, and both files meet the description.
+    The row is read as written at `Z`, the commonest offset, so the column
+    is published on its local clock with both ends at `Z`, exactly as the
+    same column with that row written at `-05:00` is.
     """
     cells = _moments(suffix="Z")
     cells[LONE] = cells[LONE][:-1] + "+01:00"
-    first, _second, _written, twin_exit, real_exit = _round_trip(
+    first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "lone-offset", cells, ("--smallest-group", f"{floor}"), True
     )
-    assert first["utc_offsets"] == {"(withheld)": ROWS}
-    assert first["zulu_case"] == {}
+    assert first["utc_offsets"] == {"Z": ROWS}
+    assert first["datetimes_read_at"] == "local"
+    assert first["zulu_case"] == {"upper": ROWS}
     assert (twin_exit, real_exit) == (0, 0)
-    text = json.dumps(first)
-    assert "+01:00" not in text
-    assert '"Z"' not in text
+    assert [cell[-1] for cell in written].count("Z") == ROWS
+    as_written = _description_bytes(tmp_path / "plus-one", cells, floor)
+    otherwise = list(cells)
+    otherwise[LONE] = otherwise[LONE][:-6] + "-05:00"
+    assert as_written == _description_bytes(tmp_path / "minus-five", otherwise, floor)
+    assert "+01:00" not in as_written
 
 
-def test_offsets_below_the_line_beside_a_named_one_take_the_smallest_in() -> None:
-    """The open vocabulary folds; the closed one pools whole (the producer's rule)."""
+@pytest.mark.parametrize("floor", [1, 11])
+def test_one_z_among_two_offsets_keeps_every_twin_value_zoned(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """The final skeptic's third BLOCKER: a folded pool was written with no offset.
+
+    Measured on the first repair: 495 values at `+01:00`, 504 at `+02:00`
+    and one at `Z` published `{"+02:00": 504, "(withheld)": 496}`, and the
+    twin wrote 496 values with no offset at all.
+    """
+    cells = _moments(suffix="+01:00", rows=1000)
+    for place in range(0, 1000, 2):
+        cells[place] = cells[place][:-6] + "+02:00"
+    cells[3] = cells[3][:-6] + "Z"
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "two-offsets", cells, ("--smallest-group", f"{floor}"), True
+    )
+    assert first["utc_offsets"] == {"+01:00": 499, "+02:00": 501}
+    assert (twin_exit, real_exit) == (0, 0)
+    zoned = [cell for cell in written if cell[-6:] in ("+01:00", "+02:00")]
+    assert len(zoned) == 1000
+
+
+def test_two_single_rows_below_the_line_are_counted_into_the_commonest_offset(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The final skeptic's sixth finding: two offsets of one row beside named ones.
+
+    At a floor of one, `-05:00` and `Z` each carried by one row are counted
+    into `+01:00`; `+02:00`, carried by 95, keeps its own count.
+    """
+    assert parsing.absorbed_census(
+        {"+01:00": 300, "+02:00": 95, "-05:00": 1, "Z": 1}, 397, 1, 0
+    ) == {"+01:00": 302, "+02:00": 95}
+    cells = _moments(suffix="+01:00", rows=397)
+    for place in range(0, 95 * 4, 4):
+        cells[place] = cells[place][:-6] + "+02:00"
+    cells[1] = cells[1][:-6] + "-05:00"
+    cells[2] = cells[2][:-6] + "Z"
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "two-singles", cells, ("--smallest-group", "1"), True
+    )
+    assert first["utc_offsets"] == {"+01:00": 302, "+02:00": 95}
+    assert (twin_exit, real_exit) == (0, 0)
+
+
+def test_the_producer_rule_counts_rare_names_into_the_commonest() -> None:
+    """`parsing.absorbed_census` and `parsing.census_pools`, read off directly."""
     offsets = {"+01:00": 300, "+02:00": 95, "+05:30": 5}
-    assert parsing.pooled_census(offsets, 400, 11, False) == {
-        "(withheld)": 100,
-        "+01:00": 300,
+    assert parsing.absorbed_census(offsets, 400, 11, 0) == {
+        "+01:00": 305,
+        "+02:00": 95,
     }
-    assert parsing.pooled_census(offsets, 400, 1, False) == offsets
-    # A pool that already reaches the line keeps every named offset.
-    assert parsing.pooled_census(
-        {"Z": 380, "+01:00": 7, "+02:00": 6, "-05:00": 7}, 400, 11, False
-    ) == {"(withheld)": 20, "Z": 380}
-    # The marks: one below the line pools every mark, at any floor.
+    assert parsing.absorbed_census(offsets, 400, 1, 0) == offsets
     marks = {"upper_t": 870, "space": 22, "lower_t": 8}
-    assert parsing.pooled_census(marks, 900, 20, True) == {"(withheld)": 900}
-    assert parsing.pooled_census(marks, 900, 1, True) == marks
-    assert parsing.pooled_census({"upper_t": 399, "lower_t": 1}, 400, 1, True) == {
-        "(withheld)": 400
+    assert parsing.absorbed_census(marks, 900, 20, 3, "upper_t") == {
+        "space": 22,
+        "upper_t": 878,
     }
-    # And a column too short to name anything pools its whole total.
-    assert parsing.pooled_census({"upper_t": 1}, 1, 1, True) == {"(withheld)": 1}
-    assert parsing.pooled_census({}, 0, 1, True) == {}
+    assert parsing.absorbed_census(marks, 900, 1, 3, "upper_t") == marks
+    # No name at the line: a pool, where a pool says no name was written...
+    assert parsing.absorbed_census(
+        {"space": 6, "lower_t": 6}, 12, 11, 3, "upper_t"
+    ) == {"(withheld)": 12}
+    # ...and the default name over the band where a pool would say every
+    # mark was written: eight of each of three marks at a floor of eleven.
+    assert not parsing.census_pools(24, 11, 3)
+    assert parsing.absorbed_census(
+        {"space": 8, "lower_t": 8, "upper_t": 8}, 24, 11, 3, "upper_t"
+    ) == {"upper_t": 24}
+    assert parsing.census_pools(24, 11, 0)
+    assert parsing.absorbed_census({"upper_t": 1}, 1, 1, 3, "upper_t") == {
+        "(withheld)": 1
+    }
+    assert parsing.absorbed_census({}, 0, 1, 3, "upper_t") == {}
+
+
+def test_a_short_column_whose_offsets_pool_says_no_clock_and_no_end(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Beside a pool of offsets the clock and the ends say nothing either.
+
+    Eight values at `+01:00` at a floor of eleven, and the same eight with
+    one at `Z`: both pool the offsets, and the local clock and the named
+    ends used to tell the one column from the other.
+    """
+    cells = _moments(suffix="+01:00", rows=8)
+    one = json.loads(_description_bytes(tmp_path / "one", cells, 11))
+    other = list(cells)
+    other[5] = other[5][:-6] + "Z"
+    two = json.loads(_description_bytes(tmp_path / "other", other, 11))
+    for key in (
+        "utc_offsets", "datetimes_read_at", "earliest_utc_offset", "latest_utc_offset"
+    ):
+        assert one["columns"][0][key] == two["columns"][0][key], key
+    column = one["columns"][0]
+    assert column["utc_offsets"] == {"(withheld)": 8}
+    assert column["datetimes_read_at"] == "utc"
+    assert column["earliest_utc_offset"] == "(withheld)"
+    # ...AND A NAIVE END IS HELD BACK TOO: eight values with no offset,
+    # one of them written at `Z`, publish the same ends as eight with none.
+    naive = _moments(rows=8)
+    zoned = list(naive)
+    zoned[3] = zoned[3] + "Z"
+    ends = [
+        json.loads(_description_bytes(tmp_path / name, cells, 11))["columns"][0]
+        for name, cells in (("naive", naive), ("zoned", zoned))
+    ]
+    for column in ends:
+        assert column["earliest_utc_offset"] == "(withheld)", column
+        assert column["latest_utc_offset"] == "(withheld)", column
 
 
 def _loaded_with(
@@ -163,11 +285,7 @@ def _refused_by(tmp_path: pathlib.Path, floor: int, rule: str, **fields: object)
 
 
 def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Path) -> None:
-    """D3 and D12 at a floor of one, where only the raise to two can refuse.
-
-    At a floor of eleven the settings floor refuses a count of one first,
-    so a battery written there cannot show the line of two working.
-    """
+    """D3 and D12 at a floor of one, where only the raise to two can refuse."""
     _refused_by(
         tmp_path / "mark", 1, "D12",
         datetime_separators={"lower_t": 1, "upper_t": 399},
@@ -182,29 +300,34 @@ def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Pa
     )
 
 
-def test_a_pool_beside_a_named_count_is_held_by_the_loader(tmp_path: pathlib.Path) -> None:
-    """The pool of offsets reaches the line; the pool of marks stands alone."""
+def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """D3 and D12: no pool beside a named count, and no pool of every mark."""
     _refused_by(
-        tmp_path / "offset-pool", 1, "D3",
-        utc_offsets={"(withheld)": 1, "Z": 399},
+        tmp_path / "offset-pool", 11, "D3",
+        utc_offsets={"(withheld)": 30, "Z": 370},
         datetimes_read_at="utc",
+        zulu_case={},
     )
     _refused_by(
         tmp_path / "mark-pool", 11, "D12",
         datetime_separators={"(withheld)": 30, "upper_t": 370},
     )
-    # ...and at a floor of one a pool standing alone, or a pool of two
-    # beside a named offset, is the rule working (S13 as amended).
-    loaded = _loaded_with(
-        tmp_path / "alone", 1,
+    # A pool of all 400 marks at a floor of one would say each of the three
+    # was written: the producer names the commonest mark there.
+    _refused_by(
+        tmp_path / "every-mark", 1, "D12",
         datetime_separators={"(withheld)": ROWS},
     )
-    assert loaded.columns[0].name == "value"
+    # ...and a pool of offsets standing alone loads (S13 as amended).
     loaded = _loaded_with(
-        tmp_path / "beside", 1,
-        utc_offsets={"(withheld)": 2, "Z": 398},
+        tmp_path / "alone", 1,
+        utc_offsets={"(withheld)": ROWS},
+        earliest_utc_offset="(withheld)",
+        latest_utc_offset="(withheld)",
         datetimes_read_at="utc",
-        zulu_case={"upper": 398},
+        zulu_case={},
     )
     assert loaded.columns[0].name == "value"
 
@@ -251,6 +374,5 @@ def test_the_publication_guard_lets_a_pool_stand_at_a_floor_of_one(
     document = _built_at(tmp_path, 1)
     columns = document["columns"]
     assert isinstance(columns, list)
-    columns[0]["datetime_separators"] = {"(withheld)": ROWS}
-    columns[0]["utc_offsets"] = {"(withheld)": 2, "Z": 398}
+    columns[0]["utc_offsets"] = {"(withheld)": ROWS}
     profile.check_publication(document)

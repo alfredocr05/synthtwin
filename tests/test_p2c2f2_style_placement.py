@@ -246,20 +246,21 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     whose cells must read back as numbers with no point-free spelling
     at all. That miss is the twin's to name, and it names it.
     """
-    values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+    values = ["0.5"] * 3 + ["7"] * 10 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
-    # One pool of forty-six since plan P4-D221 (stage 2 closed by the owner
-    # rulings of 2026-09-17): a pool of six below the disclosure line
-    # takes in the named forty.
-    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
+    # SIXTEEN CELLS, ONE POOL, where there were forty-six (plan P4-D222;
+    # stage 2 closed by the owner rulings of 2026-09-17): beside forty
+    # `plain` cells the six are counted into `plain`, so the pool this
+    # exercises stands only where no form reaches the line.
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 16}
 
     twin = generation.generate(loaded, 0)
     written = _styles(twin)
-    assert written == {"plain": 44, "decimal": 2}
+    assert written == {"plain": 14, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert named == [], [note.published for note in named]
 
-    document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    document["columns"][0]["numeric_styles"] = {"leading_plus": 16}
     # The census of widths moves with the forms map, because P5 ties the
     # two together: a map that names no `decimal` cells is a map whose
     # census names no width, and a hand-edited document that kept the
@@ -272,12 +273,12 @@ def test_a_style_with_nowhere_to_go_is_still_named(
     # naming forty-six `leading_plus` cells is a map whose field census
     # counts forty-six. The source's own census counted the forty
     # `plain` cells, all one figure wide.
-    document["columns"][0]["field_widths"] = {"1": 46}
+    document["columns"][0]["field_widths"] = {"1": 16}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)
     written = _styles(twin)
-    assert written.get("leading_plus", 0) == 44
+    assert written.get("leading_plus", 0) == 14
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert named, "a named count with nowhere to go must be spoken"
     assert any("leading_plus" in note.published for note in named), [

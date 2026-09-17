@@ -678,16 +678,14 @@ def test_a_withheld_style_share_widens_both_windows_alike(
     did not -- so every window of such a column was half a unit apart.
     """
     draw = random.Random(11)
-    cells = [f"{draw.gauss(80, 16):.1f}" for _ in range(300)]
-    cells += [str(draw.randint(60, 100)) for _ in range(6)]
-    # ...AND FIVE WHOLE NUMBERS WRITTEN WITH AN EXPONENT (plan P4-D221;
-    # stage 2 closed by the owner rulings of 2026-09-17). Six plain cells
-    # alone are a pool below the disclosure line, which takes in the named
-    # tenths and leaves a map of one pool of 306 whose placement moves
-    # strata past the cap -- the exception G5.6 names, where the two
-    # windows are drawn apart on purpose. Six plain and five exponent
-    # cells are a pool of eleven over two forms, beside the named tenths.
-    cells += [f"{draw.randint(60, 100)}e0" for _ in range(5)]
+    # TEN TENTHS, TEN WHOLE NUMBERS AND TEN EXPONENT CELLS (plans P4-D221
+    # and P4-D222; stage 2 closed by the owner rulings of 2026-09-17). Three
+    # hundred tenths beside them now count the rare forms into the tenths,
+    # and a withheld share stands only where no form reaches the line:
+    # thirty cells at a floor of eleven are one pool of every form.
+    cells = [f"{draw.gauss(80, 16):.1f}" for _ in range(10)]
+    cells += [str(draw.randint(60, 100)) for _ in range(10)]
+    cells += [f"{draw.randint(60, 100)}e0" for _ in range(10)]
     column = _describe(tmp_path, "withheld_style", cells, floor=11)
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
@@ -711,7 +709,9 @@ def test_a_withheld_style_share_widens_both_windows_alike(
             last = check.subcheck.split(".")[-1]
             assert made[last] == (found.group(1), found.group(2)), check.subcheck
             seen += 1
-    assert seen >= 10, seen
+    # EIGHT on the pooled column of thirty, where the column of 311 showed
+    # ten or more (plan P4-D222): a short column interpolates fewer rungs.
+    assert seen >= 8, seen
 
 
 # -- the written grid and the nearest giver (landing 2b.1, repair) ----------
@@ -824,8 +824,10 @@ def test_the_generator_and_the_oracle_read_one_written_grid(
     # do not cover the column, and neither writing may read a grid. Read
     # off the pooled share instead, both would read the grid of tenths,
     # which `-0.01` is not a point of.
-    # ...and one `-1E-2`, so the pool is eleven over two forms beside the
-    # named 490 (plan P4-D221): ten alone take the named count in.
+    # ...and one `-1E-2` (plan P4-D221). SINCE PLAN P4-D222 (stage 2 closed
+    # by the owner rulings of 2026-09-17) the eleven are counted into the
+    # decimals, and the width census is one pool: its minimum, -0.01, needs
+    # two figures after the point, which no width it names holds.
     pooled = (
         [f"{draw.gauss(37, 0.5):.1f}" for _ in range(490)]
         + ["-1e-2"] * 10
@@ -834,8 +836,8 @@ def test_the_generator_and_the_oracle_read_one_written_grid(
     column = _describe(tmp_path, "withheld_pool", pooled, floor=11)
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
-    assert dict(facts.numeric_styles).get("(withheld)") == 11, dict(facts.numeric_styles)
-    assert dict(facts.fraction_widths) == {"1": 490}, dict(facts.fraction_widths)
+    assert dict(facts.numeric_styles) == {"decimal": 501}, dict(facts.numeric_styles)
+    assert dict(facts.fraction_widths) == {"(withheld)": 501}, dict(facts.fraction_widths)
     mine = generation._written_grid(column, facts)
     theirs = oracle.written_grid(
         dict(facts.fraction_widths),

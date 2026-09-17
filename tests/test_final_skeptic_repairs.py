@@ -558,15 +558,15 @@ def test_a_pad_census_one_short_repeats_a_count_the_styles_already_print(
     would be asked again.
 
     THAT DAY IS PLAN P4-D221 (stage 2 closed by the owner rulings of
-    2026-09-17). A pool of one takes in the named `leading_zero` count, the
-    forms map is one pool of 800, a form the map holds back has no widths
-    published, and no count the column prints leaves one cell over.
+    2026-09-17), which pooled the whole map; since plan P4-D222 the one
+    cell is counted into `leading_zero` at the commonest padded width, and
+    no count the column prints leaves one cell over.
     """
     cells = [f"0{1000 + index}" for index in range(799)] + ["12345"]
     document, _loaded = _described(tmp_path, _beside(cells), floor)
     column = document["columns"][0]
-    assert column["numeric_styles"] == {"(withheld)": 800}
-    assert column["pad_widths"] == {}
+    assert column["numeric_styles"] == {"leading_zero": 800}
+    assert column["pad_widths"] == {"5": 800}
     for census in ("numeric_styles", "pad_widths", "field_widths"):
         printed = sum(column[census].values())
         assert printed in (0, column["n_numeric"]), (census, column[census])

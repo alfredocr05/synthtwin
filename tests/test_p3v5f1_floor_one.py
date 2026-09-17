@@ -331,14 +331,24 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # description the loader takes. What holds that pool is D3, asked
     # beside it in `tests/test_older_censuses_name_no_row.py`.
     #
-    # AND THE FORMS MAP AND THE WIDTH CENSUSES SINCE PLAN P4-D221, on the
-    # same terms: their pools may stand at a floor of one too, and what
-    # holds them is P6, P9c and the census floors, asked beside them in
-    # `tests/test_number_censuses_name_no_row.py`.
+    # AND THE WIDTH CENSUSES SINCE PLAN P4-D221, on the same terms: their
+    # pools may stand at a floor of one too. Since plan P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17) a floor of eleven counts
+    # rare forms, widths and offsets into the commonest rather than
+    # pooling them: `reading`'s field widths are a map the loader reads at
+    # either floor, and the forms map of `amount` left this list, because
+    # its floor-eleven count of decimals no longer meets the floor-one
+    # fraction census and is refused.
+    #
+    # AND `stamped_at`'s LADDER, which is statistics and not a census: its
+    # rows at a rare offset are read at the commonest offset where the
+    # census counts them into it, so the instants the ladder is read off
+    # move with the floor. A ladder carries no count a floor holds back,
+    # and no invariant ties it to the floor.
     assert silent == [
         ("columns", 3, "field_widths"),
         ("columns", 3, "sentinel_verdicts"),
-        ("columns", 4, "numeric_styles"),
+        ("columns", 5, "date_percentiles"),
         ("columns", 5, "utc_offsets"),
     ], (
         f"a position the floor moves has stopped being recorded by the "

@@ -649,7 +649,11 @@ def test_the_width_censuses_leave_no_one_to_subtract(
             assert run["twin_exit"] == 0, run["twin_missed"]
         assert run["real_exit"] == 0, run["real_missed"]
         if label == "with":
-            assert "5" not in block["field_widths"], block  # type: ignore[operator]
+            # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+            # 2026-09-17) the one unpadded five-figure cell is counted into
+            # the commonest unpadded width, so no whole-number width of five
+            # is left over the padded count.
+            assert block["field_widths"] == {"2": 51, "5": 800}, block
             assert block["pad_widths"] == {"5": 800}, block
 
 
@@ -690,24 +694,24 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
         for turn in range(3):
             rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
     run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
-    # ONE POOL, AND NO WIDTH FOR IT (plan P4-D221; stage 2 closed by the
-    # owner rulings of 2026-09-17). The eight padded cells were a pool
-    # below the disclosure line beside sixteen named plus-signed ones, so
-    # the pool takes those in, and a form the forms map holds back has no
-    # widths published: `pad_widths {"(withheld)": 8}` was that pool's
-    # count of padded cells.
-    assert run["first"]["numeric_styles"] == {"(withheld)": 24}
+    # THE EIGHT PADDED CELLS ARE COUNTED INTO THE PLUS-SIGNED FORM (plan
+    # P4-D222; stage 2 closed by the owner rulings of 2026-09-17), where
+    # plan P4-D221 pooled the whole map with them. Counting the sixteen
+    # plus-signed padded cells as padded would leave eight plus-signed
+    # cells unpadded by subtraction, so the padded census counts none and
+    # the twin misses no width.
+    assert run["first"]["numeric_styles"] == {"leading_plus": 24}
     assert run["first"]["pad_widths"] == {}
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
-    # ...AND THE LOADER REFUSES THE CENSUS THE PRODUCER NO LONGER WRITES,
-    # by the rule that now holds a held-back form's widths (P8).
+    # ...AND THE LOADER REFUSES THE CENSUS THAT WOULD LEAVE EIGHT BY
+    # SUBTRACTION (P5b).
     document = json.loads(run["described"].read_text(encoding="utf-8"))
-    document["columns"][0]["pad_widths"] = {"4": 24}
+    document["columns"][0]["pad_widths"] = {"4": 16}
     edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     with pytest.raises(errors.ProfileError) as stopped:
         contract.load_profile(str(edited))
-    assert "P8" in str(stopped.value), str(stopped.value)
+    assert "P5b" in str(stopped.value), str(stopped.value)
 
 
 def _mean(values: "list[float]") -> float:

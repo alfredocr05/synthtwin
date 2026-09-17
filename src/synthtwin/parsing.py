@@ -4763,90 +4763,146 @@ def disclosed_census(
     return named
 
 
-def pooled_census(
-    counts: "dict[str, int]", population: int, floor: int, closed: bool
-) -> "dict[str, int]":
-    """A tally of offsets or marks, cut to what the disclosure rule allows.
+def census_pools(population: int, floor: int, names: int) -> bool:
+    """Whether a census none of whose names reaches the line may be one pool.
 
-    THE TWO OLDER POOLED CENSUSES, `utc_offsets` and
-    `datetime_separators`, ask the ONE disclosure rule, `census_nameable`,
-    with its line `census_floor` (plan P4-D220; stage 2 closed by the
-    owner rulings of 2026-09-17). Until then each named a count where it
-    reached the settings floor and pooled the rest under `(withheld)`,
-    so at the default floor of one a column of 400 moments with one
-    `t` published `{"lower_t": 1, "upper_t": 399}`, and at a floor of
-    eleven `{"upper_t": 399, "(withheld)": 1}`: both name the row.
+    THE ONE STATEMENT, read by the producer through `absorbed_census`, by
+    the loader (contract D12 and P6) and by the checker, of where the
+    older spelling censuses hold their whole count back (plan P4-D222;
+    stage 2 closed by the owner rulings of 2026-09-17).
 
-    `population` is the total the block already publishes for the cells
-    counted -- `n_present - n_unparsed` for the offsets, the cells that
-    write a clock for the marks -- and the census always covers it
-    exactly (contract D2 and D13), so what the printed counts leave of
-    it is nought. Every count printed, the pool among them, reaches the
-    line. Where that cannot be said, THE WHOLE CENSUS IS ONE POOL: its
-    one count is the population the block already prints, so it adds no
-    count of its own and no reader can take a mark or an offset out of
-    it.
+    A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On an
+    open vocabulary -- the offsets and the widths, ``names`` nought -- that
+    names nobody. On a CLOSED one -- three marks between day and clock,
+    one on a slashed stamp, six forms of a number -- a pool over more
+    cells than ``names - 1`` names can hold below the line tells a reader
+    that EVERY name was written by at least one cell: the state nought
+    reaches is told apart from the state a below-floor count reaches.
+    Measured on the branch this repairs: 7, +8, 09, 1.5e3 and 2.5E3 among
+    995 prices at a floor of one published a pool of five beside the
+    decimals, each form exactly one cell. So a closed census over more
+    than ``(names - 1) * (line - 1)`` cells is never a pool: above
+    ``names * (line - 1)`` some name reaches the line, and in the band
+    between, where none may, `absorbed_census` writes the vocabulary's
+    default name for the whole population instead. A population below the
+    line is always a pool, whatever the vocabulary.
 
-    A POOL BESIDE A NAMED COUNT, AND HOW IT IS KEPT FROM NAMING A ZERO.
-    Counts below the line are pooled. On the OPEN vocabulary of offsets
-    a pool below the line takes in the smallest named count, the first
-    in sorted order on a tie, and then the next, until it reaches the
-    line or nothing is named: a pool of offsets says which offsets the
-    column did not wear by name, and there are too many of them for a
-    reader to learn which one a pooled row wore. On the CLOSED
-    vocabulary of marks -- three, or a space alone on a slashed stamp --
-    no pool may stand beside a named mark. Beside one named mark it
-    covers at most two others, and a pool below the line is a count
-    too small to print while a pool of the line or more over two marks
-    each held by fewer rows than the line tells a reader that NEITHER
-    mark is nought: the state nought reaches is told apart from the
-    state a below-floor count reaches. A pool of marks is therefore
-    always the whole census.
-
-    Guarantees: accepts the full tally (no `(withheld)` key), the
-    published total it covers, the run's smallest group size and whether
-    the vocabulary is closed; returns a census whose counts add up to
-    the population, keys in sorted order, for which `census_nameable`
-    over that population holds or whose one key is `(withheld)`.
-    Determinism: a function of the four. Raises nothing. No I/O of any
-    kind.
+    Guarantees: accepts the population, the settings floor and the size
+    of the closed vocabulary (nought for an open one); returns a bool.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
     """
     line = census_floor(floor)
-    named: "dict[str, int]" = {}
-    pool = population
-    for name in sorted(counts):
-        if name != MISSING_WITHHELD and counts[name] >= line:
-            named[name] = counts[name]
-            pool = pool - counts[name]
-    if pool > 0 and closed:
-        named = {}
-        pool = population
-    while 0 < pool < line and named:
-        smallest = ""
-        for name in sorted(named):
-            if not smallest or named[name] < named[smallest]:
-                smallest = name
-        pool = pool + named[smallest]
-        kept: "dict[str, int]" = {}
-        for name in sorted(named):
-            if name != smallest:
-                kept[name] = named[name]
-        named = kept
-    printed: "list[int]" = []
-    for name in sorted(named):
-        printed += [named[name]]
-    if pool > 0:
-        printed += [pool]
+    if population < line or names < 1:
+        return True
+    return population <= (names - 1) * (line - 1)
+
+
+def absorbed_census(
+    counts: "dict[str, int]",
+    population: int,
+    floor: int,
+    names: int,
+    default: str = "",
+) -> "dict[str, int]":
+    """A tally of marks, offsets, forms or widths, as the disclosure rule allows.
+
+    THE OLDER SPELLING CENSUSES -- `utc_offsets`, `datetime_separators`,
+    `numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths`
+    -- ask the ONE disclosure rule, `census_nameable` with its line
+    `census_floor` (plans P4-D220, P4-D221 and P4-D222; stage 2 closed by
+    the owner rulings of 2026-09-17). Until P4-D220 each named a count
+    where it reached the settings floor and pooled the rest under
+    `(withheld)`, so at the default floor of one 400 moments with one `t`
+    published `{"lower_t": 1, "upper_t": 399}` and at a floor of eleven
+    `{"upper_t": 399, "(withheld)": 1}`: both name the row.
+
+    A COUNT BELOW THE LINE IS COUNTED INTO THE COMMONEST NAMED COUNT
+    (plan P4-D222), as ruling 4 of 2026-09-17 counts missing-value words
+    below a raised floor as absent: the description is the description
+    of the table with its rare spellings written the way most of its
+    cells were, so the table passes its own description and its twin
+    writes the column's own spelling. The pool this replaces (P4-D220,
+    P4-D221) could not stand beside a named count without naming the
+    rows it held, so a pool below the line took in the commonest named
+    count as well -- and one `T` among 5,000 space-separated moments, one
+    `Z` among offsets, or one `120` among 999 prices pooled the whole
+    census, and the twin wrote `T` on 4,998 rows, no offset on half the
+    column and prices at fifteen places. Nothing is pooled beside a named
+    count now, so no printed count and no count left by subtraction from
+    the population is below the line, and a name below the line is never
+    told apart from a name no cell wrote.
+
+    WHERE NO NAME REACHES THE LINE the census is one pool of the
+    population the block already prints -- except on a closed vocabulary
+    where `census_pools` refuses the pool, and there the whole population
+    is counted under ``default``, the name the caller gives for the
+    vocabulary, whether or not a cell wrote it.
+
+    Ties for the commonest count go to the first name in sorted order,
+    and the name that took the rest in is always the largest printed
+    count: nothing else can grow.
+
+    Guarantees: accepts the full tally (no `(withheld)` key), the
+    published total it covers, the settings floor, the size of the
+    closed vocabulary (nought for an open one) and its default name;
+    returns `{}` for no population, a single `(withheld)` pool or a
+    single default name where no count reaches the line, and otherwise
+    the names at the line or above, keys in sorted order, summing to the
+    population. Determinism: a function of the five. Raises nothing. No
+    I/O of any kind.
+    """
     if population <= 0:
         return {}
-    if not named or not census_nameable(printed, [population], floor):
+    line = census_floor(floor)
+    named: "dict[str, int]" = {}
+    commonest = ""
+    total = 0
+    for name in sorted(counts):
+        if name == MISSING_WITHHELD or counts[name] < line:
+            continue
+        named[name] = counts[name]
+        total = total + counts[name]
+        if not commonest or counts[name] > named[commonest]:
+            commonest = name
+    if not commonest:
+        if default and not census_pools(population, floor, names):
+            return {default: population}
         return {MISSING_WITHHELD: population}
-    census: "dict[str, int]" = {}
-    for name in sorted(named):
-        census[name] = named[name]
-    if pool > 0:
-        census[MISSING_WITHHELD] = pool
-    return {name: census[name] for name in sorted(census)}
+    named[commonest] = named[commonest] + population - total
+    return named
+
+
+def absorbed_room(census: "dict[str, int]", floor: int) -> "tuple[str, int]":
+    """Which name of a published census took rare counts in, and how many at most.
+
+    `absorbed_census` read from the other side (plan P4-D222), for the open
+    vocabularies -- the offsets and the widths -- so that the producer reads
+    a value at the offset its rare one was counted into, and the checker
+    bounds the cells a width census counts at a width it does not name,
+    without a second statement of the rule. The name is the largest count,
+    the first in sorted order on a tie. What it took in is at most its
+    count less the line -- it was named before it took anything -- and
+    less the next largest count, which it was no smaller than.
+
+    Guarantees: accepts a published census and the settings floor; returns
+    `("", 0)` for an empty census or a pool, and otherwise the name and a
+    whole number of at least nought. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    commonest = ""
+    for name in sorted(census):
+        if name == MISSING_WITHHELD:
+            return "", 0
+        if not commonest or census[name] > census[commonest]:
+            commonest = name
+    if not commonest:
+        return "", 0
+    room = census[commonest] - line
+    for name in sorted(census):
+        if name != commonest:
+            room = min(room, census[commonest] - census[name])
+    return commonest, max(room, 0)
 
 
 # How finely a datetime column states its time of day.
@@ -5276,6 +5332,19 @@ SEPARATOR_MARKS = {
     SEPARATOR_SPACE: " ",
     SEPARATOR_UPPER_T: "T",
 }
+
+
+def separator_names(format_name: str) -> int:
+    """How many marks between day and clock a reading can write (P4-D222).
+
+    Three, and one -- a space -- on the slashed stamps, whose clock stands
+    after one space. The size of the closed vocabulary
+    `census_pools` reads for the census of marks; the loader asks it
+    with the same answer. Raises nothing. No I/O of any kind.
+    """
+    if format_name in SLASHED_STAMPS:
+        return 1
+    return len(DATETIME_SEPARATORS)
 
 
 def datetime_separator(text: str, format_name: str) -> "str | None":

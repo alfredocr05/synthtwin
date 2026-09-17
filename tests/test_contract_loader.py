@@ -921,11 +921,12 @@ def battery() -> list[Mutation]:
             "D3", "an offset carried by too few rows to name",
             edit("recorded_on", utc_offsets={"(none)": 239, "+02:00": 1}),
         ),
-        # ...AND A POOL BESIDE A NAMED OFFSET IS A GROUP TOO (plan
-        # P4-D220): three values held back beside 237 with no offset is the
-        # count of the rows that wore some other one.
+        # ...AND NO POOL STANDS BESIDE A NAMED OFFSET (plans P4-D220 and
+        # P4-D222): three values held back beside 237 with no offset is the
+        # count of the rows that wore some other one, and the producer
+        # counts such rows into the commonest offset instead.
         Mutation(
-            "D3", "a withheld pool of offsets too small to be a group",
+            "D3", "a withheld pool of offsets beside a named one",
             edit(
                 "recorded_on",
                 utc_offsets={"(none)": 237, "(withheld)": 3},
@@ -1011,6 +1012,14 @@ def battery() -> list[Mutation]:
         Mutation(
             "D12", "a withheld pool beside a named mark",
             edit("logged_at", datetime_separators={"upper_t": 229, "(withheld)": 11}),
+        ),
+        # A POOL OF EVERY MARK OVER MORE VALUES THAN TWO MARKS HOLD BELOW THE
+        # LINE (plan P4-D222): it says each of the three was written, so the
+        # producer names the commonest mark there, `{"(withheld)": 240}`
+        # included.
+        Mutation(
+            "D12", "a pool of every mark that says each mark was written",
+            edit("logged_at", datetime_separators={"(withheld)": 240}),
         ),
         Mutation(
             "D13", "marks counted on a column that writes no clock",
@@ -1356,20 +1365,20 @@ def battery() -> list[Mutation]:
             "a layout census whose keys say two conventions",
             edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
         ),
-        # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plan P4-D221). The
-        # pool of eleven passes the census's own line, so only P8 refuses
-        # it: the point is held back from the forms map, and a total of
-        # its widths names how many of the pooled cells carried one.
+        # A WIDTH CENSUS SPEAKING FOR A HELD-BACK FORM (plans P4-D221 and
+        # P4-D222). The pool of eleven stands alone and passes the census's
+        # own line, so only P8 refuses it: the forms map holds every form
+        # back, and a total of widths names how many of its cells carried
+        # a point.
         Mutation(
             "P8",
             "a width census counting cells of a form the forms map holds back",
             edit(
                 "visits",
-                numeric_styles={
-                    "plain": 174, "leading_plus": 20, "(withheld)": 35,
-                },
+                numeric_styles={"(withheld)": 229},
                 fraction_widths={"(withheld)": 11},
                 pad_widths={},
+                field_widths={},
             ),
         ),
         Mutation(
@@ -1431,14 +1440,26 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "P6",
-            "a pool larger than the forms left to hold it",
-            # Four unnamed forms hold ten each below the line, or one of
-            # them as many as the smallest named form and ten more (plan
-            # P4-D221): seventy at most beside a named sixty.
+            "a pool beside named forms",
+            # No pool stands beside a named form (plan P4-D222): the
+            # producer counts a form below the line into the commonest one.
             edit(
                 "visits",
                 numeric_styles={"plain": 98, "decimal": 60, "(withheld)": 71},
                 fraction_widths={"2": 60},
+            ),
+        ),
+        Mutation(
+            "P6",
+            "a pool of every form that says each form was written",
+            # 229 numbers are more than five forms hold below the line, so
+            # a pool of all six says every form was written (plan P4-D222).
+            edit(
+                "visits",
+                numeric_styles={"(withheld)": 229},
+                fraction_widths={},
+                pad_widths={},
+                field_widths={},
             ),
         ),
         # -- record numbers and text ----------------------------------

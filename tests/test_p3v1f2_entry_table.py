@@ -4082,8 +4082,14 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-zero-led-dose", "styles.exact.leading_zero"),
             ("floor-plussed-dose", "styles.exact.leading_plus"),
             ("exponent_upper-dose", "styles.exact.exponent_upper"),
-            ("prefixed-dose", "styles.at-least.decimal"),
-            ("prefixed-dose", "styles.spill"),
+            # A PREFIXED COPY OF THE COLUMN NO LONGER MISSES THE DECIMAL
+            # FLOOR OR THE SPILL (plan P4-D222; stage 2 closed by the owner
+            # rulings of 2026-09-17): the measured file's own description
+            # counts the prefixed cells' rare forms into the commonest and
+            # settles both clauses on its own counts. A floor's worth of
+            # plussed cells is a form that description names.
+            ("floor-plussed-dose", "styles.at-least.decimal"),
+            ("floor-plussed-dose", "styles.spill"),
             ("zeroed-dose", "styles.remainder"),
             ("noncanonical-dose", "styles.spelled"),
             ("exponent_lower-dose", "styles.canonical.exponent_lower"),
@@ -4649,7 +4655,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-plussed-code", "styles.exact.leading_plus"),
             ("blanked-code", "styles.exact.leading_zero"),
             ("blanked-code", "styles.published.leading_zero"),
-            ("crowded-code", "styles.remainder"),
+            # Since plan P4-D222 a crowded column's rare forms are counted
+            # into the commonest, so its remainder is met; a floor's worth
+            # of grouped codes is a remainder the description misses.
+            ("floor-grouped-code", "styles.remainder"),
             # A bracketed cell is a spelling of its own negative value
             # since landing 2b.2, so the edit that misses this site is a
             # cell written at a width the census does not name.
@@ -4890,7 +4899,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-plussed-reading", "styles.exact.leading_plus"),
             ("floor-zero-led-reading", "styles.exact.leading_zero"),
             ("floor-upper-reading", "styles.published.exponent_lower"),
-            ("added-row", "styles.remainder"),
+            # AN EDIT OF THE COLUMN ITSELF SINCE PLAN P4-D222 (stage 2
+            # closed by the owner rulings of 2026-09-17), where `added-row`
+            # stood: a floor's worth of grouped readings is a remainder no
+            # description of the column allows.
+            ("floor-grouped-reading", "styles.remainder"),
             ("exponent_upper-reading", "styles.spill"),
             ("vast-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
@@ -7099,12 +7112,12 @@ def test_a_registered_case_is_aimed_at_the_site_it_covers(
     `COVERING_RED_CASES` must be an edit of the site's OWN column, and a
     document-level site must be covered by an edit of no column at all.
 
-    ONE SITE IN THE DERIVED TABLE IS NOT, and it is named here rather
-    than waved through by a rule with a hole in it: `styles.remainder`
-    on the `spelled` fixture's one column, which no edit named for that
-    column reaches -- each of those either leaves the remainder where it
-    is or moves the role -- and which `added-row` reaches by repeating a
-    row, an edit that writes one more cell into that same column.
+    ONE SITE IN THE DERIVED TABLE WAS NOT, and is named here so the
+    allowance is not read as a hole: `styles.remainder` on the `spelled`
+    fixture's one column was reached only by `added-row`, repeating a row.
+    Since plan P4-D222 (stage 2 closed by the owner rulings of 2026-09-17)
+    `floor-grouped-reading`, an edit of that column, reaches it, and the
+    allowance is kept only so the row may move back without a new rule.
 
     THE CURATED ROWS ARE NOT WALKED HERE, and that is deliberate rather
     than an oversight: a hand chose each of them against a finding, with
@@ -7272,14 +7285,14 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
     # numbers is an obligation now. Nothing this case is for moved --
     # the census is still pooled and the role is still `continuous`.
     #
-    # AND ITS POOL IS ELEVEN CELLS OVER TWO FORMS, where it was two cells
-    # of one (plan P4-D221; stage 2 closed by the owner rulings of
-    # 2026-09-17). Two fractions alone are a pool below the disclosure
-    # line, which takes in the named thirty-four and leaves no `plain`
-    # count to be met; ten fractions and one exponent are a pool that
-    # stands beside it. Measured on the new shape: every one of the two
-    # hundred seeds writes the eleven, where the old shape's twin wrote
-    # one of two once its map had become one pool.
+    # AND ITS RARE FORMS ARE COUNTED INTO `plain` SINCE PLAN P4-D222 (stage
+    # 2 closed by the owner rulings of 2026-09-17). Plan P4-D221 made the
+    # pool eleven cells over two forms, ten fractions and one exponent, so
+    # it could stand beside the named thirty-four; now no pool stands
+    # beside a named count and the map is `plain: 45`. The role is what
+    # this case is for, and it holds: the twin writes the one fraction the
+    # column's type needs and forty-four plain cells, and says the forty-
+    # fifth plain cell is short. Measured on all two hundred seeds.
     values = (
         [f"{index * 3 + 20}" for index in range(34)]
         + [f"{index}.5" for index in range(1, 11)]
@@ -7290,16 +7303,14 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
         stem="pooled-repair",
     )
     facts = described.columns[0].facts
-    assert facts.numeric_styles == {"plain": 34, contract.WITHHELD: 11}, (
-        facts.numeric_styles
-    )
+    assert facts.numeric_styles == {"plain": 45}, facts.numeric_styles
     assert facts.integer_valued is False
 
     # 1. The seed this file pins, end to end through the validator.
     twin = rendering.twin_csv(generation.generate(described, SEED))
     cells = [line for line in twin.splitlines()[1:] if line != ""]
     assert len(cells) == 45
-    assert len([cell for cell in cells if "." in cell]) == 11, cells
+    assert len([cell for cell in cells if "." in cell]) == 1, cells
     outcome = _measured(tmp_path, described, twin, "pooled-repair.csv")
     missed = {
         check.subcheck: (check.published, check.achieved)
@@ -7352,16 +7363,16 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
             note for note in built.deviations
             if note.fact == "numeric_styles" and "plain" in note.published
         ]
-        if pointed == 11:
+        if pointed == 1:
             exact = exact + 1
-        if 34 <= plain <= 45:
+        if plain == 45:
             assert not said, (seed, plain, said)
         else:
             assert said, (seed, plain, pointed)
     # A TRIPWIRE, NOT A DERIVED BOUND, and said plainly so nobody reads
     # it as one. Measured on 2026-09-01: 182 of these 200 seeds write
-    # exactly the published two (and all 200 the eleven of the shape plan
-    # P4-D221 moved it to, on 2026-09-17), where before the repair NO seed reached
+    # exactly the published two (and on 2026-09-17 all 200 write the one
+    # fraction of the shape plan P4-D222 left it), where before the repair NO seed reached
     # the count by either road. The number here is round and well under
     # that, so it catches a collapse without being fitted to the run.
     assert exact >= 150, exact

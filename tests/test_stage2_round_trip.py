@@ -264,24 +264,27 @@ def test_every_stage_2_fact_comes_back_from_the_twin(
 def test_a_mark_held_by_too_few_values_comes_back_held_back(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A mark too rare to name pools every mark, and the twin pools the same.
+    """A mark too rare to name is counted into the commonest, and the twin writes it.
 
     Until landing 2b.3 this test pinned the loss: the six `t` were written
     with the commonest mark and the twin came back as 206 spaces. From
     landing 2b.3 the census published `{"(withheld)": 6, "space": 200,
     "upper_t": 34}`, which named the six as the one mark left: the marks
     are a closed vocabulary. SINCE PLAN P4-D220 (stage 2 closed by the
-    owner rulings of 2026-09-17) the whole census pools, and the twin
-    writes a space and a `t` on one value each and a `T` on the rest.
+    owner rulings of 2026-09-17) the whole census pooled, and the twin
+    wrote a space and a `t` on one value each and a `T` on the rest -- 238
+    `T` where the table wrote 200 spaces. SINCE PLAN P4-D222 the six are
+    counted into the commonest mark, and the twin writes the table's own
+    spaces and capital Ts.
     """
     cells = _moments(200, " ", 31) + _moments(34, "T", 32) + _moments(6, "t", 33)
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "pooled", cells, ("--smallest-group", "30"), True
     )
-    assert first["datetime_separators"] == {"(withheld)": 240}
+    assert first["datetime_separators"] == {"space": 206, "upper_t": 34}
     assert second["datetime_separators"] == first["datetime_separators"]
-    assert sum(1 for cell in written if cell[10] == "t") == 1
-    assert sum(1 for cell in written if cell[10] == " ") == 1
+    assert sum(1 for cell in written if cell[10] == "t") == 0
+    assert sum(1 for cell in written if cell[10] == " ") == 206
     report = (tmp_path / "pooled" / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "'value' -- datetime_separators" not in report
     assert (twin_exit, real_exit) == (0, 0)
@@ -372,8 +375,19 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     assert moved > 0
     report = (tmp_path / "declared" / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "datetime_separators" in report
-    assert twin_exit == 3
-    assert _only_the_marks_missed(tmp_path / "declared") == ["datetime.datetime_separators"]
+    # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17) a mark fewer values than the line wrote is counted into
+    # the commonest, so the twin described again counts its moved values
+    # as spaces -- as the real table's own description would -- and the
+    # census is met; the report still names the move.
+    if moved < 2:
+        assert twin_exit == 0
+        assert _only_the_marks_missed(tmp_path / "declared") == []
+    else:
+        assert twin_exit == 3
+        assert _only_the_marks_missed(tmp_path / "declared") == [
+            "datetime.datetime_separators"
+        ]
 
 
 def test_a_repair_never_turns_a_column_of_dates_into_two_values(
@@ -514,21 +528,16 @@ def test_a_case_only_respelling_never_turns_moments_into_two_values(
     # values as the real column does.
     assert twin_exit == 0
     assert _only_the_marks_missed(tmp_path / "case") == []
-    # SINCE PLAN P4-D220 (stage 2 closed by the owner rulings of
-    # 2026-09-17) the real column's one `t` pools every mark: a census
-    # naming three spaces and two `T` beside six values named the one
-    # left. The twin writes a space and a `t` on one value each and a `T`
-    # on the rest, the absent-spelling repair moves the marks that land on
-    # the declared day, and the twin described again names three spaces
-    # and three `T` -- a census the whole pool bounds, which is why the
-    # marks are not missed. With no `t` left it holds three different
-    # values where the real column holds four, and as many case-folded
-    # values, so the shape is still no binary column. Measured at all
-    # three seeds.
-    assert first["datetime_separators"] == {"(withheld)": 6}
-    assert second["datetime_separators"] == {"space": 3, "upper_t": 3}
+    # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17) the real column's one `t` is counted into the commonest
+    # mark: a census naming three spaces and two `T` beside six values named
+    # the one left, and plan P4-D220's whole pool lost the spaces. The twin
+    # writes four spaces and two `T`, holding three different values where
+    # the real column holds four, and as many case-folded values, so the
+    # shape is still no binary column.
+    assert first["datetime_separators"] == {"space": 4, "upper_t": 2}
+    assert second["datetime_separators"] == first["datetime_separators"]
     assert first["n_distinct"] == 4
-    assert second["n_distinct"] == 3
 
 
 @pytest.mark.parametrize("seed", ["0", "4"])
@@ -1009,11 +1018,10 @@ def test_a_lone_wide_key_the_styles_floor_pooled_is_not_named_by_the_word(
         seed="1",
         header="amount",
     )
-    # The shape: the styles floor really did pool that one cell -- and,
-    # since plan P4-D221 (stage 2 closed by the owner rulings of
-    # 2026-09-17), the named amounts with it, because a pool of one is
-    # below the disclosure line: the map is one pool of 800.
-    assert first["numeric_styles"] == {"(withheld)": 800}, first["numeric_styles"]
+    # The shape: the one cell is named nowhere -- since plan P4-D222
+    # (stage 2 closed by the owner rulings of 2026-09-17) it is counted
+    # into the decimals, where plan P4-D221 pooled the whole map with it.
+    assert first["numeric_styles"] == {"decimal": 800}, first["numeric_styles"]
     # ...and the answer: the word says nothing about it, and the ceiling
     # is listed rather than held.
     assert first["wide_runs"] == "none", first["wide_runs"]

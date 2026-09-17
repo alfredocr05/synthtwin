@@ -313,10 +313,11 @@ def test_a_form_used_by_too_few_cells_is_pooled_and_never_named() -> None:
     described = describe(["5"] * 30 + ["6"] * 30 + ["+7"] * 3)
     assert described.role == taxonomy.ROLE_COUNT
     styles = described.details["numeric_styles"]
-    # A POOL OF THREE IS BELOW THE DISCLOSURE LINE, so it takes in the named
-    # sixty and the map is one pool (plan P4-D221; stage 2 closed by the
-    # owner rulings of 2026-09-17): the rare form is still never named.
-    assert styles == {taxonomy.SUPPRESSED_LABEL: 63}
+    # THREE CELLS ARE BELOW THE DISCLOSURE LINE, so they are counted into
+    # the commonest form (plan P4-D222; stage 2 closed by the owner rulings
+    # of 2026-09-17): the rare form is still never named, and no pool
+    # beside `plain` says how many wore it.
+    assert styles == {"plain": 63}
     assert sum(styles.values()) == described.n_numeric
 
 

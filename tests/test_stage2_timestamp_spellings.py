@@ -140,46 +140,48 @@ def _validate(profile: pathlib.Path, cells: "list[str]", folder: pathlib.Path) -
 
 
 @pytest.mark.parametrize("seed", ["0", "4", "31"])
-def test_a_rare_lower_case_t_held_back_pools_every_mark(tmp_path: pathlib.Path, seed: str) -> None:
-    """870 `T`, 22 spaces and 8 `t` at a floor of 20: no mark is named.
+def test_a_rare_lower_case_t_is_counted_into_the_commonest_mark(tmp_path: pathlib.Path, seed: str) -> None:
+    """870 `T`, 22 spaces and 8 `t` at a floor of 20: the `t` is named nowhere.
 
     THE POOL NAMED THE EIGHT UNTIL PLAN P4-D220 (stage 2 closed by the
     owner rulings of 2026-09-17). The census published
     `{"(withheld)": 8, "space": 22, "upper_t": 870}`, and the marks are
     a closed vocabulary: the one mark left unnamed was a `t`, so the pool
-    was the count of `t` below the floor. The whole census pools now,
-    and the twin writes a space and a `t` on one value each and a `T` on
-    the rest, which described again pools the same count.
+    was the count of `t` below the floor. P4-D220 pooled every mark, and
+    its twin wrote a `T` on 898 values where the table wrote 22 spaces.
+    Since plan P4-D222 the eight are counted into the commonest mark, and
+    the twin writes the spaces the table wrote.
     """
     cells = _shuffled(_minutes(870, "T", 1) + _minutes(22, " ", 2) + _minutes(8, "t", 3), 5)
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "rare-t", cells, ("--smallest-group", "20"), True, seed
     )
-    assert first["datetime_separators"] == {"(withheld)": 900}
+    assert first["datetime_separators"] == {"space": 22, "upper_t": 878}
     assert second["datetime_separators"] == first["datetime_separators"]
-    assert _marks(written) == {"T": 898, " ": 1, "t": 1}
+    assert _marks(written) == {"T": 878, " ": 22}
     assert (twin_exit, real_exit) == (0, 0)
 
 
 @pytest.mark.parametrize("seed", ["0", "4"])
-def test_a_pool_over_two_marks_beside_a_named_one_is_the_whole_census(
+def test_two_marks_below_the_line_beside_a_named_one_are_counted_into_it(
     tmp_path: pathlib.Path, seed: str
 ) -> None:
-    """880 `T` beside 12 spaces and 8 `t` at a floor of 20: no mark is named.
+    """880 `T` beside 12 spaces and 8 `t` at a floor of 20: one mark is named.
 
     Until plan P4-D220 this published `{"(withheld)": 20, "upper_t": 880}`
     and was split ten and ten. A pool of twenty over two marks each below
     twenty told a reader that NEITHER the space nor the `t` was nought,
     which is the state nought reaches told apart from a count below the
-    floor.
+    floor. P4-D220 pooled the whole census; plan P4-D222 counts the twenty
+    into the `T` (stage 2 closed by the owner rulings of 2026-09-17).
     """
     cells = _shuffled(_minutes(880, "T", 1) + _minutes(12, " ", 2) + _minutes(8, "t", 3), 5)
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "two-pooled", cells, ("--smallest-group", "20"), True, seed
     )
-    assert first["datetime_separators"] == {"(withheld)": 900}
+    assert first["datetime_separators"] == {"upper_t": 900}
     assert second["datetime_separators"] == first["datetime_separators"]
-    assert _marks(written) == {"T": 898, " ": 1, "t": 1}
+    assert _marks(written) == {"T": 900}
     assert (twin_exit, real_exit) == (0, 0)
 
 
@@ -235,7 +237,6 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
         tmp_path / "two-days", _shuffled(cells, 1), ("--smallest-group", "11"), False, "0"
     )
     assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == ("datetime", 3, 3)
-    assert second["role"] == "datetime"
     # SIX SINCE LANDING 2b.6, WHERE IT WAS FIVE, and the shape is still
     # designed not to return. The pooled spellings are still given to
     # ranks without regard to value, so they still land on both days;
@@ -253,9 +254,17 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
     # and a `t` on one value each and a `T` on the other 123, and those
     # three marks over two days make four spellings where the real table
     # held three.
-    assert first["datetime_separators"] == {"(withheld)": 125}
-    assert (second["n_distinct"], second["n_distinct_folded"]) == (4, 3)
-    assert twin_exit == 0
+    #
+    # AND SINCE PLAN P4-D222 THE KIND DOES NOT COME BACK EITHER, a cost
+    # named here and in the plan (stage 2 closed by the owner rulings of
+    # 2026-09-17). The five `T` are counted into the spaces, so the twin
+    # writes every value with a space: two spellings of two days, which
+    # reads back as a column of two values, and its check misses the role.
+    # The third spelling is the one thing that made the table a column of
+    # dates, and it is five rows the census may not name.
+    assert first["datetime_separators"] == {"space": 125}
+    assert (second["role"], second["n_distinct"]) == ("binary", 2)
+    assert twin_exit == 3
 
 
 # -- C: a column mixing bare dates with midnight moments keeps both forms
@@ -839,10 +848,12 @@ def test_a_column_too_short_to_name_a_mark_pools_them_all(
 ) -> None:
     """Thirteen stamps all written with a `T`, at a floor of twenty.
 
-    Rebuilt at plan P4-D220 from the odd pool's remainder, a rule that
-    went with the even split. A column with fewer values than the line
-    names no mark, even the one every value wore: the count is the total
-    the block already publishes, so the whole census pools it.
+    Rebuilt at plan P4-D220 from the odd pool's remainder. A column with
+    fewer values than the line names no mark, even the one every value
+    wore: the count is the total the block already publishes, so the whole
+    census pools it. Since plan P4-D222 (stage 2 closed by the owner
+    rulings of 2026-09-17) the pool is split evenly again, five, four and
+    four, the remainder going to `T` first.
     """
     cells = _minutes(13, "T", 1)
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -851,13 +862,16 @@ def test_a_column_too_short_to_name_a_mark_pools_them_all(
     assert first["role"] == "datetime", first["role"]
     assert first["datetime_separators"] == {"(withheld)": 13}
     assert second["datetime_separators"] == first["datetime_separators"]
-    assert _marks(written) == {"T": 11, " ": 1, "t": 1}
+    assert _marks(written) == {"T": 5, " ": 4, "t": 4}
     assert (twin_exit, real_exit) == (0, 0)
 
 
-@pytest.mark.parametrize("days, seed", [(3, "0"), (6, "4")])
+@pytest.mark.parametrize(
+    "days, seed, marks",
+    [(3, "0", {"t": 12, "T": 10, " ": 8}), (6, "4", {"T": 10, " ": 9, "t": 11})],
+)
 def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves_unnamed(
-    tmp_path: pathlib.Path, days: int, seed: str
+    tmp_path: pathlib.Path, days: int, seed: str, marks: "dict[str, int]"
 ) -> None:
     """Midnight stamps with a `T` over a few days, eight with a `t`, and each day's spaced spelling declared absent.
 
@@ -866,11 +880,14 @@ def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves
     leaves unnamed and the pool comes back; offered only the named `T`, four
     of the eight became `T` and the twin described again named 884 `T`.
 
-    SINCE PLAN P4-D220 (stage 2 closed by the owner rulings of 2026-09-17)
-    the census names no mark here -- a pool of eight beside 880 `T` named
-    the one mark the eight wore -- so every clock-writing value pools and
-    the allocation writes the space one value; that value meets the absent
-    spelling, is offered the `t`, and the pool of 888 comes back.
+    SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of 2026-09-17)
+    a census of marks pools only where no mark reaches the line and a pool
+    does not say every mark was written, so the shape is fifteen `T` and
+    fifteen `t` over thirty clock-writing values at a floor of twenty, the
+    first day's spaced spelling declared absent: the allocation splits the
+    pool ten, ten and ten, the spaced values on that day meet the absent
+    spelling and are offered a mark the allocation writes, and the pool of
+    thirty comes back.
     """
     draw = random.Random(7)
     start = datetime.date(2024, 1, 1)
@@ -881,19 +898,19 @@ def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves
             for _ in range(count)
         ]
 
-    declared = [f"{(start + datetime.timedelta(days=day)).isoformat()} 00:00:00" for day in range(days)]
+    declared = [f"{start.isoformat()} 00:00:00"]
     holes: "list[str]" = []
     flags: "tuple[str, ...]" = ("--smallest-group", "20")
     for spelling in declared:
         holes += [spelling] * 25
         flags = flags + ("--missing-value", spelling)
-    cells = _shuffled(stamps(880, "T") + stamps(12, " ") + stamps(8, "t") + holes, 6)
+    cells = _shuffled(stamps(15, "T") + stamps(15, "t") + holes, 6)
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "offer", cells, flags, True, seed
     )
-    assert first["datetime_separators"] == {"(withheld)": 888}
+    assert first["datetime_separators"] == {"(withheld)": 30}
     assert second["datetime_separators"] == first["datetime_separators"]
-    assert _marks([cell for cell in written if cell and cell not in declared]) == {"T": 886, "t": 2}
+    assert _marks([cell for cell in written if cell and cell not in declared]) == marks
     assert (twin_exit, real_exit) == (0, 0)
 
 

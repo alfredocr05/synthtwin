@@ -1002,6 +1002,14 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
         [f"{round(draw.gauss(-30, 1), 2)}" for _index in range(150)]
         + [f"{round(draw.gauss(8, 0.5), 2)}" for _index in range(100)]
     )
+    # ...AND ITS MINIMUM WRITTEN TO THREE PLACES SINCE PLAN P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17), which counts a width
+    # below the line into the commonest rather than pooling it: the
+    # thirty-four one-place cells alone would leave `{"2": 250}` and a grid.
+    # A published minimum no named width can write makes the census one
+    # pool, so the witness again reads as no grid. Measured: the move fails
+    # at 25 seeds of 40, every stuck value positive.
+    rows = rows + ["-35.125"]
     lowest, highest, barred = _empty_of(rows)
     assert barred, "this column is chosen for having an empty middle"
     assert lowest < 0.0 < highest, (lowest, highest)

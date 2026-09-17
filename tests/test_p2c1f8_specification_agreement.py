@@ -278,15 +278,15 @@ def test_the_withheld_remainder_is_recounted_as_plain(
     amendment moved no byte of the ordinary case, only the obligation
     on the case that could not be met.
 
-    THE THREE ARE NOW A POOL OF THIRTY-THREE (plan P4-D221; stage 2 closed
-    by the owner rulings of 2026-09-17): a pool of three is below the
-    disclosure line, so it takes in the named thirty, and the whole map is
-    one pool written by the same rule.
+    THE THREE ARE COUNTED INTO `plain` (plan P4-D222; stage 2 closed by
+    the owner rulings of 2026-09-17), where plan P4-D221 pooled all
+    thirty-three with them: the map names thirty-three plain cells, and
+    the twin writes them.
     """
     values = [str(n) for n in range(1, 31)] + ["+101", "+102", "+103"]
     document, loaded = _described(tmp_path, values)
 
-    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 33}
+    assert document["columns"][0]["numeric_styles"] == {"plain": 33}
 
     twin = generation.generate(loaded, 0)
     assert _styles_written(twin) == {"plain": 33}
@@ -358,20 +358,22 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     it, and the report names the published count beside the achieved
     one.
     """
-    values = ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+    values = ["0.5"] * 3 + ["7"] * 10 + ["9.25"] * 3
     document, loaded = _described(tmp_path, values)
 
-    # One pool of forty-six since plan P4-D221: a pool of six below the
-    # disclosure line takes in the named forty.
-    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 46}
+    # SIXTEEN CELLS, ONE POOL, where there were forty-six (plan P4-D222;
+    # stage 2 closed by the owner rulings of 2026-09-17): beside forty
+    # `plain` cells the six are counted into `plain`, so the pool this
+    # exercises stands only where no form reaches the line.
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 16}
     assert document["columns"][0]["integer_valued"] is False
 
     twin = generation.generate(loaded, 0)
-    assert _styles_written(twin) == {"plain": 44, "decimal": 2}
+    assert _styles_written(twin) == {"plain": 14, "decimal": 2}
     quiet = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert quiet == [], [note.published for note in quiet]
 
-    document["columns"][0]["numeric_styles"] = {"leading_plus": 46}
+    document["columns"][0]["numeric_styles"] = {"leading_plus": 16}
     # P5 ties the census to the forms map: a map naming no `decimal`
     # cells is a map whose census names no width, and a document that
     # kept the old census would be refused before this placement is
@@ -383,12 +385,12 @@ def test_a_style_the_twin_cannot_place_is_named_in_the_report(
     # naming forty-six `leading_plus` cells is a map whose field census
     # counts forty-six. The source's own census counted the forty
     # `plain` cells, all one figure wide.
-    document["columns"][0]["field_widths"] = {"1": 46}
+    document["columns"][0]["field_widths"] = {"1": 16}
     target = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     edited = contract.load_profile(str(target))
     twin = generation.generate(edited, 0)
     written = _styles_written(twin)
-    assert written.get("leading_plus", 0) == 44, (
+    assert written.get("leading_plus", 0) == 14, (
         "this fixture no longer reaches the corner it was built for"
     )
 

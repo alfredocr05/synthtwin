@@ -136,13 +136,14 @@ def test_each_named_mark_is_written_its_published_number_of_times() -> None:
     # Spread, not spent from the first rank: neither half of the ranks
     # holds all of one mark.
     assert 0 < marks[:12].count("t") < 12
-    # The withheld pool, which since plan P4-D220 is the whole census: one
-    # value on each rarer mark and the rest on the commonest, so the twin
-    # described again pools the same count at any floor.
+    # The withheld pool, which since plan P4-D220 is the whole census, split
+    # evenly over the three marks since plan P4-D222 (stage 2 closed by the
+    # owner rulings of 2026-09-17): a pool stands only where each third of
+    # it is below the line, so the twin described again pools the same.
     pooled, notes = generation._separator_allocation(
         column, _facts({"(withheld)": 24}), 24
     )
-    assert (pooled.count("t"), pooled.count(" "), pooled.count("T")) == (1, 1, 22)
+    assert (pooled.count("t"), pooled.count(" "), pooled.count("T")) == (8, 8, 8)
     assert notes == []
     wide = {"space": 300, "upper_t": 50, "lower_t": 50}
     spread, _ = generation._separator_allocation(column, _facts(wide), 400)

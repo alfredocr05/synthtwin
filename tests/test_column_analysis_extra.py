@@ -10,7 +10,7 @@ import json
 import pytest
 
 import fixtures
-from synthtwin import parsing, profile, taxonomy
+from synthtwin import profile, taxonomy
 
 # THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
 # Plan amendment A-P4-37 lowered the default `small_cell_floor` from
@@ -225,24 +225,23 @@ def test_a_below_floor_utc_offset_is_named_nowhere() -> None:
 
     ONE ROW AT `+05:45` UNTIL PLAN P4-D220 (stage 2 closed by the owner
     rulings of 2026-09-17): a pool of one beside `+00:00` was that row's
-    count, so a pool beside a named offset reaches the floor now and a
-    lone zone takes the named one in with it. Eleven rows over two rare
-    zones keep the shape this test is about.
+    count. Since plan P4-D222 an offset fewer rows than the line carried is
+    counted into the commonest, and its rows are read at that offset, the
+    last end among them: no rare zone is named anywhere.
     """
     values = [f"2024-03-{day:02d}T09:00:00+00:00" for day in range(1, 29)]
     values = values + [f"2024-04-{day:02d}T09:00:00+09:00" for day in range(1, 6)]
     values = values + [f"2024-04-{day:02d}T09:00:00+05:45" for day in range(10, 16)]
     described = describe(values)
     assert described.role == taxonomy.ROLE_DATETIME
-    assert described.details["utc_offsets"] == {
-        "+00:00": 28, parsing.MISSING_WITHHELD: 11,
-    }
-    assert described.details["latest_utc_offset"] == parsing.MISSING_WITHHELD
+    assert described.details["utc_offsets"] == {"+00:00": 39}
+    assert described.details["latest_utc_offset"] == "+00:00"
     assert "+05:45" not in whole_block(described)
-    # ...and the lone zone of the old witness now pools the whole map.
+    assert "+09:00" not in whole_block(described)
+    # ...and the lone zone of the old witness is counted in the same way.
     lone = [f"2024-03-{day:02d}T09:00:00+00:00" for day in range(1, 29)]
     lone = lone + ["2024-04-01T09:00:00+05:45"]
-    assert describe(lone).details["utc_offsets"] == {parsing.MISSING_WITHHELD: 29}
+    assert describe(lone).details["utc_offsets"] == {"+00:00": 29}
 
 
 def test_an_offset_above_the_floor_is_still_named() -> None:

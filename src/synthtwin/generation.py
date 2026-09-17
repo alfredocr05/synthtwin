@@ -15058,8 +15058,7 @@ def _separator_allocation(
 
     A WITHHELD POOL IS WRITTEN WITH THE MARKS THE CENSUS LEAVES UNNAMED
     (landing 2b.3; `_pooled_marks`), which since plan P4-D220 are all the
-    permitted marks, one value on each rarer mark and the rest on the
-    commonest (`_mark_weights`). Writing a pool with a single mark erased
+    permitted marks, split evenly (`_mark_weights`). Writing a pool with a single mark erased
     the spellings it stood for: 870 `T`, 22 space and 8 `t` came back as
     878 `T` and 22 space, and code handling the `t` never met one.
 
@@ -15130,31 +15129,27 @@ def _permitted_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
 
 
 def _mark_weights(facts: contract.DatetimeFacts) -> "dict[str, int]":
-    """How many values each mark is written on, the pool split (plan P4-D220).
+    """How many values each mark is written on, the pool split (plan P4-D222).
 
-    Every named count as published. A withheld pool is spent on the
-    permitted marks the census leaves unnamed, taken in
-    `_MARKS_BY_COMMONNESS` order: every one after the first is given ONE
-    value while the pool still holds two or more, and the first keeps
-    what is left; a mark given no value is left out.
+    Every named count as published. A withheld pool is split EVENLY over
+    the permitted marks the census leaves unnamed, a remainder going one
+    each to those marks in `_MARKS_BY_COMMONNESS` order; a mark given no
+    value is left out.
 
-    WHY ONE, AND NOT AN EVEN SPLIT (plan P4-D220; stage 2 closed by the
-    owner rulings of 2026-09-17). Since contract D12 was revised a pool
-    of marks is the whole census, standing where some mark was written by
-    fewer rows than `parsing.census_floor` -- which mark, and how many,
-    the description does not say. The even split this replaces, capped
-    at the floor less one per mark by the old bound, gave a pool of 240
-    eighty cells of each mark, and the twin described again at a floor of
-    eleven named all three: a census the real table did not publish. One
-    value of each rarer mark is below every line, so the twin described
-    again pools the same whole count, and code handling a space or a `t`
-    meets one wherever the pool has a value to give it. The first mark
-    keeping the rest writes the spelling tables use most.
+    WHY EVEN, AGAIN (stage 2 closed by the owner rulings of 2026-09-17).
+    Since plan P4-D222 a census of marks is one pool only where no mark
+    reaches `parsing.census_floor` and the pool is no larger than two
+    marks can hold below it (`parsing.census_pools`), so a third of it is
+    below the line and the twin described again pools the same count.
+    Plan P4-D220 gave each rarer mark one value and the commonest the
+    rest, for pools the band rule no longer admits; on a pool of thirty at
+    a floor of twenty that wrote 28 `T`, which the twin described again
+    named. Where the census leaves no permitted mark unnamed the pool is
+    not split.
 
     Guarantees: accepts loaded datetime facts; returns census names
-    mapped to positive counts, as many pooled marks as the pool has
-    values up to the permitted marks. Determinism: a function of the
-    facts. Raises nothing. No I/O of any kind.
+    mapped to positive counts. Determinism: a function of the facts.
+    Raises nothing. No I/O of any kind.
     """
     census = facts.datetime_separators
     weights: dict[str, int] = {}
@@ -15169,13 +15164,15 @@ def _mark_weights(facts: contract.DatetimeFacts) -> "dict[str, int]":
             unnamed += [name]
     if not unnamed:
         return weights
-    left = census[contract.WITHHELD]
-    for place in range(1, len(unnamed)):
-        if left >= 2:
-            weights[unnamed[place]] = 1
-            left = left - 1
-    if left > 0:
-        weights[unnamed[0]] = left
+    pool = census[contract.WITHHELD]
+    share = pool // len(unnamed)
+    rest = pool - share * len(unnamed)
+    for place in range(len(unnamed)):
+        given = share
+        if place < rest:
+            given = given + 1
+        if given > 0:
+            weights[unnamed[place]] = given
     return weights
 
 

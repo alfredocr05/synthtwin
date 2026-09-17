@@ -615,14 +615,13 @@ def _named_entries() -> "list[Entry]":
         + ["0"] * 13
     )
     wide = _wide_singles(26)
-    # AN ENDPOINT HELD BACK BESIDE A NAMED OFFSET, which the random dates
-    # stopped reaching at plan P4-D220 (stage 2 closed by the owner rulings
-    # of 2026-09-17): a pool beside a named offset is at least the floor
-    # now, so a few rare zones at the end of a short column pool the named
-    # one in with them and the map becomes the corner. Twenty-four values
-    # at `+01:00`, then six at `+02:00` and six at `+03:00`, pool twelve
-    # beside the twenty-four at a floor of eleven, and the last value's
-    # offset is held back while the map is not.
+    # AN ENDPOINT AT A RARE OFFSET BESIDE A NAMED ONE. Written at plan
+    # P4-D220 (stage 2 closed by the owner rulings of 2026-09-17) to reach
+    # an endpoint held back beside a named map: twenty-four values at
+    # `+01:00`, then six at `+02:00` and six at `+03:00`, pooled twelve at
+    # a floor of eleven. Since plan P4-D222 the twelve are read at
+    # `+01:00`, both ends are named, and the offset corner test pins that
+    # no endpoint is held back beside a named map any more.
     zoned = [
         f"2024-01-{1 + step:02d}T09:00:00+01:00" for step in range(24)
     ] + [
@@ -1126,9 +1125,14 @@ def test_the_withheld_offset_corner_is_exactly_the_published_map(
         for subcheck in listed:
             assert subcheck not in checked, (probe.stem, subcheck)
     assert len(shapes) >= 3, shapes
-    # NOT VACUOUS: the withheld endpoint has to occur, or the branch
-    # above is never taken.
-    assert any(
+    # AND THE BRANCH ABOVE IS NO LONGER TAKEN, which is pinned rather than
+    # left to look covered. Since plan P4-D222 (stage 2 closed by the owner
+    # rulings of 2026-09-17) a value at an offset too rare to name is read
+    # at the commonest offset, so an endpoint is held back only where the
+    # whole map is: the corner. `witness-offset-endpoint-pooled` is the
+    # shape that reached the branch until then, and it now names `+01:00`
+    # at both ends.
+    assert not any(
         listing.subcheck in ("offsets.earliest", "offsets.latest")
         for probe in parity
         for listing in probe.outcome.listings
@@ -1535,7 +1539,9 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     assert isinstance(facts, contract.NumericFacts)
     assert probe.column.n_distinct == 9
     assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
-    assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    # THE RARER FORMS ARE COUNTED INTO `plain` SINCE PLAN P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17), where they were pooled.
+    assert facts.numeric_styles == {"leading_zero": 15, "plain": 53}
     assert facts.pad_widths == {"2": 15}
     # AND THE TWIN WRITES THE CENSUS IT WAS GIVEN: fifteen padded cells,
     # every one of them two figures wide (P4-D14).
@@ -1551,15 +1557,16 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
         probe.column, facts, probe.column.n_distinct
     ) == 2
     assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
-    # HELD, EXACTLY, because that is what this witness now does and a
-    # test that accepts either verdict would pass on a regression that
-    # reported an approximation it did not need. The named-width case
-    # meets its count outright; the open-family case below is the one
-    # whose verdict may legitimately be either.
-    for field in ("n_distinct", "n_distinct_folded"):
-        assert _verdicts(probe.outcome, f"distinct.{field}") == [
-            validation.HELD
-        ], field
+    # EXACTLY THE VERDICT THIS WITNESS NOW REACHES, because a test that
+    # accepts either verdict would pass on a regression that reported an
+    # approximation it did not need. It was HELD until plan P4-D222 (stage
+    # 2 closed by the owner rulings of 2026-09-17) counted the twenty-four
+    # exponent and decimal cells into `plain`: the twin writes them plain,
+    # a spelling of each value fewer, and the count of different spellings
+    # lands inside the envelope rather than on the published number.
+    assert _verdicts(probe.outcome, "distinct.n_distinct") == [
+        validation.AUTHORIZED_DEVIATION
+    ]
     # AND THE BRACKET STILL HOLDS WHAT THE GENERATOR WROTE, which is
     # the whole subject of this file. A floor that moved without the
     # twin moving with it would be a bound drawn against the shipped
@@ -1597,8 +1604,7 @@ def test_the_open_padding_witness_still_opens_the_envelope_upward(
     probe = found[0]
     facts = probe.column.facts
     assert isinstance(facts, contract.NumericFacts)
-    assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
-    assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    assert facts.numeric_styles == {"leading_zero": 15, "plain": 53}
     # NOT ONE WIDTH IS NAMED, which is what leaves the family open.
     assert list(facts.pad_widths) == [taxonomy.SUPPRESSED_LABEL]
     supply = validation._spelling_supply(
@@ -1806,7 +1812,10 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
                 f"{facts.numeric_styles[taxonomy.SUPPRESSED_LABEL]} of "
                 f"its cells"
             )
-    assert pooled >= 5, pooled
+    # FOUR SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17), where it was five: a forms map pools only where no form
+    # reaches the line, and the floored witness names its forms now.
+    assert pooled >= 4, pooled
     # ...and the window still refuses a file that writes fewer of the
     # named form than the description publishes.
     folder = tmp_path / "pooled"

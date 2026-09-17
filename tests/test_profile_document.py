@@ -450,15 +450,15 @@ def test_nothing_that_varies_between_runs_is_written(
 # quoting, `forced_delimiter`, `forced_metadata_rows`, `workbook` and
 # `used_fallback_encoding`. Against landing 2b.10's own tree only
 # landings 2b.6's, 2b.7's and 2b.8's keys moved. Nothing else moved.
-# RE-RECORDED 2026-09-17 for plan P4-D221 (stage 2 closed by the owner
-# rulings of 2026-09-17). ONE value moved: `reading`'s `field_widths`,
-# `{"2": 57, "3": 165, "(withheld)": 5}` before and
-# `{"3": 165, "(withheld)": 62}` now, because a pool of five below the
-# disclosure line takes in the smallest named width. MEASURED against a
-# tree of 039df54: `diff` of the two serialized documents shows those
-# lines alone.
+# RE-RECORDED 2026-09-17 for plan P4-D222 (stage 2 closed by the owner
+# rulings of 2026-09-17), which replaces plan P4-D221's recording. ONE
+# value moved against 039df54: `reading`'s `field_widths`,
+# `{"2": 57, "3": 165, "(withheld)": 5}` before and `{"2": 57, "3": 170}`
+# now, because the five cells at widths too rare to name are counted into
+# the commonest width. MEASURED against a tree of 039df54: `diff` of the
+# two serialized documents shows those lines alone.
 GOLDEN_SHA256 = (
-    "525c0f62bd02aa3fd79706a3b95e647d06c6bdd8df64fdfbd540c54b753797a8"
+    "df73f7cc24ed3a152f50bbb8440e23264193bb86f3046d2dee899804b96bb6f9"
 )
 
 
