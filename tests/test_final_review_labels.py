@@ -15,19 +15,27 @@ on the files themselves.
 - **P4-D151** a layout census that writes only its pool is asked it too;
 - **P4-D152** an empty layout census is asked nothing, so a sparse
   identifier's description loads;
-- **P4-D153** a case split leaves no count of one, in the census or its pool;
+- **P4-D153** a case split leaves no count of one, in the census or its pool,
+  and **P4-D160** the lower-case key alone counts its whole form, and no
+  reading of the form census -- pool, `n_present`, `n_code_alphabet` --
+  names one row;
 - **P4-D154** letters inside `a` to `f` that never trade places with a
   figure are letters, not hexadecimal;
-- **P4-D155** the lone figure 0 is a whole number one figure long;
-- **P4-D156** a sign before figures is written where the census proves it;
+- **P4-D155** the lone figure 0 is a whole number one figure long, and
+  **P4-D162** it is the last one, and walked late;
+- **P4-D156** a sign before figures is written where the census proves it,
+  and **P4-D163** a layout the first packing leaves short is a reason to
+  look at the next packing;
 - **P4-D157** a fold-collision partner wears the layout its identity
   reserved, and the twin's report recounts every layout;
 - **P4-D158** a spelling the table declares absent is never invented, in
   any column;
 - **P4-D159** validation recounts a form under the submitted census's case
-  convention. (Review item 8, the two presence counts of a column whose
-  built-in hole spellings are pooled, is residual R-P3-11, which the plan
-  records as the owner's pending decision; it is not decided here.)
+  convention;
+- **P4-D161** review item 8, residual R-P3-11: where the submitted
+  description pools hole spellings, the two presence counts are taken off
+  the measured file's own description, and the round-2 witness is still
+  caught.
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -152,7 +160,10 @@ def test_one_capitalised_code_is_not_published_as_a_count_of_one(
 
     At a floor of twenty the census published `{"&&&-%%%%%": 799,
     "(withheld)": 1}`, which names the one differently written cell by
-    its count and by its complement. Blind to case, it names nothing.
+    its count and by its complement. Blind to case it named nothing but
+    turned the twin's codes into capitals (the skeptic's regression); the
+    lower-case key alone counts the whole form and keeps the convention
+    (plan P4-D160).
     """
     result = _round_trip(
         tmp_path, {"value": _one_capital()},
@@ -160,8 +171,11 @@ def test_one_capitalised_code_is_not_published_as_a_count_of_one(
     )
     forms = _column(result)["shape_forms"]
     assert 1 not in forms.values(), forms
-    assert forms == {"@@@-%%%%%": 800}
+    assert forms == {"&&&-%%%%%": 800}
     _both_pass(result)
+    twin = result["twin"]["value"]
+    assert _matching(twin, r"[a-z]{3}-[0-9]{5}") >= 798
+    assert _matching(twin, r"[A-Z]{3}-[0-9]{5}") == 0
 
 
 def test_the_merge_review_s_random_codes_publish_no_pool_of_one(
@@ -181,33 +195,48 @@ def test_the_merge_review_s_random_codes_publish_no_pool_of_one(
     )
     forms = _column(result)["shape_forms"]
     assert 1 not in forms.values(), forms
+    assert forms == {"&&&-%%%": 800}
     _both_pass(result)
+    assert _matching(result["twin"]["value"], r"[a-z]{3}-[0-9]{3}") >= 798
 
 
-def test_a_rest_of_two_or_more_is_still_split_off_and_pooled(
+def test_a_rest_under_the_line_is_counted_under_the_lower_case_key(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The rule withdraws a count of one and nothing more."""
+    """Five capitals under a floor of twenty: the lower-case key counts all.
+
+    It named 795 and pooled five; the lower-case key named without the
+    form's own key now counts every cell of the form, and the real file,
+    capitals and all, is recounted under it (plan P4-D160).
+    """
     cells = [f"abc-{index:05d}" for index in range(795)] + ["ABC-00799"] * 5
     result = _round_trip(
         tmp_path, {"value": cells},
         ("--code", "value", "--smallest-group", "20"),
     )
+    assert _column(result)["shape_forms"] == {"&&&-%%%%%": 800}
+    _both_pass(result)
+
+
+def test_a_rest_at_the_line_still_names_both_keys(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Twenty capitals at a floor of twenty: both keys, as before."""
+    cells = [f"abc-{index:05d}" for index in range(780)] + ["ABC-00799"] * 20
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--code", "value", "--smallest-group", "20"),
+    )
     assert _column(result)["shape_forms"] == {
-        "&&&-%%%%%": 795, "(withheld)": 5,
+        "&&&-%%%%%": 780, "@@@-%%%%%": 20,
     }
     _both_pass(result)
 
 
-def test_a_remainder_of_one_is_not_split_off_even_where_the_pool_is_larger(
+def test_a_capital_beside_another_form_s_pool_keeps_the_lower_case_key(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The per-form half of P4-D153, beside another form's pooled cells.
-
-    One capitalised code joins nine cells of a rarer form in the pool, so
-    the pool is ten and the census-wide half says nothing; the per-form
-    half still names the form blind to case.
-    """
+    """One capitalised code beside nine cells of a rarer, pooled form."""
     cells = (
         [f"abc-{index:05d}" for index in range(790)] + ["ABC-00799"]
         + [f"ab-{index}" for index in range(9)]
@@ -216,16 +245,99 @@ def test_a_remainder_of_one_is_not_split_off_even_where_the_pool_is_larger(
         tmp_path, {"value": cells},
         ("--code", "value", "--smallest-group", "20"),
     )
-    forms = _column(result)["shape_forms"]
-    assert "&&&-%%%%%" not in forms, forms
-    assert forms["@@@-%%%%%"] == 791
+    assert _column(result)["shape_forms"] == {
+        "&&&-%%%%%": 791, "(withheld)": 9,
+    }
+    _both_pass(result)
+    assert _matching(result["twin"]["value"], r"[A-Z]{3}-[0-9]{5}") == 0
+
+
+def test_a_pool_of_one_rare_form_is_not_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's (a): 799 `ABC-00001` beside one `WXYZ-123456`.
+
+    Both commits published `{"(withheld)": 1, "@@@-%%%%%": 799}`: a pool
+    of one, and a named form one short of `n_present`. No census naming
+    the 799 can avoid both, so the form joins the pool (plan P4-D160).
+    """
+    cells = [f"ABC-{index:05d}" for index in range(799)] + ["WXYZ-123456"]
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--code", "value", "--smallest-group", "20"),
+    )
+    column = _column(result)
+    forms = column["shape_forms"]
+    assert 1 not in forms.values(), forms
+    assert column["n_present"] - sum(forms.values()) != 1
+    assert forms == {"(withheld)": 800}
     _both_pass(result)
 
 
-def test_the_loader_refuses_a_lower_case_key_beside_a_pool_of_one(
+def test_a_form_one_short_of_the_present_cells_is_not_published(
     tmp_path: pathlib.Path,
 ) -> None:
-    """SF1's third line, which the review asked the loader to enforce."""
+    """The skeptic's (c): one cell too long to have a form beside 799."""
+    cells = [f"ABC-{index:05d}" for index in range(799)] + [
+        "x" * 40 + "-" + "y" * 63
+    ]
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--code", "value", "--smallest-group", "20"),
+    )
+    column = _column(result)
+    assert column["n_present"] == 800
+    assert column["shape_forms"] == {}
+    _both_pass(result)
+
+
+def _one_code_word_beside_forms() -> "list[str]":
+    draw = random.Random(3)
+    cells = [
+        "".join(draw.choice("abcdefghjk") for _letter in range(4))
+        + "-" + str(draw.randrange(10, 99))
+        for _row in range(700)
+    ]
+    cells += ["abcdef"] + [
+        "".join(draw.choice("abcdefghjk") for _letter in range(2))
+        + "." + str(draw.randrange(10, 99))
+        for _row in range(97)
+    ] + ["hello world one", "hello world two"]
+    draw.shuffle(cells)
+    return cells
+
+
+def test_a_free_text_census_leaves_no_code_alphabet_cell_over(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`n_code_alphabet` 701 beside code-alphabet forms counting 700.
+
+    The one code-alphabet cell with no form is named by subtraction, so
+    the form made of that alphabet is no longer named (plan P4-D160).
+    """
+    result = _round_trip(
+        tmp_path, {"value": _one_code_word_beside_forms()},
+        ("--smallest-group", "11"),
+    )
+    column = _column(result)
+    assert column["role"] == "free_text"
+    assert column["n_code_alphabet"] == 701
+    assert column["shape_forms"] == {"&&.%%": 97}
+    _both_pass(result)
+
+
+@pytest.mark.parametrize(
+    ("census", "rule"),
+    [
+        ({"&&&-%%%%%": 799, "(withheld)": 1}, "SF1"),
+        ({"@@@-%%%%%": 799, "(withheld)": 1}, "SF1"),
+        ({"@@@-%%%%%": 799}, "SF3"),
+    ],
+)
+def test_the_loader_refuses_a_census_that_names_one_row(
+    tmp_path: pathlib.Path, census: "dict[str, int]", rule: str
+) -> None:
+    """SF1's pool line and SF3's difference line, asked of every census."""
     result = _round_trip(
         tmp_path, {"value": _one_capital()},
         ("--code", "value", "--smallest-group", "20"),
@@ -233,11 +345,30 @@ def test_the_loader_refuses_a_lower_case_key_beside_a_pool_of_one(
     document = result["document"]
     for column in document["columns"]:
         if column["name"] == "value":
-            column["shape_forms"] = {"&&&-%%%%%": 799, "(withheld)": 1}
+            column["shape_forms"] = census
     edited = fixtures.write_profile(tmp_path, "edited.json", document)
     with pytest.raises(errors.ProfileError) as refused:
         contract.load_profile(str(edited))
-    assert "SF1" in str(refused.value)
+    assert rule in str(refused.value)
+
+
+def test_the_loader_refuses_a_code_alphabet_difference_of_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """SF3's free-text line, on the producer's own document put back."""
+    result = _round_trip(
+        tmp_path, {"value": _one_code_word_beside_forms()},
+        ("--smallest-group", "11"),
+    )
+    document = result["document"]
+    for column in document["columns"]:
+        if column["name"] == "value":
+            column["shape_forms"] = {"&&&&-%%": 700, "&&.%%": 97}
+    edited = fixtures.write_profile(tmp_path, "edited.json", document)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(edited))
+    assert "SF3" in str(refused.value)
+    assert "n_code_alphabet" in str(refused.value)
 
 
 # ------------------ P4-D151 and P4-D152, the layout census's complement
@@ -319,25 +450,88 @@ def test_a_whole_number_identifier_holding_nought_keeps_its_layout(
     _both_pass(result)
 
 
-def test_withdrawing_the_lone_nought_moves_the_frozen_edge_spacing_cells(
+@pytest.mark.parametrize(
+    ("rows", "lengths"), [(800, [9, 90, 701, 0]), (2000, [9, 90, 900, 1001])]
+)
+def test_a_column_counted_from_one_is_not_written_holding_nought(
+    tmp_path: pathlib.Path, rows: int, lengths: "list[int]"
+) -> None:
+    """The skeptic's regression of P4-D155: `1` to `800` came back with `0`.
+
+    The twin wrote ten one-figure cells and 89 two-figure ones against the
+    table's nine and ninety. The lone 0 is the last one-figure number and
+    is walked after every number shorter than the shortest named layout of
+    figures alone (plan P4-D162), so `1` to `2000` keeps 900 three-figure
+    cells as well.
+    """
+    cells = [f"{number}" for number in range(1, rows + 1)]
+    result = _round_trip(tmp_path, {"value": cells}, ("--identifier", "value"))
+    twin = result["twin"]["value"]
+    assert "0" not in twin
+    assert [
+        len([cell for cell in twin if len(cell) == size]) for size in (1, 2, 3, 4)
+    ] == lengths
+    _both_pass(result)
+
+
+@pytest.mark.parametrize(
+    ("first", "rows", "floor", "nought"),
+    [(1, 11, "3", False), (0, 102, "1", True)],
+)
+def test_the_oracle_and_the_product_walk_the_lone_nought_alike(
+    tmp_path: pathlib.Path, first: int, rows: int, floor: str, nought: bool
+) -> None:
+    """P4-D162's walk, product and oracle, on the column the product wrote.
+
+    `1` to `11` at a floor of three pools both layouts, so no layout of
+    figures alone is named and the lone 0 comes after every published
+    length: the eleven cells are `1` to `11`. `0` to `101` names `%%%`, so
+    0 comes after the two-figure numbers and is the hundredth short cell.
+    No frozen case holds this walk: both branch vector files stand within
+    two kilobytes of the provenance cap, and a case of an identifier
+    column costs about two.
+    """
+    from tests.test_generation_reference import gen
+
+    cells = [f"{number}" for number in range(first, first + rows)]
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--identifier", "value", "--smallest-group", floor),
+    )
+    _both_pass(result)
+    written = sorted(set(result["twin"]["value"]))
+    assert ("0" in written) is nought
+    assert len(written) == rows
+    column = _column(result)
+    assert sorted(set(gen._identifier_content(dict(column)))) == written
+
+
+def test_the_oracle_writes_the_lone_nought_last_and_its_mutant_moves_cells(
     monkeypatch,
 ) -> None:
-    """The oracle's mirror of P4-D155 holds a committed byte up."""
+    """The oracle's mirror of P4-D155 and P4-D162 holds a committed byte up.
+
+    `identifier_edge_spacing` holds one identity of one figure: `1`, the
+    first one-figure number. Withdrawing P4-D162's order (the ten figures
+    counted from `0`) writes `0` there instead.
+    """
     from tests.test_generation_reference import gen
 
     before, _claims = gen.build_case("identifier_edge_spacing")
-    assert "0" in before["cells"]
+    assert "1" in before["cells"] and "0" not in before["cells"]
+    assert gen.identifier_family(gen.FIGURES, True, 1)[0][0] == "1"
     original = gen.identifier_family
 
-    def refused_nought(band, whole_numbers, length):
+    def nought_first(band, whole_numbers, length):
         found = original(band, whole_numbers, length)
         if whole_numbers and band == gen.FIGURES and length == 1:
-            return gen.DIGITS, length, gen._not_a_leading_zero, ""
+            return gen.DIGITS, length, None, ""
         return found
 
-    monkeypatch.setattr(gen, "identifier_family", refused_nought)
+    monkeypatch.setattr(gen, "identifier_family", nought_first)
     after, _claims = gen.build_case("identifier_edge_spacing")
     assert after["cells"] != before["cells"]
+    assert "0" in after["cells"]
 
 
 # --------------------------------------------------- P4-D156, the proven sign
@@ -357,6 +551,27 @@ def test_a_signed_record_number_keeps_its_layout(
         [cell for cell in result["twin"]["value"] if rule.fullmatch(cell)]
     ) == 800
     assert "formula" in result["report"]
+    _both_pass(result)
+
+
+def test_signed_and_unsigned_record_numbers_each_keep_their_layout(
+    tmp_path: pathlib.Path,
+) -> None:
+    """400 `-10000` upward beside 400 `20000` upward (skeptic, MINOR).
+
+    The first packing put the slot pinned to six characters in the figures
+    band, which wrote `100000`: 399 and 401 against 400 and 400, twin exit
+    3. The next packing that meets every other count is taken (P4-D163).
+    """
+    cells = [f"-{10000 + index}" for index in range(400)] + [
+        f"{20000 + index}" for index in range(400)
+    ]
+    result = _round_trip(tmp_path, {"value": cells}, ("--identifier", "value"))
+    assert _column(result)["layout_forms"] == {"%%%%%": 400, "-%%%%%": 400}
+    twin = result["twin"]["value"]
+    assert _matching(twin, r"[0-9]{5}") == 400
+    assert _matching(twin, r"-[0-9]{5}") == 400
+    assert "layout_forms" not in result["report"]
     _both_pass(result)
 
 
@@ -493,3 +708,65 @@ def test_a_faithful_form_is_not_missed_when_its_case_convention_changes(
     )
     assert _column(result)["shape_forms"] == {"%%@@": 100, "@@%%%": 200}
     _both_pass(result)
+
+
+# ------------------------------- P4-D161, residual R-P3-11 (review item 8)
+
+
+def test_a_real_table_whose_hole_spellings_are_pooled_passes_its_own_description(
+    tmp_path: pathlib.Path,
+) -> None:
+    """280 record numbers beside ten `NA` and ten `N/A`, at a floor of twenty.
+
+    Neither spelling reaches the floor, so the description pools both, and
+    the real file was counted by blankness: 300 present and nought
+    missing against its own 280 and 20, exit 3 on both presence counts.
+    """
+    cells = [f"R{index:07d}" for index in range(280)] + ["NA"] * 10 + [
+        "N/A"
+    ] * 10
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--identifier", "value", "--smallest-group", "20"),
+    )
+    column = _column(result)
+    assert (column["n_present"], column["n_missing"]) == (280, 20)
+    assert column["n_missing_withheld"] == 20
+    _both_pass(result)
+
+
+def test_a_file_spelling_a_description_s_empty_holes_is_still_missed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The round-2 witness, with the measured file pooling its own spellings.
+
+    The description is written from thirty EMPTY holes, so it pools
+    nothing; the measured file spells them 25 `n/a` and 5 `N/A`, which its
+    OWN description would pool. P4-D161 reads the submitted description,
+    so the presence counts are still taken by blankness and missed.
+    """
+    values = [f"{10 + index * 3}.5" for index in range(60)]
+    result = _round_trip(
+        tmp_path / "described", {"value": values + [""] * 30},
+        ("--smallest-group", "11"),
+    )
+    assert _column(result)["n_missing_withheld"] == 0
+    spelled = values + ["n/a"] * 25 + ["N/A"] * 5
+    other = tmp_path / "spelled.csv"
+    other.write_text(
+        fixtures.rows_to_csv(
+            ["value", "other"],
+            [[cell, f"row{index % 7}"] for index, cell in enumerate(spelled)],
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    checked = tmp_path / "checked"
+    checked.mkdir()
+    code = _exit_of(
+        ["validate", str(result["profile"]), "--twin", str(other),
+         "--out-dir", str(checked), "--replace"]
+    )
+    report = (checked / "spelled-quality.txt").read_text(encoding="utf-8")
+    assert code == 3
+    assert "presence.n_present [universal.n_present]: MISSED" in report

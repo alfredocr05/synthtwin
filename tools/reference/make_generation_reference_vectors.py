@@ -3303,6 +3303,9 @@ def offset_form(offset):
 
 
 DIGITS = tuple("0123456789")
+# The one-figure whole numbers in the order method G9.6 walks them: 1 to
+# 9, then the lone 0 (plan P4-D162).
+ONE_FIGURE_ORDER = tuple("1234567890")
 CODE = tuple(
     "-"
     + "0123456789"
@@ -5831,8 +5834,9 @@ def identifier_family(band, whole_numbers, length):
     if whole_numbers:
         if band == FIGURES and length == 1:
             # The lone figure 0 is a whole number one figure long, and
-            # its length is its count of figures (plan P4-D155).
-            return DIGITS, length, None, ""
+            # its length is its count of figures (plan P4-D155); it is
+            # the LAST one-figure number, after 1 to 9 (plan P4-D162).
+            return ONE_FIGURE_ORDER, length, None, ""
         if band == FIGURES:
             return DIGITS, length, _not_a_leading_zero, ""
         if band == CODE_BAND:
@@ -6921,7 +6925,10 @@ def _identifier_content(column):
     another band.  So no case it can freeze reaches the step, no frozen
     case does today, and a case that did would need this oracle widened
     -- its naive tail replaced by G9.6's choice rule, and step 5 built
-    on top of that -- BEFORE the case could be added.
+    on top of that -- BEFORE the case could be added.  The same holds for
+    the step's layout trigger (plan P4-D163), which looks further only
+    where the first layout leaves a named layout short: this oracle stops
+    at the check of 7.12 for exactly that description.
     """
     occurrences = column["n_distinct_by_occurrences"]
     groups = []
@@ -6967,6 +6974,23 @@ def _identifier_content(column):
             family = identifier_family(band, whole_numbers, length)
             if family is not None and family[1] >= 1:
                 families.append(family)
+        # THE LONE 0 IS TAKEN LATE (plan P4-D162): after every number
+        # shorter than the shortest named layout of figures alone two or
+        # more figures long, or after every published length where none
+        # is named, where the slot may hold one figure and that length --
+        # so a column of 1 to 800 is not written holding 0.
+        late = 0
+        if whole_numbers and band == FIGURES and low == 1 and high >= 2:
+            late = high
+            for layout in sorted(column.get("layout_forms") or {}):
+                if (
+                    layout != "(withheld)"
+                    and len(layout) >= 2
+                    and set(layout) == {"%"}
+                ):
+                    late = min(late, len(layout) - 1)
+            if late < 2 or 1 not in lengths or late not in lengths:
+                late = 0
         if not families:
             raise AssertionError(
                 f"the published length range holds no whole-number spelling "
@@ -6978,10 +7002,20 @@ def _identifier_content(column):
             )
         for ask in (True, False) if letters_needed else (False,):
             for alphabet, block, leading, suffix in families:
-                for index in range(len(alphabet) ** block):
-                    candidate = (
-                        enumerated_spelling(alphabet, block, index, leading) + suffix
-                    )
+                # Walked lazily: a family of six code-alphabet places holds
+                # tens of billions of spellings, and the walk stops at the
+                # first one it takes.
+                def spellings(alphabet=alphabet, block=block, leading=leading,
+                              suffix=suffix):
+                    for index in range(len(alphabet) ** block):
+                        one = enumerated_spelling(alphabet, block, index, leading)
+                        if late and block == 1 and one + suffix == "0":
+                            continue
+                        yield one + suffix
+                    if late and block == late:
+                        yield "0"
+
+                for candidate in spellings():
                     if candidate in used:
                         continue
                     if reads_as_absent(candidate, holes):

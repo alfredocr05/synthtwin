@@ -28,13 +28,13 @@ WHERE THE PIN STILL LIVES, asserted below so the narrowing cannot creep:
 a built-in word NO column of the description publishes as a hole source
 is still data on the measurement side, whatever the measured file holds.
 
-WHAT IS STILL OPEN, and it is stated rather than implied. The two
-presence COUNTS ask the weaker publication question of amendment
-A-P3-5 clause 1 -- is the number of non-blank holes published, never
-their spellings -- so a column whose holes are pooled below the floor
-under two spellings of one built-in word still reports those two
-counts by blankness. That is residual R-P3-11, it is bounded to exactly
-those two obligations, and the last test here pins its size.
+WHAT WAS STILL OPEN, and is closed by plan P4-D161. The two presence
+COUNTS asked the weaker publication question of amendment A-P3-5 clause
+1 -- is the number of non-blank holes published, never their spellings
+-- so a column whose holes are pooled below the floor under two
+spellings of one built-in word reported those two counts by blankness.
+That was residual R-P3-11, bounded to exactly those two obligations; the
+last test here held it at that size and now holds it closed.
 
 THE RED CHECK:
 
@@ -236,10 +236,15 @@ def test_the_twin_of_that_description_still_measures_clean(
     assert counted["MISSED"] == 0
 
 
-def test_what_is_still_open_is_two_counts_and_no_more(
+def test_the_two_counts_residual_r_p3_11_left_open_are_closed(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Residual R-P3-11, pinned at its size so it cannot grow.
+    """Residual R-P3-11, closed by plan P4-D161: nothing is missed.
+
+    Where the SUBMITTED description pools hole spellings, the two presence
+    counts are taken off the measured file's own description. What the
+    paragraph below says was measured before that closure, when exactly
+    these two counts MISSED and nothing else did.
 
     Six cells spelled `n/a` and six spelled `N/A` are twelve holes of one
     built-in word under two spellings, and at the floor of eleven this
@@ -266,8 +271,8 @@ def test_what_is_still_open_is_two_counts_and_no_more(
     assert column.missing_by_source == {}
     assert column.n_missing_withheld == 12
     assert column.missing_by_class.text_code == 12
-    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 3
+    assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "split-quality.txt").read_text("utf-8")
-    assert _counts(report)["MISSED"] == 2
-    assert "presence.n_present [universal.n_present]: MISSED" in report
-    assert "presence.n_missing [universal.n_missing]: MISSED" in report
+    assert _counts(report)["MISSED"] == 0
+    assert "presence.n_present [universal.n_present]: HELD" in report
+    assert "presence.n_missing [universal.n_missing]: HELD" in report

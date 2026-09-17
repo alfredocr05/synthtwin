@@ -221,8 +221,10 @@ def test_the_lower_case_key_is_named_only_under_the_disclosure_rule() -> None:
     """Each branch of C6-31a's rule, on a column small enough to read.
 
     `ab1` and its kin wear `@@%`. A lower-case count of ONE is never
-    named, and neither is a remainder of one beside it at a floor of
-    one; a remainder under the floor goes to the pool; a column whose
+    named; a remainder under the line -- one at a floor of one, five at
+    eleven -- is counted under the lower-case key named alone (plan
+    P4-D160: it was named blind to case, which wrote the twin in
+    capitals, or pooled, which left a pool of one); a column whose
     values fold together names no lower-case key at all.
     """
     lower = [f"{a}{b}{n}" for a in "abcdefg" for b in "hijklmn" for n in range(3)]
@@ -235,14 +237,13 @@ def test_the_lower_case_key_is_named_only_under_the_disclosure_rule() -> None:
     # (Every pair below is drawn from DIFFERENT codes, so no value folds
     # onto another and the fold rule at the end is not what decides it.)
     assert forms(upper[:40] + lower[40:41], 1) == {"@@%": 41}
-    # Lower-case cells at the line and ONE cell beside them: blind to case.
-    assert forms(lower[:40] + upper[40:41], 1) == {"@@%": 41}
+    # Lower-case cells at the line and ONE cell beside them: the
+    # lower-case key alone, counting both (plan P4-D160).
+    assert forms(lower[:40] + upper[40:41], 1) == {"&&%": 41}
     # Both at the line: both keys.
     assert forms(lower[:40] + upper[40:42], 1) == {"&&%": 40, "@@%": 2}
-    # The rest under a floor of eleven: pooled.
-    assert forms(lower[:40] + upper[40:45], 11) == {
-        "&&%": 40, "(withheld)": 5,
-    }
+    # The rest under a floor of eleven: counted under the lower-case key.
+    assert forms(lower[:40] + upper[40:45], 11) == {"&&%": 45}
     # Every cell lower case: the lower-case key alone.
     assert forms(lower[:40], 11) == {"&&%": 40}
     # A column whose values fold together: blind to case, whatever else.

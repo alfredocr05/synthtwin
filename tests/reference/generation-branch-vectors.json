@@ -1832,10 +1832,10 @@
     },
     "identifier_edge_spacing": {
       "cells": [
-        "0  ",
-        "0 ",
-        " 0",
-        "0"
+        "1  ",
+        "1 ",
+        " 1",
+        "1"
       ],
       "column": {
         "all_whole_numbers": true,
@@ -1878,12 +1878,12 @@
         "structural_role": "identifier"
       },
       "content": [
-        "0",
-        "0  ",
-        "0 ",
-        " 0"
+        "1",
+        "1  ",
+        "1 ",
+        " 1"
       ],
-      "csv_bytes": "0  \n0 \n 0\n0\n",
+      "csv_bytes": "1  \n1 \n 1\n1\n",
       "float64": [],
       "why": "a fold collision no case change can build. The column is written in figures alone, so its one identity holds no character with a case and the case-flip half of G9.3's partner family is empty from the start; the three partners the published counts ask for can come only from the edge spacing, which the fold trims away. The family's order is visible in all three: the total number of spaces ascends, and within one total the leading share ascends, so the spaces go to the end first and are then moved leftward one at a time. The second slot carries the longest published length, which a partner may hold only because spacing lengthens -- the whole point of the second slot being open to a partner when the column comes down to one identity. WHICH member each slot takes is G9.3 step 2's own rule since review item P2-C4-F4: every slot walks the family from that family's own start and takes the first member the column has not written whose length its own window admits, so the slot pinned to the longest length takes the first two-space placement and the two open slots after it take the two one-space placements in the family's order. A walk that began at an ordinal of the slot's own would step over a member nothing has written and no window has turned down, which is how two implementations came to write different bytes for this column. Every other published fact survives the spacing: the alphabet counts and the whole-number fact are read after trimming, the writer quotes a field for a comma, a quote character or a line ending and for nothing else, and the reader gives the spaces back unchanged.",
       "word_budget": {

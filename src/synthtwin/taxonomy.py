@@ -5573,7 +5573,7 @@ def _text_details(cells: _Cells) -> dict[str, object]:
         "n_code_alphabet": cells.code_alphabet,
         # ...and the forms its cells were written in, which is what
         # lets a made-up cell look like one of them (plan P4-D18).
-        "shape_forms": _shape_forms(cells),
+        "shape_forms": _shape_forms(cells, True),
         # The shape of repetition, with no value attached to it (plan
         # P2-D4). A free-text column publishes no value, so without this
         # a column of a hundred different notes and one of fifty notes
@@ -6012,7 +6012,7 @@ def _layout_to_take_back(named: "dict[str, int]", marks: str) -> str:
     return best
 
 
-def _shape_forms(cells: _Cells) -> dict[str, int]:
+def _shape_forms(cells: _Cells, with_code_total: bool = False) -> dict[str, int]:
     """How many present cells wore each written form, under the floor.
 
     THE FACT THAT LETS A HELD-BACK VALUE HAVE A STAND-IN THAT LOOKS
@@ -6119,42 +6119,138 @@ def _shape_forms(cells: _Cells) -> dict[str, int]:
     # the values wearing any one form, so the test errs toward
     # refusing -- the safe direction.
     room_needed = cells.raw_distinct + cells.settings.small_cell_floor
-    published_counts = _form_census(counts, lower, cells, room_needed, True)
-    # A CASE SPLIT NEVER LEAVES A POOL OF ONE (plan P4-D153). The pool is
-    # a count a reader holds, and where a lower-case key stands the pool
-    # can be the one cell of that form written otherwise -- 799 `abc-00001`
-    # beside one `ABC-00799` published `{"&&&-%%%%%": 799, "(withheld)":
-    # 1}`, which names the one row. The split already refuses a remainder
-    # of one; this refuses the pool it would join, asked of the shared
-    # rule the loader asks, and the census is then written blind to case
-    # exactly as it was before any lower-case key existed.
-    if _holds_a_lower_case_key(published_counts) and (
-        parsing.census_names_one_row(_pool_of(published_counts), []) != -1
-    ):
-        published_counts = _form_census(
-            counts, lower, cells, room_needed, False
-        )
-    return published_counts
+    census = _form_census(counts, lower, cells, room_needed)
+    # NO COUNT OF ONE AND NO COMPLEMENT OF ONE, OVER THE WHOLE CENSUS
+    # (plan P4-D160), asked of the shared rule the loader asks.
+    return _form_disclosure(census, cells, with_code_total)
 
 
-def _pool_of(census: "dict[str, int]") -> "dict[str, int]":
-    """The pooled key of a census alone, or nothing where none is written.
+def _form_disclosure(
+    census: "dict[str, int]", cells: _Cells, with_code_total: bool
+) -> "dict[str, int]":
+    """The form census with no reading of it naming one row (P4-D160).
 
-    A NAMED form is held to the floor, and at a floor of one a form one
-    cell wore is named by the owner's own choice of floor; the POOL is
-    what a case split can leave at one behind the floor's back.
+    THE DISCLOSURE RULE OF P4-D150, ASKED OF THE FORM CENSUS WHATEVER ITS
+    KEYS. A reader holds the pool and two totals beside the census:
+    `n_present`, which every form the census counts lies inside, and, on
+    a free-text column, `n_code_alphabet`, which every form made of
+    figures, letters, the hyphen and the underscore lies inside. MEASURED
+    before this rule, at a floor of twenty: 799 `ABC-00001` beside one
+    `WXYZ-123456` published `{"@@@-%%%%%": 799, "(withheld)": 1}`, a pool
+    of one; and 799 of them beside one sentence too long to have a form
+    published `{"@@@-%%%%%": 799}` beside 800 present cells, a complement
+    of one. So, until no reading names a row:
+
+    - a pool of one takes in the smallest family of named keys, the
+      earliest in sorted order on a tie, or where none is named is not
+      written;
+    - a difference of one against `n_present` gives the pool up where it
+      is written, which makes it one plus the pool;
+    - otherwise the smallest family of named keys that total covers is no
+      longer named.
+
+    A FAMILY is a form's own key and its lower-case key, taken back
+    together, because a lower-case key named alone counts the form's
+    other cells too, and a form's own key named alone its lower-case
+    cells. Each step removes a key or
+    the pool, so the rule ends. What it costs is stated: a column in which
+    exactly one cell wears no named form publishes no form it cannot name
+    without naming that cell.
+
+    Guarantees: returns a census whose keys are a subset of the one given,
+    with the pool possibly larger or gone. Raises nothing. No I/O.
     """
-    if SUPPRESSED_LABEL in census:
-        return {SUPPRESSED_LABEL: census[SUPPRESSED_LABEL]}
-    return {}
-
-
-def _holds_a_lower_case_key(census: "dict[str, int]") -> bool:
-    """Whether any key of a form census is a lower-case key."""
+    named: dict[str, int] = {}
+    pooled = 0
     for key in sorted(census):
-        if parsing.SHAPE_LOWER in key:
-            return True
-    return False
+        if key == SUPPRESSED_LABEL:
+            pooled = census[key]
+            continue
+        named[key] = census[key]
+    while named or pooled:
+        readings = [(len(cells.present), _form_cells_within(named, "") + pooled)]
+        if with_code_total:
+            readings += [
+                (cells.code_alphabet, _form_cells_within(named, _FORM_CODE_MARKS))
+            ]
+        pool = {SUPPRESSED_LABEL: pooled} if pooled else {}
+        failed = parsing.census_names_one_row(pool, readings)
+        if failed == -1:
+            break
+        if failed == -2:
+            if not named:
+                pooled = 0
+                continue
+            family = _form_family_to_take_back(named, "")
+            for key in family:
+                pooled = pooled + named[key]
+                del named[key]
+            continue
+        if failed == 0 and pooled:
+            pooled = 0
+            continue
+        marks = "" if failed == 0 else _FORM_CODE_MARKS
+        for key in _form_family_to_take_back(named, marks):
+            del named[key]
+    published: dict[str, int] = {}
+    for key in sorted(named):
+        published[key] = named[key]
+    if pooled:
+        published[SUPPRESSED_LABEL] = pooled
+    return published
+
+
+# The characters a form key may hold for every cell wearing it to lie
+# inside the code alphabet `n_code_alphabet` counts: figures, letters of
+# either case, the hyphen and the underscore.
+_FORM_CODE_MARKS = "%@&-_"
+
+
+def _form_cells_within(named: "dict[str, int]", marks: str) -> int:
+    """How many cells the named forms made only of ``marks`` count."""
+    counted = 0
+    for key in sorted(named):
+        if _layout_within(key, marks):
+            counted = counted + named[key]
+    return counted
+
+
+def _form_family_to_take_back(
+    named: "dict[str, int]", marks: str
+) -> "list[str]":
+    """The smallest family of named keys made of ``marks``, as a list.
+
+    A family is a form blind to case and its lower-case key; its size is
+    the cells both count; the earliest blind form in sorted order wins a
+    tie. There is always one where any key of ``marks`` is named, because
+    a lower-case key is made of the same marks as its form.
+    """
+    sizes: dict[str, int] = {}
+    for key in sorted(named):
+        if not _layout_within(key, marks):
+            continue
+        blind = _blind_form(key)
+        sizes[blind] = (sizes[blind] if blind in sizes else 0) + named[key]
+    best = ""
+    for blind in sorted(sizes):
+        if not best or sizes[blind] < sizes[best]:
+            best = blind
+    family: list[str] = []
+    for key in sorted(named):
+        if _blind_form(key) == best:
+            family += [key]
+    return family
+
+
+def _blind_form(key: str) -> str:
+    """A form key with every lower-case mark written as a letter mark."""
+    built = ""
+    for character in key:
+        built = built + (
+            parsing.SHAPE_LETTER if character == parsing.SHAPE_LOWER
+            else character
+        )
+    return built
 
 
 def _form_census(
@@ -6162,14 +6258,11 @@ def _form_census(
     lower: "dict[str, int]",
     cells: _Cells,
     room_needed: int,
-    split_case: bool,
 ) -> "dict[str, int]":
-    """The form census from its per-form counts, split by case or not.
+    """The form census from its per-form counts, each form split by case.
 
-    The body `_shape_forms` always ran, taken out so the census can be
-    built a second time blind to case where the split would leave a
-    count of one (plan P4-D153). ``split_case`` False names every form
-    blind to case, which is the census as it stood before P4-D121.
+    The body `_shape_forms` always ran, taken out so the disclosure rule
+    of the whole census (plan P4-D160) reads as its own step.
     """
     floor = cells.settings.small_cell_floor
     withheld = 0
@@ -6190,7 +6283,7 @@ def _form_census(
         # twin's partners came out `A-a` and missed three keys by
         # thirty-three cells, where the case-blind census it had before
         # is met (plan P4-D121).
-        if cells.raw_distinct != len(cells.folded_counts) or not split_case:
+        if cells.raw_distinct != len(cells.folded_counts):
             lowered = 0
         split = _lower_case_split(
             form, counts[form], lowered, floor, room_needed
@@ -6240,23 +6333,23 @@ def _lower_case_split(
       key alone.
     - both at or over the line: both keys, the form's own key then
       counting the cells that were NOT all lower case.
-    - ``rest`` exactly one, at ANY floor (plan P4-D153): the form is
-      named blind to case. Pooled, that one cell is the one cell of the
-      form written otherwise, and where nothing else joins the pool the
-      census publishes it as a count of one -- 799 `abc-00001` beside one
-      `ABC-00799` published `{"&&&-%%%%%": 799, "(withheld)": 1}`.
-    - ``rest`` of two or more under the floor: the lower-case key, and
-      the rest go to the pool, where a group too small to name always
-      goes -- and the pool names no form, so it says nothing about which.
+    - ``rest`` of one or more under the line (plan P4-D160): the
+      lower-case key ALONE, counting every cell of the form. It said the
+      lower-case cells and pooled the rest, and a rest of one was a pool
+      of one -- 799 `abc-00001` beside one `ABC-00799` published
+      `{"&&&-%%%%%": 799, "(withheld)": 1}`, which names the one row --
+      while naming the form blind to case instead turned the twin's 799
+      lower-case codes into capitals. A lower-case key named without its
+      partner counts the whole form, validation's recount counts the few
+      cells written otherwise under it while they stay under the line,
+      and the twin writes the convention the form was written in.
 
     A reader of a case-blind key therefore is shown nothing about case:
-    it is written where the lower-case cells were too few to name, where
-    they were none, and where the rest were exactly one. `_shape_forms`
-    adds the census-wide half: a census that would name a lower-case key
-    beside a pool of one is built blind to case instead.
+    it is written where the lower-case cells were too few to name, and
+    where they were none.
 
-    Guarantees: returns {} or a mapping of the keys to name, the pooled
-    key included where the rest are pooled. Raises nothing. No I/O.
+    Guarantees: returns {} or a mapping of the keys to name. Raises
+    nothing. No I/O.
     """
     line = max(floor, 2)
     lower_key = parsing.lower_case_form(form)
@@ -6265,19 +6358,9 @@ def _lower_case_split(
     if parsing.form_room(lower_key) < room_needed:
         return {}
     rest = count - lowered
-    if rest == 0:
-        return {lower_key: lowered}
     if rest >= line:
         return {lower_key: lowered, form: rest}
-    if rest == 1:
-        # A REMAINDER OF ONE IS NEVER SPLIT OFF, AT ANY FLOOR (plan
-        # P4-D153). Pooled, it is the one cell of the form not written in
-        # lower case, and where nothing else joins the pool the census
-        # publishes it as a count of one.
-        return {}
-    if rest < floor:
-        return {lower_key: lowered, SUPPRESSED_LABEL: rest}
-    return {}
+    return {lower_key: count}
 
 
 def _comma_remarks(cells: _Cells) -> "list[Note]":

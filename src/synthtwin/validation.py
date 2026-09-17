@@ -1568,8 +1568,10 @@ def settings_over_the_split(
     column pools it and `_governed` takes that column's verdicts from
     the file's own description instead. The one place a pooled spelling
     still reaches a number is the two presence COUNTS, which ask the
-    weaker publication question of A-P3-5 clause 1, and that residual is
-    stated at its size in the plan (R-P3-11) rather than papered over.
+    weaker publication question of A-P3-5 clause 1, and that residual was
+    stated at its size in the plan (R-P3-11) until plan P4-D161 closed it:
+    where the SUBMITTED description pools hole spellings, `_obligations`
+    takes both counts off the measured file's own description.
 
     WHAT IT COSTS, and it is R-P2-13's own shape on the FIRST class of
     marker -- the class the residual was written about. A twin holding a
@@ -6912,7 +6914,16 @@ def _obligations(
     # same way would have thrown away the round-2 witness on every column
     # whose role publishes no spelling of its own.
     split_published = _split_is_published(block)
-    if _split_size_is_published(block):
+    # ...AND NOT WHERE THE SUBMITTED DESCRIPTION ITSELF POOLS HOLE
+    # SPELLINGS (residual R-P3-11, closed by plan P4-D161). Such a
+    # description says some of its holes wore spellings too rare to name,
+    # and the file it was written from wears them: counted by blankness
+    # it was told 300 present and nought missing against its own 280 and
+    # 20. The condition reads the DESCRIPTION, which a measured file
+    # cannot choose, so the round-2 witness -- a description of EMPTY
+    # holes and a file spelling them `n/a` -- is still counted by
+    # blankness whatever spellings that file wears.
+    if _split_size_is_published(block) and not column.n_missing_withheld:
         present, missing = _presence_over_the_split(split, cells)
     else:
         present, missing = _own_presence(block, cells)
@@ -15336,15 +15347,32 @@ def _form_recount(
     Only a key the census names is counted, blank cells are not cells
     of the census at all, and a count under the floor is left out, so
     the check says "below the floor" rather than printing it.
+
+    A LOWER-CASE KEY NAMED WITHOUT THE FORM'S OWN KEY counts every cell of
+    the form (contract C6-31a, plan P4-D160): the census names it alone
+    where fewer than the line -- the floor or two, whichever is larger --
+    of the form's cells were written otherwise. So the cells of that form
+    not in lower case are counted under it where they are fewer than the
+    line, and not at all where they are not: a file writing the column in
+    capitals still misses the key.
     """
+    line = max(floor, 2)
     counted: "dict[str, int]" = {}
+    strays: "dict[str, int]" = {}
     for cell in cells:
         if not parsing.trimmed(cell):
             continue
         key = parsing.census_form(cell, census)
+        lower = parsing.lower_case_form(key) if key else ""
+        if key and key not in census and lower and lower in census:
+            strays[lower] = (strays[lower] if lower in strays else 0) + 1
+            continue
         if not key or key not in census or key == taxonomy.SUPPRESSED_LABEL:
             continue
         counted[key] = (counted[key] if key in counted else 0) + 1
+    for key in sorted(strays):
+        if strays[key] < line:
+            counted[key] = (counted[key] if key in counted else 0) + strays[key]
     kept: "dict[str, int]" = {}
     for key in sorted(counted):
         if counted[key] >= floor:

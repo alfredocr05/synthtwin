@@ -7367,7 +7367,12 @@ tests as bounded in P3-D8.3.
   wrong about half of what it named and is corrected by A-P3-39**: a
   built-in missing text stays pinned only on a description no column of
   which publishes it as a hole source.
-- **New, and open at its own size: R-P3-11.** The two presence COUNTS
+- **CLOSED 2026-09-16 by plan P4-D161 (the final review of the labels,
+  item 8): R-P3-11.** Where the submitted description's column pools
+  hole spellings, the two presence counts are taken off the measured
+  file's own description; the condition reads the submitted description,
+  so the round-2 witness below stays caught. The entry as it stood:
+  **New, and open at its own size: R-P3-11.** The two presence COUNTS
   are read over the weaker publication amendment A-P3-5 clause 1 chose
   for them — `missing_by_class` says how many of a column's holes are
   non-blank, without saying what they spell — so a column whose

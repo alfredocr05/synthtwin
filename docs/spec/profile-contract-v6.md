@@ -8536,19 +8536,41 @@ rest, and the LINE the larger of `small_cell_floor` and two:
 - `L` at the line and `R` nought: the lower-case key alone, counting `L`;
 - `L` and `R` both at the line: both keys, the form's own key counting
   `R`;
-- `R` exactly one, at ANY floor: the form named blind to case (plan
-  P4-D153). Pooled, that one cell is the form's one cell written
-  otherwise, and 799 `abc-00001` beside one `ABC-00799` at a floor of
-  twenty published `{"&&&-%%%%%": 799, "(withheld)": 1}`, naming it by
-  its count and by its complement;
-- `R` of two or more under the floor: the lower-case key, and `R` pooled
-  into `(withheld)`.
+- `L` at the line and `R` from one to under the line: the lower-case key
+  ALONE, counting every cell of the form, `L` and `R` together (plan
+  P4-D160). It named `L` and pooled `R`, and an `R` of one was a pool of
+  one: 799 `abc-00001` beside one `ABC-00799` at a floor of twenty
+  published `{"&&&-%%%%%": 799, "(withheld)": 1}`. Naming the form blind
+  to case instead turned the twin's 799 lower-case codes into capitals.
 
-**AND A CENSUS NAMING A LOWER-CASE KEY WRITES NO POOL OF ONE** (plan
-P4-D153). Where the census so built would carry a lower-case key beside
-a `(withheld)` count of one, it is built again with every form named
-blind to case. The question is the disclosure rule's, asked of the one
-helper the producer and the loader share (plan P4-D150).
+**A LOWER-CASE KEY NAMED WITHOUT THE FORM'S OWN KEY COUNTS EVERY CELL OF
+THAT FORM**, whatever its case, exactly as a form's own key named
+without its lower-case key counts every cell of the form (plan P4-D160).
+A recount counts under such a key the form's cells not in lower case
+where they number fewer than the line, and none of them where they do
+not, so a file writing the column in capitals still misses it. The key
+then says the convention the form was written in, and the few cells
+that broke it are counted nowhere apart.
+
+**AND NO READING OF THE CENSUS NAMES ONE ROW** (plan P4-D160, the
+disclosure rule of P4-D150, asked of the one helper the producer and the
+loader share). A reader holds the pool, `n_present`, and on a free-text
+column `n_code_alphabet`, beside the census. Until the `(withheld)` pool
+is not one, `n_present` less every cell the census counts is not one,
+and `n_code_alphabet` less the cells of the named forms made only of
+`%`, `@`, `&`, `-` and `_` is not one:
+
+- a pool of one takes in the smallest FAMILY of named keys (a form's own
+  key and its lower-case key together; the earliest form in sorted order
+  on a tie), or, where no key is named, is not written;
+- a difference of one against `n_present` gives the pool up where it is
+  written;
+- otherwise the smallest family that total covers is no longer named.
+
+A census that counts no cell is asked nothing. Measured before this
+rule, at a floor of twenty: 799 `ABC-00001` beside one `WXYZ-123456`
+published `{"@@@-%%%%%": 799, "(withheld)": 1}`, and beside one sentence
+too long to have a form `{"@@@-%%%%%": 799}` against 800 present cells.
 
 **WHY THE CASE IS PER FORM AND NOT PER POSITION.** A mark per letter
 in its own case — `Ab12` against `aB12` — splits a mixed column into
@@ -8664,12 +8686,15 @@ no fragment of a value stands anywhere in the block.
 **C6-31e (invariants).** **SF1.** Every NAMED form's count is at least
 `small_cell_floor`; a LOWER-CASE key's count, and the count of the
 form's own key where it stands beside one, is at least two as well; and
-a census naming a lower-case key holds no `(withheld)` count of one.
+the census holds no `(withheld)` count of one.
 **SF3.**
 Every count is at least 1, and the sum of all counts, `(withheld)`
 included, is at most `n_present` — at most, and not exactly, because
 the formless cells C6-31b excludes are present cells this census does
-not count. **SF5.** A lower-case key is named only on a column whose
+not count — and, where the census counts any cell, never exactly one
+less than `n_present`; on a free-text column the named forms made only
+of `%`, `@`, `&`, `-` and `_` count, where they count any cell, never
+exactly one less than `n_code_alphabet` (plan P4-D160). **SF5.** A lower-case key is named only on a column whose
 `n_distinct` equals its `n_distinct_folded`.
 
 **Disposition: EXACT-OBSERVABLE**, on the same terms as the two width
@@ -9579,8 +9604,8 @@ stated in full at section 7.9.
 
 | id | statement |
 |---|---|
-| SF1 | every NAMED form's count is at least `small_cell_floor`, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well, and a census naming a lower-case key holds no `(withheld)` count of one |
-| SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere |
+| SF1 | every NAMED form's count is at least `small_cell_floor`, and a lower-case key's count, with the count of the form's own key standing beside one, is at least two as well, and the census holds no `(withheld)` count of one |
+| SF3 | every count is at least 1, and the sum of all counts, `(withheld)` included, is at most `n_present` — at most, because a cell over the length limit has no form and is counted nowhere — and, where any cell is counted, never exactly one less; on free text the forms of the code alphabet never count exactly one less than `n_code_alphabet` |
 | SF5 | a lower-case key is named only where `n_distinct` equals `n_distinct_folded` |
 | LF1 | every NAMED layout's count is at least the line: `small_cell_floor`, and never under two |
 | LF2 | the `(withheld)` count, where written, is at least two |

@@ -6768,7 +6768,17 @@ packing rule applying here IN FULL — both margins and the shape search
   questions are put at all, and at most a second stated number of
   positions are looked at, so a walk that only ever re-asks still ends.
   Where either number is reached the column keeps the layout it already
-  had and the shortfall is measured off the finished cells and named;
+  had and the shortfall is measured off the finished cells and named.
+  **A named layout the first answer leaves short is a reason to look
+  further too** (plan P4-D163): a candidate meeting every count and every
+  collision the first one met is returned at once only where every named
+  layout holds its published count; otherwise the walk goes on, with no
+  collision ask, at most sixteen questions and at most six further
+  layouts built, taking only a candidate that misses exactly the counts
+  the first one missed and reaches for no sign the first one did without,
+  and the candidate leaving the fewest named layouts short is kept, the
+  first on a tie — so 400 `-10000` beside 400 `20000` no longer packs the end
+  pinned to six characters into the figures band;
 - **each of the four class families is class-preserving by
   construction, and the walk CHECKS it.** A cell that reads as an
   ordinary number, one holding a well-formed number too large or too
@@ -6837,7 +6847,14 @@ packing rule applying here IN FULL — both margins and the shape search
   long, and refusing it left one figure nine spellings where it has ten,
   so a declared identifier holding 0 to 119 wrote twenty-one
   three-figure cells against a published `{"%%%": 20}` and failed its
-  own layout census. In the code band the value is
+  own layout census. **It is the LAST of the ten, after `1` to `9`, and
+  where the published lengths run from one figure to two or more the
+  walk takes it after every number shorter than the shortest named
+  layout of figures alone two or more figures long — or after every
+  published length where none is named** (plan P4-D162): taken first, a
+  column of `1` to `800` came back holding `0` and one two-figure number
+  fewer, and taken late it is written only where the column holds more
+  short numbers than the numbers from `1` supply. In the code band the value is
   written `<digits>e0`, which reads back as a whole number and holds a
   character the figures do not. Outside the code alphabet it is written
   `<digits>.`, which reads back as a whole number and holds a character

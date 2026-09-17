@@ -18846,6 +18846,7 @@ def _identifier_cells(
     column: contract.ColumnBlock,
     groups: "tuple[int, ...]",
     holes: "tuple[str, ...]" = (),
+    floor: int = 1,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a declared column of record numbers (G9.6).
 
@@ -18937,10 +18938,31 @@ def _identifier_cells(
     # nothing the first layout held.
     allowance = -1
     conceded: frozenset[str] = frozenset()
+    # A LAYOUT THE FIRST ANSWER LEAVES SHORT IS A REASON TO LOOK FURTHER
+    # TOO (plan P4-D163). The packing settles each group's class and band
+    # before any layout is offered, so a slot pinned to the longest length
+    # can land in a band no named layout of that length is written in:
+    # 400 `-10000` beside 400 `20000` published `{"%%%%%": 400, "-%%%%%":
+    # 400}`, and the end fell to the figures band as `100000`, one cell
+    # off each layout. A candidate meeting everything the first one met
+    # is kept where it leaves FEWER named layouts short, and the first is
+    # returned at once only where it leaves none.
+    best: "tuple[list[str], list[Deviation]] | None" = None
+    best_short = -1
+    best_missed: frozenset[str] = frozenset()
+    best_signed = False
+    looks = 0
     for tier in range(2):
         if tier == 1:
+            # A SEARCH FOR A LAYOUT ALONE IS BOUNDED TIGHTER than one for a
+            # collision (plan P4-D163): where an answer already meets every
+            # count and every collision, the wider tier only trades one
+            # layout shortfall for a smaller one, and it is asked at most
+            # `_LAYOUT_PACKINGS` questions and builds at most `_LAYOUT_LOOKS`
+            # further layouts.
+            budget = _FOLD_PACKINGS if best is None else _LAYOUT_PACKINGS
             wider = _identifier_packings(
-                column, facts, groups, folded, partners, _FOLD_PACKINGS
+                column, facts, groups, folded, partners, budget
             )
             if len(wider) < 2:
                 break
@@ -18949,11 +18971,19 @@ def _identifier_cells(
             if tier == 1 and step < 1:
                 continue
             for asking in range(2):
+                if asking and best is not None:
+                    # The ask of G9.3 is about a collision, and a search
+                    # for a layout alone already has every one it owes.
+                    continue
                 asked: tuple[int, ...] = ()
                 if asking:
                     asked = shapes[step][1]
                 caps = [-1 for _cell in range(room)]
                 for _again in range(total + 1):
+                    if best is not None:
+                        looks = looks + 1
+                        if looks > _LAYOUT_LOOKS:
+                            return best
                     built, notes, short, supply = _laid_identifiers(
                         column, facts, groups, folded, partners,
                         shapes[step], caps, asked, holes,
@@ -18964,11 +18994,29 @@ def _identifier_cells(
                         conceded = _identifier_shortfall(
                             column, facts, built
                         )
+                    missed = _identifier_shortfall(column, facts, built)
                     if _fully_folded(short) and len(notes) <= allowance and (
-                        _identifier_shortfall(column, facts, built)
-                        <= conceded
+                        missed <= conceded
                     ):
-                        return built, notes
+                        if best is not None and (
+                            missed != best_missed
+                            or (shapes[step][2] and not best_signed)
+                        ):
+                            # A SEARCH FOR A LAYOUT TRADES NOTHING ELSE: a
+                            # candidate giving up or winning back another
+                            # count, or reaching for the sign the first
+                            # answer did without, is not taken for a layout.
+                            break
+                        laid_short = len(_layout_notes(column, built, floor))
+                        if laid_short == 0:
+                            return built, notes
+                        if best is None or laid_short < best_short:
+                            if best is None:
+                                best_missed = missed
+                                best_signed = shapes[step][2]
+                            best = (built, notes)
+                            best_short = laid_short
+                        break
                     moved = False
                     for cell in range(room):
                         if short[cell] < 1:
@@ -18978,6 +19026,8 @@ def _identifier_cells(
                             moved = True
                     if not moved:
                         break
+    if best is not None:
+        return best
     if kept is None:
         raise errors.ProfileError(
             f"synthtwin internal check: no layout at all was built for "
@@ -20337,6 +20387,11 @@ def _identifier_at(
         )
     if kind == _CLASS_NUMBER and facts.all_whole_numbers:
         if band == _BAND_DIGITS:
+            if length == 1:
+                # `1` TO `9`, THEN `0` (plan P4-D162): the lone nought is
+                # the last one-figure number, so the end pinned to one
+                # figure is `1` as it was before P4-D155 let `0` be written.
+                return _DIGITS[(index + 1) % len(_DIGITS)]
             return _spelling_at(
                 _DIGITS, length, index, _band_head(band, True, length)
             )
@@ -20463,6 +20518,17 @@ def _identifier_permits(
 # had and the shortfall is measured off the cells and named, exactly as
 # before this repair existed.
 _FOLD_PACKINGS = 256
+
+# How many questions the wider tier may put to the allocator where the
+# first answer already meets every count and collision and only a named
+# layout is short (plan P4-D163). Measured: 400 `-10000` beside 400
+# `20000` is met by the sixth packing the wider tier offers.
+_LAYOUT_PACKINGS = 16
+
+# How many further layouts may be built where the first answer already
+# meets every count and collision and only a named layout is short (plan
+# P4-D163). The same column's layout is met at the fifth build.
+_LAYOUT_LOOKS = 6
 
 # HOW MANY POSITIONS THE SECOND TIER MAY LOOK AT (review item P3-V6-F2).
 # A budget counted in positions LOOKED AT rather than in questions
@@ -20942,12 +21008,24 @@ def _walked_identifier(
     signed: bool = False,
     holes: "tuple[str, ...]" = (),
 ) -> "tuple[str, bool] | None":
-    """One pass of a record-number family's walk, from where it stopped."""
+    """One pass of a record-number family's walk, from where it stopped.
+
+    THE LONE FIGURE `0` IS WALKED LATE (plan P4-D162), where the
+    column's lengths run from one figure to two or more: after every
+    number shorter than the shortest named layout of figures alone, or,
+    where no such layout is named, after every number of every published
+    length. P4-D155 let it be written, first, and a column of `1` to `800`
+    then came back holding `0` and one two-figure number fewer; walked
+    late it is written only where the column holds more short numbers
+    than `1` onward supply, which is exactly the column of `0` to `119`
+    P4-D155 was for.
+    """
     length = state[0]
     index = state[1]
     spent = state[2] == 1
     steps = 0
     asked = 0
+    late = _nought_walk_length(kind, band, facts)
     while steps < 1000000:
         steps = steps + 1
         if length > facts.max_length:
@@ -20955,17 +21033,25 @@ def _walked_identifier(
             index = 0
             spent = True
             state[2] = 1
-        if index >= _identifier_room(kind, band, facts, length, signed):
+        room = _identifier_room(kind, band, facts, length, signed)
+        if late and length == late:
+            room = room + 1
+        if index >= room:
             length = length + 1
             index = 0
             continue
-        candidate = _identifier_at(
-            kind, band, facts, length, index, signed
-        )
+        if late and length == late and index == room - 1:
+            candidate: "str | None" = "0"
+        else:
+            candidate = _identifier_at(
+                kind, band, facts, length, index, signed
+            )
         index = index + 1
         if candidate is None:
             length = length + 1
             index = 0
+            continue
+        if late and length == 1 and candidate == "0":
             continue
         if letter and not _has_letter(candidate):
             asked = asked + 1
@@ -20984,6 +21070,38 @@ def _walked_identifier(
         state[1] = index
         return candidate, spent
     return None
+
+
+def _nought_walk_length(
+    kind: str, band: str, facts: contract.IdentifierFacts
+) -> int:
+    """The length whose numbers the lone `0` is walked after, or 0.
+
+    One less than the shortest named layout of figures alone two or more
+    figures long, or the longest published length where none is named;
+    0 where the walk has no lone `0` to hold back (plan P4-D162).
+    """
+    if not (
+        kind == _CLASS_NUMBER
+        and band == _BAND_DIGITS
+        and facts.all_whole_numbers
+        and facts.min_length == 1
+        and facts.max_length >= 2
+    ):
+        return 0
+    after = facts.max_length
+    for layout in _named_layouts(facts):
+        if len(layout) < 2 or len(layout) - 1 >= after:
+            continue
+        figures = True
+        for character in layout:
+            if character != parsing.LAYOUT_DIGIT:
+                figures = False
+        if figures:
+            after = len(layout) - 1
+    if after < 2:
+        return 0
+    return after
 
 
 def _partner_at(
@@ -25205,7 +25323,7 @@ def _plan_column(
         # P4-D158), as they reach the unrepresentable role below: a
         # `--missing-value` declaration is made once for the whole table.
         cells, notes = _identifier_cells(
-            column, groups, _holes_reserved(column, all_holes)
+            column, groups, _holes_reserved(column, all_holes), floor
         )
     elif isinstance(facts, contract.TextFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)

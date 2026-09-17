@@ -1643,12 +1643,15 @@ INVARIANTS = {
     "SF1": (
         "every written form the census names was written by at least "
         "the smallest group size, and a lower-case key, with the form's "
-        "own key beside it, by at least two cells as well, and a census "
-        "naming a lower-case key holds no pool of one cell"
+        "own key beside it, by at least two cells as well, and the "
+        "census holds no pool of one cell"
     ),
     "SF3": (
         "the census counts no more cells than the column has present, "
-        "a cell too long to have a form being counted nowhere"
+        "a cell too long to have a form being counted nowhere, and, where "
+        "it counts any, never exactly one fewer, nor, on a column of free "
+        "text, exactly one fewer than n_code_alphabet among its forms of "
+        "that alphabet"
     ),
     "SC1": (
         "every spelling a count column's census names was written by at "
@@ -9730,7 +9733,10 @@ def _pool_holds_both(
 
 
 def _shape_forms(
-    mapping: "dict[str, object]", where: str, floor: int
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    with_code_total: bool = False,
 ) -> "dict[str, int]":
     """The census of written forms, checked key by key (C6-D18).
 
@@ -9813,36 +9819,68 @@ def _shape_forms(
                     f"the column holds {distinct} different values that "
                     f"fold to {folded_distinct}",
                 )
-    _lower_case_pool_line(forms, where)
+    _form_census_names_no_row(mapping, forms, where, present, with_code_total)
     return forms
 
 
-def _lower_case_pool_line(forms: "dict[str, int]", where: str) -> None:
-    """SF1's third line: a census naming a lower-case key pools no one cell.
+def _form_census_names_no_row(
+    mapping: "dict[str, object]",
+    forms: "dict[str, int]",
+    where: str,
+    present: int,
+    with_code_total: bool,
+) -> None:
+    """SF1 and SF3's last lines: no reading names one row (plan P4-D160).
 
-    (Plan P4-D153.) The pool beside a lower-case key can be the one cell
-    of that form written otherwise, so the producer writes such a census
-    blind to case instead, and this is the same question asked of the
-    same rule, `parsing.census_names_one_row`. A census with no
-    lower-case key is not asked it here: its pool is the floor's own, as
-    it was before any lower-case key existed.
+    The producer's own question, `parsing.census_names_one_row`, asked of
+    the same three readings: the pool, which is never one; `n_present`
+    less every cell the census counts, the pool included; and, on a
+    free-text column, `n_code_alphabet` less the cells of the named forms
+    made of figures, letters, the hyphen and the underscore. A census
+    that counts no cell is asked nothing: it leaves nothing to subtract.
 
-    Raises ProfileError for SF1.
+    Raises ProfileError for SF1 (a pool of one) and SF3 (a difference of
+    one).
     """
-    lowered = False
+    pool: "dict[str, int]" = {}
+    counted = 0
+    coded = 0
     for name in sorted(forms):
-        if parsing.SHAPE_LOWER in name:
-            lowered = True
-    if not lowered or WITHHELD not in forms:
-        return
-    if parsing.census_names_one_row({WITHHELD: forms[WITHHELD]}, []) == -2:
+        counted = counted + forms[name]
+        if name == WITHHELD:
+            pool = {WITHHELD: forms[name]}
+            continue
+        if _layout_within(name, _FORM_CODE_MARKS):
+            coded = coded + forms[name]
+    if parsing.census_names_one_row(pool, []) == -2:
         raise _broken(
             "SF1",
             where,
-            "a lower-case key is named beside a pool of one cell",
-            "a census naming a lower-case key is written with no pool "
-            "of one, and is otherwise written blind to case",
+            "the pool holds 1 cell",
+            "a pool is written only where it holds two or more",
         )
+    if parsing.census_names_one_row({}, [(present, counted)]) == 0:
+        raise _broken(
+            "SF3",
+            where,
+            f"the census counts {counted} cells",
+            f"the column holds {present} present cells, one more",
+        )
+    if not with_code_total:
+        return
+    total = _whole(mapping["n_code_alphabet"], "n_code_alphabet", where, 0)
+    if parsing.census_names_one_row({}, [(total, coded)]) == 0:
+        raise _broken(
+            "SF3",
+            where,
+            f"the forms inside the code alphabet count {coded} cells",
+            f"n_code_alphabet is {total}, one more",
+        )
+
+
+# The characters a form key may hold for every cell wearing it to lie
+# inside the alphabet `n_code_alphabet` counts (C6-31a, plan P4-D160).
+_FORM_CODE_MARKS = "%@&-_"
 
 
 def _lower_case_key_line(
@@ -11294,7 +11332,7 @@ def _text_facts(
     )
     _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
-        shape_forms=_shape_forms(mapping, where, floor),
+        shape_forms=_shape_forms(mapping, where, floor, True),
         length=LengthStats(
             minimum=shortest, maximum=longest, mean=mean_length, p50=middle
         ),

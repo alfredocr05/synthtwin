@@ -89,12 +89,19 @@ CLASS_FACTS = (
 )
 
 
+# How many of the battery's 800 runs name a layout the twin did not hold:
+# 488 when the twin's report began recounting layouts (plan P4-D157), and
+# 376 once a layout shortfall became a reason for the packing to look
+# further (plan P4-D163).
+LAYOUT_SHORT_RUNS = 376
+
+
 def _beside_the_layouts(twin: generation.Twin) -> "list[str]":
     """The deviations a twin names, the layout census's own set aside.
 
     THE LAYOUT CENSUS IS RECOUNTED SINCE PLAN P4-D157, and on the small
-    mixed columns this file builds it is MISSED on a measured 488 of 800
-    runs: G9.4's packing chooses each group's class and alphabet band
+    mixed columns this file builds it is MISSED on a measured 376 of 800
+    runs (488 before plan P4-D163): G9.4's packing chooses each group's class and alphabet band
     before any layout is offered, and a layout a group's band cannot wear
     is not written. Those misses were there before the recount and
     `synthtwin validate` reported every one; the twin's own report now
@@ -486,7 +493,14 @@ def test_every_class_and_alphabet_count_is_written_exactly(
     classifier over the finished cells, which is what the contract's own
     disposition means, and the two alphabet counts are recounted the
     same way. Not one of the six may move.
+
+    AND THE LAYOUT SHORTFALL IS PINNED AT ITS SIZE SO IT CAN ONLY FALL
+    (the final review of the labels, repair pass). The runs whose twin
+    names a layout it did not hold are counted and held to at most
+    `LAYOUT_SHORT_RUNS`: a change that makes more of them short turns this
+    red, and one that makes fewer asks for the number to be lowered.
     """
+    layout_short = 0
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
         for seed in SEEDS:
@@ -531,11 +545,15 @@ def test_every_class_and_alphabet_count_is_written_exactly(
                 seed,
                 "folded identities: twin differs from description",
             )
+            if len(_beside_the_layouts(twin)) < len(twin.deviations):
+                layout_short = layout_short + 1
             assert _beside_the_layouts(twin) == [], (
                 name,
                 seed,
                 [note.fact for note in twin.deviations],
             )
+    print(f"layout-short runs: {layout_short}")
+    assert layout_short <= LAYOUT_SHORT_RUNS, layout_short
 
 
 def test_the_class_counts_are_not_bought_with_another_exact_fact(

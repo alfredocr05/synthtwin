@@ -1069,7 +1069,15 @@ wearing that word, and it is the same exposure A-P3-29 took for a
 built-in word the person declared and A8 took for a stand-in number,
 said now about the one route those two left standing.
 
-**WHAT IS NOT CLOSED, at its size.** The two presence COUNTS are read
+**WHAT WAS NOT CLOSED, at its size, and is closed now** (plan P4-D161,
+2026-09-16): where the SUBMITTED description's column pools hole
+spellings -- its `n_missing_withheld` is above nought -- the two presence
+counts are taken off the measured file's own description rather than
+over the blank split, so the file the description was written from holds
+both. The condition reads the submitted description, which no measured
+file chooses, so the round-2 witness -- a description of EMPTY holes and
+a file spelling them `n/a` -- is still counted by blankness. The text
+below is the residual as it stood. The two presence COUNTS are read
 over the weaker publication of V2.4-A3's second half — `missing_by_class`
 says how many holes are non-blank without saying what they spell — so a
 column whose non-blank holes are pooled below the floor still has those
@@ -1617,7 +1625,10 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   the description was made with, so the file is read the way the table
   was: a cell whose every letter is lower case is counted under its
   form's lower-case key where the description names one, and under the
-  form otherwise, each named key numbering at least its published count
+  form otherwise -- except that a lower-case key the description names
+  without the form's own key also counts the form's other cells where
+  they number fewer than the line, the floor or two, whichever is larger,
+  and none of them where they do not (plan P4-D160) -- each named key numbering at least its published count
   and at most that count plus the pooled remainder. A count column's
   published spellings are each recounted EXACTLY, subcheck
   `spellings.published.<spelling>`, because that census pools nothing.
