@@ -916,6 +916,95 @@ def census_nameable(
     return True
 
 
+def width_census_breaches(
+    styles: "dict[str, int]",
+    padded: "dict[str, int]",
+    fields: "dict[str, int]",
+    floor: int,
+) -> "tuple[bool, list[str]]":
+    """Where the width censuses let a reader subtract a count too small to name.
+
+    THE DISCLOSURE RULE OF `census_nameable`, ASKED OF THE SIBLING
+    CENSUSES A READER SUBTRACTS FROM EACH OTHER (plan P4-D148, the repair
+    pass of the final Codex review). Each width census floors its own
+    counts, and that is not enough: two published counts can each be a
+    group while their difference is one person. Measured at a floor of
+    eleven, both on the tool as the review found it and after P4-D145:
+
+    1. THE PLUS ROUTE. `pad_widths` counts every `leading_zero` cell and
+       every plus-signed padded one, and `numeric_styles` names the
+       `leading_zero` count, so the census's total less that count is
+       the number of plus-signed padded cells, and the `leading_plus`
+       count less THAT is the plus-signed cells with no pad. 800 padded
+       keys, fifty `+k` and one `+00123` published `pad_widths {"5":
+       801}` beside `leading_zero: 800`.
+    2. THE WIDTH ROUTE. At a width both censuses name, `field_widths`
+       less `pad_widths` is the number of cells written at that width
+       with no pad. 800 padded five-figure codes beside one `12345`
+       published `field_widths {"5": 801}` beside `pad_widths {"5":
+       800}`. Where `pad_widths` pools and `field_widths` does not, and
+       exactly one field width of two figures or more is left that the
+       padded census does not name, the pool is at that width and is
+       subtracted there too.
+
+    Each difference is nought or reaches `census_floor`. A pooled
+    remainder of a width census is a mixture of widths no reader can
+    take apart, and is not a count this rule asks about.
+
+    NOT AT A SETTINGS FLOOR OF ONE. There the width censuses name a count
+    of one under a key of its own (owner ruling 2026-08-14, invariant
+    S13), and no remainder may stand at all, so a difference of one says
+    nothing the census does not already print -- and the only remedy,
+    pooling, is the state S13 forbids. Measured without this clause: the
+    style-reach battery of `tests/test_p2c5f3_style_reach.py`, at floor
+    one, stopped at the profiler's own publication guard.
+
+    Guarantees: accepts the forms map, the two width censuses and the
+    settings floor, as published; returns whether the plus route breaks
+    the rule and the field widths, in ascending key order, at which the
+    width route does. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    if floor <= 1:
+        return False, []
+    least = census_floor(floor)
+    pool = MISSING_WITHHELD
+    total = 0
+    for width in padded:
+        total = total + padded[width]
+    plus_broken = False
+    plus_cells = -1
+    if STYLE_LEADING_ZERO in styles:
+        plus_cells = total - styles[STYLE_LEADING_ZERO]
+    elif pool not in styles:
+        plus_cells = total
+    if plus_cells > 0:
+        rest = [styles[STYLE_LEADING_PLUS]] if STYLE_LEADING_PLUS in styles else []
+        plus_broken = not census_nameable([plus_cells], rest, floor)
+    named: "list[int]" = []
+    for width in fields:
+        if width != pool:
+            named += [int(width)]
+    unnamed: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        if width not in padded and figures >= 2:
+            unnamed += [width]
+    broken: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        known = padded[width] if width in padded else 0
+        if pool in padded and pool not in fields and unnamed == [width]:
+            known = known + padded[pool]
+        if known < 1:
+            continue
+        rest_cells = fields[width] - known
+        if rest_cells != 0 and rest_cells < least:
+            broken += [width]
+    return plus_broken, broken
+
+
+
 # THE FIRST WHOLE NUMBER BINARY64 CANNOT KEEP EVERY FIGURE OF. Below it
 # a whole number is held exactly and one run of figures reads back as
 # it; at it and past it the spacing reaches two and neighbouring runs

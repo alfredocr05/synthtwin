@@ -486,20 +486,30 @@ def test_bare_prices_beside_a_unit_are_read_in_the_declared_grammar(
 # -- P4-D144: an exponent that reads back is its own value's spelling ----
 
 
-@pytest.mark.parametrize("shape", ["precise", "engineering"])
+@pytest.mark.parametrize(
+    "shape", ["precise", "engineering", "two_before_the_point", "zero_before_the_point"]
+)
 def test_a_real_exponent_export_meets_its_own_description(
     shape: str, tmp_path: pathlib.Path
 ) -> None:
     """THE REVIEW'S ITEM 5, AS A TEST.
 
     Measured before the repair: `%.18e` failed its own description on 799
-    spellings of 800, and `1200e-3` engineering notation failed too.
+    spellings of 800, and `1200e-3` engineering notation failed too. The
+    last two shapes put the point somewhere other than after the first
+    figure -- `12.00e2` and `0.01200e5` -- which the repair pass found no
+    test depended on: a validator refusing a point away from the first
+    figure passed every shape above.
     """
     draw = random.Random(23)
     if shape == "precise":
         cells = [f"{draw.uniform(10, 999):.18e}" for _ in range(800)]
-    else:
+    elif shape == "engineering":
         cells = [f"{1200 + i}e-3" for i in range(800)]
+    elif shape == "two_before_the_point":
+        cells = [f"{12 + i / 100:.2f}e2" for i in range(800)]
+    else:
+        cells = [f"0.0{1200 + i}e5" for i in range(800)]
     run = _round_trip(tmp_path / shape, ["v"], [[c] for c in cells], "1")
     assert run["real_exit"] == 0, run["real_missed"]
     assert run["twin_exit"] == 0, run["twin_missed"]
@@ -572,3 +582,179 @@ def test_a_plus_is_never_padded_past_the_census_of_padded_plus_cells(
         assert run["first"]["pad_widths"] == {"2": 9}
         written = {row[0] for row in run["rows"] if row[0]}
         assert not [cell for cell in written if cell[:2] == "+0"], written
+
+
+# -- P4-D148, P4-D149 and P4-D145's amendment: the repair pass --------------
+
+
+def _codes(extra: "list[str]", plus: bool) -> "list[list[str]]":
+    """800 padded five-figure codes beside fifty short ones, and ``extra``."""
+    cells = [f"{100 + i % 900:05d}" if not plus else f"{100 + i:05d}" for i in range(800)]
+    cells += [f"+{k + 1}" if plus else str(k + 1) for k in range(50)]
+    cells += extra
+    return [[cell, f"r{index % 7}"] for index, cell in enumerate(cells)]
+
+
+def _rest(block: "dict[str, object]", key: str, width: str) -> int:
+    census = block[key]
+    assert isinstance(census, dict)
+    return int(census[width]) if width in census else 0
+
+
+@pytest.mark.parametrize(
+    "plus,extra",
+    [(False, "12345"), (True, "+00123")],
+)
+def test_the_width_censuses_leave_no_one_to_subtract(
+    plus: bool, extra: str, tmp_path: pathlib.Path
+) -> None:
+    """THE REPAIR PASS'S BLOCKER, AS A TEST (plan P4-D148).
+
+    Measured before: 800 padded codes and fifty short ones beside one
+    unpadded `12345` published `field_widths {"5": 801}` beside `pad_widths
+    {"5": 800}`, and beside one `+00123` published `pad_widths {"5": 801}`
+    beside `leading_zero: 800` -- each difference exactly one person. Now
+    every difference a reader can take is nought or a group, and every
+    file validates.
+    """
+    floor = 11
+    for label, rows in (("without", _codes([], plus)), ("with", _codes([extra], plus))):
+        run = _round_trip(
+            tmp_path / label, ["code", "label"], rows, "4", floor=str(floor)
+        )
+        block = run["first"]
+        styles = block["numeric_styles"]
+        assert isinstance(styles, dict)
+        padded = block["pad_widths"]
+        assert isinstance(padded, dict)
+        plus_cells = sum(padded.values()) - int(styles.get("leading_zero", 0))
+        assert plus_cells == 0 or plus_cells >= floor, block
+        unpadded = _rest(block, "field_widths", "5") - _rest(block, "pad_widths", "5")
+        if "5" in block["field_widths"]:  # type: ignore[operator]
+            assert unpadded == 0 or unpadded >= floor, block
+        assert run["twin_exit"] == 0, run["twin_missed"]
+        assert run["real_exit"] == 0, run["real_missed"]
+        if label == "with":
+            assert "5" not in block["field_widths"], block  # type: ignore[operator]
+            assert block["pad_widths"] == {"5": 800}, block
+
+
+@pytest.mark.parametrize(
+    "key,census,refused",
+    [
+        ("field_widths", {"(withheld)": 9, "2": 41, "5": 801}, "P6c"),
+        ("pad_widths", {"5": 801}, "P5b"),
+    ],
+)
+def test_the_loader_refuses_a_width_complement_of_one(
+    key: str, census: "dict[str, int]", refused: str, tmp_path: pathlib.Path
+) -> None:
+    """Enforced where a description is READ (plan P4-D148)."""
+    rows = _codes(["12345" if key == "field_widths" else "+00123"], key == "pad_widths")
+    code, described = _describe(tmp_path / "base", ["code", "label"], rows)
+    assert code == 0
+    document = json.loads(described.read_text(encoding="utf-8"))
+    document["columns"][0][key] = census
+    edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    with pytest.raises(errors.ProfileError) as stopped:
+        contract.load_profile(str(edited))
+    assert refused in str(stopped.value), str(stopped.value)
+
+
+def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Plan P4-D145's amendment: a regression the plus-signed pad brought, measured.
+
+    Eight values written `+0100` twice and `0100` once at a floor of eleven
+    published `pad_widths {"4": 24}` beside a held-back `leading_zero`, and
+    the twin -- writing the held-back cells as their own values are --
+    missed `pads.published.4` at exit 3.
+    """
+    rows = []
+    for value in range(100, 108):
+        for turn in range(3):
+            rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
+    run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
+    assert run["first"]["pad_widths"] == {"(withheld)": 8}
+    assert run["twin_exit"] == 0, run["twin_missed"]
+    assert run["real_exit"] == 0, run["real_missed"]
+    # ...AND THE LOADER REFUSES THE CENSUS THE PRODUCER NO LONGER WRITES.
+    document = json.loads(run["described"].read_text(encoding="utf-8"))
+    document["columns"][0]["pad_widths"] = {"4": 24}
+    edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    with pytest.raises(errors.ProfileError) as stopped:
+        contract.load_profile(str(edited))
+    assert "P5b" in str(stopped.value), str(stopped.value)
+
+
+def _mean(values: "list[float]") -> float:
+    return sum(values) / len(values)
+
+
+def test_grouped_and_bare_amounts_keep_their_sizes(tmp_path: pathlib.Path) -> None:
+    """THE REPAIR PASS'S GROUPING FINDING, AS A TEST (plan P4-D149).
+
+    Measured before: 1,500 amounts, 915 grouped and 585 bare with means of
+    489,137 and 483,357, came back with a grouped mean of 289,169 and a bare
+    mean of 795,007, every bare cell larger than every grouped one.
+    """
+    draw = random.Random(11)
+    rows = []
+    for index in range(1500):
+        value = draw.randint(1000, 999999) + 0.25
+        text = f"{value:,.2f}" if draw.random() < 0.6 else f"{value:.2f}"
+        rows += [[text, f"r{index % 5}"]]
+    run = _round_trip(tmp_path / "amounts", ["amount", "label"], rows, "4")
+    grouped = [float(row[0].replace(",", "")) for row in run["rows"] if "," in row[0]]
+    bare = [float(row[0]) for row in run["rows"] if row[0] and "," not in row[0]]
+    assert grouped and bare
+    overall = _mean(grouped + bare)
+    assert abs(_mean(grouped) - _mean(bare)) < 0.1 * overall, (_mean(grouped), _mean(bare))
+    assert min(bare) < max(grouped)
+    assert run["twin_exit"] == 0, run["twin_missed"]
+    assert run["real_exit"] == 0, run["real_missed"]
+
+
+def test_bracketed_and_minus_debts_keep_their_sizes(tmp_path: pathlib.Path) -> None:
+    """The same finding on the census of negative notations (plan P4-D149)."""
+    draw = random.Random(12)
+    rows = []
+    for index in range(1200):
+        value = draw.randint(1, 99999) + 0.5
+        text = f"({value:.2f})" if draw.random() < 0.3 else f"-{value:.2f}"
+        rows += [[text, f"r{index % 5}"]]
+    run = _round_trip(tmp_path / "debts", ["debt", "label"], rows, "4")
+    assert set(run["first"]["negative_notations"]) == {"brackets", "minus"}  # type: ignore[arg-type]
+    brackets = [float(row[0][1:-1]) for row in run["rows"] if row[0][:1] == "("]
+    minus = [-float(row[0]) for row in run["rows"] if row[0][:1] == "-"]
+    assert brackets and minus
+    overall = _mean(brackets + minus)
+    assert abs(_mean(brackets) - _mean(minus)) < 0.1 * overall, (_mean(brackets), _mean(minus))
+    assert run["twin_exit"] == 0, run["twin_missed"]
+    assert run["real_exit"] == 0, run["real_missed"]
+
+
+@pytest.mark.parametrize("seed", ["1", "4"])
+def test_offsets_written_both_ways_keep_their_spellings_and_widths(
+    seed: str, tmp_path: pathlib.Path
+) -> None:
+    """THE REPAIR PASS'S DISTINCTNESS FINDING, AS A TEST (plan P4-D145).
+
+    Measured before: 1,200 offsets written `+0123` or `0123` publish 917
+    spellings; the twin kept every width but held 776 and 768 spellings on
+    seeds 1 and 4, reported as an authorized deviation.
+    """
+    draw = random.Random(5)
+    rows = []
+    for _index in range(1200):
+        offset = draw.randint(0, 999)
+        text = f"+{offset:04d}" if draw.random() < 0.6 else f"{offset:04d}"
+        change = draw.randint(-5000, 5000) / 100
+        rows += [[text, f"{change:+.2f}"]]
+    run = _round_trip(tmp_path / f"offsets{seed}", ["offset", "delta"], rows, seed)
+    written = [row[0] for row in run["rows"]]
+    assert len(set(written)) == run["first"]["n_distinct"]
+    assert run["second"]["pad_widths"] == run["first"]["pad_widths"]
+    assert run["twin_exit"] == 0, run["twin_missed"]
+    assert run["real_exit"] == 0, run["real_missed"]

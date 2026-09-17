@@ -13074,8 +13074,13 @@ def _wears_an_exponent_spelling(body: str, magnitude: float) -> bool:
     for character in power:
         if character < "0" or character > "9":
             return False
-    while power[:1] == "0" and len(power) > 1:
-        power = power[1:]
+    # ONE SCAN AND ONE SLICE (plan P4-D146, the repair pass). Taking the
+    # zeros off one at a time copied the rest of the power once per zero,
+    # and a pad of 40,000 zeros on 100 cells took 33 seconds to validate.
+    first = 0
+    while first < len(power) - 1 and power[first] == "0":
+        first = first + 1
+    power = power[first:]
     figures = 0
     points = 0
     nonzero = False

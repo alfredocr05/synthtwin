@@ -1610,7 +1610,9 @@ INVARIANTS = {
         "the cells counted by the width of the field they wrote come "
         "to at least the cells written in the leading-zero form and at "
         "most those together with the cells written with a plus and the "
-        "cells held back from the forms map"
+        "cells held back from the forms map, and what they count past "
+        "the leading-zero form, and what that leaves of the cells written "
+        "with a plus, is either nothing or at least two"
     ),
     "P6b": (
         "every field width the census names was written by at least "
@@ -1630,7 +1632,9 @@ INVARIANTS = {
     # counts three of the six forms rather than one.
     "P6c": (
         "every whole-number field width the census names was written "
-        "by at least the smallest group size"
+        "by at least the smallest group size, and at a width the padded "
+        "census names too, the cells written without a redundant zero "
+        "are either nothing or at least two"
     ),
     "P7c": (
         "a field width of no figures at all is a width no cell written "
@@ -8540,6 +8544,7 @@ def _numeric_facts(
     padded = _padded_widths(mapping, where, frame.floor, styles)
     _pool_holds_both(where, frame.floor, styles, widths, padded)
     fields = _field_widths(mapping, where, frame.floor, styles)
+    _widths_leave_no_one(where, frame.floor, styles, padded, fields)
     histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
     hollow = _empty_bins(mapping, where, used, ladder, histogram)
     edges = _empty_edges(mapping, where, hollow, ladder)
@@ -9509,6 +9514,53 @@ def _padded_widths(
 POINT_FREE_STYLES = (PLAIN_STYLE, LEADING_PLUS_STYLE, LEADING_ZERO_STYLE)
 
 
+def _widths_leave_no_one(
+    where: str,
+    floor: int,
+    styles: "dict[str, int]",
+    padded: "dict[str, int]",
+    fields: "dict[str, int]",
+) -> None:
+    """The width censuses, read against each other by the disclosure rule.
+
+    WHAT A READER SUBTRACTS, THE LOADER CHECKS (plan P4-D148). Each width
+    census floors its own counts, and two of them are subtracted from
+    each other and from the forms map: `pad_widths` less the named
+    `leading_zero` count is the plus-signed padded cells, and the
+    `leading_plus` count less that is the ones with no pad (P5b); at a
+    width both censuses name, `field_widths` less `pad_widths` is the
+    cells written there with no pad (P6c). `parsing.width_census_breaches`
+    states both, once, for the producer and for this loader; a
+    description in which either difference is neither nought nor a group
+    is refused rather than read.
+
+    Raises ProfileError naming P5b or P6c; returns None when both hold.
+    """
+    plus_broken, broken = parsing.width_census_breaches(
+        styles, padded, fields, floor
+    )
+    least = _census_floor(floor)
+    if plus_broken:
+        raise _broken(
+            "P5b",
+            where,
+            "the cells counted by the width of the field they wrote leave "
+            "a count of cells written with a plus and a redundant zero, or "
+            "of cells written with a plus and none, that is neither nought "
+            "nor a group",
+            f"each is nought or at least {least}",
+        )
+    for width in broken:
+        raise _broken(
+            "P6c",
+            where,
+            f"the width '{width}' is named by both width censuses, and the "
+            f"cells written there without a redundant zero number neither "
+            f"nought nor a group",
+            f"that number is nought or at least {least}",
+        )
+
+
 def _field_widths(
     mapping: "dict[str, object]",
     where: str,
@@ -9731,21 +9783,27 @@ def _width_census(
         )
     if not total:
         return widths
-    if also:
-        # THE TWO FORMS' SHARES OF THE WINDOW (plan P4-D145): the pooled
-        # cells of the first form number fewer than the floor, and so do
-        # the second form's where it is pooled too; a named second form
-        # can supply every one of its cells.
-        ceiling = (floor - 1) + (extra if also in styles else floor - 1)
-        if total > ceiling or total > pooled + extra:
+    if also and not pooled:
+        # NOTHING HELD BACK AND THE FIRST FORM NOT NAMED (plan P4-D145, as
+        # amended by the repair pass): no cell of the first form exists, so every cell the
+        # census counts is a cell of the second form, and there are no
+        # more of them than that form's named count.
+        if total > extra:
             raise _broken(
                 sum_rule,
                 where,
                 f"{total} cells are counted as {wrote}",
-                f"no more than {min(ceiling, pooled + extra)} can be, with "
-                f"the first form held back from the forms map",
+                f"no cell was written in the first form, and {extra} were "
+                f"written in the second",
             )
         return widths
+    # WHERE THE FIRST FORM IS HELD BACK, THE SECOND FORM'S CELLS ARE NOT
+    # COUNTED AT ALL (plan P4-D145), so the pooled reading below binds with
+    # ``also`` as without it. Measured before: eight values written three
+    # times each, `+0100` twice and `0100` once, at a floor of eleven,
+    # published `pad_widths {"4": 24}` beside a pooled `leading_zero`, and
+    # the twin -- which writes a pooled form as its own value is written --
+    # padded sixteen cells and missed `pads.published.4` at exit 3.
     if total >= floor:
         raise _broken(
             sum_rule,

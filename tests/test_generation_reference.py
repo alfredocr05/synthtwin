@@ -106,7 +106,7 @@ SECOND_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_2.py"
 )
 # THE FIFTH FILE (the repair of the final Codex review of the number
-# censuses, plans P4-D142, P4-D145 and P4-D147).
+# censuses, plans P4-D142, P4-D145, P4-D147 and P4-D149).
 THIRD_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_3.py"
 )
@@ -341,7 +341,8 @@ SECOND_BRANCH_CASES = (
 )
 
 # The fifth committed file: the cases the repair of the final Codex review
-# of the number censuses added (plans P4-D142, P4-D145, P4-D147), each of
+# of the number censuses added (plans P4-D142, P4-D145 and its amendment,
+# P4-D147 and P4-D149), each of
 # whose rules could otherwise be withdrawn with every committed byte
 # unchanged. Sorted, like the tuples above.
 THIRD_BRANCH_CASES = (
@@ -349,6 +350,8 @@ THIRD_BRANCH_CASES = (
     "plus_padded_field",
     "pooled_mark_cells",
     "saturated_integers",
+    "signed_pads",
+    "spread_conventions",
     "unpublished_majority_marks",
 )
 
@@ -399,6 +402,8 @@ SEEDS = {
     "pooled_mark_cells": 162,
     "saturated_integers": 163,
     "unpublished_majority_marks": 164,
+    "spread_conventions": 165,
+    "signed_pads": 166,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
     # case is given, and each case's committed cells were chosen from
@@ -886,8 +891,8 @@ BRANCH_PUBLISHED_NUMBERS = 23
 BRANCH_NAMED_COUNTS = 121
 SECOND_BRANCH_PUBLISHED_NUMBERS = 336
 SECOND_BRANCH_NAMED_COUNTS = 370
-THIRD_BRANCH_PUBLISHED_NUMBERS = 643
-THIRD_BRANCH_NAMED_COUNTS = 198
+THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
+THIRD_BRANCH_NAMED_COUNTS = 339
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1817,18 +1822,19 @@ def _notations_from_the_majority(census, default, styles, values):
     return [default] * len(values)
 
 
-# The oracle's own rules the five cases of plans P4-D142, P4-D145 and
+# The oracle's own rules the seven cases of plans P4-D142, P4-D145, P4-D149 and
 # P4-D147 pin, held before any test patches them.
 gen_mark_places = gen.mark_places
 gen_pad_places = gen.pad_places
 gen_apart_values = gen.apart_values
+gen_plus_cells_by_value = gen.plus_cells_by_value
 
 
 def _marks_without_the_bare_remainder(
-    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR
+    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
 ):
     """Plan P4-D142's bare remainder withdrawn: the leftover wears the mark."""
-    worn = gen_mark_places(census, published, groupable, floor)
+    worn = gen_mark_places(census, published, groupable, floor, values)
     return [
         published if groupable[index] and worn[index] == "" else worn[index]
         for index in range(len(worn))
@@ -1836,18 +1842,38 @@ def _marks_without_the_bare_remainder(
 
 
 def _pool_on_the_published_mark(
-    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR
+    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
 ):
     """Plan P4-D142's pool mark withdrawn: the pool wears the published mark."""
     named = {gen.mark_written(mark) for mark, _count in gen.named_conventions(
         census, gen.GROUP_MARK_ORDER
     )}
-    worn = gen_mark_places(census, published, groupable, floor)
+    worn = gen_mark_places(census, published, groupable, floor, values)
     return [
         published if groupable[index] and worn[index] and worn[index] not in named
         else worn[index]
         for index in range(len(worn))
     ]
+
+
+def _conventions_packed_from_the_first_cell(eligible, values, placed, in_order=False):
+    """Plan P4-D149's spread withdrawn from both censuses of conventions.
+
+    Where the censuses of marks and notations ask for their cells, the
+    first ``placed`` eligible cells are taken, as the first version's walk
+    took them; the plus sign's own spread is left as it is.
+    """
+    if in_order:
+        return list(eligible[:placed])
+    return gen_plus_cells_by_value(eligible, values, placed, in_order)
+
+
+def _without_the_padded_sign_exchange(
+    styles, values, integer_valued, pads, marks, notations, plussed, content,
+    owed,
+):
+    """Plan P4-D145's exchange withdrawn: every padded cell keeps its form."""
+    return list(styles), list(content), owed
 
 
 def _asked_with_the_published_mark(census, published):
@@ -1911,6 +1937,22 @@ CASE_MUTANTS = {
         "still need",
         attribute="apart_values",
         replacement=_apart_without_the_fill,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "signed_pads": Mutant(
+        branch="plan P4-D145's padded sign exchange; the mutant leaves every "
+        "padded cell in the form the style walk gave it, and the column "
+        "comes back with fewer spellings",
+        attribute="padded_sign_exchange",
+        replacement=_without_the_padded_sign_exchange,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "spread_conventions": Mutant(
+        branch="plan P4-D149's spread of the censuses of conventions; the "
+        "mutant takes each count from the first eligible cell upward, which "
+        "ties a notation and a mark to the most negative numbers",
+        attribute="plus_cells_by_value",
+        replacement=_conventions_packed_from_the_first_cell,
         outcome=CHANGES_THE_CELLS,
     ),
     "unpublished_majority_marks": Mutant(

@@ -19,7 +19,7 @@
       "justification": "The twin cells synthtwin's generation method requires for the five cases docs/spec/generation-method-v1.md section G14.3 adds with the repair of the final Codex review of the number censuses, computed from that specification alone: the bare remainder, the pooled remainder and the cells asked with a mark of a census of thousands marks (plan P4-D142), the plus-signed tier of a named field width (plan P4-D145), and the saturated integer grid (plan P4-D147). Each case's registered mutant withdraws its own rule and moves its cells. They live in a fifth file because the second and third each stand within a few kilobytes of the byte cap.",
       "path": "tests/reference/generation-branch-vectors-3.json",
       "seed": 0,
-      "sha256": "6d0bcb04423d1d20d7ca8cbcaba4de76fde48db10e74207a2622331c724a1450"
+      "sha256": "9025192d661e4b74805f174851927e517b6277f6dae52e28887b98ea94307147"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",

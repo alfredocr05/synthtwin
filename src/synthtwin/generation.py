@@ -12732,7 +12732,7 @@ def _number_cells(
             plussed[index],
         )
         groupable += [with_mark != without]
-    marks, mark_notes = _mark_places(column, facts, groupable, floor)
+    marks, mark_notes = _mark_places(column, facts, groupable, floor, holds)
     for index in range(len(holds)):
         base += [
             _styled_number(
@@ -12758,6 +12758,14 @@ def _number_cells(
     for spelling in base:
         settled[parsing.folded(spelling)] = 1
     owed = max(0, wanted - len(settled))
+    # ...AND BEFORE ANY ZERO IS SPENT, THE SIGN IS (plan P4-D145). A cell
+    # at a named field width cannot spend a zero, so a column of offsets
+    # written `+0123` and `0123` at one width reached its spellings only
+    # through which values the style walk happened to split.
+    styles, base, owed = _padded_sign_exchange(
+        facts, styles, holds, widths, pads, marks, notations, plussed, base,
+        owed,
+    )
     identities: dict[str, int] = {}
     spellings: dict[str, int] = {}
     cells: list[str] = []
@@ -12834,6 +12842,183 @@ def _number_cells(
     # name the same fact twice. The plus allocation's own shortfall is
     # not a form count and is named where it is decided.
     return cells, notation_notes + mark_notes + plus_notes
+
+
+def _padded_sign_exchange(
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+    widths: "list[int]",
+    pads: "list[int]",
+    marks: "list[str]",
+    notations: "list[str]",
+    plussed: "list[bool]",
+    base: "list[str]",
+    owed: int,
+) -> "tuple[list[str], list[str], int]":
+    """Trade the plus between padded cells so a value is written both ways.
+
+    A NAMED FIELD WIDTH SPENDS THE LEADING-ZERO FAMILY (G6.3), so a padded
+    cell has one spelling of its value per form and the identity walk
+    below cannot add one. The final Codex review's repair pass measured
+    what that cost (plan P4-D145): 1,200 offsets written `+0123` or `0123`
+    at a floor of eleven publish 917 spellings of 706 values, and the twin
+    -- whose style walk gives most values ONE of the two forms -- held 776
+    and 768 on seeds 1 and 4, reported as an authorized deviation although
+    its values could be written both ways at the same width.
+
+    A TRADE IS BETWEEN TWO CELLS, so no published count moves: a
+    `leading_plus` cell and a `leading_zero` cell padded to the SAME named
+    width exchange forms, and the `leading_zero` count, the `leading_plus`
+    count and both width censuses are what they were. A cell may trade
+    when it wears one of the two padded forms at a named width, no mark
+    and no signed-decimal plus, and holds a whole value that is not
+    negative. Its VALUE, at that width, is written in one form or both,
+    and no trade takes a form away from a value that has no other cell in
+    it, so no spelling is ever lost.
+
+    THREE WALKS, each over the widths in ascending order and, inside a
+    width, over the values in the order their first cell stands:
+
+    1. a value written only with a plus by at least two cells trades with
+       a value written only with a zero by at least two cells -- the
+       first of each, then the second of each -- and each trade adds two
+       spellings; it runs while two or more are owed;
+    2. a value written only with a plus by at least two cells trades with
+       a value written both ways with at least two zeros, which adds one;
+    3. and a value written only with a zero by at least two cells with a
+       value written both ways with at least two pluses, which adds one;
+       the last two run while one or more is owed.
+
+    In each trade the value's first cell in the form it gives up is the
+    one that changes. A value that has taken the form it lacked, or given
+    up the one it had to spare, is not asked again, so every walk is one
+    pass. Two are added only where two are owed, because one past the
+    published count is a miss too.
+
+    Guarantees: accepts the numeric block, the per-cell styles, values,
+    fraction widths, pad widths, marks, notations and plus flags, the
+    base spellings and the identities owed; returns the styles, the base
+    spellings and the identities still owed. Determinism: a function of
+    those inputs over a fixed order. Raises nothing. No I/O of any kind.
+    """
+    if owed < 1:
+        return styles, base, owed
+    groups: "dict[int, dict[float, dict[str, list[int]]]]" = {}
+    order: "dict[int, list[float]]" = {}
+    for index in range(len(styles)):
+        style = styles[index]
+        if style != "leading_plus" and style != "leading_zero":
+            continue
+        value = holds[index]
+        if pads[index] < 0 or marks[index] or plussed[index]:
+            continue
+        if value < 0.0 or value != _whole_valued(value):
+            continue
+        width = pads[index]
+        if width not in groups:
+            groups[width] = {}
+            order[width] = []
+        if value not in groups[width]:
+            groups[width][value] = {"leading_plus": [], "leading_zero": []}
+            order[width] += [value]
+        groups[width][value][style] += [index]
+    moved = list(styles)
+    written = list(base)
+    for width in sorted(groups):
+        owed = _trade_forms(
+            facts, moved, written, holds, widths, pads, marks, notations,
+            plussed, groups[width], order[width], owed, "", "",
+        )
+    for giving, spare in (
+        ("leading_plus", "leading_zero"),
+        ("leading_zero", "leading_plus"),
+    ):
+        for width in sorted(groups):
+            owed = _trade_forms(
+                facts, moved, written, holds, widths, pads, marks,
+                notations, plussed, groups[width], order[width], owed,
+                giving, spare,
+            )
+    return moved, written, owed
+
+
+def _trade_forms(
+    facts: contract.NumericFacts,
+    moved: "list[str]",
+    written: "list[str]",
+    holds: "list[float]",
+    widths: "list[int]",
+    pads: "list[int]",
+    marks: "list[str]",
+    notations: "list[str]",
+    plussed: "list[bool]",
+    group: "dict[float, dict[str, list[int]]]",
+    values: "list[float]",
+    owed: int,
+    giving: str,
+    spare: str,
+) -> int:
+    """One walk of `_padded_sign_exchange` at one width; returns what is owed.
+
+    With ``giving`` empty it is the first walk: values written only with
+    a plus against values written only with a zero, two added a trade.
+    Otherwise a value written only in ``giving`` by at least two cells
+    trades one of them with a value written both ways with at least two
+    cells in ``spare``, one added a trade. ``moved``, ``written`` and
+    ``group`` are brought up to date in place.
+    """
+    need = 1 if giving else 2
+    takers: "list[float]" = []
+    donors: "list[float]" = []
+    for value in values:
+        pluses = len(group[value]["leading_plus"])
+        zeros = len(group[value]["leading_zero"])
+        if not giving:
+            if zeros == 0 and pluses >= 2:
+                takers += [value]
+            if pluses == 0 and zeros >= 2:
+                donors += [value]
+            continue
+        lacking = "leading_zero" if giving == "leading_plus" else "leading_plus"
+        if len(group[value][giving]) >= 2 and not group[value][lacking]:
+            takers += [value]
+        if len(group[value][spare]) >= 2 and group[value][giving]:
+            donors += [value]
+    first = 0
+    second = 0
+    while owed >= need and first < len(takers) and second < len(donors):
+        taker = takers[first]
+        donor = donors[second]
+        away = giving if giving else "leading_plus"
+        back = "leading_zero" if away == "leading_plus" else "leading_plus"
+        if giving and len(group[donor][back]) < 2:
+            second = second + 1
+            continue
+        for value, form in ((taker, away), (donor, back)):
+            cell = min(group[value][form])
+            other = "leading_zero" if form == "leading_plus" else "leading_plus"
+            group[value][form] = [
+                index for index in group[value][form] if index != cell
+            ]
+            group[value][other] += [cell]
+            moved[cell] = other
+            written[cell] = _styled_number(
+                holds[cell],
+                other,
+                1 if other == "leading_zero" else 0,
+                facts.integer_valued,
+                widths[cell],
+                pads[cell],
+                marks[cell],
+                notations[cell],
+                plussed[cell],
+            )
+        owed = owed - need
+        first = first + 1
+        if not giving:
+            second = second + 1
+    return owed
 
 
 def _plus_style_swaps(
@@ -12921,7 +13106,10 @@ def _plus_style_swaps(
 
 
 def _plus_cells_by_value(
-    eligible: "list[int]", holds: "list[float]", placed: int
+    eligible: "list[int]",
+    holds: "list[float]",
+    placed: int,
+    in_order: bool = False,
 ) -> "list[int]":
     """Which eligible cells carry a plus: whole values, spread (integration repair).
 
@@ -13007,10 +13195,20 @@ def _plus_cells_by_value(
             if not taken[run] and sizes[run] >= placed - carried:
                 share[run] = placed - carried
                 break
+    #
+    # ``in_order`` IS THE CENSUSES OF CONVENTIONS' VARIANT (plan P4-D149):
+    # a split run keeps its share on its FIRST cells, so two censuses
+    # spent over one run -- a notation and a mark on the same negative
+    # number -- split it at the same cell and write the value two ways
+    # rather than four.
     chosen: "list[int]" = []
     for run in range(runs):
         count = share[run]
         for step in range(sizes[run]):
+            if in_order:
+                if step < count:
+                    chosen += [eligible[starts[run] + step]]
+                continue
             if ((step + 1) * count) // sizes[run] > (step * count) // sizes[run]:
                 chosen += [eligible[starts[run] + step]]
     return chosen
@@ -13074,10 +13272,17 @@ def _notation_places(
     `negative_notations` carries the mixture and this spends it.
 
     THE CELLS THAT MAY WEAR ONE are the cells holding a negative value.
-    They are walked in cell order and each named notation takes its
-    count in turn; what no named count covers wears the column's
-    published `negative_form`, which is what the pooled remainder and
-    the unavailable state both leave behind.
+    Each named notation takes its count in turn from the cells no earlier
+    notation took, SPREAD ACROSS THEM by `_plus_cells_by_value` with a
+    split run keeping its share on its first cells; what no named count
+    covers wears the column's published `negative_form`, which is what
+    the pooled remainder and the unavailable state both leave behind.
+
+    SPREAD AND NOT PACKED (plan P4-D149), for the reason `_mark_places`
+    gives. The cells stand in stratum order, most negative first, so
+    taking each count from the first cell upward wrote the first notation
+    on the largest debts and the last on the smallest -- a link between a
+    value's size and its notation the source never had.
 
     A TRAILING MINUS NEEDS A POINT, and that is why this function reads
     the styles as well as the values. `parsing.with_negative_notation`
@@ -13102,10 +13307,8 @@ def _notation_places(
     taken: "dict[int, int]" = {}
     notes: list[Deviation] = []
     for notation, wanted in named:
-        placed = 0
+        eligible: "list[int]" = []
         for index in range(len(holds)):
-            if placed >= wanted:
-                break
             if index in taken or not holds[index] < 0.0:
                 continue
             if (
@@ -13113,9 +13316,11 @@ def _notation_places(
                 and styles[index] != "decimal"
             ):
                 continue
+            eligible += [index]
+        placed = min(wanted, len(eligible))
+        for index in _plus_cells_by_value(eligible, holds, placed, True):
             taken[index] = 1
             worn[index] = notation
-            placed = placed + 1
         if placed < wanted:
             notes += [
                 _deviation(
@@ -13170,6 +13375,7 @@ def _mark_places(
     facts: contract.NumericFacts,
     groupable: "list[bool]",
     floor: int = 1,
+    holds: "list[float] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Which mark each grouped cell wears (landing 2b.7, G6.1).
 
@@ -13191,10 +13397,12 @@ def _mark_places(
     column's grouped cells and is spent as such, in three parts:
 
     1. each named mark takes its count of groupable cells, in the
-       census's own order of marks and in cell order;
-    2. a `(withheld)` remainder takes its count next, written with the
-       first mark of `_POOL_MARKS` the census does not name -- never a
-       named mark, which would add the pool to that mark's count;
+       census's own order of marks, SPREAD ACROSS THE CELLS NOT YET TAKEN
+       by the rule `_plus_cells_by_value` states for the plus sign;
+    2. a `(withheld)` remainder takes its count next, spread the same
+       way, written with the first mark of `_POOL_MARKS` the census does
+       not name -- never a named mark, which would add the pool to that
+       mark's count;
     3. what is left is the BARE REMAINDER, and it is written with no
        mark at all wherever it is at least `parsing.census_floor` cells.
        The census publishes only where the real column's own bare cells
@@ -13203,6 +13411,19 @@ def _mark_places(
        real column could have held, it is the twin's ladder putting a
        few more values past a thousand, and those cells wear the
        published mark as they always did.
+
+    SPREAD AND NOT PACKED (plan P4-D149, the repair pass of the final
+    Codex review). The cells stand in stratum order, ascending, and the
+    first version took each mark's count from the first groupable cell
+    upward, so the bare remainder was always the largest values: 1,500
+    amounts, 915 grouped and 585 bare with means of 489,137 and 483,357,
+    came back with a grouped mean of 289,169, a bare mean of 795,007 and
+    every bare cell larger than every grouped one -- a link between a
+    value's size and its spelling the source never had, which every
+    check passed. The spread rule is the one the plus sign already uses,
+    and it takes whole runs of one value, so a value is not written two
+    ways by the spread alone. ``holds`` carries the cells' values; where
+    it is not given every cell is its own run.
 
     Measured before this rule, at a floor of eleven and seed 4: 800
     prices grouped with a comma beside 400 bare published `{",": 800}`
@@ -13239,18 +13460,20 @@ def _mark_places(
             if mark not in facts.thousands_marks:
                 unnamed = mark
         spending += [(unnamed, pool)]
+    values = holds
+    if values is None:
+        values = [float(index) for index in range(len(groupable))]
     for place in range(len(spending)):
         mark = spending[place][0]
         wanted = spending[place][1]
-        placed = 0
+        eligible: "list[int]" = []
         for index in range(len(groupable)):
-            if placed >= wanted:
-                break
-            if index in taken or not groupable[index]:
-                continue
+            if groupable[index] and index not in taken:
+                eligible += [index]
+        placed = min(wanted, len(eligible))
+        for index in _plus_cells_by_value(eligible, values, placed, True):
             taken[index] = 1
             worn[index] = mark
-            placed = placed + 1
         if placed < wanted:
             notes += [
                 _deviation(

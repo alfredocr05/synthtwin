@@ -6346,7 +6346,7 @@ def _padded_cells(cells: _Cells) -> int:
     return counted
 
 
-def _pad_widths(cells: _Cells) -> dict[str, int]:
+def _pad_widths(cells: _Cells, plus: bool = True) -> dict[str, int]:
     """How many `leading_zero`-styled cells wrote each field width.
 
     TWO CODE COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN, which is
@@ -6372,7 +6372,10 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
 
     A PLUS DOES NOT HIDE THE PAD (plan P4-D145). `parsing.is_padded` is
     the question, and it counts a `leading_plus` cell whose figures begin
-    with a redundant zero beside every `leading_zero` cell.
+    with a redundant zero beside every `leading_zero` cell -- unless
+    ``plus`` is False, which `_width_censuses` asks for where counting
+    them would let a reader subtract too few of them to name (plan
+    P4-D148), and then only the `leading_zero` cells are counted.
 
     Guarantees: accepts a tally of one column; returns a mapping from
     canonical width keys, plus possibly `(withheld)`, to counts that sum
@@ -6390,6 +6393,10 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
         # this census.
         if not parsing.is_padded(cell.numeric_text):
             continue
+        if not plus and (
+            numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO
+        ):
+            continue
         width = pad_width(cell.numeric_text)
         if width in counts:
             counts[width] = counts[width] + 1
@@ -6405,6 +6412,71 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     if withheld:
         published_counts[SUPPRESSED_LABEL] = withheld
     return published_counts
+
+
+def _width_censuses(
+    cells: _Cells, styles: "dict[str, int]"
+) -> "tuple[dict[str, int], dict[str, int]]":
+    """The padded and whole-number width censuses, under the disclosure rule.
+
+    EACH CENSUS FLOORS ITS OWN COUNTS, AND A READER SUBTRACTS THEM FROM
+    EACH OTHER (plan P4-D148, the repair pass of the final Codex review).
+    `parsing.width_census_breaches` states the two routes; this is what
+    the describing side does where one of them would print a difference
+    too small to name, and in each case it publishes the state a column
+    with a difference of nought publishes:
+
+    0. WHERE THE FORMS MAP HOLDS BACK SOMETHING AND NAMES NO
+       `leading_zero`, the plus-signed padded cells are not counted at all
+       (plan P4-D145): the held-back cells may be padded ones, which a twin
+       writes unpadded, and eight values written `+0100` twice and `0100`
+       once at a floor of eleven published a width of 24 its twin missed.
+    1. THE PLUS ROUTE. The plus-signed padded cells are not counted, so
+       the census totals the `leading_zero` count exactly -- which is what
+       a column with no plus-signed padded cell writes. Measured: 800
+       padded keys, fifty `+k` and one `+00123` at a floor of eleven
+       published `pad_widths {"5": 801}` beside `leading_zero: 800`, and
+       now publish `{"5": 800}`, the same as the column without it. The
+       price is P4-D145's pad on those plus-signed cells, which a twin
+       then writes unpadded.
+    2. THE WIDTH ROUTE. The whole-number width is moved into the
+       `(withheld)` remainder of `field_widths`, where it is a mixture of
+       widths. Its padded cells keep their width in `pad_widths`, so the
+       twin loses nothing on them; what it loses is the magnitude the
+       report-only census gave the few unpadded cells.
+
+    Guarantees: accepts a tally of one column and its published forms
+    map; returns the published `pad_widths` and `field_widths`, between
+    which `parsing.width_census_breaches` finds nothing. Determinism: a
+    function of the tally. Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    # A HELD-BACK PADDED FORM LEAVES THE PLUS UNCOUNTED (plan P4-D145).
+    # Where the forms map pools `leading_zero`, a twin writes those cells
+    # as their own values are written, with no pad, so a census counting
+    # plus-signed pads beside them names a width no twin reaches.
+    counts_plus = (
+        parsing.STYLE_LEADING_ZERO in styles or SUPPRESSED_LABEL not in styles
+    )
+    padded = _pad_widths(cells, counts_plus)
+    fields = _field_widths(cells)
+    plus_broken, _widths = parsing.width_census_breaches(
+        styles, padded, fields, floor
+    )
+    if plus_broken:
+        padded = _pad_widths(cells, False)
+    _plus, broken = parsing.width_census_breaches(styles, padded, fields, floor)
+    if not broken:
+        return padded, fields
+    pooled = 0
+    kept: dict[str, int] = {}
+    for width in fields:
+        if width == SUPPRESSED_LABEL or width in broken:
+            pooled = pooled + fields[width]
+            continue
+        kept[width] = fields[width]
+    kept[SUPPRESSED_LABEL] = pooled
+    return padded, kept
 
 
 POINT_FREE_STYLES = (
@@ -7662,6 +7734,11 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
     n_present = len(cells.present)
+    # THE FORMS MAP AND THE TWO WIDTH CENSUSES A READER SUBTRACTS FROM
+    # IT, built together so the disclosure rule can be asked of all three
+    # at once (plan P4-D148).
+    styles_map = _numeric_styles(cells)
+    widths_pair = _width_censuses(cells, styles_map)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
         # THE OTHER NINETY RUNGS (plan P4-D4.10). One key, one
@@ -7744,7 +7821,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # and `000` and a column of `0.0`, `00.0` and `000.0` are the
         # same profile, and a reader of either twin would infer a type
         # the real table does not have for one of them.
-        "numeric_styles": _numeric_styles(cells),
+        "numeric_styles": styles_map,
         # ...and how many figures the ones written with a point wrote
         # after it, which the forms map cannot say (plan P4-D4.5,
         # amendments A-P4-5 and A-P4-6). It is a SIBLING of the forms
@@ -7784,7 +7861,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # (P4-D14). A SIBLING for the same reason: version 6 requires
         # every value of the forms map to be an integer summing to the
         # numeric count.
-        "pad_widths": _pad_widths(cells),
+        "pad_widths": widths_pair[0],
         # ...and how wide EVERY whole-written cell wrote its figure
         # field, which neither of the other two censuses can say
         # (P4-D30, closing R-P4-30 and R-P4-35). The padded census
@@ -7793,7 +7870,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # neither, so its width was published nowhere and a twin wrote
         # it at whatever width its drawn value needed. A SIBLING for
         # the reason both the others are.
-        "field_widths": _field_widths(cells),
+        "field_widths": widths_pair[1],
     }
     moments = _moments(numbers)
     for key in sorted(moments):

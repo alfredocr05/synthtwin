@@ -1958,8 +1958,11 @@ def named_conventions(census, order):
 def notation_places(census, default, styles, values):
     """Which notation each negative cell wears (landing 2b.7, G6.1).
 
-    The cells holding a negative value are walked in cell order and each
-    named notation takes its count in turn; what no named count covers
+    Each named notation takes its count in turn from the cells holding a
+    negative value that no earlier notation took, spread across them by
+    ``plus_cells_by_value`` in order (plan P4-D149) -- whole runs of one
+    value by the spread rule, a split run's share on its first cells --
+    and not from the first of them upward; what no named count covers
     wears the column's published ``negative_form``.  A trailing minus is
     offered only to a ``decimal`` cell, because `negative_spelled` writes
     one only where the figures carry a point.
@@ -1970,17 +1973,17 @@ def notation_places(census, default, styles, values):
         return worn
     taken = set()
     for notation, wanted in named:
-        placed = 0
-        for index in range(len(values)):
-            if placed >= wanted:
-                break
-            if index in taken or not values[index] < 0:
-                continue
-            if notation == "trailing_minus" and styles[index] != "decimal":
-                continue
+        eligible = [
+            index
+            for index in range(len(values))
+            if index not in taken
+            and values[index] < 0
+            and (notation != "trailing_minus" or styles[index] == "decimal")
+        ]
+        placed = min(wanted, len(eligible))
+        for index in plus_cells_by_value(eligible, values, placed, True):
             taken.add(index)
             worn[index] = notation
-            placed += 1
     return worn
 
 
@@ -2106,7 +2109,9 @@ def candidate_mark(census, published):
     return ""
 
 
-def mark_places(census, published, groupable, floor=CASE_SMALL_CELL_FLOOR):
+def mark_places(
+    census, published, groupable, floor=CASE_SMALL_CELL_FLOOR, values=None
+):
     """Which mark each grouped cell wears (landing 2b.7, G6.1).
 
     ``groupable`` says, per cell, whether writing it with a mark actually
@@ -2114,12 +2119,20 @@ def mark_places(census, published, groupable, floor=CASE_SMALL_CELL_FLOOR):
     rules about forms, orders and four whole figures.  Where the census
     names no mark every cell wears the column's published mark.  Where it
     names one or more (plan P4-D142), each named mark takes its count of
-    groupable cells in cell order; a ``(withheld)`` remainder takes its
+    the groupable cells not yet taken; a ``(withheld)`` remainder takes its
     count next, with the first mark of ``POOL_MARK_ORDER`` the census does
     not name; and the groupable cells still left are written with no mark
     where they number at least the census floor -- two, or ``floor`` where
     that is larger -- and with the published mark otherwise.
+
+    Each count is taken by the spread rule of ``plus_cells_by_value``
+    over the cells still untaken, in cell order, and not from the first
+    of them upward (plan P4-D149): taking from the first would put every
+    bare cell on the largest values.  Where ``values`` is not given every
+    cell is its own run.
     """
+    if values is None:
+        values = [float(index) for index in range(len(groupable))]
     worn = [published] * len(groupable)
     named = named_conventions(census, GROUP_MARK_ORDER)
     if not named:
@@ -2131,15 +2144,15 @@ def mark_places(census, published, groupable, floor=CASE_SMALL_CELL_FLOOR):
         spending.append((unnamed[0], pool))
     taken = set()
     for mark, wanted in spending:
-        placed = 0
-        for index in range(len(groupable)):
-            if placed >= wanted:
-                break
-            if index in taken or not groupable[index]:
-                continue
+        eligible = [
+            index
+            for index in range(len(groupable))
+            if groupable[index] and index not in taken
+        ]
+        placed = min(wanted, len(eligible))
+        for index in plus_cells_by_value(eligible, values, placed, True):
             taken.add(index)
             worn[index] = mark
-            placed += 1
     left = [
         index
         for index in range(len(groupable))
@@ -2149,6 +2162,93 @@ def mark_places(census, published, groupable, floor=CASE_SMALL_CELL_FLOOR):
         for index in left:
             worn[index] = ""
     return worn
+
+
+def padded_sign_exchange(
+    styles, values, integer_valued, pads, marks, notations, plussed, content,
+    owed,
+):
+    """Padded cells trade the plus so a value is written both ways (G6.5).
+
+    Plan P4-D145.  A cell may trade when it is styled ``leading_plus`` or
+    ``leading_zero``, sits at a named field width, wears no mark and no
+    signed-decimal plus, and holds a whole value that is not negative.  At
+    one width a value's tradeable cells are counted by form, and a trade
+    turns one ``leading_plus`` cell into ``leading_zero`` and one
+    ``leading_zero`` cell into ``leading_plus``.  Three walks, each over the
+    widths ascending and, within a width, the values in the order of their
+    first cell; in each trade the value's first cell (in cell order) of
+    the form it gives up changes:
+
+    1. while at least two identities are owed, the k-th value with no
+       ``leading_zero`` cell and at least two ``leading_plus`` cells trades
+       with the k-th value with no ``leading_plus`` cell and at least two
+       ``leading_zero`` cells (the lists taken before the walk);
+    2. while at least one is owed, each value with no ``leading_zero``
+       cell and at least two ``leading_plus`` cells, in order, trades with
+       the first value, in order, that has at least one ``leading_plus``
+       cell and still has at least two ``leading_zero`` cells, from a list
+       taken before the walk -- a value that no longer has two is passed
+       over for good;
+    3. the same with the two forms the other way round.
+
+    Nothing is done where no identity is owed.
+    """
+    if owed < 1:
+        return styles, content, owed
+    styles = list(styles)
+    content = list(content)
+    other = {"leading_plus": "leading_zero", "leading_zero": "leading_plus"}
+    groups = {}
+    for index, style in enumerate(styles):
+        value = values[index]
+        if style not in other or pads[index] < 0:
+            continue
+        if marks[index] or plussed[index]:
+            continue
+        if value < 0 or not float(value).is_integer():
+            continue
+        width_groups = groups.setdefault(pads[index], {})
+        width_groups.setdefault(
+            value, {"leading_plus": [], "leading_zero": []}
+        )[style].append(index)
+
+    def trade(group, form):
+        cell = min(group[form])
+        group[form].remove(cell)
+        group[other[form]].append(cell)
+        styles[cell] = other[form]
+        content[cell] = styled_spelling(
+            other[form], values[cell], integer_valued, 0, marks[cell],
+            notations[cell], plussed[cell], pads[cell],
+        )
+
+    for width in sorted(groups):
+        ordered = list(groups[width].values())
+        only_plus = [g for g in ordered if not g["leading_zero"] and len(g["leading_plus"]) >= 2]
+        only_zero = [g for g in ordered if not g["leading_plus"] and len(g["leading_zero"]) >= 2]
+        for taker, donor in zip(only_plus, only_zero):
+            if owed < 2:
+                break
+            trade(taker, "leading_plus")
+            trade(donor, "leading_zero")
+            owed -= 2
+    for giving in ("leading_plus", "leading_zero"):
+        spare = other[giving]
+        for width in sorted(groups):
+            ordered = list(groups[width].values())
+            takers = [g for g in ordered if not g[spare] and len(g[giving]) >= 2]
+            donors = [g for g in ordered if g[giving] and len(g[spare]) >= 2]
+            place = 0
+            for taker in takers:
+                while place < len(donors) and len(donors[place][spare]) < 2:
+                    place += 1
+                if owed < 1 or place >= len(donors):
+                    break
+                trade(taker, giving)
+                trade(donors[place], spare)
+                owed -= 1
+    return styles, content, owed
 
 
 def plus_places(count, styles, values):
@@ -2174,7 +2274,7 @@ def plus_places(count, styles, values):
     return carries
 
 
-def plus_cells_by_value(eligible, values, placed):
+def plus_cells_by_value(eligible, values, placed, in_order=False):
     """The spread rule rounded to whole values (integration repair of 2b.2).
 
     Runs of one value in cell order are each offered the pluses the
@@ -2225,6 +2325,15 @@ def plus_cells_by_value(eligible, values, placed):
             if not taken[r] and sizes[r] >= placed - carried:
                 share[r] = placed - carried
                 break
+    # In order (plan P4-D149, the censuses of conventions): a split run
+    # keeps its share on its first cells.
+    if in_order:
+        return [
+            eligible[starts[r] + j]
+            for r in runs
+            for j in range(sizes[r])
+            if j < share[r]
+        ]
     return [
         eligible[starts[r] + j]
         for r in runs
@@ -8741,7 +8850,8 @@ def _numeric_content(column):
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
     marks = mark_places(
-        column.get("thousands_marks", {}), mark, groupable
+        column.get("thousands_marks", {}), mark, groupable,
+        CASE_SMALL_CELL_FLOOR, cell_values,
     )
     content = [
         styled_spelling(
@@ -8750,6 +8860,13 @@ def _numeric_content(column):
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
+    # G6.5's padded sign exchange (plan P4-D145) comes before any zero is
+    # spent: a cell at a named width cannot spend one.
+    owed = max(0, folded_budget - len({folded(text) for text in content}))
+    styles, content, _owed = padded_sign_exchange(
+        styles, cell_values, integer_valued, pads, marks, notations, plussed,
+        content, owed,
+    )
     # G6.5: how many zeros are spent is decided over the WHOLE column
     # first.  Count the identities the base spellings already hold; the
     # shortfall against the folded budget is how many cells raise their
@@ -11269,7 +11386,8 @@ BRANCH_PART = "branches"
 # which with the second file's own would pass the provenance byte cap.
 SECOND_BRANCH_PART = "branches-2"
 # The fifth file: the cases the repair of the final Codex review of the
-# number censuses added (plans P4-D142, P4-D145 and P4-D147), which the
+# number censuses added (plans P4-D142, P4-D145 and its amendment, P4-D147
+# and P4-D149), which the
 # second and third files, each within a few kilobytes of the provenance
 # byte cap, could not hold.
 THIRD_BRANCH_PART = "branches-3"
@@ -12224,6 +12342,115 @@ def _saturated_integers():
         "runs the walk alone, which leaves nineteen different numbers, "
         "because every stratum that moves lands on a point another stratum "
         "still needs.",
+        "column": column,
+        "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _spread_conventions():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-1021", "p01": "-1020.79", "p05": "-1019.95",
+        "p10": "-1018.9", "p25": "-1015.75", "p50": "-1010.5",
+        "p75": "-1005.25", "p90": "-1002.1", "p95": "-1001.05",
+        "p99": "-1000.21", "max": "-1000",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "-1010.5"),
+                       ("std", "6.493586579592719"),
+                       ("skew", "0"),
+                       ("kurtosis", "1.795031055900621"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=22, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_distinct_values=22,
+        n_numeric=22, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=22, n_negative_unrepresentable=0,
+        n_used_in_statistics=22, n_left_out_of_statistics=0,
+        integer_valued=True, n_rows=22, numeric_styles={"plain": 22},
+        mode=None, mode_count=0, pad_widths={}, fraction_widths={},
+        field_widths={"4": 22},
+        # THE WHOLE NUMBERS FROM MINUS 1,021 TO MINUS 1,000, each once:
+        # eleven grouped with a comma and eleven bare, eleven in brackets
+        # and eleven with a minus -- every count and every complement the
+        # census floor.
+        group_separator=",", thousands_marks={",": 11},
+        negative_form="minus",
+        negative_notations={"brackets": 11, "minus": 11},
+        **moments,
+    )
+    return {
+        "why": "G6.1's spread of the two censuses of conventions (plan "
+        "P4-D149). The column holds every whole number from minus one "
+        "thousand and twenty-one to minus one thousand once, so the saturated "
+        "fill of G6.5a stands its cells in ascending order before either "
+        "census is spent. Each named count is taken by the spread rule the "
+        "plus sign uses, over the cells no earlier count took, and not from "
+        "the first cell upward: the brackets, the minus signs, the grouped "
+        "cells and the bare ones each fall across the whole range of values "
+        "rather than on its most negative or its least negative half. The "
+        "mutant restores the first version's walk, and the eleven most "
+        "negative numbers are the ones in brackets and the ones grouped.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _signed_pads():
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "100", "p01": "100", "p05": "100.5", "p10": "101.25",
+        "p25": "102", "p50": "105", "p75": "108", "p90": "109.25",
+        "p95": "110", "p99": "110", "max": "110",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "105"),
+                       ("std", "3.2113081446662823"),
+                       ("skew", "0"),
+                       ("kurtosis", "1.78"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=33, n_missing=0, n_distinct=20, n_distinct_folded=20,
+        n_distinct_values=10,
+        n_numeric=33, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=33, n_left_out_of_statistics=0,
+        integer_valued=True, n_rows=33,
+        # TEN WHOLE NUMBERS FROM 100 TO 110, written thirty-three times:
+        # twenty-two as `+0100` and eleven as `0100`, and every value in
+        # both padded forms at one field width of four figures.
+        numeric_styles={"leading_plus": 22, "leading_zero": 11},
+        mode=None, mode_count=0, fraction_widths={},
+        pad_widths={"4": 33}, field_widths={"4": 33},
+        **moments,
+    )
+    return {
+        "why": "G6.5's padded sign exchange (plan P4-D145, as amended). Every cell is "
+        "padded to a named field width of four figures, so no cell can spend "
+        "a zero to reach the twenty spellings the column publishes, and "
+        "the style walk leaves most of its ten values wearing one of the "
+        "two padded forms. Cells written with a plus trade forms with cells "
+        "written with a zero at the same width, first between values each "
+        "wearing only one form and then with values wearing both, so every "
+        "count of forms and widths is unchanged and more values are written "
+        "both ways. The mutant withdraws the exchange, and the column comes "
+        "back with fewer spellings.",
         "column": column,
         "rows": 33,
         "identifier_declared": False,
@@ -14893,6 +15120,8 @@ THIRD_BRANCH_CASE_BUILDERS = {
     "plus_padded_field": _plus_padded_field,
     "pooled_mark_cells": _pooled_mark_cells,
     "saturated_integers": _saturated_integers,
+    "signed_pads": _signed_pads,
+    "spread_conventions": _spread_conventions,
     "unpublished_majority_marks": _unpublished_majority_marks,
 }
 
@@ -14995,7 +15224,9 @@ _THIRD_BRANCH_ACCOUNT = (
     "of the grouped cells -- its bare remainder, its pooled remainder and "
     "the cells asked with a mark where the column publishes none (plan "
     "P4-D142) -- the plus-signed tier of a named field width (plan "
-    "P4-D145), and the saturated integer grid (plan P4-D147). They are "
+    "P4-D145), the saturated integer grid (plan P4-D147), both censuses of "
+    "conventions spread across a column's values (plan P4-D149) and the "
+    "padded sign exchange (plan P4-D145, as amended). They are "
     "computed by the same oracle and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -15088,6 +15319,41 @@ GIVEN_WORDS = {
         15378872738563111551, 14372216327767465923, 11389554098232228365,
         9811363188700176784, 15109080552199181041, 14800070410420609622,
         4630607423294290951,
+    ),
+    "signed_pads": (
+        13212319373645991198, 3124858977475633898, 13010056197012345531,
+        4264904321941588231, 17383293044662711306, 12411720386434298775,
+        8024866301577146682, 2749438196418611484, 6219451852441515048,
+        17283582658421246541, 6222816430999155403, 17733799514538467927,
+        8683638793174787581, 12957134877525461792, 17376073554016844179,
+        339335848901217406, 143123105700361814, 8887644370560360123,
+        13396192934278525122, 11377940140862159552, 11266547905149177465,
+        8626284110326026960, 1610467004518196393, 7255042512922810081,
+        4431569082447787604, 12692686399018873006, 11909838672017454383,
+        12090785649312243742, 7230969391896325039, 1757209359893068939,
+        15380960111715861860, 16721858549975570198, 2014827285520046748,
+        4917272234921210154, 13591257825598483686, 2024586551144361539,
+        9076499461175541656, 6101882392942214126, 2232447955143357544,
+        14237503022909562119, 10753502952628846387, 7252923574144308443,
+        10924290978578477268, 9393162400314167372, 17226066490847573428,
+        6427255367641620637, 15109245959838334317, 3523195627623299933,
+        2245074948595071685, 7848834666989494380,
+    ),
+    "spread_conventions": (
+        8534970996080522473, 10651013169768465969, 14220378708344514053,
+        17388286930902395248, 15839605715532107887, 2181967384112697610,
+        2081241836159808957, 18152595152790328074, 18400558490050716633,
+        17665438258481253967, 11655804304781717907, 18427173534392809611,
+        12627368640545344342, 10010273130661333008, 14743586705166533874,
+        15965174774999632031, 9430749340472921501, 2957304431918809990,
+        12791799876815227451, 18319110582472954230, 2366364817818337052,
+        11273422484744424991, 12425776669340539470, 3479944894903800314,
+        14551308883365979779, 9343463772395556516, 825903289611820609,
+        14583976519615148561, 3903986395746195009, 1579304517159551676,
+        8278147222135142430, 628696166431624940, 6502607461124114879,
+        16527195317326587663, 9849141810659476556, 7376985502948974837,
+        11208155520699624620, 5758566266419332141, 696075165213873737,
+        15176580905599048150, 3016086853034679107,
     ),
     "unpublished_majority_marks": (
         1347355342221236955, 6558018661785960475, 6761212542403308974,
