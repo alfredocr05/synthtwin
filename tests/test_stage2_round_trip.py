@@ -835,9 +835,16 @@ def test_a_real_export_whose_wide_keys_wear_a_sign_or_a_space_is_not_accused(
     if notation != "one_space":
         assert first["negative_form"] == notation, first["negative_form"]
     # ...and the answer: the column says what it is, and NEITHER file is
-    # accused. The word is `respelled` because these cells are, which is
-    # the true statement about this export.
-    assert first["wide_runs"] == "respelled", first["wide_runs"]
+    # accused. The word is `respelled` where a group of these cells are,
+    # which is the true statement about this export -- and `canonical`
+    # where ONE cell is (plan P4-D140, the final Codex review's first
+    # BLOCKER): a word one cell can move tells the reader who knows every
+    # other cell what that cell wrote, so the word moves at the census
+    # floor, and the canonical ceiling tolerates fewer respelled runs
+    # than that floor, which is what still keeps this real table
+    # unaccused.
+    expected = "canonical" if notation == "one_space" else "respelled"
+    assert first["wide_runs"] == expected, first["wide_runs"]
     assert twin_exit == 0
     assert real_exit == 0
     held = [line for line in _wide_lines_of_the_real_report(tmp_path / "worn")

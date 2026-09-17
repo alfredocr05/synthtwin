@@ -477,6 +477,18 @@ LANDING_2B2_SPELLING_KEYS = (
     "decimal_plus",
 )
 
+# Landing 2b.7 (2026-09-15), plan P4-D65.2. The two majority keys above
+# stopped throwing their minority away: a census per convention carries
+# the notations a column's negatives wore and the marks its grouped cells
+# wore, and the quality report holds a file to every convention either
+# names. Registered EXACT-OBSERVABLE in `tests/dispositions.py` against
+# the plan's own region, like the three above, and injected here for the
+# reason they are: the contract matrix was frozen before they existed.
+LANDING_2B7_MIXTURE_KEYS = (
+    "negative_notations",
+    "thousands_marks",
+)
+
 # Landing 2b.6 (2026-09-15), plan P4-D61. The owner reversed decision 5,
 # so a twin datetime cell is written in the member that read the real
 # column rather than in ISO, and four censuses carry what the member
@@ -485,16 +497,6 @@ LANDING_2B2_SPELLING_KEYS = (
 # All four are EXACT-OBSERVABLE in their KEY SET -- every convention the
 # description names must come back, on at least a floor's worth of the
 # file's cells -- and the quality report holds a file to them.
-# Landing 2b.7 (2026-09-15), plan P4-D65.2. The two MIXED-CONVENTION
-# censuses sit beside the three spellings above and, like them, are
-# registered outside the contract's matrix (`tests/dispositions.py`,
-# FACTS_OUTSIDE_THE_CONTRACT_MATRIX), so they are disposed here by the
-# registry's own class rather than by a matrix row.
-LANDING_2B7_MIXTURE_KEYS = (
-    "negative_notations",
-    "thousands_marks",
-)
-
 LANDING_2B6_DATE_KEYS = (
     "date_field_widths",
     "month_name_styles",
@@ -1482,10 +1484,10 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
             for own in LANDING_2B2_SPELLING_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
-            for own in LANDING_2B6_DATE_KEYS:
-                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
             for own in LANDING_2B7_MIXTURE_KEYS:
                 table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D65.2)"
+            for own in LANDING_2B6_DATE_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1519,10 +1521,10 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
         for own in LANDING_2B2_SPELLING_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
-        for own in LANDING_2B6_DATE_KEYS:
-            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
         for own in LANDING_2B7_MIXTURE_KEYS:
             table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D65.2)"
+        for own in LANDING_2B6_DATE_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"

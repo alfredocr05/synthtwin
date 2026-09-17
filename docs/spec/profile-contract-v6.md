@@ -4308,7 +4308,7 @@ a member alone does not fix a spelling. `month-first-date` is written
 `Mar 17, 2024` optional; `year-quarter` reads either case of its
 marker; and the zulu reading folds `z` onto `Z`. Each census counts
 FORMS and never a value, and each is held to THE DISCLOSURE RULE OF
-PLAN P4-D131, `parsing.census_discloses`, because a form used by one
+PLAN P4-D131, `parsing.census_nameable` asked with no pool, because a form used by one
 row describes how THAT row was written: every named count reaches
 `small_cell_floor` and never falls below two; NOTHING IS POOLED, since
 a census of a handful of forms cannot pool without naming what it pools
@@ -4690,7 +4690,7 @@ there.
 `second-field-padded` or `second-field-unpadded`, and `(withheld)` is
 none of them; and every key maps to a count at least the floor and
 never below two — the first two parts of the disclosure rule of plan
-P4-D131, `parsing.census_discloses`, whose third part D18 to D20 hold
+P4-D131, `parsing.census_nameable` asked with no pool, whose third part D18 to D20 hold
 over the totals their blocks publish. *Amended by the review of
 158c811:* D17 admitted a `(withheld)` pool of at most (floor − 1) times
 the words the census left unnamed, and a count at a floor of one, and
@@ -4978,13 +4978,13 @@ consumer off the role name.
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
 | `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
 | `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
-| `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than `small_cell_floor` were written; `"canonical"` where at least that many were and every one of them is the figures its own value writes; `"respelled"` where at least that many were and at least one is not. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
-| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
-| `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is pooled, and a pool that is itself below the floor makes the whole census unavailable. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
-| `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell proves no mark and is counted nowhere here. Floored, pooled and made unavailable exactly as `negative_notations` is; where the column publishes a mark of its own, this census names that mark. `{}` where no cell proves one, and on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than `small_cell_floor` were written; `"canonical"` where at least that many were and FEWER than the census floor max(2, `small_cell_floor`) of them are anything but the figures their own values write; `"respelled"` where at least that many were and at least the census floor of them are not. THE LINE BETWEEN THE LAST TWO WORDS IS THE CENSUS FLOOR AND NOT ONE (plan P4-D140, the final Codex review's first BLOCKER): measured with the line at one, 800 canonical keys at a floor of eleven published `"canonical"` and the same column with ONE key respelled into its binary64 neighbour published `"respelled"`, both loading, so a reader who knew the other 799 cells read the last one's spelling off the word. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
+| `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. Both halves are the disclosure rule every census of this section is held to, stated once as `parsing.census_nameable` (plan P4-D140): every printed count reaches the census floor, and so does every complement a reader can take from a total, or it is nought. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
+| `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is pooled, and a pool that is itself below the floor makes the whole census unavailable; so does a census whose printed counts leave of the column's negatives a remainder neither nought nor at the census floor (P4-D140), which every negative wearing exactly one notation makes nought by construction. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule — ONE rule, asked of each cell once for both keys, so a declared decimal comma that proves a point for the one proves it for the other (plan P4-D141) — and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell names no mark, but it IS counted by the disclosure rule: the census is published only where its counts, its remainder, and what it leaves of the groupable cells AND of every number of the column each reach the census floor or are nought (plan P4-D140; measured without the groupable clause, 1,200 grouped prices at a floor of eleven with one rewritten bare published `{",": 1199}` beside a row count of 1,200). Where the rule refuses, and wherever a cell refuses `group_separator` its mark, the census is `{}` — the state a column in which no cell proves a mark reaches, so nought and a count below the floor are one published state — and never `{"(unavailable)": 0}`. Where the column publishes a mark of its own, a non-empty census names that mark. `{}` on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
-| `pad_widths` | object | C6-27b to C6-30b below | how many `leading_zero`-styled cells wrote each field width, under the floor | EXACT-OBSERVABLE, under the producer obligation PW-P |
-| `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor | REPORT-ONLY, under the producer obligation XW-P |
+| `pad_widths` | object | C6-27b to C6-30b below | how many PADDED cells wrote each field width, under the floor: every `leading_zero`-styled cell, and every `leading_plus` cell whose figures begin with a redundant zero (plan P4-D145), except in the two cases C6-28b names, where the census writes what a column with no plus-signed padded cell writes (plans P4-D145 as amended and P4-D148) | EXACT-OBSERVABLE, under the producer obligation PW-P |
+| `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor, a width pooled where what it leaves beside `pad_widths` would be a count below the census floor (P6c, plan P4-D148) | REPORT-ONLY, under the producer obligation XW-P |
 | `value_histogram` | object | C6-31 below | how many of the values the statistics used fall in each of the fixed bins between `min` and `max`; published only when EVERY bin clears the floor | REPORT-ONLY |
 | `empty_bins` | array | C6-122 to C6-123 below | which of those same fixed bins hold NONE of the values the statistics used, ascending; published whatever the floor is | REPORT-ONLY |
 | `empty_edges` | array | C6-123a to C6-123b below | one `[below, above]` pair for each RUN of consecutive empty bins: the two values the statistics used that the run really lies between | REPORT-ONLY |
@@ -5232,12 +5232,17 @@ above one — below which C5-S13 leaves nothing to hold back — and carries
 no more than `n_negative`. It is `{}` on a position of a
 `joined_numbers` column.
 
-**Invariant TM1 (the marks a grouped number wore)** (landing 2b.7).
-`thousands_marks` names a mark `group_separator` may publish, other than
-`""`, on the same three terms as NS2. Where `group_separator` publishes
-a mark, this census names that mark: a majority the mixture does not
-carry is a majority no cell proved. It is `{}` on a position of a
-`joined_numbers` column.
+**Invariant TM1 (the marks a grouped number wore)** (landing 2b.7,
+amended by plan P4-D140). `thousands_marks` names a mark
+`group_separator` may publish, other than `""`, at the census floor and
+pooling as NS2 does, but it NEVER carries `{"(unavailable)": 0}`: where
+it cannot speak it is `{}`, the state a column no cell of which proves a
+mark reaches, so a reader cannot tell nought from a count below the
+floor. What its total leaves of `n_numeric` is nought or at least the
+census floor. Where `group_separator` publishes a mark and the census
+names any, it names that mark: a majority the mixture does not carry is
+a majority no cell proved; that clause is read after GS1. It is `{}` on
+a position of a `joined_numbers` column.
 
 ---
 
@@ -7925,7 +7930,12 @@ groupable form, and a whole part reading as groups of three around one
 mark, read with points and commas exchanged on a declared decimal-comma
 column. A BARE groupable cell proves no mark and is counted in neither
 census: it is not a small group, it is a cell with no convention to
-reproduce.
+reproduce — but it is COUNTED by C6-88's complement clause, because a
+reader can take it back out of a total (plan P4-D140). Both keys ask ONE
+evidence rule of each cell (plan P4-D141): where the two asked it
+separately a declared decimal comma proved a point for the majority key
+and nothing for the census, and 780 `1097.001,01` beside 20
+`197 001,01` published a description the loader refused.
 
 **C6-88 (the census floor).** Both are floored PER CONVENTION at max(2,
 `small_cell_floor`), never at one. A published count of one names an
@@ -7937,21 +7947,36 @@ keys; a pool that is itself below the floor would name its own cells, so
 such a census publishes `{"(unavailable)": 0}` and no number at all. At
 `small_cell_floor` of one nothing may be pooled (C5-S13) and the
 unavailable state stands instead. The complement clause of the owner's
-twin definition is met by construction: every count printed is at least
-the floor, so the cells outside any one of them are the other printed
-counts added — nought, or at least the floor again.
+twin definition is ASKED and not assumed (plan P4-D140, which withdraws
+the sentence that said it was met by construction): among the printed
+counts it holds by construction, but a reader can also subtract the
+printed total from a total published elsewhere, so a census prints
+nothing unless what it leaves of each such total — the negatives, for
+`negative_notations`; the groupable cells and every number of the
+column, for `thousands_marks` — is nought or at least the census floor.
+`thousands_marks` then publishes `{}` rather than the unavailable state,
+because its own empty state is the state nought reaches. The rule is
+stated once, `parsing.census_nameable`, and the producer, the loader and
+the checker all read it.
 
 **C6-89 (disposition).** Both EXACT-OBSERVABLE (plan P4-D65.2). **The
 twin writes each named convention on that many cells**, spending the
-census cell by cell as generation method G6.1 states, and a cell no
-named count covers wears the column's published majority. The quality
-report compares each named convention with what describing the twin on
-its own publishes for it, and WITHHOLDS the comparison where the twin's
-population of cells that could wear a convention differs from the
-published total: how many of a twin's cells reach four whole figures, or
-fall below zero, follows from its ladder and is not itself pinned cell
-for cell, and the generator's report names that shortfall as a deviation
-of the census.
+census cell by cell as generation method G6.1 states; a pooled remainder
+is written with a mark the census does not name, and the groupable cells
+left over are written BARE wherever at least the census floor of them
+are left, since the census is published beside no smaller bare remainder
+(plan P4-D142). The quality report compares each named convention —
+one named convention as much as two — with what describing the twin on
+its own publishes for it, and WITHHOLDS the comparison where the twin
+holds fewer cells that could wear a convention than the census counts,
+or leaves over a number of them strictly between nought and the census
+floor, or its own description names no convention: how many of a twin's
+cells reach four whole figures, or fall below zero, follows from its
+ladder and is not itself pinned cell for cell, and the generator's
+report names that shortfall as a deviation of the census. A twin whose
+own description names no convention although the published counts could
+have been named from its own totals is MISSED, because those counts are
+then not the ones it holds.
 
 ### 7.6 `fraction_widths`
 
@@ -8041,10 +8066,16 @@ count, and an object is neither.
 
 **C6-28b (what it holds).** A mapping from a FIELD WIDTH — the figures
 a cell writes before any point, the sign not counted — to the number of
-`leading_zero`-styled cells at that width, with the pooled key
+PADDED cells at that width — every `leading_zero`-styled cell, and
+every `leading_plus` cell whose figures after the plus begin with a zero
+and are more than that zero (plan P4-D145) — with the pooled key
 `(withheld)` for widths fewer than `small_cell_floor` cells share; read
 over the cores on `affixed_number`, exactly as AF7 reads the fraction
-census there.
+census there. A PLUS DOES NOT HIDE THE PAD: the ladder files
+`+00100000000000000000` under `leading_plus`, and measured before this
+clause 800 such keys at a floor of eleven published `pad_widths {}`
+beside `field_widths {"20": 800}`, and the twin wrote every one of them
+two figures narrower with no check missed.
 
 **Why the styles map cannot say it, which is the whole reason this key
 exists.** `numeric_styles` counts how many cells began with a redundant
@@ -8054,6 +8085,24 @@ both `leading_zero` to that map — so a twin honouring the map exactly
 could write a field of another width and break a width check, a
 fixed-width slice or a join, with no published fact to name what it
 had done. A census of the width is what closes that (**A-P4-34**).
+
+**WHEN THE PLUS-SIGNED PADS ARE NOT COUNTED** (plan P4-D145 as amended,
+and plan P4-D148, the repair pass of the final Codex review). The
+census counts `leading_zero` cells alone, and no plus-signed padded
+cell, in two cases, and in each it is the census a column with no
+plus-signed padded cell writes: **(1)** where `numeric_styles` names no
+`leading_zero` key but carries a `(withheld)` key — the held-back cells
+may be padded ones, which a twin writes as their own values are
+written, and measured before this clause eight values written `+0100`
+twice and `0100` once at a floor of eleven published `{"4": 24}` and
+their twin missed `pads.published.4` at exit 3; **(2)** where counting
+them would leave a reader, at a `small_cell_floor` above one, a
+difference that is neither nought nor at least that floor — the census's total less the named
+`leading_zero` count, or the named `leading_plus` count less that
+(invariant P5b). Measured before: 800 padded codes, fifty `+k` and one
+`+00123` at a floor of eleven published `{"5": 801}` beside
+`leading_zero: 800`, and the one plus-signed padded cell was read off by
+subtraction.
 
 **C6-29b (key grammar, and the narrowest field there is).** A width
 key is the decimal spelling of an integer of AT LEAST TWO, by the
@@ -8076,16 +8125,33 @@ styled cells, so its invariants are the cases of C6-30 with
 thing. **P5b (the sum).** Let *F* be the sum of ALL values,
 `(withheld)` included; an empty census has *F* = 0.
 
-- **P5b.a — a `leading_zero` key is published.** *F* equals that key's
-  value exactly.
-- **P5b.b — no `leading_zero` key and no `(withheld)` key.** No padded
-  cell exists: `pad_widths` is `{}`, *F* zero.
+- **P5b.a — a `leading_zero` key is published.** *F* is at least that
+  key's value and at most that value plus the `leading_plus` value and
+  the `(withheld)` value, the plus-signed padded cells being a number no
+  key holds (plan P4-D145). **And the disclosure rule binds it** (plan
+  P4-D148): *F* less the `leading_zero` value is nought or at least
+  max(2, `small_cell_floor`), and where `leading_plus` is named, that
+  value less (*F* less the `leading_zero` value) is too — at a
+  `small_cell_floor` above one; at one, the census names counts of one
+  under keys of their own (S13) and the rule adds nothing.
+- **P5b.b — no `leading_zero` key and no `(withheld)` key.** No
+  `leading_zero` cell exists, so every cell the census counts is a
+  plus-signed padded one: *F* is at most the `leading_plus` value, and
+  zero where that key is not published (plan P4-D145). The disclosure
+  rule binds *F* as P5b.a binds the difference, at a floor above one:
+  nought or at least `small_cell_floor`, and so is the `leading_plus`
+  value less *F* (plan P4-D148).
 - **P5b.c — no `leading_zero` key but a `(withheld)` key.** The four
   conditions of P5.c bind unchanged, with `leading_zero` in the place
   of `decimal`: *F* at least 1 wherever the census is non-empty; *F*
   strictly below `small_cell_floor`; *F* at most *W*; and *F* ≥ *W* − 5
   × (`small_cell_floor` − 1), six styles existing so that at most five
-  share the pool.
+  share the pool. **No plus-signed padded cell is counted in this case**
+  (C6-28b, plan P4-D145 as amended by the repair pass): the window P4-D145
+  first opened here -- *F* up to `small_cell_floor` − 1 plus the
+  `leading_plus` value, and up to *W* plus that value -- is withdrawn,
+  because the held-back cells a twin writes unpadded made the census a
+  width no twin reached.
 
 **P6b.** Every NAMED width's count is at or above `small_cell_floor`.
 **P7b.** Every NAMED width is at least 2, by C6-29b, and a width key is
@@ -8196,17 +8262,35 @@ column no cell of which was written as a whole number publishes.
   would be running a check that cannot fail, which this format counts
   as a defect and not as caution.
 - **P6c.** Every NAMED width's count is at or above `small_cell_floor`.
+  **And at a width `pad_widths` names too, the difference is nought or
+  a group** (plan P4-D148, the repair pass of the final Codex review):
+  this census's count less `pad_widths`' count at that width — the cells
+  written there with no redundant zero — is nought or at least
+  `small_cell_floor`, wherever that floor is above one (at one, both
+  censuses name counts of one outright and S13 forbids the pool this
+  rule's remedy needs). Where `pad_widths` carries a `(withheld)` key,
+  this census carries none, and exactly one width of two figures or
+  more this census names is not named by `pad_widths`, the pooled
+  padded cells are at that width, and are taken off there too. Where
+  the difference would break this, the producer moves that width's
+  count into this census's `(withheld)` remainder, a mixture of widths
+  no reader takes apart; the padded cells keep their width in
+  `pad_widths`. Measured before: 800 padded five-figure codes and fifty
+  short ones beside one unpadded `12345` at a floor of eleven published
+  `{"5": 801}` here beside `{"5": 800}` there, and the one cell was read
+  off by subtraction; now `{"2": 41, "(withheld)": 810}`.
 - **P7c.** Every NAMED width is at least 1, by C6-29c, and a width key
   is present only if its count is nonzero.
 
-**THIS CENSUS IS NOT COMPARED AGAINST `pad_widths` BY ANY LOADER, and
-that is stated rather than left to be found.** Every width `pad_widths`
-names is a width this census also names with at least that count — a
-padded cell at field width *w* is a whole-written cell at field width
-*w* — but the converse arithmetic is not checkable at the loader,
+**THIS CENSUS IS COMPARED AGAINST `pad_widths` BY A LOADER ONLY WHERE A
+READER CAN SUBTRACT THEM** (amended by plan P4-D148; it read "by any
+loader" until a reader was shown to take one person off the difference).
+A padded cell at field width *w* is a whole-written cell at field width
+*w*, but otherwise the arithmetic is not checkable at the loader,
 because either census may have pooled a group the other named, and a
 loader that inferred one from the other would refuse documents this
-profiler writes. What holds the pair together is producer obligation
+profiler writes. The one comparison P6c makes is the disclosure rule's,
+at a width both censuses name. What holds the pair together is producer obligation
 XW-P, and no rule of this section reaches it.
 
 **A NAMED WIDTH HERE IS A FACT ABOUT THE VALUE, WHICH IS WHERE THIS
@@ -9510,9 +9594,9 @@ supplied a different test would refuse different files.
 |---|---|---|
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(1, `small_cell_floor`) | yes |
 | WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(1, `small_cell_floor`) cells (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
-| DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder; `{}` on a position of a `joined_numbers` column | yes |
-| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), pools under `(withheld)` only at that floor and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`; `{}` on a position of a `joined_numbers` column | yes |
-| TM1 | `thousands_marks` names a mark other than `""` on NS2's terms, and names whatever mark `group_separator` publishes; `{}` on a position of a `joined_numbers` column | yes |
+| DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder, and where that count is named what `+` leaves of it is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), pools under `(withheld)` only at that floor and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
+| TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
 
@@ -9745,7 +9829,7 @@ document, never the table it describes.
 | NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it, and a column publishing nothing there may hold none, one, or all but one |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
 | PW-P | every `pad_widths` count is the count of source cells written at that field width | P5b bounds the total and P6b and P7b the entries; none checks the census's SHAPE |
-| XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these |
+| XW-P | every `field_widths` count is the count of source cells written as a whole number at that field width | P9c bounds the total from both sides against the styles map, P6c and P7c bound the entries; none checks the census's SHAPE, and none compares it against `pad_widths`, whose cells are a subset of these, beyond P6c's disclosure rule at a width both name (plan P4-D148) |
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | SC-P | where a count column writes one number more than one way, every cell read as a number is written in figures alone, every spelling clears the line of 7.13 and the spellings are within the ceiling, `number_spellings` names every spelling with its count, and it is `{}` otherwise | SC1 to SC3 check a census that is published; none can see a census that should have been and was not |
 | LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required; nor can any of LF1 to LF6 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
@@ -9895,7 +9979,7 @@ reproduces the recorded spellings there as on any other column.
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
-| `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: every point-free cell of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — must be the figures its own value writes, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
+| `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: FEWER than max(2, `small_cell_floor`) point-free cells of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — may be anything but the figures their own values write, which is the same line the producer draws between `"canonical"` and `"respelled"` (plan P4-D140), so that the real table still meets its own description where one of its keys is respelled, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
 | `pad_widths` | EXACT-OBSERVABLE against a recount identity of the same shape as `fraction_widths`: recounted padded cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value. A named width is honoured by PADDING and never by adjusting the value — `000123` and `123` read back as the same number — so no rung, endpoint or statistic is ever spent to reach one. Where a width is named the leading-zero family is spent on it, because every further spelling of a value is one figure wider; raw `n_distinct` then falls to its own two-sided envelope under the authorization owner decision 11 already carries, "only where even those cannot supply" |
 | `fraction_widths` | EXACT-OBSERVABLE against a recount identity of the same shape: recounted cells at a named width number at least the published count and at most that count plus the pooled `(withheld)` value — exact where nothing pooled, windowed where something did. Widths are met by value adjustment inside the value-construction stage, so a pinned cell counts toward a width only when its value already fits it |
 | `number_spellings` | EXACT-OBSERVABLE, on `count` alone: every published spelling is recounted on the measured file and must number exactly its published count. The census pools nothing, so no key is a window (section 7.13) |

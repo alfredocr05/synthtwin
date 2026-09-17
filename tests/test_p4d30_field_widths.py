@@ -107,17 +107,23 @@ def _signed_rows() -> "list[str]":
 
 
 def _uneven_signed_rows() -> "list[str]":
-    """The same three spellings held eight, eight and nine times.
+    """Three spellings held six, six and seven times.
 
-    THE WITNESS FOR THE REPORTING PATH SINCE LANDING 2b.1. The column
-    above was that witness while its strata came out 12, 10 and 11, and
-    method G5.2a's stratum cap now holds every stratum at the published
-    `mode_count` of eleven, so it is met. Here the commonest number is
-    held nine times and the strata come out 9, 8 and 8 -- every one of
-    them under that cap -- so the seventeenth two-figure cell still has
-    no value narrow enough to wear, on the base commit and after it.
+    THE WITNESS FOR THE REPORTING PATH SINCE LANDING 2b.1, AND ITS THIRD
+    SHAPE. The column above was that witness while its strata came out
+    12, 10 and 11, until method G5.2a's stratum cap held every stratum at
+    the published `mode_count`. The second shape, `+1`, `-99` and `-02`
+    held eight, eight and nine times, stopped being one at landing 2b.7:
+    measured at 158c811 its twin wrote `-99` nine times, `-02` eight and
+    `+1` eight, and met `{1: 8, 2: 17}` on every seed while missing the
+    padded count by one -- so the test that a missed width is named had
+    nothing to name. Here the strata come out 7, 6 and 6 where the source
+    holds 6, 6 and 7, the seventh padded cell has only a one-figure value
+    to wear, and it is written `01`: fourteen two-figure cells against a
+    published thirteen and five one-figure cells against six, on every
+    seed.
     """
-    return ["+1"] * 8 + ["-99"] * 8 + ["-02"] * 9
+    return ["1"] * 6 + ["-99"] * 6 + ["-02"] * 7
 
 
 def _described(
@@ -330,6 +336,57 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
 ) -> None:
     """REPORT-ONLY means reported, and residual R-P4-114's shape.
 
+    Its three strata are given 7, 6 and 6 cells where the source holds
+    six, six and seven, so the seventh padded cell has no two-figure
+    value to wear the padding and comes out `01`, a one-figure value in
+    a two-figure field. No move of a VALUE repairs a cell COUNT, so this column misses
+    -- and the point of this test is that it is not silent about it.
+    """
+    document, loaded = _described(
+        tmp_path, "signed", "reading", _uneven_signed_rows()
+    )
+    assert document["columns"][0]["field_widths"] == {"1": 6, "2": 13}
+    for seed in SEEDS:
+        cells, path, built = _twin_cells(tmp_path, "signed", loaded, seed)
+        assert _field_widths_of(cells, "") != {1: 6, 2: 13}
+        # The twin's OWN report names it, with the published count
+        # beside the achieved one.
+        named = [
+            note for note in built.deviations
+            if note.fact == "field_widths" and note.column == "reading"
+        ]
+        assert named, f"seed {seed}: the twin missed a width and said nothing"
+        assert "figure(s) wide as a whole number" in named[0].published
+        # ...and the quality report LISTS the census, because the fact
+        # is REPORT-ONLY: a file is not failed on it.
+        outcome = validation.measure(loaded, str(path))
+        listed = [
+            entry for entry in outcome.listings
+            if entry.fact == "numeric.field_widths"
+        ]
+        assert listed, "the census is published and the report is silent"
+        assert not [
+            check for check in outcome.checks
+            if check.fact == "numeric.field_widths"
+        ], "a REPORT-ONLY census may not file an executable subcheck"
+
+
+def _eight_eight_nine_signed_rows() -> "list[str]":
+    """`+1`, `-99` and `-02` held eight, eight and nine times (the second shape)."""
+    return ["+1"] * 8 + ["-99"] * 8 + ["-02"] * 9
+
+
+def test_a_padded_count_the_strata_cannot_hold_is_named_on_both_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The second shape, kept beside the third at the merge of the numbers repair.
+
+    The integration repair and the numbers repair each moved this file's
+    witness when landing 2b.7 stopped it seeing a width miss: the numbers
+    repair to a third shape that still misses a WIDTH (the test above),
+    the integration repair to this second shape's PADDED miss. Both hold
+    on the merged tree, so both are kept.
+
     Its three strata are given 9, 8 and 8 cells where the source holds
     eight, eight and nine, so the seventeenth two-figure cell has no
     value narrow enough to wear the padding and comes out three figures
@@ -347,7 +404,7 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
     REPORT-ONLY and listed.
     """
     document, loaded = _described(
-        tmp_path, "signed", "reading", _uneven_signed_rows()
+        tmp_path, "signed", "reading", _eight_eight_nine_signed_rows()
     )
     assert document["columns"][0]["field_widths"] == {"1": 8, "2": 17}
     assert document["columns"][0]["pad_widths"] == {"2": 9}

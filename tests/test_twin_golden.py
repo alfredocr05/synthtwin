@@ -1379,8 +1379,21 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # Diffed cell by cell: against the integration repair only
 # `recorded_on` (90 cells) differs, against the date branch only `dose`
 # (228 cells); the description digest held on all three trees.
+# RE-RECORDED 2026-09-16 (plan P4-D147, the repair of the final Codex
+# review of the merge, item 6). ONE column moved: `pressure`, whose
+# systolic position publishes 120 different values between the ends 100
+# and 219 -- exactly 120 integers, a saturated grid -- and whose twin held
+# 117 of them. G6.5a now gives such a grid its integers in order, each
+# once, and the twin holds 120. Diffed column by column against a git
+# archive of 158c811 at this seed: 50 cells of `pressure` differ, every
+# other column is byte-identical, and with the fill withdrawn the twin is
+# byte-identical to 158c811's.
+# RE-RECORDED AT THE MERGE OF carried-fix-numbers (2026-09-16): the
+# two moves compose. Diffed cell by cell: against the merged dates tree
+# only `pressure` (50 cells) differs, against the numbers branch only
+# `recorded_on` (90) and `dose` (228); the description digest held.
 GOLDEN_TWIN_SHA256 = (
-    "51f66c4c74bcbb9cd9f405beeef60877753428b42876229c8a41bf692942e3a1"
+    "d9dda20800186d5f45b09f923e3d3556372f3f344a21dd9866e2e75a512474a7"
 )
 
 
@@ -1840,8 +1853,16 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # RE-RECORDED AT THE MERGE OF carried-fix-dates (2026-09-16): against
 # the integration repair only the two `recorded_on` distinct counts
 # moved (171 to 176), exactly the date branch's two lines.
+# RE-RECORDED 2026-09-16 (plan P4-D147), for the twin's one moved column
+# above: only the achieved values printed for `pressure`'s two positions
+# moved -- the ninetieth and ninety-ninth rungs, the mean, the spread, the
+# skew and the tail weight -- and every one still sits where it sat
+# against its window. No sentence and no other column moved.
+# RE-RECORDED AT THE MERGE OF carried-fix-numbers (2026-09-16): against
+# the numbers branch only the achieved values of `recorded_on` and
+# `dose` differ; against the merged dates tree only `pressure`'s.
 GOLDEN_REPORT_SHA256 = (
-    "18f3cabdd54d2f98f685b80f33fe3aaf8eb4530d3a718f9abe062d9c9a200f9e"
+    "1b5469534b819e80ea2b19d7030301cf09f13aec64dc5f206b810ad80a46a75d"
 )
 
 
@@ -2490,8 +2511,23 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # the integration repair only the two `recorded_on` distinctness values
 # moved (171.0 to 176.0); against the date branch only `dose`'s found
 # values and the integration's listing words. No verdict moved.
+# RE-RECORDED 2026-09-16 (plans P4-D142 and P4-D147), read as a diff
+# against 158c811. The twin's `pressure` systolic p99 is 217.61 against a
+# published 218, WITHIN-BOUND where it had been HELD at 218.0 (468 held and
+# 67 within a window become 467 and 68, nothing missed), and the other
+# printed values of that column's positions moved with its cells. The two
+# mixture censuses' listings on `visits`, `reading`, `amount` and `dose`
+# name the obligation in words now and carry the sentence of a census that
+# names nothing, because a census naming one convention is CHECKED since
+# plan P4-D142 and the listing is left for one naming none.
+# RE-RECORDED AT THE MERGE OF carried-fix-numbers (2026-09-16): against
+# the numbers branch only found values of `recorded_on` and `dose`
+# differ. The two mixture listings carry the numbers branch's words: the
+# integration repair had given them words of its own ("where the
+# description names no more than one"), which plan P4-D142 made untrue
+# by checking a census that names one, so ONE set of words was kept.
 GOLDEN_QUALITY_SHA256 = (
-    "ecdc6d7b4a80951d39a99e29691f385ce97f5348ae0123db7f7dc81bddd57a3f"
+    "8065bcf82ccddf95819bfb08e358f113b1b8b12866d900706779e957ea55e81a"
 )
 
 

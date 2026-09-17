@@ -568,11 +568,16 @@ _NOT_CHECKABLE_WRITTEN_FORM_HELD_BACK = (
     "named too few values or left too few over, so the whole census was "
     "held back and there is none of it for a file to carry"
 )
+# WHAT A MISSED CENSUS SHOWS WHERE THE FILE'S OWN DESCRIPTION NAMES NO
+# COUNT (plan P4-D142): the count it holds is one the disclosure rule
+# keeps off every page, so the line says that and prints no number.
+_NO_NAMEABLE_COUNT = "no count its own description can name"
 _NOT_CHECKABLE_NO_MIXTURE = (
-    "the description counts the notations and the marks a column's "
-    "numbers wore only where it wore more than one of them, and this "
-    "column wore one or none, so the single convention it did wear is "
-    "the one already published beside this count and checked there"
+    "the description names no notation or mark for this column's "
+    "numbers, because none of them wore one or because naming the count "
+    "would have told a reader about fewer people than the smallest group "
+    "size, so there is no count for a file to carry and the one "
+    "convention the column publishes is checked beside it"
 )
 _NOT_CHECKABLE_NO_CLOCK = (
     "the description records the marks and the values at midnight of a column's "
@@ -7802,8 +7807,18 @@ def _core_read_as_declared(
         behind = key[1]
         if not _wears_the_wrapper(cell, ahead, behind):
             continue
+        # ...AND THE BARE PAIR IS ASKED IN THE DECLARED GRAMMAR, which is
+        # the only grammar this function is ever asked about (plan
+        # P4-D143): a bare `100,25` beside `100,25 EUR` is a number on a
+        # declared column, and asked the ordinary way it was a straggler
+        # on both the producer's side and this one.
         if not ahead and not behind:
-            if parsing.classify_number(trimmed) != parsing.NUMBER:
+            if (
+                parsing.classify_number(
+                    parsing.written_with_a_decimal_comma(trimmed)
+                )
+                != parsing.NUMBER
+            ):
                 continue
         if len(ahead) + len(behind) > reach:
             chosen = key
@@ -10735,6 +10750,8 @@ def _mixture_check(
     measured: "dict[str, int] | None",
     order: "tuple[str, ...]",
     population: int,
+    floor: int = 1,
+    numeric: int = 0,
 ) -> Check:
     """One census of mixed conventions, held as a whole (landing 2b.7).
 
@@ -10755,10 +10772,23 @@ def _mixture_check(
 
     Each named convention is then compared EXACTLY with what describing
     the file on its own publishes for it. The pooled remainder is not a
-    window here, as it is for a form count: a cell the census pooled
-    wears the column's published majority, which is a convention this
-    census also names, so widening the bar by the pool would excuse a
-    twin that wrote the pool's cells in the wrong convention.
+    window here, as it is for a form count: the generator writes a pooled
+    cell in a convention this census does NOT name, so widening the bar
+    by the pool would excuse a twin that wrote the pool's cells in a
+    named one.
+
+    FILED WHERE THE CENSUS NAMES ONE CONVENTION TOO, AND WHERE CELLS ARE
+    LEFT OVER (plan P4-D142, the final Codex review's grouping item 3).
+    It used to be filed only where two were named and only where the
+    cells that could wear one numbered exactly the named total, so 800
+    grouped prices beside 400 bare ones -- `{",": 800}` -- were twinned
+    as 1,200 grouped cells with nothing missed and nothing withheld. The
+    comparison is now made wherever the file's own description names a
+    convention and the cells left over could be the real column's: none,
+    or at least `parsing.census_floor` of them, which is the only
+    remainder the census is ever published beside (P4-D140). A file whose
+    leftover falls strictly between is a file whose own description holds
+    its census back, and the verdict says so under the pooled gate.
 
     Guarantees: accepts the column name, the fact, the published census,
     the file's own and the enumeration fixing the order; returns one
@@ -10793,7 +10823,42 @@ def _mixture_check(
             "",
             _GATE_CLOSED,
         )
-    if population != owed:
+    pool = 0
+    if taxonomy.SUPPRESSED_LABEL in census:
+        pool = census[taxonomy.SUPPRESSED_LABEL]
+    rest = population - owed - pool
+    least = parsing.census_floor(floor)
+    spoken = False
+    for convention in order:
+        if convention in measured and measured[convention] > 0:
+            spoken = True
+    printed: "list[int]" = []
+    for convention in named:
+        printed += [census[convention]]
+    if pool > 0:
+        printed += [pool]
+    if (
+        not spoken
+        and rest >= 0
+        and not (0 < rest < least)
+        and parsing.census_nameable(printed, [population, numeric], floor)
+    ):
+        # A SILENT FILE WHOSE PUBLISHED COUNTS IT COULD HAVE SPOKEN. Were
+        # this file's cells written at the published counts, its own
+        # description would print them: every count reaches the floor and
+        # nothing a reader could take from this file's own totals is below
+        # it. It printed nothing, so its counts are not the published
+        # ones. Withholding here would let a twin that dropped every mark
+        # of a 600-and-600 column pass with no verdict at all.
+        return Check(
+            name,
+            f"numeric.{fact}",
+            f"spelling.{fact}",
+            MISSED,
+            _shown_count(owed),
+            _NO_NAMEABLE_COUNT,
+        )
+    if rest < 0 or (0 < rest < least) or not spoken:
         # THE CELLS THAT COULD WEAR A CONVENTION ARE NOT THEMSELVES AN
         # OBLIGATION, and this gate is where that shows. How many of a
         # twin's cells reach four whole figures, or fall below zero,
@@ -10812,6 +10877,13 @@ def _mixture_check(
         # verdict is WITHHELD and the generator's report names the
         # shortfall as a deviation of this very fact, so nothing goes
         # unsaid: the page a person reads still carries the number.
+        #
+        # THE SAME GATE CLOSES ON A LEFTOVER BELOW THE CENSUS FLOOR, and
+        # on a file whose own description names no convention (plan
+        # P4-D140): the disclosure rule holds that census back from the
+        # file's own description, so there is nothing published to
+        # compare, and the real column's census is never published beside
+        # such a leftover in the first place.
         return Check(
             name,
             f"numeric.{fact}",
@@ -10890,10 +10962,14 @@ def _spelling_checks(
     # is the FLOOR and never the count, so nothing here prints it.
     signed = 0
     decimals = 0
+    # EVERY NUMBER OF THE FILE, the widest total a reader subtracts a
+    # census from (plan P4-D140).
+    numbers = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body or parsing.classify_number(body) != parsing.NUMBER:
             continue
+        numbers += 1
         core = parsing.number_core(body)
         if core[:1] == "-":
             negatives += 1
@@ -11106,11 +11182,19 @@ def _spelling_checks(
         for convention in order:
             if convention in census and census[convention] > 0:
                 worn = worn + 1
-        if worn < 2:
+        # ONE NAMED CONVENTION IS AN OBLIGATION TOO (plan P4-D142).
+        if worn < 1:
             continue
         checks += [
             _mixture_check(
-                name, fact, census, _map_at(block, fact), order, population
+                name,
+                fact,
+                census,
+                _map_at(block, fact),
+                order,
+                population,
+                floor,
+                numbers,
             )
         ]
     return checks
@@ -12133,17 +12217,28 @@ def _style_checks(
     # `respelled` has said its own writer respells them -- holding that
     # file to a ceiling of nought is the false accusation plan P4-D66.2
     # exists to end, and it is the LISTING below that names it.
+    #
+    # AND THE CEILING IS THE CENSUS FLOOR, NOT NOUGHT (plan P4-D140).
+    # The producer publishes `canonical` wherever fewer runs than
+    # `parsing.census_floor` are respelled, so that no single cell can
+    # move the word -- the final Codex review read one person's spelling
+    # off it when the line stood at one. A file is held to exactly that:
+    # fewer respelled runs than the floor meets it, which keeps the real
+    # table meeting its own description, and a twin respelling a group
+    # of them misses it.
     if facts.wide_runs == parsing.WIDE_CANONICAL:
+        least = parsing.census_floor(floor)
         checks += [
             _silent(
                 name,
                 "numeric.wide_runs",
                 "styles.canonical.wide",
                 (
-                    "every point-free cell past what a double keeps "
-                    "written as the figures of its own value"
+                    f"fewer than {least} point-free cells past what a "
+                    f"double keeps written as anything but the figures "
+                    f"of their own value"
                 ),
-                _wide_cells_respelled(cells) == 0,
+                _wide_cells_respelled(cells) < least,
                 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
@@ -13005,42 +13100,65 @@ def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
     return body
 
 
-def _wears_a_padded_exponent(body: str, figures: str, place: int) -> bool:
-    """Whether one cell is this value's figures in exponent notation.
+# HOW MANY SIGNIFICANT FIGURES AN EXPONENT MAY CARRY AND STILL BE READ
+# (plan P4-D146). Past nine, a power of ten is at least a billion in
+# either direction, so the cell reads back as nought or as no number a
+# double holds unless its mantissa runs to a billion figures, which no
+# cell of a table does. Leading zeros are not significant and do not
+# count: the grammar promises padding of any length.
+_EXPONENT_FIGURES_READ = 9
 
-    THE MANTISSA WIDTH AND THE EXPONENT GRAMMAR ARE THE WRITER'S, NOT
-    THIS METHOD'S (landing 2b.7; audit items NC-1, NC-2, NC-12). G6.3
-    writes `d[.ddd]e+XX` from the SHORTEST round-trip figures with the
-    sign always written and the exponent at least two digits, and every
-    real exporter writes something else: Excel's `2.29E+05` and SAS's
-    `7.2960E+02` pad the mantissa to a fixed count of figures, and
-    Fortran, Julia and JavaScript write `6E9` with no sign and one
-    exponent digit. None of those is a spelling this method's own
-    generator chooses, and every one of them is a spelling of the
-    value the cell reads back as -- so a REAL table exported by any of
-    those three tools failed its own description, `styles.spelled`
-    MISSED, with the failing cells withheld. That is a false accusation
-    against a file this tool was pointed at, which is the one direction
-    the family's generosity rule says nothing may drift in.
 
-    What is admitted is PADDING ONLY, never rounding: the mantissa must
-    be this value's own figures with zeros added, so `4.60E+03` is a
-    spelling of 4600 and `4.6E+03` is a spelling of 4600, while
-    `4.61E+03` is a spelling of a number the file does not hold. The
-    exponent must be the value's own decimal place, however it is
-    spelled -- with or without a `+` on a non-negative power, at any
-    number of digits -- because those three spellings differ in no
-    figure of the number.
+def _wears_an_exponent_spelling(body: str, magnitude: float) -> bool:
+    """Whether one cell is its own value written in exponent notation.
 
-    ONE FIGURE BEFORE THE POINT. `46E+02` reads back as 4600 too, but
-    it pairs a mantissa with an exponent this family never pairs, and
-    the place test below refuses it rather than a rule of its own.
+    THE MANTISSA AND THE EXPONENT ARE THE WRITER'S, NOT THIS METHOD'S
+    (landing 2b.7; audit items NC-1, NC-2, NC-12). G6.3 writes
+    `d[.ddd]e+XX` from the SHORTEST round-trip figures with the sign
+    always written and the exponent at least two digits, and every real
+    exporter writes something else: Excel's `2.29E+05` and SAS's
+    `7.2960E+02` pad the mantissa, Fortran, Julia and JavaScript write
+    `6E9`, and each was a false accusation against a real export.
+
+    AND NOW ANY MANTISSA THAT READS BACK AS THE VALUE (plan P4-D144, the
+    final Codex review's item 5). The first version admitted padding
+    only -- the value's own shortest figures with zeros after them, one
+    figure before the point, the exponent at the value's own place -- and
+    the review measured two ordinary exports it refused: C's `%.18e`,
+    whose nineteen figures carry the double's exact expansion past its
+    shortest form (799 of 800 cells MISSED `styles.spelled` on the real
+    table at a floor of eleven), and engineering notation `1200e-3`,
+    which places the mantissa elsewhere. Both are spellings of the number
+    they read back as, and so is `46E+02`, which a test of landing 2b.7
+    held to be MISSED. That test pinned a canonical requirement the
+    description never published, which is the false accusation this
+    family exists to end; the owner's ruling is that the twin writes
+    everything exactly as the source wrote it, so a canonical mantissa
+    would need an obligation of its own and there is none.
+
+    WHAT STAYS CHECKED. The FORM: an exponent cell is still counted by
+    the style census, so a file writing exponents where the description
+    publishes none is MISSED there. What this admits is only which
+    exponent text a value may wear.
+
+    NEVER A CRASH ON THE GRAMMAR'S OWN PADDING (plan P4-D146, item 8).
+    The power used to be read with `int`, and an exponent padded past
+    4,300 figures raised Python's conversion limit out of validation. The
+    zeros are taken off first, and a power of more than
+    `_EXPONENT_FIGURES_READ` significant figures is read as nought or as
+    nothing a double holds without converting it at all.
+
+    Guarantees: accepts a cell's text with its sign and its redundant
+    leading zeros already taken off, and the magnitude of the value it
+    read back as; returns whether it is that magnitude in exponent
+    notation. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
     """
     marker = -1
     for index in range(len(body)):
         if body[index] == "e" or body[index] == "E":
             marker = index
-    if marker < 0:
+    if marker < 1:
         return False
     mantissa = body[:marker]
     power = body[marker + 1 :]
@@ -13053,34 +13171,32 @@ def _wears_a_padded_exponent(body: str, figures: str, place: int) -> bool:
     for character in power:
         if character < "0" or character > "9":
             return False
-    written = int(power)
-    if lead == "-":
-        written = -written
-    if written != place - 1:
-        return False
-    point = -1
-    for index in range(len(mantissa)):
-        if mantissa[index] == ".":
-            point = index
-    if point < 0:
-        digits = mantissa
-    else:
-        if point != 1:
-            return False
-        digits = f"{mantissa[:point]}{mantissa[point + 1 :]}"
-    if not digits:
-        return False
-    for character in digits:
+    # ONE SCAN AND ONE SLICE (plan P4-D146, the repair pass). Taking the
+    # zeros off one at a time copied the rest of the power once per zero,
+    # and a pad of 40,000 zeros on 100 cells took 33 seconds to validate.
+    first = 0
+    while first < len(power) - 1 and power[first] == "0":
+        first = first + 1
+    power = power[first:]
+    figures = 0
+    points = 0
+    nonzero = False
+    for character in mantissa:
+        if character == ".":
+            points = points + 1
+            continue
         if character < "0" or character > "9":
             return False
-    if len(digits) < len(figures):
-        return False
-    if digits[: len(figures)] != figures:
-        return False
-    for character in digits[len(figures) :]:
+        figures = figures + 1
         if character != "0":
-            return False
-    return True
+            nonzero = True
+    if figures < 1 or points > 1:
+        return False
+    if not nonzero:
+        return magnitude == 0.0
+    if len(power) > _EXPONENT_FIGURES_READ:
+        return False
+    return float(f"{mantissa}e{lead}{power}") == magnitude
 
 
 def _wears_a_whole_number_text(body: str, value: float) -> bool:
@@ -13170,11 +13286,11 @@ def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
     three shapes. Determinism: a fixed function of the three. Raises
     nothing. No I/O of any kind.
     """
-    sign, figures, place = _figures_of(value)
+    sign, _figures, _place = _figures_of(value)
     body = _body_without_sign_or_zeros(text, sign)
     if body is None:
         return False
-    if _wears_a_padded_exponent(body, figures, place):
+    if _wears_an_exponent_spelling(body, abs(value)):
         return True
     # THE MARK COMES OFF FOR THE WHOLE-NUMBER SHAPE ALONE, because a
     # grouped seventeen-figure identifier is the same run of figures
@@ -14226,7 +14342,7 @@ def _written_form_checks(
     """
     name = column.name
     checks: "list[Check]" = []
-    line = parsing.disclosure_line(floor)
+    line = parsing.census_floor(floor)
     for key, family in _WRITTEN_FORMS:
         census = _written_census_of(facts, key)
         if not census:
@@ -16625,7 +16741,7 @@ def _numeric_listings(
         for convention in order:
             if convention in census and census[convention] > 0:
                 worn = worn + 1
-        if worn >= 2:
+        if worn >= 1:
             continue
         listings += [
             Listing(

@@ -653,7 +653,7 @@ _FLOORED_ENTRY = "count-at-the-floor-or-withheld"
 # exactly what these censuses may not publish.
 _MIXTURE_ENTRY = "count-at-the-census-floor-or-unavailable"
 # A CENSUS ENTRY OF HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131): a
-# named count at `parsing.disclosure_line` or above, and no pool at all.
+# named count at `parsing.census_floor` or above, and no pool at all.
 # It is not `_FLOORED_ENTRY`, which admits a count at a settings floor of
 # one and a pooled remainder, and it is not `_MIXTURE_ENTRY`, which
 # speaks an unavailable state: a census withheld whole is written `{}`.
@@ -2045,13 +2045,13 @@ def _leaf_is_published(
         return value >= context.floor
     if kind == _DISCLOSED_ENTRY:
         # A census of written forms (plan P4-D131): never one, never a
-        # pool. `parsing.disclosure_line` is the producer's and the
+        # pool. `parsing.census_floor` is the producer's and the
         # loader's own number, so all three say it at the same reach.
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         if key == parsing.MISSING_WITHHELD:
             return False
-        return value >= parsing.disclosure_line(context.floor)
+        return value >= parsing.census_floor(context.floor)
     if kind == _MIXTURE_ENTRY:
         # A CENSUS OF LANDING 2b.7, WHOSE FLOOR IS NEVER ONE (plan
         # P4-D65.1, P4-D65.2; owner twin definition, clause 3). A

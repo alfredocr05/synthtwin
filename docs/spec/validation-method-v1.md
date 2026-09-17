@@ -1356,25 +1356,33 @@ four fixtures whose `spelling.decimal_plus` had been executable became
 unfalsifiable in one commit.
 
 Two further checks stand beside the three, on every numeric block whose
-census names TWO OR MORE conventions: `spelling.negative_notations` and
-`spelling.thousands_marks` hold the MIXTURE the majority keys collapse.
-Each is one check and not one per convention, because the fact is the
-mixture itself: a twin meeting one count and not the other has not
-reproduced the column's convention. Where the census names one
-convention or none, the fact is LISTED rather than checked — the
-majority key already carries that column's single convention, and a
-check there would say "no obligation" twice on every numeric block of
-every report. Where it names two, each is compared exactly with what
+census names AT LEAST ONE convention (plan P4-D142; until then two or
+more, and 800 grouped prices beside 400 bare ones, `{",": 800}`, were
+twinned as 1,200 grouped cells with nothing missed and nothing
+withheld): `spelling.negative_notations` and `spelling.thousands_marks`
+hold the counts the majority keys collapse. Each is one check and not
+one per convention, because the fact is the census itself: a twin
+meeting one count and not the other has not reproduced the column's
+convention. Where the census names none, the fact is LISTED rather than
+checked. Where it names any, each is compared exactly with what
 describing the file on its own publishes for it; the pooled remainder
-does not widen the bar, because a pooled cell wears the column's
-published majority, which this census also names. The comparison is
-WITHHELD where the file's population of cells that could wear a
-convention — its negative cells, or its cells reaching four whole
-figures in a groupable form — differs from the published total: neither
-population is pinned cell for cell, so a twin with fewer such cells
-cannot place every named convention however faithfully it writes the
-ones it can, and the generator's report names that shortfall as a
-deviation of the census. Because the
+does not widen the bar, because the generator writes a pooled cell with
+a convention the census does not name. The comparison is WITHHELD where
+the file holds fewer cells that could wear a convention — its negative
+cells, or its cells reaching four whole figures in a groupable form —
+than the census and its pool count, or leaves over a number of them
+strictly between nought and the census floor, or its own description
+names no convention: neither population is pinned cell for cell, so a
+twin with fewer such cells cannot place every named convention however
+faithfully it writes the ones it can, and the generator's report names
+that shortfall as a deviation of the census; and the census is never
+published beside a leftover below its floor, so a file holding one is a
+file whose own description holds its census back (plan P4-D140). A file
+whose own description names no convention although the published counts
+could have been named from the file's own totals is MISSED, and the page
+prints no count for it: its counts are then not the published ones, and
+withholding there would let a twin that dropped every mark of a column
+with no majority pass with no verdict at all. Because the
 comparison is made against the file's own description, every edge of the
 producer's rule comes with it: a padded or exponent cell holding a mark,
 the cores each wrapper wears, the numeric half of a column with labels,
@@ -1419,14 +1427,24 @@ back as and each differing from a text the family already offers in no
 figure of that number:
 
 - a mantissa PADDED to a fixed count of figures, `4.60E+03` and
-  `7.2960E+02` and `0.00E+00`, with the value's own decimal place.
-  Padding only, never rounding: the mantissa must be the value's own
-  figures with zeros added, so a mantissa naming other figures is a
-  spelling of a number the file does not hold;
+  `7.2960E+02` and `0.00E+00`, with the value's own decimal place —
+  AND, SINCE PLAN P4-D144, ANY MANTISSA THAT READS BACK AS THE VALUE,
+  at any precision and with its point anywhere: C's `%.18e`, whose
+  figures carry the double's exact expansion past its shortest form,
+  and engineering notation `1200e-3` were both ordinary exports failing
+  the description made from them on `styles.spelled` (799 cells of 800 for the
+  first, measured by the final Codex review), and a canonical mantissa
+  was never a published obligation. A mantissa naming another number
+  reads back as that number, so it is still no spelling of this one;
 - an exponent written however the writer spells it — with or without a
   `+` on a non-negative power, at any number of digits — since those
-  differ in no figure. The width is deliberately unbounded and the
-  code holds no ceiling on it: `e+5`, `e+05` and MSVC's `e+005` are
+  differ in no figure, its leading zeros taken off BEFORE anything is
+  converted, so that the padding the grammar promises at any length is
+  never handed to an integer conversion with a limit of its own (plan
+  P4-D146: 100 cells padded past 4,300 figures crashed validation out of
+  Python's limit), and a power of more than nine significant figures
+  read as nought or as nothing a double holds without converting it. The
+  width is deliberately unbounded and the code holds no ceiling on it: `e+5`, `e+05` and MSVC's `e+005` are
   one power written three ways, and a bound would have to name a
   widest writer to be right about the next one. The earlier wording
   here said "at one, two or three digits", which the code never did
@@ -1463,7 +1481,12 @@ None of these shapes is one G6.3 chooses, so no twin of this generator
 writes one, and the style census, the canonical ceilings of the pooled
 forms and the width census are untouched by this widening. A pairing
 the family does not hold — two figures before an exponent's point,
-`46E+02` — is still MISSED, and a test asserts it, because a check that
+`46E+02` — WAS still MISSED here until plan P4-D144 admitted it: it reads
+back as its own value, and holding it MISSED held a real export to a
+canonical mantissa no description publishes. What keeps the widened
+family falsifiable is the FORM: the same value written in a form the
+description does not publish — `4600.00` in a column of exponents — is
+still MISSED, and a test asserts both halves, because a check that
 cannot fail is what a widened family invites.
 
 **Amended 2026-09-15 (stage 2 confirmation review): a declared column is
@@ -1536,8 +1559,13 @@ way, and the plan amendment states each as a lowering:
 **V3.5-A2 And the wide-run ceiling is filed the same way, in the two
 states its own published word empties** (2026-09-16, landing 2b.13;
 the plan's decision P4-D90 is the ruling and this follows it).
-`styles.canonical.wide` asks whether every point-free cell past 2**53 is
-the figures its own value writes — asked of the cell's CORE and of the
+`styles.canonical.wide` asks whether FEWER than the census floor max(2,
+`small_cell_floor`) of the point-free cells past 2**53 are anything but
+the figures their own values write — the line the producer draws between
+`"canonical"` and `"respelled"`, moved there from nought by plan P4-D140
+so that no single cell moves the published word, and read at the same
+place here so that a real table with one respelled key still meets its
+own description. The subcheck asks it — asked of the cell's CORE and of the
 three point-free forms, `plain`, `leading_plus` and `leading_zero`, so
 that the checker's class and the producer's are one class (plan P4-D91),
 the padded cell asked once its PAD IS READ OFF: a canonical run never
@@ -1555,8 +1583,8 @@ alone:
   group size were written, so there is no published cell for the ceiling
   to govern — the floor is WR1's, and it is there because the word names
   the FORM of the cells it is about (plan P4-D91);
-- on `"respelled"` the description says its own writer does not write
-  them all canonically, so a file writing one another way writes what
+- on `"respelled"` the description says its own writer respells at
+  least the census floor of them, so a file writing one another way writes what
   the description licenses — and holding it to a ceiling of nought is
   the false accusation P4-D66.2 ends.
 

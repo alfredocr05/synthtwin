@@ -827,13 +827,19 @@ NEGATIVE_FORMS = (
 #
 # * `none` -- the column wrote no point-free cell at or past 2**53, so
 #   there is no such run to ask about;
-# * `canonical` -- it wrote some, and every one of them is the text its
-#   own value writes;
-# * `respelled` -- it wrote some, and at least one is not.
+# * `canonical` -- it wrote some, and FEWER of them than the census
+#   floor are anything but the text their own values write;
+# * `respelled` -- it wrote some, and at least the census floor of them
+#   are not.
 #
 # The word is a fact about the column's WRITER and never about a cell:
-# it names no count, no position and no figure, so a reader sees that
-# an export respells wide keys and nothing about which row did.
+# it names no count, no position and no figure. AND NO ONE CELL MOVES
+# IT (plan P4-D140, the final Codex review's first BLOCKER). The first
+# version put the line between nought and one, so 800 canonical keys
+# published `canonical` and the same column with ONE key respelled
+# published `respelled`: a reader who knew the other 799 cells read off
+# the last one's spelling from the word alone. The line now stands at
+# `census_floor`, where a word moves only when a group moves it.
 WIDE_NONE = "none"
 WIDE_CANONICAL = "canonical"
 WIDE_RESPELLED = "respelled"
@@ -842,6 +848,167 @@ WIDE_RUNS = (
     WIDE_CANONICAL,
     WIDE_RESPELLED,
 )
+def census_floor(floor: int) -> int:
+    """The smallest count a spelling census publishes: two, or the floor.
+
+    NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
+    clause 3; plan P4-D65.1). A published count of one names an
+    individual outright, and the settings floor defaults to one.
+
+    ONE STATEMENT OF THE RULE, read by the producer, the loader and the
+    checker alike (plan P4-D140). It lives in this module because it is
+    the one all three import.
+
+    Guarantees: accepts the settings floor; returns two or the floor,
+    whichever is larger. Determinism: a fixed function of the floor.
+    Raises nothing. No I/O of any kind.
+    """
+    if floor > 2:
+        return floor
+    return 2
+
+
+def census_nameable(
+    counts: "list[int]", populations: "list[int]", floor: int
+) -> bool:
+    """Whether a census may print these counts: THE DISCLOSURE RULE, once.
+
+    Written once for every spelling census landings 2b.2 and 2b.7 added
+    (plan P4-D140, closing the final Codex review's grouping BLOCKER),
+    so no census states its own version and drifts from the others. The
+    four censuses of how a column's dates were written ask it too (plan
+    P4-D131, through `disclosed_census` and the loader's D17 to D20),
+    and so does the letter-case and layout census of the label roles
+    wherever it asks whether a reading names one row.
+    It says two things, and a census that fails either prints no count:
+
+    1. EVERY COUNT NAMES A GROUP. Each count it would print -- a named
+       convention and a pooled remainder alike -- reaches
+       `census_floor`, so none of them is one.
+    2. SO DOES EVERY COMPLEMENT A READER CAN TAKE. For each population
+       handed in -- the cells a reader can subtract the printed total
+       from, such as the cells written with a point, the cells that
+       could be grouped, or every number of the column -- what is left
+       once the printed counts are taken off is either nought or
+       reaches `census_floor` too. Measured without this clause: 1,200
+       grouped prices at a floor of eleven, one of them rewritten bare,
+       published `{",": 1199}` beside a row count of 1,200, and the one
+       ungrouped cell was read off by subtraction.
+
+    NOUGHT LEFT OVER IS ALLOWED, and that is a decision rather than an
+    oversight: it says every such cell was written one way, which is a
+    fact about the column's writer. What a census that cannot speak
+    publishes instead is the census's own decision, and each one states
+    it; none of them may publish a state a reader can tell from the
+    state nought reaches, where the category is implied.
+
+    Guarantees: accepts the counts that would be printed, the
+    populations a reader can subtract them from and the settings floor;
+    returns a bool. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    least = census_floor(floor)
+    total = 0
+    for count in counts:
+        if count < least:
+            return False
+        total = total + count
+    for population in populations:
+        rest = population - total
+        if rest != 0 and rest < least:
+            return False
+    return True
+
+
+def width_census_breaches(
+    styles: "dict[str, int]",
+    padded: "dict[str, int]",
+    fields: "dict[str, int]",
+    floor: int,
+) -> "tuple[bool, list[str]]":
+    """Where the width censuses let a reader subtract a count too small to name.
+
+    THE DISCLOSURE RULE OF `census_nameable`, ASKED OF THE SIBLING
+    CENSUSES A READER SUBTRACTS FROM EACH OTHER (plan P4-D148, the repair
+    pass of the final Codex review). Each width census floors its own
+    counts, and that is not enough: two published counts can each be a
+    group while their difference is one person. Measured at a floor of
+    eleven, both on the tool as the review found it and after P4-D145:
+
+    1. THE PLUS ROUTE. `pad_widths` counts every `leading_zero` cell and
+       every plus-signed padded one, and `numeric_styles` names the
+       `leading_zero` count, so the census's total less that count is
+       the number of plus-signed padded cells, and the `leading_plus`
+       count less THAT is the plus-signed cells with no pad. 800 padded
+       keys, fifty `+k` and one `+00123` published `pad_widths {"5":
+       801}` beside `leading_zero: 800`.
+    2. THE WIDTH ROUTE. At a width both censuses name, `field_widths`
+       less `pad_widths` is the number of cells written at that width
+       with no pad. 800 padded five-figure codes beside one `12345`
+       published `field_widths {"5": 801}` beside `pad_widths {"5":
+       800}`. Where `pad_widths` pools and `field_widths` does not, and
+       exactly one field width of two figures or more is left that the
+       padded census does not name, the pool is at that width and is
+       subtracted there too.
+
+    Each difference is nought or reaches `census_floor`. A pooled
+    remainder of a width census is a mixture of widths no reader can
+    take apart, and is not a count this rule asks about.
+
+    NOT AT A SETTINGS FLOOR OF ONE. There the width censuses name a count
+    of one under a key of its own (owner ruling 2026-08-14, invariant
+    S13), and no remainder may stand at all, so a difference of one says
+    nothing the census does not already print -- and the only remedy,
+    pooling, is the state S13 forbids. Measured without this clause: the
+    style-reach battery of `tests/test_p2c5f3_style_reach.py`, at floor
+    one, stopped at the profiler's own publication guard.
+
+    Guarantees: accepts the forms map, the two width censuses and the
+    settings floor, as published; returns whether the plus route breaks
+    the rule and the field widths, in ascending key order, at which the
+    width route does. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    if floor <= 1:
+        return False, []
+    least = census_floor(floor)
+    pool = MISSING_WITHHELD
+    total = 0
+    for width in padded:
+        total = total + padded[width]
+    plus_broken = False
+    plus_cells = -1
+    if STYLE_LEADING_ZERO in styles:
+        plus_cells = total - styles[STYLE_LEADING_ZERO]
+    elif pool not in styles:
+        plus_cells = total
+    if plus_cells > 0:
+        rest = [styles[STYLE_LEADING_PLUS]] if STYLE_LEADING_PLUS in styles else []
+        plus_broken = not census_nameable([plus_cells], rest, floor)
+    named: "list[int]" = []
+    for width in fields:
+        if width != pool:
+            named += [int(width)]
+    unnamed: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        if width not in padded and figures >= 2:
+            unnamed += [width]
+    broken: "list[str]" = []
+    for figures in sorted(named):
+        width = f"{figures}"
+        known = padded[width] if width in padded else 0
+        if pool in padded and pool not in fields and unnamed == [width]:
+            known = known + padded[pool]
+        if known < 1:
+            continue
+        rest_cells = fields[width] - known
+        if rest_cells != 0 and rest_cells < least:
+            broken += [width]
+    return plus_broken, broken
+
+
+
 # THE FIRST WHOLE NUMBER BINARY64 CANNOT KEEP EVERY FIGURE OF. Below it
 # a whole number is held exactly and one run of figures reads back as
 # it; at it and past it the spacing reaches two and neighbouring runs
@@ -2481,6 +2648,36 @@ def pad_width(text: str) -> int:
             return width
         width = width + 1
     return width
+
+
+def is_padded(text: str) -> bool:
+    """Whether one numeric cell wrote its figure field with a redundant zero.
+
+    THE PAD IS NOT A FORM, AND A PLUS DOES NOT HIDE IT (plan P4-D145, the
+    final Codex review's item 6). The ladder of `numeric_style` files a
+    cell under ONE form, and a leading plus is tested before a leading
+    zero, so `+00100000000000000000` is `leading_plus` and its two zeros
+    were counted by no census: 800 such cells at a floor of eleven
+    published `field_widths {"20": 800}` beside `pad_widths {}`, and the
+    twin wrote every one of them two figures narrower. A cell is padded
+    where its form is `leading_zero`, or where it is `leading_plus` and
+    the figures after the plus begin with a zero and are more than that
+    zero alone; every such cell is counted by the padding census, and a
+    twin pads it back.
+
+    Guarantees: accepts the text of one cell that reads as a number this
+    format holds; returns a bool. Determinism: a fixed function of the
+    text. Raises TypeError if handed anything that is not a string
+    instance, through `trimmed`. Boundary: the answer is a truth value.
+    No I/O of any kind.
+    """
+    style = numeric_style(text)
+    if style == STYLE_LEADING_ZERO:
+        return True
+    if style != STYLE_LEADING_PLUS:
+        return False
+    core = number_core(text)
+    return core[1:2] == "0" and pad_width(text) > 1
 
 
 def classify_number(text: str) -> str:
@@ -4389,91 +4586,51 @@ def folded_name_tally(tally: "dict[str, int]") -> "dict[str, int]":
     return {name: folded[name] for name in sorted(folded)}
 
 
-def disclosure_line(floor: int) -> int:
-    """The smallest count a census of written forms may name (P4-D131).
-
-    The run's smallest group size, and never below
-    `MIDNIGHT_DISCLOSURE_FLOOR`: one is not a group, whatever the floor.
-
-    Guarantees: accepts the run's smallest group size; returns a whole
-    number of at least two. Determinism: a function of it. Raises
-    nothing. No I/O of any kind.
-    """
-    if floor < MIDNIGHT_DISCLOSURE_FLOOR:
-        return MIDNIGHT_DISCLOSURE_FLOOR
-    return floor
-
-
-def census_discloses(
-    census: "dict[str, int]", population: int, floor: int
-) -> bool:
-    """Whether a census of written forms may be published as it stands.
-
-    THE ONE STATEMENT OF THE DISCLOSURE RULE FOR THE FOUR CENSUSES OF
-    HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131, the owner's twin
-    definition, clause 3), asked by the producer before it publishes one
-    and by the loader of every description that carries one, so that the
-    two cannot hold the rule to different numbers.
-
-    Three things, and each is a way a count of one person was published:
-
-    - EVERY NAMED COUNT reaches `disclosure_line`. A form one row wrote
-      describes how that row was written.
-    - NOTHING IS POOLED. A census names a handful of forms, and a pool
-      beside them is the count of whichever forms are left: where one
-      form is left the pool IS that form's count, and where two are left
-      a pool of at least the line proves both were written. Measured on
-      400 moments at noon with one lower-case `z`: at a floor of eleven
-      the census read `{"upper": 399, "(withheld)": 1}`, which names the
-      one row as plainly as `{"lower": 1, "upper": 399}` did.
-    - THE REMAINDER A READER CAN SUBTRACT is nought or reaches the line.
-      `population` is the total the document already publishes for the
-      cells the census counts over -- the values read as dates, or the
-      values carrying a zulu offset -- so the cells the named counts
-      leave over are a published number too, and one row left over is
-      one row named.
-
-    WHAT IS NOT PUBLISHED IS ABSENT. A census failing any of the three is
-    published as `{}`, which is also what a column whose dates cannot
-    show the convention publishes, so no reader can tell a withheld
-    census from an empty one by its form.
-
-    Guarantees: accepts a census, the published total it counts over and
-    the run's smallest group size; returns a bool. Determinism: a
-    function of the three. Raises nothing. No I/O of any kind.
-    """
-    line = disclosure_line(floor)
-    total = 0
-    for name in sorted(census):
-        if name == MISSING_WITHHELD or census[name] < line:
-            return False
-        total = total + census[name]
-    rest = population - total
-    return rest == 0 or rest >= line
-
-
 def disclosed_census(
     counts: "dict[str, int]", population: int, floor: int
 ) -> "dict[str, int]":
-    """A tally of written forms, cut to what `census_discloses` allows.
+    """A tally of written forms, cut to what the disclosure rule allows.
+
+    THE CENSUSES OF HOW A COLUMN'S DATES WERE WRITTEN (plan P4-D131) ask
+    the ONE disclosure rule, `census_nameable`, with its line
+    `census_floor`, and add one thing of their own: NOTHING IS POOLED. A
+    census names a handful of forms, and a pool beside them is the count
+    of whichever forms are left: where one form is left the pool IS that
+    form's count. Measured on 400 moments at noon with one lower-case
+    `z`: at a floor of eleven the census read `{"upper": 399,
+    "(withheld)": 1}`, which names the one row as plainly as `{"lower":
+    1, "upper": 399}` did. `population` is the total the document already
+    publishes for the cells the census counts over, so what the named
+    counts leave of it is a count a reader can subtract.
+
+    (Written once at the merge of the date and number repairs: the date
+    repair had stated the same rule a second time, as `census_discloses`
+    and `disclosure_line`, and two statements of one rule are two things
+    that can part.)
 
     Every form counted at the line or above is named, a form below it is
     left out with no pool, and the whole census is withheld -- published
-    `{}` -- where what is left would not disclose.
+    `{}` -- where what is left would not disclose. `{}` is also what a
+    column whose dates cannot show the convention publishes, so no reader
+    can tell a withheld census from an empty one by its form.
 
     Guarantees: accepts the full tally, the published total it counts
-    over and the run's smallest group size; returns a census for which
-    `census_discloses` is true, keys in sorted order. Determinism: a
-    function of the three. Raises nothing. No I/O of any kind.
+    over and the run's smallest group size; returns a census with no
+    `(withheld)` key for which `census_nameable` over that total holds,
+    keys in sorted order. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
     """
-    line = disclosure_line(floor)
+    line = census_floor(floor)
     named: "dict[str, int]" = {}
+    printed: "list[int]" = []
     for name in sorted(counts):
-        if counts[name] >= line:
+        if name != MISSING_WITHHELD and counts[name] >= line:
             named[name] = counts[name]
-    if not census_discloses(named, population, floor):
+            printed += [counts[name]]
+    if not census_nameable(printed, [population], floor):
         return {}
     return named
+
 
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"

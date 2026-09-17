@@ -107,11 +107,14 @@ def test_one_rule_decides_every_census_of_written_forms(
     floor: int,
     published: "dict[str, int]",
 ) -> None:
-    """`parsing.disclosed_census` and `census_discloses`, the one statement."""
+    """`parsing.disclosed_census` over `census_nameable`, the one statement."""
     assert parsing.disclosed_census(census, population, floor) == published
-    assert parsing.census_discloses(published, population, floor)
+    assert parsing.MISSING_WITHHELD not in published
+    assert parsing.census_nameable(list(published.values()), [population], floor)
     if published != census:
-        assert not parsing.census_discloses(census, population, floor)
+        assert parsing.MISSING_WITHHELD in census or not parsing.census_nameable(
+            list(census.values()), [population], floor
+        )
 
 
 @pytest.mark.parametrize("floor", ["1", "11"])

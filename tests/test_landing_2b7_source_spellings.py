@@ -489,19 +489,25 @@ def test_the_wide_run_class_is_one_class_on_both_sides() -> None:
         assert validation._wide_cells_respelled([text]) == 0, text
 
 
-def test_a_spelling_of_no_permitted_form_is_still_missed(
+def test_an_exponent_that_reads_back_is_admitted_and_another_form_is_not(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE WIDENING IS STILL FALSIFIABLE, which is the point of this test.
+    """THE WIDENING IS STILL FALSIFIABLE, at the width it now has.
 
-    `46E+02` reads back as 4600 and is a spelling of that number in
-    nobody's grammar: the family pairs ONE figure before the point with
-    the matching exponent, and this pairs two with an exponent one
-    smaller. It is admitted by no rule this landing added -- the padded
-    mantissa must carry the value's own decimal place -- so the file
-    holding it must still be MISSED. A check that cannot fail is the
-    failure mode a widening of a permitted family invites, and this is
-    what stops this one becoming it.
+    This test used to hold `46E+02` MISSED, on the ground that it pairs
+    two figures before the point with an exponent one smaller and so is
+    "a spelling of that number in nobody's grammar". The final Codex
+    review measured what that ground cost (plan P4-D144): C's `%.18e`
+    and engineering notation `1200e-3` are both ordinary exports, both
+    read back as their own values, and both failed their OWN description
+    on `styles.spelled` -- 799 cells of 800 for the first. A canonical
+    mantissa was never a published obligation, so every exponent text
+    reading back as its value is admitted, `46E+02` among them.
+
+    WHAT STAYS CHECKED is the FORM. A file writing one of these cells in
+    a form the description does not publish -- a point where every cell
+    of the source wrote an exponent -- is still MISSED, which is what
+    keeps the family's generosity from becoming a check that cannot fail.
     """
     cells = ["%.2E" % (4600.0 + 100.0 * (step % 7)) for step in range(300)]
     folder = tmp_path / "unfamiliar"
@@ -520,25 +526,78 @@ def test_a_spelling_of_no_permitted_form_is_still_missed(
         == 0
     )
     described = folder / "real-profile.json"
-    # The same file with ONE cell re-spelled into a pairing the family
-    # does not hold. Nothing else about the file changes.
-    spoiled = folder / "spoiled.csv"
-    changed = ["46E+02"] + cells[1:]
-    spoiled.write_text(
-        fixtures.rows_to_csv(["amount"], [[cell] for cell in changed]),
-        encoding="utf-8",
-        newline="",
-    )
-    checked = folder / "check"
-    checked.mkdir()
-    assert (
-        _exit_of(
+    outcomes: "dict[str, int]" = {}
+    for tag, first in (
+        # The mispairing this test used to refuse: admitted.
+        ("mispaired", "46E+02"),
+        # Engineering notation and extra precision: admitted.
+        ("engineering", "4600000E-03"),
+        ("precise", "4.600000000000000000E+03"),
+        # The same value in a form the description does not publish.
+        ("pointed", "4600.00"),
+    ):
+        changed = [first] + cells[1:]
+        spoiled = folder / f"{tag}.csv"
+        spoiled.write_text(
+            fixtures.rows_to_csv(["amount"], [[cell] for cell in changed]),
+            encoding="utf-8",
+            newline="",
+        )
+        checked = folder / f"check-{tag}"
+        checked.mkdir()
+        outcomes[tag] = _exit_of(
             [
                 "validate", str(described), "--twin", str(spoiled),
                 "--out-dir", str(checked), "--replace",
             ]
         )
-        == 3
+    assert outcomes == {
+        "mispaired": 0,
+        "engineering": 0,
+        "precise": 0,
+        "pointed": 3,
+    }, outcomes
+
+
+def test_a_long_padded_exponent_is_a_verdict_and_not_a_crash(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE FINAL CODEX REVIEW'S ITEM 8 (plan P4-D146), reproduced.
+
+    A hundred cells written `1.000E+000...0001`, the exponent padded past
+    4,300 figures, are read, described and loaded -- the grammar promises
+    exponent padding of any length -- and validation used to raise
+    Python's integer-conversion limit out of `int(power)`. The zeros come
+    off before anything is converted now, and both the real table and a
+    file whose exponent is one too large come back with a verdict.
+    """
+    cells = [f"{1 + step / 1000:.3f}E+" + "0" * 4300 + "1" for step in range(100)]
+    folder = tmp_path / "padded-exponent"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["amount"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    assert (
+        _exit_of(
+            ["profile", str(table), "--out-dir", str(folder), "--replace"]
+            + list(FLOOR)
+        )
+        == 0
+    )
+    described = folder / "real-profile.json"
+    checked = folder / "check-real"
+    checked.mkdir()
+    assert (
+        _exit_of(
+            [
+                "validate", str(described), "--twin", str(table),
+                "--out-dir", str(checked), "--replace",
+            ]
+        )
+        == 0
     )
 
 

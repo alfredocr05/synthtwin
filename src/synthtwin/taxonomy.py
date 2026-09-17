@@ -6359,7 +6359,7 @@ def _padded_cells(cells: _Cells) -> int:
     return counted
 
 
-def _pad_widths(cells: _Cells) -> dict[str, int]:
+def _pad_widths(cells: _Cells, plus: bool = True) -> dict[str, int]:
     """How many `leading_zero`-styled cells wrote each field width.
 
     TWO CODE COLUMNS OF THE SAME FORM ARE NOT THE SAME COLUMN, which is
@@ -6383,18 +6383,32 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     contract fixes for a width key, and it would be a poor joke for the
     census of padding to write a padded key.
 
+    A PLUS DOES NOT HIDE THE PAD (plan P4-D145). `parsing.is_padded` is
+    the question, and it counts a `leading_plus` cell whose figures begin
+    with a redundant zero beside every `leading_zero` cell -- unless
+    ``plus`` is False, which `_width_censuses` asks for where counting
+    them would let a reader subtract too few of them to name (plan
+    P4-D148), and then only the `leading_zero` cells are counted.
+
     Guarantees: accepts a tally of one column; returns a mapping from
     canonical width keys, plus possibly `(withheld)`, to counts that sum
     to how many cells of this column were written in the `leading_zero`
-    form. Determinism: the answer depends only on the tally, and the
-    keys are built in ascending width order. Raises nothing. No I/O of
-    any kind.
+    form or with a plus in front of a redundant zero. Determinism: the
+    answer depends only on the tally, and the keys are built in
+    ascending width order. Raises nothing. No I/O of any kind.
     """
     counts: dict[int, int] = {}
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO:
+        # A PADDED CELL WHATEVER ITS SIGN (plan P4-D145): a leading plus
+        # in front of the zeros hides them from the form and not from
+        # this census.
+        if not parsing.is_padded(cell.numeric_text):
+            continue
+        if not plus and (
+            numeric_style(cell.numeric_text) != parsing.STYLE_LEADING_ZERO
+        ):
             continue
         width = pad_width(cell.numeric_text)
         if width in counts:
@@ -6411,6 +6425,71 @@ def _pad_widths(cells: _Cells) -> dict[str, int]:
     if withheld:
         published_counts[SUPPRESSED_LABEL] = withheld
     return published_counts
+
+
+def _width_censuses(
+    cells: _Cells, styles: "dict[str, int]"
+) -> "tuple[dict[str, int], dict[str, int]]":
+    """The padded and whole-number width censuses, under the disclosure rule.
+
+    EACH CENSUS FLOORS ITS OWN COUNTS, AND A READER SUBTRACTS THEM FROM
+    EACH OTHER (plan P4-D148, the repair pass of the final Codex review).
+    `parsing.width_census_breaches` states the two routes; this is what
+    the describing side does where one of them would print a difference
+    too small to name, and in each case it publishes the state a column
+    with a difference of nought publishes:
+
+    0. WHERE THE FORMS MAP HOLDS BACK SOMETHING AND NAMES NO
+       `leading_zero`, the plus-signed padded cells are not counted at all
+       (plan P4-D145): the held-back cells may be padded ones, which a twin
+       writes unpadded, and eight values written `+0100` twice and `0100`
+       once at a floor of eleven published a width of 24 its twin missed.
+    1. THE PLUS ROUTE. The plus-signed padded cells are not counted, so
+       the census totals the `leading_zero` count exactly -- which is what
+       a column with no plus-signed padded cell writes. Measured: 800
+       padded keys, fifty `+k` and one `+00123` at a floor of eleven
+       published `pad_widths {"5": 801}` beside `leading_zero: 800`, and
+       now publish `{"5": 800}`, the same as the column without it. The
+       price is P4-D145's pad on those plus-signed cells, which a twin
+       then writes unpadded.
+    2. THE WIDTH ROUTE. The whole-number width is moved into the
+       `(withheld)` remainder of `field_widths`, where it is a mixture of
+       widths. Its padded cells keep their width in `pad_widths`, so the
+       twin loses nothing on them; what it loses is the magnitude the
+       report-only census gave the few unpadded cells.
+
+    Guarantees: accepts a tally of one column and its published forms
+    map; returns the published `pad_widths` and `field_widths`, between
+    which `parsing.width_census_breaches` finds nothing. Determinism: a
+    function of the tally. Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    # A HELD-BACK PADDED FORM LEAVES THE PLUS UNCOUNTED (plan P4-D145).
+    # Where the forms map pools `leading_zero`, a twin writes those cells
+    # as their own values are written, with no pad, so a census counting
+    # plus-signed pads beside them names a width no twin reaches.
+    counts_plus = (
+        parsing.STYLE_LEADING_ZERO in styles or SUPPRESSED_LABEL not in styles
+    )
+    padded = _pad_widths(cells, counts_plus)
+    fields = _field_widths(cells)
+    plus_broken, _widths = parsing.width_census_breaches(
+        styles, padded, fields, floor
+    )
+    if plus_broken:
+        padded = _pad_widths(cells, False)
+    _plus, broken = parsing.width_census_breaches(styles, padded, fields, floor)
+    if not broken:
+        return padded, fields
+    pooled = 0
+    kept: dict[str, int] = {}
+    for width in fields:
+        if width == SUPPRESSED_LABEL or width in broken:
+            pooled = pooled + fields[width]
+            continue
+        kept[width] = fields[width]
+    kept[SUPPRESSED_LABEL] = pooled
+    return padded, kept
 
 
 POINT_FREE_STYLES = (
@@ -6906,6 +6985,62 @@ def _marks_exchanged(text: str) -> str:
     return out
 
 
+def _grouping_evidence(cell: _Cell, decimal: bool) -> "tuple[bool, bool, str]":
+    """What one numeric cell proves about the mark between thousands.
+
+    THE ONE EVIDENCE RULE, asked by `_group_separator` and
+    `_thousands_marks` alike (plan P4-D141, the final Codex review's
+    grouping item 7). The two used to ask it separately, and they
+    disagreed on a declared decimal comma: the majority key read
+    `1097.001,01` in the column's own grammar and proved a point, while
+    the census asked the strict groups of the undeclared reader and
+    proved nothing. Measured: 780 such cells beside 20 of `197 001,01`
+    published `group_separator: "."` beside `thousands_marks: {" ": 20}`,
+    a description the loader refuses under TM1 -- so the table could not
+    be twinned at all.
+
+    The answer is three things:
+
+    1. WHETHER THE CELL REFUSES A MARK TO THE WHOLE COLUMN: a form the
+       writer never groups -- padded, or an exponent -- holding a mark,
+       or holding a comma at all (rule 2 of `_group_separator`).
+    2. WHETHER IT COULD HAVE BEEN GROUPED: a groupable form with four or
+       more whole figures.
+    3. THE MARK IT PROVES, or "" for a bare cell, read in the column's
+       own grammar: a declared decimal comma has its points and commas
+       exchanged first, and there the proof is the one
+       `parsing.comma_reading` gives, which drops every point whatever
+       groups it leaves. The mark is returned AS WRITTEN AFTER THAT
+       EXCHANGE, so a proven point comes back as a comma and each caller
+       publishes it as the point that column writes.
+
+    Guarantees: accepts one classified numeric cell and whether its
+    column declared a decimal comma; returns (refuses, eligible, mark),
+    the mark "" wherever the cell is not eligible. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    written = cell.text
+    if decimal:
+        written = _marks_exchanged(cell.text)
+    style = numeric_style(cell.numeric_text)
+    mark = parsing.thousands_mark(written)
+    if decimal and mark == "" and "," in written:
+        # A DECLARED COLUMN IS READ IN ITS OWN GRAMMAR, which drops
+        # every point whatever groups it leaves, so its proof is the
+        # one `comma_reading` gives and not the strict groups the
+        # undeclared reader needs: `1097.001,01` has always proven a
+        # point, and a stricter proof would have withdrawn the mark
+        # from columns the stage 2 rule published it on.
+        reading = parsing.comma_reading(written)
+        if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
+            mark = ","
+    if style not in _GROUPABLE_STYLES:
+        return (bool(mark) or "," in written, False, "")
+    if _whole_figures(written) < 4:
+        return (False, False, "")
+    return (False, True, mark)
+
+
 def _group_separator(cells: _Cells) -> str:
     """The mark this column writes between thousands, or no mark.
 
@@ -6967,26 +7102,10 @@ def _group_separator(cells: _Cells) -> str:
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        written = cell.text
-        if decimal:
-            written = _marks_exchanged(cell.text)
-        style = numeric_style(cell.numeric_text)
-        mark = parsing.thousands_mark(written)
-        if decimal and mark == "" and "," in written:
-            # A DECLARED COLUMN IS READ IN ITS OWN GRAMMAR, which drops
-            # every point whatever groups it leaves, so its proof is the
-            # one `comma_reading` gives and not the strict groups the
-            # undeclared reader needs: `1097.001,01` has always proven a
-            # point, and a stricter proof would have withdrawn the mark
-            # from columns the stage 2 rule published it on.
-            reading = parsing.comma_reading(written)
-            if reading == parsing.COMMA_GROUPED or reading == parsing.COMMA_EITHER:
-                mark = ","
-        if style not in _GROUPABLE_STYLES:
-            if mark or "," in written:
-                return ""
-            continue
-        if _whole_figures(written) < 4:
+        refuses, eligible, mark = _grouping_evidence(cell, decimal)
+        if refuses:
+            return ""
+        if not eligible:
             continue
         if not mark:
             others += 1
@@ -7095,17 +7214,22 @@ def census_floor_of(floor: int) -> int:
     where that is larger" is a second thing to keep in step -- which is
     the drift the guard exists to catch, landing in the guard itself.
 
+    ONE STATEMENT OF IT, which `parsing.census_floor` holds and the
+    loader and the checker read too (plan P4-D140).
+
     Guarantees: accepts a floor; returns two or the floor, whichever is
     larger. Determinism: a fixed function of the floor. Raises nothing.
     No I/O of any kind.
     """
-    if floor > 2:
-        return floor
-    return 2
+    return parsing.census_floor(floor)
 
 
 def _mixture_census(
-    counts: "dict[str, int]", order: "tuple[str, ...]", settings: Settings
+    counts: "dict[str, int]",
+    order: "tuple[str, ...]",
+    settings: Settings,
+    populations: "list[int]",
+    silent: "dict[str, int]",
 ) -> "dict[str, int]":
     """One census of a column's MIXED conventions, floored per convention.
 
@@ -7137,24 +7261,37 @@ def _mixture_census(
       holds as surely as publishing them would, so a census that cannot
       pool safely publishes `(unavailable)` and no number whatever.
 
-    THE COMPLEMENT CLAUSE IS MET BY CONSTRUCTION rather than by a check
-    of its own: every count this census prints is at least the floor, so
-    the cells outside any one of them are the other printed counts added
-    -- nought, or at least the floor again.
+    THE COMPLEMENT CLAUSE IS ASKED, NOT ASSUMED (plan P4-D140, the final
+    Codex review's grouping BLOCKER). Among the printed counts it holds by
+    construction: every one of them is at least the floor. It did NOT
+    hold against the cells a reader can subtract the printed total from,
+    and the first version said it did: 1,200 grouped prices at a floor of
+    eleven, one of them rewritten bare, published `{",": 1199}` beside a
+    row count of 1,200. So ``populations`` names every such total and
+    `parsing.census_nameable`, the one statement of the disclosure rule,
+    decides whether the census may speak at all.
+
+    AND WHAT A CENSUS THAT CANNOT SPEAK PUBLISHES IS ``silent``, the
+    caller's decision: it must be the state the same census reaches where
+    NO cell wears a convention, whenever the population is not empty,
+    because a reader who can tell those two apart can tell nought from a
+    count below the floor.
 
     Guarantees: accepts the counts per convention, the enumeration
-    fixing the key order and the settings; returns `{}` where the
-    population is empty, a mapping of named conventions with possibly a
-    `(withheld)` remainder, or `{"(unavailable)": 0}`. Determinism: the
-    answer depends only on those three, and the keys are built in the
-    enumeration's order. Raises nothing. No I/O of any kind.
+    fixing the key order, the settings, the totals a reader can subtract
+    from and the silent state; returns `{}` where no cell wears a
+    convention and the silent state is empty, a mapping of named
+    conventions with possibly a `(withheld)` remainder, or a copy of the
+    silent state. Determinism: the answer depends only on those five,
+    and the keys are built in the enumeration's order. Raises nothing.
+    No I/O of any kind.
     """
     total = 0
     for name in order:
         if name in counts:
             total = total + counts[name]
     if total < 1:
-        return {}
+        return dict(silent)
     floor = _census_floor(settings)
     published: "dict[str, int]" = {}
     pooled = 0
@@ -7166,7 +7303,7 @@ def _mixture_census(
         else:
             pooled = pooled + counts[name]
     if pooled < 1:
-        return published
+        return _spoken_or_silent(published, populations, settings, silent)
     # A POOL IS A THING HELD BACK, AND AT A FLOOR OF ONE NOTHING IS
     # (invariant C5-S13). This census reads `_census_floor`, which is
     # two even where the person asked for one, so it has a range below
@@ -7179,9 +7316,37 @@ def _mixture_census(
     # publishes the unavailable state, which holds back no COUNT and
     # takes no key S13 reads.
     if pooled < floor or settings.small_cell_floor < 2:
-        return {UNAVAILABLE_LABEL: 0}
+        return dict(silent)
     published[SUPPRESSED_LABEL] = pooled
-    return published
+    return _spoken_or_silent(published, populations, settings, silent)
+
+
+def _spoken_or_silent(
+    published: "dict[str, int]",
+    populations: "list[int]",
+    settings: Settings,
+    silent: "dict[str, int]",
+) -> "dict[str, int]":
+    """A census as it would print, or its silent state where the rule says so.
+
+    The complement half of the disclosure rule, asked once for every
+    census `_mixture_census` builds: `parsing.census_nameable` over the
+    counts it would print and the totals a reader can subtract them
+    from (plan P4-D140).
+
+    Guarantees: accepts the census as it would print, the populations,
+    the settings and the silent state; returns the first or a copy of
+    the last. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    printed: "list[int]" = []
+    for name in sorted(published):
+        printed += [published[name]]
+    if parsing.census_nameable(
+        printed, populations, settings.small_cell_floor
+    ):
+        return published
+    return dict(silent)
 
 
 def _negative_notations(cells: _Cells) -> "dict[str, int]":
@@ -7200,20 +7365,37 @@ def _negative_notations(cells: _Cells) -> "dict[str, int]":
     replacement, and a reader with no use for the mixture reads
     `negative_form` as before.
 
+    ITS COMPLEMENT IS NOUGHT BY CONSTRUCTION, and it is still asked
+    (plan P4-D140): every negative cell wears exactly one notation, so
+    the population a reader subtracts from is the negatives themselves.
+    Its silent state is `(unavailable)`, as it always was: the census is
+    empty only where the column has no negative number, and
+    `n_negative` already says that in public.
+
     Guarantees: accepts the column's tally; returns `_mixture_census`'s
     answer over `parsing.NEGATIVE_FORMS`. Determinism: a fixed function
     of the tally. Raises nothing. No I/O of any kind.
     """
     counts: "dict[str, int]" = {}
+    negatives = 0
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER or cell.sign != parsing.SIGN_NEGATIVE:
             continue
+        negatives += 1
         form = parsing.negative_notation(cell.numeric_text)
         if form in counts:
             counts[form] = counts[form] + 1
         else:
             counts[form] = 1
-    return _mixture_census(counts, parsing.NEGATIVE_FORMS, cells.settings)
+    if negatives < 1:
+        return {}
+    return _mixture_census(
+        counts,
+        parsing.NEGATIVE_FORMS,
+        cells.settings,
+        [negatives],
+        {UNAVAILABLE_LABEL: 0},
+    )
 
 
 def _thousands_marks(cells: _Cells) -> "dict[str, int]":
@@ -7225,37 +7407,60 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
     grouped with a narrow no-break space were written as 300 ordinary
     spaces. This census carries the mixture and the generator spends it.
 
-    COUNTED OVER THE CELLS THAT PROVE A MARK, which is
-    `_group_separator`'s own evidence rule and not a second one: a cell
-    in a groupable form whose whole part reads as groups of three around
-    one mark. A BARE groupable cell proves no mark and is counted
-    nowhere here -- it is not a small group, it is a cell with no
-    convention to reproduce -- and the cells it stands for are the ones
-    the generator gives the published `group_separator` once this census
-    is spent.
+    COUNTED OVER THE CELLS THAT PROVE A MARK, by `_grouping_evidence`,
+    which is `_group_separator`'s own evidence rule and not a second one
+    (plan P4-D141): a cell in a groupable form whose whole part reads as
+    groups of three around one mark, read in the column's own grammar. A
+    BARE groupable cell proves no mark and is named nowhere here -- but
+    it is COUNTED, because a reader can take it back out (below).
 
     READ IN THE COLUMN'S OWN GRAMMAR. A declared decimal comma has the
     cell's points and commas exchanged before the mark is read, exactly
     as `_group_separator` does it, so the two keys agree on every cell;
     a proven comma is published as the point that column writes.
 
-    Guarantees: accepts the column's tally; returns `_mixture_census`'s
-    answer over the marks, keyed by the mark itself. Determinism: a
-    fixed function of the tally. Raises nothing. No I/O of any kind.
+    THE DISCLOSURE RULE, WITH BOTH COMPLEMENTS (plan P4-D140, the final
+    Codex review's second BLOCKER). The census prints no count and no
+    remainder below `census_floor`, and nothing is left over, against
+    the cells that COULD have been grouped or against every number of
+    the column, that is neither nought nor at least that floor. The
+    first version counted the bare cells nowhere, so 1,200 grouped
+    prices at a floor of eleven with ONE rewritten bare published
+    `{",": 1199}` beside a row count of 1,200. Where the rule refuses,
+    the census is `{}` -- the state a column in which no cell proves a
+    mark reaches -- so nought and a count below the floor stay one
+    published state, and the generator writes every groupable cell with
+    the published majority mark, which is what it did before this census
+    existed.
+
+    Guarantees: accepts the column's tally; returns `{}` or a mapping of
+    named marks, each at least `census_floor`, with possibly a
+    `(withheld)` remainder of at least that, whose total leaves nought
+    or at least that floor against the groupable cells and against the
+    numeric cells. Determinism: a fixed function of the tally. Raises
+    nothing. No I/O of any kind.
     """
     decimal = cells.decimal_comma
     counts: "dict[str, int]" = {}
+    groupable = 0
+    numeric = 0
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        written = cell.text
-        if decimal:
-            written = _marks_exchanged(cell.text)
-        if numeric_style(cell.numeric_text) not in _GROUPABLE_STYLES:
+        numeric += 1
+        refuses, eligible, mark = _grouping_evidence(cell, decimal)
+        if refuses:
+            # A CELL THAT REFUSES THE MARK TO THE COLUMN REFUSES THE
+            # CENSUS TOO (plan P4-D141). `_group_separator` publishes no
+            # mark for such a column, and a census naming one beside it
+            # had the twin group cells a description publishing no mark
+            # says were never grouped: 400 grouped charges beside three
+            # `01,234,000` published `{",": 202}` beside `""`, and the
+            # twin's own description then published a comma.
+            return {}
+        if not eligible:
             continue
-        if _whole_figures(written) < 4:
-            continue
-        mark = parsing.thousands_mark(written)
+        groupable += 1
         if not mark:
             continue
         if decimal and mark == ",":
@@ -7265,7 +7470,11 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
         else:
             counts[mark] = 1
     return _mixture_census(
-        counts, parsing.PUBLISHED_GROUP_MARKS, cells.settings
+        counts,
+        parsing.PUBLISHED_GROUP_MARKS,
+        cells.settings,
+        [groupable, numeric],
+        {},
     )
 
 
@@ -7335,9 +7544,12 @@ def _decimal_plus(cells: _Cells) -> "dict[str, int]":
             counted += 1
     if decimals < 1:
         return {}
-    floor = _census_floor(cells.settings)
-    rest = decimals - counted
-    if counted >= floor and (rest == 0 or rest >= floor):
+    # THE DISCLOSURE RULE, stated once in `parsing.census_nameable` and
+    # read here over the one population a reader subtracts this count
+    # from (plan P4-D140).
+    if parsing.census_nameable(
+        [counted], [decimals], cells.settings.small_cell_floor
+    ):
         return {"+": counted}
     return {UNAVAILABLE_LABEL: 0}
 
@@ -7399,16 +7611,22 @@ def _wide_runs(cells: _Cells) -> str:
 
     So the fact is published about the COLUMN and the ceiling is read
     against it. `none` where no cell of the column is such a run;
-    `canonical` where every one of them is the text its own value
-    writes; `respelled` where at least one is not.
+    `canonical` where fewer of them than the census floor are anything
+    but the text their own values write; `respelled` where at least
+    that many are not.
 
-    WHAT IT DISCLOSES IS A PROPERTY OF THE WRITER, which is why it
-    carries no floor. The three words name no count, no row and no
-    figure: `respelled` says an exporter writes wide keys the way it
-    received them, and a reader who knows every other cell of the column
-    sees nothing about any one of them from it. A count would have
-    needed the census floor and would have said how many; this says
-    whether, which is all the ceiling has to read.
+    WHAT IT DISCLOSES IS A PROPERTY OF THE WRITER, AND ONLY A GROUP
+    MOVES IT (plan P4-D140). The three words name no count, no row and
+    no figure. The first version said that was enough and carried no
+    floor between its last two words, and the final Codex review
+    measured why it was not: 800 canonical keys at a floor of eleven
+    published `canonical`, the same column with cell 432 respelled into
+    its binary64 neighbour published `respelled`, both loaded, and a
+    reader who knew the other 799 cells read the last one's spelling
+    off the word. So the word moves at `parsing.census_floor` respelled
+    runs and not at one, and the checker's `canonical` ceiling is that
+    same floor: a file with fewer respelled runs meets it, which is
+    what keeps the real table meeting its own description.
 
     ASKED OF THE TWO POINT-FREE FORMS, and of the CORE of each cell
     (landing 2b.13's repair pass, plan P4-D91). The first version asked
@@ -7492,18 +7710,11 @@ def _wide_runs(cells: _Cells) -> str:
         style = numeric_style(text)
         if style not in POINT_FREE_STYLES:
             continue
-        # NO TEXT SHORTER THAN SIXTEEN CHARACTERS CAN BE ONE, and it is
-        # not read again to find that out (repair of the stage-2b
-        # integration). A point-free run at or past `WIDE_RUN_FLOOR`
-        # writes at least the sixteen figures of 9007199254740992, and a
-        # sign, a pad or a mark only adds characters. Reading every
-        # number a second time here tripled the parser's calls on an
-        # ordinary column of counts -- 340 for 80 cells, against the
-        # budget of two a cell `tests/test_r6_taxonomy_contract.py`
-        # holds -- and changed no answer.
-        if len(text) < 16:
-            continue
-        value = parsing.parse_number(text)
+        # THE NUMBER THE RECORD ALREADY HOLDS, read once by `_classify`
+        # from this same text. Reading it again here asked the parser
+        # 180 more times on an 80-cell column (invariant of structural
+        # rule A, `tests/test_r6_taxonomy_contract.py`).
+        value = cell.value
         if value is None:
             continue
         core = parsing.number_core(text)
@@ -7518,7 +7729,16 @@ def _wide_runs(cells: _Cells) -> str:
     floor = cells.settings.small_cell_floor
     if counted < 1 or counted < floor:
         return parsing.WIDE_NONE
-    if odd > 0:
+    # NO ONE CELL MOVES THE WORD (plan P4-D140, the final Codex review's
+    # first BLOCKER). The line between the two words used to stand
+    # between nought respelled runs and one, and a word that one cell
+    # can move tells the reader who knows every other cell what that
+    # cell wrote. It stands at the census floor now: `respelled` where
+    # at least that many runs are respelled -- a group, by the rule
+    # `parsing.census_nameable` states -- and `canonical` below it,
+    # which is the ceiling the checker holds a file to in the same
+    # words.
+    if parsing.census_nameable([odd], [], floor):
         return parsing.WIDE_RESPELLED
     return parsing.WIDE_CANONICAL
 
@@ -7527,6 +7747,11 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
     n_present = len(cells.present)
+    # THE FORMS MAP AND THE TWO WIDTH CENSUSES A READER SUBTRACTS FROM
+    # IT, built together so the disclosure rule can be asked of all three
+    # at once (plan P4-D148).
+    styles_map = _numeric_styles(cells)
+    widths_pair = _width_censuses(cells, styles_map)
     details: dict[str, object] = {
         "percentiles": _quantiles(numbers),
         # THE OTHER NINETY RUNGS (plan P4-D4.10). One key, one
@@ -7609,7 +7834,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # and `000` and a column of `0.0`, `00.0` and `000.0` are the
         # same profile, and a reader of either twin would infer a type
         # the real table does not have for one of them.
-        "numeric_styles": _numeric_styles(cells),
+        "numeric_styles": styles_map,
         # ...and how many figures the ones written with a point wrote
         # after it, which the forms map cannot say (plan P4-D4.5,
         # amendments A-P4-5 and A-P4-6). It is a SIBLING of the forms
@@ -7649,7 +7874,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # (P4-D14). A SIBLING for the same reason: version 6 requires
         # every value of the forms map to be an integer summing to the
         # numeric count.
-        "pad_widths": _pad_widths(cells),
+        "pad_widths": widths_pair[0],
         # ...and how wide EVERY whole-written cell wrote its figure
         # field, which neither of the other two censuses can say
         # (P4-D30, closing R-P4-30 and R-P4-35). The padded census
@@ -7658,7 +7883,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
         # neither, so its width was published nowhere and a twin wrote
         # it at whatever width its drawn value needed. A SIBLING for
         # the reason both the others are.
-        "field_widths": _field_widths(cells),
+        "field_widths": widths_pair[1],
     }
     moments = _moments(numbers)
     for key in sorted(moments):
@@ -8376,7 +8601,7 @@ def _midnight_count(
     for value in sources:
         if parsing.clock_at_midnight(value, format_name):
             counted = counted + 1
-    floor = parsing.disclosure_line(settings.small_cell_floor)
+    floor = parsing.census_floor(settings.small_cell_floor)
     if counted == len(sources):
         return counted if counted >= floor else None
     if counted >= floor and len(sources) - counted >= floor:
@@ -9786,7 +10011,7 @@ def _affixed_before_the_address_test(
     counts: "dict[tuple[str, str], int]" = {}
     for text in present:
         trimmed = parsing.trimmed(text)
-        chosen = _pair_worn(trimmed, speaking)
+        chosen = _pair_worn(trimmed, speaking, cells.decimal_comma)
         if chosen is None:
             continue
         core = trimmed[
@@ -9905,7 +10130,9 @@ def _written_alike(
     """
     widths: "dict[tuple[str, str], dict[bool, int]]" = {}
     for text in present:
-        chosen = _pair_worn(parsing.trimmed(text), speaking)
+        chosen = _pair_worn(
+            parsing.trimmed(text), speaking, cells.decimal_comma
+        )
         if chosen is None:
             continue
         trimmed = parsing.trimmed(text)
@@ -10062,7 +10289,7 @@ def _wears(text: str, prefix: str, suffix: str) -> bool:
 
 
 def _pair_worn(
-    trimmed: str, speaking: "list[tuple[str, str]]"
+    trimmed: str, speaking: "list[tuple[str, str]]", decimal: bool = False
 ) -> "tuple[str, str] | None":
     """Which of the publishable pairs this cell wears, or none.
 
@@ -10074,11 +10301,19 @@ def _pair_worn(
     Taking the longest wrapper is what makes the split of a cell into
     a wrapper and a core the same split a person would make.
 
-    Guarantees: accepts a trimmed cell and the publishable pairs;
-    returns the pair it wears or None. Determinism: a function of those
-    inputs, with a fixed order. Raises `TypeError` where the cell is
-    not text, which is the offline audit's own gate. No I/O of any
-    kind.
+    THE BARE PAIR IS ASKED IN THE COLUMN'S OWN GRAMMAR (plan P4-D143,
+    the final Codex review's item 4). ``decimal`` says the column was
+    declared `--decimal-comma`, and there a bare `100,25` IS a number:
+    asked under the ordinary grammar it was not, so 800 prices of which
+    600 wore ` EUR` published `n_affixed: 600` -- a description the
+    loader refuses, since at least 792 must wear the pair -- and with 400
+    wrapped the column fell to free text.
+
+    Guarantees: accepts a trimmed cell, the publishable pairs and
+    whether the column declared a decimal comma; returns the pair it
+    wears or None. Determinism: a function of those inputs, with a fixed
+    order. Raises `TypeError` where the cell is not text, which is the
+    offline audit's own gate. No I/O of any kind.
     """
     # THE CELL READS AS TEXT BEFORE A METHOD TOUCHES IT, in the exact
     # gate the offline audit names: this function's caller hands it a
@@ -10103,7 +10338,10 @@ def _pair_worn(
         # core -- and the straggler population would vanish from every
         # column that publishes the bare wrapper.
         if not front and not back:
-            if parsing.classify_number(trimmed) != parsing.NUMBER:
+            read = trimmed
+            if decimal:
+                read = parsing.written_with_a_decimal_comma(trimmed)
+            if parsing.classify_number(read) != parsing.NUMBER:
                 continue
         width = len(front) + len(back)
         if width > reach:

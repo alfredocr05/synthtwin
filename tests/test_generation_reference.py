@@ -105,6 +105,11 @@ BRANCH_GENERATOR = (
 SECOND_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_2.py"
 )
+# THE FIFTH FILE (the repair of the final Codex review of the number
+# censuses, plans P4-D142, P4-D145, P4-D147 and P4-D149).
+THIRD_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_3.py"
+)
 VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
@@ -119,6 +124,11 @@ SECOND_BRANCH_VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
     / "generation-branch-vectors-2.json"
+)
+THIRD_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-3.json"
 )
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
@@ -161,6 +171,10 @@ def _branch_document() -> dict:
 
 def _second_branch_document() -> dict:
     return json.loads(SECOND_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _third_branch_document() -> dict:
+    return json.loads(THIRD_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -335,7 +349,24 @@ SECOND_BRANCH_CASES = (
     "thin_spaced",
 )
 
-ALL_CASES = tuple(sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES))
+# The fifth committed file: the cases the repair of the final Codex review
+# of the number censuses added (plans P4-D142, P4-D145 and its amendment,
+# P4-D147 and P4-D149), each of
+# whose rules could otherwise be withdrawn with every committed byte
+# unchanged. Sorted, like the tuples above.
+THIRD_BRANCH_CASES = (
+    "bare_mark_remainder",
+    "plus_padded_field",
+    "pooled_mark_cells",
+    "saturated_integers",
+    "signed_pads",
+    "spread_conventions",
+    "unpublished_majority_marks",
+)
+
+ALL_CASES = tuple(
+    sorted(REQUIRED_CASES + BRANCH_CASES + SECOND_BRANCH_CASES + THIRD_BRANCH_CASES)
+)
 
 # Which seed's opening words each case is given. This mapping lives here
 # and not in the oracle: the oracle is a pure function of the words, and
@@ -379,6 +410,16 @@ SEEDS = {
     # Landing 2b.7's own case takes the next seed after the carried
     # landings' block, which ran to 135.
     "mixed_conventions": 136,
+    # The repair of the final Codex review of the number censuses takes
+    # 160 onward, clear of every block the carried landings and their
+    # repairs took.
+    "bare_mark_remainder": 160,
+    "plus_padded_field": 161,
+    "pooled_mark_cells": 162,
+    "saturated_integers": 163,
+    "unpublished_majority_marks": 164,
+    "spread_conventions": 165,
+    "signed_pads": 166,
     # Landings 2b.4, 2b.3 and 2b.2 were built side by side and each took
     # 124 onward for its own cases. A seed only names the opening words a
     # case is given, and each case's committed cells were chosen from
@@ -418,8 +459,10 @@ DECLARED_IDENTIFIERS = frozenset(
 )
 
 def _case(name: str) -> dict:
-    """One case, from whichever of the three committed files carries it."""
-    if name in SECOND_BRANCH_CASES:
+    """One case, from whichever of the committed files carries it."""
+    if name in THIRD_BRANCH_CASES:
+        document = _third_branch_document()
+    elif name in SECOND_BRANCH_CASES:
         document = _second_branch_document()
     elif name in BRANCH_CASES:
         document = _branch_document()
@@ -595,11 +638,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     named = _document()
     branch = _branch_document()
     second = _second_branch_document()
+    third = _third_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
+    assert tuple(sorted(third["cases"])) == THIRD_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, papers)
+    every = (named, branch, second, third, papers)
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -611,6 +656,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (named, VECTORS),
         (branch, BRANCH_VECTORS),
         (second, SECOND_BRANCH_VECTORS),
+        (third, THIRD_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -626,7 +672,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
 
 @pytest.mark.parametrize(
     "script",
-    [GENERATOR, BRANCH_GENERATOR, SECOND_BRANCH_GENERATOR, DOCUMENT_GENERATOR],
+    [
+        GENERATOR,
+        BRANCH_GENERATOR,
+        SECOND_BRANCH_GENERATOR,
+        THIRD_BRANCH_GENERATOR,
+        DOCUMENT_GENERATOR,
+    ],
 )
 def test_the_oracle_imports_none_of_the_code_it_checks(script) -> None:
     """The claim in the file's own header, held up against its source.
@@ -855,6 +907,8 @@ BRANCH_PUBLISHED_NUMBERS = 23
 BRANCH_NAMED_COUNTS = 121
 SECOND_BRANCH_PUBLISHED_NUMBERS = 336
 SECOND_BRANCH_NAMED_COUNTS = 370
+THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
+THIRD_BRANCH_NAMED_COUNTS = 339
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -877,6 +931,12 @@ COMMITTED_FILES = (
         SECOND_BRANCH_NAMED_COUNTS,
     ),
     (
+        THIRD_BRANCH_VECTORS,
+        gen.THIRD_BRANCH_PART,
+        THIRD_BRANCH_PUBLISHED_NUMBERS,
+        THIRD_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -890,7 +950,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -932,7 +992,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -951,7 +1011,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1501,11 +1561,12 @@ _REAL_STYLED_SPELLING = gen.styled_spelling
 
 
 def _grouped_at_every_order(
-    style, value, integer_valued, order, mark="", negative="minus", plus=False
+    style, value, integer_valued, order, mark="", negative="minus", plus=False,
+    pad=-1,
 ):
     """P4-D38's order rule withdrawn: a cell that spent zeros is grouped too."""
     text = _REAL_STYLED_SPELLING(
-        style, value, integer_valued, order, "", negative, plus
+        style, value, integer_valued, order, "", negative, plus, pad
     )
     if style in ("plain", "leading_plus", "decimal"):
         return gen._group_thousands(text, mark)
@@ -1882,7 +1943,147 @@ def _notations_from_the_majority(census, default, styles, values):
     return [default] * len(values)
 
 
+# The oracle's own rules the seven cases of plans P4-D142, P4-D145, P4-D149 and
+# P4-D147 pin, held before any test patches them.
+gen_mark_places = gen.mark_places
+gen_pad_places = gen.pad_places
+gen_apart_values = gen.apart_values
+gen_plus_cells_by_value = gen.plus_cells_by_value
+
+
+def _marks_without_the_bare_remainder(
+    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
+):
+    """Plan P4-D142's bare remainder withdrawn: the leftover wears the mark."""
+    worn = gen_mark_places(census, published, groupable, floor, values)
+    return [
+        published if groupable[index] and worn[index] == "" else worn[index]
+        for index in range(len(worn))
+    ]
+
+
+def _pool_on_the_published_mark(
+    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
+):
+    """Plan P4-D142's pool mark withdrawn: the pool wears the published mark."""
+    named = {gen.mark_written(mark) for mark, _count in gen.named_conventions(
+        census, gen.GROUP_MARK_ORDER
+    )}
+    worn = gen_mark_places(census, published, groupable, floor, values)
+    return [
+        published if groupable[index] and worn[index] and worn[index] not in named
+        else worn[index]
+        for index in range(len(worn))
+    ]
+
+
+def _conventions_packed_from_the_first_cell(eligible, values, placed, in_order=False):
+    """Plan P4-D149's spread withdrawn from both censuses of conventions.
+
+    Where the censuses of marks and notations ask for their cells, the
+    first ``placed`` eligible cells are taken, as the first version's walk
+    took them; the plus sign's own spread is left as it is.
+    """
+    if in_order:
+        return list(eligible[:placed])
+    return gen_plus_cells_by_value(eligible, values, placed, in_order)
+
+
+def _without_the_padded_sign_exchange(
+    styles, values, integer_valued, pads, marks, notations, plussed, content,
+    owed,
+):
+    """Plan P4-D145's exchange withdrawn: every padded cell keeps its form."""
+    return list(styles), list(content), owed
+
+
+def _asked_with_the_published_mark(census, published):
+    """Plan P4-D142's candidate withdrawn: groupability asked of the majority."""
+    return published
+
+
+def _pads_on_the_padded_form_alone(
+    census, styles, values, integer_valued, forms=None
+):
+    """Plan P4-D145's second tier withdrawn: no plus-signed cell is padded."""
+    masked = ["plain" if style == "leading_plus" else style for style in styles]
+    return gen_pad_places(census, masked, values, integer_valued, forms)
+
+
+def _apart_without_the_fill(
+    wanted, figures, values, sizes, starts, bands, ladder, numeric
+):
+    """Plan P4-D147's fill withdrawn: the walk alone, as it ran before.
+
+    The fill answers only where the strata number exactly ``wanted``;
+    asking the rule with a count one larger keeps every step of the walk
+    and stops the fill from recognising the grid, and the walk's own stop
+    at the published count is never reached earlier by one more.
+    """
+    return gen_apart_values(
+        wanted + 1 if wanted is not None else None,
+        figures, values, sizes, starts, bands, ladder, numeric,
+    )
+
+
 CASE_MUTANTS = {
+    "bare_mark_remainder": Mutant(
+        branch="plan P4-D142's bare remainder; the mutant writes every "
+        "groupable cell no named count covers with the published mark, as "
+        "the twin did before that decision, and the eleven bare cells are "
+        "grouped",
+        attribute="mark_places",
+        replacement=_marks_without_the_bare_remainder,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "plus_padded_field": Mutant(
+        branch="plan P4-D145's second tier of named field widths; the mutant "
+        "serves the padded form alone and every plus-signed cell is written "
+        "two figures short of its field",
+        attribute="pad_places",
+        replacement=_pads_on_the_padded_form_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "pooled_mark_cells": Mutant(
+        branch="plan P4-D142's pool mark; the mutant writes the pooled "
+        "remainder with the published comma, so the comma count passes the "
+        "published one",
+        attribute="mark_places",
+        replacement=_pool_on_the_published_mark,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "saturated_integers": Mutant(
+        branch="plan P4-D147's fill of a saturated integer grid; the mutant "
+        "runs the walk alone, which lands strata on points other strata "
+        "still need",
+        attribute="apart_values",
+        replacement=_apart_without_the_fill,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "signed_pads": Mutant(
+        branch="plan P4-D145's padded sign exchange; the mutant leaves every "
+        "padded cell in the form the style walk gave it, and the column "
+        "comes back with fewer spellings",
+        attribute="padded_sign_exchange",
+        replacement=_without_the_padded_sign_exchange,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "spread_conventions": Mutant(
+        branch="plan P4-D149's spread of the censuses of conventions; the "
+        "mutant takes each count from the first eligible cell upward, which "
+        "ties a notation and a mark to the most negative numbers",
+        attribute="plus_cells_by_value",
+        replacement=_conventions_packed_from_the_first_cell,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "unpublished_majority_marks": Mutant(
+        branch="plan P4-D142's groupable cells asked with a mark that writes "
+        "one; the mutant asks with the published mark, which is none, and "
+        "no cell is grouped",
+        attribute="candidate_mark",
+        replacement=_asked_with_the_published_mark,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "grouped_charges": Mutant(
         branch="landing 2b.2's spread of signed decimals; the mutant takes "
         "the plus from the first eligible cell upward, which ties a plus to "
