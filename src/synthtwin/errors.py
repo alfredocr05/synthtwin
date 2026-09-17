@@ -2428,33 +2428,6 @@ def workbook_sheet_is_empty(path: str, named: str) -> str:
     )
 
 
-def workbook_header_row_unsettled(path: str, columns: int, row: int) -> str:
-    """Message for a workbook whose header row the sheet does not settle.
-
-    WHY THIS ASKS (plan P4-D174). Above row ``row`` stand rows holding a
-    single cell, and such a row is either a title above the names or the
-    names of a table that leaves its other names blank. Taken for a
-    title, a header of one name put the first RECORD in the names and
-    published it whole; taken for names, a title would put the real names
-    among the values. Nothing about a cell's text says which, so the
-    person is asked. The message quotes no cell: in an unsettled sheet
-    the "names" may be somebody's record.
-    """
-    return (
-        f"synthtwin cannot tell which row of the sheet in {path} holds the "
-        f"names of its {columns} columns. The rows above row {row} hold "
-        f"one cell each, and such a row is either a title above the names "
-        f"in row {row} or the names themselves, with the other names left "
-        f"blank. Guessing would either publish a record as if it were the "
-        f"column names or read the names as a record, so synthtwin stops "
-        f"instead. If the first row holds the column names, run the command "
-        f"again with --first-row names. If it is a title, open the "
-        f"workbook, freeze the panes below row {row} or turn on the filter "
-        f"on that row, save it, and run the command again. If no row holds "
-        f"names, run the command again with --first-row data."
-    )
-
-
 def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
     """Message for a table whose rectangle passes the cell cap (P4-D165).
 

@@ -2344,7 +2344,23 @@ def _leads_the_table(record: Record) -> bool:
     raw = _text(record.raw)
     if _starts(raw, "#"):
         return True
-    return len(record.fields) == 1 and _holds(raw, _SPACE)
+    return len(record.fields) == 1 and lone_field_leads_a_table(raw)
+
+
+def lone_field_leads_a_table(text: str) -> bool:
+    """Whether ONE field standing alone above a table reads as furniture.
+
+    THE ONE RULE FOR A LINE OF ONE FIELD AND A ROW OF ONE CELL (plan
+    P4-D186). A field beginning with `#` is a comment and a field holding
+    a space reads as a title; a field of one word holds neither and is
+    the name of a table as often as it is a title, so it is not one. The
+    delimited survey asks this of a one-field line (`_leads_the_table`)
+    and the workbook reader of a one-cell row, so a title a text file
+    steps over is stepped over in a workbook too, and a one-word row a
+    text file reads as names is read as names there.
+    """
+    found = _text(text)
+    return _starts(found, "#") or _holds(found, _SPACE)
 
 
 def _width_share(sample: "list[Record]") -> "tuple[float, int]":

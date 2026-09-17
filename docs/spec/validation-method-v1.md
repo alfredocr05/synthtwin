@@ -2478,11 +2478,12 @@ sheet the reader settled on by itself.
 The row a checked workbook's names stand on is the description's where
 the sheet does not settle it (plan P4-D174). Rows of one cell above the
 reader's header row, with no frozen panes and no autofilter at that row,
-may be a title or the names themselves; the producer asks, and the
-checked file is read with its names on the row `rows_above_header` puts
-them on, where that row is one of the two readings. Where it is neither,
-the reader's own row stands and `workbook.rows-above-header` is measured
-against it.
+may be a title or the names themselves; the producer settles them by the
+delimited preamble rule (plan P4-D186), and the checked file is read
+with its names on the row `rows_above_header` puts them on, where that
+row is the reader's or one of the rows of one cell above it. Where it is
+none of them, the producer's rule stands and
+`workbook.rows-above-header` is measured against it.
 
 **V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
 P4-D86). The first four rules above are no longer constants: each asks

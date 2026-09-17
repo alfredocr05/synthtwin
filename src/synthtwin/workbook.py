@@ -1617,11 +1617,6 @@ class Sheet:
     empty_rows_inside: int
     trailing_blank_rows: int
     trailing_blank_columns: int
-    # WHICH ROW HOLDS THE NAMES IS NOT SETTLED (plan P4-D174): the header
-    # rule stepped over rows of one cell that nothing in the sheet marks
-    # as furniture, so those rows may be the names themselves. The
-    # profile path asks; see `_header_unsettled`.
-    header_unsettled: bool = False
 
 
 def _table_width(widths: "list[int]") -> int:
@@ -1693,44 +1688,90 @@ def _first_row_of(reference: str) -> int:
     return reference_row(reference if place < 0 else reference[:place])
 
 
-def _header_unsettled(
-    reading: Reading, content_rows: "list[int]", header_row: int
-) -> bool:
-    """Whether the rows the header rule stepped over may be the names.
+def _marked_by_the_sheet(reading: Reading, header_row: int) -> bool:
+    """Whether the sheet itself marks this row as its header (P4-D174).
 
-    THE HEADER RULE CANNOT TELL A TITLE FROM A HEADER OF ONE NAME (plan
-    P4-D174). A title above a table is one cell; so is a header that
-    names one column and leaves the others blank. Measured: `subject` in
-    `A1`, `B1` and `C1` blank, over forty-one records of three texts --
-    the rule stepped over row 1, the first RECORD became the names and
-    was published whole, while pandas named the source's columns
-    `subject`, `Unnamed: 1`, `Unnamed: 2`. Nothing in the values can
-    settle it: a record of three texts looks like names. What CAN is
-    what the sheet says of itself, each a thing a person does to a
-    header and never to a record: the rows frozen at the top end at that
-    row, or the autofilter -- a defined table's included -- begins at it.
+    Each a thing a person does to a header and never to a record: the
+    rows frozen at the top end at that row, or the autofilter -- a
+    defined table's included -- begins at it. Both are published and
+    written back, so a twin is marked the same way. A merged banner was
+    measured as evidence and taken out again: the twin merges nothing.
+    """
+    if reading.frozen_rows == header_row:
+        return True
+    return bool(reading.autofilter) and _first_row_of(reading.autofilter) == header_row
 
-    ONLY WHAT A TWIN CARRIES COUNTS. A merged banner says the same, and
-    was measured as evidence and taken out again: the twin writes the
-    rows above its header as cells holding nothing and merges nothing,
-    so the twin of a book settled by its banner was not settled by
-    anything and could not be described again. The frozen rows and the
-    autofilter are published and written back.
 
-    Where neither holds, the rows stepped over are not settled.
-    Guarantees: a fixed function of the arguments; raises nothing.
+def _row_leads_the_table(cells: "dict[int, Cell]") -> bool:
+    """Whether a row of one cell above the header is furniture (P4-D186).
+
+    THE PREAMBLE RULE, ASKED OF A ROW. A row holding nothing but one
+    cell of text that is empty, holds a space or begins with `#` is what
+    a delimited file's survey steps over as a blank, title or comment
+    line (`dialect.lone_field_leads_a_table`); its SHAPE is published as
+    `rows_above_header` and its text never is. A row of one word, or of
+    one number, date, truth value or error, is not furniture: it is the
+    names of a table that leaves its other names blank, exactly as a
+    text file's one-word line is.
+    """
+    for place in sorted(cells):
+        entry = cells[place]
+        if entry.kind in (CELL_BLANK, CELL_ABSENT, CELL_EMPTY):
+            continue
+        if entry.kind != CELL_TEXT:
+            return False
+        if entry.text and not dialect.lone_field_leads_a_table(entry.text):
+            return False
+    return True
+
+
+def _settled_header_row(
+    reading: Reading,
+    held: "dict[int, dict[int, Cell]]",
+    content_rows: "list[int]",
+    header_row: int,
+    names_on_top: bool,
+    published_header: int,
+) -> int:
+    """Which row holds the names, where rows of one cell stand above it.
+
+    THE HEADER RULE STEPS OVER ROWS OF ONE CELL, AND THE PREAMBLE RULE
+    SAYS WHICH OF THEM IT MAY STEP OVER (plan P4-D186, which withdraws
+    P4-D174's question). A title above the names is one cell, and so is
+    a header naming one column and leaving the others blank -- `subject`
+    in `A1` over records of three texts, whose first record the rule took
+    for the names and published whole. P4-D174 stopped every such sheet
+    and asked, which refused workbooks a text file of the same rows is
+    read from without a question. The rows stepped over are now asked
+    what a delimited file's lines are asked: each row that leads the
+    table (`_row_leads_the_table`) is furniture, published by its count
+    and never by its text, and the first row that does not is the names.
+    The row taken as names then meets the same question a text file's
+    header does -- a row that reads as a record stops the run and asks.
+
+    What settles it before that, in order: the sheet marking the rule's
+    row (`_marked_by_the_sheet`); the person's `--first-row names`, which
+    puts the names on the first row of content; the validator's
+    ``published_header``, the row the checked description puts its
+    names on, where that is one of the rows in question.
     """
     stepped: "list[int]" = []
     for number in content_rows:
         if number < header_row:
             stepped += [number]
-    if not stepped:
-        return False
-    if reading.frozen_rows == header_row:
-        return False
-    if reading.autofilter and _first_row_of(reading.autofilter) == header_row:
-        return False
-    return True
+    if not stepped or _marked_by_the_sheet(reading, header_row):
+        return header_row
+    if names_on_top:
+        return content_rows[0]
+    if published_header == header_row:
+        return header_row
+    for number in stepped:
+        if number == published_header:
+            return number
+    for number in stepped:
+        if not _row_leads_the_table(held[number]):
+            return number
+    return header_row
 
 
 def table_of(
@@ -1816,20 +1857,15 @@ def table_of(
         widths += [width]
     wanted = _table_width(widths)
     header_row = 0
-    unsettled = False
     top = content_rows[0] if content_rows[0] < 1 else 1
     if not records_from_the_top:
         header_row = _header_row_of(
             held, content_rows, widths, wanted, first_column
         )
-        unsettled = _header_unsettled(reading, content_rows, header_row)
-        if unsettled and (
-            names_on_top or published_header == content_rows[0]
-        ):
-            header_row = content_rows[0]
-            unsettled = False
-        elif unsettled and published_header == header_row:
-            unsettled = False
+        header_row = _settled_header_row(
+            reading, held, content_rows, header_row, names_on_top,
+            published_header,
+        )
         top = header_row + 1
     span = (last_row - top + 1) * (last_column - first_column + 1)
     if span > MAXIMUM_CELLS:
@@ -1923,7 +1959,6 @@ def table_of(
         empty_rows_inside=empty_inside,
         trailing_blank_rows=trailing_rows,
         trailing_blank_columns=trailing_columns,
-        header_unsettled=unsettled,
     )
 
 

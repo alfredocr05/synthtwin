@@ -1138,24 +1138,19 @@ def _read_workbook_table(
     parts = opened_workbook(table_path, shown)
     reading = workbook.read_parts(parts, shown, wanted, positions)
     records = first_row == FIRST_ROW_DATA
-    # WHICH ROW HOLDS THE NAMES, WHERE THE SHEET DOES NOT SETTLE IT (plan
-    # P4-D174). A row of one cell above the header rule's row may be a
-    # title or the names of a table that leaves its other names blank,
-    # and taking it for a title published a person's record as the names.
-    # The person's `--first-row names` says the first row holds them; the
-    # validator settles it by the description it checks against; and an
-    # undeclared profile is stopped and asked, quoting nothing.
+    # WHICH ROW HOLDS THE NAMES, WHERE ROWS OF ONE CELL STAND ABOVE THEM
+    # (plans P4-D174, P4-D186). A row of one cell above the header rule's
+    # row is furniture where a text file's line would be -- a title
+    # holding a space, a comment, a blank -- and the names otherwise; the
+    # person's `--first-row names` says the first row holds them, and the
+    # validator settles it by the description it checks against. The
+    # row taken as names then meets the question below, as a text file's
+    # header does.
     sheet = workbook.table_of(
         reading, shown, records,
         names_on_top=first_row == FIRST_ROW_NAMES and not positions,
         published_header=published_header if positions else 0,
     )
-    if sheet.header_unsettled and not positions and first_row == FIRST_ROW_AUTOMATIC:
-        raise errors.ProfileError(
-            errors.workbook_header_row_unsettled(
-                shown, len(sheet.columns), sheet.header_row
-            )
-        )
     if not sheet.columns:
         if positions:
             raise errors.ProfileError(

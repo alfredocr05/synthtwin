@@ -1074,42 +1074,36 @@ def _one_name_over_text_records(pane: str = "", merged: bool = False) -> bytes:
     return buffer.getvalue()
 
 
-def test_a_header_of_one_name_is_asked_about(tmp_path: pathlib.Path) -> None:
-    """A header naming one column is not stepped over as a title (P4-D174).
+def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> None:
+    """A header naming one column is not stepped over as a title (P4-D174, P4-D186).
 
     THE REPRODUCTION. `subject` in `A1` with `B1` and `C1` blank, over
     forty-one records of three texts, at a floor of five: the header rule
     took the one-cell row for a title, the first record became the names
     -- `CASE-ZEBRA-471`, `amber`, `Northfield`, published whole -- and
     both files validated, while pandas named the source's columns
-    `subject`, `Unnamed: 1`, `Unnamed: 2`. Nothing in the sheet says the
-    row is a title, so the run stops and asks, quoting no cell; with
-    `--first-row names` the first row is the names and the round trip
-    holds.
+    `subject`, `Unnamed: 1`, `Unnamed: 2`. P4-D174 stopped and asked;
+    since P4-D186 the row is asked what a text file's one-field line is
+    asked, and a row of one word is not furniture, so it is the names --
+    undeclared and declared alike, and the round trip holds.
     """
     pandas = pytest.importorskip("pandas")
-    source = tmp_path / "one-name.xlsx"
-    source.write_bytes(_one_name_over_text_records())
-    code, said = _exit_of(["profile", str(source), "--out-dir", str(tmp_path),
-                           "--smallest-group", "5"])
-    assert code != 0
-    assert "--first-row names" in said
-    assert "ZEBRA" not in said and "Northfield" not in said
-    assert not (tmp_path / "one-name-profile.json").exists()
-
-    declared = tmp_path / "declared"
-    result = _trip(declared, "one-name", _one_name_over_text_records(),
-                   ("--smallest-group", "5", "--first-row", "names"))
-    _held(result)
-    document = result["document"]
-    assert [one["name"] for one in document["columns"]] == [
-        "subject", "Unnamed: 1", "Unnamed: 2",
-    ]
-    assert document["n_rows"] == 41
-    assert b"ZEBRA" not in result["described"].read_bytes()
-    assert list(pandas.read_excel(result["twin"]).columns) == list(
-        pandas.read_excel(result["source"]).columns
-    )
+    for flags, where in (
+        (("--smallest-group", "5"), "undeclared"),
+        (("--smallest-group", "5", "--first-row", "names"), "declared"),
+    ):
+        result = _trip(tmp_path / where, "one-name", _one_name_over_text_records(), flags)
+        _held(result)
+        document = result["document"]
+        assert [one["name"] for one in document["columns"]] == [
+            "subject", "Unnamed: 1", "Unnamed: 2",
+        ]
+        assert document["n_rows"] == 41
+        assert document["source"]["workbook"]["rows_above_header"] == 0
+        assert b"ZEBRA" not in result["described"].read_bytes()
+        assert list(pandas.read_excel(result["twin"]).columns) == list(
+            pandas.read_excel(result["source"]).columns
+        )
 
 
 def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> None:
@@ -1118,8 +1112,9 @@ def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> N
     The same rows, with the panes frozen below row 2 or the autofilter
     on row 2, are a title above the names: the run is not stopped, one
     row stands above the header, and the twin -- which carries both --
-    is described again without a question. A merged banner alone is
-    asked about, because a twin merges nothing.
+    is described again without a question. A merged banner is not
+    evidence, because a twin merges nothing: the banner's one word is
+    read as the names, as the unmerged row is (P4-D186).
     """
     frozen = tmp_path / "frozen"
     pane = ('<sheetViews><sheetView workbookViewId="0"><pane ySplit="2" '
@@ -1140,9 +1135,8 @@ def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> N
     assert result["document"]["source"]["workbook"]["rows_above_header"] == 1
     banner = tmp_path / "banner.xlsx"
     banner.write_bytes(_one_name_over_text_records(merged=True))
-    with pytest.raises(errors.ProfileError) as raised:
-        reading.read_table(str(banner))
-    assert "--first-row names" in f"{raised.value}"
+    table = reading.read_table(str(banner))
+    assert list(table.column_names) == ["subject", "Unnamed: 1", "Unnamed: 2"]
 
 
 def _short_table(rows: int) -> bytes:
