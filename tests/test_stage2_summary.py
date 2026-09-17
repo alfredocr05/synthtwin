@@ -222,9 +222,11 @@ def test_marks_too_rare_to_name_are_said_as_a_count_and_never_as_a_mark(
     """The pooled `(withheld)` entry is a count of values, not a mark.
 
     Three hundred and eighty stamps with a space, ten with a `T` and ten
-    with a `t`, under a smallest group of fifteen: the space is named,
-    the capital T is named nowhere, and twenty values are said to wear
-    a mark too rare to name.
+    with a `t`, under a smallest group of fifteen. SINCE PLAN P4-D220
+    (stage 2 closed by the owner rulings of 2026-09-17) every mark pools:
+    naming the space beside a pool of twenty told a reader that neither
+    the capital T nor the t was nought. No mark is named, and all four
+    hundred values are said to wear marks not named here.
     """
     marks = " " * 38 + "T" + "t"
     stamps = _stamps(400, 34, marks)
@@ -236,18 +238,17 @@ def test_marks_too_rare_to_name_are_said_as_a_count_and_never_as_a_mark(
         ["--smallest-group", "15"],
     )
     assert _column(document, "seen_at")["datetime_separators"] == {
-        "(withheld)": 20,
-        "space": 380,
+        "(withheld)": 400,
     }
     block = _block_of(page, "seen_at")
     expected = (
         _SEPARATOR_OPENING
-        + "a space in 380 value(s), 20 value(s) whose mark was too rare "
-        "to name here, because fewer than 15 value(s) were written with "
-        "each such mark"
+        + "400 value(s) whose marks are not named here, because at least "
+        "one mark was written by fewer than 15 value(s)"
     )
     assert expected in block, "\n".join(block)
     said = "\n".join(block)
+    assert "a space" not in said
     assert "capital T" not in said
     assert "lower-case t" not in said
     assert "(withheld)" not in said

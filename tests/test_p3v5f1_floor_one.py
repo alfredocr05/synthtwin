@@ -63,6 +63,7 @@ import pytest
 
 import fixtures
 from synthtwin import (
+    canonical,
     contract,
     errors,
     generation,
@@ -324,11 +325,19 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # it, `n_sentinel_candidates_unpublished` -- which is one of the five
     # this repair closed. So the whole block is grafted for these, and
     # the block carries its own tally.
-    assert silent == [("columns", 3, "sentinel_verdicts")], (
+    #
+    # AND `utc_offsets` SINCE PLAN P4-D220: its pool may stand at a floor
+    # of one (S13 as amended), so the floor-eleven map grafted there is a
+    # description the loader takes. What holds that pool is D3, asked
+    # beside it in `tests/test_older_censuses_name_no_row.py`.
+    assert silent == [
+        ("columns", 3, "sentinel_verdicts"),
+        ("columns", 5, "utc_offsets"),
+    ], (
         f"a position the floor moves has stopped being recorded by the "
         f"document: {silent}"
     )
-    for where in silent:
+    for where in silent[:1]:
         made = _graft(strict, loose, where[:2])
         written = fixtures.write_profile(tmp_path, "block.json", made)
         with pytest.raises(errors.ProfileError):
@@ -433,6 +442,9 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         and not isinstance(value, bool)
         and isinstance(value, int)
         and value > 0
+        # The two censuses whose pool S13 no longer refuses at a floor of
+        # one (plan P4-D220), read from the one list the guard reads.
+        and not canonical.pools_at_any_floor(path[:-1])
     ]
     assert len(remainders) >= 4, (
         f"the witness table stopped pooling a remainder anywhere, so "
@@ -495,11 +507,17 @@ def _column(document: dict, name: str) -> dict:
 # now holds it. Grafting the old field instead would now break a total
 # and be refused by the accounting rule, which would say this one is
 # enforced when it is not.
+#
+# `utc_offsets` WAS THE FOURTH AND LEFT AT PLAN P4-D220 (stage 2 closed
+# by the owner rulings of 2026-09-17). That census names no count below
+# `parsing.census_floor`, which is two at a floor of one, so a pool there
+# holds the offsets that line cannot name and invariant S13 no longer
+# refuses it; D3 holds the pool instead, and
+# `tests/test_older_censuses_name_no_row.py` witnesses it at a floor of one.
 _WITNESSES = (
     ("missing_by_class", "visits"),
     ("n_missing_withheld", "visits"),
     ("n_sentinel_candidates_unpublished", "reading"),
-    ("utc_offsets", "stamped_at"),
     ("numeric_styles", "amount"),
 )
 

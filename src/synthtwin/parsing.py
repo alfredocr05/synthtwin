@@ -4759,6 +4759,92 @@ def disclosed_census(
     return named
 
 
+def pooled_census(
+    counts: "dict[str, int]", population: int, floor: int, closed: bool
+) -> "dict[str, int]":
+    """A tally of offsets or marks, cut to what the disclosure rule allows.
+
+    THE TWO OLDER POOLED CENSUSES, `utc_offsets` and
+    `datetime_separators`, ask the ONE disclosure rule, `census_nameable`,
+    with its line `census_floor` (plan P4-D220; stage 2 closed by the
+    owner rulings of 2026-09-17). Until then each named a count where it
+    reached the settings floor and pooled the rest under `(withheld)`,
+    so at the default floor of one a column of 400 moments with one
+    `t` published `{"lower_t": 1, "upper_t": 399}`, and at a floor of
+    eleven `{"upper_t": 399, "(withheld)": 1}`: both name the row.
+
+    `population` is the total the block already publishes for the cells
+    counted -- `n_present - n_unparsed` for the offsets, the cells that
+    write a clock for the marks -- and the census always covers it
+    exactly (contract D2 and D13), so what the printed counts leave of
+    it is nought. Every count printed, the pool among them, reaches the
+    line. Where that cannot be said, THE WHOLE CENSUS IS ONE POOL: its
+    one count is the population the block already prints, so it adds no
+    count of its own and no reader can take a mark or an offset out of
+    it.
+
+    A POOL BESIDE A NAMED COUNT, AND HOW IT IS KEPT FROM NAMING A ZERO.
+    Counts below the line are pooled. On the OPEN vocabulary of offsets
+    a pool below the line takes in the smallest named count, the first
+    in sorted order on a tie, and then the next, until it reaches the
+    line or nothing is named: a pool of offsets says which offsets the
+    column did not wear by name, and there are too many of them for a
+    reader to learn which one a pooled row wore. On the CLOSED
+    vocabulary of marks -- three, or a space alone on a slashed stamp --
+    no pool may stand beside a named mark. Beside one named mark it
+    covers at most two others, and a pool below the line is a count
+    too small to print while a pool of the line or more over two marks
+    each held by fewer rows than the line tells a reader that NEITHER
+    mark is nought: the state nought reaches is told apart from the
+    state a below-floor count reaches. A pool of marks is therefore
+    always the whole census.
+
+    Guarantees: accepts the full tally (no `(withheld)` key), the
+    published total it covers, the run's smallest group size and whether
+    the vocabulary is closed; returns a census whose counts add up to
+    the population, keys in sorted order, for which `census_nameable`
+    over that population holds or whose one key is `(withheld)`.
+    Determinism: a function of the four. Raises nothing. No I/O of any
+    kind.
+    """
+    line = census_floor(floor)
+    named: "dict[str, int]" = {}
+    pool = population
+    for name in sorted(counts):
+        if name != MISSING_WITHHELD and counts[name] >= line:
+            named[name] = counts[name]
+            pool = pool - counts[name]
+    if pool > 0 and closed:
+        named = {}
+        pool = population
+    while 0 < pool < line and named:
+        smallest = ""
+        for name in sorted(named):
+            if not smallest or named[name] < named[smallest]:
+                smallest = name
+        pool = pool + named[smallest]
+        kept: "dict[str, int]" = {}
+        for name in sorted(named):
+            if name != smallest:
+                kept[name] = named[name]
+        named = kept
+    printed: "list[int]" = []
+    for name in sorted(named):
+        printed += [named[name]]
+    if pool > 0:
+        printed += [pool]
+    if population <= 0:
+        return {}
+    if not named or not census_nameable(printed, [population], floor):
+        return {MISSING_WITHHELD: population}
+    census: "dict[str, int]" = {}
+    for name in sorted(named):
+        census[name] = named[name]
+    if pool > 0:
+        census[MISSING_WITHHELD] = pool
+    return {name: census[name] for name in sorted(census)}
+
+
 # How finely a datetime column states its time of day.
 PRECISION_QUARTER = "quarter"
 PRECISION_MONTH = "month"

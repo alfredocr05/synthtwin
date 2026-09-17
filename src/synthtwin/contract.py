@@ -1345,7 +1345,8 @@ INVARIANTS = {
     ),
     "D3": (
         "a time offset is named only when at least the smallest group "
-        "size of rows carried it"
+        "size of rows carried it, and never by fewer than two, and offsets "
+        "held back beside a named one are as many"
     ),
     "D4": (
         "the offset of the first or last value is never one the "
@@ -1378,7 +1379,8 @@ INVARIANTS = {
     ),
     "D12": (
         "a mark between a moment's day and its clock is named only when at "
-        "least the smallest group size of values wrote it"
+        "least the smallest group size of values wrote it, and never by "
+        "fewer than two, and marks are held back only all together"
     ),
     "D13": (
         "the marks between day and clock are counted over exactly the "
@@ -7358,13 +7360,15 @@ def _datetime_facts(
         if key == WITHHELD:
             continue
         named = named + 1
-        if offsets[key] < floor:
+        if offsets[key] < parsing.census_floor(floor):
             raise _broken(
                 "D3",
                 where,
                 f"the offset '{key}' was carried by {offsets[key]} rows",
-                f"the smallest group size is {floor}",
+                f"a published count names at least "
+                f"{parsing.census_floor(floor)} of them",
             )
+    _pool_names_no_row(offsets, "D3", where, floor, "values' offsets")
     total = _added(offsets)
     if total != n_present - unparsed:
         raise _broken(
@@ -7851,6 +7855,39 @@ def _written_census(
     return census
 
 
+def _pool_names_no_row(
+    census: "dict[str, int]", rule: str, where: str, floor: int, what: str
+) -> None:
+    """D3 and D12: a pool beside named counts is a group (plan P4-D220).
+
+    `parsing.census_nameable` over every count printed, the pool among
+    them, and the total the census covers. A pool that is the whole
+    census prints no count of its own -- its one count is the total the
+    block already publishes -- and is the state a census reaches where
+    it cannot speak, so it is not asked. Asked here and not written a
+    second time: D2 and D13 hold the total, so what the printed counts
+    leave of it is nought, and this is the line on each of them.
+
+    Guarantees: accepts a loaded census, the invariant's name, where it
+    stands, the floor and the words for what the pool holds; returns
+    nothing. Raises ProfileError for the named invariant. No I/O.
+    """
+    if WITHHELD not in census or len(census) == 1:
+        return
+    printed: "list[int]" = []
+    for name in sorted(census):
+        printed += [census[name]]
+    total = _added(census)
+    if not parsing.census_nameable(printed, [total], floor):
+        raise _broken(
+            rule,
+            where,
+            f"{census[WITHHELD]} {what} are held back beside a named count",
+            f"a published count names at least "
+            f"{parsing.census_floor(floor)} of them",
+        )
+
+
 def _separator_census(
     mapping: "dict[str, object]",
     where: str,
@@ -7882,31 +7919,30 @@ def _separator_census(
                 f"'{key}'",
                 "'upper_t', 'space', 'lower_t', or '(withheld)'",
             )
-        if census[key] < floor:
+        if census[key] < parsing.census_floor(floor):
             raise _broken(
                 "D12",
                 where,
                 f"the mark '{key}' was written by {census[key]} rows",
-                f"the smallest group size is {floor}",
+                f"a published count names at least "
+                f"{parsing.census_floor(floor)} of them",
             )
-    if WITHHELD in census:
-        # A pooled count is made of names each held by fewer rows than
-        # the floor, so it can be no larger than the floor less one for
-        # every name the census leaves unnamed (stage 2 review item 3).
-        permitted: "tuple[str, ...]" = parsing.DATETIME_SEPARATORS
-        if parser_family in CLOCK_FORM_MEMBERS:
-            permitted = (parsing.SEPARATOR_SPACE,)
-        unnamed = 0
-        for name in permitted:
-            if name not in census:
-                unnamed = unnamed + 1
-        if census[WITHHELD] > (floor - 1) * unnamed:
+        if WITHHELD in census:
+            # A POOL OF MARKS IS THE WHOLE CENSUS (plan P4-D220). The
+            # marks are a closed vocabulary, so a pool beside a named
+            # mark covers at most two others, each held by fewer rows
+            # than the line: below the line the pool is a count too small
+            # to print, and at the line or above it says that neither
+            # mark is nought -- which tells the state nought reaches from
+            # the state a count below the floor reaches. The bound this
+            # replaces, (floor - 1) times the unnamed marks, admitted
+            # both.
             raise _broken(
                 "D12",
                 where,
-                f"{census[WITHHELD]} values' marks are held back",
-                f"{unnamed} mark(s) are left unnamed, and each of them was "
-                f"written by fewer than {floor} rows",
+                f"{census[WITHHELD]} values' marks are held back beside "
+                f"the mark '{key}'",
+                "a census of marks names every mark or holds all of them back",
             )
     total = _added(census)
     if resolution != "datetime":
@@ -12141,7 +12177,11 @@ def _held_back_in(
         for key in sorted(node):
             value = node[key]
             here = _step(path, key)
-            if key == WITHHELD and _is_a_row_count(value):
+            if (
+                key == WITHHELD
+                and _is_a_row_count(value)
+                and not canonical.pools_at_any_floor(path)
+            ):
                 found += [(here, value, _POOLED)]
             if key == _NAMED_REMAINDER and _is_a_row_count(value):
                 found += [(here, value, _POOLED)]

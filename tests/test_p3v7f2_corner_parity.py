@@ -615,7 +615,21 @@ def _named_entries() -> "list[Entry]":
         + ["0"] * 13
     )
     wide = _wide_singles(26)
+    # AN ENDPOINT HELD BACK BESIDE A NAMED OFFSET, which the random dates
+    # stopped reaching at plan P4-D220 (stage 2 closed by the owner rulings
+    # of 2026-09-17): a pool beside a named offset is at least the floor
+    # now, so a few rare zones at the end of a short column pool the named
+    # one in with them and the map becomes the corner. Twenty-four values
+    # at `+01:00`, then six at `+02:00` and six at `+03:00`, pool twelve
+    # beside the twenty-four at a floor of eleven, and the last value's
+    # offset is held back while the map is not.
+    zoned = [
+        f"2024-01-{1 + step:02d}T09:00:00+01:00" for step in range(24)
+    ] + [
+        f"2024-02-{1 + step:02d}T09:00:00+0{2 + step % 2}:00" for step in range(12)
+    ]
     return [
+        Entry("witness-offset-endpoint-pooled", tuple(zoned), False, 11),
         # P3-V7-F3: two withheld variants covering six rows each.
         Entry("witness-label-withheld", tuple(withheld), False, 11),
         # P3-V7-F4, the first half: a floored style map whose own

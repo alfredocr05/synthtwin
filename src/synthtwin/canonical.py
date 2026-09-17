@@ -117,6 +117,39 @@ def keys_are_the_tables_own_text(path: "tuple[object, ...]") -> bool:
     return tuple(steps) in TABLE_TEXT_KEY_SPACES
 
 
+# THE TWO CENSUSES WHOSE POOL MAY STAND AT A FLOOR OF ONE (plan P4-D220;
+# stage 2 closed by the owner rulings of 2026-09-17). `utc_offsets` and
+# `datetime_separators` name no count below `parsing.census_floor`,
+# which is two at a floor of one, so a count of one they cannot name is
+# pooled there -- the one amendment to invariant S13, whose "nothing is
+# held back" rests on the range below a floor of one being empty. Read
+# by the loader's S13 walk and by the producer's publication guard, so
+# the two cannot answer the question two ways.
+POOLED_AT_ANY_FLOOR = (
+    ("columns", EACH, "datetime_separators"),
+    ("columns", EACH, "utc_offsets"),
+)
+
+
+def pools_at_any_floor(path: "tuple[object, ...]") -> bool:
+    """Whether the mapping at this path may pool at a floor of one (P4-D220).
+
+    Guarantees: accepts the path of the MAPPING, list places written as
+    `EACH` or as whole numbers; returns whether it is one of
+    `POOLED_AT_ANY_FLOOR`. Determinism: a fixed function of the path.
+    Raises nothing. No key or value is looked at, and nothing is opened.
+    """
+    steps: list[object] = []
+    for step in path:
+        if isinstance(step, bool):
+            return False
+        if isinstance(step, int):
+            steps += [EACH]
+        else:
+            steps += [step]
+    return tuple(steps) in POOLED_AT_ANY_FLOOR
+
+
 def serialize(document: dict[str, object]) -> str:
     """Turn a profile document into its canonical text (plan D12).
 

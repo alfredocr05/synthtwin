@@ -4906,17 +4906,24 @@ rather than passing it off as an outcome the description asked for.
      sorted: `lower_t`, `space`, `upper_t`, each weighted by its count.
      Where none is named and nothing is pooled, every cell is written
      with `T` and the steps below do not run.
-  2. A `(withheld)` pool is split EVENLY over the PERMITTED marks the
-     census leaves unnamed (landing 2b.3) — the three names, or `space`
-     alone on a `month-first-datetime`, `day-first-datetime` or
-     `slashed-iso-datetime` column — each taking the pool divided by
-     their number, and the remainder one each in the order `upper_t`,
-     `space`, `lower_t`; a mark given nothing is left out. Every value
-     of a named mark is counted under its name, so the pooled values
-     wore an unnamed one; writing them with the commonest mark, the rule
-     this replaces, erased that spelling. Each share is below the floor
-     by contract D12. Where no permitted mark is unnamed, the pool is
-     not split.
+  2. A `(withheld)` pool is spent on the PERMITTED marks the census
+     leaves unnamed (landing 2b.3) — the three names, or `space` alone
+     on a `month-first-datetime`, `day-first-datetime` or
+     `slashed-iso-datetime` column — taken in the order `upper_t`,
+     `space`, `lower_t`: every one after the first is given ONE value
+     while the pool still holds two or more, and the first keeps the
+     rest; a mark given nothing is left out. Where no permitted mark is
+     unnamed, the pool is not spent. **Amended by plan P4-D220 (stage 2
+     closed by the owner rulings of 2026-09-17).** Contract D12 now
+     admits a pool only as the whole census, standing where some mark
+     was written by fewer rows than the line, and does not say which.
+     The even split this replaces, each share below the floor by D12's
+     old bound, would give a pool of 240 eighty values of each mark,
+     which the twin described again at a floor of eleven names three
+     times over. One value of a rarer mark is below every line, so the
+     twin described again pools the same count; writing the whole pool
+     with one mark, the rule landing 2b.3 replaced, erased the spellings
+     the pool stood for.
   3. The ranks this allocation covers are the ones that write a clock:
      on an `iso-mixed` column whose `all_at_midnight` is `true`, the
      ranks the form census gives `iso-date` write none and take no mark.
@@ -9740,10 +9747,10 @@ case passed, which is the failure the count exists to prevent:
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |
-| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 11, "space": 11, "(withheld)": 2}`, whose marks are spread evenly over the ranks, whose tie goes to `lower_t`, the earliest name in sorted order, and whose withheld pool is written, since landing 2b.3, with `upper_t`, the one mark the census leaves unnamed |
+| `mixed_marks` | G7.5's rotation of marks: twenty-four `local` moments to the minute, published with `datetime_separators: {"lower_t": 12, "space": 12}`, whose marks are spread evenly over the ranks and whose tie goes to `lower_t`, the earliest name in sorted order. Rebuilt at plan P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it published eleven and eleven beside a pool of two, which contract D12 now refuses, and the pool is `pooled_marks`' to pin |
 | `label_numbers` | G8.3a's class debt: forty-four rows of `ab-cd`, `5.1` and `5.3` with four held-back levels owing nine numbers, which the class split makes `4 + 3 + 2`; `%.%` settled inside the number class as `4 + 3`; the gap `5.2` taken before the first outward step `5.0`; a number wearing no named form walked to `10.0`, which the census's pool of two cells lets it wear; and the word left over written in `@@-@@` |
 | `label_number_tiers` | G8.3a's rule on what the census could hold and its tiers of places: fifty-five rows of `ab-cd`, `5.1`, `5.3` and `7`, a census naming `%.%` and `@@-@@` and pooling nothing; `%.%` settled as `4 + 3` into the gaps `5.2` and `6.9`; the number wearing no named form refused `10.0`, whose form the census would have counted and pooled, so that side ends and the walk takes the published whole numbers' places and writes the gap `6` |
-| `pooled_marks` | G7.5 step 2: twenty-four `local` moments to the minute, published with `datetime_separators: {"upper_t": 14, "(withheld)": 10}`, whose pool is split five and five over `space` and `lower_t`, the two marks the census leaves unnamed |
+| `pooled_marks` | G7.5 step 2: twenty-four `local` moments to the minute, published with `datetime_separators: {"(withheld)": 24}`, whose pool gives `space` and `lower_t` one value each and `upper_t` the other twenty-two. Rebuilt at plan P4-D220 (stage 2 closed by the owner rulings of 2026-09-17), from fourteen `upper_t` beside a pool of ten split five and five |
 | `slashed_pool` | G7.5 step 2's permitted marks and the `slashed-iso-datetime` member: ten year-first slashed stamps whose every mark is pooled, every one written with a space |
 | `midnight_mixed_forms` | G7.5's whole dates: twenty-four days at midnight read jointly, published with `resolution_mix: {"iso-date": 13, "iso-datetime": 11}` and `datetime_separators: {"space": 11}`, whose forms are spread by the rotation and whose marks fall on the clock-writing ranks alone |
 | `partial_midnight` | G7.5's move onto midnight: twenty-four `local` moments to the second, published with `n_at_midnight: 12`, whose rung ranks take their rungs and whose owed values at midnight are spread over the other ranks |
@@ -10076,9 +10083,10 @@ P4-D39). G7.1 and G7.5 changed on that date, and a rule no case
 reaches can be withdrawn with every committed byte unchanged.
 `midnight_days` pins the day unit: its mutant counts the column in
 seconds, the rule withdrawn, and the interior ranks then land part-way
-through a day. `mixed_marks` pins the rotation, the tie and the pool:
-its mutant spends the names from the first rank upward, and the marks
-then cluster by date.
+through a day. `mixed_marks` pins the rotation and the tie (and, until
+plan P4-D220 moved it to `pooled_marks`, the pool): its mutant spends
+the names from the first rank upward, and the marks then cluster by
+date.
 
 **Why the twenty-fourth exists** (landing 2b.4). Every label case
 before it published no number, so G8.3a -- a held-back number written

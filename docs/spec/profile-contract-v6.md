@@ -1428,6 +1428,16 @@ every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
 `shape_forms`.
 
+**Amended by plan P4-D220 (stage 2 closed by the owner rulings of
+2026-09-17): the `(withheld)` entries of `utc_offsets` and
+`datetime_separators` are OFF this list.** Those two censuses name no
+count below `parsing.census_floor`, which is two at a floor of one
+(D3, D12), so at a floor of one the range below THEIR line is not empty:
+a count of one is pooled rather than named, and a pool there is the
+rule working, not a floor-one document holding something back. The
+places a loader and a producer's guard read that exception from are one
+list, `canonical.POOLED_AT_ANY_FLOOR`.
+
 A document that fills one of them is refused. The rule is checked with
 the top-level rules, before any column block is read, because the
 floor is a top-level setting and what the rule states is a fact about
@@ -1441,9 +1451,10 @@ named width reaches the floor, so widths are NAMED rather than pooled,
 and the field is nonempty precisely because nothing is held back. What
 must be zero or absent there is the `(withheld)` entry alone, for the
 rule's own reason — at a floor of one there is nothing to pool. The
-same reading applies to `missing_by_class`, `utc_offsets`,
-`datetime_separators`, `numeric_styles`, `pad_widths`, `field_widths` and `shape_forms`: the
-map stays, the pooled remainder goes.
+same reading applies to `missing_by_class`, `numeric_styles`,
+`pad_widths`, `field_widths` and `shape_forms`: the map stays, the
+pooled remainder goes. (`utc_offsets` and `datetime_separators` stood
+here until plan P4-D220 took their pools off the list.)
 
 **What does NOT join the list, named so no reader adds it.**
 `missing_by_source` is not on it: its keys are spellings of the table
@@ -1456,7 +1467,8 @@ is what the rule requires. And `resolution_mix` is not on it because
 it is floor-free — it never withholds at any floor, so a rule about
 what a floor of one holds back has nothing to say about it. The
 datetime block's other map, `datetime_separators`, is floor-governed
-with a `(withheld)` pool, and it is on the list.
+with a `(withheld)` pool, and since plan P4-D220 its pool, like
+`utc_offsets`', may stand at a floor of one.
 
 **THE LIST IS EXHAUSTIVE, AND THAT MATTERS TO A WALK** (plan amendment
 A-P3-32, review item P3-V9-F2). Every position above is a FIELD of
@@ -4348,8 +4360,12 @@ R-P4-12).
 cell wrote between its day and its clock to how many cells wrote it:
 `upper_t` for the letter T, `space` for a space, `lower_t` for the
 letter t. A name is published only where its count reaches
-`small_cell_floor`; the rest pool under `(withheld)`, exactly as on
-`utc_offsets`. Only a cell that writes a clock is counted, so the map
+`parsing.census_floor` -- the floor, and never fewer than two -- and
+where ANY mark falls short of that line EVERY mark pools under
+`(withheld)`, so the map names every mark or holds all of them back
+(plan P4-D220; stage 2 closed by the owner rulings of 2026-09-17). The
+marks are a closed vocabulary, and a pool beside a named mark would say
+that a rarer mark was not nought. Only a cell that writes a clock is counted, so the map
 is `{}` where `resolution` is not `datetime`, and the whole-date cells
 of an `iso-mixed` column are left out. A `month-first-datetime`,
 `day-first-datetime` or `slashed-iso-datetime` cell counts as `space`,
@@ -4559,8 +4575,22 @@ D1 is stated above, beside the format table whose rows are its own.
 `n_present - n_unparsed`. Only cells that parsed have an offset.
 
 **Invariant D3 (the floor on offsets).** Every key of `utc_offsets`
-other than `(withheld)` maps to a count at least the floor.
-`(withheld)` appears only when the pooled remainder is non-zero.
+other than `(withheld)` maps to a count at least the floor, and never
+below two. `(withheld)` appears only when the pooled remainder is
+non-zero. Beside a named offset the pool is a count
+`parsing.census_nameable` admits over the values that read as a date:
+at least the floor and never below two. Standing alone it is the whole
+map, whose one count is the total D2 already publishes, and it is
+admitted at any size and at any floor. **Amended by plan P4-D220 (stage
+2 closed by the owner rulings of 2026-09-17).** The rule named an offset
+at the settings floor, so at the default floor of one a row written at
+`+01:00` beside 399 at `Z` was named, and at a floor of eleven the pool
+beside `Z` was that one row. The producer now pools every offset below
+the line, and where that pool is still below it adds the smallest named
+offset, then the next, until it reaches the line or the map is one pool
+(`parsing.pooled_census`). Offsets are an open vocabulary, so a pool
+beside a named offset says only that the column wore some offsets it
+does not name.
 
 **Invariant D4 (endpoint offsets never out-name the map).** An endpoint
 offset field holds `(none)` when that endpoint's cell carried no
@@ -4713,13 +4743,23 @@ ends as well, since they are the same two texts.
 **Invariant D12 (the separator names and the floor).** Every key of
 `datetime_separators` is `upper_t`, `space`, `lower_t` or
 `(withheld)`. Every key other than `(withheld)` maps to a count at
-least the floor, and `(withheld)` appears only when the pooled
-remainder is non-zero. A pool is made of marks each written by fewer
-rows than the floor, so the `(withheld)` count is at most (floor − 1)
-times the number of permitted marks the census leaves unnamed. The
-permitted marks are the three names, or `space` alone on a
-`month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime`
-column (the stage 2 audit, 2026-09-14; landing 2b.3).
+least the floor, and never below two, and `(withheld)` appears only
+when the pooled remainder is non-zero. **A `(withheld)` count stands
+ALONE: no mark is named beside it** (plan P4-D220; stage 2 closed by the
+owner rulings of 2026-09-17). The pool is then the whole census, whose
+one count is the total D13 already publishes, and it is admitted at any
+size and at any floor. The bound this replaces allowed a pool of at most
+(floor − 1) times the permitted marks the census leaves unnamed (the
+stage 2 audit, 2026-09-14; landing 2b.3), and it admitted both ways a
+pool of marks names a row. The marks are a closed vocabulary -- the
+three names, or `space` alone on a `month-first-datetime`,
+`day-first-datetime` or `slashed-iso-datetime` column -- so beside one
+named mark a pool covers at most two others, each written by fewer rows
+than the line: a pool below the line is a count too small to print
+(`{"upper_t": 399, "(withheld)": 1}` named the one row that wrote a
+`t`), and a pool of the line or more over two such marks tells a reader
+that neither is nought, which is the state nought reaches told apart
+from a count below the floor.
 
 **Invariant D13 (the separator totals).** `datetime_separators` is
 `{}` where `resolution` is not `datetime`. On a datetime column whose
@@ -9584,7 +9624,9 @@ would accept a floor-one document carrying a pooled form entry that
 the shipped loader refuses. The defining list at S13 is the authority
 and it names eight: `missing_by_class`, `utc_offsets`,
 `datetime_separators`, `numeric_styles`, `fraction_widths`, `pad_widths`, `field_widths` and
-`shape_forms`. Each is normative where stated, and a loader enforces it.
+`shape_forms`. Each is normative where stated, and a loader enforces it
+-- save that plan P4-D220 took the pools of `utc_offsets` and
+`datetime_separators` off it, where S13 says so.
 
 ### 8.2 The cell census — X
 
@@ -9765,7 +9807,7 @@ it answers to.
 |---|---|---|
 | D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all TWENTY members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
-| D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero | yes |
+| D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; beside a named offset the pool is at least the floor and never below two (plan P4-D220) | yes |
 | D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
 | D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`, `slashed-iso-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
 | D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
@@ -9774,7 +9816,7 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
 | D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor, and `(withheld)` appears only when the pooled remainder is non-zero; the `(withheld)` count is at most (floor − 1) times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or `space` alone on a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220; stage 2 closed by the owner rulings of 2026-09-17) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
@@ -9965,7 +10007,7 @@ document, never the table it describes.
 | DF-R | where the option was given and a slashed reading was in play, the column bears that remark exactly once, over the EVIDENCE, not the winner | whether a reading was in play is a fact about the table |
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
-| DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of cells whose mark too few shared | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
+| DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, and the pooled value the count of every cell that writes a clock where some mark was written by fewer rows than `parsing.census_floor` (plan P4-D220) | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
 | MN-P | `all_at_midnight` is `true` exactly where D14's conditions hold and every parsed source cell named midnight on its own wall clock, every fractional digit zero | the published instants carry no fraction and name eleven of the cells, so a column with one cell off midnight reads the same |
 | NM-P | `n_at_midnight` is the count of parsed source cells that named midnight on their own wall clock, where C6-25c publishes it | D15 bounds it and ties it to `all_at_midnight`; a column with 361 values at midnight and one with 360 both satisfy it, and a column publishing nothing there may hold none, one, or all but one |
 | FW-P | every `fraction_widths` count is the count of source cells written at that fraction width | P5 bounds the total and P6 and P7 the entries; none checks the census's SHAPE |
@@ -11170,8 +11212,9 @@ a marked row.
      Its KEYS are this package's three names for the mark a moment
      writes between its day and its clock, never cell text; its VALUES
      are how many parsed cells wrote each named mark. It names
-     spellings, not values. At a floor of one a name can stand for one
-     row's spelling, the posture `utc_offsets` has at that floor.
+     spellings, not values. Since plan P4-D220 neither map names a count
+     below two at any floor, so no name stands for one row's spelling or
+     offset.
    - **One statement about every parsed cell at once, floor-GATED:**
      `all_at_midnight`, whether every parsed cell of a `local` datetime
      column named exactly midnight. It names no value, and it is `true`
@@ -12221,8 +12264,8 @@ form to one of those four paths.
 |---|---|
 | `missing_by_class` | the pooled count of absent-value CLASSES whose own counts fell below the floor |
 | `sentinel_verdicts[].candidate` | the column is a nothing-publishing column, so no value of the table appears anywhere in its block |
-| `utc_offsets` | the pooled count of cells whose OFFSETS fell below the floor |
-| `datetime_separators` | the pooled count of parsed cells whose MARK between day and clock was written by too few rows to name |
+| `utc_offsets` | the pooled count of cells whose OFFSETS fell below the floor, with the smallest named offsets added until it reaches the floor (plan P4-D220) |
+| `datetime_separators` | the count of every parsed cell that writes a clock, where some MARK between day and clock was written by too few rows to name (plan P4-D220) |
 | `earliest_utc_offset`, `latest_utc_offset` | that endpoint's offset is one the map is withholding |
 | `numeric_styles` | the pooled count of cells whose spelling STYLE was used by too few rows to name |
 | `fraction_widths` | the pooled count of `decimal`-styled cells whose fraction WIDTH was used by too few rows to name |

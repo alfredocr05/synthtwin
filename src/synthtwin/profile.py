@@ -660,6 +660,12 @@ _MIXTURE_ENTRY = "count-at-the-census-floor-or-unavailable"
 # Whether what the named counts leave over of the published total is
 # none or a group is invariants D17 to D20, checked where the total is.
 _DISCLOSED_ENTRY = "count-at-the-disclosure-line"
+# THE OFFSETS AND THE MARKS BETWEEN DAY AND CLOCK (plan P4-D220): a named
+# count at `parsing.census_floor` or above, and a pool at any floor --
+# at a floor of one too, where the line is two and a count of one is
+# pooled rather than named. Whether the pool beside a named count is a
+# group is invariants D3 and D12, checked where the total is.
+_POOLED_CENSUS_ENTRY = "count-at-the-disclosure-line-or-withheld"
 
 # THE KEYS EACH MIXTURE CENSUS MAY CARRY, read from the one place each
 # convention is named so that the producer and this guard cannot drift.
@@ -1422,13 +1428,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "n_unparsed"): _COUNT,
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
-    ("columns", _EACH, "utc_offsets", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "utc_offsets", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # HOW MANY PARSED CELLS WORE EACH MARK BETWEEN DAY AND CLOCK (plan
     # P4-D39). Its keys are this package's own names, and unlike the form
     # census above its counts ARE floored, with a withheld pool.
     ("columns", _EACH, "datetime_separators"): _OBJECT,
     ("columns", _EACH, "datetime_separators", _KEY_OF): _WORD,
-    ("columns", _EACH, "datetime_separators", _ANY_KEY): _FLOORED_ENTRY,
+    ("columns", _EACH, "datetime_separators", _ANY_KEY): _POOLED_CENSUS_ENTRY,
     # HOW THE DATES WERE WRITTEN (landing 2b.6): four censuses of this
     # package's own form words, each floored with a withheld pool
     # exactly as the mark census above is. None of them carries a
@@ -2009,6 +2015,11 @@ def _remainder_is_published(
         return True
     if isinstance(value, bool) or not isinstance(value, int):
         return True
+    if canonical.pools_at_any_floor(path[: len(path) - 1]):
+        # The two censuses that pool what `parsing.census_floor` cannot
+        # name, at every floor (plan P4-D220): the leaf's own kind,
+        # `_POOLED_CENSUS_ENTRY`, decides.
+        return True
     return value <= 0 or context.floor > 1
 
 
@@ -2054,6 +2065,12 @@ def _leaf_is_published(
         if key == parsing.MISSING_WITHHELD:
             return value >= 1 and context.floor > 1
         return value >= context.floor
+    if kind == _POOLED_CENSUS_ENTRY:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if key == parsing.MISSING_WITHHELD:
+            return value >= 1
+        return value >= parsing.census_floor(context.floor)
     if kind == _DISCLOSED_ENTRY:
         # A census of written forms (plan P4-D131): never one, never a
         # pool. `parsing.census_floor` is the producer's and the

@@ -921,6 +921,18 @@ def battery() -> list[Mutation]:
             "D3", "an offset carried by too few rows to name",
             edit("recorded_on", utc_offsets={"(none)": 239, "+02:00": 1}),
         ),
+        # ...AND A POOL BESIDE A NAMED OFFSET IS A GROUP TOO (plan
+        # P4-D220): three values held back beside 237 with no offset is the
+        # count of the rows that wore some other one.
+        Mutation(
+            "D3", "a withheld pool of offsets too small to be a group",
+            edit(
+                "recorded_on",
+                utc_offsets={"(none)": 237, "(withheld)": 3},
+                earliest_utc_offset="(none)",
+                latest_utc_offset="(none)",
+            ),
+        ),
         Mutation(
             "D4", "an endpoint naming an offset the map holds back",
             edit("recorded_on", earliest_utc_offset="+02:00"),
@@ -990,9 +1002,15 @@ def battery() -> list[Mutation]:
             "D12", "a mark between day and clock named for too few rows",
             edit("logged_at", datetime_separators={"space": 1}),
         ),
+        # A POOL OF MARKS STANDS ALONE (plan P4-D220; stage 2 closed by
+        # the owner rulings of 2026-09-17). Eleven values held back beside
+        # a named mark cleared the bound this replaced -- (floor - 1)
+        # times the two unnamed marks -- and told a reader that neither
+        # of those marks was nought. `{"(withheld)": 240}`, the witness
+        # this replaces, is the whole census and is admitted now.
         Mutation(
-            "D12", "a withheld pool larger than the unnamed marks can hold",
-            edit("logged_at", datetime_separators={"(withheld)": 240}),
+            "D12", "a withheld pool beside a named mark",
+            edit("logged_at", datetime_separators={"upper_t": 229, "(withheld)": 11}),
         ),
         Mutation(
             "D13", "marks counted on a column that writes no clock",

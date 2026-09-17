@@ -461,8 +461,12 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
       name;
     * `amount` -- mostly plain decimals with one exponent and one signed
       value, so `numeric_styles` pools a FORM;
-    * `stamped_at` -- times stamped in UTC with two rare offsets, so
-      `utc_offsets` pools an OFFSET;
+    * `stamped_at` -- times stamped in UTC with two rare offsets of six
+      rows each, so `utc_offsets` pools an OFFSET beside `Z` at the
+      default floor and names both at a floor of one. They were one row
+      each until plan P4-D220 made a pool beside a named offset a group
+      of at least the floor: two rows pooled at eleven now take `Z` in
+      with them, and a map of one pool keeps nothing of the column;
     * `answer` -- a two-value column where one row shouts its label, so
       one level's `variants_withheld` holds a SPELLING back;
     * `comment`, `unused`, `batch`, `record_code` -- free text, an empty
@@ -509,9 +513,9 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
             amount = "+12.25"
         else:
             amount = f"{rng.uniform(0.5, 99.5):.2f}"
-        if index == 21:
+        if index % 40 == 21:
             offset = "+02:00"
-        elif index == 29:
+        elif index % 40 == 29:
             offset = "-05:00"
         else:
             offset = "Z"

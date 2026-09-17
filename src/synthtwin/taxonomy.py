@@ -8118,11 +8118,18 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
 def _offset_counts(
     pairs: list[tuple[str, str]], settings: Settings
 ) -> dict[str, int]:
-    """How often each UTC offset appeared, with the small-cell floor.
+    """How often each UTC offset appeared, held to the disclosure rule.
 
     The earlier revision reduced every offset in a column to the single
     word `mixed`, so a profile could not say that most rows were written
     in one zone and a handful in another (review item P1-R1-F9).
+
+    AND NO COUNT IT PRINTS NAMES A ROW (plan P4-D220). It named an
+    offset where its count reached the settings floor, so at the default
+    floor of one a single row written at `+01:00` beside 399 at `Z` was
+    published by name, and at a floor of eleven the pool beside `Z` was
+    that one row. `parsing.pooled_census` decides it now, over the
+    values that read as a date, with the offsets as an open vocabulary.
     """
     counts: dict[str, int] = {}
     for _canonical, offset in pairs:
@@ -8131,16 +8138,9 @@ def _offset_counts(
             counts[key] = counts[key] + 1
         else:
             counts[key] = 1
-    published_counts: dict[str, int] = {}
-    withheld = 0
-    for key in sorted(counts):
-        if counts[key] >= settings.small_cell_floor:
-            published_counts[key] = counts[key]
-        else:
-            withheld = withheld + counts[key]
-    if withheld:
-        published_counts[parsing.MISSING_WITHHELD] = withheld
-    return published_counts
+    return parsing.pooled_census(
+        counts, len(pairs), settings.small_cell_floor, False
+    )
 
 
 # The two slashed readings of one grammar, month-first named first
@@ -8702,36 +8702,38 @@ def _separator_counts(
 ) -> "dict[str, int]":
     """How many parsed cells wore each mark between day and clock (P4-D39).
 
-    `_offset_counts`' rule exactly: a name is published where its count
-    reaches the smallest group size, and the rest pool under
-    `(withheld)`. A cell that writes no clock is not counted, so the map
-    is empty on a column of dates, months or quarters, and on an
-    `iso-mixed` column it covers only the cells that wrote one.
+    A cell that writes no clock is not counted, so the map is empty on a
+    column of dates, months or quarters, and on an `iso-mixed` column it
+    covers only the cells that wrote one.
+
+    HELD TO THE DISCLOSURE RULE (plan P4-D220). It took `_offset_counts`'
+    old rule -- a name published where its count reached the settings
+    floor, the rest pooled -- so 400 moments with one `t` published
+    `{"lower_t": 1, "upper_t": 399}` at the default floor and
+    `{"upper_t": 399, "(withheld)": 1}` at eleven. `parsing.pooled_census`
+    decides it now, over the cells that write a clock, with the marks as
+    the closed vocabulary they are: the census names every mark or pools
+    the whole of it.
 
     Guarantees: accepts the cells that parsed, their format member and
     the run's settings; returns a mapping of `parsing.DATETIME_SEPARATORS`
-    members, and `(withheld)`, to counts. Determinism: a function of the
-    three. Raises nothing. No I/O of any kind.
+    members, or `(withheld)` alone, to counts. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
     """
     counts: dict[str, int] = {}
+    clocks = 0
     for value in sources:
         name = parsing.datetime_separator(value, format_name)
         if name is None:
             continue
+        clocks = clocks + 1
         if name in counts:
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
-    published: dict[str, int] = {}
-    withheld = 0
-    for key in sorted(counts):
-        if counts[key] >= settings.small_cell_floor:
-            published[key] = counts[key]
-        else:
-            withheld = withheld + counts[key]
-    if withheld:
-        published[parsing.MISSING_WITHHELD] = withheld
-    return published
+    return parsing.pooled_census(
+        counts, clocks, settings.small_cell_floor, True
+    )
 
 
 def _all_at_midnight(

@@ -6312,11 +6312,13 @@ def permitted_marks(column):
 def mark_weights(column):
     """How many values each mark is written on (plan P4-D39, landing 2b.3).
 
-    Written from the statement: every named count as published, and a
-    withheld pool split EVENLY over the permitted marks the census leaves
-    unnamed, a remainder going one each to those marks in the order
-    upper_t, space, lower_t; a mark given no value is left out.  Where
-    the census leaves no permitted mark unnamed the pool is not split.
+    Written from the statement (G7.5 step 2, as plan P4-D220 amended it):
+    every named count as published, and a withheld pool spent on the
+    permitted marks the census leaves unnamed, taken in the order
+    upper_t, space, lower_t -- every one after the first given ONE value
+    while the pool still holds two or more, the first keeping what is
+    left; a mark given no value is left out.  Where the census leaves no
+    permitted mark unnamed the pool is not spent.
     """
     census = column.get("datetime_separators", {})
     weights = {name: count for name, count in census.items() if name != "(withheld)"}
@@ -6325,11 +6327,13 @@ def mark_weights(column):
     unnamed = [name for name in permitted_marks(column) if name not in census]
     if not unnamed:
         return weights
-    share, rest = divmod(census["(withheld)"], len(unnamed))
-    for place, name in enumerate(unnamed):
-        given = share + (1 if place < rest else 0)
-        if given > 0:
-            weights[name] = given
+    left = census["(withheld)"]
+    for name in unnamed[1:]:
+        if left >= 2:
+            weights[name] = 1
+            left -= 1
+    if left > 0:
+        weights[unnamed[0]] = left
     return weights
 
 
@@ -11445,17 +11449,19 @@ def _mixed_marks():
             "max": "2024-05-28 21:45:00",
         },
         n_unparsed=0, utc_offsets={"(none)": 24},
-        datetime_separators={"lower_t": 11, "space": 11, "(withheld)": 2},
+        datetime_separators={"lower_t": 12, "space": 12},
         all_at_midnight=False,
     )
     return {
         "why": "the rotation of marks between day and clock of plan P4-D39. "
-        "The census names two marks at eleven cells each and holds two more "
-        "back, so it pins three rules at once: the named marks are spread "
-        "evenly over the ranks rather than spent from the earliest rank "
-        "upward, the earliest name in sorted order is the commonest on a "
-        "tie, and since landing 2b.3 the withheld pool is written with the "
-        "one mark the census leaves unnamed, a capital T. A "
+        "The census names two marks at twelve cells each, so it pins two "
+        "rules at once: the named marks are spread evenly over the ranks "
+        "rather than spent from the earliest rank upward, and the earliest "
+        "name in sorted order is the commonest on a tie. REBUILT AT PLAN "
+        "P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it "
+        "published eleven and eleven with two held back, which named the "
+        "one mark those two wore, and contract D12 now refuses a pool of "
+        "marks beside a named one; the pool is pooled_marks' to pin. A "
         "walk that spent the names from the first rank upward would write "
         "every lower-case t on the earliest dates and every space on the "
         "latest, making up a link between how early a moment is and how it "
@@ -13153,18 +13159,22 @@ def _pooled_marks():
         },
         n_unparsed=0, utc_offsets={"(none)": 24},
         resolution_mix={"iso-datetime": 24},
-        datetime_separators={"upper_t": 14, "(withheld)": 10},
+        datetime_separators={"(withheld)": 24},
         all_at_midnight=False, n_at_midnight=None,
     )
     return {
         "why": (
-            "the withheld pool of landing 2b.3. The census names one mark at "
-            "fourteen values and holds ten back, and every value of a named mark is "
-            "counted under its name, so the ten wore the two marks it leaves "
-            "unnamed: they are split evenly over those two, five a space and five a "
-            "lower-case t, and spread by the same rotation as the named mark. The "
-            "rule this overturns wrote the pool with the commonest mark, erasing "
-            "the two spellings; this case's mutant is that rule."
+            "the withheld pool of landing 2b.3, as plan P4-D220 amended it (stage "
+            "2 closed by the owner rulings of 2026-09-17). A census of marks now "
+            "names every mark or holds all of them back, so this one holds back "
+            "all twenty-four: the pool is spent on the three permitted marks, a "
+            "space and a lower-case t given one value each and a capital T the "
+            "other twenty-two, and spread by the rotation. Described again at the "
+            "same floor that twin pools the same twenty-four. It published "
+            "fourteen capital Ts with ten held back until then, split five and "
+            "five, which named the two marks the ten wore. The rule written "
+            "before landing 2b.3 put the pool on the commonest mark alone, "
+            "erasing the other spellings; this case's mutant is that rule."
         ),
         "column": column,
         "rows": 24,
