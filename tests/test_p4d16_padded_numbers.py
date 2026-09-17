@@ -158,15 +158,33 @@ def test_a_column_of_decimals_says_nothing() -> None:
     assert _padded_remark(_described(values, "rate")) is None
 
 
-def test_one_padded_cell_is_enough_to_say_it() -> None:
-    """Because one is enough for the column to be a code column.
+def test_the_fewest_cells_the_map_names_are_enough_to_say_it() -> None:
+    """Two at the default floor, which is the line the census asks.
 
-    The floor governs what is PUBLISHED about a group, not whether a
-    person is told how their own column was written -- and a column
-    whose padding was too rare to name is still a column whose padding
-    they should hear about.
+    THIS TEST SAID ONE UNTIL THE OWNER'S RULINGS OF 2026-09-17 (plan
+    P4-D221, and P4-D222 for the count the map keeps). Its reasoning was
+    that the floor governs what is PUBLISHED about a group and not
+    whether a person is told how their own column was written. The
+    ruling is that no count may name a row, and this sentence printed
+    one: `1 of this column's values are written with a leading zero`,
+    beside a forms map that held the cell back, said which row of the
+    table it was to anybody holding the column. So the remark now speaks
+    with the map's OWN count and only where the map names the form.
     """
-    values = ["00100"] + [f"{1000 + number}" for number in range(249)]
+    values = ["00100"] * 2 + [f"{1000 + number}" for number in range(248)]
     said = _padded_remark(_described(values))
     assert said is not None
-    assert "1 of this column's values" in said
+    assert "2 of this column's values" in said
+
+
+def test_a_padded_count_the_map_does_not_name_says_nothing() -> None:
+    """One padded cell of two hundred and fifty names that one row.
+
+    The line at the default floor is two (`parsing.census_floor`), so a
+    lone padded cell is counted into the commonest form -- the map
+    publishes `{"plain": 250}` -- and no sentence prints a count the map
+    does not hold. Withdrawing the map's condition from the producer
+    turns this red and prints `1 of this column's values`.
+    """
+    values = ["00100"] + [f"{1000 + number}" for number in range(249)]
+    assert _padded_remark(_described(values)) is None

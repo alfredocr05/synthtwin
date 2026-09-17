@@ -24940,37 +24940,59 @@ def _partner_of(
     under_first: "tuple[bool, ...]" = (True, False)
     if sizes is None or long_tail_line < 1:
         under_first = (False,)
-    for under in under_first:
-        for lettered in (True, False):
-            for step in range(folded):
-                parent_place = (place + step) % folded
-                if families[parent_place] != families[index]:
-                    continue
-                if under and sizes is not None:
-                    already = sizes[parent_place]
-                    if carried is not None and parent_place in carried:
-                        already = carried[parent_place]
-                    if already + sizes[index] >= long_tail_line:
+    # A PARENT WHOSE PARTNER WEARS A NAMED LAYOUT IS TAKEN FIRST, AND
+    # ONLY ON A COLUMN PUBLISHING A LITERAL PREFIX (method G9.6a, plan
+    # P4-D230). The member preference of `_partner_from` chooses inside
+    # ONE parent's family; which parent comes first is G9.3 step 4's
+    # cyclic order, and that order was written where every parent of a
+    # family could supply a partner of any layout the census names. A
+    # published prefix narrows that: every cell of a prefixed layout
+    # opens with the same characters, so a parent's family reaches one
+    # layout and no other. MEASURED on 300 record numbers `S1000`, a
+    # tenth written again in lower case, beside `S-12-A`, publishing
+    # `{"%%%%%": 28, "&%%%%": 26, "@%%%%": 214, "@-%%-@": 32}` and a
+    # prefix per layout: the first parent of each partner's own family
+    # was a hyphenated one, whose flip `s-12-A` wears no named layout,
+    # so the twin wrote 20 of those and `&%%%%` came back 7 of 26 --
+    # the shortfall plan P4-D196 closed, reopened by the prefix. With
+    # the ask offered to every parent first, `&%%%%` comes back 26.
+    # A column publishing no prefix asks nothing new and writes the
+    # bytes it wrote.
+    named_passes: "tuple[bool, ...]" = (False,)
+    if prefixes is not None and worn is not None:
+        named_passes = (True, False)
+    for named_first in named_passes:
+        for under in under_first:
+            for lettered in (True, False):
+                for step in range(folded):
+                    parent_place = (place + step) % folded
+                    if families[parent_place] != families[index]:
                         continue
-                has_letter = False
-                for character in spellings[parent_place]:
-                    if character in _LETTERS:
-                        has_letter = True
-                        break
-                if has_letter != lettered:
-                    continue
-                found = _partner_from(
-                    parent_place, index, spellings, used, shortest, longest,
-                    worn, holes, prefixes,
-                )
-                if found is None:
-                    continue
-                if carried is not None and sizes is not None:
-                    already = sizes[parent_place]
-                    if parent_place in carried:
-                        already = carried[parent_place]
-                    carried[parent_place] = already + sizes[index]
-                return found
+                    if under and sizes is not None:
+                        already = sizes[parent_place]
+                        if carried is not None and parent_place in carried:
+                            already = carried[parent_place]
+                        if already + sizes[index] >= long_tail_line:
+                            continue
+                    has_letter = False
+                    for character in spellings[parent_place]:
+                        if character in _LETTERS:
+                            has_letter = True
+                            break
+                    if has_letter != lettered:
+                        continue
+                    found = _partner_from(
+                        parent_place, index, spellings, used, shortest, longest,
+                        worn, holes, prefixes, named_first,
+                    )
+                    if found is None:
+                        continue
+                    if carried is not None and sizes is not None:
+                        already = sizes[parent_place]
+                        if parent_place in carried:
+                            already = carried[parent_place]
+                        carried[parent_place] = already + sizes[index]
+                    return found
     return None
 
 
@@ -24984,8 +25006,16 @@ def _partner_from(
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
     prefixes: "tuple[str, dict[str, str]] | None" = None,
+    named_only: bool = False,
 ) -> "str | None":
     """One parent's family, walked from its own start (G9.3 step 2).
+
+    ``named_only`` asks this parent for a partner wearing a NAMED layout
+    with cells left and for nothing else, so `_partner_of` can offer the
+    ask to every parent of the family before it settles for one whose
+    partner wears no published layout (method G9.6a, plan P4-D230). It
+    is asked only on a column publishing a literal prefix, where it is
+    the prefix that narrows what a parent can supply.
 
     ``prefixes``, on a column of record numbers publishing a literal
     prefix (owner ruling of 2026-09-17, item 1; method G9.6a), is the
@@ -25035,6 +25065,8 @@ def _partner_from(
             continue
         if unnamed is None:
             unnamed = candidate
+    if named_only:
+        return None
     if unnamed is not None:
         return unnamed
     if first is not None:

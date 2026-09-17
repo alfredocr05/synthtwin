@@ -7782,6 +7782,29 @@ matched 800 real cells and 0 twin cells, and `^P\d{5}$` 800 and 30.
    taken only where no member of its family does: a case flip of
    `REC1234567` is `rEC1234567`, and the edge-spaced `REC1234567 ` is
    taken before it.
+6. **And a PARENT whose partner wears a named layout is asked before
+   one whose partner wears none** (plan P4-D230). G9.3 step 4 hands the
+   partners out in ascending identity order and walks the parents of the
+   asking slot's own family in its cyclic order, taking the first that
+   supplies a partner at all; the member preference of G9.3 step 2
+   chooses inside ONE parent's family. That order was fixed where every
+   parent of a family could supply a partner of any layout the census
+   names, and a published prefix narrows it: every cell of a prefixed
+   layout opens with the same characters, so one parent's family reaches
+   one layout and no other. On a column publishing a prefix the ask is
+   therefore offered to every parent of the family FIRST, with the step 2
+   preference held to a named layout that has cells left, and only then
+   walked again as G9.3 step 4 walks it. The two walks are the same walk
+   in the same order, so a column publishing no prefix asks nothing new
+   and writes the bytes it wrote. MEASURED: 300 record numbers `S1000`,
+   a tenth of them written again in lower case, beside `S-12-A`,
+   publishing `{"%%%%%": 28, "&%%%%": 26, "@%%%%": 214, "@-%%-@": 32}`
+   and a prefix for each of the three lettered layouts -- the first
+   parent of each partner's family was a hyphenated one, whose flip
+   `s-12-A` wears a layout the census names no cell for, so the twin
+   wrote 20 of those, `&%%%%` came back 7 of 26 and `validate` exited 3
+   naming both misses; with this step the twin writes the census exactly
+   at seeds 1 and 4.
 
 The cells a prefix governs are recounted beside the layout census, and
 the report names a prefix some such cell does not open with. **What this
@@ -7791,8 +7814,8 @@ eleven write all 800 twin cells opening with `P` while `^P\d{5,6}$`
 matches 790; and a partner pinned to a length only a case flip reaches
 writes one flipped prefix, which the report names. Frozen cases
 `identifier_column_prefix` and `identifier_layout_prefixes` pin steps 1
-and 2; the oracle states steps 3 to 5 from this text and no frozen case
-reaches them.
+and 2; the oracle states steps 3 to 6 from this text and no frozen case
+reaches them, neither publishing a folded count below its raw one.
 
 In the infeasible corner of owner decision 6 the identifier repeats:
 the groups are filled from the domain in order and, when it is

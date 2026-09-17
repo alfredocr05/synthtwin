@@ -79,10 +79,29 @@ def test_a3_profile_keeps_the_grouped_maximum(tmp_path):
 
 
 def test_a3_twin_report_keeps_the_grouped_maximum(tmp_path):
+    """The maximum is written, and the one width it costs is NAMED.
+
+    THE DEVIATION ARRIVED WITH THE OWNER'S RULINGS OF 2026-09-17 (plan
+    P4-D222), and it is kept here rather than repaired. These forty-one
+    whole numbers run from `-1.000.000` to `-999.000`: one cell is seven
+    figures wide and forty are six. A count of one is below
+    `parsing.census_floor`, so the width census counts that cell into the
+    commonest width and publishes `{"6": 41}` where it published
+    `{"6": 40, "7": 1}` -- which is the ruling working, since the older
+    census named the one row holding the smallest value. The twin then
+    cannot meet 41: the cell counted in is the published endpoint, which
+    is exact, so it is written at its own seven figures and forty cells
+    are six. The twin's report NAMES that as a deviation, the real table
+    still misses nothing (the checker reads the recount window through
+    the fold, `test_a3_source_and_twin_miss_nothing` below), and no other
+    fact moved.
+    """
     _document, loaded, folder, _table = _described(tmp_path, A3_CELLS, ["-999"])
     twin, _path = _twin_file(loaded, folder)
     assert "-999.000" in twin.columns[0]
-    assert [(d.fact, d.published, d.achieved) for d in twin.deviations] == []
+    assert [(d.fact, d.published, d.achieved) for d in twin.deviations] == [
+        ("field_widths", "41 cell(s) written 6 figure(s) wide as a whole number", "40")
+    ]
 
 
 def test_a3_source_and_twin_miss_nothing(tmp_path):
