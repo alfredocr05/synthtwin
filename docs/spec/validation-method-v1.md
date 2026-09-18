@@ -1724,6 +1724,47 @@ same fact is a check on one column and a listing on another where the
 descriptions of the two columns differ. Which it is may never depend on
 what the measured file turned out to hold.
 
+**V3.5-A4 And an EIGHTH way: an obligation this method's own generator
+cannot meet by any writing of a conforming twin** (2026-09-18, the
+skeptic of the extra review of c5d09d5 item 9; the plan's decision
+P4-D259.1 is the ruling and this follows it). The seven above are about
+a failure set. This one is about the other side of V3.4's no-vacuity
+rule read through V1.2: where the generation method FIXES what the twin
+writes, an obligation the twin therefore cannot carry is one a report
+can only ever bring against a conforming file, and bringing it teaches a
+reader that a right twin is wrong.
+
+The one entry decided this way, and it is a PAIR because one fact
+strands both: `precision.time_precision` and `counts.subsecond_digits`,
+on a column of a WORKBOOK description that publishes `subsecond` and
+publishes for that column a number format code showing fewer figures
+after the second than its own `subsecond_digits`. A workbook stores a
+moment as a day count, so a whole second stores exactly what no
+subsecond figures store, and `docs/spec/generation-method-v1.md` G7.3
+fixes the twin's fractional digits at ZEROS and says why: the
+description publishes how many figures the finest cell carried and
+nothing about their values, so any other digit would be an invented
+fact. The twin's moments therefore stand at whole seconds, the format
+writes no figure, and nothing is left for either obligation to be
+carried by. Measured: 240 serials carrying a millisecond under
+`yyyy-mm-dd hh:mm:ss` publish `subsecond` and three figures, and their
+twin re-describes as `second` and nought and misses both at exit 3.
+
+**The condition is on the DESCRIPTION alone**, as V3.1 requires: the
+format code is what the description publishes for the column and what
+the twin is written to wear, so no measured file can move which
+obligations exist. A description whose code DOES show the figures keeps
+both as executable subchecks, and the same fact is therefore a check on
+one description and a listing on another — which is the partition
+V3.5-A3 closes with, in this method's own words.
+
+**What it costs, said rather than passed over.** A real workbook of that
+shape does carry the millisecond in its stored fraction and would have
+HELD both, so this stops asking a question one class of real file could
+answer. That is the narrower loss: the alternative keeps a check the
+product's own generator is defined to fail, and the check would then
+name every conforming twin.
+
 **V3.6 A check may not be defeated by a compensating edit** (review
 item P3-V2-C-F8). A subcheck whose verdict is a conjunction is only as
 strong as the conjunct an edit can pay off separately, and a conjunct

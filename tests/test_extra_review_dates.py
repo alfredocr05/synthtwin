@@ -505,6 +505,148 @@ def test_a_width_miss_prints_the_measurement_that_decided_it(
     assert named[0].achieved != f"{ROWS}", named[0].achieved
 
 
+def test_a_below_floor_judged_placeholder_leaves_the_recount_too(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same defect where the column's own verdict is WITHHELD.
+
+    THE SKEPTIC'S FINDING 1 ON THE REPAIR OF ITEM 6 (plan P4-D253.1).
+    P4-D253 read the judged spellings out of the verdicts the
+    description PUBLISHES, so a column holding fewer placeholders than
+    the line publishes no verdict, no spelling, and nothing for the hole
+    rule to drop: five `01/01/1900` beside 395 month-first dates of 2020
+    at a floor of eleven publish `n_present 395`, `n_missing 5`,
+    `missing_by_class {"(withheld)": 5}` and `date_field_widths
+    {"padded": 330}`, and the UNCHANGED SOURCE was told it missed
+    `widths.padded` -- "the description asks for: 330 / the file was
+    found to hold: 335". Measured on the commit under review and on the
+    first repair of item 6 alike.
+
+    The numeric sibling of this exact table -- five `-999` beside 395
+    decimals at the same floor -- validates at exit 0, because a
+    stand-in nothing names is left undecided and settled from the
+    published count of holes. This asserts the day is settled the same
+    way.
+    """
+    folder = tmp_path / "sub-floor"
+    folder.mkdir()
+    day = datetime.date(2020, 1, 1)
+    cells = ["01/01/1900"] * 5
+    for step in range(395):
+        moved = day + datetime.timedelta(days=step)
+        cells += [f"{moved.month:02d}/{moved.day:02d}/{moved.year}"]
+    block = _described(folder, cells, ("--smallest-group", "11"))
+    # The description withholds the verdict, exactly as the floor says
+    # it must: nothing about those five cells is named.
+    assert block["n_present"] == 395
+    assert block["sentinel_verdicts"] == []
+    assert block["n_sentinel_candidates_unpublished"] == 1
+    assert block["missing_by_source"] == {}
+    assert block["date_field_widths"] == {"padded": 330}
+    checked = folder / "check-real"
+    checked.mkdir()
+    assert _exit_of(
+        [
+            "validate", str(folder / "real-profile.json"),
+            "--twin", str(folder / "real.csv"),
+            "--out-dir", str(checked), "--replace",
+        ]
+    ) == 0
+    assert _misses(checked) == []
+
+
+def test_a_placeholder_day_the_description_settles_is_not_dropped_twice(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The settlement is for the days no verdict names, and no others.
+
+    The narrowness of plan P4-D253.1, asked of the rule directly. A day
+    the description publishes a verdict for is settled BY that verdict --
+    `read_as_missing` makes its cells holes through the spellings the
+    verdict prints, and a kept day's cells are values -- so neither may
+    be handed to the caller as undecided. Withdrawing that guard would
+    delete a kept placeholder's cells from every recount on any column
+    whose description also leaves a hole it cannot name, which is a
+    larger version of the defect this whole item is about.
+    """
+    named = validation._placeholder_days_named(
+        {
+            "sentinel_verdicts": [
+                {
+                    "candidate": "1900-01-01",
+                    "verdict": taxonomy.VERDICT_KEPT,
+                    "reason": "kept_by_you",
+                    "spellings": ["01/01/1900"],
+                }
+            ]
+        }
+    )
+    assert named == {"1900-01-01": 1}
+    # A settled day is never handed back as unsettled...
+    assert not validation._an_unnamed_placeholder_day("01/01/1900", named)
+    # ...and the OTHER member, which this description says nothing
+    # about, still is -- in every spelling that writes it.
+    assert validation._an_unnamed_placeholder_day("9999-12-31", named)
+    assert validation._an_unnamed_placeholder_day("12/31/9999", named)
+    assert validation._an_unnamed_placeholder_day("01/01/1900", {})
+    # A day nothing names and nothing writes is no candidate at all.
+    assert not validation._an_unnamed_placeholder_day("03/17/2024", {})
+    assert not validation._an_unnamed_placeholder_day("", {})
+    assert not validation._an_unnamed_placeholder_day("-999", {})
+
+
+def test_a_kept_placeholder_survives_a_hole_the_description_cannot_name(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The settlement reaches the unnamed day and stops there.
+
+    The wiring of plan P4-D253.1, end to end. Thirty `01/01/1900`
+    declared kept -- so the description publishes the verdict
+    `kept_by_you` for `1900-01-01` and counts those cells as values --
+    beside five `12/31/9999`, whose own verdict the floor of eleven
+    withholds, and 365 ordinary padded dates. The description publishes
+    `n_present 395` and `date_field_widths {"padded": 395}`.
+
+    A repair that settled EVERY placeholder-shaped cell rather than the
+    ones no verdict names would delete the thirty kept cells from the
+    recount as well, and the unchanged source would miss `widths.padded`
+    at 365 against 395 -- a larger version of the defect the item is
+    about, in the other direction. Measured: it does, at exit 3.
+    """
+    folder = tmp_path / "kept-beside-unnamed"
+    folder.mkdir()
+    cells = ["01/01/1900"] * 30 + ["12/31/9999"] * 5
+    step = 0
+    while len(cells) < 400:
+        cells += [
+            f"{1 + step % 9:02d}/{1 + (step // 9) % 9:02d}/{2000 + step // 81}"
+        ]
+        step = step + 1
+    block = _described(
+        folder,
+        cells,
+        ("--smallest-group", "11", "--keep-value", "01/01/1900"),
+    )
+    assert block["n_present"] == 395
+    assert block["date_field_widths"] == {"padded": 395}
+    verdicts = block["sentinel_verdicts"]
+    assert isinstance(verdicts, list)
+    assert len(verdicts) == 1
+    assert verdicts[0]["candidate"] == "1900-01-01"
+    assert verdicts[0]["verdict"] == taxonomy.VERDICT_KEPT
+    assert block["n_sentinel_candidates_unpublished"] == 1
+    checked = folder / "check-real"
+    checked.mkdir()
+    assert _exit_of(
+        [
+            "validate", str(folder / "real-profile.json"),
+            "--twin", str(folder / "real.csv"),
+            "--out-dir", str(checked), "--replace",
+        ]
+    ) == 0
+    assert _misses(checked) == []
+
+
 # -- item 7: the exact single-width repair lost the field --------------
 
 
@@ -643,6 +785,104 @@ def test_a_workbook_twin_keeps_its_published_subsecond_precision(
         ]
     ) == 0
     assert _misses(checked) == []
+
+
+def test_a_figure_free_format_code_strands_the_precision_it_cannot_write(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other half of item 9 (plan P4-D259.1).
+
+    THE SKEPTIC'S FINDING 2 ON THE REPAIR OF ITEM 9. The same 240 serials
+    under `yyyy-mm-dd hh:mm:ss` -- the code pandas 3.0.5 `to_excel`
+    writes by default -- publish `subsecond` and three figures, correctly:
+    the fraction IS stored. Their twin stands at the whole second, because
+    the generation method writes the twin's fractional digits as zeros
+    and says why (`docs/spec/generation-method-v1.md` G7.3: the
+    description publishes how many figures there are and nothing about
+    their values, so any other digit would be an invented fact), and a
+    day count stores a whole second exactly as it stores no figures at
+    all. So the twin missed `precision.time_precision` and
+    `counts.subsecond_digits` at exit 3, on the reviewed commit and on
+    the first repair of item 9 alike.
+
+    Neither obligation is one a conforming twin can meet under that
+    code, and this module refuses a check whose only outcome is a lesser
+    one, so both are LISTED with the reason and the file is not accused.
+    A code that DOES show the figures is checked exactly as before, which
+    the test above this one asserts end to end.
+    """
+    folder = tmp_path / "figure-free"
+    folder.mkdir()
+    book = folder / "real.xlsx"
+    book.write_bytes(workbooks.subsecond_book(ROWS, figures=False))
+    assert _exit_of(
+        ["profile", str(book), "--out-dir", str(folder), "--replace"]
+    ) == 0
+    description = contract.load_profile(f"{folder / 'real-profile.json'}")
+    first = json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]
+    # The description is RIGHT: the stored fraction is a millisecond.
+    assert first["time_precision"] == "subsecond"
+    assert first["subsecond_digits"] == 3
+    form = description.source.workbook
+    assert form is not None
+    assert dialect.sheet_format_figures(form.columns[0].format_code) == 0
+    assert validation.subsecond_figures_unwritable(
+        description, description.columns[0]
+    )
+    assert _exit_of(
+        [
+            "generate", str(folder / "real-profile.json"),
+            "--out-dir", str(folder), "--seed", "4", "--replace",
+        ]
+    ) == 0
+    twin = folder / "real-twin.xlsx"
+    checked = folder / "check-twin"
+    checked.mkdir()
+    assert _exit_of(
+        [
+            "validate", str(folder / "real-profile.json"), "--twin", str(twin),
+            "--out-dir", str(checked), "--replace",
+        ]
+    ) == 0
+    assert _misses(checked) == []
+    # ...and the real workbook is not accused of it either.
+    real_checked = folder / "check-real"
+    real_checked.mkdir()
+    assert _exit_of(
+        [
+            "validate", str(folder / "real-profile.json"), "--twin", str(book),
+            "--out-dir", str(real_checked), "--replace",
+        ]
+    ) == 0
+
+
+def test_a_format_that_shows_the_figures_still_owes_them(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The stranding is the figure-free code and nothing wider.
+
+    The narrowness of plan P4-D259.1, asked of the predicate directly.
+    A description whose own format code shows three figures owes both
+    obligations, which is item 9's first half; a repair that stranded
+    every subsecond workbook column would turn the test above it into a
+    check of nothing.
+    """
+    folder = tmp_path / "shown"
+    folder.mkdir()
+    book = folder / "real.xlsx"
+    book.write_bytes(workbooks.subsecond_book(24))
+    assert _exit_of(
+        ["profile", str(book), "--out-dir", str(folder), "--replace"]
+    ) == 0
+    description = contract.load_profile(f"{folder / 'real-profile.json'}")
+    form = description.source.workbook
+    assert form is not None
+    assert dialect.sheet_format_figures(form.columns[0].format_code) == 3
+    assert not validation.subsecond_figures_unwritable(
+        description, description.columns[0]
+    )
 
 
 def test_the_figures_a_date_format_shows() -> None:

@@ -584,6 +584,26 @@ _NOT_CHECKABLE_NO_CLOCK = (
     "moments only where they write a time of day, and this column's "
     "values write none, so there is nothing of either for a file to carry"
 )
+# A WORKBOOK WHOSE OWN FORMAT CODE CANNOT WRITE THE FIGURES (plan
+# P4-D259.1; the skeptic of the repair of the extra review's item 9). A
+# workbook stores a moment as a day count and writes its subsecond
+# figures in the FORMAT CODE, so a column published at `subsecond` under
+# a code showing fewer figures than it names can carry them only in the
+# stored fraction -- and the generation method writes the twin's
+# fractional digits as ZEROS, because the description publishes how many
+# there are and nothing about their values, so any other digit would be
+# an invented fact (`docs/spec/generation-method-v1.md`, G7.3). A whole
+# second stored under a figure-free code is what no figures store, so
+# neither obligation is one a conforming twin can meet and neither is
+# checked.
+_NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
+    "the description records this column's moments to a fraction of a "
+    "second and records the number format its cells wear, and that "
+    "format writes no figures after the second: a workbook shows those "
+    "figures in the format, and a twin writes them as zeros -- which a "
+    "day count stores as the whole second it is -- so no workbook "
+    "wearing this format can carry them"
+)
 _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "the description does not say that every moment of the real column "
     "stood at midnight, so it asks nothing of the time of day a file's "
@@ -7213,10 +7233,13 @@ def _obligations(
         column.role == taxonomy.ROLE_JOINED
         and column.name not in description.settings.forced_measurements
     )
-    gated = gated + _role_checks(column, block, own_cells, floor, mine, pairs)
+    writable = not subsecond_figures_unwritable(description, column)
+    gated = gated + _role_checks(
+        column, block, own_cells, floor, mine, pairs, writable
+    )
     measured = _universal_checks(column, split, mine)
     measured = measured + _role_checks(
-        column, split, split_cells, floor, mine, pairs
+        column, split, split_cells, floor, mine, pairs, writable
     )
     return checks + _governed(gated, measured, split_published)
 
@@ -7434,6 +7457,18 @@ def _holes_by_the_description(
     # day they denote, so this rule reads a cell's identity as TEXT and
     # asks no reader that rounds.
     missing_days = _placeholder_spellings_dropped(block)
+    # ...AND WHICH PLACEHOLDER DAYS IT PASSES ANY VERDICT ON AT ALL
+    # (plan P4-D253.1), which is what tells a day the description
+    # settled from a day it withheld a verdict for.
+    named_days = _placeholder_days_named(block)
+    # ...AND WHETHER ANY SETTLEMENT CAN BITE AT ALL. The loop below
+    # settles nothing unless the description reads MORE non-blank cells
+    # as holes than its own published verdicts account for, and that
+    # number is a function of the block and the cells alone. Asked once,
+    # here, so that a column with nothing to settle does not put every
+    # one of its cells through twenty date readings: the answer is the
+    # same either way and the cost is not (plan P4-D253.1).
+    may_settle = _unread_cells(block, cells) > 0
     certain: list[bool] = []
     unsettled: list[bool] = []
     for cell in cells:
@@ -7479,6 +7514,25 @@ def _holes_by_the_description(
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
                 undecided = not is_hole
+            elif may_settle and _an_unnamed_placeholder_day(
+                cell, named_days
+            ):
+                # A PLACEHOLDER DAY THE DESCRIPTION PUBLISHES NO VERDICT
+                # FOR, settled the way the branch above settles an
+                # unpublished stand-in number (plan P4-D253.1; skeptic
+                # of the repair of P4-D253, finding 1). The branch above
+                # gave the third candidate kind no below-floor path at
+                # all: five `01/01/1900` beside 395 month-first dates at
+                # a floor of eleven publish no verdict -- the count is
+                # smaller than the line -- so the five cells the
+                # description read as absent were handed to the recount
+                # as values, and the UNCHANGED SOURCE was told it missed
+                # `widths.padded`, "asks for 330, found 335". The
+                # numeric sibling of that exact table validates at
+                # exit 0, because a stand-in nothing names is left
+                # undecided here and settled from the published count of
+                # holes. This is the same settlement for a day.
+                undecided = True
         certain += [is_hole]
         unsettled += [undecided]
     counted = 0
@@ -7634,6 +7688,84 @@ def _placeholder_spellings_dropped(
             if isinstance(spelling, str):
                 found[parsing.folded(spelling)] = 1
     return found
+
+
+def _placeholder_days_named(block: "dict[str, object]") -> "dict[str, int]":
+    """Every placeholder day the description publishes a verdict for.
+
+    EITHER VERDICT, because what this answers is whether the description
+    SETTLED the day rather than which way it settled it (plan
+    P4-D253.1). A day it published `read_as_missing` for is already a
+    hole by the spellings that verdict prints
+    (`_placeholder_spellings_dropped`); a day it published
+    `kept_as_a_number` or `kept_by_you` for is data; and a day it
+    published nothing about is the one the caller has to settle from the
+    count of holes, exactly as it settles a stand-in number nothing
+    names.
+
+    Guarantees: accepts one re-described block; returns the placeholder
+    members its own verdicts name, as a mapping. Determinism: a fixed
+    function of the block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                found[day] = 1
+    return found
+
+
+def _an_unnamed_placeholder_day(
+    cell: str, named: "dict[str, int]"
+) -> bool:
+    """Whether this cell writes a placeholder day no verdict settles.
+
+    THE THIRD CANDIDATE KIND'S BELOW-FLOOR PATH (plan P4-D253.1). The
+    two rules this stands between are the producer's own: a cell's
+    identity as a calendar day is `_denotes_the_candidate`, which reads
+    the written fields under every shipped format and compares the DAY
+    -- the same question `taxonomy.built_in_values_named` asks of a
+    typed declaration -- and the days a description settled are the ones
+    its own verdicts name. A cell writing one of the two members with no
+    verdict beside it is a cell the file's own description may have read
+    as absent and may have kept, and the caller settles that from the
+    one number the description does publish.
+
+    THIS READS A DAY AND NOT A NUMBER, which is why it may stand inside
+    the hole rule's closure at all (review item P3-V4-F1, guarded by
+    `tests/test_p3v4f1_kept_values.py`). `parsing.placeholder_day_of`
+    answers "which day do these written fields name?" out of fixed-width
+    runs of ASCII digits and hands back TEXT it builds from those very
+    runs; no binary64 value is formed and no two spellings a person can
+    tell apart are folded together. It is the producer's published day
+    identity in the same sense `taxonomy.exact_of_spelling` is its
+    published number identity, and the guard stops at both.
+
+    Guarantees: accepts one cell's text and the days the description
+    names; returns whether the cell writes a member nothing names.
+    Determinism: a fixed function of the two. Errors raised: none. No
+    I/O of any kind.
+    """
+    for day in parsing.calendar_placeholders():
+        if day in named:
+            continue
+        if _denotes_the_candidate(cell, day, False):
+            return True
+    return False
 
 
 def _candidates_with(
@@ -9376,11 +9508,16 @@ def _role_checks(
     floor: int,
     mine: "tuple[str, ...]",
     plain_pairs: bool = False,
+    figures_writable: bool = True,
 ) -> "list[Check]":
     """Everything the column's own role adds.
 
     ``plain_pairs`` says a joined column was read from its values rather
     than declared, so its positions are counted over plain pairs alone.
+    ``figures_writable`` is false where no workbook wearing this
+    column's published format code can write its subsecond figures
+    (`subsecond_figures_unwritable`), and it reaches the datetime role
+    alone.
     """
     facts = column.facts
     if isinstance(facts, contract.CompoundFacts):
@@ -9404,7 +9541,9 @@ def _role_checks(
             block, floor, cells=cells,
         )
     if isinstance(facts, contract.DatetimeFacts):
-        return _datetime_checks(column, facts, block, floor, mine, cells)
+        return _datetime_checks(
+            column, facts, block, floor, mine, cells, figures_writable
+        )
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor, cells)
     if isinstance(facts, contract.IdentifierFacts):
@@ -14339,6 +14478,56 @@ def _clock_ordinal_or_zero(text: str, form: str) -> int:
     return found
 
 
+def subsecond_figures_unwritable(
+    description: contract.Profile, column: contract.ColumnBlock
+) -> bool:
+    """Whether no workbook wearing this column's format can show its figures.
+
+    THE OTHER HALF OF THE EXTRA REVIEW'S ITEM 9 (plan P4-D259.1). P4-D259
+    reads the figures a date format shows and writes the fraction to that
+    many places, which closed the sub-case where the code SHOWS them.
+    Where it shows none the workbook has nowhere to put them: a day count
+    standing at a whole second is what a moment with no subsecond figures
+    stores, and the twin's fractional digits ARE zeros -- the generation
+    method says so and says why, that the description publishes how many
+    figures there are and nothing about their values, so any other digit
+    would be an invented fact (`docs/spec/generation-method-v1.md`
+    G7.3). Measured: 240 serials carrying a millisecond under
+    `yyyy-mm-dd hh:mm:ss` -- the code pandas writes by default -- publish
+    `subsecond` and three figures, and their twin, whose cells stand at
+    the whole second the method writes, re-describes as `second` and
+    nought and missed both obligations at exit 3.
+
+    So the two are REPORT-ONLY on such a description rather than checks
+    nothing can pass: this module refuses a check whose only outcome is a
+    lesser one (`_hole_spelling_checks` names the same rule), and
+    `_listings` says out loud why they ask nothing. A code that DOES show
+    the figures is checked exactly as before.
+
+    Guarantees:
+
+    - Inputs: the description and one of its published columns. A
+      function of the DESCRIPTION alone -- the format code is what the
+      description publishes for the column and what the twin wears -- so
+      no measured file can move which obligations exist.
+    - Determinism: a fixed function of the two.
+    - Errors raised: none. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        return False
+    if facts.time_precision != parsing.PRECISION_SUBSECOND:
+        return False
+    form = description.source.workbook
+    if form is None:
+        return False
+    place = column.position - 1
+    if place < 0 or place >= len(form.columns):
+        return False
+    code = form.columns[place].format_code
+    return dialect.sheet_format_figures(code) < facts.subsecond_digits
+
+
 def _datetime_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -14346,8 +14535,15 @@ def _datetime_checks(
     floor: int,
     mine: "tuple[str, ...]",
     cells: "list[str]",
+    figures_writable: bool = True,
 ) -> "list[Check]":
-    """A column of dates and times."""
+    """A column of dates and times.
+
+    ``figures_writable`` is false where no workbook wearing this
+    column's published format code can write the subsecond figures it
+    publishes (`subsecond_figures_unwritable`), and the two obligations
+    that would ask for them are listed instead of checked.
+    """
     name = column.name
     checks: list[Check] = []
     for field, published in (
@@ -14365,18 +14561,28 @@ def _datetime_checks(
                 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
-    for field, published in (
-        ("resolution", facts.resolution),
-        ("time_precision", facts.time_precision),
-    ):
+    # THE TWO THE FORMAT CODE CAN STRAND (plan P4-D259.1), and they are
+    # stranded TOGETHER: what makes `subsecond` unreachable is the same
+    # fact that makes its count of figures unreachable, so a report
+    # holding one and listing the other would name the figures in the
+    # line it kept. EACH KEEPS ITS PLACE in its own list, because the
+    # report is written in this order and the golden digest is of the
+    # report.
+    published_precision: "list[tuple[str, str]]" = [
+        ("resolution", facts.resolution)
+    ]
+    if figures_writable:
+        published_precision += [("time_precision", facts.time_precision)]
+    published_counts: "list[tuple[str, int]]" = []
+    if figures_writable:
+        published_counts += [("subsecond_digits", facts.subsecond_digits)]
+    published_counts += [("n_unparsed", facts.n_unparsed)]
+    for field, published in published_precision:
         found = _text_at(block, field)
         checks += [
             _exact(name, f"datetime.{field}", f"precision.{field}", published, found)
         ]
-    for field, counted in (
-        ("subsecond_digits", facts.subsecond_digits),
-        ("n_unparsed", facts.n_unparsed),
-    ):
+    for field, counted in published_counts:
         seen = _count_at(block, field)
         checks += [
             _exact(
@@ -16639,6 +16845,26 @@ def _listings(
                     )
                 ]
             listings += _written_form_listings(column, facts)
+            if subsecond_figures_unwritable(description, column):
+                # SAID OUT LOUD (plan P4-D259.1). The two obligations
+                # `_datetime_checks` leaves out for a workbook whose own
+                # format code writes no figures after the second, filed
+                # where a fact no conforming file can evidence belongs
+                # rather than passed over.
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.time_precision",
+                        "precision.time_precision",
+                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                    ),
+                    Listing(
+                        column.name,
+                        "datetime.subsecond_digits",
+                        "counts.subsecond_digits",
+                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                    ),
+                ]
             # CHECKED since landing 2b.3 wherever the description sets an
             # obligation (`_mark_checks`, `_midnight_checks`), and LISTED,
             # never silent, wherever it sets none.

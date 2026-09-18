@@ -11528,6 +11528,56 @@ to the same wording the `unnamed` line beside it uses, so no number a
 description withholds is printed. **Measured after:** the source
 validates at exit 0 with both width obligations HELD.
 
+### P4-D253.1 A placeholder day no verdict names is settled like a stand-in number no verdict names
+
+**The defect** (the skeptic of P4-D253, finding 1; a BLOCKER). P4-D253
+reads the judged spellings out of the verdicts the description
+PUBLISHES, and the publication floor withholds a verdict whose
+occurrences are too few to name. So the repair reached the reviewer's
+own twenty-placeholder shape and not a column holding five of them, and
+a description's own judged cells were still handed to the recounts as
+values. **Measured** on the reviewed commit and on P4-D253's repair
+alike: five `01/01/1900` beside 395 month-first dates of 2020 at a floor
+of eleven publish `n_present` 395, `n_missing` 5, `missing_by_class`
+`{"(withheld)": 5}`, `sentinel_verdicts` `[]`,
+`n_sentinel_candidates_unpublished` 1 and
+`date_field_widths {"padded": 330}` -- and the UNCHANGED SOURCE
+validates at exit 3, `widths.padded` MISSED, "the description asks for:
+330 / the file was found to hold: 335". The numeric sibling of that
+exact table -- five `-999` beside 395 decimals at the same floor --
+validates at exit 0, because `_cells_that_description_reads` leaves a
+stand-in nothing names UNDECIDED and settles it from the published count
+of holes. The day was the one candidate kind with no below-floor path.
+
+**The decision** (`validation._an_unnamed_placeholder_day`,
+`validation._placeholder_days_named`): a cell writing a calendar
+placeholder member that the block's own verdicts do not name -- neither
+kept nor judged -- is undecided, exactly as an unpublished stand-in
+number is, and the caller settles it from the one number the description
+does publish. A day a verdict DOES name is settled by that verdict and
+is not touched: a `read_as_missing` verdict makes its cells holes
+through the spellings it prints, and a kept day's cells are values.
+**Measured after:** the same table validates at exit 0 with both width
+obligations HELD, and a table of thirty `01/01/1900` declared kept
+beside five `12/31/9999` the floor withholds -- where widening the
+settlement to every placeholder-shaped cell would delete the kept thirty
+from the recount -- validates at exit 0 too, against exit 3 when the
+guard is withdrawn.
+
+**And the closure now stands on TWO published identities**
+(`tests/test_p3v4f1_kept_values.py`). P4-D253 named the judged cells by
+SPELLING to keep a rounding reader out of the rule that decides which
+cells a description reads; a day nothing names has no published spelling
+to be named by, so the rule asks which day a cell WRITES.
+`parsing.placeholder_day_of` reads fixed-width runs of ASCII digits,
+validates the calendar and hands back text built from those runs: no
+binary64 value is formed and no two spellings a person can tell apart
+are folded together. The guard's walk stops at that name as it stops at
+`taxonomy.exact_of_spelling`, asserts that the closure actually asks it,
+and stops at nothing else that reads a date -- its new probe
+`a-date-reader-of-its-own` puts `parsing.parse_datetime` in the closure
+and the walk still refuses it.
+
 ### P4-D254 An offset is spent where the rank's own gap holds a midnight under it
 
 **The defect** (item 3). The offsets were spent lexically -- each key
@@ -11681,6 +11731,50 @@ from three figures to one, two or three -- `sheet_moment_kind` and
 figures and validates at exit 0. The check is of the SERIALIZED
 workbook, re-described and validated, rather than of the generator's
 intermediate text.
+
+### P4-D259.1 The two facts a figure-free format code cannot carry are listed, not checked
+
+**The defect** (the skeptic of P4-D259, finding 2; MAJOR). P4-D259 reads
+the figures a date format shows and writes the fraction to that many
+places, which closed the sub-case where the code SHOWS them. Where it
+shows none the workbook has nowhere to put them. **Measured** on the
+reviewed commit and on P4-D259's repair alike, at seed 4: the same 240
+serials `45300 + i + 0.5 + 0.001 / 86400` under `yyyy-mm-dd hh:mm:ss` --
+the code pandas 3.0.5 `to_excel` writes by default, measured rather than
+assumed -- publish `time_precision` `subsecond` and three figures
+correctly, because the fraction IS stored; their twin re-describes as
+`second` and nought and misses `precision.time_precision` and
+`counts.subsecond_digits` at exit 3.
+
+**Why the twin cannot meet them, and why that is not this landing's to
+change.** A workbook stores a moment as a day count, so a whole second
+stores exactly what no subsecond figures store, and the twin's moments
+DO stand at whole seconds: `docs/spec/generation-method-v1.md` G7.3 says
+the twin's fractional digits are zeros and says why -- the description
+publishes how MANY figures the finest cell carried and nothing about
+their values, so any other digit would be an invented fact. Writing a
+non-zero millisecond into the serial, which is the only other way a
+figure-free code could carry the claim, is that reversal wearing a
+different hat: it puts into the twin a figure no published fact
+constrains. The generator's ordinals are counted in seconds besides, and
+sub-second values inside a moment column are part of the time of day the
+owner deferred.
+
+**The decision** (`validation.subsecond_figures_unwritable`): where the
+description's source is a workbook, publishes `subsecond` for a column,
+and publishes for that column a format code showing fewer figures after
+the second than its `subsecond_digits`, `precision.time_precision` and
+`counts.subsecond_digits` are REPORT-ONLY and `_listings` says why. This
+module refuses a check whose only outcome is a lesser one
+(`_hole_spelling_checks` names the same rule), and both are stranded
+TOGETHER because the one fact that makes `subsecond` unreachable makes
+its count of figures unreachable. The predicate is a function of the
+DESCRIPTION alone -- the format code is what the description publishes
+and what the twin wears -- so no measured file can move which
+obligations exist. A code that DOES show the figures is checked exactly
+as before. **Measured after:** the twin and the real workbook both
+validate at exit 0 with the two facts listed and their reason printed;
+the figure-showing shape still publishes both as checks and holds them.
 
 ### The ten acceptance criteria, each with its verdict
 
