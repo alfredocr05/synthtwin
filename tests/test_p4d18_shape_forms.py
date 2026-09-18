@@ -369,14 +369,23 @@ def test_a_stand_in_keeps_the_four_properties_it_had_for_free() -> None:
     """`group-N` had them by construction; a code-shaped one does not.
 
     A spelling built to look like a code could be a word meaning "no
-    value", could read as a number or a date, could carry a comma that
-    breaks the row, or could open with a character a spreadsheet reads
-    as a formula. Each is asked of every stand-in before it is used.
+    value", could read as a number or a date, could carry a QUOTE -- the
+    delimiter's own escape -- or could open with a character a
+    spreadsheet reads as a formula. Each is asked of every stand-in
+    before it is used.
+
+    A COMMA IS NOT ONE OF THEM ANY MORE (plan P4-D243). It was refused
+    here on the ground that it "breaks the row", which the generation
+    method's own clause already denied -- the writer quotes a cell
+    holding one and this package's reader reads it back unchanged -- and
+    refusing it made the comma the ONE mark of `parsing.SHAPE_MARKS` no
+    published form could ever be written with.
     """
     assert not generation._is_a_usable_stand_in("NA")
     assert not generation._is_a_usable_stand_in("1234")
     assert not generation._is_a_usable_stand_in("2024-03-17")
-    assert not generation._is_a_usable_stand_in("a,b")
+    assert not generation._is_a_usable_stand_in('a"b')
+    assert generation._is_a_usable_stand_in("a,b")
     assert not generation._is_a_usable_stand_in("=SUM(A1)")
     assert generation._is_a_usable_stand_in("A00.0")
 
@@ -967,10 +976,11 @@ def test_a_free_text_form_is_held_to_the_same_four_properties() -> None:
 
 def test_the_four_properties_are_each_asked_and_not_three_of_them() -> None:
     """Each of the four, including the ones the first test left out."""
-    for refused in ("NA", "n/a", "1234", "2024-03-17", "a,b", 'a"b',
+    for refused in ("NA", "n/a", "1234", "2024-03-17", 'a"b',
                     "=SUM(A1)", "+1", "-x", "@here"):
         assert not generation._is_a_usable_stand_in(refused), refused
-    for allowed in ("A00.0", "X12", "%%%%-%"):
+    # `a,b` moved from the first list to the second at plan P4-D243.
+    for allowed in ("A00.0", "X12", "%%%%-%", "a,b"):
         assert generation._is_a_usable_stand_in(allowed), allowed
 
 

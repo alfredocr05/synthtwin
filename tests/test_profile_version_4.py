@@ -228,7 +228,16 @@ def test_the_manifest_reserves_eight_names_and_claims_none_of_them(
 
 
 def test_a_published_label_carries_the_spellings_that_cleared_the_floor() -> None:
-    """The contract's worked example, and the sum that closes it."""
+    """The contract's worked example, and the sum that closes it.
+
+    RE-RECORDED FOR P4-D240 (the final review of 2026-09-18). The three
+    further spellings are written by ONE row each, and a spelling one row
+    wrote is a count of one stated outright under `variants_withheld`'s
+    key `1` -- so they are counted into the level's commonest spelling
+    and the entry publishes 25 rather than 22 beside an empty withheld
+    map. The witness below keeps the closing sum, which is the point of
+    this example, and the case where the map still speaks is beside it.
+    """
     values = (
         ["North"] * 22 + ["north"] * 15 + ["NORTH", " north", "North "]
     )
@@ -237,14 +246,32 @@ def test_a_published_label_carries_the_spellings_that_cleared_the_floor() -> Non
     entry = described.details["levels"][0]
     assert entry["label"] == "north"
     assert entry["count"] == 40
-    assert entry["variants"] == {"North": 22, "north": 15}
-    assert entry["variants_withheld"] == {"1": 3}
+    assert entry["variants"] == {"North": 25, "north": 15}
+    assert entry["variants_withheld"] == {}
     named = sum(entry["variants"].values())
     withheld = sum(
         int(key) * entry["variants_withheld"][key]
         for key in entry["variants_withheld"]
     )
     assert named + withheld == entry["count"]
+
+
+def test_the_withheld_map_still_speaks_above_one_row() -> None:
+    """The contract's second worked example, beside the first.
+
+    P4-D240 empties `variants_withheld` only of the key `1`. Three
+    further spellings written by TWO rows each are still held back, and
+    the map says so without naming one of them.
+    """
+    values = (
+        ["North"] * 22 + ["north"] * 12
+        + ["NORTH"] * 2 + [" north"] * 2 + ["North "] * 2
+    )
+    described = describe(values)
+    entry = described.details["levels"][0]
+    assert entry["count"] == 40
+    assert entry["variants"] == {"North": 22, "north": 12}
+    assert entry["variants_withheld"] == {"2": 3}
 
 
 def test_a_spelling_below_the_floor_is_never_named() -> None:

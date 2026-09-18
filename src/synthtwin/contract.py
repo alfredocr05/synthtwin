@@ -1607,6 +1607,10 @@ INVARIANTS = {
         "a spelling is named only at the smallest group size or more, "
         "and a spelling held back was written by fewer rows than that"
     ),
+    "W5b": (
+        "no spelling of a label is held back as one that ONE row wrote, "
+        "because that is a count of one stated outright"
+    ),
     "W7": (
         "a published label was written some way, so it has a named "
         "spelling or a held-back one"
@@ -6877,7 +6881,14 @@ def _levels(
     # or any group below that line, unaccounted for is refused. The
     # producer counts those cells as missing instead, so no description
     # it writes reaches this refusal.
-    if parsing.pool_names_a_level(suppressed_levels, suppressed_rows):
+    smallest_published = 0
+    for entry in entries:
+        size = entry.count
+        if not smallest_published or size < smallest_published:
+            smallest_published = size
+    if parsing.pool_names_a_level(
+        suppressed_levels, suppressed_rows, smallest_published
+    ):
         raise _broken(
             "B4b",
             where,
@@ -6886,8 +6897,9 @@ def _levels(
                 f"cover {suppressed_rows} row(s) between them"
             ),
             (
-                "one label on one row is a count of one, which a reader "
-                "works out by subtraction"
+                "held-back labels covering fewer rows than twice their "
+                "number force a count of one, which a reader works out "
+                "by subtraction"
             ),
         )
     return tuple(entries), suppressed_levels, suppressed_rows
@@ -7025,6 +7037,34 @@ def _variants(
     withheld, pairs = _multiplicity(
         block["variants_withheld"], "variants_withheld", seat, floor - 1
     )
+    # W5b, A SPELLING ONE ROW WROTE (the owner's ruling of 2026-09-17,
+    # item 5; plan P4-D240). A multiplicity map keyed `1` says, in the
+    # census's own definition, that a held-back spelling covered exactly
+    # one row -- a count of one stated outright rather than derived, and
+    # a twin then writes that row's spelling in exactly one row. The
+    # producer counts such a cell into the level's commonest spelling
+    # first (`taxonomy._absorb_lone_spellings`), so no description it
+    # writes reaches this refusal.
+    # ASKED OF THE PAIRS AND NOT OF THE KEYS, because a multiplicity
+    # key is padded with zeros to the width of the largest key present:
+    # `1` and `01` are the same row count written under two widths.
+    lone = 0
+    for rows, things in pairs:
+        if rows == 1:
+            lone = lone + things
+    if lone:
+        raise _broken(
+            "W5b",
+            seat,
+            (
+                f"{lone} spelling(s) of '{label}' are held back "
+                f"as spellings ONE row wrote"
+            ),
+            (
+                "a spelling one row wrote is a count of one, so it is "
+                "counted into the label's commonest spelling instead"
+            ),
+        )
     if not named and not withheld:
         raise _broken(
             "W7",

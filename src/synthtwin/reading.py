@@ -605,6 +605,122 @@ def _repeats_a_value_below(name: str, values: list[str]) -> bool:
     return False
 
 
+# A silhouette's two collapsed runs. Everything else in a value stands
+# for itself, so `CASE-ZEBRA-471` and `CASE.ZEBRA.471` are different
+# shapes and neither is the shape of `record_id`.
+SILHOUETTE_LETTERS = "A"
+SILHOUETTE_FIGURES = "9"
+# Spelled out rather than asked of a method, because the audit accepts no
+# method call on a value read out of the user's file, and because a
+# silhouette is an ASCII question: a letter outside ASCII stands for
+# itself, as every mark does.
+_SILHOUETTE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_SILHOUETTE_FIGURES = "0123456789"
+
+
+def _silhouette(text: str) -> str:
+    """One value's shape: runs of letters and of figures, marks as they stand.
+
+    `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, and
+    `record_id` over `R001` is `A_A` over `A9`. That is the difference
+    the fourth record rule below reads (plan P4-D241).
+
+    Guarantees: accepts text; returns its shape. Determinism: a fixed
+    function of the text. Raises nothing. No I/O of any kind.
+    """
+    shape = ""
+    last = ""
+    for character in text:
+        kind = character
+        if character in _SILHOUETTE_ALPHABET:
+            kind = SILHOUETTE_LETTERS
+        elif character in _SILHOUETTE_FIGURES:
+            kind = SILHOUETTE_FIGURES
+        if kind == last and (
+            kind == SILHOUETTE_LETTERS or kind == SILHOUETTE_FIGURES
+        ):
+            continue
+        shape = shape + kind
+        last = kind
+    return shape
+
+
+def _shape_is_structured(shape: str) -> bool:
+    """Whether a silhouette says more than two column names share by accident.
+
+    TWO MARKS AND SOMETHING THAT IS NOT A WORD. Both halves are measured
+    rather than argued, and each was put there by a witness the first
+    writing of this rule turned red.
+
+    A run of letters beside a run of figures is what an ordinary header
+    shares with its own column all the time: `visit1` over `a1`,
+    `region,2019` over `r1`, `B10` over `B01` are all `A9` over `A9`,
+    and every one of them is a headed table this package has read
+    without a question since review item P1-R6-F6. So a silhouette of
+    fewer than TWO marks says nothing here.
+
+    Letters and spaces alone say nothing either: `Full Name` over `John
+    Smith` is `A A` over `A A`, and `First Middle Last` over `John Paul
+    Jones` is `A A A` -- two marks, and still two columns of words. A
+    FIGURE, or a mark that is not a space, is what makes the shape a
+    structure: `A-A-9` and `A A 9` carry one, and that is what a record
+    number and an address wear and what a column name does not wear by
+    accident.
+    """
+    marks = 0
+    told = False
+    for character in shape:
+        if character == SILHOUETTE_LETTERS:
+            continue
+        if character == SILHOUETTE_FIGURES:
+            told = True
+            continue
+        marks = marks + 1
+        if character != " ":
+            told = True
+    return marks >= 2 and told
+
+
+def _shares_the_shape_below(name: str, values: list[str]) -> bool:
+    """True when the first row's value wears the structure of its column.
+
+    THE FOURTH RECORD RULE (the owner's ruling of 2026-09-17, item 8;
+    plan P4-D241, the repair of the final review of 2026-09-18). The
+    three rules above read a NUMBER, a DATE and a repeat, and a record
+    made of structured text is none of the three: 240 records of
+    `CASE-ZEBRA-471,Northfield Clinic 3,<0.10` under a title published
+    that first record as the three column names, wrote it verbatim as
+    row two of the twin and of the twin workbook, described 239 rows
+    where the file holds 240, and asked nothing -- because `<0.10` is
+    not a number, so the column of numbers beside it read as evidence
+    that the row is NAMES. The row's own first field is what tells it:
+    every value below it in that column is `A-A-9` and so is it.
+
+    THE COLUMN HAS TO SPEAK WITH ONE VOICE. Every value below must wear
+    the SAME silhouette, that silhouette must be structured
+    (`_shape_is_structured` above), and the first row's value must wear
+    it too. A column of words under a name of words says nothing here,
+    and neither does `record_id` over `R001` -- `A_A` is not `A9` --
+    which is what keeps this rule off the ordinary headed export.
+
+    Guarantees: accepts the first row's value in one column and the
+    values below it; returns a bool. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    mine = _silhouette(f"{name}")
+    if not _shape_is_structured(mine):
+        return False
+    seen = 0
+    for value in values:
+        text = f"{value}"
+        if text == "":
+            continue
+        seen = seen + 1
+        if _silhouette(text) != mine:
+            return False
+    return seen >= 2
+
+
 def _record_evidence(
     header: list[str], columns: list[list[str]]
 ) -> "str | None":
@@ -622,10 +738,13 @@ def _record_evidence(
     from the file: in a file whose first row may be a record, the first
     row's text is somebody's data, and the values below it always are.
 
-    The three rules are tried in the order a person would want to hear
+    The four rules are tried in the order a person would want to hear
     them, which is also cheapest first for the common case: only a
     numeric first-row value reaches the walk of a numeric column at all.
-    Each rule stops at the first column that speaks.
+    Each rule stops at the first column that speaks. The fourth,
+    `_shares_the_shape_below`, was added by plan P4-D241 and is the one
+    that reads a record made of structured TEXT; it is asked last
+    because it is the only one that walks every column of the file.
     """
     for index in range(len(header)):
         if _numeric_fit(header[index], columns[index]):
@@ -647,6 +766,14 @@ def _record_evidence(
                 f"in column {index + 1} the value in that row appears "
                 f"again further down the same column, more than once, so "
                 f"it is one of the values that column is made of"
+            )
+    for index in range(len(header)):
+        if _shares_the_shape_below(header[index], columns[index]):
+            return (
+                f"in column {index + 1} the value in that row is written "
+                f"to the same pattern of letters, figures and marks as "
+                f"every value below it, which is what a record in that "
+                f"column looks like"
             )
     return None
 

@@ -1982,7 +1982,16 @@ GOLDEN_REPORT_SHA256 = (
     # `'reading' -- field_widths`, 170 cells at three figures described
     # and 165 held, whose five counted-in cells the twin writes at their
     # own widths (plan P4-D222).
-    "3a93eb5d3f94e263c44b5f49a818a295aa3a4245d8e6e8aa6a93a8532a678357"
+    #
+    # RE-RECORDED AT THE FINAL REVIEW OF 2026-09-18 (plan P4-D244), read
+    # as a line-by-line diff against 7f9a52d: FOUR LINES ARE ADDED, TWICE
+    # -- once in each of the two columns synthtwin made up entirely --
+    # and not one other line of the report moved. They say that a
+    # made-up value can be one the table also holds by chance, which the
+    # review measured: 40 of 2,000 made-up subject numbers were numbers
+    # the real column held, at each of two seeds. The twin's own digest
+    # above did NOT move, so not one cell of the twin changed with it.
+    "5a2dfcae0fbb7e4a0c833ca4b1398501a1d5d18b9fab3134b8b903a692b790b8"
 )
 
 

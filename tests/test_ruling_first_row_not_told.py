@@ -265,25 +265,30 @@ def test_the_answer_in_the_questions_file_is_the_declaration(
     assert document["n_rows"] == 239
 
 
-def test_a_headerless_file_with_no_furniture_is_the_stated_limit(
+def test_a_headerless_file_of_plain_words_is_the_stated_limit(
     tmp_path: pathlib.Path,
 ) -> None:
     """What this ruling does NOT reach, measured rather than described.
 
-    The same records with no title above them and no value marking the
-    first row as a record are still read as names by convention: nothing
-    in the file says otherwise, and the only rule that could say it --
-    the first row wearing the shape its column's values wear -- reads
-    `sites` over `north`, `south` and `east` the same way. It is put to
-    the owner in plan P4-D232 rather than built.
+    The limit MOVED after the final review of 2026-09-18 (plan P4-D241).
+    The same records with no title above them are now read as records by
+    the fourth record rule, because column one wears `A-A-9` in every row
+    including the first -- `tests/test_p4d241_record_shape_names_no_
+    column.py` measures that. What is still read as names by convention
+    is a headerless file of PLAIN WORDS: `sites` over `north`, `south`
+    and `east` wears the same silhouette as its own column and so does
+    every ordinary header of words, so no rule can tell the two apart and
+    none tries. It is put to the owner in plan P4-D232 rather than built.
     """
-    body = "\n".join(_records()) + "\n"
+    made = ["sites,colours"]
+    for index in range(1, 240):
+        made += [f"{_TOWNS[index % 3]},{_COLOURS[index % 3]}"]
+    body = "\n".join(made) + "\n"
     assert _run(tmp_path, body) == 0
     document = _document(tmp_path)
     assert [block["name"] for block in document["columns"]] == [
-        "CASE-ZEBRA-471",
-        "amber",
-        "Northfield",
+        "sites",
+        "colours",
     ]
     assert document["source"]["header_by_convention"] is True
 

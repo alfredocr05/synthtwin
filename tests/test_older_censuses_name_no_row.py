@@ -217,12 +217,20 @@ def test_the_producer_rule_counts_rare_names_into_the_commonest() -> None:
     assert parsing.absorbed_census(
         {"space": 6, "lower_t": 6}, 12, 11, 3, "upper_t"
     ) == {"(withheld)": 12}
-    # ...and the default name over the band where a pool would say every
-    # mark was written: eight of each of three marks at a floor of eleven.
+    # ...and ONE NAME THE CELLS WROTE over the band where a pool would
+    # say every mark was written: eight of each of three marks at a floor
+    # of eleven. It was the vocabulary's DEFAULT until plan P4-D242,
+    # which measured that publishing a mark NO cell of the column wore --
+    # twelve spaces and twelve lower-case `t` published `upper_t` for all
+    # of them. Ties go to the first name in sorted order, which is the
+    # rule the commonest named count above is chosen by.
     assert not parsing.census_pools(24, 11, 3)
     assert parsing.absorbed_census(
         {"space": 8, "lower_t": 8, "upper_t": 8}, 24, 11, 3, "upper_t"
-    ) == {"upper_t": 24}
+    ) == {"lower_t": 24}
+    assert parsing.absorbed_census(
+        {"space": 12, "lower_t": 9}, 21, 11, 3, "upper_t"
+    ) == {"space": 21}
     assert parsing.census_pools(24, 11, 0)
     assert parsing.absorbed_census({"upper_t": 1}, 1, 1, 3, "upper_t") == {
         "(withheld)": 1

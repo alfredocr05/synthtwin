@@ -805,6 +805,21 @@ def _made_up_lines(column: contract.ColumnBlock, floor: int) -> "list[str]":
             "  such fact the twin could not meet. A number you compute",
             "  from these cells describes synthtwin's invention and says",
             "  nothing about your table.",
+            # ...AND A MADE-UP VALUE CAN COINCIDE WITH A REAL ONE (plan
+            # P4-D244, the final review of 2026-09-18). synthtwin never
+            # reads your table, so it cannot avoid drawing a value your
+            # table also holds: measured, 40 of 2,000 made-up subject
+            # numbers of a five-figure layout were numbers the real
+            # column held, at each of two seeds, which is the chance
+            # rate. No row of the twin is a row of your table and every
+            # other field of those rows differs -- but a reader who sees
+            # a familiar record number beside invented cells has to be
+            # told what it is, or the sentence above reads as a promise
+            # this one keeps.
+            "  A made-up value can be one your table also holds by",
+            "  chance: synthtwin never reads your table, so it cannot",
+            "  avoid drawing one. A value here is never evidence that a",
+            "  row of this twin belongs to whoever holds it in yours.",
         ]
     if made_up == _MADE_UP_HELD_BACK:
         facts = column.facts

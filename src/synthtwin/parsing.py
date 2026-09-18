@@ -2465,19 +2465,38 @@ def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
     return census_nameable([carrying], [present], floor)
 
 
-def pool_names_a_level(levels: int, rows: int) -> bool:
-    """Whether the published pool gives away a count of ONE.
+def pool_names_a_level(
+    levels: int, rows: int, smallest_published: int
+) -> bool:
+    """Whether the published pool FORCES a count of ONE.
 
     THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan P4-D231, contract
     invariant B4b): a label column's lone row that could be read by
     subtraction is counted as missing, so that no count of one can be
     derived. A label column publishes how many levels the floor held
     back and how many rows they cover TOGETHER, and no size of any one
-    of them (P4-D201). Where that pair is ONE level over ONE row it is a
-    count of one outright: 480 `F`, 519 `M` and one `U` at a floor of
-    eleven said that one row holds a third value, and `n_present` less
-    the published counts reads the one even with both keys left out
-    (invariant B3). One row is one person.
+    of them (P4-D201). Every held-back level covers at least one row, so
+    where the rows come to fewer than TWICE the levels at least
+    ``2 * levels - rows`` of them are provably single rows -- and where
+    that holds the pair is a count of one whatever else the reader knows.
+    ONE level over ONE row was the first case measured: 480 `F`, 519 `M`
+    and one `U` at a floor of eleven said that one row holds a third
+    value, and `n_present` less the published counts reads the one even
+    with both keys left out (invariant B3). One row is one person.
+
+    THE RULE IS THE WHOLE FORCED BAND AND NOT ITS SHARPEST POINT (plan
+    P4-D239, the repair of the final review of 2026-09-18). `levels == 1
+    and rows == 1` was built first and it left the ordinary shape open:
+    a clinical `site` column of 2,000 rows at a floor of eleven with
+    three one-patient sites published THREE levels over THREE rows, and
+    the plain summary said in English that three values are each shared
+    by fewer than eleven rows and cover three rows in total. Three
+    levels over three rows can only be one and one and one, so a reader
+    is told without arithmetic that three named sites hold one patient
+    each, and the twin wrote three single-row labels. `rows < 2 * levels`
+    is the condition the contract's own paragraph already computed two
+    sentences above the rule, and it is the exact band in which a
+    singleton is forced.
 
     Where this answers True the cells of every held-back level are
     counted as MISSING instead, so the description is that of the table
@@ -2489,7 +2508,9 @@ def pool_names_a_level(levels: int, rows: int) -> bool:
 
     (a) *A pool of one LEVEL, whatever its size.* One level over seven
     rows publishes that level's own count by subtraction, and seven is
-    below the floor, so it is a count the floor exists to refuse. Its
+    below the floor, so it is a count the floor exists to refuse. It is
+    strictly wider than the band this asks -- `rows < 2 * levels` closes
+    one level over one row and leaves one level over seven standing. Its
     reach is wide because the shape is common: on the full suite it
     moved 53 witnesses, among them every column whose one rare value is
     counted out -- a `constant` column of four cells below the floor
@@ -2504,14 +2525,39 @@ def pool_names_a_level(levels: int, rows: int) -> bool:
     holes. A pool of ten rows over four levels says nothing about any
     one of them.
 
-    Neither is built. The ruling names a lone row and a count of one,
-    and this is that question and no wider one.
+    Neither is built. The ruling names a count of one, and the forced
+    band is exactly where one is derivable; a pool that leaves every
+    held-back level free to cover two rows or more derives none.
 
-    Guarantees: accepts how many levels were held back and how many rows
-    they cover; returns a bool. Determinism: a fixed function of the
-    two. Raises nothing. No I/O of any kind.
+    AND THE POOL HAS TO BE AN EXCEPTION BESIDE THE COLUMN'S OWN LABELS,
+    which is the second half of the rule and is measured, not argued.
+    The band above is true of EVERY LONG TAIL: 780 record numbers each
+    written once beside one value of twenty rows hold 780 levels over
+    780 rows, and counting those cells as missing empties the column.
+    Nothing is derived there that the block did not already say --
+    `n_present` and `n_distinct_folded` beside each other say every
+    value is unique -- and the ruling names a LABEL column's lone row,
+    which is a row standing OUT from the labels a column is made of. So
+    the pool must also come to fewer rows than the SMALLEST published
+    level: three one-patient sites beside a smallest published site of
+    137 rows are an exception, 780 unique codes beside one published
+    value of 20 are the column. Measured: without this half, fifteen
+    witnesses of the code and long-tail batteries turn red and their
+    columns come back blank.
+
+    Guarantees: accepts how many levels were held back, how many rows
+    they cover, and the smallest count the column publishes beside them
+    (nought where it publishes none); returns True exactly where a level
+    is published, a level is held back, the rows come to fewer than
+    twice the levels held back, and the pool is smaller than that
+    smallest published level. Determinism: a fixed function of the
+    three. Raises nothing. No I/O of any kind.
     """
-    return levels == 1 and rows == 1
+    if levels < 1 or smallest_published < 1:
+        return False
+    if rows >= smallest_published:
+        return False
+    return rows < 2 * levels
 
 
 # What one cell says about the comma inside it.
@@ -5090,8 +5136,21 @@ def absorbed_census(
     WHERE NO NAME REACHES THE LINE the census is one pool of the
     population the block already prints -- except on a closed vocabulary
     where `census_pools` refuses the pool, and there the whole population
-    is counted under ``default``, the name the caller gives for the
-    vocabulary, whether or not a cell wrote it.
+    is counted under the COMMONEST NAME THE CELLS WROTE, ties to the
+    first in sorted order, exactly as a rare count is counted into the
+    commonest named one above. ``default``, the name the caller gives
+    for the vocabulary, is written only where no cell wrote any name at
+    all, which a population above nought cannot reach.
+
+    IT WAS ``default`` OUTRIGHT UNTIL PLAN P4-D242, and that published a
+    name no cell of the column wore: twenty-four moments written twelve
+    with a space and twelve with a lower-case `t`, at a floor of eleven,
+    published `{"upper_t": 24}`, and the twin wrote twenty-four `T`. The
+    fidelity that is lost where no spelling clears the line is ruling
+    6's own cost and stands; naming a spelling the column never used is
+    not, because the description is the description of the table with
+    its rare spellings written the way most of its cells were, and
+    `upper_t` was not one of them.
 
     Ties for the commonest count go to the first name in sorted order,
     and the name that took the rest in is always the largest printed
@@ -5100,10 +5159,10 @@ def absorbed_census(
     Guarantees: accepts the full tally (no `(withheld)` key), the
     published total it covers, the settings floor, the size of the
     closed vocabulary (nought for an open one) and its default name;
-    returns `{}` for no population, a single `(withheld)` pool or a
-    single default name where no count reaches the line, and otherwise
-    the names at the line or above, keys in sorted order, summing to the
-    population. Determinism: a function of the five. Raises nothing. No
+    returns `{}` for no population, a single `(withheld)` pool or the
+    single commonest name the cells wrote where no count reaches the
+    line, and otherwise the names at the line or above, keys in sorted
+    order, summing to the population. Determinism: a function of the five. Raises nothing. No
     I/O of any kind.
     """
     if population <= 0:
@@ -5120,8 +5179,25 @@ def absorbed_census(
         if not commonest or counts[name] > named[commonest]:
             commonest = name
     if not commonest:
-        if default and not census_pools(population, floor, names):
-            return {default: population}
+        if not census_pools(population, floor, names):
+            # ...AND THE NAME IT TAKES IS ONE THE CELLS WROTE (plan
+            # P4-D242). The vocabulary's own default name stood here and
+            # published a name NO CELL of the column wore: twenty-four
+            # moments written twelve with a space and twelve with a
+            # lower-case `t`, at a floor of eleven, published
+            # `{"upper_t": 24}`. Ruling 6 counts a rare spelling into
+            # the column's COMMONEST spelling, and where no spelling
+            # reaches the line the commonest is still one of them.
+            written = ""
+            for name in sorted(counts):
+                if name == MISSING_WITHHELD:
+                    continue
+                if not written or counts[name] > counts[written]:
+                    written = name
+            if written:
+                return {written: population}
+            if default:
+                return {default: population}
         return {MISSING_WITHHELD: population}
     named[commonest] = named[commonest] + population - total
     return named

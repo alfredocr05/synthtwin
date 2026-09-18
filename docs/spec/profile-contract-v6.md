@@ -1499,6 +1499,9 @@ below `parsing.census_floor` into their commonest named count, so a
 the line -- at a floor of one, a column whose population is one cell, or
 a closed census whose names are each one cell and too few to fill a
 pool that would say every name was written (`parsing.census_pools`).
+Where that pool is refused the whole population is counted under the
+commonest name the CELLS wrote, ties to the first in sorted order (plan
+P4-D242), and never under a name no cell of the column wore.
 
 A document that fills one of them is refused. The rule is checked with
 the top-level rules, before any column block is read, because the
@@ -4047,12 +4050,20 @@ away (repair pass of 2026-09-17): every held-back label covers at least
 one row, so where `suppressed_rows` is less than twice
 `suppressed_levels` at least `2 * suppressed_levels - suppressed_rows`
 of them are provably single rows, and where `suppressed_levels` is 1
-that one label's size is the pool itself. That is a count about unnamed
-groups, the class `n_distinct_by_occurrences` already publishes, and it
-stands -- **except at its sharpest point** (owner ruling of 2026-09-17,
-item 5; plan P4-D231, invariant B4b): one label on one row is a count of
-ONE, and no description carries that pool any more. One label over more
-than one row still does, and P4-D231 puts it to the owner.
+that one label's size is the pool itself. **THAT WHOLE BAND IS CLOSED**
+(owner ruling of 2026-09-17, item 5; plan P4-D231, widened by P4-D239
+after the final review of 2026-09-18; invariant B4b): where the rows
+come to fewer than twice the levels a count of one is FORCED, and no
+description carries such a pool any more — the cells of every held-back
+level are counted as missing instead. Three one-patient sites among
+2,000 rows published three levels over three rows, which can only be one
+and one and one; the first writing of the ruling closed only one label
+on one row and left that shape standing. A pool whose rows reach twice
+its levels forces nothing about any one of them — four labels over ten
+rows leaves every one of them free to cover two or more — and that pool
+still stands. Its remainder is a count about unnamed groups of the kind
+`n_distinct_by_occurrences` publishes for the columns that carry it
+(U3, I2 and F2), and P4-D231 puts the wider readings to the owner.
 
 #### 6.3.1 A level entry
 
@@ -4109,15 +4120,17 @@ below** (owner ruling of 2026-09-17, item 5; plan P4-D231): the pool of
 one is no longer written at all, because the cells that would leave it
 are counted as missing.
 
-**Invariant B4b (a pool that is a count of one).** The labels held back
-never come to one label on one row:
+**Invariant B4b (a pool that forces a count of one).** The labels held
+back never come to fewer rows than twice their number:
 `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`
-(owner ruling of 2026-09-17, item 5; plan P4-D231). Such a pool is a
-count of one outright -- and B3 above makes that subtraction available
-to every reader whether or not `suppressed_rows` is printed, which is
-why no key left out could hide it. 480 `F`, 519 `M` and one `U` at a
-floor of eleven said one row holds a third value, and its twin wrote an
-invented label in exactly that person's row. Such a document is refused
+(owner ruling of 2026-09-17, item 5; plan P4-D231, widened by P4-D239).
+Such a pool forces a count of one -- and B3 above makes that subtraction
+available to every reader whether or not `suppressed_rows` is printed,
+which is why no key left out could hide it. 480 `F`, 519 `M` and one `U`
+at a floor of eleven said one row holds a third value, and its twin wrote
+an invented label in exactly that person's row; three one-patient sites
+among 2,000 rows published (3, 3), which can only be one and one and one,
+and its twin wrote three single-row labels. Such a document is refused
 here. The producer does not write one: every cell of the held-back level
 is counted as MISSING, spelled as nothing, so the description is that of
 the table with those cells blank, the twin writes a blank in those rows,
@@ -4904,8 +4917,14 @@ less one can hold below it. The permitted marks are the three names, or
 `slashed-iso-datetime` column. A pool over more values than that says
 every permitted mark was written, which is the state nought reaches told
 apart from a count below the floor, so the producer publishes the
-commonest mark there, or `upper_t` for the whole population where no
-mark reaches the line. The bound P4-D220 replaced allowed a pool of at
+commonest mark there — the commonest mark THE CELLS WROTE, for the whole
+population, where no mark reaches the line (plan P4-D242, the final
+review of 2026-09-18). It was `upper_t` outright until then, and that
+published a mark no cell of the column wore: twenty-four moments written
+twelve with a space and twelve with a lower-case `t`, at a floor of
+eleven, published `{"upper_t": 24}`. Ruling 6 of 2026-09-17 counts a
+rare spelling into the COLUMN's commonest spelling, and where none
+reaches the line the commonest is still one of them. The bound P4-D220 replaced allowed a pool of at
 most (floor − 1) times the unnamed marks (the stage 2 audit, 2026-09-14;
 landing 2b.3), and admitted both ways a pool of marks names a row:
 `{"upper_t": 399, "(withheld)": 1}` named the one row that wrote a `t`.
@@ -7793,8 +7812,10 @@ present rows wrote the label that way.
 (C6-90): how many different spellings of this label covered one row,
 two rows, and so on, for the spellings the floor held back. It names
 none of them. Its keys are bounded here to 1 through
-`small_cell_floor - 1` (W5), and `{}` is valid — a published label with
-no held-back spelling. At a floor of one that range is empty, so every
+`small_cell_floor - 1` (W5) and never include 1 itself (W5b, owner
+ruling of 2026-09-17 item 5, plan P4-D240: a spelling ONE row wrote is
+counted into the label's commonest spelling instead), and `{}` is valid
+— a published label with no held-back spelling. At a floor of one that range is empty, so every
 map of this key is `{}`; `variants_withheld` is one of the fields S13
 names, and S13 is checked before any column block is read.
 
@@ -7805,18 +7826,22 @@ Worked example — floor 11, one entry of a `categorical` column:
   "count": 40,
   "label": "north",
   "variants": {
-    "North": 22,
+    "North": 25,
     "north": 15
   },
-  "variants_withheld": {
-    "1": 3
-  }
+  "variants_withheld": {}
 }
 ```
 
-Twenty-two rows wrote `North`, fifteen wrote `north`, and three further
-spellings — which the description does not name — were written by one
-row each. 22 + 15 + 3 × 1 = 40, the entry's own `count`.
+The column holds twenty-two rows written `North`, fifteen written
+`north`, and three further spellings written by ONE row each. A spelling
+one row wrote is counted into the level's commonest (W5b, plan P4-D240),
+so the three are counted under `North` and the entry publishes 25 and 15.
+25 + 15 = 40, the entry's own `count`. **This example read 22 and
+`variants_withheld {"1": 3}` until P4-D240**, which is the count of one
+that key states outright; with three spellings of TWO rows each instead,
+the entry would read `{"North": 22, "north": 12}` beside
+`variants_withheld {"2": 3}` and 22 + 12 + 3 × 2 = 40.
 
 #### 7.4.3 Stored exactly, escaped only where it is shown
 
@@ -7938,6 +7963,21 @@ label).** Every value of `variants` is at least `small_cell_floor`.
 Every key of `variants_withheld`, read as a number, is between 1 and
 `small_cell_floor - 1`.
 
+**Invariant W5b (a spelling ONE row wrote).** No key of
+`variants_withheld`, read as a number, is 1 (owner ruling of
+2026-09-17, item 5; plan P4-D240). Such a key says, in this census's own
+definition, that a held-back spelling covered exactly one row — a count
+of one stated outright rather than derived, and the twin then wrote that
+row's spelling in exactly one row. Measured: 490 `F`, 500 `M` and one
+`f` at a floor of eleven published, for the level `f`,
+`variants {"F": 490}` beside `variants_withheld {"1": 1}`. The producer
+counts such a cell into the level's COMMONEST spelling before either
+census is taken off it — ruling 6 of the same day, asked of a label's
+spellings — so no description it writes reaches this refusal, and at a
+floor of one nothing is held back and nothing moves. W5 above still
+bounds every key to `1 .. floor - 1`; this closes the bottom of that
+range.
+
 **Invariant W6 (variant keys are distinct).** They are object keys, so
 this is a property of the JSON, but it is stated because two spellings
 that differ only by a character the canonical form does not
@@ -7948,7 +7988,7 @@ distinguish would be one key and must not be produced as two.
 published label covers at least `small_cell_floor` rows and every row
 was written some way.
 
-[ASSEMBLY: 6.3.1 points here for W1–W7 and this is their home; the
+[ASSEMBLY: 6.3.1 points here for W1–W7, W5b among them, and this is their home; the
 checkable list of §8.8 restates them, which is that list's stated
 purpose. Add `W-P` to that list's producer rows.]
 
@@ -10013,7 +10053,7 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
-| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to one label on one row, because that pool is a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231 | yes |
+| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |
@@ -10045,6 +10085,7 @@ These bind `n_distinct_by_occurrences` and `variants_withheld`.
 | W3 | every `variants` value is at most the entry's `count` | yes |
 | W4 | `sum(variants.values()) + sum(key × value over variants_withheld) == count` | yes |
 | W5 | every `variants` value is at least the floor; every `variants_withheld` key is in `1 .. floor - 1` | yes |
+| W5b | no `variants_withheld` key, read as a number, is 1, because a spelling ONE row wrote is a count of one — owner ruling of 2026-09-17 item 5, plan P4-D240 | yes |
 | W6 | variant keys are distinct | yes |
 | W7 | `variants` and `variants_withheld` are not both empty on one entry | yes |
 | W8 | `shape_form_cells` is at least the `variants` rows whose spelling has a form and at most those plus the rows `variants_withheld` accounts for; a label with no written form carries nought. There is NO sum against the column's `shape_forms` (7.4.8, R-P4-80) | yes |

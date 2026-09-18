@@ -4987,6 +4987,73 @@ class _Levels:
     suppressed_rows: int
 
 
+def _absorb_lone_spellings(
+    spellings: "dict[str, int]", settings: Settings
+) -> "dict[str, int]":
+    """One level's spellings, with every ONE-ROW spelling counted into its
+    commonest (plan P4-D240).
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 6 (plan P4-D222, CONFIRMED),
+    ASKED OF A LABEL'S SPELLINGS. For the six older number censuses a
+    spelling below the line is counted into the commonest named one, so
+    that no row is named; the label variants census was left out of that
+    treatment and went on publishing a count of one outright. Measured on
+    the tree this repairs: 490 `F`, 500 `M` and one `f` at a floor of
+    eleven published, for the level `f`, `variants {"F": 490}` beside
+    `variants_withheld {"1": 1}` -- by that census's own definition, ONE
+    held-back spelling covering exactly ONE row -- and the twin then
+    wrote a lone `f` cell in exactly one row. The same shape at a floor
+    of five on 46 rows published the same pair.
+
+    A SPELLING THE FLOOR HOLDS BACK AND ONE ROW WROTE IS THEREFORE
+    COUNTED INTO THE LEVEL'S COMMONEST SPELLING, exactly as ruling 6
+    counts a rare mark into the commonest mark: the description is the
+    description of the table with that cell written the way most of the
+    level's cells were, `variants_withheld` can no longer carry the key
+    `1`, and the twin writes the commonest spelling in that row. Ties for
+    the commonest go to the first spelling in sorted order, which is the
+    tie rule `parsing.absorbed_census` already states.
+
+    AT THE DEFAULT FLOOR NOTHING MOVES. A floor of one holds no spelling
+    back, so every spelling is named and there is nothing to count in:
+    a label written fifty different ways at that floor still publishes
+    all fifty. Only a raised floor reaches this at all.
+
+    Guarantees: accepts one folded identity's exact spellings with how
+    many rows wrote each, and the settings whose floor governs them;
+    returns a mapping over the same total, keyed by spellings of the
+    same level, with no entry of one row where the floor is above one.
+    Determinism: a fixed function of the two, walked in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    if settings.small_cell_floor <= 1:
+        return dict(spellings)
+    lone: "list[str]" = []
+    rest: "dict[str, int]" = {}
+    for spelling in sorted(spellings):
+        if spellings[spelling] == 1:
+            lone += [spelling]
+        else:
+            rest[spelling] = spellings[spelling]
+    if not lone:
+        return dict(spellings)
+    commonest = ""
+    for spelling in sorted(rest):
+        if not commonest or rest[spelling] > rest[commonest]:
+            commonest = spelling
+    absorbed: "dict[str, int]" = {}
+    for spelling in sorted(rest):
+        absorbed[spelling] = rest[spelling]
+    if not commonest:
+        commonest = lone[0]
+        absorbed[commonest] = 0
+    taken = 0
+    for spelling in lone:
+        taken = taken + 1
+    absorbed[commonest] = absorbed[commonest] + taken
+    return absorbed
+
+
 def _variants(
     spellings: dict[str, int], settings: Settings
 ) -> "tuple[dict[str, int], dict[str, int]]":
@@ -5024,12 +5091,17 @@ def _variants(
     - Boundary: a spelling reaches the first mapping only when at least
       `small_cell_floor` rows wrote it -- the same line a whole label
       has to clear -- so nothing crosses it that a label would not, and
-      the second mapping names nothing at all.
+      the second mapping names nothing at all. At a raised floor the
+      second mapping never carries the key `1`: a spelling ONE row wrote
+      is counted into the level's commonest first
+      (`_absorb_lone_spellings` above, plan P4-D240), because a
+      multiplicity map keyed `1` states a count of one outright.
     """
+    counted = _absorb_lone_spellings(spellings, settings)
     named: dict[str, int] = {}
     withheld: list[int] = []
-    for spelling in sorted(spellings):
-        count = spellings[spelling]
+    for spelling in sorted(counted):
+        count = counted[spelling]
         if count >= settings.small_cell_floor:
             named[spelling] = count
         else:
@@ -5157,7 +5229,15 @@ def _levels(
     for label in ordered:
         count = counts[label]
         if count >= settings.small_cell_floor:
-            named, withheld = _variants(spellings_by_folded[label], settings)
+            # COUNTED FIRST, SO BOTH KEYS SPEAK OF THE SAME SPELLINGS
+            # (plan P4-D240): a one-row spelling is counted into the
+            # level's commonest before either the variants census or the
+            # form count is taken off it, or the form count would count a
+            # cell the variants census has already respelled.
+            written = _absorb_lone_spellings(
+                spellings_by_folded[label], settings
+            )
+            named, withheld = _variants(written, settings)
             entries += [
                 {
                     "label": label,
@@ -5171,9 +5251,7 @@ def _levels(
                     # is therefore 0: this format has no optional keys,
                     # and a key that appears only where the answer is
                     # interesting is a key whose ABSENCE speaks.
-                    "shape_form_cells": shape_form_cells(
-                        spellings_by_folded[label]
-                    ),
+                    "shape_form_cells": shape_form_cells(written),
                 }
             ]
         else:
@@ -5226,13 +5304,16 @@ def _levels_read_by_subtraction(
     THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan P4-D231). A label
     column publishes its levels at or above the floor and pools the
     rest, as a count of levels and a count of rows and no size of any
-    one of them. Where that pool is ONE level on ONE row it is a count
-    of one outright, and `n_present` less the published counts reads it
-    whether or not a key prints it: 480 `F`, 519 `M` and one `U` at a
-    floor of eleven published 999 of 1,000 present cells and told every
-    reader that one row holds a third value. This answers which levels
-    those are, and the caller counts every cell of them as MISSING, so
-    the description is that of the table with those cells blank.
+    one of them. Where the rows come to fewer than TWICE the levels a
+    count of one is FORCED -- every held-back level covers at least one
+    row -- and `n_present` less the published counts reads it whether or
+    not a key prints it: 480 `F`, 519 `M` and one `U` at a floor of
+    eleven published 999 of 1,000 present cells and told every reader
+    that one row holds a third value, and three one-patient sites among
+    2,000 rows published three levels over three rows, which can only be
+    one and one and one (plan P4-D239). This answers which levels those
+    are, and the caller counts every cell of them as MISSING, so the
+    description is that of the table with those cells blank.
 
     THE QUESTION IS `parsing.pool_names_a_level`, which states the rule
     once and states the two wider readings that were measured and left
@@ -5256,10 +5337,10 @@ def _levels_read_by_subtraction(
     - Errors raised: none.
     - Boundary: answers nothing at all for a role that publishes no
       level list, for a column whose every level clears the floor, and
-      for any pool but one level on one row -- a long tail of hundreds
-      of held-back levels is untouched, and so is one level over five
-      rows, which plan P4-D231 puts to the owner as the limit it is. No
-      file is opened.
+      for any pool whose rows reach twice its levels -- a long tail of
+      hundreds of held-back levels is untouched, and so is one level
+      over five rows, which plan P4-D231 puts to the owner as the limit
+      it is. No file is opened.
     """
     settings = cells.settings
     floor = settings.small_cell_floor
@@ -5277,11 +5358,14 @@ def _levels_read_by_subtraction(
         return ()
     rare: "list[str]" = []
     pooled = 0
+    smallest = 0
     for label in sorted(counts):
         if counts[label] < floor:
             rare += [label]
             pooled = pooled + counts[label]
-    if not parsing.pool_names_a_level(len(rare), pooled):
+        elif not smallest or counts[label] < smallest:
+            smallest = counts[label]
+    if not parsing.pool_names_a_level(len(rare), pooled, smallest):
         return ()
     return tuple(rare)
 

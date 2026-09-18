@@ -910,6 +910,20 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # W5b, A SPELLING ONE ROW WROTE (the owner's ruling of
+            # 2026-09-17, item 5; plan P4-D240). Every rule around it
+            # holds: the named spelling stays above the floor, the key
+            # is inside `1 .. floor - 1` (W5), and the two together
+            # still account for every row of the label (W4). What is
+            # left is the census saying, in its own definition, that one
+            # held-back spelling covered exactly one row -- and a twin
+            # then writes that row's spelling in exactly one row.
+            "W5b", "a spelling of a label that ONE row wrote",
+            edit_level(
+                "region", 0, variants={"west": 58}, variants_withheld={"1": 1}
+            ),
+        ),
+        Mutation(
             "W7", "a published label nobody wrote",
             edit_level("region", 0, variants={}, variants_withheld={}),
         ),

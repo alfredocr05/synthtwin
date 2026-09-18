@@ -467,6 +467,14 @@ def test_each_class_prints_exactly_the_lines_it_owes(
         "  such fact the twin could not meet. A number you compute",
         "  from these cells describes synthtwin's invention and says",
         "  nothing about your table.",
+        # ...AND THE COINCIDENCE THE CLAIM ABOVE DOES NOT COVER (plan
+        # P4-D244). 40 of 2,000 made-up subject numbers were numbers the
+        # real column held, at each of two seeds, while this paragraph
+        # said "They are not your data".
+        "  A made-up value can be one your table also holds by",
+        "  chance: synthtwin never reads your table, so it cannot",
+        "  avoid drawing one. A value here is never evidence that a",
+        "  row of this twin belongs to whoever holds it in yours.",
     ]
     assert rendering._made_up_lines(_column(every_class, "region"), 11) == [
         "  synthtwin MADE UP 7 of this column's 240 present value(s):",

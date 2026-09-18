@@ -114,18 +114,20 @@ def test_one_level_of_several_rows_is_the_stated_limit(
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 
 
-def test_a_pool_of_more_than_one_level_stands(
+def test_a_pool_of_more_than_one_level_is_closed_too(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Three held-back levels over five rows say nothing about any one.
+    """Three held-back levels over five rows: one of them IS a single row.
 
-    The line this ruling draws is a level's own COUNT, not the size of
-    the pool: with three levels over five rows the sizes could be 1, 1,
-    3 or 1, 2, 2, so no level's count is derived and the pool stands as
-    P4-D201 writes it. What a reader CAN still take from such a pair --
-    that at least one of them is a single row -- is the standing limit
-    contract section 6.3 states, and it is true of every ordinary long
-    tail, so the ruling does not reach it.
+    THE WITNESS MOVED (plan P4-D239, the final review of 2026-09-18). It
+    used to pin this pool as standing, on the reading that three levels
+    over five rows could be 1, 1, 3 or 1, 2, 2 so no level's own count is
+    derived. That reading is wrong about what the ruling refuses: five is
+    fewer than twice three, so at least one of the three covers exactly
+    one row whichever way the rest falls, and a forced count of one is a
+    count of one. The pool is also smaller than the smallest published
+    level (150), so it is an exception beside the column's own labels and
+    not the column itself.
     """
     cells = (
         ["north"] * 200 + ["south"] * 150
@@ -137,8 +139,33 @@ def test_a_pool_of_more_than_one_level_stands(
     )
     column = _column(result)
     assert [level["label"] for level in column["levels"]] == ["north", "south"]
-    assert (column["suppressed_levels"], column["suppressed_rows"]) == (3, 5)
-    assert (column["n_present"], column["n_missing"]) == (355, 0)
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (0, 0)
+    assert (column["n_present"], column["n_missing"]) == (350, 5)
+    assert _blank_cells(result) == 5
+    assert (result["twin_exit"], result["real_exit"]) == (0, 0)
+
+
+def test_a_pool_that_is_not_an_exception_stands(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The second half of the rule, and the fifteen witnesses that set it.
+
+    A LONG TAIL IS NOT A LONE ROW. 780 record numbers each written once
+    beside one value of twenty rows hold 780 held-back levels over 780
+    rows -- the forced band is true of every one of them -- and counting
+    those cells as missing empties the column. The pool has to be an
+    EXCEPTION beside the labels the column is made of, which is what
+    `rows < smallest published level` says: 780 is not fewer than 20, so
+    the pool stands and every cell is written.
+    """
+    cells = [f"code-{index:05d}" for index in range(780)] + ["CODE-00999"] * 20
+    result = _round_trip(
+        tmp_path, {"value": cells},
+        ("--code", "value", "--smallest-group", "11"),
+    )
+    column = _column(result)
+    assert column["n_missing"] == 0
+    assert column["suppressed_levels"] == 780
     assert _blank_cells(result) == 0
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 
@@ -268,8 +295,8 @@ def test_the_loader_refuses_a_pool_a_reader_could_count(
     assert "U" not in f"{refused.value}".split("B4b")[0].split("'value'")[1]
 
 
-def test_the_question_is_a_count_of_one_and_nothing_wider() -> None:
-    """`pool_names_a_level` asks about one level on one row and no more.
+def test_the_question_is_the_forced_band_and_nothing_wider() -> None:
+    """`pool_names_a_level` asks the forced band, bounded by an exception.
 
     Stated as a check rather than as a comment, because the two readings
     that were built and measured before this one are the ones a reader
@@ -277,14 +304,24 @@ def test_the_question_is_a_count_of_one_and_nothing_wider() -> None:
     to the owner: one level of ANY size, and a pool that does not reach
     `parsing.census_floor`.
     """
-    assert parsing.pool_names_a_level(1, 1)
-    assert not parsing.pool_names_a_level(0, 0)
+    # The band: the rows come to fewer than twice the levels, so at
+    # least `2 * levels - rows` of them are single rows.
+    assert parsing.pool_names_a_level(1, 1, 480)
+    assert parsing.pool_names_a_level(3, 3, 137)
+    assert parsing.pool_names_a_level(3, 5, 150)
+    assert parsing.pool_names_a_level(8, 12, 700)
+    assert not parsing.pool_names_a_level(0, 0, 10)
     # One level of more than one row: the wider reading (a), not built.
     for rows in (2, 5, 7, 10):
-        assert not parsing.pool_names_a_level(1, rows)
-    # More than one level: no level's own count is there to be read.
-    for levels, rows in ((2, 2), (3, 5), (4, 10), (182, 217)):
-        assert not parsing.pool_names_a_level(levels, rows)
+        assert not parsing.pool_names_a_level(1, rows, 500)
+    # A pool that leaves every level free to cover two rows or more.
+    for levels, rows in ((2, 4), (3, 6), (4, 10), (182, 400)):
+        assert not parsing.pool_names_a_level(levels, rows, 500)
+    # ...and the exception half: a pool that is the column, not an
+    # exception beside it, whatever the band says.
+    assert not parsing.pool_names_a_level(780, 780, 20)
+    assert not parsing.pool_names_a_level(3, 3, 3)
+    assert not parsing.pool_names_a_level(1, 1, 0)
 
 
 def test_the_helper_answers_for_the_roles_that_publish_levels() -> None:

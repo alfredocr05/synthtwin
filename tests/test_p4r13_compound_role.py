@@ -849,7 +849,7 @@ def test_the_tie_is_admitted_only_where_its_repeating_word_is_publishable(
     assert block["role"] == "free_text", block["role"]
 
 
-def test_a_stand_in_is_never_a_number_under_either_grammar() -> None:
+def test_a_stand_in_is_never_a_number_under_the_column_s_own_grammar() -> None:
     """The rule that stops a made-up label crossing the split.
 
     REVIEW ROUND 5 OF THIS LANDING, item 1, and round 6 asked for the
@@ -860,12 +860,28 @@ def test_a_stand_in_is_never_a_number_under_either_grammar() -> None:
     half when the twin is described again, and the twin comes back as
     another role.
 
+    THE QUESTION IS THE COLUMN'S OWN GRAMMAR (plan P4-D243, the final
+    review of 2026-09-18). It was asked of every column, declared or
+    not, and that refused every spelling of the census a European export
+    publishes: an undeclared German amount column is FREE TEXT, every
+    filling of its published form `%.%%%,%%` is `0.000,00`, and the
+    other grammar reads that as a number -- so all four published forms
+    were MISSED and the twin wrote wide-band cells. An undeclared column
+    is never READ with the decimal comma, and the real column is a
+    number under that grammar too, so the twin that can wear the same
+    spellings is the faithful one. The refusal is unchanged wherever the
+    column IS declared, which is what round 5 measured.
+
     Removing the second test in `_is_a_usable_stand_in` leaves every
     other case in the suite green, which is why this one is written.
     """
-    assert not generation._is_a_usable_stand_in("0E.27")
+    assert not generation._is_a_usable_stand_in("0E.27", decimal_comma=True)
+    assert not generation._is_a_usable_stand_in("1,5", decimal_comma=True)
+    # ...and a column nobody declared reads with neither, so what it
+    # refuses is what its OWN grammar calls a number.
     assert not generation._is_a_usable_stand_in("1.5")
-    assert not generation._is_a_usable_stand_in("1,5")
+    assert generation._is_a_usable_stand_in("0E.27")
+    assert generation._is_a_usable_stand_in("1,5")
     # ...and the spellings the walk lives on are untouched.
     assert generation._is_a_usable_stand_in("group-1")
     assert generation._is_a_usable_stand_in("A-00")

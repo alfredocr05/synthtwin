@@ -6175,9 +6175,19 @@ of G9.2 produces:**
   every published count without it, and the report counts it and names
   its column (published labels are a different matter: they are written
   unchanged, counted and warned);
-- a comma or a quote character inside an invented value is permitted;
-  the writer quotes the field and the reader reads it back unchanged,
-  and a test asserts that round trip.
+- a COMMA inside an invented value is permitted; the writer quotes the
+  field and the reader reads it back unchanged, and a test asserts that
+  round trip. **The stand-in rule refused one until plan P4-D243, which
+  is this clause's own words contradicted by the code that was supposed
+  to hold them**: a free-text column publishing
+  `shape_forms {"@%%%,%%@": 2000}` was offered the form, refused every
+  candidate wearing it, and wrote 2,000 wide-band cells matching none of
+  them, with validate at exit 3 on the twin; the comma was the only mark
+  of `parsing.SHAPE_MARKS` no twin could write. A QUOTE character is a
+  different matter and the stand-in rule refuses one: it is the
+  delimiter's own escape, a value holding one is written doubled, and
+  that round trip has not been measured through the readers this package
+  ships. The `group-N` labels carry neither by construction.
 
 When a positional constraint rejects a character, the enumeration puts
 the first character of the same alphabet that meets that constraint in

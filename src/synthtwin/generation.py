@@ -20119,15 +20119,19 @@ def _is_a_usable_stand_in(
     the grammar the column is read with (``decimal_comma``), and a leading
     minus sign is how a negative number is written rather than the start
     of a formula. Every other refusal stands -- a spelling meaning "no
-    value", a date, a quote, and a comma on a column not read with one --
-    and so does the refusal of the three numbers the profiler can read as
-    a missing-value sentinel.
+    value", a date and a quote -- and so does the refusal of the three
+    numbers the profiler can read as a missing-value sentinel.
 
     The four properties `group-N` had by construction, asked of a
     spelling that no longer has them for free: it must not be one of
     the words that mean "no value", must read as neither a number nor a
-    date, must carry no comma or quote, and must not begin with a
-    character a spreadsheet reads as the start of a formula.
+    date, must carry no quote, and must not begin with a character a
+    spreadsheet reads as the start of a formula. A COMMA was refused
+    here too until plan P4-D243, on the same false ground the thousands
+    separator was refused on until landing 2b.2 -- the twin's writer
+    quotes a cell holding one -- and refusing it made the one mark of
+    `parsing.SHAPE_MARKS` no published free-text form could be written
+    with.
 
     AND A FIFTH THE GLOBAL VOCABULARY DOES NOT COVER (review round 2
     finding 8). `holes` is what THIS COLUMN publishes among its absent
@@ -20177,11 +20181,29 @@ def _is_a_usable_stand_in(
     # half to the numeric half when the twin is described again, and
     # the twin comes back as another role entirely.
     #
-    # Asked of EVERY column and not only a declared one, because a
-    # stand-in is a spelling this package CHOOSES: one that is a number
-    # under a grammar this package reads is a spelling it should not
-    # choose, and refusing it costs a step of the walk.
-    if (
+    # ASKED OF A DECLARED COLUMN AND NO OTHER (plan P4-D243, the final
+    # review of 2026-09-18). It was asked of every column, on the ground
+    # that a stand-in is a spelling this package CHOOSES -- and that
+    # refused every spelling of the census a European export publishes.
+    # Measured: a German amount column of 2,000 cells, undeclared and so
+    # read as free text, publishing `shape_forms {"%%%,%%": 942,
+    # "%%,%%": 20, "%%.%%%,%%": 22, "%.%%%,%%": 1016}` over all 2,000 of
+    # them. Every filling of `%.%%%,%%` is `0.000,00`, which the OTHER
+    # grammar reads as a number, so every candidate was refused, the
+    # twin wrote wide-band cells, all four forms were MISSED with
+    # "fewer than 1" held, and validate exited 3 on the twin and 0 on
+    # the table.
+    #
+    # THE GRAMMAR A TWIN IS READ WITH IS THE COLUMN'S OWN. An undeclared
+    # column is never read with the decimal comma, so a spelling that
+    # would be a number under a grammar nobody applies to it is not a
+    # spelling it should refuse -- and the REAL column is a number under
+    # that grammar too, so a twin that can wear the same spellings is
+    # the faithful one. The refusal stands, unchanged, wherever the
+    # column IS declared and that grammar is the one its twin is read
+    # with, which is the whole of what review round 5 of landing L8
+    # measured (`0E.27` becoming `0E27` on a declared column).
+    if decimal_comma and (
         parsing.classify_number(
             parsing.written_with_a_decimal_comma(candidate)
         )
@@ -20191,8 +20213,28 @@ def _is_a_usable_stand_in(
     for name in parsing.DATE_FORMATS:
         if parsing.parse_datetime(candidate, name) is not None:
             return False
+    # A COMMA IS NOT REFUSED ANY MORE (plan P4-D243, the final review of
+    # 2026-09-18). It was, and for the same false reason the thousands
+    # separator was refused until landing 2b.2: `rendering.twin_csv`
+    # already quotes any cell holding one, and this package's own reader
+    # reads it back unchanged. What the false rule cost: a free-text
+    # column publishing `shape_forms {"@%%%,%%@": 2000}` -- 2,000 cells
+    # of a letter, three figures, a COMMA, two figures and a letter --
+    # was offered the form, refused every candidate that wore it, and
+    # wrote 2,000 wide-band cells matching NONE of them, with validate
+    # at exit 3 on the twin and 0 on the table. The identical column
+    # written with `.`, `/`, `:`, `-`, `_` or `#` met its census exactly,
+    # so the comma was the only mark of `parsing.SHAPE_MARKS` this rule
+    # could not write. On a European export the whole amount column went
+    # the same way: four published forms covering all 2,000 cells, every
+    # one MISSED with "fewer than 1" held.
+    #
+    # THE QUOTE STILL IS. A quote is the delimiter's own escape and a
+    # value holding one is written doubled; it has never been measured
+    # through the readers this package ships, so it stays refused until
+    # it is.
     for character in candidate:
-        if character == "," or character == '"':
+        if character == '"':
             return False
     return candidate[0] not in "=+-@"
 

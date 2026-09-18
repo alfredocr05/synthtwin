@@ -388,6 +388,15 @@ def test_red_a_recased_label_misses_that_level(
     COUNT still holds -- which is exactly why the variant map has to be
     the thing that catches this. A battery where only the count moved
     would be a battery that never checked the map.
+
+    TWO CELLS ARE RECASED AND NOT ONE (plan P4-D240, the final review of
+    2026-09-18). A spelling ONE row wrote is counted into the level's
+    commonest spelling, so a single recased cell is now counted back
+    where it came from and the map HOLDS -- correctly, and by the same
+    rule that stops `variants_withheld` stating a count of one. The
+    smallest edit this check can report is therefore two cells, exactly
+    as the entry table's own smallest reportable edit became two for the
+    columns that publish levels.
     """
     described, twin = every_role
     position = _column_of(described, taxonomy.ROLE_CATEGORICAL)
@@ -413,8 +422,9 @@ def test_red_a_recased_label_misses_that_level(
             cells[position - 1] = spelling.upper()
             lines[index] = ",".join(cells)
             changed = changed + 1
-            break
-    assert changed == 1
+            if changed == 2:
+                break
+    assert changed == 2
     outcome = _measure(tmp_path, described, "\n".join(lines))
     assert (
         _verdicts(outcome, f"levels.{label}.variants")

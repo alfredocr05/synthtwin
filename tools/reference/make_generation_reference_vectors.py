@@ -12840,14 +12840,25 @@ def _label_variants():
             # carries two of the three kinds, so neither label has a
             # form and no spelling of either can wear one: both carry
             # nought, and W8 requires it.
+            # NO HELD-BACK GROUP OF ONE ROW (contract W5b, plan P4-D240,
+            # the final review of 2026-09-18). A spelling ONE row wrote
+            # is a count of one stated outright, the producer counts it
+            # into the level's commonest spelling, and the loader
+            # refuses a description carrying it -- so this case moved
+            # `north` from `{"1": 2}` to one group of TWO rows and
+            # `south` from `{"1": 3, "5": 2}` to one group of THREE rows
+            # beside the two of five. Every level's count, the pooled
+            # pair and the forms census are what they were; what moved
+            # is how many spellings the levels owe, which is the
+            # allocation this case exists to pin.
             {
                 "label": "north", "count": 13,
-                "variants": {"North": 11}, "variants_withheld": {"1": 2},
+                "variants": {"North": 11}, "variants_withheld": {"2": 1},
                 "shape_form_cells": 0,
             },
             {
                 "label": "south", "count": 13,
-                "variants": {}, "variants_withheld": {"1": 3, "5": 2},
+                "variants": {}, "variants_withheld": {"3": 1, "5": 2},
                 "shape_form_cells": 0,
             },
             # `7-11` wears `%-%%`, so one of its three held-back groups
