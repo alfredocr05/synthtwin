@@ -55,6 +55,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "workbook_part_expands_too_far": ("/data/table.xlsx", 200),
     "workbook_too_many_parts": ("/data/table.xlsx", 4_096),
     "workbook_part_named_away": ("/data/table.xlsx",),
+    # The files review of 2026-09-18 (plans P4-D283, P4-D289). Neither
+    # names a cell: one names the column, the other the file alone.
+    "workbook_is_packaged_unreadably": ("/data/table.xlsx",),
+    "workbook_column_mixes_number_formats": ("/data/table.xlsx", "amount"),
     "workbook_cell_too_long": ("/data/table.xlsx", 32_767),
     "workbook_holds_too_many_cells": ("/data/table.xlsx", 8_000_000),
     "workbook_too_many_shared_strings": ("/data/table.xlsx", 4_000_000),

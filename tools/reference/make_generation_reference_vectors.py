@@ -17320,16 +17320,44 @@ def sheet_day_count(text, epoch_1904):
     return repr(span.days + milliseconds / 86400000)
 
 
-def sheet_dates_as_day_counts(column, own, epoch_1904):
-    """A column's dates as day counts, where it publishes a date format."""
+def sheet_stores_dates(column):
+    """Whether the description says this column stores dates as ISO text.
+
+    Plan P4-D284, written from the rule: a published count of `date`
+    cells above nought, or -- where the census withheld its counts -- a
+    value class of `date`. A census that merely does not DENY date
+    storage is not it, because a withheld census lets any spelling that
+    fits take the class, and a twin's spelling of a date fits `date`.
+    """
+    counted = column["cell_classes"]["date"]
+    if isinstance(counted, int):
+        return counted > 0
+    return column["value_class"] == "date"
+
+
+def sheet_dates_as_day_counts(column, own, epoch_1904, stored=()):
+    """A column's dates as day counts, where it publishes a date format.
+
+    THE DAY COUNT IS A NUMBER'S SPELLING (plan P4-D284). ``stored`` is
+    the storage class each cell has already been allocated, and a cell
+    allocated the `date` class keeps the ISO text a workbook stores such
+    a cell as (`t="d"`, plan P4-D168). The caller passes the allocation
+    only where `sheet_stores_dates` holds of the column.
+    """
     wants = any(
         sheet_wanted(column["format_kinds"], kind) > 0
         for kind in ("date", "datetime")
     ) or sheet_code_kind(column["format_code"]) in ("date", "datetime")
     out = []
     dated = []
-    for text in own:
-        serial = sheet_day_count(text, epoch_1904) if wants and text else ""
+    for index in range(len(own)):
+        text = own[index]
+        kept = index < len(stored) and stored[index] == "date"
+        serial = (
+            sheet_day_count(text, epoch_1904)
+            if wants and text and not kept
+            else ""
+        )
         out += [serial or text]
         dated += [sheet_date_kind(text) if serial else ""]
     return out, dated
@@ -17992,11 +18020,19 @@ def workbook_parts(block, names, cells, n_rows, write_header):
     classes = []
     columns = []
     dates = []
+    # THE STORAGE CLASS IS ALLOCATED BEFORE THE CONVERSION AND SETTLED
+    # AFTER IT (plan P4-D284), because only a cell's own ISO spelling
+    # can say whether the census means it to be stored as a date.
     for index in range(width):
         census = block["columns"][index]["cell_classes"]
+        written = list(cells[index])
+        held = sheet_cell_classes(
+            census, written, block["columns"][index]["value_class"]
+        )
         own, dated = sheet_dates_as_day_counts(
-            block["columns"][index], list(cells[index]),
+            block["columns"][index], written,
             block["date_system"] == "1904",
+            held if sheet_stores_dates(block["columns"][index]) else (),
         )
         columns += [own]
         dates += [dated]
@@ -18719,17 +18755,27 @@ def _workbook_as_written():
         "plain": 0, "date": 0, "datetime": 22, "time": 0, "elapsed": 0,
         "text": 0,
     }
+    day_kinds = {
+        "plain": 0, "date": 22, "datetime": 0, "time": 0, "elapsed": 0,
+        "text": 0,
+    }
     weights = [f"{60 + 3 * row}.5" for row in range(22)]
     regions = [("802", "1101", "901")[row % 3] for row in range(22)]
     visits = [
         f"2026-03-{1 + row:02d} {8 + row % 9:02d}:{(15 * row) % 60:02d}:00"
         for row in range(22)
     ]
+    # THE FOURTH COLUMN STORES ITS DATES AS THEIR ISO TEXT (plan
+    # P4-D284): `t="d"`, cell class `date`, wearing a date format.
+    # Nothing else in any committed file does, so every rule of step 0
+    # that tells such a cell from a day count could have been withdrawn
+    # with every committed byte unchanged.
+    days = [f"2026-04-{1 + row:02d}" for row in range(22)]
 
-    def census(number, text):
+    def census(number, text, date=0):
         return {
             "absent": 0, "blank": 0, "empty": 0, "text": text,
-            "number": number, "boolean": 0, "error": 0, "date": 0,
+            "number": number, "boolean": 0, "error": 0, "date": date,
         }
 
     return {
@@ -18742,13 +18788,18 @@ def _workbook_as_written():
         "column's numbers wear `00000` and the third's moments `yyyy-mm-dd "
         "hh:mm`, codes built of the format language's own tokens alone, "
         "which are published and written as the source wrote them rather "
-        "than as the general format and the canonical datetime code. It "
-        "carries TWO mutants, one for each rule.",
+        "than as the general format and the canonical datetime code. The "
+        "FOURTH column stores its dates as their ISO text rather than as "
+        "day counts -- cell class `date`, which a workbook spells "
+        "`t=\"d\"` -- so step 0 leaves its cells alone and step 1 gives "
+        "them the date class; no other committed case reaches that "
+        "branch (plan P4-D284). It carries THREE mutants, one for each "
+        "rule.",
         "kind": "workbook",
-        "names": ["weight", "region", "visit"],
+        "names": ["weight", "region", "visit", "day"],
         "n_rows": 22,
         "write_header": True,
-        "cells": [weights, regions, visits],
+        "cells": [weights, regions, visits, days],
         "workbook": {
             "autofilter": False,
             "columns": [
@@ -18772,6 +18823,13 @@ def _workbook_as_written():
                     "format_kinds": dict(moment_kinds),
                     "formulas": None,
                     "value_class": "number",
+                },
+                {
+                    "cell_classes": census(0, 0, date=22),
+                    "format_code": "yyyy-mm-dd",
+                    "format_kinds": dict(day_kinds),
+                    "formulas": None,
+                    "value_class": "date",
                 },
             ],
             "date_system": "1900",

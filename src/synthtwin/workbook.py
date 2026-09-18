@@ -86,13 +86,20 @@ _COMPOUND_MARK = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 # The caps. Each is a named refusal of its own; none of them is a
 # guess, and the numbers Excel itself enforces are used where they
 # exist rather than numbers of this package's own invention.
-MAXIMUM_ROWS = 1_048_576
-MAXIMUM_COLUMNS = 16_384
+MAXIMUM_ROWS = dialect.SHEET_MAXIMUM_ROWS
+MAXIMUM_COLUMNS = dialect.SHEET_MAXIMUM_COLUMNS
 MAXIMUM_EXPANDED_BYTES = 128_000_000
 MAXIMUM_MEMBER_RATIO = 200
 MAXIMUM_SHARED_STRINGS = 1_000_000
 MAXIMUM_CELL_CHARACTERS = 32_767
 MAXIMUM_MEMBERS = 4_096
+# THE LONGEST CELL REFERENCE A SPREADSHEET CAN SPELL (plan P4-D287).
+# `XFD1048576` is the last cell of the last sheet and is ten characters;
+# this leaves room for a spelling nobody has met and refuses anything
+# beyond it as the column past the last that it is, so a reference of a
+# hundred thousand letters is turned away by its LENGTH rather than
+# after the work of reading it.
+MAXIMUM_REFERENCE_CHARACTERS = 32
 # THE CAP THAT BOUNDS THE WORK ITSELF, AND THE MEASUREMENT IT IS SET
 # FROM (repair of landing 2b.10).
 #
@@ -281,6 +288,37 @@ def names_a_place_outside(name: str) -> bool:
     return ".." in name.split("/")
 
 
+# The two ways a member is packed that this reader can expand: stored as
+# it stands, and deflated. Every other method in the standard's list is
+# one the standard library does not implement (plan P4-D289).
+PACKING_STORED = 0
+PACKING_DEFLATED = 8
+PACKINGS_READ = (PACKING_STORED, PACKING_DEFLATED)
+# The bit a zip entry sets to say its contents are encrypted.
+PACKING_ENCRYPTED_BIT = 0x1
+
+
+def is_packaged_unreadably(flags: int, packing: int) -> bool:
+    """Whether a package member cannot be expanded at all (plan P4-D289).
+
+    True where the member is encrypted, and where it is packed by a
+    method this reader does not expand. Both are read off the package's
+    own listing, so neither costs a byte of expansion, and both would
+    otherwise leave the standard library as an exception with no
+    sentence in it -- `RuntimeError` for the password and
+    `NotImplementedError` for the method.
+
+    Guarantees: accepts the member's flag bits and its packing method;
+    returns a bool. Determinism: a fixed function of the two. Raises
+    TypeError on a value that is not a whole number. No I/O of any kind.
+    """
+    if not isinstance(flags, int) or not isinstance(packing, int):
+        raise TypeError("internal check: a member's packing was not a number")
+    if flags & PACKING_ENCRYPTED_BIT:
+        return True
+    return packing not in PACKINGS_READ
+
+
 def names_a_folder(name: str) -> bool:
     """Whether a member name is a folder rather than a part."""
     if not isinstance(name, str):
@@ -360,6 +398,12 @@ class _CellWalk:
     # runs, and how deep inside a phonetic run (plan P4-D167).
     in_text: bool
     phonetic: int
+    # WHETHER THIS CELL CARRIED AN INLINE STRING AT ALL (plan P4-D285).
+    # `in_inline` says where the walk STANDS and is cleared the moment
+    # `</is>` is read, which is before the cell is classified; this
+    # remembers that the element was there, so a cell holding the empty
+    # inline string is told from a cell holding nothing.
+    had_inline: bool
 
 
 def elements(
@@ -734,6 +778,23 @@ def reference_column(reference: str) -> int:
 
     `A1` is column 1 and `AB7` is column 28. A reference this cannot
     read yields 0, and the caller places the cell by its order instead.
+
+    IT STOPS AT THE LAST COLUMN A SPREADSHEET HAS (plan P4-D287, the
+    repair of review item 8 of the files review of 2026-09-18). Past
+    `MAXIMUM_COLUMNS` the answer no longer decides anything -- every
+    caller refuses such a cell -- so the walk stops there and returns
+    one more than the last column, which is the smallest number that
+    still says "past the last". It used to run to the end of the
+    letters and build the base-26 integer they spell, which is
+    quadratic in their number for a reference that will be refused
+    anyway: one cell of a 160 KB worksheet, referenced by 160,000
+    letters, is stored uncompressed well inside the archive caps, and
+    neither the cell cap nor the size cap bounds this work. MEASURED
+    before this rule, from 10,000 letters to 40,000 to 160,000: 0.012 s,
+    0.175 s and 2.771 seconds to refuse one invalid cell.
+
+    Guarantees: a fixed function of the reference; raises TypeError on a
+    value that is not text. Determinism: no I/O of any kind.
     """
     if not isinstance(reference, str):
         raise TypeError("internal check: a cell reference was not text")
@@ -742,11 +803,12 @@ def reference_column(reference: str) -> int:
         place = ord(character)
         if 65 <= place <= 90:
             number = number * 26 + (place - 64)
-            continue
-        if 97 <= place <= 122:
+        elif 97 <= place <= 122:
             number = number * 26 + (place - 96)
-            continue
-        break
+        else:
+            break
+        if number > MAXIMUM_COLUMNS:
+            return MAXIMUM_COLUMNS + 1
     return number
 
 
@@ -1133,7 +1195,7 @@ def sheet_cells(
     """
     walk = _CellWalk(
         [], strings, formats, "", "", 0, "", "", False, False, False,
-        False, 0, 0, 0, "", False, 0, False, 0,
+        False, 0, 0, 0, "", False, 0, False, 0, False,
     )
 
     def declared(
@@ -1146,10 +1208,14 @@ def sheet_cells(
         local = _after_colon(name)
         if local == "c":
             walk.reference = _marked(marks, "r", "")
+            if len(walk.reference) > MAXIMUM_REFERENCE_CHARACTERS:
+                walk.stopped = 5
+                raise ValueError("a cell reference past the last column")
             walk.marked_kind = _marked(marks, "t", "n")
             walk.style = _whole_number(_marked(marks, "s", "0"), 0)
             walk.value = ""
             walk.inline = ""
+            walk.had_inline = False
             walk.formula = False
             walk.cached = False
             return
@@ -1162,6 +1228,7 @@ def sheet_cells(
             return
         if local == "is":
             walk.in_inline = True
+            walk.had_inline = True
             walk.inline = ""
             return
         if local == "rPh" and walk.in_inline:
@@ -1185,9 +1252,24 @@ def sheet_cells(
             # three thousand frozen rows -- which the loader then refused
             # as an edited description, so a real workbook's own
             # description would not load.
+            #
+            # AND A SPLIT THAT LEAVES NO ROW BELOW IT IS HELD ONE ROW
+            # INSIDE THE SHEET (the repair of the skeptic's finding 5 on
+            # P4-D288). `ySplit="1048576"` freezes every row a worksheet
+            # has, so the cell below the split is `A1048577` -- a
+            # reference no spreadsheet can spell. MEASURED on the tree
+            # before this line: the description published `frozen_rows
+            # 1048576`, the loader took it (WB4 asked `>` and not `>=`)
+            # and the twin's own pane came out `topLeftCell="A1048577"`,
+            # which openpyxl tolerates and no spreadsheet should be
+            # handed. The largest split a sheet can spell is one row
+            # inside it, and that is what such a pane is read as.
             state = _marked(marks, "state", "split")
             if state in ("frozen", "frozenSplit"):
-                walk.frozen = _whole_number(_marked(marks, "ySplit", "0"), 0)
+                asked = _whole_number(_marked(marks, "ySplit", "0"), 0)
+                walk.frozen = (
+                    MAXIMUM_ROWS - 1 if asked >= MAXIMUM_ROWS else asked
+                )
             return
         if local == "autoFilter":
             walk.filtered = _marked(marks, "ref", "")
@@ -1280,7 +1362,21 @@ def sheet_cells(
         # and the absent cell into one missing value. They are three
         # different things in the file and the twin has to write back
         # the one it was given.
-        if not walk.cached and not walk.in_inline and not walk.inline:
+        #
+        # AND AN EMPTY INLINE STRING IS AN EMPTY STRING (plan P4-D285,
+        # the repair of review item 6 of the files review of
+        # 2026-09-18). The question asked here is whether the cell
+        # carried a value ELEMENT, and `<is><t></t></is>` is one; this
+        # asked `walk.in_inline`, which `</is>` has already cleared by
+        # the time a cell is classified, and `walk.inline`, which an
+        # empty string leaves falsy -- so 60 cells holding `""` were
+        # read as 60 styled blanks and written back as blanks. MEASURED
+        # on 120 rows alternating `<c t="inlineStr"><is><t></t></is></c>`
+        # with texts: the description published `blank 60, empty 0`,
+        # openpyxl read `""` from the source and `None` from the twin
+        # for those 60 records, and both files validated with nothing
+        # missed. `had_inline` remembers the element itself.
+        if not walk.cached and not walk.had_inline and not walk.inline:
             if kind in (CELL_NUMBER, CELL_TEXT, CELL_DATE):
                 kind = CELL_BLANK
                 held = ""
@@ -1308,6 +1404,7 @@ def sheet_cells(
             raise ValueError("more cells than the walk will read")
         walk.value = ""
         walk.inline = ""
+        walk.had_inline = False
         walk.formula = False
         walk.cached = False
 
@@ -1606,21 +1703,46 @@ def _first_row_of(reference: str) -> int:
 
 
 def marks_the_header(reading: Reading, header_row: int) -> bool:
-    """Whether the sheet itself marks this row as its header, for the reader.
+    """Whether the sheet says in so many words that this row is its header.
 
-    `_marked_by_the_sheet` below under its public name, because the
-    reader asks it too (the owner's ruling of 2026-09-17, item 8; plan
-    P4-D232): a sheet that freezes its panes at a row, or puts its
-    autofilter on it, has said which row holds its column NAMES, and
-    that is the file's own evidence. The rule that reads a row under
-    furniture as a record is not asked of such a sheet, exactly as it is
-    not asked where a column of the file shows the row to be names.
+    THE AUTOFILTER ALONE, AND NOT THE FROZEN PANE (plan P4-D281, the
+    repair of review item 2 of the files review of 2026-09-18). This is
+    the reader's question, and the reader asks it for one purpose: to
+    decide whether a row standing under furniture may be published as
+    the column NAMES without asking anybody (the owner's ruling of
+    2026-09-17, item 8; plan P4-D232). Waiving that ruling takes
+    evidence of the same standing as a column of numbers under a name
+    that is not one, and an autofilter is that: its range BEGINS at a
+    row, which is a person saying "these are the headings I filter by",
+    and it is written on a header and never on a record.
+
+    A FROZEN PANE SAYS WHERE THE SCROLLING STOPS AND NOT WHAT THE ROW
+    IS. A person freezes two rows to keep a banner and a heading in
+    view, or one row to keep a heading, or four to keep a logo -- the
+    split is a viewing convenience, it falls where the person dragged
+    it, and no reader can tell which of those a given split was.
+    Measured on the tree before this rule, at a floor of five: a sheet
+    holding `Study overview` in `A1` and two texts in `A2`/`B2` over 120
+    records was read with placeholder names, 121 records and no text of
+    that row anywhere; adding `<pane ySplit="2" state="frozen"/>` and
+    nothing else published BOTH of that row's values as the column
+    names, dropped the row count to 120 and copied them into the twin's
+    own header, and the description passed every contract check. One
+    attribute of a view turned a row the ruling protects into schema.
+
+    `_marked_by_the_sheet` below is the OTHER question -- which of the
+    rows standing above the table is the header -- and the pane still
+    counts there, because that question is asked only among rows the
+    reader has already settled are furniture, and answering it wrongly
+    costs a row's PLACE and never its publication.
 
     Guarantees: accepts the workbook reading and a row number; returns a
     bool. Determinism: a fixed function of the two. Raises nothing. No
     I/O of any kind.
     """
-    return _marked_by_the_sheet(reading, header_row)
+    return bool(reading.autofilter) and _first_row_of(
+        reading.autofilter
+    ) == header_row
 
 
 def _marked_by_the_sheet(reading: Reading, header_row: int) -> bool:
@@ -2178,6 +2300,80 @@ def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
                 worn[format_kind(codes[row])] = True
         if len(worn) >= 2:
             return (index, errors.MIXED_FORMATS)
+    return None
+
+
+def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":
+    """The first column wearing two number formats of ONE kind, or nothing.
+
+    THE MIX THE KIND CENSUS CANNOT CARRY (plan P4-D283, the repair of
+    review item 4 of the files review of 2026-09-18). `mixed_storage`
+    above refuses a column whose numbers wear two KINDS of format,
+    because the description publishes one distribution and nothing that
+    says which values were the dates. One level down, a column may wear
+    two CODES of the same kind -- sixty cells written `0%` beside sixty
+    written `0.0` -- and there the kind census says `plain 120` and is
+    perfectly true, while `format_code` publishes the commonest of the
+    two codes and the twin then writes that one code on every cell.
+
+    MEASURED at a floor of five on 120 numeric cells repeating 0.1 to
+    1.0, sixty formatted `0%` and sixty `0.0`: the description published
+    the single code `0%`, seed 0 wrote all 120 cells with it, openpyxl
+    read `{0%: 60, 0.0: 60}` from the source and `{0%: 120}` from the
+    twin, and both files validated with nothing missed. Sixty values a
+    person reads as `0.5` are read as `50%` off the twin, and code that
+    picks cells out by their number format gets a different population.
+
+    WHAT THE LINE DECIDES, AND WHY IT IS THE LINE. A code worn by fewer
+    cells than the line is not a second population of the column: it is
+    the stray cell somebody reformatted, and the owner's sixth ruling of
+    2026-09-17 says a spelling under the floor is counted into the
+    column's commonest spelling -- which is exactly what `_leading_code`
+    already does with it. So this speaks only where TWO codes of one
+    kind are each worn by the line or more, which is the case the
+    description has no room for at all. Publishing a census of codes is
+    the repair that keeps such a column, and until a description can
+    carry one the column is declined by name rather than twinned wrong
+    (principle 5).
+
+    THE GENERAL FORMAT IS NOT ONE OF THE TWO, and counting it turned
+    away the commonest workbook there is (the repair of the skeptic's
+    finding 3 on this entry). `General` is what a cell wears when
+    NOBODY gave it a format, and a numeric column where somebody
+    formatted part of the range and left the rest alone is an ordinary
+    spreadsheet, not two populations a person chose. MEASURED at a floor
+    of five on 120 numeric cells, sixty carrying no style at all beside
+    sixty carrying `0.00`: this rule refused the file where `c5d09d5`
+    had described it and written a twin. It is also the code
+    `_leading_code` FALLS BACK to when nothing else reaches the line, so
+    counting it here could refuse a column on the strength of the very
+    answer the reader would otherwise have given. The mixed columns
+    Codex measured are untouched -- `0%` beside `0.0`, `#,##0.00` beside
+    `"$"#,##0.00`, `0%` beside `0.00%` are each still refused -- and the
+    part-formatted column is read again, publishing the one code
+    somebody did choose. What that column still loses is named in the
+    contract: sixty cells wearing no format are written wearing the
+    column's chosen one.
+
+    Returns the column's index and `errors.MIXED_CODES`. Guarantees: a
+    fixed function of the sheet and the floor; raises nothing. No I/O.
+    """
+    line = dialect.sheet_line(floor)
+    for index in range(len(sheet.classes)):
+        if index >= len(sheet.formats):
+            continue
+        worn: "dict[str, int]" = {}
+        for code in _value_codes(sheet.classes[index], sheet.formats[index]):
+            worn[code] = (worn[code] if code in worn else 0) + 1
+        standing: "dict[str, int]" = {}
+        for code in sorted(worn):
+            if worn[code] < line or code == GENERAL_FORMAT:
+                continue
+            kind = format_kind(code)
+            standing[kind] = (standing[kind] if kind in standing else 0) + 1
+        for kind in sorted(standing):
+            if standing[kind] >= 2:
+                return (index, errors.MIXED_CODES)
     return None
 
 

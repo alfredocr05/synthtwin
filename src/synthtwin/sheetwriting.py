@@ -1296,10 +1296,29 @@ def _sheet_rels_part() -> str:
     return text
 
 
+def _stores_dates(column: "contract.WorkbookColumn") -> bool:
+    """Whether the description says this column stores dates as ISO text.
+
+    The one question `_dates_as_day_counts` needs answered before it
+    trusts an allocation (plan P4-D284): a published count of `date`
+    cells above nought, or a value class of `date` where the counts were
+    withheld. A census that merely does not DENY date storage is not it,
+    because a withheld census lets any spelling that fits take the class.
+
+    Guarantees: accepts one column's published workbook block; returns a
+    bool. Determinism: a fixed function of it. Raises nothing. No I/O.
+    """
+    counted = column.cell_classes[dialect.SHEET_CELL_DATE]
+    if isinstance(counted, int):
+        return counted > 0
+    return column.value_class == dialect.SHEET_CELL_DATE
+
+
 def _dates_as_day_counts(
     column: "contract.WorkbookColumn",
     own: "tuple[str, ...]",
     epoch_1904: bool,
+    stored: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], tuple[str, ...]]":
     """A column's dates written back as the day counts a workbook stores.
 
@@ -1313,6 +1332,36 @@ def _dates_as_day_counts(
     date is written as its day count, and the kind of date it was is
     handed back beside it so the right format can be put on it. A column
     publishing no date format is returned exactly as it came.
+
+    A CELL THE CENSUS STORES AS A DATE IS NOT CONVERTED (plan P4-D284,
+    the repair of review item 5 of the files review of 2026-09-18).
+    ``stored`` is the storage class each cell has already been allocated
+    (`cell_classes`), and the day count is a NUMBER's spelling: it is
+    written only where the cell is to be stored as a number. A workbook
+    that stores its dates as ISO text (`t="d"`, class `date`, plan
+    P4-D168) publishes a census of date cells, and converting those
+    first left the ISO spelling nowhere to be found -- so no cell fitted
+    the date class, the whole column fell through to text, and every
+    reader handed back strings such as `"45315"`. MEASURED at a floor of
+    five on 120 `t="d"` cells wearing `yyyy-mm-dd`: the source came back
+    as dates and the twin as those strings, describing the twin again
+    turned the column's role from `datetime` into `count`, and the twin
+    missed its storage class, its value class, its role, its statistical
+    type and its numeric counts while the source missed nothing. Left
+    empty, every cell is offered for conversion, which is what a column
+    stored as day counts wants.
+
+    AND THE CENSUS HAS TO SAY SO, NOT MERELY FAIL TO DENY IT. The caller
+    passes the allocation only where the column PUBLISHES date storage
+    (`_stores_dates`). Where the census withheld its counts, a cell no
+    count claims is allocated the first withheld class its spelling
+    fits, and the twin's own spelling of a date fits `date` -- so a
+    column of ordinary day counts wearing a date format, whose census
+    the floor held back, was allocated date storage it never had and
+    kept the ISO text. Measured on the study's titled book at a floor of
+    eleven: 59 of the twin's date cells changed from `<v>45343</v>` to
+    `t="d"` holding `2024-02-21`, and the twin missed
+    `workbook.value-class`.
     """
     wants_dates = False
     for kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
@@ -1324,8 +1373,13 @@ def _dates_as_day_counts(
         wants_dates = True
     out: "list[str]" = []
     dated: "list[str]" = []
-    for text in own:
-        if not wants_dates or not text:
+    for index in range(len(own)):
+        text = own[index]
+        kept = (
+            index < len(stored)
+            and stored[index] == dialect.SHEET_CELL_DATE
+        )
+        if not wants_dates or not text or kept:
             out += [text]
             dated += [""]
             continue
@@ -1367,10 +1421,21 @@ def _members(
     cells: "list[tuple[str, ...]]" = []
     dates: "list[tuple[str, ...]]" = []
     epoch_1904 = form.date_system == dialect.SHEET_DATE_SYSTEM_1904
+    # THE STORAGE CLASS IS ALLOCATED BEFORE THE CONVERSION, AND SETTLED
+    # AFTER IT (plan P4-D284). The first pass asks the census which
+    # cells are stored as ISO date text, because only their own
+    # spelling can answer that; those cells keep it, every other date
+    # becomes the day count a workbook stores, and the second pass
+    # settles the classes over the cells as they will be written.
     for index in range(width):
         column = form.columns[index]
+        written = tuple(twin.columns[index])
+        held = cell_classes(
+            column.cell_classes, written, column.value_class
+        )
         own, dated = _dates_as_day_counts(
-            column, tuple(twin.columns[index]), epoch_1904
+            column, written, epoch_1904,
+            held if _stores_dates(column) else (),
         )
         cells += [own]
         dates += [dated]

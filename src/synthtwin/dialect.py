@@ -287,6 +287,14 @@ SHEET_FORMAT_KINDS = (
     SHEET_FORMAT_TEXT,
 )
 
+# THE LAST ROW AND THE LAST COLUMN A WORKSHEET HAS. Excel's own limits,
+# stated here rather than in the reader, because the LOADER asks them
+# too and the loader may not import a module that opens a table
+# (plan P4-D288). `workbook.MAXIMUM_ROWS` and
+# `workbook.MAXIMUM_COLUMNS` are these.
+SHEET_MAXIMUM_ROWS = 1_048_576
+SHEET_MAXIMUM_COLUMNS = 16_384
+
 SHEET_DATE_SYSTEM_1900 = "1900"
 SHEET_DATE_SYSTEM_1904 = "1904"
 SHEET_DATE_SYSTEMS = (SHEET_DATE_SYSTEM_1900, SHEET_DATE_SYSTEM_1904)
@@ -2672,11 +2680,32 @@ def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
     AND under the vertical bar, and the count took the bar where commit
     53bb012 had read the comma. Both readings are consistent, so no count
     of the cells can say which the person's file is. The second value
-    returned is every candidate that tied the winner on the share AND
-    the width -- the winner first, then the others in `DELIMITERS` order
-    -- or empty where nothing tied. The reading still stands, because a
-    file the baseline twinned may not become refused; the tie is what the
-    person is then ASKED about, and `--delimiter` is how they answer.
+    returned is every candidate that reads the file AS CONSISTENTLY as
+    the winner does -- the winner first, then the others in `DELIMITERS`
+    order -- or empty where nothing does. The reading still stands,
+    because a file the baseline twinned may not become refused; the
+    competing reading is what the person is then ASKED about, and
+    `--delimiter` is how they answer.
+
+    A COMPETITOR IS NOT REQUIRED TO AGREE ABOUT THE WIDTH, and requiring
+    it hid the worst case of all (plan P4-D282, the repair of review
+    item 3 of the files review of 2026-09-18). Recording only the
+    candidates that tied on the share AND the width meant that the
+    WIDER reading, which this walk prefers on a tie of the share, could
+    take the file from a narrower reading that is every bit as
+    consistent and say nothing at all. MEASURED on the tree before this
+    rule: a header `id,measure|low|high` over 120 rows of
+    `{i},{100 + i % 4}|90|110` reads as two whole columns under the
+    comma, at a share of 1.0, and as three whole columns under the
+    vertical bar, at a share of 1.0. Commit 53bb012 read the comma; the
+    width alone settled it for the bar, no question was asked, and the
+    first field was then read as a QUANTITY -- the twin wrote rows such
+    as `3,029|90|110`, so code using the source's own comma delimiter
+    read the measurement `029` where the column holds 100 to 103. Both
+    files validated with nothing missed, against a description of a
+    table the person does not have. The share is what says a candidate
+    reads the whole file; the width says only which of two readings is
+    bigger, and it may break a tie but it may not hide one.
     """
     chosen = ","
     best_share = 0.0
@@ -2710,7 +2739,7 @@ def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
         found = _best_reading(text, candidate, at)
         if found is None:
             continue
-        if found[0] == best_share and found[1] == best_width:
+        if found[0] == best_share:
             tied += [candidate]
     if not tied:
         return chosen, ()

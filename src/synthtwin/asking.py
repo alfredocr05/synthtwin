@@ -954,9 +954,11 @@ def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
             "",
             BECAUSE_DELIMITER_TIE,
             (
-                f"every record splits into the same number of columns "
-                f"under {len(tied)} different delimiters, so nothing in "
-                f"the values can say which one your file uses"
+                f"every record of your file splits cleanly, into one "
+                f"steady number of columns, under {len(tied)} different "
+                f"delimiters -- which need not be the same number of "
+                f"columns under each -- so nothing in the values can "
+                f"say which one your file uses"
             ),
             choices,
             word_of[tied[0]],

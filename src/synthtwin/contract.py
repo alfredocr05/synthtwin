@@ -4556,11 +4556,30 @@ def _workbook_rules(
                 f"{form.empty_rows_inside} of {n_rows} records hold nothing",
                 f"the line is {dialect.sheet_line(floor)}",
             )
-    if form.frozen_rows > n_rows + form.rows_above_header + 1:
+    # A FREEZE IS BOUNDED BY THE SHEET AND NOT BY THE TABLE (plan
+    # P4-D288, the repair of review item 9 of the files review of
+    # 2026-09-18). Freezing rows splits the WINDOW, and a person may
+    # split it below everything they have written: `ySplit="200"` over a
+    # header and 120 records is a layout Excel writes and every reader
+    # accepts. This rule held the split to the rows the table fills,
+    # so profiling such a sheet published `frozen_rows 200` and the
+    # loader then refused the very description the profiler had just
+    # written -- with advice to describe the table again, which repeats
+    # the refusal for ever. What a description may not claim is a split
+    # AT or past the last row a worksheet has: the split's own top-left
+    # cell is the row BELOW it, so a freeze of every row spells
+    # `A1048577` and no spreadsheet has that cell (the repair of the
+    # skeptic's finding 5 on P4-D288 -- measured: `ySplit="1048576"`
+    # loaded, and the twin's pane came out `topLeftCell="A1048577"`).
+    # `workbook.sheet_cells` holds such a pane one row inside the sheet,
+    # so no description synthtwin writes reaches this rule.
+    if form.frozen_rows >= dialect.SHEET_MAXIMUM_ROWS:
         raise _broken(
             "WB4", where,
             f"{form.frozen_rows} rows are frozen at the top",
-            "no more rows than the sheet holds",
+            f"fewer rows than a worksheet has "
+            f"({dialect.SHEET_MAXIMUM_ROWS}), so that the split has a row "
+            f"below it",
         )
 
 

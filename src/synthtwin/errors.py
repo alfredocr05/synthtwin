@@ -2241,6 +2241,32 @@ def workbook_too_many_parts(path: str, limit: int) -> str:
     )
 
 
+def workbook_is_packaged_unreadably(path: str) -> str:
+    """Message for a workbook packed a way this reader cannot expand.
+
+    WHY THIS IS A REFUSAL OF ITS OWN (plan P4-D289, the repair of review
+    item 10 of the files review of 2026-09-18). A workbook is a zip
+    package, and two shapes of member cannot be expanded at all: one
+    that is encrypted -- a password on the file, which Excel writes for
+    a protected workbook -- and one packed by a method the standard
+    library does not implement. Both used to escape the reader as a raw
+    `RuntimeError` or `NotImplementedError` with no message a person
+    could act on. Which of the two it was is not named: it is a fact
+    about the packaging rather than about the table, and both have the
+    same answer.
+    """
+    return (
+        f"The file {path} is a spreadsheet workbook whose contents are "
+        f"packed in a way synthtwin cannot open -- it is protected by a "
+        f"password, or it is packed by a method this reader does not "
+        f"know. Please open the workbook in your spreadsheet program, "
+        f"take the password off it or save it again as an ordinary "
+        f".xlsx file, and run the command again. Alternatively, save "
+        f"the sheet holding your table as a .csv file and describe "
+        f"that instead."
+    )
+
+
 def workbook_part_named_away(path: str) -> str:
     """Message for a member named outside the package."""
     return (
@@ -2472,6 +2498,40 @@ def checked_workbook_other_sheet_holds_a_table(
 # THE TWO WAYS A WORKBOOK COLUMN CAN MIX HOW ITS CELLS ARE STORED THAT A
 # TWIN CANNOT CARRY (plan P4-D166), named for the sentence below.
 MIXED_FORMATS = "formats"
+# ...and the mix one level down, which the kind census cannot carry
+# either (plan P4-D283): two number format CODES of the same kind, each
+# worn by the line. `workbook.mixed_number_formats` names it.
+MIXED_CODES = "codes"
+
+
+def workbook_column_mixes_number_formats(path: str, column: str) -> str:
+    """Message for a column wearing two number formats of the same kind.
+
+    WHY THIS IS A REFUSAL (plan P4-D283). A description publishes ONE
+    number format code per column, so a column wearing two codes of one
+    kind -- `0%` on some cells and `0.0` on others -- gets a twin
+    wearing the commoner of them everywhere: the values a person reads
+    off the two files differ, and code selecting cells by their format
+    finds a different population. `workbook.mixed_number_formats` asks
+    it, and asks it only where each code is worn by the line, so the one
+    cell somebody reformatted is counted into the column's commonest
+    format as the owner's sixth ruling of 2026-09-17 says.
+
+    NO CODE IS NAMED IN THE MESSAGE. A custom format code can hold text
+    somebody typed -- a unit, a label, a department's name -- so the
+    refusal names the column and says what to do, and never what the
+    column's cells are dressed in.
+    """
+    return (
+        f"The column '{_shown(column)}' of {path} holds cells wearing "
+        f"more than one number format of the same kind -- some shown "
+        f"with a different number of decimal places, or as percentages "
+        f"beside plain numbers. A description carries one number format "
+        f"for a column, so a twin would put one of them on every cell, "
+        f"and the values you read off the two files would not match. "
+        f"Please open the workbook, give every cell of that column one "
+        f"number format, save it again, and run the command again."
+    )
 
 
 def workbook_column_mixes_storage(path: str, column: str, mixed: str) -> str:
