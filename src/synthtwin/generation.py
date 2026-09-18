@@ -21669,13 +21669,43 @@ def _dressed_in_form(
 
     THE FIGURES ARE FITTED AND THE RESULT IS THEN VERIFIED, which is what
     keeps this from writing a different number: the form's figure
-    places take the candidate's own figures in order, every other
-    character of the form stands as itself, and the answer is given back
-    only where it reads as a number, wears exactly ``form`` under the
-    published census, and parses to the same value the candidate does. A
-    form carrying a letter place is never dressed -- an exponent is not a
-    decoration -- and a form whose count of figure places differs from
-    the candidate's is refused rather than padded.
+    places take the candidate's own figures in order, a figure place the
+    candidate has no figure for takes a NOUGHT, a letter place takes the
+    one letter an exponent is written with, every other character of the
+    form stands as itself, and the answer is given back only where it
+    reads as a number, wears exactly ``form`` under the published census,
+    and parses to the same value the candidate does. A form with fewer
+    figure places than the candidate has figures is refused rather than
+    truncated.
+
+    THE EXPONENT IS DRESSED TOO, and this paragraph said a form carrying
+    a letter place is never dressed until the skeptic measured it on
+    2026-09-18. MEASURED then: a hundred `alpha` beside twenty-six
+    `1235.00e0`, eight `1236.00e0`, five `1237.00e0` and nine
+    `1238.00e0` at a floor of eleven requires
+    `shape_forms {"%%%%.%%&%": 48}`, and the twin wore it 26 times and
+    exited 3 on its own description while the real table exited 0 --
+    every one of the five failures left in the skeptic's thirty-shape
+    sweep was this one spelling. The exponent letter is not a
+    decoration, but it is not a reason to refuse the form either: what
+    keeps the dressing honest is the verification, not the refusal. A
+    lower-case key takes `e` and a case-blind key `E`, so the cell is
+    counted under the key that asked for it.
+
+    THE NOUGHTS GO AT THE END, and at the front only where the form
+    carries a letter place. `1236` into `%%%%.%%&%` is `1236.00e0`, the
+    same value; the same four figures placed to the RIGHT inside `%,%%%`
+    would give `0,011` for eleven, which wears the form and reads back
+    but is a spelling no ladder should invent outside an exponent. AN
+    EXPONENT FORM FIXES ITS MANTISSA'S WIDTH and the ladder's own grid is
+    not that width, so its figures have to be aligned against the point
+    rather than against the start: measured on a census naming
+    `%%.%%&%`, whose ladder walks in thousandths, the step `9.990` wears
+    the form only as `09.99e0` -- the same value -- and the end-aligned
+    `99.90e0` is a hundred times it and is refused by the verification.
+    The two placements are tried in that order and the first that
+    verifies is the answer, so the rule is deterministic, and a candidate
+    neither placement holds is refused.
 
     Guarantees: accepts a plainly spelled candidate, a form key, the
     published census and the column's grammar; returns "" or a spelling
@@ -21687,13 +21717,50 @@ def _dressed_in_form(
         if character in "0123456789":
             figures = figures + character
     places = 0
+    letters = 0
     for character in form:
         if character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
-            return ""
+            letters = letters + 1
         if character == parsing.SHAPE_DIGIT:
             places = places + 1
-    if places != len(figures) or not figures:
+    if places < len(figures) or not figures or letters > 1:
         return ""
+    spare = ""
+    while len(spare) < places - len(figures):
+        spare = spare + "0"
+    fittings: "tuple[str, ...]" = (figures + spare,)
+    if letters == 1 and spare:
+        fittings = (figures + spare, spare + figures)
+    for fitting in fittings:
+        built = _figures_into_form(fitting, form)
+        if built == candidate or parsing.census_form(built, named) != form:
+            continue
+        read = _read_in_grammar(built, decimal_comma)
+        if parsing.classify_number(read) != parsing.NUMBER:
+            continue
+        dressed = parsing.parse_number(read)
+        plain = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
+        if dressed is None or plain is None or dressed != plain:
+            continue
+        return built
+    return ""
+
+
+def _figures_into_form(figures: str, form: str) -> str:
+    """One form key's places filled with these figures, in order.
+
+    THE TEMPLATE HALF of `_dressed_in_form` (plan P4-D268), split out so
+    that the two placements a candidate may take are one statement read
+    twice and not two. A figure place takes the next figure, a letter
+    place the one letter an exponent is written with -- `e` for a
+    lower-case key and `E` for a case-blind one, so the cell is counted
+    under the key that asked for it -- and every other character stands
+    as itself. Nothing here verifies: the caller does that.
+
+    Guarantees: accepts as many figures as the form has figure places
+    and a form key; returns the filled spelling. Determinism: a function
+    of the two. Raises nothing. No I/O of any kind.
+    """
     built = ""
     step = 0
     for character in form:
@@ -21701,16 +21768,13 @@ def _dressed_in_form(
             built = built + figures[step : step + 1]
             step = step + 1
             continue
+        if character == parsing.SHAPE_LOWER:
+            built = built + "e"
+            continue
+        if character == parsing.SHAPE_LETTER:
+            built = built + "E"
+            continue
         built = built + character
-    if built == candidate or parsing.census_form(built, named) != form:
-        return ""
-    read = _read_in_grammar(built, decimal_comma)
-    if parsing.classify_number(read) != parsing.NUMBER:
-        return ""
-    dressed = parsing.parse_number(read)
-    plain = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
-    if dressed is None or plain is None or dressed != plain:
-        return ""
     return built
 
 

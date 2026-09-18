@@ -1329,7 +1329,8 @@ INVARIANTS = {
     "B4c": (
         "no total saying what the column's cells read as, less the "
         "published labels that read that way, leaves exactly one row, "
-        "because that row is a held-back label of one"
+        "because that row is a held-back label of one -- and a total no "
+        "published label reads into is read the same way"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -6971,23 +6972,25 @@ def _levels_against_their_classes(
             return
         covered[plain] = (covered[plain] if plain in covered else 0) + entry.count
     for reading, key in _READING_TOTALS:
-        if reading not in covered:
-            continue
         total = _whole(mapping[key], key, where, 0)
-        seen = covered[reading]
-        if parsing.census_names_one_row({}, [(total, seen)]) == 0:
-            raise _broken(
-                "B4c",
-                where,
-                (
-                    f"the published labels that read as '{reading}' cover "
-                    f"{seen} rows"
-                ),
-                (
-                    f"{key} is {total}, one more, so one held-back label "
-                    f"covers that one row"
-                ),
-            )
+        seen = covered[reading] if reading in covered else 0
+        rest = total - seen
+        if rest < 0:
+            continue
+        if parsing.census_names_one_row({reading: rest}, [(total, seen)]) == -1:
+            continue
+        raise _broken(
+            "B4c",
+            where,
+            (
+                f"the published labels that read as '{reading}' cover "
+                f"{seen} of the {total} rows {key} counts"
+            ),
+            (
+                f"the {rest} row(s) left over are held back, so one "
+                f"held-back label covers that one row"
+            ),
+        )
 
 
 def _shape_form_cells(

@@ -1488,6 +1488,25 @@ one-place readings with one `4.20` publishes `fraction_widths {"1":
 pool, its count is added: a form the forms map holds back has no widths
 published (profile contract P8).
 
+**Amended 2026-09-18 (the repair pass of the extra round, plan P4-D263):
+the same permission is owed on the STYLE axis, and the clause above puts
+it only on the width one.** Ruling 6 of 2026-09-17 counts a spelling
+below the floor into the column's commonest spelling, so the census names
+that STYLE nowhere; a cell wearing it has no width problem at all and
+`styles.spelled` found it outside every published spelling of its value.
+Measured, at a floor of one and at eleven alike: thirty grouped counts
+`10,100` to `39,129` beside one `0,472`, whose style is `leading_zero`,
+publish `numeric_styles {"plain": 31}` with `thousands_marks {}` and
+`pad_widths {}` -- and the real table failed its own description at exit
+3 while its seed-4 twin passed. So `styles.spelled` admits a cell whose
+OWN style the census does not name, up to `parsing.absorbed_room`'s own
+answer bounded by what a census of six names can hide: five of the six
+can have been absorbed and each was below the line, so at most five times
+one less than the line. The bound is what keeps it falsifiable, measured
+at its edge: on a three-hundred-cell column at a floor of eleven the
+allowance is `min(289, 50)`, so fifty odd cells pass and fifty-one do
+not.
+
 **Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
 admits the spellings a real exporter writes that G6.3 does not choose.**
 The family of G6.1 is what this method's own generator may write, and
@@ -2207,6 +2226,21 @@ count of withheld subchecks appears in the census. That the column
 classifies differently than the submitted profile expects is itself a
 fact the producer publishes about any file — the role axis — so the
 signal stays inside the envelope.
+
+**Amended 2026-09-18 (the repair pass of the extra round, plan P4-D264):
+a clause whose permitted BAND excludes no file the description admits is
+WITHHELD too.** A band is a licence, not a measurement, and where it
+starts at nought and reaches the largest count the file could possibly
+show the clause, no allocation can fall outside it: printing HELD then
+tells a reader an obligation was verified when nothing about the file was
+asked. Measured on `styles.remainder` over a census that pools every
+cell — ten `+100.00` to `+109.00` beside ten `110e0` to `119e0` at a
+floor of eleven, `numeric_styles {"(withheld)": 20}` — the clause read
+HELD on all four of four hand-built allocations of those twenty cells,
+beside `0 MISSED` and NO CHECKABLE OBLIGATION WAS MISSED. The clause is
+not vacuous in general and the amendment does not make it so: beside
+`{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+spelling 55 cells plain still misses.
 
 **V5.3-A1 What the envelope is drawn round, and the test that settles a
 disputed fact** (2026-08-14, review item P3-V3-F2; the plan's amendment

@@ -11451,10 +11451,34 @@ publishes four totals saying what its present cells READ AS —
 each is subtractable exactly as `n_present` is. The question is
 `parsing.census_names_one_row` over the pair, which is the rule the form
 and layout censuses already ask of their own sibling totals, so the
-producer and the loader ask ONE question and a total no published level
-counts into is not read at all. Where a class's difference is one, every
-held-back level of that class is counted as MISSING, exactly as the
-whole pool's own forced band is.
+producer and the loader ask ONE question. Where a class's difference is
+one, every held-back level of that class is counted as MISSING, exactly
+as the whole pool's own forced band is.
+
+**AMENDED at the repair pass of 2026-09-18, because the first writing of
+this decision left three of the four classes out.** It said "a total no
+published level counts into is not read at all", which is what
+`parsing.census_names_one_row` answers of the PAIR alone: a census that
+covers none of a total leaves a reader nothing to subtract. A class whose
+every level the floor held back is exactly that shape, and the count of
+one survived there untouched. **Measured by the skeptic on all three of
+those classes**, at a floor of eleven and seed 4 — `alpha` and `beta` a
+hundred rows each, `gamma` six, `delta` five and ONE further cell. With
+`77` the block published `n_numeric` 1 beside two published WORDS,
+`suppressed_levels` 3 over `suppressed_rows` 12 and `n_missing` 0, so
+exactly one row of the column reads as a number and its value is
+withheld; with `1e999` the same of `n_out_of_range`; with `(+5)` the same
+of `n_contradictory`, which names the accounting notation ONE
+individual's cell was written in. All three passed every executable check
+on twin and table alike, and the twin wrote the row. **The repair** asks
+the one rule of the class's own held-back rows as a POOL as well as of
+the pair — `census_names_one_row({reading: rows}, [(total, covered)])`,
+one call, both of the rule's readings, no second copy of it — because a
+pool of one is the rule's FIRST reading and needs no census beside it.
+The loader's B4c does the same and no longer skips a class the published
+levels say nothing about. Re-measured: all three now publish that class's
+total as nought, `n_missing` 1 and `n_missing_withheld` 1, the pool of
+eleven rows over two levels is still pooled, and both files exit 0.
 
 **The wider reading is refused by measurement, not by preference.**
 `parsing.pool_names_a_level`'s whole band (`rows < 2 * levels`) asked per
@@ -11523,6 +11547,31 @@ the style census exactly as it is asked of the width census beside it. It
 stands only where no `decimal` count is named, because a named count
 licenses its own spellings and needs no allowance.
 
+**AMENDED at the repair pass of 2026-09-18: the same allowance is owed on
+the STYLE axis, and this decision put it only on the width one.**
+`_pooled_widths` widens the pool a cell may be spelled at a width the
+census does not name; a cell absorbed out of the census altogether has no
+width problem at all, it has a STYLE problem, and no clause allowed for
+it. **Measured by the skeptic**, at a floor of one and at eleven alike:
+thirty grouped counts `10,100` to `39,129` beside one `0,472`, whose
+style is `leading_zero`, publish `numeric_styles {"plain": 31}` with
+`thousands_marks {}` and `pad_widths {}` — and the seed-4 twin passed
+while validate on the REAL TABLE exited 3 with `styles.spelled` MISSED.
+Three of forty random European decimal-comma shapes failed the same way.
+The ungrouped equivalents pass — thirty plain integers beside one `0123`,
+one `+123` or one `123e0` — so it is the grouped column that breaks, and
+it broke on c5d09d5 too, which is why it is the item 7/8/9 family in a
+shape none of those three reaches. **The repair**
+(`validation._absorbed_styles`, `_named_styles` and the per-cell
+allowance in `_cells_outside_the_styles`): a cell whose OWN style the
+census does not name is admitted, up to `parsing.absorbed_room`'s answer
+bounded by what a census of six names can hide — five of the six can have
+been absorbed and each was below the line, so five times one less than
+the line. On a three-hundred-cell column at a floor of eleven that is
+`min(289, 50)`, measured at the edge: fifty spoiled cells leave the clause
+held and fifty-one do not. Re-measured: the grouped column exits 0 on
+table and twin at both floors.
+
 
 ### P4-D264 A pooled style census licenses a BAND, not the generator's own choice
 
@@ -11541,6 +11590,24 @@ census names it and at most that plus the pool, less the cells
 generator writes the pool plain and still meets it; a file spelling more
 cells plain than the pool can pay still misses, so the clause can still
 fail.
+
+**AMENDED at the repair pass of 2026-09-18: a band that excludes nothing
+is WITHHELD and not HELD.** On the census this decision was written from
+there is no named `plain` count at all, so the band runs from nought to
+the pool less the spill — and every numeric cell of the file is either
+counted plain or spilled, so no allocation can fall outside it.
+**Measured by the skeptic**: the clause read HELD on all four of four
+hand-built allocations of the same twenty cells — all plain, all
+exponent, all leading-plus, all leading-zero — beside `0 MISSED` and NO
+CHECKABLE OBLIGATION WAS MISSED, although nothing about the file had been
+asked. The repository already has WITHHELD for an obligation a file gives
+no evidence on and uses it two lines above for `styles.spill`.
+`_window_between` now takes the largest count the file could show the
+clause — the recount less the spill — and answers None where the band
+starts at nought and ends at or past it. The clause is not vacuous in
+general and that is measured, not asserted: beside
+`{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+spelling 55 cells plain still misses, and that case is unchanged.
 
 
 ### P4-D265 The distinct-spelling repair leaves the marks alone
@@ -11561,6 +11628,31 @@ index order exactly as before, so no such column's bytes move. And the
 marks are RECOUNTED off the finished text, because `_mark_places` reports
 only what it could not allocate and runs before the walk that can take an
 allocated mark back.
+
+**MIRRORED IN THE ORACLE at the repair pass of 2026-09-18, with a frozen
+case and a registered mutant** (`unmarked_duplicates_first` in
+`tests/reference/generation-branch-vectors-5.json`; the rule is
+`unmarked_duplicates_first` in
+`tools/reference/make_generation_reference_vectors.py`). The case is
+forty-four cells of one value written plain, with a leading plus and with
+a point, whose census of marks names eleven of the twenty-two groupable
+cells and whose ten published spellings ask four cells to spend a zero:
+so the duplicates a raised order may be spent on are MIXED. Its mutant
+visits them in index order and four of the eleven marks come off the
+column. `grouped_charges` beside it raises two orders and every duplicate
+of it wears the mark, so that branch too could have been reverted with
+every committed byte where it was, which is why this case exists.
+
+**And the RECOUNT half now has a column that reaches it.** The skeptic
+found it pinned by no test and could not reach it in forty-eight shapes,
+because the visiting order keeps every allocated mark wherever a column
+holds an unmarked duplicate. A column whose EVERY cell carries the mark
+has none: three values written grouped-and-plain and
+grouped-and-plussed — `2,387.27 kg`, `+2,387.27 kg` and their two
+partners, forty cells at counts 7, 5, 7, 10, 6, 5, at a floor of one and
+of eleven — writes 38 marked cells against a census of 40, and the
+deviation names 40 against 38 rather than leaving it silent. That is the
+search that was made, and the branch fires.
 
 
 ### P4-D266 The anchored held-back sentence carries the statistical warning
@@ -11660,6 +11752,56 @@ Three things were wrong and all three are repaired:
 published form, the magnitudes the published ones' own, and validate at
 exit 0 on twin and table alike.
 
+**AMENDED at the repair pass of 2026-09-18: the EXPONENT is dressed too,
+and clause 2's last sentence is withdrawn.** "A form carrying a letter
+place is never dressed" left item 5 closed for five of the six spellings
+a numeric cell can wear and open for the sixth. **Measured by the
+skeptic**, at a floor of eleven and seed 4: a hundred and twenty `alpha`
+beside twenty-six `1235.00e0`, eight `1236.00e0`, five `1237.00e0` and
+nine `1238.00e0` publish `shape_forms {"%%%%.%%&%": 48}`, and the twin
+wore the form 26 times and exited 3 on its own description while the real
+table exited 0 — every one of the five failures left in a thirty-shape
+sweep was this one spelling. **The repair.** A letter place takes the one
+letter an exponent is written with (`e` for a lower-case key, `E` for a
+case-blind one, so the cell is counted under the key that asked for it),
+a figure place the candidate has no figure for takes a NOUGHT, and the
+three verifications are unchanged: it must read as a number, wear exactly
+that form under the published census, and parse to the same value. What
+keeps the dressing honest is the verification, not the refusal. The
+noughts go at the END, and at the front only where the form carries a
+letter place: an exponent form fixes its mantissa's width and the
+ladder's own grid is not that width, so `9.990` wears `%%.%%&%` only as
+`09.99e0` — the same value — while the same allowance inside `%,%%%`
+would give `0,011` for eleven, a spelling no ladder should invent. Both
+placements are verified and the first that passes is the answer.
+**Re-measured** on the same thirty randomised held-back-number shapes,
+six spellings over five sizes: the twin failed 17 of 30 on c5d09d5, 5 of
+30 after the round — every one an exponent — and 0 of 30 now.
+
+**FOR THE OWNER, with the measurement, and NOT reversed here.** This
+repair makes the twin reproduce held-back rare values, and their counts,
+far more often than before. **Measured by the skeptic** over the same
+thirty shapes: 7 of 469 held-back cells came back with the source's own
+spelling on c5d09d5 and 85 of 469 after, and 2 of 30 columns were
+reconstructed exactly in values AND counts. Codex's own item-5 column is
+one of the two: `alpha`×100 beside `+10`×20, `+11`×10 and `+12`×10
+publishes only the level `+10` and a pool of two levels over twenty rows,
+and the twin now writes `+11`×10 and `+12`×10 — the source's held-back
+multiset exactly. The generator never reads the table, so the
+reconstruction comes from the published facts and a public, deterministic
+ladder convention: anyone holding the description can recompute it. That
+bears on ruling 2 of 2026-09-17, which holds a rare level back and
+publishes a pooled total only, and on the goal that the description
+reveals nothing about any individual. **It is not reverted**, because
+reverting it would undo item 5, which Codex demanded and which this round
+otherwise closes. **The question for the owner is one sentence:** should
+the held-back ladder be required to step to a value the published facts
+do NOT already pin — by refusing the arithmetically obvious neighbour
+where the pool holds only two or three levels — at the cost of the form
+fidelity item 5 buys? The measurement is pinned by
+`tests/test_extra_round_numbers.py::test_the_twin_reproduces_held_back_numbers_and_that_is_measured`,
+so a later change to it is measured and not silent.
+
 
 ### P4-D269 A saturated representable grid is filled in order
 
@@ -11687,17 +11829,33 @@ whole where any stratum's sign band would not hold the point the grid
 gives it, so it can only add. **Re-measured:** the column comes back with
 120 different numbers and validates at exit 0 on twin and table alike.
 
-**What is NOT built, and is named rather than left to be found.** The
-four generator rules this round adds — the mode's own stratum (P4-D267),
-the anchors and the dressing (P4-D268), the unmarked-duplicate order
-(P4-D265) and this grid — are NOT mirrored in
-`tools/reference/make_generation_reference_vectors.py`, and no frozen
-case with a registered mutant pins any of them. Each is pinned by a test
-built from the review's own reproduction, with a mutation check recorded
-beside it, which is the same footing criterion 8 of this phase records as
-UNMET for the width pass and the empty-bin pass. The oracle work is the
-next landing's, and until it is done these four branches are pinned by
-tests rather than by a frozen case.
+**MIRRORED IN THE ORACLE at the repair pass of 2026-09-18, with a frozen
+case and a registered mutant** (`saturated_representable` in
+`tests/reference/generation-branch-vectors-5.json`; the rule is
+`representable_grid` beside `saturated_grid` in
+`tools/reference/make_generation_reference_vectors.py`, written from the
+statement above). The case is twelve numbers one binary64 step apart from
+one upward, whose census names no fraction width at all, so neither the
+pinned width nor the finest width gives the separation pass a grid and
+this is the only rule that can answer; its ladder is flat until its upper
+end, because the ninety finer rungs of P4-D4.10 are written to six
+decimal places and this column's values lie far below that place. Its
+mutant withdraws the fill and the cells move. Every other numeric case in
+the seven files publishes a width, so the branch could have been
+withdrawn whole with every committed byte unchanged.
+
+**What is STILL NOT mirrored, and is named rather than left to be
+found.** Two of the four generator rules the round added — the mode's own
+stratum (P4-D267) and the anchors and the dressing (P4-D268) — are NOT
+mirrored in `tools/reference/make_generation_reference_vectors.py`, and
+no frozen case with a registered mutant pins either. Each is pinned by a
+test built from the review's own reproduction, with a mutation check
+recorded beside it, which is the same footing criterion 8 of this phase
+records as UNMET for the width pass and the empty-bin pass. The other two
+— the unmarked-duplicate order (P4-D265) and this grid — were mirrored at
+the repair pass of 2026-09-18 and are pinned by frozen cases. The
+remaining oracle work is the next landing's, and until it is done those
+two branches are pinned by tests rather than by a frozen case.
 
 
 ### The ten acceptance criteria, each with its verdict
@@ -11711,7 +11869,7 @@ tests rather than by a frozen case.
 | 5 | the taxonomy total and ordered after P4-D3 | **MET.** Fourteen roles through every closed enumeration, completeness tests green, every threshold a recorded setting. |
 | 6 | producer → generator → validator at the new version, zero MISSED and zero WITHHELD on the every-role fixture in both header modes | **MET.** |
 | 7 | the reproduction rule exactly as stated | **MET, and its report sentence was FALSE until landing L19** (R-P4-70): the twin reproduced each published spelling at its count, and the twin's own report told the reader it had not. The rule held; the page describing it did not. Both hold now. |
-| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. |
+| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. **Widened and then narrowed by the extra round of 2026-09-18:** its four new generator rules landed with no mirror at all, and the repair pass of the same round mirrored two of them with frozen cases and registered mutants — `unmarked_duplicates_first` (P4-D265) and `saturated_representable` (P4-D269), both in `tests/reference/generation-branch-vectors-5.json`. The mode's own stratum (P4-D267) and the anchors and the dressing (P4-D268) stand where the width pass and the empty-bin pass stand, and are named in their own plan entries. |
 | 9 | the version-refusal messages exact-shape tested, naming and pricing every publication-changing option | **MET**, and widened twice during the close: `--code` at landing L16, `--answers` at L17b. Contract R11's clause and the shipped message are held equal word for word by two tests. |
 | 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET.** Every scanner, the seal and the suite are clean on this machine at every landing of the close, and **CI is green on every cell of the matrix at the closing commit — Windows included.** The first writing of this row said CI had not run, which was FALSE and is corrected here rather than quietly: CI had run on pull request 5 throughout the close and was FAILING on every Windows cell of the three runs before this one. See the note below. |
 

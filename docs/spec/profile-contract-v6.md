@@ -4143,9 +4143,24 @@ subtractable exactly as `n_present` is, one class at a time, and B4b
 cannot see them: **no such total, less the published levels that read
 that way, is exactly one** (Codex blocker 2 of the extra round,
 2026-09-18; plan P4-D261). The question is
-`parsing.census_names_one_row` over the pair, so a total no published
-level counts into is not read at all, on the reasoning C6-131b already
-gives. **Measured before this clause:** `alpha` and `beta` a hundred rows
+`parsing.census_names_one_row`, asked of the class's own held-back rows
+as a POOL and of the pair together -- one call, both of the rule's
+readings, no second copy of it. **A class NO published level counts into
+is read too**, and this clause said the opposite until the skeptic's pass
+of 2026-09-18 measured it. The pair alone answers nothing there, on the
+reasoning C6-131b gives: a census that covers none of a total leaves a
+reader nothing to subtract. But a class whose every level the floor held
+back is exactly that shape, and the count of one survived in all three of
+the classes a column of words has no published level for. **Measured
+then**, at a floor of eleven: `alpha` and `beta` a hundred rows each,
+`gamma` six, `delta` five and ONE further cell. With `77` the block
+published `n_numeric` 1 beside two published WORDS and `n_missing` 0, so
+exactly one row of the column reads as a number and its value is
+withheld; with `1e999` the same of `n_out_of_range`; with `(+5)` the same
+of `n_contradictory`, which names the accounting notation ONE
+individual's cell was written in. A pool of one is the rule's FIRST
+reading and needs no census beside it, so the class's own held-back rows
+are handed in as that pool. **Measured before this clause:** `alpha` and `beta` a hundred rows
 each, `1` five rows, `2` six rows and `gamma` one row, at a floor of
 eleven. The pool was three levels over twelve rows -- far outside B4b's
 forced band, and every printed count cleared the floor -- while
@@ -10095,7 +10110,7 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
 | B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239 | yes |
-| B4c | `parsing.census_names_one_row` over each of `n_numeric`, `n_not_numeric`, `n_out_of_range` and `n_contradictory` against the published levels that read that way: no such difference is exactly one — plan P4-D261 | yes |
+| B4c | `parsing.census_names_one_row` over each of `n_numeric`, `n_not_numeric`, `n_out_of_range` and `n_contradictory` against the published levels that read that way, with the class's own held-back rows handed in as a pool so a class no published level counts into is read too: no such difference is exactly one — plan P4-D261 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |

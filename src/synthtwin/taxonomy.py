@@ -5412,12 +5412,27 @@ def _levels_read_by_class(
     every printed count cleared the floor. The twin wrote one `group-1`,
     and both files passed every executable check.
 
-    THE QUESTION IS `parsing.census_names_one_row` OVER THE PAIR, which
-    is the rule the form and layout censuses already ask of their own
-    sibling totals and the rule the LOADER asks here (invariant B4c). It
-    is asked at that width and no wider, so the producer and the loader
-    cannot part, and a total no published level counts into is not read
-    at all: an absent census leaves a reader nothing to subtract.
+    THE QUESTION IS `parsing.census_names_one_row`, asked of the class's
+    own POOL and of the pair together, which is the rule the form and
+    layout censuses already ask of their own sibling totals and the rule
+    the LOADER asks here (invariant B4c). It is asked at that width and
+    no wider, so the producer and the loader cannot part.
+
+    THE CLASS NO PUBLISHED LEVEL COUNTS INTO IS READ TOO, and this
+    paragraph said the opposite until the skeptic measured it on
+    2026-09-18. The pair alone answers nothing where the census covers
+    none of the total -- an absent census leaves a reader nothing to
+    subtract -- and a class whose every level the floor held back is
+    exactly that shape. MEASURED: `alpha` and `beta` a hundred rows each,
+    `gamma` six, `delta` five, and ONE further cell at a floor of eleven.
+    With that cell `77` the block published `n_numeric` 1 beside two
+    published WORDS, so exactly one row of the column reads as a number
+    and its value is withheld; with `1e999` the same of `n_out_of_range`
+    and with `(+5)` of `n_contradictory`, which names the accounting
+    notation ONE individual's cell was written in. All three passed
+    every executable check and the twin wrote the row. So the class's
+    held-back rows are handed in as a POOL as well: a pool of one is the
+    one rule's first reading, and it does not need a census beside it.
 
     THE WIDER READING IS REFUSED BY MEASUREMENT AND NOT BY PREFERENCE.
     `parsing.pool_names_a_level`'s whole forced band -- a class whose
@@ -5486,7 +5501,16 @@ def _levels_read_by_class(
         for label in held[reading]:
             rows = rows + counts[label]
         covered = total - rows
-        if parsing.census_names_one_row({}, [(total, covered)]) == 0:
+        # THE CLASS'S OWN HELD-BACK ROWS ARE A POOL, and the one rule
+        # refuses a pool of one exactly as it refuses a printed count of
+        # one. Handing `rows` in as that pool is what reaches the class
+        # NO PUBLISHED LEVEL COUNTS INTO, where `covered` is nought and
+        # the pair alone says nothing (the skeptic's blocker of
+        # 2026-09-18; plan P4-D261). Both readings are the one rule's,
+        # asked in one call, so this is not a second copy of it.
+        if parsing.census_names_one_row(
+            {reading: rows}, [(total, covered)]
+        ) != -1:
             counted_out += held[reading]
     return tuple(sorted(counted_out))
 

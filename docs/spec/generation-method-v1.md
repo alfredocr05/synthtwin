@@ -8695,6 +8695,14 @@ below. The lesson is the one this repository keeps relearning: a closed
 enumeration is stated in up to eight places, and the deviation key
 index is one of them.
 
+**AND ONE MORE AT THE EXTRA ROUND OF 2026-09-18** (plan P4-D267):
+`mode`, named where the published mode is a number the ladder leaves the
+twin no room to write. The round that added `generation._mode_note` did
+not add the key here, so the index stopped being complete and the guard
+above turned red with every other check green -- which is exactly what it
+is for, and it is the same lesson twice: a closed enumeration is stated
+in up to eight places and this index is one of them.
+
 **AND ONE MORE AT PLAN P4-D192**: `date_field_widths`, named where a
 census of one convention is left unmet by the count passes of G7.3. *Widened by plan P4-D195:* a census naming several conventions is
 recounted the same way, and each convention whose count the twin does not
@@ -8737,6 +8745,7 @@ the floor, so without the note a different count passed unsaid.
 * `n_unparsed`
 * `n_whole`
 * `n_whole_unknown`
+* `mode`
 * `negative_notations`
 * `numeric_styles`
 * `pad_widths`
@@ -9728,11 +9737,14 @@ repair added for G6.5a and the census of marks (plans P4-D176, P4-D178,
 P4-D183 and P4-D185), through the entry point
 `tools/reference/make_generation_branch_vectors_4.py`, because the fifth
 file then stood within four kilobytes of the cap -- and
-`tests/reference/generation-branch-vectors-5.json` carries the five cases
+`tests/reference/generation-branch-vectors-5.json` carries the cases
 the final pass over the close of stage 2 added -- a whole number written
 two ways (plan P4-D193), the census of marks on a column with refunds
 (plan P4-D194), a declared identifier's partners held to its unnamed
 cells (plan P4-D196) and a workbook column's truth values (plan P4-D198)
+-- and the two the repair pass of the extra round of 2026-09-18 added,
+G6.5a's last resort on the REPRESENTABLE grid (plan P4-D269) and G6.5's
+visiting order for the distinct-spelling repair (plan P4-D265)
 -- through the entry
 point `tools/reference/make_generation_branch_vectors_5.py`, because the
 sixth file then stood within a few kilobytes of the cap. This sentence carried the
@@ -10026,7 +10038,7 @@ templates for the whole column and per layout (plan P4-D202), and
 `pooled_level_sizes`, G8.3's sizing of the invented levels off the
 pooled total (plan P4-D201).
 
-**All eighty-seven are required.** The count is taken off the committed
+**All eighty-nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10041,7 +10053,7 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; and the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds six (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+holds eight (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -10062,6 +10074,8 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
+| `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
 | `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over forty-five held-back labels pooled on sixty rows, whose sizes G8.3 reads off the pool and its debts as thirty-seven single rows, four of two, two of three, one of four and one of five (plan P4-D201). The stand-ins owed no form wear `&-` with the case kept, and the group of five paying `@@@@-@@` trades with five single rows so the shape's supply covers every place owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |

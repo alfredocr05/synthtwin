@@ -3075,6 +3075,63 @@ def _band_holds(band, value):
     )
 
 
+def next_representable(value):
+    """The next binary64 above one positive finite value, or None -- G6.5a.
+
+    Written from the rule and not from the interpreter's own step: frexp
+    gives a mantissa in [0.5, 1) and an exponent, so the gap above
+    ``value`` is two raised to that exponent less fifty-three, and where
+    that underflows to nought the value is subnormal, whose grid is
+    evenly spaced at two to the minus 1074.
+    """
+    if not math.isfinite(value) or value <= 0.0:
+        return None
+    _mantissa, exponent = math.frexp(value)
+    gap = math.ldexp(1.0, exponent - 53)
+    if gap <= 0.0:
+        gap = math.ldexp(1.0, -1074)
+    found = value + gap
+    if not math.isfinite(found) or found <= value:
+        return None
+    return found
+
+
+def representable_grid(total, bands, values):
+    """The binary64 numbers themselves, where the ends saturate them -- G6.5a.
+
+    Plan P4-D269, the last resort of the separation pass and the only one
+    reached where the published widths fix NO decimal grid at all.  Where
+    the column's two pinned ends are exactly as many representable
+    numbers apart as it has strata, every stratum has one number it can
+    hold and there is nothing to choose: the strata take the grid's own
+    points in ascending order, which is what `saturated_grid` does on a
+    written grid.  Positive values only, and the pass is withdrawn whole
+    where any stratum's sign band would not hold the point the grid gives
+    it, so it can only add.  The walk stops the moment the grid runs past
+    the upper end, so a column whose ends are many steps apart leaves
+    with its values exactly as they came.
+    """
+    if total < 3 or not values or not math.isfinite(values[0]):
+        return None
+    if values[0] <= 0.0:
+        return None
+    ceiling = values[total - 1]
+    if not math.isfinite(ceiling) or ceiling <= values[0]:
+        return None
+    grid = [values[0]]
+    step = values[0]
+    for _each in range(total - 1):
+        step = next_representable(step)
+        if step is None or step > ceiling:
+            return None
+        grid.append(step)
+    if grid[total - 1] != ceiling:
+        return None
+    if not all(_band_holds(bands[place], grid[place]) for place in range(total)):
+        return None
+    return grid
+
+
 def saturated_grid(wanted, figures, total, bands, ladder):
     """The points of a grid with no spare one, in order, or None -- G6.5a.
 
@@ -3343,9 +3400,14 @@ def apart_values(
     ITS STRATA TAKES THEM (plan P4-D178, `saturated_levels`); where
     neither answers, the walk runs.
     """
-    if figures < 0:
-        return values
     total = len(values)
+    if figures < 0:
+        # AND WHERE NO DECIMAL GRID EXISTS AT ALL, THE GRID IS THE
+        # REPRESENTABLE NUMBERS (plan P4-D269).
+        filled = representable_grid(total, bands, values)
+        if filled is not None:
+            return filled
+        return values
     if total < 2:
         return values
     filled = saturated_grid(wanted, figures, total, bands, ladder)
@@ -10941,7 +11003,7 @@ def _numeric_content(column):
         else:
             held.add(identity)
     shortfall = max(0, folded_budget - len(held))
-    for index in repeats:
+    for index in unmarked_duplicates_first(repeats, marks):
         if not shortfall:
             break
         if styles[index] == "plain":
@@ -11040,6 +11102,23 @@ def spelled_census(census):
     for spelling in sorted(census, key=lambda text: (int(text), text)):
         content.extend([spelling] * census[spelling])
     return content
+
+
+def unmarked_duplicates_first(repeats, marks):
+    """The duplicates a raised order may be spent on, in order -- G6.5.
+
+    Plan P4-D265.  A raised order of the leading-zero family writes one
+    more figure and carries NO mark between thousands, so spending it on
+    a cell the census of marks has already marked takes that mark back
+    off the column.  A duplicate with no mark expands at exactly the same
+    cost in spellings and costs the census nothing, so the walk takes
+    those first and reaches a marked cell only when no unmarked duplicate
+    is left.  A column whose duplicates all carry the mark, or none of
+    them, is visited in index order exactly as before.
+    """
+    unmarked = [index for index in repeats if not marks[index]]
+    marked = [index for index in repeats if marks[index]]
+    return unmarked + marked
 
 
 def _straggler_cells(column, used):
@@ -15556,6 +15635,114 @@ def _saturated_integers():
     }
 
 
+def _unmarked_duplicates_first():
+    """The distinct-spelling repair, visited unmarked first (P4-D265, G6.5).
+
+    Forty-four cells of one value, written plain, with a leading plus and
+    with a point, whose census of marks names eleven of the twenty-two
+    groupable cells: so the duplicates the repair may spend a raised
+    order on are MIXED, some marked and some not, and the order it visits
+    them in decides whether the census of marks survives it.  `grouped_
+    charges` beside it raises two orders and every duplicate of it wears
+    the mark, so the visiting order could be reverted with its cells
+    where they are.
+    """
+    column, rungs, claims = _flat_numbers(
+        "12345", 44,
+        n_missing=0, n_distinct=10, n_distinct_folded=10, n_negative=0,
+        numeric_styles={"decimal": 22, "leading_plus": 11, "plain": 11},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={"5": 22},
+        group_separator=",", decimal_plus={"+": 11},
+        thousands_marks={",": 11},
+    )
+    return {
+        "why": "G6.5's distinct-spelling repair, visited unmarked first "
+        "(plan P4-D265, Codex item 6 of the extra round of 2026-09-18). "
+        "The column counts ten spellings of one value where the four "
+        "styles supply six, so four cells spend a zero -- and a raised "
+        "order of the leading-zero family writes one more figure and "
+        "carries NO mark between thousands, so spending it on a cell the "
+        "census of marks has already marked takes that mark back off the "
+        "column. Eleven of the twenty-two groupable cells are marked, so "
+        "the duplicates are mixed and the order is what decides. The "
+        "mutant visits them in index order, which is what the shipped "
+        "generator did until this round: eleven cells wear the comma with "
+        "the rule and SEVEN without it, against a census of eleven.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _saturated_representable():
+    """The binary64 grid with no spare point (plan P4-D269, G6.5a).
+
+    Twelve numbers one representable step apart, from one upward, whose
+    census names no fraction width at all -- so the separation pass has
+    NO decimal grid to act on and the last resort is the only rule that
+    can answer.  Every ordinary numeric case in the seven files publishes
+    a width, so this branch could be withdrawn whole with every committed
+    byte unchanged, which is why the case exists.
+    """
+    # THE LADDER IS FLAT UNTIL ITS UPPER END, and that is what makes the
+    # case publishable at all: the ninety finer rungs of plan P4-D4.10
+    # are written to six decimal places, so a ladder whose rungs differ
+    # below that place publishes ninety rungs that all floor to the same
+    # number -- which is exactly this column, whose twelve values lie one
+    # binary64 apart. Every rung but `max` is the lower end, and the
+    # published ends are twelve representable numbers apart.
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "1", "p01": "1", "p05": "1", "p10": "1", "p25": "1",
+        "p50": "1", "p75": "1", "p90": "1", "p95": "1", "p99": "1",
+        "max": "1.0000000000000024",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1.000000000000001"),
+                       ("std", "7.665096401009793e-16"),
+                       ("skew", "0"),
+                       ("kurtosis", "1.7832167832167831"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_distinct_values=12,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=12,
+        numeric_styles={"(withheld)": 12},
+        mode=None, mode_count=0, pad_widths={}, fraction_widths={},
+        field_widths={},
+        **moments,
+    )
+    return {
+        "why": "G6.5a's last resort, the representable grid (plan P4-D269). "
+        "The column's twelve numbers lie one binary64 step apart, from "
+        "one upward, and its census names no fraction width, so "
+        "neither the pinned width nor the finest width gives the "
+        "separation pass a grid to act on. The two published ends are "
+        "exactly twelve representable numbers apart, so every stratum has "
+        "one number it can hold and the strata take the grid's own points "
+        "in ascending order. The mutant withdraws that fill: the ladder "
+        "then interpolates between rungs a single representable step "
+        "apart, several strata land on one binary64, and the twin holds "
+        "fewer different numbers than the column publishes.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _spread_conventions():
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "-1021", "p01": "-1020.79", "p05": "-1019.95",
@@ -19118,6 +19305,10 @@ FOURTH_BRANCH_CASE_BUILDERS = {
 FIFTH_BRANCH_CASE_BUILDERS = {
     # Made-up words of two characters in the code band (plan P4-D234).
     "code_band_words": _code_band_words,
+    # The representable grid, where no decimal grid exists (P4-D269).
+    "saturated_representable": _saturated_representable,
+    # The distinct-spelling repair's visiting order (plan P4-D265).
+    "unmarked_duplicates_first": _unmarked_duplicates_first,
     # The census of marks held on a column with refunds (plan P4-D194).
     "grouped_thousands_signed": _grouped_thousands_signed,
     # The cells no layout is named for, a quota for partners (P4-D196).
@@ -19327,6 +19518,37 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # The visiting order of plan P4-D265, at seed 194.
+    "unmarked_duplicates_first": (
+        15951440350176933158, 15973533414106169898, 4848658055522511236,
+        8883309111577902641, 8582921644934328446, 17635896241352919254,
+        5586964252459883488, 5652148719928231464, 17394328843753899727,
+        7712528052261724656, 17976072980136951405, 2030370658483910179,
+        6006364908990458481, 11637502879712830515, 5417068352890769320,
+        15802982282781947883, 9919818036174942083, 17195111972283515096,
+        14138852467492742795, 11437159270567502078, 11719142884217131125,
+        829970683474166593, 8459415914846193940, 14836105518398070100,
+        3692079025241968434, 10107353182649735091, 15924255087588740894,
+        3499976198692245420, 17160539458077912862, 15723843770885461993,
+        14983957577739337834, 8300021650281071424, 7497574414154390440,
+        15216132695686840369, 16172585122319634650, 9506774639746098847,
+        15296758782073362368, 14968491857436697267, 14077118052934399852,
+        15718132095856558827, 938098269106511785, 1483215163081429304,
+        10164565904230123816, 4420225975753013384, 14360071080554720299,
+        5684573465110795118, 1439559132375741639, 9393007774451326948,
+        4222821510639412640, 16420704850908043950, 7918683666435300808,
+    ),
+    # The representable grid of plan P4-D269, at the next seed after the
+    # highest in use (193).
+    "saturated_representable": (
+        9334235032495672809, 4645934572268274229, 12982486128735967291,
+        2418558801206734542, 1215681553050494248, 10080059187304888040,
+        8918148440705000046, 8915346275007409379, 10837346305539127496,
+        14307118661346302640, 16379050214646425763, 13836750415623653084,
+        2662714713635309702, 10600124432826303366, 7078024768302717400,
+        10385870333783179108, 16720028779484443916, 361741584871362962,
+        13645293826148230158, 3910532982760333739, 9633262234299078663,
+    ),
     "code_band_words": (
         12157209929086961060, 11173649564410634393, 170528092174543603,
         1748054784394765760, 17774581788724546784,

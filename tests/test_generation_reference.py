@@ -440,9 +440,12 @@ FIFTH_BRANCH_CASES = (
     "code_band_words",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
+    # The extra round's repair pass (plans P4-D269 and P4-D265).
+    "saturated_representable",
     "truth_values_written",
     "twice_written_filled",
     "twice_written_merged",
+    "unmarked_duplicates_first",
 )
 
 ALL_CASES = tuple(
@@ -527,6 +530,9 @@ SEEDS = {
     "grouped_thousands_signed": 176,
     # The close of landing 2b takes 192 onward.
     "code_band_words": 192,
+    # The extra round's repair pass takes the next seeds after 192.
+    "saturated_representable": 193,
+    "unmarked_duplicates_first": 194,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -2292,6 +2298,24 @@ def _no_layout_packing(*_arguments, **_keywords):
 
 
 CASE_MUTANTS = {
+    "unmarked_duplicates_first": Mutant(
+        branch="plan P4-D265's visiting order for the distinct-spelling "
+        "repair of G6.5; the mutant visits the duplicates in index order, "
+        "spends a raised order on cells the census of marks had already "
+        "marked, and four of the eleven marks come off the column",
+        attribute="unmarked_duplicates_first",
+        replacement=lambda repeats, marks: list(repeats),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "saturated_representable": Mutant(
+        branch="plan P4-D269's fill of a saturated REPRESENTABLE grid, the "
+        "last resort where the published widths fix no decimal grid at "
+        "all; the mutant withdraws it, the ladder interpolates between "
+        "rungs one binary64 apart, and several strata land on one number",
+        attribute="representable_grid",
+        replacement=lambda *arguments: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "identifier_column_prefix": Mutant(
         branch="G9.6a's templates, which write a published prefix as part "
         "of its layout (plan P4-D202, owner ruling of 2026-09-17); the mutant "

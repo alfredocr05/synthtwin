@@ -12001,7 +12001,8 @@ def _window_at_least(
 
 
 def _window_between(
-    window: "tuple[int, int]", found: int, least: int, most: int
+    window: "tuple[int, int]", found: int, least: int, most: int,
+    reach: int = -1,
 ) -> "bool | None":
     """Whether ``found`` lies in a permitted BAND, or None where saying tells.
 
@@ -12021,8 +12022,27 @@ def _window_between(
     wholly inside the band or wholly outside it, and nothing is said when
     it straddles an edge, because two files that description describes
     alike would then get different verdicts (V5.3).
+
+    A BAND THAT EXCLUDES NOTHING IS WITHHELD AND NOT HELD (the skeptic's
+    finding of 2026-09-18, review priority 6). ``reach`` is the largest
+    count this file could possibly show the clause; where the band starts
+    at nought and ends at or past that, no file the description admits
+    can fail, and reporting HELD tells a reader an obligation was
+    verified when nothing about the file was asked. MEASURED: a census
+    pooling every cell -- ten `+100.00` to `+109.00` beside ten `110e0`
+    to `119e0` at a floor of eleven, `numeric_styles {"(withheld)": 20}`
+    -- was HELD on all four of four hand-built allocations of those
+    twenty cells, all plain, all exponent, all leading-plus and all
+    leading-zero, beside `0 MISSED` and NO CHECKABLE OBLIGATION WAS
+    MISSED. The clause is not vacuous in general: beside
+    `{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+    spelling 55 cells plain still misses, and that case is unchanged.
+    ``reach`` left at -1 asks nothing, so every other caller is as it
+    was.
     """
     low, high = window
+    if reach >= 0 and least <= 0 and most >= reach:
+        return None
     inside = least <= low and high <= most
     outside = high < least or low > most
     if low < high and not inside and not outside:
@@ -12246,6 +12266,14 @@ def _style_checks(
                 found((parsing.STYLE_PLAIN,)),
                 named(parsing.STYLE_PLAIN),
                 named(parsing.STYLE_PLAIN) + remainder - spill,
+                # ...AND THE LARGEST COUNT THIS FILE COULD SHOW, so a
+                # band no file the description admits can fall outside is
+                # WITHHELD rather than HELD (the skeptic's finding of
+                # 2026-09-18). Every numeric cell of the file is either
+                # counted plain here or sent to the two point-carrying
+                # forms by `styles.spill`, so the most `plain` can reach
+                # is the recount less that spill.
+                found(contract.NUMERIC_STYLES) - spill,
             ),
             _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
             _GATE_POOLED,
@@ -12288,6 +12316,8 @@ def _style_checks(
                 # carrying one of the other marks is offered that one.
                 ",",
                 _pooled_widths(facts, floor),
+                _absorbed_styles(facts, floor),
+                _named_styles(facts),
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -13188,6 +13218,82 @@ def _pooled_widths(facts: contract.NumericFacts, floor: int) -> int:
     return pooled
 
 
+# THE TWO STYLES THE ABSORBED ALLOWANCE REACHES, and it reaches no
+# others (the skeptic's finding of 2026-09-18, narrowed by the entry
+# table of review item P3-V1-F2). A `decimal` cell absorbed into a named
+# style is allowed for on the WIDTH axis by `_pooled_widths`, which is
+# where P4-D263 put it and where it is bounded by a width the census does
+# not name; offering it here as well made the entry table's `padded` red
+# case -- one cell rewritten with a trailing nought -- pass, and a
+# perturbation that no longer misses is a check nothing shows can fail.
+# The two exponents are reached by the source-spelling family above. What
+# is left is the leading nought and the leading plus, which is the pair
+# the finding was measured on.
+_ABSORBED_STYLE_FAMILY = (
+    parsing.STYLE_LEADING_ZERO,
+    parsing.STYLE_LEADING_PLUS,
+)
+
+
+def _absorbed_styles(facts: contract.NumericFacts, floor: int) -> int:
+    """How many cells the STYLE census may have counted into another name.
+
+    RULING 6 ON THE STYLE AXIS, the allowance `_pooled_widths` already
+    offers on the width axis (the skeptic's finding of 2026-09-18, the
+    item 7/8/9 family in a shape those three do not reach). A spelling
+    below the floor is counted into the column's commonest spelling, so
+    a style that covered too few cells to name leaves the census naming
+    it nowhere -- and the recount then finds a cell wearing no published
+    style and accuses the file its own description was written from.
+
+    MEASURED before this allowance, at a floor of one and at eleven
+    alike: thirty grouped counts `10,100` to `39,129` beside one
+    `0,472`, whose style is `leading_zero`, published
+    `numeric_styles {"plain": 31}` with `thousands_marks {}` and
+    `pad_widths {}`; the seed-4 twin passed and the REAL TABLE failed
+    `styles.spelled`, exit 3. Three of forty random European
+    decimal-comma shapes failed the same way, and the ungrouped
+    equivalents -- thirty plain integers beside one `0123`, one `+123`
+    or one `123e0` -- passed, so it is the grouped column that breaks.
+
+    THE ALLOWANCE REACHES TWO STYLES, not six: `_ABSORBED_STYLE_FAMILY`
+    beside this says which and why.
+
+    THE BOUND IS THE PAIR `_pooled_widths` USES, and for the same
+    reason: `parsing.absorbed_room`'s own answer, and what a census of
+    six names can hide -- five of the six can have been absorbed and
+    each was below the line, so at most five times one less than the
+    line. On a three-hundred-cell column at a floor of eleven that is
+    fifty, so one odd cell passes and sixty do not, and the check can
+    still fail.
+
+    Guarantees: accepts the column's numeric facts and the settings
+    floor; returns a count of cells. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    commonest, absorbed = parsing.absorbed_room(facts.numeric_styles, floor)
+    if not commonest:
+        return 0
+    return min(
+        absorbed,
+        (len(contract.NUMERIC_STYLES) - 1) * (parsing.census_floor(floor) - 1),
+    )
+
+
+def _named_styles(facts: contract.NumericFacts) -> "tuple[str, ...]":
+    """The style names this column's own census prints, ascending.
+
+    The pooled remainder is not one of them, exactly as in
+    `_published_widths`: it names no style and so authorizes none.
+    """
+    names: "tuple[str, ...]" = ()
+    for style in sorted(facts.numeric_styles):
+        if style == taxonomy.SUPPRESSED_LABEL:
+            continue
+        names = names + (style,)
+    return names
+
+
 def _published_widths(
     facts: contract.NumericFacts,
 ) -> "tuple[int, ...]":
@@ -13549,6 +13655,8 @@ def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
     pooled_widths: int = 0,
+    absorbed_styles: int = 0,
+    named_styles: "tuple[str, ...]" = (),
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -13577,6 +13685,7 @@ def _cells_outside_the_styles(
     """
     outside = 0
     spent = 0
+    styled = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body:
@@ -13654,6 +13763,22 @@ def _cells_outside_the_styles(
                         worn = True
                 if worn:
                     spent = spent + 1
+        # ...AND THE STYLE RULING 6 ABSORBED (the skeptic's finding of
+        # 2026-09-18). A spelling below the floor is counted into the
+        # column's commonest spelling, so the census names that style
+        # nowhere and a cell wearing it is outside every published
+        # spelling of its value. `absorbed_styles` is how many cells that
+        # can be -- `_absorbed_styles` states the pair of bounds -- and
+        # the permission reaches only a cell whose OWN style the census
+        # does not name AND which is one of the two styles no other
+        # clause reaches. MEASURED before it: thirty grouped counts beside
+        # one `0,472`, whose real table failed `styles.spelled` at both
+        # floors while its twin passed.
+        if not worn and styled < absorbed_styles:
+            own = parsing.numeric_style(body)
+            if own in _ABSORBED_STYLE_FAMILY and own not in named_styles:
+                worn = True
+                styled = styled + 1
         if not worn:
             outside = outside + 1
     return outside
