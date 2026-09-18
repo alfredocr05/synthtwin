@@ -1499,6 +1499,145 @@ class BlankPlace:
     text: str
 
 
+def endings_disclosed(
+    runs: "list[EndingRun]", floor: int, withheld_lines: int = 0
+) -> "list[EndingRun]":
+    """A file's line-ending runs, with no ending naming a group too small.
+
+    THE DISCLOSURE RULE, ASKED OF A FILE'S OWN LINES (plan P4-D280, the
+    repair of the extra review round of 2026-09-18). A run says how many
+    consecutive lines ended one way, so the runs TOGETHER say exactly
+    where each ending changed -- and where one ending was written by
+    fewer lines than the line, those runs point at the records that
+    carry it. **Measured** at a floor of eleven, on a header and 120
+    records `R001,1` through `R120,120` with `record` declared an
+    identifier: changing only record 57's ending to CRLF published
+    `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's exact
+    position, and the description loaded.
+
+    WHERE AN ENDING IS BELOW THE LINE THE WHOLE FILE IS PUBLISHED AS THE
+    COMMONEST ONE, which is ruling 6 of 2026-09-17 applied to a file's
+    own spelling: the description is the description of the file with its
+    rare endings written the way most of its lines were, the twin writes
+    that ending throughout, and describing the file again says the same
+    thing, so the file passes its own description. Ties for the
+    commonest go to the first ending in sorted order.
+
+    AND THE BLANK LINES THIS FILE DOES NOT PUBLISH LEAVE THE COUNT WITH
+    THEM. `blank_places_disclosed` below withholds the places of a
+    handful of blank lines, and invariant FD2 has the endings account for
+    every line the file holds, the blank ones included -- so a
+    description that dropped one blank line and kept its 122 endings
+    beside 121 lines was refused by its own loader. Where any line is
+    withheld the runs collapse to one for the same reason they collapse
+    around a rare ending: their positions are what says where the
+    withheld line stood.
+
+    Guarantees: accepts the runs in file order, the settings floor and
+    how many lines are withheld from the published form; returns those
+    runs, or a single run of the commonest ending over every line the
+    description keeps. Determinism: a fixed function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    line = parsing.census_floor(floor)
+    totals: "dict[str, int]" = {}
+    for run in runs:
+        counted = totals[run.ending] if run.ending in totals else 0
+        totals[run.ending] = counted + run.lines
+    rare = False
+    commonest = ""
+    lines = 0
+    for ending in sorted(totals):
+        lines = lines + totals[ending]
+        if totals[ending] < line:
+            rare = True
+        if not commonest or totals[ending] > totals[commonest]:
+            commonest = ending
+    if not commonest:
+        return list(runs)
+    if not rare and not withheld_lines:
+        return list(runs)
+    return [EndingRun(ending=commonest, lines=lines - withheld_lines)]
+
+
+def blank_places_disclosed(
+    places: "list[BlankPlace]", floor: int
+) -> "list[BlankPlace]":
+    """A file's blank-line places, where they are too many to name a record.
+
+    THE DISCLOSURE RULE, ASKED OF A POSITION RATHER THAN OF A COUNT
+    (plan P4-D280). A blank place says how many blank lines stood AFTER
+    so many records, so a handful of them are a handful of record
+    positions -- and a file with one is a file pointing at one record.
+    **Measured** at a floor of eleven, on a header and 120 records with
+    `record` declared an identifier: a single blank line after record 57
+    published `{after: 57, lines: 1}`, and the description loaded. The
+    coarse form beside it is no help, because `blank_lines_spread` names
+    the first and the last place, which for one place is that place.
+
+    So the places are published only where there are at least as many of
+    them as the line, and a file with fewer is described as having none.
+    The twin then writes none, and describing the file again reads it the
+    same way, so the file passes its own description. What it costs is
+    those blank lines in the twin, which is the price of not naming the
+    records they stand beside.
+
+    Guarantees: accepts the places in file order and the settings floor;
+    returns those places or none at all. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    if len(places) >= parsing.census_floor(floor):
+        return list(places)
+    return []
+
+
+def blank_lines_withheld(places: "list[BlankPlace]", floor: int) -> int:
+    """How many blank lines `blank_places_disclosed` holds back (P4-D280).
+
+    Asked of that rule itself, so the two can never part: nought where
+    the places are published, and every one of their lines where they
+    are not. `endings_disclosed` takes it off the line count it
+    publishes, because invariant FD2 has the endings account for every
+    line the description keeps.
+
+    Guarantees: accepts the places in file order and the settings floor;
+    returns nought or the lines those places hold. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    if blank_places_disclosed(places, floor):
+        return 0
+    lines = 0
+    for place in places:
+        lines = lines + place.lines
+    return lines
+
+
+def row_count_disclosed(count: int, floor: int) -> int:
+    """One count of a file's empty rows, as the disclosure rule allows.
+
+    THE DISCLOSURE RULE, ASKED OF THE THREE EMPTY-ROW COUNTS (plan
+    P4-D280). An empty row is a record of the table written with no
+    value in any column, and its count is a count of records like any
+    other. **Measured** at a floor of eleven, on a header and 120
+    records with `record` declared an identifier: replacing record 57
+    with a bare comma published `empty_rows.interior 1`, a count of one
+    record, and the description loaded.
+
+    A count below the line is published as NOUGHT -- the file described
+    as though those rows held values, which is ruling 4 of 2026-09-17
+    counting a group below a raised floor as absent. The twin writes no
+    empty row there and the file described again says nought too, so the
+    file passes its own description.
+
+    Guarantees: accepts a count of empty rows and the settings floor;
+    returns that count or nought. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    if count >= parsing.census_floor(floor):
+        return count
+    return 0
+
+
 @dataclasses.dataclass(frozen=True)
 class BlankSpread:
     """Blank lines in more places than `MAXIMUM_BLANK_PLACES`, counted.
@@ -3423,6 +3562,7 @@ def survey(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
+    small_cell_floor: int = 1,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -3821,18 +3961,36 @@ def survey(
         n_rows - len(empty_rows),
         declared_commas if declared_commas else None,
     )
-    census = census_of(walk.runs)
+    # THE WRITTEN FORM OF A FILE IS HELD TO THE DISCLOSURE RULE TOO
+    # (plan P4-D280). Every count and position below is a fact about
+    # LINES, and a line of a delimited table is one of its records.
+    #
+    # WHAT IS GATED IS WHAT THE FORM PUBLISHES, AND NOT THE READING.
+    # `blanks`, `walk.runs` and `empty_rows` stay exactly as the walk
+    # found them, because the survey hands them to the checking pass
+    # that holds this reading to the standard library reader's -- gating
+    # `blanks` itself made that pass step over a line the reader kept,
+    # and a spaced blank line then refused the file as read two ways.
+    withheld_lines = blank_lines_withheld(blanks, small_cell_floor)
+    told_runs = endings_disclosed(walk.runs, small_cell_floor, withheld_lines)
+    told_blanks = blank_places_disclosed(blanks, small_cell_floor)
+    leading_told = row_count_disclosed(leading, small_cell_floor)
+    trailing_told = row_count_disclosed(trailing, small_cell_floor)
+    interior_told = row_count_disclosed(
+        len(empty_rows) - leading - trailing, small_cell_floor
+    )
+    census = census_of(told_runs)
     blank_census = blank_census_of(blanks)
-    runs_published: "tuple[EndingRun, ...]" = tuple(walk.runs)
+    runs_published: "tuple[EndingRun, ...]" = tuple(told_runs)
     census_published: "tuple[EndingRun, ...]" = ()
-    if len(walk.runs) > MAXIMUM_ENDING_RUNS:
+    if len(told_runs) > MAXIMUM_ENDING_RUNS:
         runs_published = ()
         census_published = census
-    places_published: "tuple[BlankPlace, ...]" = tuple(blanks)
+    places_published: "tuple[BlankPlace, ...]" = tuple(told_blanks)
     spread_published: "BlankSpread | None" = None
-    if len(blanks) > MAXIMUM_BLANK_PLACES:
+    if len(told_blanks) > MAXIMUM_BLANK_PLACES:
         places_published = ()
-        spread_published = blank_census
+        spread_published = blank_census_of(told_blanks)
     # THE LINES BEFORE THE TABLE ARE PUBLISHED AS SHAPES (plan P4-D80).
     # Their text is not published here, and there is no floor at which
     # it is: nothing downstream can publish what this never puts in the
@@ -3857,9 +4015,9 @@ def survey(
         rows_trailing_delimiter=rows_trailing,
         short_rows=short_rows,
         blank_lines=places_published,
-        empty_rows_leading=leading,
-        empty_rows_interior=len(empty_rows) - leading - trailing,
-        empty_rows_trailing=trailing,
+        empty_rows_leading=leading_told,
+        empty_rows_interior=interior_told,
+        empty_rows_trailing=trailing_told,
         columns=tuple(column_forms),
         row_order=order,
         line_endings_spread=census_published,
@@ -4044,6 +4202,7 @@ def settle(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
+    small_cell_floor: int = 1,
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 
@@ -4062,6 +4221,7 @@ def settle(
             decimal_comma_columns=decimal_comma_columns,
             metadata_rows_confirmed=metadata_rows_confirmed,
             declared_delimiter=declared_delimiter,
+            small_cell_floor=small_cell_floor,
         )
     except errors.ProfileError as refusal:
         # THE SUPPORTED ESCAPINGS ARE TRIED BEFORE A STRUCTURAL REFUSAL
@@ -4080,6 +4240,7 @@ def settle(
                 decimal_comma_columns=decimal_comma_columns,
                 metadata_rows_confirmed=metadata_rows_confirmed,
                 declared_delimiter=declared_delimiter,
+                small_cell_floor=small_cell_floor,
             )
         except errors.ProfileError:
             raise refusal from None
@@ -4093,6 +4254,7 @@ def settle(
             decimal_comma_columns=decimal_comma_columns,
             metadata_rows_confirmed=metadata_rows_confirmed,
             declared_delimiter=declared_delimiter,
+            small_cell_floor=small_cell_floor,
         )
     if found.malformed and found.form.escape == ESCAPE_DOUBLED:
         try:
@@ -4108,6 +4270,7 @@ def settle(
                 decimal_comma_columns=decimal_comma_columns,
                 metadata_rows_confirmed=metadata_rows_confirmed,
                 declared_delimiter=declared_delimiter,
+                small_cell_floor=small_cell_floor,
             )
         except errors.ProfileError:
             return found

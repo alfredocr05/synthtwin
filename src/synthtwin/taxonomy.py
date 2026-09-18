@@ -4990,8 +4990,8 @@ class _Levels:
 def _absorb_lone_spellings(
     spellings: "dict[str, int]", settings: Settings
 ) -> "dict[str, int]":
-    """One level's spellings, with every ONE-ROW spelling counted into its
-    commonest (plan P4-D240).
+    """One level's spellings, with every BELOW-FLOOR spelling counted into
+    its commonest (plans P4-D240, P4-D275).
 
     THE OWNER'S RULING OF 2026-09-17, ITEM 6 (plan P4-D222, CONFIRMED),
     ASKED OF A LABEL'S SPELLINGS. For the six older number censuses a
@@ -5005,14 +5005,27 @@ def _absorb_lone_spellings(
     wrote a lone `f` cell in exactly one row. The same shape at a floor
     of five on 46 rows published the same pair.
 
-    A SPELLING THE FLOOR HOLDS BACK AND ONE ROW WROTE IS THEREFORE
-    COUNTED INTO THE LEVEL'S COMMONEST SPELLING, exactly as ruling 6
-    counts a rare mark into the commonest mark: the description is the
-    description of the table with that cell written the way most of the
-    level's cells were, `variants_withheld` can no longer carry the key
-    `1`, and the twin writes the commonest spelling in that row. Ties for
-    the commonest go to the first spelling in sorted order, which is the
-    tie rule `parsing.absorbed_census` already states.
+    A SPELLING THE FLOOR HOLDS BACK IS THEREFORE COUNTED INTO THE
+    LEVEL'S COMMONEST SPELLING, exactly as ruling 6 counts a rare mark
+    into the commonest mark: the description is the description of the
+    table with those cells written the way most of the level's cells
+    were, `variants_withheld` carries nothing at all, and the twin writes
+    the commonest spelling in those rows. Ties for the commonest go to
+    the first spelling in sorted order, which is the tie rule
+    `parsing.absorbed_census` already states.
+
+    EVERY SPELLING BELOW THE LINE AND NOT THE ONE-ROW SPELLINGS ALONE
+    (plan P4-D275, the repair of the extra review round of 2026-09-18).
+    This rule was written for a count of ONE and stopped there, and the
+    line it stopped short of is the one ruling 6 draws. **Measured** at a
+    floor of eleven on 490 `F`, 500 `M` and TWO `f`: the pair was not
+    absorbed at all, the level published `variants {"F": 490}` beside
+    `variants_withheld {"2": 1}` -- one held-back spelling that exactly
+    two rows wrote -- and the twin wrote two `f` cells. Two rows is a
+    group below the line as surely as one row is, and the multiplicity
+    map states its size outright. So the line is `small_cell_floor`, the
+    same line `_variants` names a spelling at, and the second mapping is
+    empty on every level of every raised-floor description.
 
     AT THE DEFAULT FLOOR NOTHING MOVES. A floor of one holds no spelling
     back, so every spelling is named and there is nothing to count in:
@@ -5031,7 +5044,7 @@ def _absorb_lone_spellings(
     lone: "list[str]" = []
     rest: "dict[str, int]" = {}
     for spelling in sorted(spellings):
-        if spellings[spelling] == 1:
+        if spellings[spelling] < settings.small_cell_floor:
             lone += [spelling]
         else:
             rest[spelling] = spellings[spelling]
@@ -5049,7 +5062,7 @@ def _absorb_lone_spellings(
         absorbed[commonest] = 0
     taken = 0
     for spelling in lone:
-        taken = taken + 1
+        taken = taken + spellings[spelling]
     absorbed[commonest] = absorbed[commonest] + taken
     return absorbed
 
@@ -5091,11 +5104,13 @@ def _variants(
     - Boundary: a spelling reaches the first mapping only when at least
       `small_cell_floor` rows wrote it -- the same line a whole label
       has to clear -- so nothing crosses it that a label would not, and
-      the second mapping names nothing at all. At a raised floor the
-      second mapping never carries the key `1`: a spelling ONE row wrote
-      is counted into the level's commonest first
-      (`_absorb_lone_spellings` above, plan P4-D240), because a
-      multiplicity map keyed `1` states a count of one outright.
+      the second mapping names nothing at all. AT A RAISED FLOOR THE
+      SECOND MAPPING IS EMPTY: every spelling below the line is counted
+      into the level's commonest first (`_absorb_lone_spellings` above,
+      plans P4-D240 and P4-D275), because a multiplicity map keyed `1`
+      states a count of one outright and a map keyed `2` states a group
+      of two. It carries entries only at a floor of one, where nothing
+      is held back and the map is empty for that reason instead.
     """
     counted = _absorb_lone_spellings(spellings, settings)
     named: dict[str, int] = {}
@@ -5152,6 +5167,43 @@ def shape_form_cells(spellings: dict[str, int]) -> int:
         if parsing.shape_form(spelling):
             shaped = shaped + spellings[spelling]
     return shaped
+
+
+def _published_distinct(cells: _Cells) -> int:
+    """How many different spellings a label column's own block says it holds.
+
+    THE COUNT DERIVED FROM THE PROTECTED SPELLINGS AND NOT FROM THE RAW
+    ONES (plan P4-D276, the repair of the extra review round of
+    2026-09-18). `n_distinct` counted the column's different cells
+    exactly, and a published level's `variants` census counts the
+    spellings the floor let it name -- so the difference between them
+    counted the spellings the absorption took away, and while the
+    absorption reached one-row spellings alone that difference WAS a
+    count of one. **Measured** at a floor of eleven on 490 `F`, 500 `M`
+    and one `f`: the block published `variants {"F": 491}` and
+    `{"M": 500}`, no withheld spelling anywhere, and `n_distinct 3` --
+    three spellings, two of them named, and the one left over is the row
+    that wrote `f`.
+
+    So the count is taken over the spellings the block SPEAKS OF: for
+    every level the floor publishes, the spellings that survive
+    `_absorb_lone_spellings`, and for every level the floor holds back,
+    its own spellings, which no key of this block names and which no
+    reader can subtract a published census from.
+
+    Guarantees: accepts the column's tally; returns a count between the
+    number of folded identities and `raw_distinct`. Determinism: a fixed
+    function of the tally, walked in sorted order. Raises nothing. No I/O
+    of any kind.
+    """
+    counted = 0
+    for label in sorted(cells.folded_counts):
+        spellings = cells.spellings_by_folded[label]
+        if cells.folded_counts[label] >= cells.settings.small_cell_floor:
+            spellings = _absorb_lone_spellings(spellings, cells.settings)
+        for _spelling in sorted(spellings):
+            counted = counted + 1
+    return counted
 
 
 def _levels(
@@ -5358,14 +5410,14 @@ def _levels_read_by_subtraction(
         return ()
     rare: "list[str]" = []
     pooled = 0
-    smallest = 0
+    published = 0
     for label in sorted(counts):
         if counts[label] < floor:
             rare += [label]
             pooled = pooled + counts[label]
-        elif not smallest or counts[label] < smallest:
-            smallest = counts[label]
-    if not parsing.pool_names_a_level(len(rare), pooled, smallest):
+            continue
+        published = published + counts[label]
+    if not parsing.pool_names_a_level(len(rare), pooled, published):
         return ()
     return tuple(rare)
 
@@ -5826,8 +5878,10 @@ def _text_details(cells: _Cells) -> dict[str, object]:
             "max": int(max(words)),
             "mean": _moments(words)["mean"],
         },
-        "n_all_digits": cells.all_digits,
-        "n_code_alphabet": cells.code_alphabet,
+        "n_all_digits": _published_alphabets(cells)[1],
+        "n_code_alphabet": _published_alphabets(cells)[0],
+        # Both read from `_published_alphabets`, which is the one place
+        # the disclosure rule is asked of them (plan P4-D277).
         # ...and the forms its cells were written in, which is what
         # lets a made-up cell look like one of them (plan P4-D18).
         "shape_forms": _shape_forms(cells, True),
@@ -6216,9 +6270,10 @@ def _layout_forms(cells: _Cells) -> dict[str, int]:
             named[layout] = census[layout]
     written_pool = pooled >= 2
     plain = parsing.layout_convention(cells.present) == parsing.LAYOUT_PLAIN
+    code_alphabet, all_digits = _published_alphabets(cells)
     totals = [
-        (cells.code_alphabet, _LAYOUT_CODE_MARKS),
-        (cells.all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
+        (code_alphabet, _LAYOUT_CODE_MARKS),
+        (all_digits if plain else 0, _LAYOUT_FIGURE_MARKS),
     ]
     # THE LOOP RUNS WHILE ANYTHING IS PUBLISHED, THE POOL ALONE INCLUDED
     # (plan P4-D151). It ran while a layout was NAMED, so a census that
@@ -6287,6 +6342,16 @@ def _layout_prefixes(
     cells that do not are nought or reach it too, so no entry says that
     one row of the table is written otherwise.
 
+    AND EVERY ENTRY ASKS THE ROOM RULE TOO (`parsing.prefix_leaves_room`;
+    plan P4-D270, contract invariant LP3). A layout is named only where
+    it could have come from `n_distinct + floor` different cells, and a
+    prefix fixes characters of it: `@@@%%%` beside `REC` leaves a
+    THOUSAND cells, not 17,576,000, so 1,000 declared record numbers
+    published a shape with exactly one solution and the twin wrote all
+    1,000 of them. Where the prefix would take the room below the line
+    the prefix is not written, and the census stands: the coarser fact
+    is published and the sharper one is not.
+
     Guarantees: accepts a tally and its published layout census; returns
     a mapping from `(column)` or a named layout to a literal prefix.
     Determinism: a function of the arguments; keys in sorted order.
@@ -6305,7 +6370,11 @@ def _layout_prefixes(
     if not named:
         return {}
     whole = parsing.literal_prefix(cells.present, convention)
-    if whole and parsing.prefix_nameable(present, present, floor):
+    if (
+        whole
+        and parsing.prefix_nameable(present, present, floor)
+        and _prefix_keeps_the_room(cells, named, whole, convention)
+    ):
         return {parsing.PREFIX_OF_THE_COLUMN: whole}
     found: "dict[str, str]" = {}
     for layout in sorted(layouts):
@@ -6323,9 +6392,30 @@ def _layout_prefixes(
         for value in cells.present:
             if value[: len(prefix)] == prefix:
                 carrying = carrying + 1
-        if parsing.prefix_nameable(carrying, present, floor):
+        if parsing.prefix_nameable(
+            carrying, present, floor
+        ) and _prefix_keeps_the_room(cells, [layout], prefix, convention):
             found[layout] = prefix
     return found
+
+
+def _prefix_keeps_the_room(
+    cells: _Cells, layouts: "list[str]", prefix: str, convention: str
+) -> bool:
+    """Whether a prefix leaves every layout it governs room to spell the column.
+
+    `parsing.prefix_leaves_room` states the rule and this only asks it of
+    each layout the entry would stand over -- every named layout for the
+    whole column's prefix, the one layout for a layout's own.
+    """
+    distinct = cells.raw_distinct
+    floor = cells.settings.small_cell_floor
+    for layout in sorted(layouts):
+        if not parsing.prefix_leaves_room(
+            layout, prefix, convention, distinct, floor
+        ):
+            return False
+    return True
 
 
 # The characters a layout key may hold for every cell wearing it to lie
@@ -6378,6 +6468,102 @@ def _layout_to_take_back(named: "dict[str, int]", marks: str) -> str:
         if not best or named[layout] < named[best]:
             best = layout
     return best
+
+
+def _published_reading_split(
+    cells: _Cells, role: str
+) -> "tuple[int, int, int, int]":
+    """What a declared record number's cells READ AS, under the rule.
+
+    THE FOUR-WAY PARTITION OF `n_present` (contract X2): how many cells
+    read as a number, how many as a numeral out of range, how many as a
+    numeral contradicting itself, and how many as text. Every block
+    carries it, and on a DECLARED RECORD NUMBER -- the one role whose
+    whole promise is that no fact about any one record is published --
+    it named one (plan P4-D277). **Measured** at a floor of eleven, on
+    999 identifiers `REC` and seven figures beside one `42`: the block
+    published `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999`,
+    and the layout census was withheld beside them because it would have
+    said the same thing.
+
+    A PART BELOW THE LINE IS COUNTED INTO THE LARGEST PART, ties to the
+    first of the four, which is ruling 6 of 2026-09-17 again. The four
+    then sum to `n_present` exactly as X2 requires, every published part
+    is nought or names a group, and so is every complement, because a
+    complement here is a sum of the other three.
+
+    IT IS ASKED OF THIS ROLE ALONE, and the limit is stated rather than
+    left to be discovered. The three numeric partitions are what the
+    numeric roles are described BY -- a column of measurements publishes
+    its `n_not_numeric` beside a form census checked against it -- so
+    moving them there is a change to what those roles mean and not a
+    disclosure repair. Free text publishes the same four beside the same
+    promise to name no value, and the same reading of one cell is open
+    there; it is measured and left for the owner rather than half-built
+    here.
+
+    Guarantees: accepts the tally and the role the reading gave it;
+    returns the four counts in the contract's own order, summing to the
+    present cells. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    parts = [
+        len(cells.numbers),
+        cells.n_out_of_range,
+        cells.n_contradictory,
+        cells.n_not_numeric,
+    ]
+    if role != ROLE_IDENTIFIER:
+        return (parts[0], parts[1], parts[2], parts[3])
+    line = parsing.census_floor(cells.settings.small_cell_floor)
+    largest = 0
+    place = 0
+    for part in parts:
+        if part > parts[largest]:
+            largest = place
+        place = place + 1
+    taken = 0
+    kept = [0, 0, 0, 0]
+    place = 0
+    for part in parts:
+        if place != largest and 0 < part < line:
+            taken = taken + part
+        else:
+            kept[place] = part
+        place = place + 1
+    kept[largest] = kept[largest] + taken
+    return (kept[0], kept[1], kept[2], kept[3])
+
+
+def _published_alphabets(cells: _Cells) -> "tuple[int, int]":
+    """`n_code_alphabet` and `n_all_digits` as a block may publish them.
+
+    THE DISCLOSURE RULE ASKED OF THE TWO ALPHABET COUNTS (plan P4-D277,
+    `parsing.absorbed_total`). Only the two roles that publish no value of
+    the table carry these -- a declared record number and free text --
+    and each is a census of two groups written as one number: the cells
+    inside the alphabet, and the cells outside it, which a reader takes
+    by subtracting from `n_present`. **Measured** at a floor of eleven, on
+    999 record numbers of `REC` and seven figures beside one `X Y`:
+    `n_code_alphabet 999` beside `n_present 1000` named the one
+    identifier written outside the alphabet, while the layout census that
+    would have named it was withheld for exactly that reason.
+
+    The pair is read here and nowhere else, so the counts the block
+    PRINTS and the counts its own censuses are checked against can never
+    part: `_layout_forms` and `_form_disclosure` ask this too.
+
+    Guarantees: accepts the tally; returns the code-alphabet count and
+    the figures-alone count, each the measured count, nought, or every
+    present cell. Determinism: a fixed function of the tally. Raises
+    nothing. No I/O of any kind.
+    """
+    present = len(cells.present)
+    floor = cells.settings.small_cell_floor
+    return (
+        parsing.absorbed_total(cells.code_alphabet, present, floor),
+        parsing.absorbed_total(cells.all_digits, present, floor),
+    )
 
 
 def _shape_forms(
@@ -6557,8 +6743,9 @@ def _form_disclosure(
     kinds = [_FORM_ANY]
     totals = [len(cells.present)]
     if with_code_total:
+        code_alphabet, all_digits = _published_alphabets(cells)
         kinds += [_FORM_CODE, _FORM_CODE]
-        totals += [cells.code_alphabet, cells.code_alphabet - cells.all_digits]
+        totals += [code_alphabet, code_alphabet - all_digits]
     # THE LABEL HALF OF A COMPOUND COLUMN PUBLISHES NO `n_not_numeric` of
     # its own, and every cell of it is text, so its `n_present` is the
     # reading this one would be.
@@ -7880,10 +8067,27 @@ def _mixture_census(
 
     * a convention used by at least `_census_floor` cells is named with
       its count;
-    * what is left is pooled under `(withheld)` -- these censuses have
-      FOUR and SEVEN possible keys, so a pool here names no convention,
-      which is exactly the property `decimal_plus` lacks and the reason
-      that key may not pool at all;
+    * A CONVENTION BELOW THE LINE IS COUNTED INTO THE COMMONEST NAMED
+      ONE, which is ruling 6 of 2026-09-17 and `parsing.absorbed_census`'
+      own rule, written here for the same reason (plan P4-D274, the
+      repair of the extra review round of 2026-09-18). It used to be
+      pooled, and where the pool then fell below the line the WHOLE
+      census went silent -- which left the majority field standing alone
+      and told a reader what the census had held back. **Measured** at a
+      floor of eleven, on 388 positive decimals, eleven negatives in
+      accounting brackets and one `-12.25`: the description published
+      `n_negative 12`, `negative_form brackets` and
+      `negative_notations {"(unavailable)": 0}`, and the majority field
+      needs at least eleven bracketed cells while twelve would have been
+      named -- so the three facts together prove eleven brackets and one
+      other notation. Counted in, the census says `{"brackets": 12}`,
+      nothing is derivable, and describing the table again says the same
+      thing, so the table passes its own description;
+    * where NO convention reaches the line there is no commonest named
+      one to take them in, and what is left is pooled under `(withheld)`
+      -- these censuses have FOUR and SEVEN possible keys, so a pool here
+      names no convention, which is exactly the property `decimal_plus`
+      lacks and the reason that key may not pool at all;
     * but a pool that is itself below the floor would name the cells it
       holds as surely as publishing them would, so a census that cannot
       pool safely publishes `(unavailable)` and no number whatever.
@@ -7922,13 +8126,24 @@ def _mixture_census(
     floor = _census_floor(settings)
     published: "dict[str, int]" = {}
     pooled = 0
+    commonest = ""
     for name in order:
         if name not in counts:
             continue
         if counts[name] >= floor:
             published[name] = counts[name]
-        else:
-            pooled = pooled + counts[name]
+            if not commonest or counts[name] > published[commonest]:
+                commonest = name
+            continue
+        pooled = pooled + counts[name]
+    # A CONVENTION BELOW THE LINE IS COUNTED INTO THE COMMONEST NAMED
+    # ONE (plan P4-D274, ruling 6 of 2026-09-17). Ties go to the first
+    # in the enumeration's order, which is the order this loop walks,
+    # and the name that takes the rest in is always the largest printed
+    # count, so nothing else can grow past it.
+    if commonest and pooled >= 1:
+        published[commonest] = published[commonest] + pooled
+        pooled = 0
     if pooled < 1:
         return _spoken_or_silent(published, populations, settings, silent)
     # A POOL IS A THING HELD BACK, AND AT A FLOOR OF ONE NOTHING IS
@@ -8866,8 +9081,84 @@ def _matching_date_format(
                 good += [pair_read]
                 sources += [value]
         if len(good) >= needed and good:
-            return reading, good, sources, len(present) - len(good), evidence
+            if _joint_reading_names_a_group(reading, sources, settings):
+                return reading, good, sources, len(present) - len(good), evidence
     return None
+
+
+def _joint_reading_names_a_group(
+    reading: str, sources: "list[str]", settings: Settings
+) -> bool:
+    """Whether a joint ISO reading's two forms are each a group, not a person.
+
+    THE JOINT READING MAY NOT BE CLAIMED BY A GROUP BELOW THE LINE (plan
+    P4-D279, the repair of the extra review round of 2026-09-18). The
+    `iso-mixed` reading joins whole dates and moments, and the block
+    publishes `resolution_mix` -- how many cells wore each -- exactly,
+    with no floor, because a two-member space beside the published parsed
+    total makes a pooled remainder recoverable by subtraction, so a floor
+    applied to the census itself would withhold nothing. **Measured** at
+    a floor of eleven, on 395 consecutive ISO dates beside ONE
+    `2020-05-03T00:00:00` and four cells that parse under nothing: the
+    single-format pass did not clear at 395 of 400, the joint reading did
+    at 396, and the block published `resolution_mix {"iso-date": 395,
+    "iso-datetime": 1}` beside `datetime_separators {"(withheld)": 1}` --
+    one record named twice over, and both documents loaded.
+
+    SO THE READING GIVES WAY WHOLE, and three narrower repairs were built
+    and measured before this one, each of which a round trip refused:
+
+    - counting the rare form into the other one inside `resolution_mix`.
+      The mix then says `{"iso-date": 396, "iso-datetime": 0}` and
+      nothing is derivable -- but the twin writes 396 bare dates while
+      the block still publishes the joint member at the datetime
+      resolution with its ends at a clock, and NINE obligations missed on
+      the twin, `format`, `resolution`, `time_precision`, both ends, both
+      midnight facts and the date ladder among them.
+    - reading the column under the surviving member and counting the rare
+      cells as unparsed. The description is then consistent with itself,
+      and the twin of it is not: the surviving member parses 395 of 400,
+      which is below the parse rate the joint reading had just cleared at
+      396, so describing the twin reads it as FREE TEXT and its role
+      missed at exit 3.
+    - raising the rare form to the line inside the mix. The separator
+      census then names a mark on eleven cells the real table wrote on
+      one, and the real table misses its own description.
+
+    What is left is the rule the format table already states one cell
+    lower down -- "a column of ninety-nine ISO dates and one datetime
+    cell is a date column with one unparsed cell" -- applied to the case
+    where the rare cells are the only reason the column clears at all.
+    The joint reading is the LAST member tried, so this is reached only
+    where neither single ISO member cleared the parse rate on its own,
+    which is exactly the column whose date reading rests on a handful of
+    rows. Such a column is read as free text, and its twin is read as
+    free text too.
+
+    WHAT IT COSTS IS NAMED: a column of 395 dates whose reading rested on
+    one moment is described as text and its twin writes stand-ins. A
+    column of 1,990 dates beside ten moments is untouched, because
+    `iso-date` clears on its own at 99.5 per cent and the joint reading
+    is never reached.
+
+    Guarantees: accepts the reading a format pass settled on, the cells
+    that parsed under it and the run's settings; returns True for every
+    reading but the joint one, and for the joint one exactly where each
+    of its two forms is nought or reaches `parsing.census_floor`.
+    Determinism: a fixed function of the three. Raises nothing. No I/O of
+    any kind.
+    """
+    if reading != FORMAT_ISO_MIXED:
+        return True
+    moments = 0
+    for value in sources:
+        if parsing.parse_datetime(value, "iso-datetime") is not None:
+            moments = moments + 1
+    dates = len(sources) - moments
+    line = parsing.census_floor(settings.small_cell_floor)
+    if moments and moments < line:
+        return False
+    return not (dates and dates < line)
 
 
 def _best_date_reading(present: list[str]) -> "tuple[str, int]":
@@ -9100,21 +9391,70 @@ def _width_counts(
     month above September publishes an empty census, honestly: nothing
     in it says how it would have written a single figure.
 
-    AND WHAT THE NAMED COUNTS LEAVE OVER IS COUNTED AGAINST THOSE CELLS,
-    not against every parsed cell (plan P4-D139; skeptic of the review of
-    158c811, finding 2). A date whose two fields are both ten or more was
-    written with no convention at all, so it is no form a reader could
-    learn by subtraction; counted as one, a single `12/25/2019` among 244
-    dates written `m/d/yyyy` left a remainder of one, the census was
-    withheld whole, and 212 of the twin's 245 cells were written
-    `04/14/2020`. One-field counts are folded into the joint words first
-    (`parsing.folded_width_tally`).
+    A CELL THAT COULD SHOW NO WIDTH IS COUNTED INTO THE COMMONEST WIDTH,
+    and the census is then held against every parsed cell (plan P4-D278,
+    the repair of the extra review round of 2026-09-18). The remainder
+    used to be counted against the cells that COULD show a width, which
+    no field of the block publishes -- and a reader holds the parsed
+    total, `n_present` less `n_unparsed`, so they subtract from that one
+    instead. **Measured** at a floor of eleven, on 399 dates written
+    `1/1/2000` through `1/9/2044` beside one `12/25/2020`: the census
+    published `{"unpadded": 399}` against 400 parsed cells, and the one
+    left over is the record whose month and day are both two figures.
+
+    THE ABSORPTION COSTS NOTHING, which is why it is taken instead of
+    the silence plan P4-D139 measured. A date both of whose fields are
+    ten or more is written IDENTICALLY under either convention, so
+    counting it under the column's commonest one is a true statement
+    about that cell and the twin writes it the same way either way.
+    P4-D139 withheld the whole census instead, and a single `12/25/2019`
+    among 244 dates written `m/d/yyyy` then left 212 of the twin's 245
+    cells written `04/14/2020`; counted in, the census says
+    `{"m/d": 245}` and the twin writes the column's own convention.
+    Ties for the commonest go to the first in sorted order, which is
+    `parsing.absorbed_census`' own tie rule. One-field counts are folded
+    into the joint words first (`parsing.folded_width_tally`).
     """
-    counts = parsing.folded_width_tally(width_tally(sources, format_name))
+    counts = absorbed_width_tally(
+        parsing.folded_width_tally(width_tally(sources, format_name)),
+        len(sources),
+    )
     shown = 0
     for name in counts:
         shown = shown + counts[name]
     return _floored_census(counts, shown, settings)
+
+
+def absorbed_width_tally(
+    tally: "dict[str, int]", parsed: int
+) -> "dict[str, int]":
+    """A width tally with the cells showing no width counted into the commonest.
+
+    THE ONE STATEMENT OF THE ABSORPTION `_width_counts` above sets out
+    (plan P4-D278), read by the producer and by the checker so the two
+    cannot part. A date both of whose fields are ten or more is written
+    identically under either convention, so counting it under the
+    column's commonest one is true of it. Ties go to the first name in
+    sorted order. A tally naming nothing is handed back unchanged: there
+    is no commonest convention to count them into.
+
+    Guarantees: accepts a folded width tally and how many cells parsed;
+    returns a tally over the same names, summing to the parsed cells
+    wherever it names one. Determinism: a fixed function of the two,
+    walked in sorted order. Raises nothing. No I/O of any kind.
+    """
+    shown = 0
+    commonest = ""
+    for name in sorted(tally):
+        shown = shown + tally[name]
+        if not commonest or tally[name] > tally[commonest]:
+            commonest = name
+    absorbed: "dict[str, int]" = {}
+    for name in sorted(tally):
+        absorbed[name] = tally[name]
+    if commonest and parsed > shown:
+        absorbed[commonest] = absorbed[commonest] + (parsed - shown)
+    return absorbed
 
 
 def _name_style_counts(
@@ -9195,6 +9535,16 @@ def _separator_counts(
     A cell that writes no clock is not counted, so the map is empty on a
     column of dates, months or quarters, and on an `iso-mixed` column it
     covers only the cells that wrote one.
+
+    A POOL HERE IS NEVER A COUNT OF ONE, and that rests on the reading
+    rather than on a rule of this census (`_joint_reading_settled`, plan
+    P4-D279). The population it counts over is the cells that wrote a
+    clock, which on a joint column is `resolution_mix`'s own moment
+    count; a joint column whose moments fall below the line is read as a
+    column of DATES instead, so the population reaching this is nought
+    or at least the line. **Measured** before that: 395 ISO dates beside
+    one `2020-05-03T00:00:00` published `{"(withheld)": 1}`, a pool whose
+    whole size is that one record.
 
     HELD TO THE DISCLOSURE RULE (plan P4-D220). It took `_offset_counts`'
     old rule -- a name published where its count reached the settings
@@ -9343,16 +9693,23 @@ def _resolution_mix(
 
     ONE KEY ON A SINGLE-FORMAT COLUMN -- its own form, carrying every
     cell that parsed -- and exactly the two ISO members on a column the
-    joint reading claimed. No other key set conforms, and the counts
-    are exact with no floor: a two-member space beside the published
-    parsed total makes a pooled remainder recoverable by subtraction,
-    so a floor would withhold nothing, and what the fact carries is a
-    count of FORMS rather than any value of the table.
+    joint reading claimed. No other key set conforms.
 
-    Guarantees: accepts a format member and the source cells that
-    parsed under it; returns a mapping whose values sum to how many
-    there were. Determinism: a function of the two, with the keys built
-    in the format table's own order. Raises nothing. No I/O of any kind.
+    THE COUNTS ARE EXACT AND NO FLOOR GOVERNS THEM, and that is safe
+    only because NEITHER MEMBER CAN BE BELOW THE LINE HERE
+    (`_joint_reading_settled`, plan P4-D279). A two-member space beside
+    the published parsed total makes a pooled remainder recoverable by
+    subtraction, so a floor applied at this point would withhold
+    nothing -- which is why a column of 395 ISO dates and ONE moment
+    published `{"iso-date": 395, "iso-datetime": 1}` and named that one
+    record. The reading is settled before this is asked: a joint column
+    whose one form is below the line is read under the OTHER form, and
+    what this counts is therefore two groups each at the line or above.
+
+    Guarantees: accepts a format member and the source cells that parsed
+    under it; returns a mapping whose values sum to how many there were.
+    Determinism: a function of the two, with the keys built in the format
+    table's own order. Raises nothing. No I/O of any kind.
     """
     if format_name != FORMAT_ISO_MIXED:
         return {format_name: len(sources)}
@@ -10081,7 +10438,7 @@ def _compound_details(
         # that carries a number from another population is a number
         # waiting to be read. With this the column's own count is the
         # two halves' counts added, rather than a range between them.
-        labels_block["n_distinct"] = label_cells.raw_distinct
+        labels_block["n_distinct"] = _published_distinct(label_cells)
         # AND HOW MANY CELLS THE HALF HOLDS, which the form census is
         # stated over: a census of forms is a census of the cells that
         # wore them, and the column's own `n_present` counts the
@@ -13122,8 +13479,8 @@ def _identifier_verdict(
             "all_whole_numbers": (
                 cells.n_whole == n_present and cells.n_whole > 0
             ),
-            "n_all_digits": cells.all_digits,
-            "n_code_alphabet": cells.code_alphabet,
+            "n_all_digits": _published_alphabets(cells)[1],
+            "n_code_alphabet": _published_alphabets(cells)[0],
             # WHAT A RECORD NUMBER LOOKS LIKE, with no value attached
             # to it (7.12, plan P4-D120). The five facts above say how
             # long the values are and which alphabet they came from,
@@ -13998,6 +14355,11 @@ def profile_column(
     statistical_type, quality_state, structural_role = axes_of(
         verdict.role, forced_identifier
     )
+    # THE FOUR COUNTS OF WHAT THE CELLS READ AS, AS THE BLOCK PUBLISHES
+    # THEM (plan P4-D277). Read once, because they are one partition.
+    numeric, out_of_range, contradictory, not_numeric = (
+        _published_reading_split(cells, verdict.role)
+    )
     return ColumnProfile(
         name=name,
         position=position,
@@ -14015,11 +14377,15 @@ def profile_column(
         details=details,
         publication_notes=verdict.notes,
         remarks=remarks + verdict.remarks,
-        n_numeric=len(cells.numbers),
-        n_out_of_range=cells.n_out_of_range,
-        n_contradictory=cells.n_contradictory,
-        n_not_numeric=cells.n_not_numeric,
-        n_distinct=cells.raw_distinct,
+        n_numeric=numeric,
+        n_out_of_range=out_of_range,
+        n_contradictory=contradictory,
+        n_not_numeric=not_numeric,
+        n_distinct=(
+            _published_distinct(cells)
+            if verdict.role in _LEVEL_ROLES
+            else cells.raw_distinct
+        ),
         n_distinct_folded=len(cells.folded_counts),
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,

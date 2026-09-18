@@ -1418,6 +1418,19 @@ def battery() -> list[Mutation]:
             "a prefix whose own layout does not open the census's layout",
             edit("record_code", layout_prefixes={"(column)": "RE"}),
         ),
+        # LP3 (plan P4-D270). A prefix fixes characters of the layout it
+        # stands on, so the room left has to carry the column's own
+        # different values: `R` in front of `@%%` leaves a hundred cells
+        # for 240 different record numbers, which spells the column out.
+        Mutation(
+            "LP3",
+            "a prefix leaving its layout too little room for the column",
+            edit(
+                "record_code",
+                layout_forms={"@%%": 240},
+                layout_prefixes={"(column)": "R"},
+            ),
+        ),
         Mutation(
             "LP1",
             "a prefix beside a layout census that names no layout",

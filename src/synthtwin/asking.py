@@ -1088,7 +1088,7 @@ def _joining_mark(values: "list[str]") -> str:
     return ""
 
 
-def _sayable(count: int, floor: int) -> str:
+def _sayable(count: int, population: int, floor: int) -> str:
     """A count of cells, or the word for one the floor will not name.
 
     THE DISCLOSURE FLOOR REACHES THE SHAPE TOO (review round 1 of
@@ -1102,8 +1102,27 @@ def _sayable(count: int, floor: int) -> str:
     fact about how it was written, which is what the question is about;
     HOW MANY carry it is a count of a group, and a group smaller than
     the floor is not named here any more than anywhere else.
+
+    AND THE COMPLEMENT IS A GROUP TOO -- the whole of the shared rule
+    `parsing.census_nameable`, asked here as every other surface asks it
+    (plan P4-D273, the repair of the extra review round of 2026-09-18).
+    The floor alone reads the count and not what is left beside it, and
+    the description that stands next to this file absorbs a spelling
+    below the line into the column's commonest (ruling 6 of 2026-09-17).
+    **Measured** at a floor of eleven, on 399 values `00001` to `00399`
+    and one `12345`: the description published `numeric_styles
+    {"leading_zero": 400}`, which says every value is padded, while this
+    file recounted the cells for itself and said "399 of them carry a
+    leading zero" -- and 400 present cells less 399 is the one unpadded
+    record, restored on the surface beside the one that hid it. The
+    count is now spoken only where it AND what it leaves over reach the
+    line, so the file says "some of them" and the pair says nothing.
+
+    Guarantees: accepts the count, the cells it was counted over and the
+    settings floor; returns words carrying no value of the table.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
     """
-    if count >= floor:
+    if parsing.census_nameable([count], [population], floor):
         return f"{count} of them"
     return "some of them"
 
@@ -1135,7 +1154,7 @@ def _shape_of(
                 padded = padded + 1
         return (
             f"every value is written in figures alone, and "
-            f"{_sayable(padded, floor)} carry a leading zero"
+            f"{_sayable(padded, len(present), floor)} carry a leading zero"
         )
     if reason == BECAUSE_FIXED_WIDTH:
         # A COMPREHENSION RATHER THAN `add` (plan D6.2). The offline
@@ -1182,7 +1201,8 @@ def _shape_of(
         if remainder > 0:
             return (
                 f"values are two or more numbers with '{mark}' between "
-                f"them, and {_sayable(remainder, floor)} are not"
+                f"them, and {_sayable(remainder, len(present), floor)} "
+                f"are not"
             )
         return (
             f"every value is two or more numbers with '{mark}' between "

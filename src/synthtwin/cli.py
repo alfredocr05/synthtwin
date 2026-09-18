@@ -1926,6 +1926,11 @@ def _run_profile(
         # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
         # (plan P4-D110). Nothing is guessed about a declared one.
         declared_delimiter=declared_delimiter,
+        # AND UNDER THE SMALLEST GROUP SIZE (plan P4-D280). The written
+        # form of a file carries counts and positions of its own lines,
+        # and those are held to the one disclosure rule like every other
+        # count synthtwin publishes.
+        small_cell_floor=settings.small_cell_floor,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT

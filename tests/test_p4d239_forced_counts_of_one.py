@@ -210,10 +210,18 @@ def test_the_default_floor_keeps_every_spelling(
 def test_the_spelling_rule_asked_of_the_map_itself() -> None:
     """`_absorb_lone_spellings`, stated as a check.
 
-    A raised floor counts every one-row spelling into the commonest; a
-    floor of one counts none; and where every spelling covers one row the
-    first in sorted order takes them all, which is the tie rule
-    `parsing.absorbed_census` already states.
+    A raised floor counts every spelling BELOW THE FLOOR into the
+    commonest; a floor of one counts none; and where no spelling reaches
+    the floor the first in sorted order takes them all, which is the tie
+    rule `parsing.absorbed_census` already states.
+
+    THE LINE IS THE FLOOR AND NOT ONE (plan P4-D275, the repair of the
+    extra review round of 2026-09-18). This rule was written for a count
+    of ONE and stopped there, so a spelling THREE rows wrote stood in
+    `variants_withheld` under the key `3` -- a group below the line whose
+    size the map states outright, and ruling 6 of 2026-09-17 draws the
+    line at the floor. `{"F": 20, "f": 1, "fF": 1, "Ff": 3}` was
+    `{"F": 22, "Ff": 3}` and is now `{"F": 25}`.
     """
     raised = taxonomy.Settings(small_cell_floor=11)
     plain = taxonomy.Settings(small_cell_floor=1)
@@ -225,7 +233,10 @@ def test_the_spelling_rule_asked_of_the_map_itself() -> None:
     ) == {"F": 490, "f": 1}
     assert taxonomy._absorb_lone_spellings(
         {"F": 20, "f": 1, "fF": 1, "Ff": 3}, raised
-    ) == {"F": 22, "Ff": 3}
+    ) == {"F": 25}
+    assert taxonomy._absorb_lone_spellings(
+        {"F": 490, "f": 12}, raised
+    ) == {"F": 490, "f": 12}
     assert taxonomy._absorb_lone_spellings(
         {"a": 1, "b": 1, "c": 1}, raised
     ) == {"a": 3}

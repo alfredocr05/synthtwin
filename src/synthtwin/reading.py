@@ -971,6 +971,7 @@ def _read_authoritatively(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
+    small_cell_floor: int = 1,
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -1009,7 +1010,7 @@ def _read_authoritatively(
             surveyed = dialect.settle(
                 text, encoding, marked, not headed, shown, metadata_rows,
                 decimal_comma_columns, metadata_rows_confirmed,
-                declared_delimiter,
+                declared_delimiter, small_cell_floor,
             )
             _agrees_with_the_standard_reader(
                 text, surveyed, headed, shown, refusals
@@ -1221,6 +1222,31 @@ def _names_evidence(
     value that is not of that kind. Nothing else counts. A value that
     merely looks different from its neighbours proves nothing, which is
     what defeated the two attempts that tried to use it (P1-R6-F6).
+
+    AND "NOT A NUMBER" IS NOT THE SAME THING AS "NOT A MEASUREMENT"
+    (the owner's ruling of 2026-09-17, item 8; plan P4-D272, the repair
+    of the extra review round of 2026-09-18). A column of measurements
+    holds values this package cannot parse as numbers all the time: a
+    reading under the limit of detection is written `<0.10`, a range is
+    written `2-4`, a value with its unit is written `5 mg`. Every one of
+    them is a VALUE of that column, and taking one for a column name is
+    how one person's first record became the file's schema. **Measured**
+    at a floor of eleven, on a title line above a headerless table of
+    240 records whose first is `R001,North Unit,<0.10` and whose rest
+    are `R###,East,#.5`: both the delimited file and the workbook
+    published `R001`, `North Unit` and `<0.10` as the three column
+    names, described 239 records where the file holds 240, asked no
+    question about the first row at all, and wrote that person's record
+    as the twin's header line.
+
+    So a first-row value CARRYING A FIGURE is no evidence here. A
+    column name carries figures rarely and a measurement carries them
+    always, and the cost of the rare case is a question rather than a
+    record: the caller falls through to the furniture rule, which on a
+    file with nothing above the row still takes it as the names by
+    convention and on a file with a title asks the person. `record_id`,
+    `age`, `arm`, `site` and `reading` over a title line are untouched,
+    because not one of them carries a figure.
     """
     for position, name in enumerate(header):
         if position >= len(columns):
@@ -1238,6 +1264,8 @@ def _names_evidence(
             continue
         if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
             continue
+        if _holds_a_figure(f"{name}"):
+            continue
         every_value_is_a_number = True
         for value in present:
             if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
@@ -1247,6 +1275,14 @@ def _names_evidence(
                 taxonomy.HEADER_NAMES_SHOWN_BY_COLUMN, (position + 1,)
             )
     return None
+
+
+def _holds_a_figure(text: str) -> bool:
+    """Whether any character of one value is a figure (plan P4-D272)."""
+    for character in text:
+        if character in _SILHOUETTE_FIGURES:
+            return True
+    return False
 
 
 def _file_size(table_path: pathlib.Path) -> int:
@@ -1522,6 +1558,7 @@ def read_table(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     published_header: int = 0,
+    small_cell_floor: int = 1,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -1691,7 +1728,7 @@ def read_table(
         found = _read_authoritatively(
             table_path, shown, first_row, refusals, encoding, data,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
-            declared_delimiter,
+            declared_delimiter, small_cell_floor,
         )
     except PermissionError as error:
         raise errors.ProfileError(
@@ -1735,6 +1772,7 @@ def read_table(
                 table_path, shown, FIRST_ROW_DATA, refusals, encoding, data,
                 metadata_rows, decimal_comma_columns,
                 metadata_rows_confirmed, declared_delimiter,
+                small_cell_floor,
             )
             _check_against_pandas(raw_path, found, shown, refusals)
             spoken = _NOT_TOLD

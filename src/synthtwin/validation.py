@@ -4530,6 +4530,13 @@ def measure(
             # nothing else, so a checked file read without it would be
             # measured under the other reading of the same bytes.
             declared_delimiter=description.settings.forced_delimiter,
+            # AND UNDER THE DESCRIPTION'S OWN SMALLEST GROUP SIZE (plan
+            # P4-D280). The survey holds a file's own line-ending runs,
+            # blank-line places and empty-row counts to the disclosure
+            # rule, so a checked file surveyed at a different floor
+            # would be measured under a different reading of the same
+            # bytes and would miss the form it actually has.
+            small_cell_floor=description.settings.small_cell_floor,
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -14534,7 +14541,15 @@ def _written_form_checks(
             met = _written_form_met(key, named, raw, tally, floor)
             tallied = tally[named] if named in tally else 0
             if counted_exactly:
-                met = tallied == census[named]
+                # COUNTED AS THE PRODUCER COUNTS IT (plan P4-D278): a
+                # cell of this file that could show no width is counted
+                # into the file's own commonest width, exactly as the
+                # description's own census counts it, so the comparison
+                # is between two numbers built the same way.
+                absorbed = taxonomy.absorbed_width_tally(tally, population)
+                met = (
+                    absorbed[named] if named in absorbed else 0
+                ) == census[named]
             shown = _FORM_NOT_NAMED
             if named in measured:
                 shown = _shown_count(measured[named])

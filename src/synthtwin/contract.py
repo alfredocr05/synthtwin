@@ -1467,7 +1467,8 @@ INVARIANTS = {
         "counted only for a member whose fields can show one, is named "
         "only when at least the smallest group size of cells wrote it "
         "and never fewer than two, names no pool, and comes to no more "
-        "than the values that read as dates"
+        "than the values that read as dates while leaving none of them "
+        "over or at least that many"
     ),
     "D18": (
         "the case, length, mark and comma a cell wrote a month NAME with "
@@ -1781,6 +1782,11 @@ INVARIANTS = {
         "a prefix's own layout, read under the census's own convention, "
         "is the opening every layout it is published for starts with, and "
         "a figure or a letter stands after it in each of them"
+    ),
+    "LP3": (
+        "every layout a prefix is published for could still have come "
+        "from at least the column's different values plus the smallest "
+        "group size, once the prefix's own characters are fixed"
     ),
 }
 
@@ -6881,13 +6887,8 @@ def _levels(
     # or any group below that line, unaccounted for is refused. The
     # producer counts those cells as missing instead, so no description
     # it writes reaches this refusal.
-    smallest_published = 0
-    for entry in entries:
-        size = entry.count
-        if not smallest_published or size < smallest_published:
-            smallest_published = size
     if parsing.pool_names_a_level(
-        suppressed_levels, suppressed_rows, smallest_published
+        suppressed_levels, suppressed_rows, covered
     ):
         raise _broken(
             "B4b",
@@ -7612,7 +7613,6 @@ def _datetime_facts(
         or parser_family in parsing.TEXTUAL_MEMBERS,
         n_present - unparsed,
         "D17",
-        False,
     )
     name_styles = _written_census(
         mapping,
@@ -7911,7 +7911,6 @@ def _written_census(
     reachable: bool,
     most: int,
     rule: str,
-    remainder_published: bool = True,
 ) -> "dict[str, int]":
     """One census of HOW a column's dates were written (landing 2b.6).
 
@@ -7945,21 +7944,22 @@ def _written_census(
     them. What the twin is held to is the SET of conventions and each
     one's floor, which is what `_written_form_checks` measures.
 
-    AND THE WIDTHS' REMAINDER IS NOT A NUMBER THE DOCUMENT PUBLISHES
-    (`remainder_published` false; plan P4-D139). A date whose two fields
-    are both ten or more shows no width, so what the width census leaves
-    over is counted against the cells that COULD show one, which no field
-    of the block states: the published ceiling less the named counts is
-    those cells plus any form held back, and a reader cannot part the two.
-    The producer holds that remainder (`taxonomy._width_counts`); here a
-    width census is held to its vocabulary, its line, no pool and the
-    ceiling.
+    AND THE WIDTHS' REMAINDER IS PUBLISHED AFTER ALL (plan P4-D278,
+    reversing P4-D139's half of this). The remainder used to be counted
+    against the cells that COULD show a width, which no field of the
+    block states -- but a reader holds the PARSED total and subtracts
+    from that, and 399 dates written `1/1/2000` through `1/9/2044`
+    beside one `12/25/2020` published `{"unpadded": 399}` against 400
+    parsed cells. The producer counts a cell that could show no width
+    into the commonest width, which is true of it because both
+    conventions spell it the same way, so the census reaches the parsed
+    total whenever it names anything and this rule is asked of it like
+    the other three.
 
     Guarantees: accepts the datetime block, the census's key, where it
     stands, the floor, the member's vocabulary, whether the member can
-    show the convention, the ceiling on the total, the invariant's name
-    and whether the remainder over the ceiling is published; returns the
-    census. Raises ProfileError for a key outside the
+    show the convention, the ceiling on the total and the invariant's
+    name; returns the census. Raises ProfileError for a key outside the
     vocabulary and for the named invariant. No I/O of any kind.
     """
     value: object = mapping[key] if key in mapping else {}
@@ -7997,8 +7997,6 @@ def _written_census(
             f"the counted written forms come to {total}",
             f"at most {most} of the column's values could show one",
         )
-    if not remainder_published:
-        return census
     if total and not parsing.census_nameable(
         [census[name] for name in sorted(census)], [most], floor
     ):
@@ -10703,6 +10701,8 @@ def _layout_prefixes(
     mapping: "dict[str, object]",
     where: str,
     layouts: "dict[str, int]",
+    n_distinct: int,
+    floor: int,
 ) -> "dict[str, str]":
     """The literal prefixes of a declared column, checked (7.12a).
 
@@ -10717,9 +10717,18 @@ def _layout_prefixes(
     NO REFUSAL QUOTES A PREFIX. It is text out of the table, and a
     refusal names the key and the layout it stands under instead.
 
+    AND LP3, THE ROOM THE PREFIX LEAVES (plan P4-D270). `layout_census`
+    names a layout only where it could have come from `n_distinct` plus
+    the floor different cells; a published prefix fixes characters of
+    that layout, so the count that has to clear the line is the one
+    `parsing.prefix_room` gives. `@@@%%%` beside `REC` leaves a thousand
+    cells, and a document publishing them beside `n_distinct 1000` spells
+    out every record number the column holds -- so it is refused here and
+    the producer writes no prefix in its place.
+
     Raises ProfileError for a wrong type, a prefix that is not one, and
-    LP1 and LP2. That a `(column)` prefix stands on a column reaching the
-    line needs no check of its own: LP1 puts it beside a named layout,
+    LP1, LP2 and LP3. That a `(column)` prefix stands on a column reaching
+    the line needs no check of its own: LP1 puts it beside a named layout,
     and LF1 puts that layout's cells, all of them present, at the line.
     """
     found = _mapping(mapping["layout_prefixes"], "layout_prefixes", where)
@@ -10787,6 +10796,23 @@ def _layout_prefixes(
                     f"the layout '{layout}' does not open with the "
                     "prefix's own layout",
                     "a prefix opens every layout it is published for",
+                )
+            if not parsing.prefix_leaves_room(
+                layout, prefixes[scope], convention, n_distinct, floor
+            ):
+                raise _broken(
+                    "LP3",
+                    where,
+                    (
+                        f"the layout '{layout}' spells "
+                        f"{parsing.prefix_room(layout, prefixes[scope], convention)}"
+                        " different cells once the prefix is fixed"
+                    ),
+                    (
+                        f"the column holds {n_distinct} different values, "
+                        f"and a shape is named only where it leaves room "
+                        f"for {n_distinct + floor}"
+                    ),
                 )
     return prefixes
 
@@ -11150,7 +11176,9 @@ def _identifier_facts(
         ),
         n_distinct_by_occurrences=pattern,
         layout_forms=layouts,
-        layout_prefixes=_layout_prefixes(mapping, where, layouts),
+        layout_prefixes=_layout_prefixes(
+            mapping, where, layouts, n_distinct, floor
+        ),
     )
 
 
