@@ -1313,9 +1313,20 @@ operation — trimmed and case-folded for the seventeen folded members,
 raw byte equality for the one exact-spelling member — and what is
 written is that MEMBER. It enters `built_in_numbers` when it reads as
 a number and that number is one of the three stand-ins, and what is
-written is that member's canonical form. It enters `built_in_dates`
-when it is one of the two calendar placeholders, and what is written
-is that placeholder's canonical day spelling. A declared value that is
+written is that member's canonical form. It enters `built_in_dates` when it IS
+one of the two calendar placeholders or DENOTES one under any of the
+readings section 6.6.1 lists, and what is written is that
+placeholder's canonical day spelling. Denotation, and not text alone,
+because the two members are written in ISO while a person types the
+spelling their own table uses: `01/01/1900` on a month-first column
+names the member `1900-01-01`, and matching by text alone recorded the
+person as having named a word of their own — so nothing could rebuild
+the instruction where the column's own verdict fell below the
+publication floor, and the table checked against its own description
+missed fourteen obligations (plan P4-D252). The question is asked of
+the typed text under this package's own readings, so no cell of any
+table is consulted and a value never held by any cell is recorded
+exactly as one every cell held. A declared value that is
 none of these enters no list, and `n_declared` counts it exactly as it
 counts every other different value named. **No character a person
 typed reaches the document through these three lists.**
@@ -4543,10 +4554,23 @@ counts. Its permitted key sets are closed: on a single-format column,
 exactly one key — the column's own `format` member — carrying the full
 parsed count; on an `iso-mixed` column, exactly the two members
 `iso-date` and `iso-datetime`. No other key set conforms. The counts
-are exact and no floor governs them: with a two-member space beside the
-published parsed total, a pooled remainder is recoverable by
-subtraction, so a floor would withhold nothing, and the fact is what it
-is — a form-shape count carrying no value of the table.
+are exact, and the disclosure rule is asked of them BEFORE they are
+counted rather than of the mapping afterwards (plan P4-D250). This
+paragraph said no floor governed them, because with a two-member space
+beside the published parsed total a pooled remainder is recoverable by
+subtraction, so a floor would withhold nothing. The arithmetic holds
+and the conclusion did not: it is an argument against POOLING the rare
+form, and the count of that form is itself the disclosure — 118 ISO
+dates beside one `2024-07-01T00:00:00` published `{"iso-date": 118,
+"iso-datetime": 1}` at a smallest group size of eleven, and the one is
+that row. A form fewer cells than `census_floor` wrote is counted into
+the commonest form, as ruling 6 of 2026-09-17 counts a rare spelling
+into the commonest spelling, and the column is then published WHOLLY in
+that form: its cells written in it, its `format` named as it, and its
+`resolution`, `time_precision` and `datetime_separators` following from
+the rewritten cells, so that no dependent count hands the absorbed
+cells back by subtraction. A count of nought remains permitted and
+names nobody.
 
 **Invariant RM1.** `resolution_mix` keys are exactly the set C6-25
 permits for the column's own `format`.
@@ -4555,6 +4579,12 @@ permits for the column's own `format`.
 `n_present - n_unparsed`. On an `iso-mixed` column the chosen format IS
 the joint reading, so `n_unparsed` there counts the cells that read
 under neither ISO member.
+
+**Invariant RM3.** Where more than one form carries cells, every
+non-nought `resolution_mix` count is at least `census_floor` of the
+smallest group size. A census naming ONE form is exempt: its count is
+`n_present - n_unparsed` itself, which the block already prints, so it
+cuts the column nowhere.
 
 **RM-P (producer).** The counts are the counts the source's own cells
 wore. RM1 and RM2 check the key set and the total, and a 40/60 split
@@ -10386,6 +10416,7 @@ and not an invariant, and `(withheld)` is never a key of this census.
 |---|---|
 | RM1 | `resolution_mix` keys are exactly what the column's `format` permits: on a single-format column that member, on `iso-mixed` exactly `iso-date` and `iso-datetime` |
 | RM2 | values sum to `n_present - n_unparsed`; on `iso-mixed`, the joint reading being the chosen format, `n_unparsed` counts cells reading under neither member |
+| RM3 | where more than one form carries cells, every non-nought count is at least `census_floor` of the smallest group size: a form fewer cells wrote is counted into the commonest form and the column is published wholly in that form |
 
 ### 8.x The note grammar — NG
 

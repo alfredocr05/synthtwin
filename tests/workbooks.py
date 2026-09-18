@@ -197,6 +197,10 @@ FORMAT_CODES = (
     "000000",
     "@",
     "#,##0",
+    # A MOMENT TO THE MILLISECOND, appended so every style number above
+    # keeps its place. Excel writes the subsecond figures in the format
+    # code and the serial carries them as a fraction of a day.
+    "yyyy\\-mm\\-dd\\ hh:mm:ss.000",
 )
 
 
@@ -679,6 +683,43 @@ def epoch_book(n_rows: int = 10) -> bytes:
             (
                 "xl/worksheets/sheet1.xml",
                 sheet(body, dimension=f"A1:B{n_rows + 1}"),
+            ),
+        ]
+    )
+
+
+def subsecond_book(n_rows: int = 240, figures: bool = True) -> bytes:
+    """Moments stored as serials and formatted to the millisecond.
+
+    The shape of the extra review's item 9: a workbook column whose cells
+    are numbers, whose format code shows three figures after the second,
+    and whose serials carry a thousandth of a second.
+
+    ``figures`` false wears `yyyy-mm-dd hh:mm:ss` instead -- the code
+    pandas writes by default -- over the SAME serials, which is the
+    other half of that item (plan P4-D259.1): the fraction is stored and
+    no figure of the format shows it.
+    """
+    strings = ["recorded_at"]
+    style = len(FORMAT_CODES) - 1 if figures else 2
+    body: "list[tuple[int, list[str]]]" = [(1, [cell("A1", "0", "s")])]
+    for place in range(n_rows):
+        number = 2 + place
+        serial = 45300 + place + 0.5 + 0.001 / 86400
+        body += [
+            (number, [cell(f"A{number}", repr(serial), "", style)])
+        ]
+    return package(
+        [
+            ("[Content_Types].xml", _content_types(1, True, False, False)),
+            ("_rels/.rels", _root_rels()),
+            ("xl/workbook.xml", _workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", _workbook_rels(1, True)),
+            ("xl/styles.xml", _styles()),
+            ("xl/sharedStrings.xml", _shared_strings(strings)),
+            (
+                "xl/worksheets/sheet1.xml",
+                sheet(body, dimension=f"A1:A{n_rows + 1}"),
             ),
         ]
     )

@@ -4192,6 +4192,16 @@ def built_in_values_named(
     number, so the member is the whole of what a consumer needs. Nothing
     a person typed reaches a document through these two lists.
 
+    A PLACEHOLDER DAY IS MATCHED BY WHAT THE TEXT DENOTES, not by the
+    text alone (plan P4-D252). The two members are written in ISO and a
+    person types the spelling their own table uses, so `01/01/1900` on
+    a month-first column named the member `1900-01-01` and was recorded
+    as a word of their own -- and nothing downstream could then rebuild
+    the instruction for a column whose own verdict the publication floor
+    withheld. Denotation is asked of the typed text under this package's
+    own readings; no cell is consulted, and what is recorded is still
+    the member.
+
     WHY THIS IS SAFE TO PUBLISH WHEN A SPELLING IS NOT, said here
     because a reader of this function will ask (C5-16, and it LOWERS
     the Phase 1 settings-block rule by exactly this much, on the owner's
@@ -4227,6 +4237,26 @@ def built_in_values_named(
         for day in parsing.calendar_placeholders():
             if parsing.folded(spelling) == parsing.folded(day):
                 days[day] = 1
+        # ...AND A SPELLING THAT DENOTES ONE OF THEM (plan P4-D252, the
+        # extra review of c5d09d5, item 5). The comparison above is of
+        # TEXT, and the two members are written in ISO, so a person who
+        # types the spelling their own table uses -- `01/01/1900` on a
+        # month-first column -- named a member of this vocabulary and
+        # was recorded as having named a word of their own. The
+        # producer's column-local rule matched their spelling and kept
+        # the cells; the SETTINGS recorded nothing, so nothing could
+        # rebuild the instruction where the column's own verdict fell
+        # below the publication floor, and the table checked against its
+        # own description lost those cells and missed fourteen
+        # obligations (five `01/01/1900` beside 395 month-first dates at
+        # a floor of eleven). What is recorded is still the member and
+        # never the spelling, and still no cell of any table is read:
+        # the question asked is what the typed text denotes under this
+        # package's own readings.
+        for reading in parsing.DATE_FORMATS:
+            found = parsing.placeholder_day_of(spelling, reading)
+            if found is not None:
+                days[found] = 1
         for member in parsing.built_in_missing_texts():
             # ASKED THROUGH THE ONE RULE, so the vocabulary's exact
             # member and its folded members are matched here exactly as
@@ -8757,15 +8787,38 @@ def _remainder_reading(
     is a placeholder under one slashed member and unreadable under the
     other.
 
+    AND A SLASHED PAIR IS READ HERE THE WAY THE CLASSIFIER READS IT
+    (plan P4-D251, the extra review of c5d09d5, item 2): the column's
+    own evidence first and the declaration as the tie-break, exactly
+    `_matching_date_format`'s own two lines. This walked the format
+    table alone, so the member standing first won by ORDER while the
+    description that followed was written in the other one. Measured on
+    the reviewer's shape: `01/01/1900` twenty times beside `12/01/1900`,
+    `12/02/1900` and `12/03/1900` at 125, 125 and 130, declared day
+    first at a floor of eleven. Judging read the three reference days
+    MONTH first, as December 1 to 3, so the twenty January dates sat
+    eleven months adrift, were judged outliers and were removed; the
+    description was then written day first over what was left and
+    published 380 present, 20 missing and an earliest of `1900-01-12`.
+    Judged in the declared reading the four days span January 1 to
+    March 12 and all 400 values stand, which is what the column holds.
+
     Guarantees: accepts the present cells and the settings; returns a
     format member or None. Determinism: a function of the two, in the
     format table's own order. Raises nothing. No I/O of any kind.
     """
     for format_name in parsing.DATE_FORMATS:
+        reading = format_name
+        for pair in SLASHED_PAIRS:
+            if format_name != pair[0]:
+                continue
+            weighed = _slashed_evidence(present, pair, settings.day_first)
+            if settings.day_first or weighed.day_parsed > weighed.month_parsed:
+                reading = weighed.used
         remainder: list[str] = []
         placeholders = 0
         for value in present:
-            if parsing.placeholder_day_of(value, format_name) is not None:
+            if parsing.placeholder_day_of(value, reading) is not None:
                 placeholders = placeholders + 1
                 continue
             remainder += [value]
@@ -8774,10 +8827,10 @@ def _remainder_reading(
         needed = _needed(settings.minimum_parse_rate, len(remainder))
         parsed = 0
         for value in remainder:
-            if parsing.parse_datetime(value, format_name) is not None:
+            if parsing.parse_datetime(value, reading) is not None:
                 parsed = parsed + 1
         if parsed >= needed and parsed:
-            return format_name
+            return reading
     return None
 
 
@@ -8866,8 +8919,151 @@ def _matching_date_format(
                 good += [pair_read]
                 sources += [value]
         if len(good) >= needed and good:
+            # THE FORMS AS PUBLISHED, BEFORE ANY FACT IS TAKEN FROM
+            # THEM (plan P4-D250): a cell whose FORM the census counts
+            # into the commonest form is read in that form by
+            # everything below -- the evidence sentence, the remarks
+            # and every field of the description alike -- so no
+            # published fact tells it apart.
+            reading, good, sources = _forms_as_published(
+                reading, good, sources, settings
+            )
             return reading, good, sources, len(present) - len(good), evidence
     return None
+
+
+def _forms_as_published(
+    format_name: str,
+    pairs: "list[tuple[str, str]]",
+    sources: "list[str]",
+    settings: Settings,
+) -> "tuple[str, list[tuple[str, str]], list[str]]":
+    """The joint ISO reading's two forms, held to the disclosure rule (P4-D250).
+
+    THE CENSUS OF FORMS NAMED ONE ROW (the extra review of c5d09d5, item
+    1). `resolution_mix` published its two counts exactly, on the reading
+    that a two-member space beside the published parsed total makes a
+    pooled remainder recoverable by subtraction -- true, and beside the
+    point, because the count itself is the disclosure. Measured on the
+    reviewer's own shape: 118 consecutive ISO dates, one
+    `2024-07-01T00:00:00` and one unreadable word at a floor of eleven
+    published `resolution_mix={"iso-date": 118, "iso-datetime": 1}` and
+    `datetime_separators={"(withheld)": 1}`, and the second census
+    pooled a count of one, which pools nothing. A form held by one row
+    describes how THAT row was written, exactly as a spelling held by
+    one row does.
+
+    So the forms ask `parsing.absorbed_census` with the line
+    `parsing.census_floor`, as every other census of how a column was
+    written does (owner ruling 6 of 2026-09-17, plans P4-D222 and
+    P4-D242): a form below the line is counted into the commonest form,
+    and the column is then published WHOLLY in that form -- its cells
+    rewritten in it, its reading named as it, its resolution, precision
+    and mark census following from the rewritten cells. Jointly, because
+    the dependent counts are what subtraction reaches: publishing the
+    mix alone would leave the mark census owing the absorbed cells'
+    marks, and publishing the mark census alone would leave the mix
+    naming them.
+
+    A date rewritten as a moment stands at the midnight it already named,
+    under the mark most of the column's moments wrote; a moment rewritten
+    as a date loses its time of day, which is ruling 6's own cost and is
+    the same cost a rare spelling meets everywhere else. Where BOTH forms
+    reach the line nothing moves, so a column holding both in numbers the
+    rule can name is described exactly as before.
+
+    Guarantees: accepts the chosen reading, its parsed (canonical,
+    offset) pairs, the source cells that parsed and the settings;
+    returns a reading, pairs and cells of the same length, unchanged
+    for every reading but the joint one. Determinism: a function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    if format_name != FORMAT_ISO_MIXED or not sources:
+        return format_name, pairs, sources
+    counts = _resolution_mix(FORMAT_ISO_MIXED, sources)
+    published = parsing.absorbed_census(
+        counts, len(sources), settings.small_cell_floor, len(ISO_FORMS)
+    )
+    kept = ""
+    named = 0
+    for name in sorted(published):
+        if name == parsing.MISSING_WITHHELD:
+            continue
+        named = named + 1
+        kept = name
+    if named == len(ISO_FORMS):
+        return format_name, pairs, sources
+    if not kept:
+        # A POOL NAMES NO FORM, and a description naming no reading
+        # describes no column at all, so the commonest form the cells
+        # wrote stands -- exactly as `absorbed_census` itself writes it
+        # where a closed vocabulary refuses the pool (plan P4-D242).
+        for name in sorted(counts):
+            if not kept or counts[name] > counts[kept]:
+                kept = name
+    mark = parsing.SEPARATOR_MARKS[_commonest_mark(sources)]
+    written: "list[str]" = []
+    rewritten: "list[tuple[str, str]]" = []
+    for value in sources:
+        text = _written_in_form(value, kept, mark)
+        again = parsing.parse_datetime(text, kept)
+        if again is None:
+            return format_name, pairs, sources
+        written += [text]
+        rewritten += [again]
+    return kept, rewritten, written
+
+
+def _commonest_mark(sources: "list[str]") -> str:
+    """The mark between day and clock most of these moments wrote (P4-D250).
+
+    Ties to the first in sorted order, as `parsing.absorbed_census`
+    breaks them, so a cell rewritten as a moment wears the mark that
+    census names. `parsing.SEPARATOR_UPPER_T` stands where no cell wrote
+    a clock, which is the vocabulary's own default name.
+
+    Guarantees: accepts the source cells; returns a member of
+    `parsing.DATETIME_SEPARATORS`. Determinism: a function of the cells.
+    Raises nothing. No I/O of any kind.
+    """
+    counts: "dict[str, int]" = {}
+    for value in sources:
+        name = parsing.datetime_separator(value, FORMAT_ISO_MIXED)
+        if name is None:
+            continue
+        if name in counts:
+            counts[name] = counts[name] + 1
+        else:
+            counts[name] = 1
+    commonest = ""
+    for name in sorted(counts):
+        if not commonest or counts[name] > counts[commonest]:
+            commonest = name
+    if not commonest:
+        return parsing.SEPARATOR_UPPER_T
+    return commonest
+
+
+def _written_in_form(value: str, form: str, mark: str) -> str:
+    """One cell of a joint ISO column, written in the form published (P4-D250).
+
+    A cell already in that form is handed back UNCHANGED, character for
+    character, so nothing about the cells the census names moves. The
+    other form's cells are rewritten: an ISO moment keeps its first ten
+    characters, its day, and an ISO date gains the mark and the midnight
+    it already named.
+
+    Guarantees: accepts one source cell, the form the column publishes
+    and the mark its moments wear; returns a cell that reads under that
+    form wherever the original read under either ISO member.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    if parsing.parse_datetime(value, form) is not None:
+        return value
+    body = parsing.trimmed(value)
+    if form == ISO_FORMS[0]:
+        return body[0:10]
+    return body[0:10] + mark + "00:00:00"
 
 
 def _best_date_reading(present: list[str]) -> "tuple[str, int]":
@@ -8936,32 +9132,12 @@ def _datetime_details(
         and format_name not in parsing.SLASHED_STAMPS
     ):
         reading = READ_AT_UTC
-    keyed: list[tuple[int, str, str]] = []
-    unkeyed: list[str] = []
-    for canonical, offset in pairs:
-        instant = parsing.instant_key(canonical, offset)
-        shown = canonical
-        if reading == READ_AT_UTC:
-            at_utc = parsing.utc_canonical(canonical, offset)
-            if at_utc is not None:
-                shown = at_utc
-        if instant is None:
-            unkeyed += [shown]
-        else:
-            keyed += [(instant, shown, offset)]
-    if keyed:
-        ordered = sorted(keyed)
-        canonical_order = [entry[1] for entry in ordered]
-        earliest = ordered[0][1]
-        latest = ordered[len(ordered) - 1][1]
-        earliest_offset = ordered[0][2]
-        latest_offset = ordered[len(ordered) - 1][2]
-    else:
-        canonical_order = sorted(unkeyed)
-        earliest = canonical_order[0]
-        latest = canonical_order[len(canonical_order) - 1]
-        earliest_offset = ""
-        latest_offset = ""
+    placed = ordered_moments(pairs, reading)
+    canonical_order = placed[0]
+    earliest = placed[1]
+    latest = placed[2]
+    earliest_offset = placed[3]
+    latest_offset = placed[4]
     digits = 0
     for value in sources:
         digits = max(digits, parsing.subsecond_digits(value, format_name))
@@ -9335,6 +9511,12 @@ def _midnight_count(
 # from the two members it joins.
 FORMAT_ISO_MIXED = "iso-mixed"
 
+# ...and the two members themselves, in the format table's own order,
+# read as the closed vocabulary the form census is held to (P4-D250).
+# The loader states the same pair as `contract.ISO_MEMBERS`, which is
+# where a document's key set is checked against it.
+ISO_FORMS = ("iso-date", "iso-datetime")
+
 
 def _resolution_mix(
     format_name: str, sources: "list[str]"
@@ -9344,10 +9526,18 @@ def _resolution_mix(
     ONE KEY ON A SINGLE-FORMAT COLUMN -- its own form, carrying every
     cell that parsed -- and exactly the two ISO members on a column the
     joint reading claimed. No other key set conforms, and the counts
-    are exact with no floor: a two-member space beside the published
-    parsed total makes a pooled remainder recoverable by subtraction,
-    so a floor would withhold nothing, and what the fact carries is a
-    count of FORMS rather than any value of the table.
+    it publishes are exact.
+
+    THE FLOOR IS ASKED BEFORE THIS FUNCTION IS REACHED, not here (plan
+    P4-D250). The text that stood in this docstring said a floor would
+    withhold nothing, because a two-member space beside the published
+    parsed total makes a pooled remainder recoverable by subtraction.
+    The arithmetic was right and the conclusion was wrong: the answer
+    is not to pool the rare form but to ABSORB it, so
+    `_forms_as_published` counts a form below `parsing.census_floor`
+    into the commonest form and publishes the column wholly in that
+    form. By the time this counts anything, either both forms reach the
+    line or only one form is left, and the exact counts name no row.
 
     Guarantees: accepts a format member and the source cells that
     parsed under it; returns a mapping whose values sum to how many
@@ -9356,12 +9546,12 @@ def _resolution_mix(
     """
     if format_name != FORMAT_ISO_MIXED:
         return {format_name: len(sources)}
-    counted = {"iso-date": 0, "iso-datetime": 0}
+    counted = {ISO_FORMS[0]: 0, ISO_FORMS[1]: 0}
     for value in sources:
-        if parsing.parse_datetime(value, "iso-datetime") is not None:
-            counted["iso-datetime"] = counted["iso-datetime"] + 1
+        if parsing.parse_datetime(value, ISO_FORMS[1]) is not None:
+            counted[ISO_FORMS[1]] = counted[ISO_FORMS[1]] + 1
             continue
-        counted["iso-date"] = counted["iso-date"] + 1
+        counted[ISO_FORMS[0]] = counted[ISO_FORMS[0]] + 1
     return counted
 
 
@@ -9384,6 +9574,61 @@ def _datetime_reading(pairs: list[tuple[str, str]]) -> str:
     if len(seen) <= 1:
         return READ_AT_LOCAL
     return READ_AT_UTC
+
+
+def ordered_moments(
+    pairs: "list[tuple[str, str]]", reading: str
+) -> "tuple[list[str], str, str, str, str]":
+    """These parsed moments in the order a description publishes them.
+
+    THE ONE STATEMENT OF THE ORDER AND OF ITS TIE RULE (plan P4-D255).
+    The cells are ordered by the INSTANT each names -- not by its local
+    text, which sorted two offsets the wrong way round (review item
+    P1-R1-F9) -- then by the text published for it, then by the offset
+    it wears. So where several cells share an end's instant, the offset
+    published for that end is the LARGEST of theirs at the latest and
+    the SMALLEST at the earliest, and that is a rule the generator has
+    to meet rather than guess at: `generation._endpoint_offset_notes`
+    recounts the twin through this same function, and
+    `generation._endpoint_tie_offsets` holds every tied rank to it.
+
+    Guarantees: accepts the parsed (canonical, offset) pairs -- at least
+    one -- and the clock they are published on; returns the canonical
+    texts in order, the first and last of them, and the offsets those
+    two wear. Determinism: a function of the two. Raises nothing. No I/O
+    of any kind.
+    """
+    keyed: list[tuple[int, str, str]] = []
+    unkeyed: list[str] = []
+    for canonical, offset in pairs:
+        instant = parsing.instant_key(canonical, offset)
+        shown = canonical
+        if reading == READ_AT_UTC:
+            at_utc = parsing.utc_canonical(canonical, offset)
+            if at_utc is not None:
+                shown = at_utc
+        if instant is None:
+            unkeyed += [shown]
+        else:
+            keyed += [(instant, shown, offset)]
+    if keyed:
+        ordered = sorted(keyed)
+        canonical_order = [entry[1] for entry in ordered]
+        return (
+            canonical_order,
+            ordered[0][1],
+            ordered[len(ordered) - 1][1],
+            ordered[0][2],
+            ordered[len(ordered) - 1][2],
+        )
+    canonical_order = sorted(unkeyed)
+    return (
+        canonical_order,
+        canonical_order[0],
+        canonical_order[len(canonical_order) - 1],
+        "",
+        "",
+    )
 
 
 def _named_offset(offset: str, published_offsets: dict[str, int]) -> str:

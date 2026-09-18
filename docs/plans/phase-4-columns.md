@@ -11388,6 +11388,394 @@ The fourth of P4-D222's five named costs, and the half of the final review's fin
 **(3) THE FOUR ITEMS P4-D238 DEFERRED TO A LATER STAGE ARE UNCHANGED** -- the truth-value census of three or more (item 3), the date width census naming several conventions (item 4), `fraction_widths` on a percent column (item 5, whose EVIDENCE is corrected above and whose disposition stands), which figures a workbook stored as text (item 6), and the oracle's missing reach step (item 7). Nothing in this review moves any of them, and the deferred stage-3 and stage-3b items -- time of day inside moment columns, and the heavy-tail mean and spread -- were not touched at all.
 
 
+### P4-D250 A form the joint ISO reading counted for one row is counted into the commonest form
+
+**The defect** (the extra review of c5d09d5, item 1, its one blocker).
+`resolution_mix` published its two counts exactly, on the reading that a
+two-member space beside the published parsed total makes a pooled
+remainder recoverable by subtraction, so a floor would withhold nothing.
+The arithmetic is right and it argues against POOLING the rare form; the
+COUNT itself is the disclosure. **Measured on the reviewer's own shape:**
+118 consecutive ISO dates from 2024-03-01, one `2024-07-01T00:00:00` and
+one unreadable word, at a smallest group size of eleven, published
+`resolution_mix {"iso-date": 118, "iso-datetime": 1}` and
+`datetime_separators {"(withheld)": 1}` -- a form held by one row and,
+beside it, a pool of one, which pools nothing. Both files validated at
+exit 0, so nothing anywhere said otherwise.
+
+**The decision** (`taxonomy._forms_as_published`, asked by
+`_matching_date_format` before any fact is taken from the cells;
+contract RM3; contract C6-25's own text amended): **the forms ask
+`parsing.absorbed_census` with the line `parsing.census_floor`, as every
+other census of how a column was written does** (owner ruling 6 of
+2026-09-17, plans P4-D222 and P4-D242). A form below the line is counted
+into the commonest form and **the column is then published WHOLLY in
+that form**: its cells rewritten in it, its reading named as it, and its
+resolution, precision and mark census following from the rewritten
+cells. Jointly, because the dependent counts are what subtraction
+reaches -- publishing the mix alone would leave the mark census owing
+the absorbed cells' marks, and publishing the mark census alone would
+leave the mix naming them. A date rewritten as a moment stands at the
+midnight it already named, under the mark most of the column's moments
+wrote; a moment rewritten as a date loses its time of day, which is
+ruling 6's own cost and is the cost a rare spelling meets everywhere
+else. **Where both forms reach the line nothing moves**, so a column
+holding both in numbers the rule can name is described exactly as
+before.
+
+**Measured after:** the shape above publishes `resolution_mix
+{"iso-date": 119}`, `format` `iso-date`, an empty mark census and no
+count of one anywhere in the block; the real table and its twin both
+validate at exit 0. The reverse shape -- 118 moments, one bare date --
+publishes `iso-datetime` at 119. The balanced 60/60 column is unchanged.
+
+**The loader follows** (invariant RM3): where more than one form carries
+cells, every non-nought count is at least `census_floor`. A census
+naming ONE form is exempt, because its count IS `n_present -
+n_unparsed`, which the block prints two fields away -- thirteen moments
+at a floor of twenty are thirteen moments, and the document says so.
+
+### P4-D251 The placeholder pass reads a slashed pair the way the classifier reads it
+
+**The defect** (item 2). `taxonomy._remainder_reading` walked the format
+table alone, so the member standing first won by ORDER while the
+description that followed was written in the other one. **Measured:**
+`01/01/1900` twenty times beside `12/01/1900`, `12/02/1900` and
+`12/03/1900` at 125, 125 and 130, declared day first at a floor of
+eleven. Judging read the three reference days MONTH first, as December 1
+to 3, so the twenty January dates sat eleven months adrift, were judged
+outliers and were removed; the description was then written day first
+over what was left and published 380 present, 20 missing and an earliest
+of `1900-01-12`. The unchanged source then missed obligations at exit 3.
+
+**The decision:** the remainder pass asks `_slashed_evidence` with
+`settings.day_first`, on the two lines `_matching_date_format` already
+uses -- the column's own evidence first and the declaration as the
+tie-break. **Measured after:** all 400 values stand, the earliest is
+`1900-01-01`, the latest `1900-03-12`, and the source validates at exit
+0. A real placeholder is still judged: the same shape with 2020 dates
+keeps its twenty `01/01/1900` cells counted as missing.
+
+### P4-D252 A declared spelling that DENOTES a placeholder day names that member
+
+**The defect** (item 5). `taxonomy.built_in_values_named` matched a
+declaration against the two calendar placeholders by folded TEXT, and
+the two members are written in ISO, so a person typing the spelling
+their own table uses named a member of this package's vocabulary and was
+recorded as having named a word of their own. Nothing could then rebuild
+the instruction for a column whose own verdict the publication floor
+withheld. **Measured:** five `01/01/1900` cells beside 395 month-first
+dates of 2020, `--smallest-group 11 --keep-value 01/01/1900`. The
+description publishes 400 present and `sentinel_verdicts []` with
+`n_sentinel_candidates_unpublished 1`; validation re-judged the five
+cells as holes and the UNCHANGED SOURCE received **14 MISSED
+obligations**, presence among them, and so did its seed-4 twin.
+
+**The decision, in two halves.** (1) Denotation, and not text alone,
+decides the third list. The question is asked of the TYPED text under this package's own
+readings, so no cell is consulted and a value never held by any cell is
+recorded exactly as one every cell held -- the property that settings
+block has always been required to have. What is recorded is still the
+MEMBER: `01/01/1900` puts `1900-01-01` in `built_in_dates`, and through
+these two lists nothing the person typed travels. The withheld count
+stays withheld, and what a column publishes is untouched -- a spelling
+named with `--missing-value` still stands in that column's
+`missing_by_source`, character for character, under the ordinary floor.
+
+(2) **The list is spent COLUMN BY COLUMN and not among the spellings
+every column is read under.** Spending it globally is what a first
+writing of this repair did, and it moved a decision the person's own
+spelling never reached: measured on thirty `01/01/1900` beside thirty
+`1900-01-01` in a second column, the second column's day is judged a
+hole by the description and was KEPT by the checker, and the unchanged
+table missed fourteen obligations there. So
+`validation._kept_placeholders_here` carries a recorded member to each
+column of the checked file EXCEPT one whose own description publishes a
+`read_as_missing` verdict for that day, and
+`validation._vocabulary_spellings` spends the two other lists alone.
+Where both columns' verdicts are withheld for their size the two cannot
+be told apart and the day is kept in both -- the corner
+`_cells_that_description_reads` already names for an unpublished
+stand-in, bounded the same way.
+**Measured after:** 0 missed on the source and 0 on the twin.
+
+### P4-D253 A recount leaves out the cells the description read as holes, and prints the number that decided the verdict
+
+**The defect** (item 6, two halves). `validation._candidates_with` reads
+a verdict's candidate as a NUMBER and a calendar day denotes none, so
+every placeholder-day verdict fell out of the hole rule and the cells a
+description judged as holes were handed to the written-form recounts as
+values. **Measured:** `01/01/1900` twenty times beside 380 day-first
+dates of 2020 at a floor of eleven publishes
+`date_field_widths {"second-field-padded": 380}`; the recount walked all
+400, folded them into another width class, and the unchanged source was
+told it missed two obligations -- one of them printing "the description
+asks for: 380 / the file was found to hold: 380", which tells a reader
+nothing at all, because the verdict was settled by the recount and the
+number shown was the census of the file's own description.
+
+**The decision:** (1) the cells a re-described block's own placeholder
+verdicts read as absent are holes to every recount, exactly as a
+stand-in number's cells are, and they are named by the SPELLINGS those
+verdicts publish (`validation._placeholder_spellings_dropped`) rather
+than by the day they denote -- because this closure decides a cell's
+identity and may ask no reader that rounds, which
+`tests/test_p3v4f1_kept_values.py` walks the whole closure for, and a
+verdict already publishes the `missing_by_source` keys its own decision
+took out; (2) what is printed beside a
+written-form verdict is the RECOUNT that decided it, held below the line
+to the same wording the `unnamed` line beside it uses, so no number a
+description withholds is printed. **Measured after:** the source
+validates at exit 0 with both width obligations HELD.
+
+### P4-D253.1 A placeholder day no verdict names is settled like a stand-in number no verdict names
+
+**The defect** (the skeptic of P4-D253, finding 1; a BLOCKER). P4-D253
+reads the judged spellings out of the verdicts the description
+PUBLISHES, and the publication floor withholds a verdict whose
+occurrences are too few to name. So the repair reached the reviewer's
+own twenty-placeholder shape and not a column holding five of them, and
+a description's own judged cells were still handed to the recounts as
+values. **Measured** on the reviewed commit and on P4-D253's repair
+alike: five `01/01/1900` beside 395 month-first dates of 2020 at a floor
+of eleven publish `n_present` 395, `n_missing` 5, `missing_by_class`
+`{"(withheld)": 5}`, `sentinel_verdicts` `[]`,
+`n_sentinel_candidates_unpublished` 1 and
+`date_field_widths {"padded": 330}` -- and the UNCHANGED SOURCE
+validates at exit 3, `widths.padded` MISSED, "the description asks for:
+330 / the file was found to hold: 335". The numeric sibling of that
+exact table -- five `-999` beside 395 decimals at the same floor --
+validates at exit 0, because `_cells_that_description_reads` leaves a
+stand-in nothing names UNDECIDED and settles it from the published count
+of holes. The day was the one candidate kind with no below-floor path.
+
+**The decision** (`validation._an_unnamed_placeholder_day`,
+`validation._placeholder_days_named`): a cell writing a calendar
+placeholder member that the block's own verdicts do not name -- neither
+kept nor judged -- is undecided, exactly as an unpublished stand-in
+number is, and the caller settles it from the one number the description
+does publish. A day a verdict DOES name is settled by that verdict and
+is not touched: a `read_as_missing` verdict makes its cells holes
+through the spellings it prints, and a kept day's cells are values.
+**Measured after:** the same table validates at exit 0 with both width
+obligations HELD, and a table of thirty `01/01/1900` declared kept
+beside five `12/31/9999` the floor withholds -- where widening the
+settlement to every placeholder-shaped cell would delete the kept thirty
+from the recount -- validates at exit 0 too, against exit 3 when the
+guard is withdrawn.
+
+**And the closure now stands on TWO published identities**
+(`tests/test_p3v4f1_kept_values.py`). P4-D253 named the judged cells by
+SPELLING to keep a rounding reader out of the rule that decides which
+cells a description reads; a day nothing names has no published spelling
+to be named by, so the rule asks which day a cell WRITES.
+`parsing.placeholder_day_of` reads fixed-width runs of ASCII digits,
+validates the calendar and hands back text built from those runs: no
+binary64 value is formed and no two spellings a person can tell apart
+are folded together. The guard's walk stops at that name as it stops at
+`taxonomy.exact_of_spelling`, asserts that the closure actually asks it,
+and stops at nothing else that reads a date -- its new probe
+`a-date-reader-of-its-own` puts `parsing.parse_datetime` in the closure
+and the walk still refuses it.
+
+### P4-D254 An offset is spent where the rank's own gap holds a midnight under it
+
+**The defect** (item 3). The offsets were spent lexically -- each key
+filling a block of consecutive ranks -- so a rank whose gap is an hour
+wide took whichever key that block reached, and the pass that moves
+ranks onto a midnight found none inside the gap under that offset and
+left the rank where it stood. **Measured at seed 4:** twenty repeats of
+the six combinations of 1 and 2 March 2024 at `T00:00:00` under `Z`,
+`+01:00` and `-05:00`. The source validates with 120 cells at midnight;
+the twin held 109, eleven wearing times such as `03:17:59+01:00`, and
+missed both midnight obligations.
+
+**The decision** (`generation._offset_allocation`, with the gap
+`_pin_bounds` states handed in by the snapping path alone): each rank
+asks for the first key with a count left whose wall clock holds a
+midnight inside that rank's own gap, and falls back to the first key
+with a count left where none does. A column every one of whose keys is
+feasible is allocated exactly as before, key block by key block, and
+writes the same bytes. **Measured after:** 120 of 120 at midnight, the
+offset counts unchanged, twin and table both at exit 0. Frozen case
+`date_midnight_feasible`, whose mutant makes every offset look feasible.
+
+### P4-D255 Every rank standing on an end's instant is held to that end's offset
+
+**The defect** (item 10). The describing step orders the parsed cells by
+(instant, text, offset) and reads `latest_utc_offset` off the LAST of
+them, so where several cells share the latest instant the offset
+published is the largest of theirs -- and pinning the two end RANKS
+settles nothing on a column whose interior ranks reach an end's instant.
+**Measured at seed 4:** 120 moments on three days at midnight or noon
+under `+01:00` on even rows and `+02:00` on odd ones. The source
+publishes `+01:00` as its latest offset; the twin published `+02:00`,
+missed `offsets.latest`, and its generation report named no deviation.
+
+**The decision:** (1) `generation._endpoint_tie_offsets` holds every
+interior rank whose instant IS an end's to an offset that cannot
+out-sort that end's published one -- not above it at the latest, not
+below it at the earliest -- and where such a rank already carries the
+midnight pins the two are met together, the midnight pin standing where
+nothing meets both; (2) the two end offsets are RECOUNTED on the cells
+this run wrote, through `taxonomy.ordered_moments`, the describing
+step's own ordering, so there is no second statement of the tie rule to
+drift and a twin that writes another end offset says so in its report.
+**Measured after:** both end offsets come back, twin and table at exit 0.
+Frozen case `date_endpoint_ties`, whose mutant holds no tied rank.
+
+### P4-D256 The census key decides which days show the width it names
+
+**The defect** (item 7). `generation._shows_a_width` asked whether
+either field is below ten, which is the question a census of several
+conventions asks. **Measured at seed 4:** 240 cells written
+`11/01/2020` to `11/09/2021`, whose first field is eleven on every one
+of them, publish the single entry `second-field-padded`. The twin put
+dates on days whose two fields both show, each counted under a joint
+word, and `parsing.folded_width_tally` then folds the one-field cells
+into that joint word -- so the twin published `padded: 240` and missed
+`widths.second-field-padded` and `widths.unnamed` while its own census
+still held 240 cells. This is ONE named convention, outside the known
+several-convention limitation of P4-D238 item 4.
+
+**The decision** (`parsing.day_shows_width`, the read-back of
+`date_field_style`, carried into the width pass and its movement): a
+one-field word needs its OWN field below ten and the other at ten or
+more; a JOINT word is met by either, because a cell showing one field is
+folded into the joint word its column's own cells wrote. **Measured
+after:** the twin publishes `second-field-padded: 240` and validates at
+exit 0, and the frozen case `date_widths_reached`, whose census names a
+joint word, is byte-identical. Frozen case `date_second_field_class`,
+whose mutant asks the older question.
+
+### P4-D257 A published `either` length is met by either resolved length
+
+**The defect** (item 8). May is its own abbreviation, so a column every
+cell of which falls in May publishes `upper-either-hyphen-no-comma` and
+says nothing about length; a twin of it writes other months, each of
+which must resolve that length. The checker counted all 240 of those
+spellings as styles nobody published and failed `names.unnamed`, while
+the generation report named no deviation at all.
+
+**The decision** (`parsing.name_style_agrees`, stated once and asked by
+the checker): a published `either` is met by the same case, mark and
+comma at EITHER length, and by nothing else -- the three parts the
+source did settle stay exact. **Measured after:** the twin validates at
+exit 0; a style differing in case, in mark or in comma is still unnamed,
+and a published length is still met by itself alone.
+
+### P4-D258 The restoration runs while it is useful, merges onto a unit no neighbour holds, and trades to keep the width census
+
+**The defect** (item 4, in three parts). The two count passes of P4-D192
+ran a fixed four rounds and offered a run its rank NEIGHBOURS alone.
+**Measured at seed 4:** ISO dates `2020-04-26` 379 times, `2021-06-14`
+37, `2022-09-02` 102 and `2022-12-15` 382 came back as SEVEN different
+dates against four, and the same pass run again brought them to four --
+the cap, and not the rule, was what stopped it. `15-Mar-2020` five
+times, `19-Nov-2020` twelve and `04-May-2021` 223 came back as SIX
+against three, and repetition did not repair it: the run of
+`02-Mar-2021` cells could merge onto `04-May-2021` and keep the width
+census exact, but neither was the other's rank neighbour, and the one
+`05-Apr-2020` cell sits in a gap whose every other day shows no width at
+all, so its merge has to be paid for elsewhere.
+
+**The decision:** (1) the passes run while each round brings the column
+CLOSER to the two counts, stopping after `_RESTORATION_STALLS` rounds
+that do not and at `_RESTORATION_ROUNDS` in any case -- a CONSTANT
+ceiling, because each round walks every rank and generation is linear in
+the column's length (landing 1); the measured need is six rounds; (2) a
+run is offered the nearest held unit of its own width kind inside its
+gap, which its rank neighbours need not be
+(`generation._nearest_held_unit`); (3) where its gap holds no unit of its
+own kind at all, it moves onto one of the other kind while as many ranks
+elsewhere move between held units the other way, each leaving a unit
+that keeps other ranks and landing on a unit ranks already hold, so
+neither half changes the count of different units and the two together
+leave the width census where it stood (`generation._traded_merges`); a
+payment that cannot be made in full is put back cell for cell.
+**Measured after:** four dates come back as four and three as three,
+both with their width censuses exact and both at exit 0. Frozen cases
+`date_nonadjacent_merge` and `date_traded_merge`.
+
+**AND THE MERGE READS ITS NEIGHBOUR AGAIN WHEN ITS TURN COMES**, which
+is what the pass always did and is stated here because the first
+writing of the offer list froze the instant instead. Measured on the
+golden demonstration at its own seed: freezing it moved 42 of
+`recorded_on`'s 240 cells -- the same 84 different dates before and
+after, the description digest and the word budget unchanged -- for no
+reason the rule gives. Read again, the golden twin is byte-identical to
+c5d09d5's and `date_distinct_reached`'s committed cells are unchanged,
+so the three parts above are the whole of what this entry moves.
+
+### P4-D259 A workbook's subsecond precision is read off the format its cells wear
+
+**The defect** (item 9). A workbook stores a moment as a day count and
+its fraction, so a moment standing at a whole second stores exactly what
+a moment with no subsecond figures stores; what tells them apart is the
+FORMAT, which is what every reader shows a person. **Measured at seed
+4:** 240 serials `45300 + i + 0.5 + 0.001 / 86400` formatted
+`yyyy-mm-dd hh:mm:ss.000` publish `time_precision` `subsecond` and three
+figures and validate at exit 0. Generation writes its fractional figures
+as noughts, the conversion back to a serial keeps nothing of them, and
+the written twin was read as whole seconds: it missed both obligations
+with an empty generation-deviation list, and openpyxl confirmed the
+source's thousandths and their absence from the twin.
+
+**The decision** (`dialect.sheet_format_figures` and
+`dialect.sheet_serial_moment`, asked by the workbook reader per format
+code): the fraction is written to as many places as the cell's FORMAT
+shows, even where it is nought, and the reader's two spellings widen
+from three figures to one, two or three -- `sheet_moment_kind` and
+`sheet_moment_serial` read them all and the pair stays an inverse.
+**Measured after:** the twin re-describes as `subsecond` at three
+figures and validates at exit 0. The check is of the SERIALIZED
+workbook, re-described and validated, rather than of the generator's
+intermediate text.
+
+### P4-D259.1 The two facts a figure-free format code cannot carry are listed, not checked
+
+**The defect** (the skeptic of P4-D259, finding 2; MAJOR). P4-D259 reads
+the figures a date format shows and writes the fraction to that many
+places, which closed the sub-case where the code SHOWS them. Where it
+shows none the workbook has nowhere to put them. **Measured** on the
+reviewed commit and on P4-D259's repair alike, at seed 4: the same 240
+serials `45300 + i + 0.5 + 0.001 / 86400` under `yyyy-mm-dd hh:mm:ss` --
+the code pandas 3.0.5 `to_excel` writes by default, measured rather than
+assumed -- publish `time_precision` `subsecond` and three figures
+correctly, because the fraction IS stored; their twin re-describes as
+`second` and nought and misses `precision.time_precision` and
+`counts.subsecond_digits` at exit 3.
+
+**Why the twin cannot meet them, and why that is not this landing's to
+change.** A workbook stores a moment as a day count, so a whole second
+stores exactly what no subsecond figures store, and the twin's moments
+DO stand at whole seconds: `docs/spec/generation-method-v1.md` G7.3 says
+the twin's fractional digits are zeros and says why -- the description
+publishes how MANY figures the finest cell carried and nothing about
+their values, so any other digit would be an invented fact. Writing a
+non-zero millisecond into the serial, which is the only other way a
+figure-free code could carry the claim, is that reversal wearing a
+different hat: it puts into the twin a figure no published fact
+constrains. The generator's ordinals are counted in seconds besides, and
+sub-second values inside a moment column are part of the time of day the
+owner deferred.
+
+**The decision** (`validation.subsecond_figures_unwritable`): where the
+description's source is a workbook, publishes `subsecond` for a column,
+and publishes for that column a format code showing fewer figures after
+the second than its `subsecond_digits`, `precision.time_precision` and
+`counts.subsecond_digits` are REPORT-ONLY and `_listings` says why. This
+module refuses a check whose only outcome is a lesser one
+(`_hole_spelling_checks` names the same rule), and both are stranded
+TOGETHER because the one fact that makes `subsecond` unreachable makes
+its count of figures unreachable. The predicate is a function of the
+DESCRIPTION alone -- the format code is what the description publishes
+and what the twin wears -- so no measured file can move which
+obligations exist. A code that DOES show the figures is checked exactly
+as before. **Measured after:** the twin and the real workbook both
+validate at exit 0 with the two facts listed and their reason printed;
+the figure-showing shape still publishes both as checks and holds them.
+
 ### The ten acceptance criteria, each with its verdict
 
 | # | what it asks | verdict |

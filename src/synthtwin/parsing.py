@@ -4322,6 +4322,49 @@ def _one_field_style(written: str) -> "str | None":
     return None
 
 
+def day_shows_width(word: str, format_name: str, month: int, day: int) -> bool:
+    """Whether a date on this day is counted under THIS width word (P4-D256).
+
+    `date_field_style` read from the other side: it gives the word one
+    written cell shows, and this says which days can show a given word.
+    The two are one rule, and this is the one a producer needs -- the
+    census names a convention, and a twin that puts its dates on days
+    which show ANOTHER convention publishes that other one however
+    carefully it writes each cell.
+
+    A one-field word needs its OWN field below ten and the other at ten
+    or more, which is the whole of what that word says: a cell whose two
+    fields both show is counted under a joint word, and a census naming
+    the joint word beside it is a second key the single-key census does
+    not have. A JOINT word is met by either -- a cell showing one field
+    is folded into the joint word its column's own cells wrote
+    (`folded_width_tally`), so it is counted under that word in the end.
+    A textual member writes its month as a name, so its day is the one
+    field that can show anything and only the joint words are reachable.
+
+    Guarantees: accepts a member of `FIELD_WIDTH_STYLES`, the member the
+    column is read under and a calendar month and day; returns a bool,
+    and False for a member that fixes both widths. Determinism: a fixed
+    function of the four. Raises nothing. No I/O of any kind.
+    """
+    if format_name in TEXTUAL_MEMBERS:
+        return day < 10 and word in FIELD_WIDTH_STYLES_BOTH
+    if format_name not in VARIABLE_WIDTH_MEMBERS:
+        return False
+    first = month
+    second = day
+    if format_name in DAY_FIRST_MEMBERS:
+        first = day
+        second = month
+    if word in FIELD_WIDTH_STYLES_FIRST:
+        return first < 10 and second >= 10
+    if word in FIELD_WIDTH_STYLES_SECOND:
+        return second < 10 and first >= 10
+    if word in FIELD_WIDTH_STYLES_BOTH:
+        return first < 10 or second < 10
+    return False
+
+
 def pair_widths(width: str) -> "tuple[bool, bool]":
     """One width word as a padding decision per field (plan P4-D132).
 
@@ -4472,6 +4515,42 @@ def _name_parts(style: str) -> "tuple[str, str, str, str]":
     if parts[3] == "no":
         comma = "no-comma"
     return parts[0], parts[1], parts[2], comma
+
+
+def name_style_agrees(published: str, written: str) -> bool:
+    """Whether a written month-name style meets a published one (P4-D257).
+
+    THE PERMITTED READING OF `either`, STATED ONCE so the generator and
+    the checker cannot hold two (the extra review of c5d09d5, item 8).
+    `May` is its own abbreviation, so a column every cell of which falls
+    in May says nothing about length and publishes `either`: 240 cells
+    written `01-MAY-2020` publish `upper-either-hyphen-no-comma`. A twin
+    of it writes other months, each of which must resolve that length
+    one way -- the generator writes the abbreviated name -- and the
+    checker counted every one of those 240 spellings as a style nobody
+    published, so the file failed `names.unnamed` while its generation
+    report named no deviation at all.
+
+    A published `either` is met by the same case, mark and comma at
+    EITHER length, and by nothing else: the three parts the source did
+    settle are still exact. A published length is met by itself alone.
+
+    Guarantees: accepts a published style and a written one; returns a
+    bool, and True only for styles agreeing in case, mark and comma.
+    Determinism: a fixed function of the two. Raises TypeError if either
+    is not a string instance. No I/O of any kind.
+    """
+    if published == written:
+        return True
+    first = _name_parts(published)
+    second = _name_parts(written)
+    if first[1] != NAME_LENGTH_EITHER:
+        return False
+    return (
+        first[0] == second[0]
+        and first[2] == second[2]
+        and first[3] == second[3]
+    )
 
 
 def date_field_style(text: str, format_name: str) -> "str | None":
