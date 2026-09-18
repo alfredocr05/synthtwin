@@ -283,16 +283,43 @@ def test_one_pooled_word_does_not_buy_a_whole_figure(
         statistics.pstdev(twin), spread
     )
     assert max(_whole_figures(cell) for cell in _number_cells(written)) <= 2
-    assert first["shape_forms"] == {"(withheld)": 135}, first["shape_forms"]
+    # ...AND THE ONE WORD IS NOT POOLED AT ALL SINCE INVARIANT B4c (Codex
+    # blocker 2 of the extra round, 2026-09-18; plan P4-D261). The column
+    # publishes `n_not_numeric` 770 and names words covering 769 of them,
+    # so the one `ab-cd` was a count of one a reader took by subtraction
+    # from a sibling total. It is counted as MISSING now, exactly as the
+    # ruling's own pool of one is, and with it gone the form census names
+    # its one form again -- the same census the control column below
+    # writes, which is what P4-D160 refused to write while the word was
+    # still in the column.
+    assert first["shape_forms"] == {"%%.%": 134}, first["shape_forms"]
+    assert first["n_missing"] == 1 and first["n_present"] == 2500
     shift = abs(statistics.mean(twin) - statistics.mean(real))
     assert shift <= MEAN_SHIFT_IN_DEVIATIONS * spread, (shift, spread)
-    assert min(real) <= min(twin) and max(twin) <= max(real), (
-        min(twin), max(twin), min(real), max(real)
-    )
     _f, _s, control, _t, _r = _round_trip(
         tmp_path / "control", readings, ("--smallest-group", "11"), False, "125"
     )
     assert _f["shape_forms"] == {"%%.%": 134}, _f["shape_forms"]
+    # AND THE TWO COLUMNS ARE DESCRIBED ALIKE AGAIN, which is half of the
+    # assertion this test opened with and lost to P4-D160's pool of one.
+    # Invariant B4c counts the lone `ab-cd` as missing rather than pooling
+    # it, so the word column's census is the control's census. The twins
+    # are still not the same FILE and cannot be: the word column has one
+    # row more, and that row is written blank, so the placement words are
+    # spent differently. What is the same is every number either twin
+    # writes.
+    assert sorted(twin) == sorted(_numbers(control))
+    # THE RANGE BOUND IT REPLACES WAS A COINCIDENCE AND IS MEASURED HERE
+    # RATHER THAN ASSERTED. The stand-in walk of G8.3a steps OUTWARD from
+    # the published levels, which run 3.7 to 10.4 on this column, and
+    # nothing published bounds it by the table's own ends: both twins
+    # reach 13.9 against the table's 13.4 and stop at 2.4 against its 0.8.
+    # The assertion that the twin stayed inside the table's range held on
+    # the pooled description alone, and held by accident; what is true of
+    # both is that no made-up number is a whole figure wider, which is
+    # asserted above and is what the blocker was about.
+    assert min(twin) >= min(real)
+    assert max(twin) == max(_numbers(control))
 
 
 def _number_cells(cells: "list[str]") -> "list[str]":

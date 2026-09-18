@@ -2259,6 +2259,57 @@ def layout_room(name: str) -> int:
     return room
 
 
+def layout_supply(name: str) -> int:
+    """How many different cells could have been COUNTED under this layout.
+
+    THE CAPACITY THE DISCLOSURE RULE ASKS, which is not the enumeration
+    capacity `layout_room` gives (Codex blocker 1 of the extra round,
+    2026-09-18; plan P4-D260). `layout_room` counts the spellings a
+    generator can build from the marks; this counts the cells
+    `layout_form` would put UNDER the key, and on a key of figures alone
+    the two differ, because the zero fill takes the leading noughts away
+    into a key of their own.
+
+    A key of figures alone -- `!` and `%` and nothing else -- is written
+    only under `LAYOUT_PLAIN`, where `layout_form` marks every nought
+    before the first other figure, the last character excepted. So the
+    first `%` of such a key stands for a figure that is NOT a nought
+    whenever another `%` follows it: `%%%` is worn by `100` to `999` and
+    never by `012`, which wears `!%%`. Its supply is 900 and not a
+    thousand, and `!%%` is 90 and not a hundred. Where the key holds one
+    `%` alone that figure is the last character, which the fill rule
+    excepts, so every figure stands and the supply is ten.
+
+    MEASURED, AND IT IS WHY THIS EXISTS: 900 record numbers `100` to
+    `999` at a floor of eleven published `layout_forms={"%%%": 900}`
+    beside `n_distinct` 900, because 1,000 clears 900 plus the floor.
+    The census named every one of the 900 cells that wear the layout, so
+    the layout's own supply WAS the source's value set, the twin
+    generated all 900, and both files validated at exit 0. With the
+    supply counted here the layout is refused and its cells are pooled.
+
+    Every other key answers exactly `layout_room`: a mark or a space
+    anywhere stops `_all_ascii_digits`, so no fill is marked, and a
+    letter or a hexadecimal place is never a nought of a fill.
+
+    Guarantees: accepts a string; returns a whole number of one or more.
+    Determinism: a function of the argument. Raises TypeError if handed
+    anything that is not a string instance. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    room = layout_room(name)
+    figures = 0
+    for character in name:
+        if character == LAYOUT_DIGIT:
+            figures = figures + 1
+        elif character != LAYOUT_LEADING_ZERO:
+            return room
+    if figures < 2:
+        return room
+    return room - room // 10
+
+
 # -- the literal PREFIX of a record number (owner ruling 2026-09-17) ---
 #
 # THE ONE FRAGMENT A LAYOUT CENSUS MAY CARRY, AND ONLY BY RULING. A

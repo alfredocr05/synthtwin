@@ -13579,14 +13579,23 @@ def _label_numbers():
     its held-back readings written as words, and at a floor of twenty a
     column of 853 readings kept 359 of them.
 
-    Forty-four rows at a floor of eleven. One published label, `ab-cd`,
+    Forty-five rows at a floor of eleven. One published label, `ab-cd`,
     on twelve rows; two published readings, `5.1` and `5.3`, on eleven
-    each; and four held-back levels of one, two, three and four rows,
+    each; and four held-back levels of two, two, three and four rows,
     which the source it stands for wrote `xy-zw`, `12.5`, `5.0` and
     `5.2`. The published spellings pay twenty-two of the thirty-one
     numbers, so the held-back levels owe nine; the census names `%.%`
-    on twenty-nine cells and `@@-@@` on thirteen, and pools the two
+    on twenty-nine cells and `@@-@@` on fourteen, and pools the two
     cells of `12.5` under the withheld key.
+
+    THE HELD-BACK WORD COVERS TWO ROWS AND NOT ONE, since invariant B4c
+    (Codex blocker 2 of the extra round, 2026-09-18; plan P4-D261). It
+    covered one while `n_not_numeric` was thirteen and the published word
+    covered twelve, and thirteen less twelve is the withheld word's own
+    count of one -- a description the producer no longer writes and the
+    loader no longer admits. One row is added to the column and to that
+    level, so the word class is two rows over one level and nothing is
+    derivable from it.
 
     SINCE THE OWNER'S RULING OF 2026-09-17 (plan P4-D201) the description
     publishes those four levels as a pool of ten rows and no size of any
@@ -13609,8 +13618,8 @@ def _label_numbers():
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
-        n_present=44, n_missing=0, n_distinct=7, n_distinct_folded=7,
-        n_numeric=31, n_not_numeric=13, n_out_of_range=0, n_contradictory=0,
+        n_present=45, n_missing=0, n_distinct=7, n_distinct_folded=7,
+        n_numeric=31, n_not_numeric=14, n_out_of_range=0, n_contradictory=0,
         levels=[
             {
                 "label": "ab-cd", "count": 12,
@@ -13628,27 +13637,28 @@ def _label_numbers():
                 "shape_form_cells": 11,
             },
         ],
-        suppressed_levels=4, suppressed_rows=10,
+        suppressed_levels=4, suppressed_rows=11,
         level_ceiling=20,
-        shape_forms={"%.%": 29, "@@-@@": 13, "(withheld)": 2},
+        shape_forms={"%.%": 29, "@@-@@": 14, "(withheld)": 2},
     )
     return {
         "why": "the class debt of G8.3a: a held-back level that was a number "
         "is written as a number. The published spellings pay twenty-two of "
         "the thirty-one numbers; the four held-back levels, published as a "
-        "pool of ten rows (plan P4-D201), owe nine, and the sizes G8.3 reads "
-        "off the pool and its debts, one, two, two and five, make nine as "
-        "five, two and two, so the level of one row stays a word. Inside the "
-        "number class `%.%` still owes seven, which five and two make, so "
-        "one level of two wears no named form. The "
+        "pool of eleven rows (plan P4-D201), owe nine, and the sizes G8.3 "
+        "reads off the pool and its debts split into a word class and a "
+        "number class. Inside the "
+        "number class `%.%` still owes seven. The "
         "numbers come from the published ones: the one value strictly "
         "between them that none holds, `5.2`, goes to the largest level, "
-        "the first step outward, `5.0`, to the next, and the level wearing "
-        "no named form walks past every value `%.%` writes to `10.0`. The "
-        "word takes the first spelling of `@@-@@`. A label column consumes "
+        "the first step outward, `5.0`, to the next, and a level wearing "
+        "no named form walks past every value `%.%` writes. The "
+        "word takes the first spelling of `@@-@@`. The pool is eleven rows "
+        "and not ten because invariant B4c refuses a word class of one row "
+        "(plan P4-D261). A label column consumes "
         "no content word, so every byte here is fixed by published counts.",
         "column": column,
-        "rows": 44,
+        "rows": 45,
         "identifier_declared": False,
     }
 
@@ -13657,16 +13667,19 @@ def _label_numbers():
 def _label_number_tiers():
     """What the census could hold, and the places a number may take (G8.3a).
 
-    Landing 2b.4's repair. Fifty-five rows at a floor of eleven: one
+    Landing 2b.4's repair. Fifty-six rows at a floor of eleven: one
     published label, `ab-cd`, on twelve rows; two published readings,
     `5.1` and `5.3`, and one published whole number, `7`, on eleven
-    each; and four held-back levels of one, two, three and four rows,
+    each; and four held-back levels of two, two, three and four rows,
     which the source it stands for wrote `xy-zw`, `6`, `5.0` and `5.2`.
-    The census names `%.%` on twenty-nine cells and `@@-@@` on thirteen
+    The census names `%.%` on twenty-nine cells and `@@-@@` on fourteen
     and pools nothing: the whole numbers wear no form. Since the owner's
     ruling of 2026-09-17 (plan P4-D201) the four levels are published as a
-    pool of ten rows, and G8.3 reads their sizes off it and its debts:
-    `1, 2, 2, 5`.
+    pool of eleven rows, and G8.3 reads their sizes off it and its debts.
+
+    THE HELD-BACK WORD COVERS TWO ROWS AND NOT ONE, for the reason
+    `_label_numbers` gives: invariant B4c refuses a word class of one row
+    (plan P4-D261).
 
     - the class split: the published spellings pay thirty-three of the
       forty-two numbers, and nine is `5 + 2 + 2`;
@@ -13683,8 +13696,8 @@ def _label_number_tiers():
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
-        n_present=55, n_missing=0, n_distinct=8, n_distinct_folded=8,
-        n_numeric=42, n_not_numeric=13, n_out_of_range=0, n_contradictory=0,
+        n_present=56, n_missing=0, n_distinct=8, n_distinct_folded=8,
+        n_numeric=42, n_not_numeric=14, n_out_of_range=0, n_contradictory=0,
         levels=[
             {
                 "label": "ab-cd", "count": 12,
@@ -13707,24 +13720,26 @@ def _label_number_tiers():
                 "shape_form_cells": 0,
             },
         ],
-        suppressed_levels=4, suppressed_rows=10,
+        suppressed_levels=4, suppressed_rows=11,
         level_ceiling=20,
-        shape_forms={"%.%": 29, "@@-@@": 13},
+        shape_forms={"%.%": 29, "@@-@@": 14},
     )
     return {
         "why": "what the census could hold, and the places a number wearing no "
         "named form may take (G8.3a, landing 2b.4's repair). The held-back "
-        "levels, a pool of ten rows whose sizes G8.3 reads as `1, 2, 2, 5` "
-        "(plan P4-D201), owe nine numbers, `5 + 2 + 2`, and `%.%` owes seven "
-        "of them, `5 + 2`, which take the gaps `5.2` and `6.9`. The other "
-        "level of two wears "
+        "levels, a pool of eleven rows whose sizes G8.3 reads off the pool "
+        "and its debts (plan P4-D201), owe nine numbers, and `%.%` owes seven "
+        "of them, which take the gaps nearest each end. A "
+        "level wears "
         "no named form: every one-place value it could step to wears the "
         "named `%.%` until `10.0`, whose form the census would have counted "
         "and pooled, and it pools nothing, so that side ends. The walk then "
         "takes the other count of places the published numbers were written "
-        "with, none, and writes the gap `6`. The word takes `AA-AA`.",
+        "with, none, and writes a gap. The word takes `AA-AA`. The pool is "
+        "eleven rows and not ten because invariant B4c refuses a word class "
+        "of one row (plan P4-D261).",
         "column": column,
-        "rows": 55,
+        "rows": 56,
         "identifier_declared": False,
     }
 
@@ -20148,6 +20163,13 @@ GIVEN_WORDS = {
         17841136179427949105, 3153720365097832194, 12904746883321067555,
         15289589415482460436, 11790829620896665457, 16118600836855221284,
         14339110349838762356,
+        # The forty-fourth word, given when the case gained its
+        # forty-fifth row for invariant B4c (plan P4-D261). Like every
+        # other word here it is an INPUT this tool does not draw: it is
+        # the next word of the one stream the case's words open, which
+        # the suite checks against the locked library rather than against
+        # anything this file computes.
+        3346176665544244880,
     ),
     "label_number_tiers": (
         15712004738899576826, 9106234749995103221, 7197214430348145549,
@@ -20168,6 +20190,11 @@ GIVEN_WORDS = {
         1786132738446827029, 12470419375819469909, 1224946779267958078,
         14893380431211633658, 11306254306392298651, 12068320809430943003,
         347872208542651383, 18007349395004237999, 17724797172735929015,
+        # The fifty-fifth word, given when the case gained its
+        # fifty-sixth row for invariant B4c (plan P4-D261), on the same
+        # terms as `label_numbers`' own added word: the next word of the
+        # one stream this case's words open.
+        8869353500042892814,
     ),
     "long_tail_levels": (
         16141117999568644869, 2912390137437105406, 11142961259136265613,

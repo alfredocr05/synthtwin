@@ -349,9 +349,16 @@ def test_the_twin_is_measured_in_the_spelling_it_was_described_in(
         _quantities(), ["weight"]
     )
     twin = generation.generate(loaded, 5)
-    assert not twin.deviations, (
-        "the twin's own report says it gave something up, and it gave "
-        f"up nothing: {[(d.fact, d.achieved) for d in twin.deviations]}"
+    # ONE DEVIATION IS EXPECTED SINCE PLAN P4-D267 (Codex item 4 of the
+    # extra round of 2026-09-18), and it is a fact about this column
+    # rather than about the declaration: the published mode is a number
+    # no stratum of the twin holds, and the report says so instead of
+    # dropping it in silence. The test beside this one proves the
+    # declaration does not change it -- the same numbers written with
+    # points give up exactly the same things.
+    assert [deviation.fact for deviation in twin.deviations] == ["mode"], (
+        "the twin's own report says it gave something up that this "
+        f"column does not: {[(d.fact, d.achieved) for d in twin.deviations]}"
     )
     assert len(twin.approximations) == 15, (
         f"{len(twin.approximations)} approximated facts were named; a "

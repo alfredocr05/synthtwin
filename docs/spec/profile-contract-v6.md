@@ -4136,6 +4136,30 @@ is counted as MISSING, spelled as nothing, so the description is that of
 the table with those cells blank, the twin writes a blank in those rows,
 and no label that clears the floor is ever held back to hide one.
 
+**Invariant B4c (a sibling total that leaves one row).** The four totals
+of 6.2 that say what a column's present cells READ AS -- `n_numeric`,
+`n_not_numeric`, `n_out_of_range` and `n_contradictory` -- are
+subtractable exactly as `n_present` is, one class at a time, and B4b
+cannot see them: **no such total, less the published levels that read
+that way, is exactly one** (Codex blocker 2 of the extra round,
+2026-09-18; plan P4-D261). The question is
+`parsing.census_names_one_row` over the pair, so a total no published
+level counts into is not read at all, on the reasoning C6-131b already
+gives. **Measured before this clause:** `alpha` and `beta` a hundred rows
+each, `1` five rows, `2` six rows and `gamma` one row, at a floor of
+eleven. The pool was three levels over twelve rows -- far outside B4b's
+forced band, and every printed count cleared the floor -- while
+`n_not_numeric` 201 less the two published words' 200 said the withheld
+WORD level occurs once. The twin wrote one `group-1` and both files
+passed every executable check. The producer counts the cells of every
+held-back level of that class as MISSING instead, by the same pass that
+serves B4b, so it writes no document this refuses; one pass suffices,
+because a class that fires gives up fewer rows than twice its levels and
+so cannot pull the whole pool into B4b's band. **A label whose class the
+plain and the decimal-comma grammars disagree about takes the check off
+that column altogether**, because a loader that guessed the declaration
+wrong would refuse a description nobody had edited.
+
 **What B4b deliberately does NOT refuse**, and plan P4-D231 puts both to
 the owner with what each was measured to cost on the full suite. (a) One
 level over MORE than one row: the pool is still that level's own count,
@@ -9554,8 +9578,8 @@ only where it holds at least two cells; at a floor of one there is no
 remainder (C5-S13) and such a layout is counted nowhere. Measured
 before the line was two: 800 random codes of capitals and figures
 published 56 layouts of one cell each, and a UUID column with one
-upper-case row published 800. **AND A LAYOUT WHOSE POSSIBLE SPELLINGS
-NUMBER FEWER THAN `n_distinct` PLUS THE FLOOR IS NOT NAMED EITHER**,
+upper-case row published 800. **AND A LAYOUT UNDER WHOSE KEY FEWER CELLS COULD EVER HAVE BEEN COUNTED
+THAN `n_distinct` PLUS THE FLOOR IS NOT NAMED EITHER**,
 because a layout with a small supply NAMES the values it describes:
 `%-` has exactly ten cells that could have worn it, so a column
 holding nine of them often enough to publish would hand a reader the
@@ -9563,6 +9587,23 @@ tenth. The test is over PUBLISHED facts only — the supply is a
 property of the KEY, and `n_distinct` and the floor are already on the
 page — so a reader can work out which layouts this rule refuses, and
 an absence they can predict tells them nothing.
+
+**THE SUPPLY IS THE CENSUS'S OWN CAPACITY AND NOT THE GENERATOR'S**
+(`parsing.layout_supply`, plan P4-D260). A key of figures alone is
+written only in a plain column, where the zero fill takes every nought
+before the first other figure — the last character excepted — into a key
+of its own, so `%%%` is worn by `100` to `999` and never by `012`: its
+supply is 900, not the 1,000 spellings a generator can build from three
+figure marks, and `!%%` is 90 and not 100. A key holding one `%` alone
+keeps the full ten, because that figure is the last character and the
+fill rule excepts it; every other key — one holding a mark, a space, a
+letter or a hexadecimal place — keeps the enumeration count, because no
+fill is marked in it. **Measured before this clause:** 900 record
+numbers `100` to `999`, declared an identifier at a floor of eleven,
+published `layout_forms={"%%%": 900}` beside `n_distinct` 900, because
+1,000 clears 900 plus 11 — and the census then named every cell that
+could wear the layout, which is the source's own value set. The twin
+generated all 900 and both files validated at exit 0.
 
 **A FILL DEPTH TOO RARE TO NAME IS COUNTED ONE NOUGHT SHALLOWER
 (plan P4-D126).** A layout of two or more fill noughts that the line or
@@ -10054,6 +10095,7 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
 | B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239 | yes |
+| B4c | `parsing.census_names_one_row` over each of `n_numeric`, `n_not_numeric`, `n_out_of_range` and `n_contradictory` against the published levels that read that way: no such difference is exactly one — plan P4-D261 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |
@@ -10297,6 +10339,7 @@ stated in full at section 7.9.
 | LF4 | where the sum of all counts is at least one, it is not exactly one less than `n_present` (C6-131b) |
 | LF5 | where a named layout lies inside the code alphabet, the named layouts inside it do not count exactly one cell fewer than `n_code_alphabet`; and on a census with no hexadecimal mark, where a named layout is figures alone, those do not count exactly one cell fewer than `n_all_digits` (C6-131b) |
 | LF6 | every key is written under one convention: no `~` beside `^`, and no hexadecimal mark beside `@`, `&` or `!` |
+| LF7 | every NAMED layout's supply, `parsing.layout_supply` of its key, is at least `n_distinct` plus `small_cell_floor` (C6-130, plan P4-D260) |
 | LP1 | `layout_prefixes` holds `(column)` alone, or only keys `layout_forms` names; a census naming no layout, or carrying a hexadecimal mark, carries no prefix (C6-141, owner ruling of 2026-09-17) |
 | LP2 | each prefix's own layout opens every layout it is published for, and a figure or a letter mark stands after it in each |
 
@@ -10378,7 +10421,7 @@ document, never the table it describes.
 | SF-P | every `shape_forms` count is the count of source cells written in that form, and the pooled value the count of cells whose form too few shared | SF3 bounds the total from above and SF1 the named entries; none checks the census's SHAPE, and none can see the cells that had no form at all |
 | SC-P | where a count column writes one number more than one way, every cell read as a number is written in figures alone, every spelling clears the line of 7.13 and the spellings are within the ceiling, `number_spellings` names every spelling with its count, and it is `{}` otherwise | SC1 to SC3 check a census that is published; none can see a census that should have been and was not |
 | LP-P | a `layout_prefixes` entry is written exactly where C6-139 finds a prefix over the cells of its scope and C6-140's disclosure rule admits it, `(column)` first | LP1 and LP2 check an entry that is written; none can see the source cells, so none can tell a prefix that should have been published from one that was not, nor whether the published text is the one the cells hold |
-| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, neither can see the cells that had no layout at all, and neither can see the small-supply rule of C6-130, which removes a key a loader would otherwise have required; nor can any of LF1 to LF6 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
+| LF-P | every `layout_forms` count is the count of source cells written in that layout, and the pooled value the count of cells whose layout too few shared | LF3 bounds the total from above and LF1 the named entries; neither checks the census's SHAPE, and neither can see the cells that had no layout at all. LF7 now checks the small-supply rule of C6-130 in the one direction a loader can — no named key has too small a supply — but not the other, because a key the rule REMOVED leaves no trace a loader could require; nor can any of LF1 to LF7 see the fill step of C6-130, which moves a rare depth's cells under a shallower key, or which named layout C6-131b took back — LF4 and LF5 check that no difference is one, not that the smallest layout was the one taken |
 | NG9-P | where the recoverable-distribution arithmetic holds, that clause IS written | a document with no clause holds no *C*, so the converse is untestable |
 | NG13-P | the column publishes a level whose spelling is the stand-in argument 1 names | the argument names a stand-in by number and the level is published folded |
 
