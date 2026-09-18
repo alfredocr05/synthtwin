@@ -520,7 +520,10 @@ def test_a_below_floor_judged_placeholder_leaves_the_recount_too(
     {"padded": 330}`, and the UNCHANGED SOURCE was told it missed
     `widths.padded` -- "the description asks for: 330 / the file was
     found to hold: 335". Measured on the commit under review and on the
-    first repair of item 6 alike.
+    first repair of item 6 alike. (The census reads `{"padded": 395}`
+    since the integration of 2026-09-18 folded in the disclosure pass's
+    P4-D278, which counts the cells showing no width into the commonest
+    one; the defect this pins is the verdict, not the figure.)
 
     The numeric sibling of this exact table -- five `-999` beside 395
     decimals at the same floor -- validates at exit 0, because a
@@ -542,7 +545,13 @@ def test_a_below_floor_judged_placeholder_leaves_the_recount_too(
     assert block["sentinel_verdicts"] == []
     assert block["n_sentinel_candidates_unpublished"] == 1
     assert block["missing_by_source"] == {}
-    assert block["date_field_widths"] == {"padded": 330}
+    # 330 UNTIL THE INTEGRATION OF 2026-09-18, when the disclosure pass's
+    # P4-D278 made the census absorb the cells that show no width: the
+    # same 395 parsed cells, counted against the parsed total the reader
+    # actually subtracts from. What this test pins is unchanged -- the
+    # unchanged source must not be told it missed `widths.padded` -- and
+    # the two assertions below are where that is measured.
+    assert block["date_field_widths"] == {"padded": 395}
     checked = folder / "check-real"
     checked.mkdir()
     assert _exit_of(

@@ -2516,8 +2516,115 @@ def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
     return census_nameable([carrying], [present], floor)
 
 
+def absorbed_total(count: int, population: int, floor: int) -> int:
+    """One scalar count of a published population, as the disclosure rule allows.
+
+    THE SHARED RULE ASKED OF A SCALAR AND NOT OF A CENSUS (plan P4-D277).
+    A block that publishes no value of the table still publishes counts
+    that SPLIT its cells: how many read as a number, how many are figures
+    alone, how many lie inside the code alphabet. Each is a census of two
+    groups written as one number, and `census_nameable` governs it as it
+    governs a census of ten: the count names a group, and so does what it
+    leaves of the population.
+
+    **Measured** at a floor of eleven, on 999 declared record numbers of
+    `REC` and seven figures beside one `42`: the block published
+    `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999` against
+    `n_present 1000`, each of them naming that one record; with `X Y` in
+    its place, `n_code_alphabet 999` beside `n_present 1000` named the
+    one identifier outside the alphabet. Layouts were withheld for
+    exactly this reason and these counts were not.
+
+    WHERE THE PAIR CANNOT SPEAK, THE SMALLER SIDE IS COUNTED INTO THE
+    LARGER, which is ruling 6 of 2026-09-17 again: the description is the
+    description of the table with those cells written the way most of its
+    cells were, and describing the table again says the same thing, so
+    the table passes its own description. A population too small for
+    either side to reach the line is counted wholly to the larger side,
+    ties to the population.
+
+    Guarantees: accepts the count, the population it is taken from and
+    the settings floor; returns the count, nought, or the population.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    """
+    if census_nameable([count], [population], floor):
+        return count
+    if count * 2 >= population:
+        return population
+    return 0
+
+
+def prefix_room(layout: str, prefix: str, convention: str) -> int:
+    """How many different cells a layout still spells once a prefix is fixed.
+
+    THE ROOM RULE, ASKED OF THE PREFIX (plan P4-D270). `layout_room`
+    counts the cells a layout could have come from while every one of
+    its positions is free. A published prefix fixes some of them: a
+    reader who holds `@@@%%%` beside the prefix `REC` does not hold
+    17,576,000 possible cells, they hold a THOUSAND, because the three
+    letters are spelt out for them. So the count that has to clear the
+    census's own room is this one, and it is the only count that ever
+    was -- the prefix simply did not exist when `layout_census` wrote
+    the rule.
+
+    The prefix is read into its own layout by `prefix_layout`, which is
+    `layout_form`'s reader, so a prefix belongs to a layout exactly
+    where the layout opens with it. Where it does not, the layout's room
+    is untouched and this answers `layout_room`.
+
+    Raises TypeError if handed anything that is not a string instance,
+    and ValueError for a convention this module does not name. No I/O of
+    any kind.
+    """
+    opening = prefix_layout(prefix, convention)
+    if layout[: len(opening)] != opening:
+        return layout_room(layout)
+    return layout_room(layout[len(opening):])
+
+
+def prefix_leaves_room(
+    layout: str, prefix: str, convention: str, distinct: int, floor: int
+) -> bool:
+    """Whether a prefix may stand beside a layout without spelling the column.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 1, HELD TO THE GUARD THAT WAS
+    ALREADY THERE (plan P4-D270, contract invariant LP3). `layout_census`
+    names a layout only where it could have come from at least
+    `n_distinct + floor` different cells, so that the named shape never
+    spells out the column's own value set. Publishing the prefix is the
+    ruling's own amendment of invariants I3 and F3, and it does not
+    amend that guard: it feeds it.
+
+    MEASURED, on the shape the final review of 2026-09-18 built. 1,000
+    record numbers `REC000` to `REC999` at a floor of eleven, declared,
+    beside a constant second column, published `layout_forms
+    {"@@@%%%": 1000}`, `layout_prefixes {"(column)": "REC"}` and
+    `n_distinct 1000`. Those three facts have exactly one solution, and
+    at seed 4 the twin held all 1,000 of the table's own record numbers,
+    every one of its rows a row of the table, with both files at exit 0.
+    `layout_room("@@@%%%")` is 17,576,000 and clears 1,011 easily;
+    `prefix_room` is 1,000 and does not.
+
+    WHAT GIVES WAY IS THE PREFIX AND NOT THE CENSUS, because the census
+    is what the twin's shape is built from and the prefix may only stand
+    beside a named layout at all (invariant LP1): taking the census back
+    would leave the prefix nothing to stand on, and taking the prefix
+    back leaves a column whose layout still clears the room rule on its
+    own. So the coarser fact is published and the sharper one is not.
+    The ruling is unmoved everywhere it can be kept -- `REC` and seven
+    figures over 800 rows leaves 10,000,000 cells for 811 and is
+    published exactly as before.
+
+    Guarantees: accepts a layout, a prefix, the census's convention, the
+    column's different values and the settings floor; returns a bool.
+    Determinism: a fixed function of the five. Raises TypeError for a
+    non-string, and ValueError for an unnamed convention. No I/O.
+    """
+    return prefix_room(layout, prefix, convention) >= distinct + floor
+
+
 def pool_names_a_level(
-    levels: int, rows: int, smallest_published: int
+    levels: int, rows: int, published_rows: int
 ) -> bool:
     """Whether the published pool FORCES a count of ONE.
 
@@ -2589,24 +2696,80 @@ def pool_names_a_level(
     `n_present` and `n_distinct_folded` beside each other say every
     value is unique -- and the ruling names a LABEL column's lone row,
     which is a row standing OUT from the labels a column is made of. So
-    the pool must also come to fewer rows than the SMALLEST published
-    level: three one-patient sites beside a smallest published site of
-    137 rows are an exception, 780 unique codes beside one published
-    value of 20 are the column. Measured: without this half, fifteen
-    witnesses of the code and long-tail batteries turn red and their
-    columns come back blank.
+    the pool must also be SMALLER THAN EVERYTHING THE COLUMN PUBLISHES:
+    three one-patient sites beside 1,997 published rows are an
+    exception, 780 unique codes beside one published value of 20 are the
+    column. Measured: without this half, fifteen witnesses of the code
+    and long-tail batteries turn red and their columns come back blank.
+
+    THE EXCEPTION IS MEASURED AGAINST THE PUBLISHED ROWS AND NOT AGAINST
+    THE SMALLEST PUBLISHED LEVEL (plan P4-D271, the repair of the extra
+    review round of 2026-09-18). The smallest published level is a
+    function of the FLOOR, not of the column: at a floor of eleven it
+    can be eleven on a column of two thousand rows, and a pool of twelve
+    then clears it and escapes a rule the pool is squarely inside.
+    **Measured** at a floor of eleven: 1,977 `NORTH`, 11 `SOUTH` and
+    twelve one-row sites published `suppressed_levels 12`,
+    `suppressed_rows 12` and no missing cell at all -- twelve levels over
+    twelve rows, which can only be twelve single rows -- and the twin
+    wrote twelve single-row labels while both files validated at exit 0.
+
+    THE LINE IS HALF OF WHAT THE COLUMN PUBLISHES, and that width was
+    measured rather than chosen. A pool covering a third of the column
+    or more IS the column's own shape: 100 codes written once beside two
+    codes of a hundred rows each, at a floor of eleven, is a code
+    register with a long tail, and counting its tail out left the whole
+    column two values wide and its form census one key (`tests/
+    test_final_review_labels.py`). A pool covering less than half of
+    what the column publishes is an exception beside it: twelve rows
+    against 1,988, or three one-patient sites against 1,997. And 780
+    unique codes against one published value of twenty are the column at
+    any width. Every reading this rule was pinned at is unmoved, because
+    in each of them the pool stands on the same side of both counts.
+
+    AND THE EXCEPTION MAY NOT RESCUE A POOL THAT IS ALL SINGLE ROWS
+    (plan P4-D271, as amended by the repair pass of 2026-09-18). The
+    exception above is a width, and a width lets the band's SHARPEST
+    point through wherever the pool is wide enough: `suppressed_levels`
+    equal to `suppressed_rows` says every held-back level covers exactly
+    one row -- not "at least one of them is a single row" but a count of
+    one for each of them, read off two published numbers by subtraction,
+    which is squarely what ruling 5 names. **Measured** at a floor of
+    eleven, on the commit this landing was cut from and on the landing
+    itself: 100 `NORTH` and 100 `SOUTH` beside 120 site codes written
+    once each published `suppressed_levels 120`, `suppressed_rows 120`
+    and `n_missing 0`, and the twin wrote 120 labels each covering one
+    row; 600 and 600 beside 700 such codes did the same at 700. Both
+    cleared the width, because 240 is not below 200 and 1,400 is not
+    below 1,200.
+
+    So a PINNED pool is read by subtraction outright, wherever it is
+    smaller than what the column publishes. That last clause is the
+    second half of the rule kept whole: 780 unique codes over 780 rows
+    beside one published value of twenty are pinned too, and they are
+    still the column rather than an exception beside it, so they still
+    stand -- as do 99 codes over 100 rows beside 200 published rows,
+    which are not pinned at all. After the amendment the two shapes
+    above publish no pool, count their 120 and their 700 rows as
+    missing, and both files validate at exit 0. Every reading this rule
+    was pinned at is unmoved, in the unit battery and in the round trips
+    alike.
 
     Guarantees: accepts how many levels were held back, how many rows
-    they cover, and the smallest count the column publishes beside them
-    (nought where it publishes none); returns True exactly where a level
-    is published, a level is held back, the rows come to fewer than
-    twice the levels held back, and the pool is smaller than that
-    smallest published level. Determinism: a fixed function of the
-    three. Raises nothing. No I/O of any kind.
+    they cover, and how many rows the column's published levels cover
+    between them (nought where it publishes none); returns True exactly
+    where a level is published, a level is held back, and either the
+    rows equal the levels held back while falling short of the published
+    rows, or the rows come to fewer than twice the levels held back
+    while twice the pool's rows come to fewer than the published rows.
+    Determinism: a fixed function of the three. Raises nothing. No I/O
+    of any kind.
     """
-    if levels < 1 or smallest_published < 1:
+    if levels < 1 or published_rows < 1:
         return False
-    if rows >= smallest_published:
+    if rows == levels and rows < published_rows:
+        return True
+    if rows * 2 >= published_rows:
         return False
     return rows < 2 * levels
 

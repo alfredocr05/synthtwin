@@ -16713,3 +16713,464 @@ tree: the twin opens, its 118 cells are written as text, and
 `workbook.value-class` is then MISSED -- the description asks for `date`
 and the file holds `text` -- at exit 3 on the twin and 0 on the table.
 Both halves of that trade are the owner's to take.
+### P4-D270 A published prefix asks the ROOM rule as well as the disclosure rule
+
+The extra review round of 2026-09-18, blocking item 1. C6-130 names a
+layout only where `layout_room` is at least `n_distinct +
+small_cell_floor`, so that no named shape spells the column's own value
+set out; the prefix ruling of 2026-09-17 then published the literal
+opening beside it, and the guard was never re-asked with the prefix's
+characters fixed. **Measured** at a floor of eleven: 1,000 declared
+record numbers `REC000` to `REC999` beside a constant `cohort` published
+`layout_forms {"@@@%%%": 1000}`, `layout_prefixes {"(column)": "REC"}`
+and `n_distinct 1000`; those three facts have exactly one solution, and
+at seed 4 the twin held all 1,000 of the table's own record numbers with
+both files at exit 0. `layout_room("@@@%%%")` is 17,576,000 and clears
+1,011 easily; `prefix_room` is 1,000 and does not.
+
+**The decision** (`parsing.prefix_room`, `parsing.prefix_leaves_room`,
+`taxonomy._layout_prefixes`, contract C6-140 and invariant LP3,
+`contract._layout_prefixes`). The count the room rule asks about is the
+one left once the prefix is fixed, and it is asked of the producer and
+of the loader from one statement. WHAT GIVES WAY IS THE PREFIX, not the
+census: LP1 lets a prefix stand only beside a named layout, so taking
+the census back would leave it nothing to stand on, while taking the
+prefix back leaves a column whose layout still clears the room rule.
+The ruling is unmoved everywhere it can be kept — `REC` and seven
+figures over 800 rows leaves 10,000,000 cells for 811 and publishes
+exactly as before.
+
+**OPEN, AND PUT TO THE OWNER: THE ROOM RULE'S THRESHOLD IS `n_distinct +
+floor`, AND THAT IS NOT ENOUGH TO KEEP REAL ROWS OUT OF THE TWIN** (the
+repair pass of 2026-09-18). The rule this decision restores is the one
+C6-130 already stated; restoring it closes the shape the review built
+and does not deliver the owner goal behind it in general. The generator
+never reads a table, so it draws its cells from the published shape at
+random, and a shape with room *R* drawn *n* times leaves about *n²/R*
+cells that happen to be cells of the real table. **Measured** at a floor
+of eleven, 1,000 declared record numbers beside a constant cohort, seed
+4, all runs at exits 0/0/0:
+
+| published layout | room | room ÷ `n_distinct` | record numbers of the real table in the twin |
+|---|---|---|---|
+| `@@@%%%%` (`REC` + 4 figures) | 10,000 | 10× | 100 of 1,000 — and all 100 are whole real ROWS |
+| `@@@%%%%%` | 100,000 | 100× | 10 of 1,000 |
+| `@@@%%%%%%` | 1,000,000 | 1,000× | 1 of 1,000 |
+| `@@@%%%%%%%` | 10,000,000 | 10,000× | 0 of 1,000 |
+
+Every one of those clears `n_distinct + floor` (1,011) and publishes its
+layout and its prefix. A column with no prefix at all behaves the same:
+989 identifiers `000` to `988` published `%%%` and its twin held 978 of
+the 989. **NO TWIN ROW IS A REAL ROW** is an owner goal, and at the
+current threshold it is not reached. The lever is the threshold, and it
+is the only one — a multiple of `n_distinct` rather than a sum with the
+floor, where 100× buys about one collision per hundred rows and 1,000×
+about one per thousand. It is NOT taken here, because raising it
+withdraws the published layout, and with it the prefix ruling 1 admits,
+from ordinary identifier columns whose figures are only as wide as the
+count needs — a fidelity decision and a bearing on ruling 1, not a
+defect this pass may settle. Put to the owner with the four rows above.
+
+### P4-D271 The pool's exception is measured against the PUBLISHED ROWS
+
+The extra review round of 2026-09-18, blocking item 3. P4-D239 bounded
+ruling 5's forced band by an exception — the pool must be smaller than
+the SMALLEST published level — so that a long tail is not counted out
+wholesale. The smallest published level is a function of the FLOOR and
+not of the column: at a floor of eleven it can be eleven on a column of
+two thousand rows. **Measured** at a floor of eleven: 1,977 `NORTH`, 11
+`SOUTH` and twelve one-row sites published `suppressed_levels 12`,
+`suppressed_rows 12` and no missing cell at all — twelve levels over
+twelve rows can only be twelve single rows — and the twin wrote twelve
+single-row labels while both files validated at exit 0.
+
+**The decision** (`parsing.pool_names_a_level`,
+`taxonomy._levels_read_by_subtraction`, `contract._levels`, contract
+invariant B4b). The third argument is the rows the column's PUBLISHED
+levels cover between them, and the exception is `rows * 2 >=
+published_rows`: twelve stands against 1,988 and is the exception it
+plainly is, while 780 unique codes against one published value of 20
+are still the column.
+
+**THE WIDTH IS HALF, AND IT WAS MEASURED.** `rows >= published_rows` was
+built first and it turned a long tail into a blank column: 100 codes
+written once beside two codes of a hundred rows each, at a floor of
+eleven, is a code register whose tail covers a third of it, and counting
+that tail out left the column two values wide and its form census one
+key (`tests/test_final_review_labels.py`). A pool covering a third of a
+column or more is the column's own shape; a pool covering less than half
+of what the column publishes is an exception beside it. Every reading
+the rule was pinned at is unmoved, because in each of them the pool
+stands on the same side of both counts.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: A WIDTH IS NOT ENOUGH.** The
+verification of this landing measured the same arithmetic at other
+widths and it still stood. At a floor of eleven, 100 `NORTH` and 100
+`SOUTH` beside 120 site codes written once each published
+`suppressed_levels 120`, `suppressed_rows 120` and `n_missing 0`, and the
+twin wrote 120 labels each covering one row; 600 and 600 beside 700 such
+codes published (700, 700). Both cleared the exception, because 240 is
+not below 200 and 1,400 is not below 1,200 — and `suppressed_levels`
+equal to `suppressed_rows` is not "at least one of them is a single row"
+but a count of ONE for every one of them, read off two published numbers
+by subtraction. That is squarely ruling 5, so the ruling wins over the
+width.
+
+**The amendment** (`parsing.pool_names_a_level`, contract invariant
+B4b). A PINNED pool — the rows equal to the levels — is read by
+subtraction outright wherever it covers fewer rows than the published
+levels do, whatever the width says. The second half of the rule is kept
+whole above that line: 780 unique codes over 780 rows beside one
+published value of twenty are pinned too, cover more rows than the
+published levels, and still stand; 99 codes over 100 rows beside 200
+published rows are not pinned at all and still stand. **Measured:** the
+two shapes above now publish no pool, count their 120 and their 700 rows
+as missing, and both files validate at exit 0; every reading the rule was
+pinned at — the whole unit battery of
+`tests/test_ruling_levels_counted_by_subtraction.py`, the code and
+long-tail batteries of `tests/test_final_review_labels.py`, and
+`tests/test_p4d239_forced_counts_of_one.py` — is unmoved. Removing the
+exception altogether, which is what the review asked for, was built and
+measured first and turned five witnesses red, among them the 780-code
+register and the form census of a code column with a long tail; that
+reading is recorded here and not taken.
+
+**OPEN, AND PUT TO THE OWNER: `n_missing` IS THE DESTINATION AND IT IS
+NOT ASKED THE DISCLOSURE RULE** (the repair pass of 2026-09-18). This
+rule counts a held-back label's rows as MISSING, which is ruling 5's own
+consequence — and the presence split it counts them into is published
+without ever being asked `parsing.census_nameable`. **Measured** at a
+floor of eleven, unchanged on the commit this landing was cut from and
+after it: 1,977 `NORTH`, 11 `SOUTH` and ONE one-row site publish
+`levels [("north", 1977), ("south", 11)]`, `suppressed 0/0`,
+`n_present 1988` and `n_missing 1` against `n_rows 1989`, and the twin
+holds exactly one blank cell. That names the one record whose site is
+none of the published labels. It is pre-existing and it is not changed
+here, because publishing that a row is missing is what ruling 5 asks
+for, so closing it may be a question about the ruling rather than a
+defect under it — and because `n_present` and `n_missing` are a
+floor-free pair on EVERY role (section 11's table of the universal
+counts), so asking the rule of them is a change to every column block
+this format writes, not a repair in this lane. Put to the owner with
+those numbers: should the presence split clear `census_floor` like the
+other censuses? If yes it is one call to `parsing.census_nameable` at
+the split; if no, the exception belongs in the contract, which is where
+the repair pass wrote it.
+
+### P4-D272 A value carrying a FIGURE is no evidence that the first row is names
+
+The extra review round of 2026-09-18, blocking item 2. `_names_evidence`
+reads one thing: a column all of whose values are numbers under a
+first-row value that is not one. A column of measurements holds values
+this package cannot parse as numbers all the time — `<0.10` under a
+limit of detection, `2-4` for a range, `5 mg` with its unit — and every
+one of them is a VALUE of that column. **Measured** at a floor of
+eleven, on a title line above a headerless table of 240 records whose
+first is `R001,North Unit,<0.10` and whose rest are `R###,East,#.5`:
+both the delimited file and the workbook published `R001`, `North Unit`
+and `<0.10` as the three column names, described 239 records where the
+file holds 240, asked no first-row question, and wrote that person's
+record as the twin's header line. The fourth record rule of P4-D241
+cannot reach it: `R001` is `A9`, which `_shape_is_structured` refuses
+because an ordinary header shares it with its own column all the time.
+
+**The decision** (`reading._names_evidence`, `reading._holds_a_figure`).
+A first-row value carrying a figure is no evidence here, so the caller
+falls through to the furniture rule — which on a file with nothing above
+the row still takes it as the names by convention, and on a file with a
+title puts ruling 8's question. `record_id`, `age`, `arm`, `site` and
+`reading` over a title line are untouched, because not one of them
+carries a figure. The cost of the rare case is a question rather than a
+record.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: "CARRIES A FIGURE" WAS TOO
+WIDE.** A column name carries a figure often, not rarely: `q1`, `week_2`
+and `glucose1` are column names by every reading. **Measured** at a floor of
+eleven, against the commit this landing was cut from: `Patient
+questionnaire export 2021` over a real header `q1,q2,q3,q4` and 300 rows
+of numbers was read correctly before and afterwards published `column_1`
+to `column_4` over 301 records — the header row taken as a RECORD, which
+then gave every numeric column `n_numeric 300` beside `n_not_numeric 1`,
+a fresh count of one made by the very landing that was closing them, and
+a twin whose columns are named `column_1..` so that code written against
+it does not run against the real table. The same as a workbook, and the
+same for a header `subject,glucose1,week_2`. `_names_evidence` returns on
+the FIRST column that shows evidence, so one such name was enough.
+
+**The amendment** (`reading._holds_a_figure_as_a_value`). What separates
+a measurement from a name is the OPENING: `<0.10`, `2-4` and `5 mg` open
+on a mark or on a figure, while `q1`, `week_2` and `glucose1` open on a
+letter and a name written `_2021` opens on the one mark a name is
+written with. So a figure counts here only in a value that does not open
+on a letter or an underscore. **Measured:** ruling 8's shape is unmoved —
+`R001,North Unit,<0.10` under a title still gets `column_1` to
+`column_3`, 240 records, the first-record question, and none of its three
+values in any published file — while `q1,q2,q3,q4` is back to its own
+names over 300 records and `subject,glucose1,week_2` to its own names over
+240.
+
+### P4-D273 The questions file asks the complement too
+
+The extra review round of 2026-09-18, item 6. `_sayable` held a count to
+the floor and not to what it leaves over, and the description beside it
+absorbs a spelling below the line into the column's commonest (ruling 6).
+**Measured** at a floor of eleven, on 399 values `00001` to `00399` and
+one `12345`: the description published `numeric_styles {"leading_zero":
+400}`, which says every value is padded, while the questions file
+recounted the source and said "399 of them carry a leading zero" — and
+400 present cells less 399 is the one unpadded record, restored on the
+surface beside the one that hid it.
+
+**The decision** (`asking._sayable`). The shared rule
+`parsing.census_nameable` decides it, over the count and the cells it
+was counted over, so the file says "some of them" wherever the pair
+cannot speak.
+
+### P4-D274 A rare negative notation is counted into the commonest
+
+The extra review round of 2026-09-18, item 7. `_mixture_census` named a
+convention at the line, pooled the rest, and went SILENT where the pool
+itself fell below the line — which left the majority field standing
+alone and told a reader what the census had held back. **Measured** at a
+floor of eleven, on 388 positive decimals, eleven negatives in
+accounting brackets and one `-12.25`: the description published
+`n_negative 12`, `negative_form brackets` and `negative_notations
+{"(unavailable)": 0}`; the majority field needs at least eleven
+bracketed cells and twelve would have been NAMED, so the three facts
+together prove eleven brackets and one other notation.
+
+**The decision** (`taxonomy._mixture_census`, contract invariant NS2).
+A convention below the line is counted into the commonest NAMED one,
+which is ruling 6 of 2026-09-17; the pool stands only where no
+convention reaches the line at all. The census then says
+`{"brackets": 12}`, describing the table again says the same thing, so
+the table passes its own description, and the same repair reaches
+`thousands_marks`, which is the identical shape.
+
+### P4-D275 EVERY spelling below the floor is counted into the level's commonest
+
+The extra review round of 2026-09-18, item 5. P4-D240 wrote the rule for
+a count of ONE and stopped there. **Measured** at a floor of eleven, on
+490 `F`, 500 `M` and TWO `f`: the pair was not absorbed, the level
+published `variants {"F": 490}` beside `variants_withheld {"2": 1}` —
+one held-back spelling that exactly two rows wrote — and the twin wrote
+two `f` cells. Two rows is a group below the line as surely as one row
+is, and the multiplicity map states its size outright.
+
+**The decision** (`taxonomy._absorb_lone_spellings`, contract invariant
+W5). The line is `small_cell_floor`, the same line `_variants` names a
+spelling at, so `variants_withheld` is empty on every level of every
+raised-floor description and carries entries only at a floor of one,
+where nothing is held back at all.
+
+### P4-D276 A label role's `n_distinct` counts the spellings the block SPEAKS OF
+
+The extra review round of 2026-09-18, item 5, second half. `n_distinct`
+counted raw identities exactly, and a published level's `variants`
+census counts the spellings the floor let it name — so the difference
+counted the spellings the absorption took away. **Measured** at a floor
+of eleven, on 490 `F`, 500 `M` and one `f`: the block published
+`variants {"F": 491}` and `{"M": 500}`, no withheld spelling anywhere,
+and `n_distinct 3`.
+
+**The decision** (`taxonomy._published_distinct`, contract section 3's
+raw-identity row). On the four roles that publish a level list, and on
+the label half of a compound column, the count is taken over the
+spellings that survive the absorption for a published level and over the
+raw spellings of a level the floor holds back — which no key of the
+block names and which no reader can subtract a published census from.
+
+### P4-D277 A declared record number's scalar partitions ask the disclosure rule
+
+The extra review round of 2026-09-18, item 8. The one role whose whole
+promise is that no fact about any one record is published carried four
+counts of what its cells READ AS and two counts of which ALPHABET they
+came from, none of them held to the line. **Measured** at a floor of
+eleven: 999 identifiers `REC` and seven figures beside one `42`
+published `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999`, and
+with `X Y` in its place `n_code_alphabet 999` beside `n_present 1000` —
+each of them naming that record, while the layout census was withheld
+for saying the same thing.
+
+**The decision** (`parsing.absorbed_total`,
+`taxonomy._published_reading_split`, `taxonomy._published_alphabets`,
+contract invariant X2 and the identifier block's added keys). The two
+alphabet counts are a census of two groups written as one number and ask
+`census_nameable` over the count and its complement; the four-way
+partition counts a part below the line into the LARGEST part, so X2's
+sum is unchanged and every complement is a sum of parts each nought or
+at the line. The censuses checked against those counts are checked
+against them AS PUBLISHED, so the block and its own censuses cannot
+part.
+
+**WHAT IS NOT CLOSED, and is measured rather than left to be found.**
+Free text publishes the same four counts and the same two alphabet
+counts beside the same promise to name no value, and the alphabet half
+is repaired there with the identifier's. The four-way partition is NOT,
+because those three counts are what the numeric roles are described BY —
+a column of measurements publishes its `n_not_numeric` beside a form
+census checked against it — so moving them there is a change to what
+those roles mean rather than a disclosure repair. It is put to the
+owner.
+
+### P4-D278 A date's width census is held against the PARSED cells
+
+The extra review round of 2026-09-18, item 4, second half. P4-D139
+counted the width census's remainder against the cells that could SHOW a
+width, which no field of the block publishes — and a reader holds the
+PARSED total and subtracts from that one instead. **Measured** at a
+floor of eleven, on 399 dates written `1/1/2000` through `1/9/2044`
+beside one `12/25/2020`: the census published `{"unpadded": 399}`
+against 400 parsed cells, and the one left over is the record whose
+month and day are both two figures. This uses ONE width convention and
+is a different reading from the allocation question P4-D245 leaves open.
+
+**The decision** (`taxonomy.absorbed_width_tally`,
+`taxonomy._width_counts`, `contract._written_census` with the
+remainder published, contract invariant D17,
+`validation._written_form_checks`). A cell that could show no width is
+counted into the column's COMMONEST width, which is true of it — a date
+both of whose fields are ten or more is written identically under either
+convention — so the census reaches the parsed total whenever it names
+anything and the remainder rule is asked of it like the other three.
+The silence P4-D139 measured is not taken: it left 212 of a twin's 245
+cells written `04/14/2020`, and the absorption costs nothing at all.
+The checker asks the same one function, so both sides count one way.
+
+### P4-D279 The joint ISO reading is not taken where one of its forms is below the line — SUPERSEDED at the integration by P4-D250
+
+**SUPERSEDED 2026-09-18, at the integration of the extra round's four
+branches, by the date pass's P4-D250.** Both passes repaired the SAME
+exposure — a joint ISO column whose form census names one record — and
+the two repairs cannot both stand: P4-D250 counts the rare form into the
+commonest form, which leaves the reading no longer joint, so the refusal
+below can never be reached; and were the refusal asked first, the fold
+could never be reached. The fold is kept, and the reason is measured
+rather than argued. **Measured on THIS decision's own shape** — 395
+consecutive ISO dates, one `2020-05-03T00:00:00` and four cells that
+parse under nothing, at a floor of eleven — the fold publishes
+`resolution_mix {"iso-date": 396}` and `datetime_separators {}`, and no
+census key of the block carries a count of one at all, at exits 0/0 with
+nothing declined. The one record is named by nothing, which is the whole
+of what this decision asked for. What the refusal costs on top is the
+column: it asserted `role != "datetime"`, so 400 date values would be
+described as something else, and a column that falls to free text or the
+long tail writes stand-ins that cannot reproduce its own forms — a defect
+`docs/STATE.md` already carries. So the kept rule protects the person
+exactly as far and costs the twin nothing, which is why it is the one
+that stands. `_joint_reading_names_a_group` is removed with this, because
+a guard that cannot be reached is not a guard. The shape this decision
+pinned second — 200 bare dates beside 200 moments, both forms clearing
+the line — still reads jointly and still publishes both counts exactly.
+**This is an integrator's call on two owner-facing repairs, and it is the
+one item of the merge the owner may want to reverse.**
+
+The extra review round of 2026-09-18, item 4, first half. `iso-mixed`
+joins whole dates and moments and publishes `resolution_mix` exactly,
+with no floor, because a two-member space beside the published parsed
+total makes a pooled remainder recoverable by subtraction — so a floor
+applied to the census itself would withhold nothing. **Measured** at a
+floor of eleven, on 395 consecutive ISO dates beside ONE
+`2020-05-03T00:00:00` and four cells that parse under nothing: the
+single-format pass did not clear at 395 of 400, the joint reading did at
+396, and the block published `resolution_mix {"iso-date": 395,
+"iso-datetime": 1}` beside `datetime_separators {"(withheld)": 1}` — one
+record named twice over, and both documents loaded.
+
+**The decision** (`taxonomy._joint_reading_names_a_group`,
+`taxonomy._matching_date_format`, contract invariant RM1). The READING
+gives way whole: where one of the two forms is written by fewer cells
+than `parsing.census_floor`, the joint reading is not taken, and the
+column falls through to the roles below it. The joint reading is the
+LAST member tried, so this is reached only where neither single ISO
+member cleared the parse rate on its own — which is exactly the column
+whose date reading rests on a handful of rows. A column of 1,990 dates
+beside ten moments is untouched, because `iso-date` clears on its own at
+99.5 per cent and the joint reading is never reached.
+
+**THREE NARROWER REPAIRS WERE BUILT AND MEASURED FIRST**, and a round
+trip refused each: counting the rare form into the other one inside
+`resolution_mix` left the twin writing 396 bare dates against a block
+published at the datetime resolution and NINE obligations missed;
+reading the column under the surviving member and counting the rare
+cells as unparsed gave a description whose own twin reads back as free
+text at exit 3; and raising the rare form to the line made the separator
+census name a mark on eleven cells the table wrote on one, so the real
+table missed its own description.
+
+**WHAT IT COSTS IS NAMED:** a column of 395 dates whose reading rested
+on one moment is described as text and its twin writes stand-ins.
+
+### P4-D290 A delimited file's own lines are held to the disclosure rule
+
+The extra review round of 2026-09-18, item 9. `source.dialect` publishes
+how a file was written, and three of its facts are counts and POSITIONS
+of individual lines. A line of a delimited table is one of its records.
+**Measured** at a floor of eleven, on `record,amount` and 120 records
+`R001,1` through `R120,120` with `record` declared an identifier:
+changing only record 57's ending to CRLF published `[{lf: 57},
+{crlf: 1}, {lf: 63}]`, which is that record's exact position; replacing
+record 57 with a bare comma published `empty_rows.interior 1`; and a
+blank separator after record 57 published `{after: 57, lines: 1}`. All
+three descriptions loaded and all three twins passed.
+
+**The decision** (`dialect.endings_disclosed`,
+`dialect.blank_places_disclosed`, `dialect.blank_lines_withheld`,
+`dialect.row_count_disclosed`, `dialect.survey`'s new
+`small_cell_floor`, `reading.read_table`, `cli`'s profile path,
+`validation`'s checked-file read, contract section 4.3's three rows).
+
+- Where any ENDING is written by fewer lines than the line, the whole
+  file is published as one run of the commonest ending — ruling 6 read
+  on a file's own spelling.
+- BLANK PLACES are published only where there are at least as many of
+  them as the line, because a place is a record position; a file with
+  fewer is described as having none. The lines of a withheld place
+  leave the ending count with them and the runs collapse, because FD2
+  has the endings account for every line the description keeps — without
+  that the loader refused the producer's own document at 122 endings
+  against 121 lines.
+- Each EMPTY-ROW count below the line is published as nought, which is
+  ruling 4 counting a group below a raised floor as absent.
+
+The floor reaches the survey because the survey is what BOTH sides run:
+the profiler's reading of the table and the validator's reading of the
+checked file, so a real table and its twin are measured under one rule
+and each passes its own description.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18, IN TWO PLACES.**
+
+*(a) A RUN below the line counts, not only an ENDING below the line.*
+`endings_disclosed` read each ending's TOTAL over the whole file, so an
+ending with companions elsewhere never tripped the rule and its lone run
+stood. **Measured** at a floor of eleven, on the same header and 120
+records: lines 0 to 20 given CRLF endings AND record 57 given one, every
+other line LF, published `[{crlf: 21}, {lf: 36}, {crlf: 1}, {lf: 63}]` —
+record 57's exact position again, from an ending whose total is 22. A
+run says how many CONSECUTIVE lines ended one way, so a published run
+shorter than the line points at the records that carry it whatever the
+totals come to. The runs are read as well as the totals now, and that
+file publishes `[{lf: 121}]` with both files at exit 0.
+
+*(b) THE THREE FILE RULES ARE GATED ON A RAISED FLOOR.* The first
+writing let them bite at the DEFAULT floor, where `census_floor` is two
+and nothing has been asked of synthtwin at all — and at that same floor
+the column censuses beside them publish a level covering ONE row.
+**Measured** at the default floor, on a header and 120 records: a single
+blank line after record 57, a single bare-comma record and a single
+trailing blank line were each kept before this landing and each dropped
+after it, while the very same run published the level `("south", 1)` on
+a column of 239 `NORTH` and one `SOUTH`. Holding a file's own form to a
+stricter standard than the product holds its own column contents to, on
+the path where the person asked for no protection, costs the twin its
+form for nothing and moves against the owner goal that the twin writes
+everything exactly as the source wrote it. So all three rules now return
+their argument unchanged at a floor of one, exactly as
+`taxonomy._absorb_lone_spellings` does, and the floor's own value and
+unit stay the owner's deferred question. **Measured after the gate:** at
+the default floor all seven shapes are written as the source wrote them,
+and at a floor of eleven all seven are protected, every run at exits
+0/0/0. The four guards of `tests/test_file_dialect_round_trip.py` that
+the first writing rebuilt at two blank places and two empty records are
+restored to their own one-of-a-kind shapes, positional assertion and
+all, because the default floor publishes them again.

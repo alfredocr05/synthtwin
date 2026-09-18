@@ -1012,6 +1012,7 @@ def _read_authoritatively(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
+    small_cell_floor: int = 1,
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -1050,7 +1051,7 @@ def _read_authoritatively(
             surveyed = dialect.settle(
                 text, encoding, marked, not headed, shown, metadata_rows,
                 decimal_comma_columns, metadata_rows_confirmed,
-                declared_delimiter,
+                declared_delimiter, small_cell_floor,
             )
             _agrees_with_the_standard_reader(
                 text, surveyed, headed, shown, refusals
@@ -1262,6 +1263,53 @@ def _names_evidence(
     value that is not of that kind. Nothing else counts. A value that
     merely looks different from its neighbours proves nothing, which is
     what defeated the two attempts that tried to use it (P1-R6-F6).
+
+    AND "NOT A NUMBER" IS NOT THE SAME THING AS "NOT A MEASUREMENT"
+    (the owner's ruling of 2026-09-17, item 8; plan P4-D272, the repair
+    of the extra review round of 2026-09-18). A column of measurements
+    holds values this package cannot parse as numbers all the time: a
+    reading under the limit of detection is written `<0.10`, a range is
+    written `2-4`, a value with its unit is written `5 mg`. Every one of
+    them is a VALUE of that column, and taking one for a column name is
+    how one person's first record became the file's schema. **Measured**
+    at a floor of eleven, on a title line above a headerless table of
+    240 records whose first is `R001,North Unit,<0.10` and whose rest
+    are `R###,East,#.5`: both the delimited file and the workbook
+    published `R001`, `North Unit` and `<0.10` as the three column
+    names, described 239 records where the file holds 240, asked no
+    question about the first row at all, and wrote that person's record
+    as the twin's header line.
+
+    So a first-row value that carries a figure AS A VALUE is no evidence
+    here, and the cost of the rare case is a question rather than a
+    record: the caller falls through to the furniture rule, which on a
+    file with nothing above the row still takes it as the names by
+    convention and on a file with a title asks the person.
+
+    AND "CARRIES A FIGURE" ON ITS OWN WAS TOO WIDE (plan P4-D272, as
+    amended by the repair pass of 2026-09-18). The first writing of this
+    rule refused the evidence of ANY first-row value holding a figure,
+    and a column name holds one often: `q1`, `week_2` and `glucose1` are
+    column names by every reading. **Measured** at a floor of eleven,
+    against the commit before this rule was written: `Patient
+    questionnaire export 2021` over a real header `q1,q2,q3,q4` and 300
+    rows of numbers was read correctly before and afterwards published
+    `column_1` to `column_4` over 301 records -- the header row taken as
+    a RECORD, which then gave every numeric column `n_numeric 300`
+    beside `n_not_numeric 1`, a fresh count of one made by the very
+    landing that was closing them. The same as a workbook, and the same
+    for `subject,glucose1,week_2`. This rule returns on the FIRST column
+    that shows evidence, so one such name was enough to lose the header.
+
+    WHAT SEPARATES A MEASUREMENT FROM A NAME IS THE OPENING. `<0.10`,
+    `2-4` and `5 mg` open on a mark or on a figure; `q1`, `week_2` and
+    `glucose1` open on a letter, and a name written with a leading
+    underscore opens on one mark this rule reads the same way. So a
+    figure counts here only in a value that does not open on a letter or
+    an underscore. Ruling 8's shape is unmoved -- `<0.10` still yields
+    no evidence, so `R001,North Unit,<0.10` still gets placeholder names
+    and the question -- and `record_id`, `age`, `arm`, `site` and
+    `reading` over a title line are untouched as they always were.
     """
     for position, name in enumerate(header):
         if position >= len(columns):
@@ -1279,6 +1327,8 @@ def _names_evidence(
             continue
         if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
             continue
+        if _holds_a_figure_as_a_value(f"{name}"):
+            continue
         every_value_is_a_number = True
         for value in present:
             if parsing.classify_number(f"{value}") == parsing.NOT_A_NUMBER:
@@ -1288,6 +1338,29 @@ def _names_evidence(
                 taxonomy.HEADER_NAMES_SHOWN_BY_COLUMN, (position + 1,)
             )
     return None
+
+
+def _holds_a_figure_as_a_value(text: str) -> bool:
+    """Whether one value carries a figure the way a VALUE does (P4-D272).
+
+    A figure counts only in a value that does not open on a letter or on
+    an underscore, which is what separates a measurement from a name:
+    `<0.10`, `2-4` and `5 mg` open on a mark or a figure, while `q1`,
+    `week_2` and `glucose1` open on a letter and `_2021` on the one mark a
+    name is written with. The opening character is read, never asked of
+    a method, because this value came out of the user's file.
+
+    Guarantees: accepts text; returns whether it carries a figure as a
+    value. Determinism: a fixed function of the text. Raises nothing. No
+    I/O of any kind.
+    """
+    opening = text[0] if text else ""
+    if opening in _SILHOUETTE_ALPHABET or opening == "_":
+        return False
+    for character in text:
+        if character in _SILHOUETTE_FIGURES:
+            return True
+    return False
 
 
 def _file_size(table_path: pathlib.Path) -> int:
@@ -1604,16 +1677,20 @@ def read_table(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     published_header: int = 0,
-    floor: int = 1,
+    small_cell_floor: int = 1,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
-    ``floor`` is the person's smallest group. The reader wants it for
-    one question alone (plan P4-D283): whether a workbook column wears
-    two number formats of one kind, each worn by enough cells to be a
-    population of the column rather than the stray cell the owner's
-    sixth ruling absorbs. Left out, the line is the smallest a census
-    ever uses and the question is asked at its strictest.
+    ``small_cell_floor`` is the person's smallest group, and the reader
+    wants it for two questions, one per path it can take. On a workbook
+    (plan P4-D283): whether a column wears two number formats of one
+    kind, each worn by enough cells to be a population of the column
+    rather than the stray cell the owner's sixth ruling absorbs. On a
+    delimited file (plan P4-D290): the written form carries counts and
+    positions of its own lines, and those are held to the one disclosure
+    rule like every other count synthtwin publishes. Left out, the line
+    is the smallest a census ever uses and both questions are asked at
+    their strictest.
 
     ``published_header`` is the validator's alone: the row a workbook
     description puts its names on, which settles a checked workbook's
@@ -1775,13 +1852,13 @@ def read_table(
             )
         return _read_workbook_table(
             f"{table_path}", shown, sheet, first_row, refusals,
-            published_header, floor,
+            published_header, small_cell_floor,
         )
     try:
         found = _read_authoritatively(
             table_path, shown, first_row, refusals, encoding, data,
             metadata_rows, decimal_comma_columns, metadata_rows_confirmed,
-            declared_delimiter,
+            declared_delimiter, small_cell_floor,
         )
     except PermissionError as error:
         raise errors.ProfileError(
@@ -1825,6 +1902,7 @@ def read_table(
                 table_path, shown, FIRST_ROW_DATA, refusals, encoding, data,
                 metadata_rows, decimal_comma_columns,
                 metadata_rows_confirmed, declared_delimiter,
+                small_cell_floor,
             )
             _check_against_pandas(raw_path, found, shown, refusals)
             spoken = _NOT_TOLD

@@ -16720,8 +16720,16 @@ def _date_count_notes(
     notes: "list[Deviation]" = []
     census = facts.date_field_widths
     if census:
-        tally = parsing.folded_width_tally(
-            taxonomy.width_tally(cells, facts.parser_family)
+        # RECOUNTED AS THE PRODUCER COUNTS IT (plan P4-D278, merged into
+        # the date pass at the integration of 2026-09-18): the published
+        # census absorbs the cells that show no width, so a recount that
+        # did not would name a deviation on a twin holding exactly what
+        # the description asks.
+        tally = taxonomy.absorbed_width_tally(
+            parsing.folded_width_tally(
+                taxonomy.width_tally(cells, facts.parser_family)
+            ),
+            len(cells),
         )
         for key in sorted(census):
             held = tally[key] if key in tally else 0
@@ -17804,6 +17812,36 @@ def _shows_a_width(
     return month < 10 or day < 10
 
 
+def _counts_into_width(
+    facts: contract.DatetimeFacts, day_number: int, word: str
+) -> bool:
+    """Whether a date on this day is counted under the census's one word.
+
+    THE CENSUS IS THE ABSORBED ONE (plan P4-D278, merged into the date
+    pass at the integration of 2026-09-18). A cell that shows no width at
+    all -- a date both of whose fields are ten or more -- is counted into
+    the column's commonest width by the producer and by the checker, so
+    the twin must count it the same way or it chases a number the
+    description does not mean. Before this, a column of 240 textual dates
+    whose census read `{"padded": 240}` while only 223 of its cells could
+    show a width sent the restoration hunting seventeen more showing
+    cells: it spent a fourth different date to find them, and a source of
+    three distinct values came back as four with `n_distinct` MISSED.
+
+    A cell showing the OTHER convention is still not counted, which is
+    what `_shows_a_width` alone answers and what plan P4-D256 turns on:
+    absorption reaches the cells that show NOTHING, never the cells that
+    show something else.
+
+    Guarantees: accepts the facts, a day number and the census's word;
+    returns whether that day is counted under the word. Determinism: a
+    fixed function of the three. Raises nothing. No I/O of any kind.
+    """
+    if _shows_a_width(facts, day_number, word):
+        return True
+    return not _shows_a_width(facts, day_number, "")
+
+
 def _units_settled(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -17980,7 +18018,7 @@ def _counts_off(
     if widths >= 0:
         showing = 0
         for value in moved:
-            if _shows_a_width(facts, value // day, word):
+            if _counts_into_width(facts, value // day, word):
                 showing = showing + 1
         off = off + abs(showing - widths)
     return off
@@ -18014,7 +18052,7 @@ def _widths_reached(
         held[key] = (held[key] if key in held else 0) + 1
     showing = 0
     for rank in range(parsed):
-        if _shows_a_width(facts, moved[rank] // day, word):
+        if _counts_into_width(facts, moved[rank] // day, word):
             showing = showing + 1
     if showing == wanted:
         return False
@@ -18025,7 +18063,7 @@ def _widths_reached(
     for rank in range(parsed):
         if pinned[rank]:
             continue
-        if _shows_a_width(facts, moved[rank] // day, word) != fewer:
+        if _counts_into_width(facts, moved[rank] // day, word) != fewer:
             continue
         if (lows[rank], highs[rank]) in bare:
             continue
@@ -35002,7 +35040,19 @@ def _label_approximations(
             lowest=f"{lowest}",
             highest=f"{highest}",
             inside=lowest <= counted[2] <= highest,
-            note="how many different spellings this column holds",
+            # THE NOTE SAYS WHAT `n_distinct` MEANS ON THIS ROLE (plan
+            # P4-D276, as amended by the repair pass of 2026-09-18). On
+            # the four roles that publish a level list it counts the
+            # spellings the block SPEAKS OF, not the spellings the
+            # column holds, so the note printed to the person says that
+            # and no longer tells them a column of three spellings holds
+            # two. `_numeric_cardinalities` keeps the other wording,
+            # because on a column of numbers the count is still of raw
+            # present spellings.
+            note=(
+                "how many different spellings this column's description "
+                "speaks of"
+            ),
             covers_published=True,
         )
     ]

@@ -1947,10 +1947,14 @@ def _run_profile(
         # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
         # (plan P4-D110). Nothing is guessed about a declared one.
         declared_delimiter=declared_delimiter,
-        # AND WITH THE SMALLEST GROUP, which decides whether a
-        # workbook column's second number format is a population of it
-        # or the one cell somebody reformatted (plan P4-D283).
-        floor=smallest_group,
+        # AND WITH THE SMALLEST GROUP, which both readers want. On a
+        # workbook it decides whether a column's second number format is
+        # a population of it or the one cell somebody reformatted (plan
+        # P4-D283); on a delimited file the written form carries counts
+        # and positions of its own lines, and those are held to the one
+        # disclosure rule like every other count synthtwin publishes
+        # (plan P4-D290). One number, so it is passed once.
+        small_cell_floor=settings.small_cell_floor,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT

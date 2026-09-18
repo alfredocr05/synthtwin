@@ -251,14 +251,18 @@ disposed individually, in the disposition matrix.
 |---|---|
 | **present** | a cell that survived the absent-value rules and the declarations; `n_present` counts them |
 | **absent** | a cell counted as holding no value. Every absent cell is counted in one of the six absence classes C6-N3 fixes — five of them naming a reason a cell was read as holding no value, the sixth being the remainder the floor pools — and `n_missing` counts them |
-| **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities |
+| **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities — except on the four roles that publish a level list, where it counts the spellings the block SPEAKS OF (plan P4-D276): the difference between it and a level's `variants` census counted the spellings the absorption took away, and while that absorption reached one-row spellings alone the difference was a count of one |
 | **folded identity** | a present cell's text after trimming and a Unicode `casefold()`. `n_distinct_folded` counts folded identities, and every published label is a folded identity |
 | **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 1 is what `synthtwin profile` writes when nobody asks for another (owner ruling 2026-08-25). The settings section states the range, and what each floor gives up |
 | **withheld** | held back by the floor and pooled into a counted remainder, never named |
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
 **Equality per path** (plan P2-D6). `n_distinct` counts RAW present
-spellings. `n_distinct_folded` counts FOLDED identities. Numeric
+spellings — except on the four roles that publish a level list, and on
+a compound column's label half, where it counts the spellings the block
+SPEAKS OF (plan P4-D276), so that the absorption of a spelling below the
+floor leaves no residual to subtract. `n_distinct_folded` counts FOLDED
+identities. Numeric
 statistics describe PARSED values. Level facts use the FOLDED
 identity. Datetime facts use the parsed instant at the recorded
 resolution. A conforming implementation never swaps one notion of
@@ -750,12 +754,12 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null` |
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null`, and empty where the places number fewer than max(2, `small_cell_floor`), because a place is a RECORD POSITION and a handful of them are a handful of records (plan P4-D290: one blank line after record 57 of 120 published `{after: 57, lines: 1}`) — that withholding applies only where the floor is ABOVE ONE, so a run in which nothing was asked of synthtwin keeps the file's form exactly as the source wrote it (P4-D290 as amended 2026-09-18). The lines of a withheld place leave `line_endings` with them, which then collapses to one run, because FD2 has the endings account for every line the description keeps |
 | `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and, WHERE THE FLOOR IS ABOVE ONE, a count below max(2, `small_cell_floor`) is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`; gated on a raised floor by the amendment of 2026-09-18, because at a floor of one the column censuses beside it publish a level covering one row) |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -763,7 +767,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
-| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D290, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests apply only where the floor is above one |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
 | `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
 | `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
@@ -3232,7 +3236,7 @@ guess is what fails silently.
 | `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, except a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder), which the twin writes empty |
 | `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
 | `n_missing_withheld` | integer ≥ 0 | — | how many absent cells of this column wore a spelling — or a blankness — that fewer than `small_cell_floor` cells of the column shared, pooled together and unnamed | REPORT-ONLY, bound by the same sum identity |
-| `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds | set per role group, section 9 |
+| `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds — except on the four roles that publish a level list, and on a compound column's label half, where it counts the spellings the block SPEAKS OF (plan P4-D276) | set per role group, section 9 |
 | `n_distinct_folded` | integer ≥ 0 | ≤ `n_distinct` | how many different FOLDED identities it holds | set per role group, section 9 |
 | `n_numeric` | integer ≥ 0 | — | present cells that read as a number this file format can hold | EXACT-OBSERVABLE by class-preserving construction |
 | `n_not_numeric` | integer ≥ 0 | — | present cells that are not numeric notation at all | EXACT-OBSERVABLE by class-preserving construction |
@@ -3266,6 +3270,27 @@ cores, which are counted by four keys of that role's own, beginning
 with `n_core_numeric`. The `affixed_number` section states the split,
 and every quantitative invariant this format states over `n_numeric` is
 read on that role over `n_core_numeric`, and nowhere else.
+
+**THE FOUR ARE PROTECTED ON A DECLARED RECORD NUMBER AND NOWHERE ELSE,
+AND THAT IS A KNOWN GAP** (plan P4-D277, recorded by the repair pass of
+2026-09-18). Invariant X2 counts a part below max(2, `small_cell_floor`)
+into the largest part on `structural_role` `identifier`, because a
+declared record number's block promises to name no value of the table
+and a part of one names the one record that holds it. `free_text` carries
+the same promise (F3) and does NOT get the same protection. **Measured**
+at a floor of eleven: 999 different notes of eight words each beside one
+cell reading `42` publish `n_numeric 1` and `n_not_numeric 999` against
+`n_present 1000`, and a notes column with one stray number is an ordinary
+shape. It is not closed here because these three counts are what the
+NUMERIC roles are described BY -- a column of measurements publishes
+`n_not_numeric` beside a form census checked against it (SF3,
+`parsing.form_never_a_number`) -- so absorbing them on `free_text` alone
+would make one role's four counts mean something different from every
+other role's, and absorbing them everywhere changes what those roles
+describe. Whether the partition moves for every role at once is the
+owner's, and it is put to them with this measurement rather than settled
+here. Until it is, a reader of a `free_text` block should read these four
+counts as UNPROTECTED by the floor.
 
 **`detection_evidence` and `remarks` are built sentences, not free
 text.** Both are subject to the publication guard of section 4.5: each
@@ -3463,7 +3488,7 @@ always has named quantities to check them against.
 | published map | what it counts | where its bounds are stated |
 |---|---|---|
 | `n_distinct_by_occurrences` | different RAW present values of one column | invariants U3 (`numeric_unrepresentable`), I2 (`identifier`) and F2 (`free_text`); its shape, class and disposition at section 7.2 |
-| `variants_withheld` | different spellings of one published label that stayed below the floor | section 7.4: W4 closes its weighted sum inside the level entry, W5 holds every key between 1 and `small_cell_floor - 1` |
+| `variants_withheld` | different spellings of one published label that stayed below the floor — empty at every raised floor since plan P4-D275 counted them into the level's commonest spelling | section 7.4: W4 closes its weighted sum inside the level entry, W5 holds every key between 1 and `small_cell_floor - 1` |
 
 The sizes of a label column's held-back levels were the same CLASS of
 fact — sizes of unnamed groups — published as a sorted array rather
@@ -4194,9 +4219,12 @@ one is no longer written at all, because the cells that would leave it
 are counted as missing.
 
 **Invariant B4b (a pool that forces a count of one).** The labels held
-back never come to fewer rows than twice their number:
-`not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`
-(owner ruling of 2026-09-17, item 5; plan P4-D231, widened by P4-D239).
+back never come to fewer rows than twice their number, and never come to
+exactly their number while covering fewer rows than the published levels
+do: `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows,
+the rows the published levels cover)` (owner ruling of 2026-09-17, item
+5; plan P4-D231, widened by P4-D239, bounded by P4-D271 and pinned by
+its amendment of the repair pass of 2026-09-18).
 Such a pool forces a count of one -- and B3 above makes that subtraction
 available to every reader whether or not `suppressed_rows` is printed,
 which is why no key left out could hide it. 480 `F`, 519 `M` and one `U`
@@ -4266,6 +4294,35 @@ of 6.3 above -- that where `suppressed_rows` is less than twice
 stated limit for the same reason: it is true of every ordinary long
 tail, and the demonstration's `note` holds back 182 levels over 217
 rows.
+
+**What the width does NOT let through** (plan P4-D271 as amended by the
+repair pass of 2026-09-18). The exception above is a width, and a width
+would otherwise let the band's sharpest point through wherever the pool
+is wide enough. `suppressed_levels` equal to `suppressed_rows` says
+every held-back level covers exactly ONE row -- a count of one for each
+of them, read off two published numbers -- so such a pool is refused
+whenever it covers fewer rows than the published levels do, whatever the
+width says. Measured at a floor of eleven: 100 `NORTH` and 100 `SOUTH`
+beside 120 site codes written once each published (120, 120) and no
+missing cell, and 600 and 600 beside 700 such codes published (700, 700);
+both cleared the width and both are refused now. A pool that is the
+column rather than an exception beside it is still not refused: 780
+unique codes over 780 rows beside one published value of twenty are
+pinned too and still stand, because the pool covers more rows than the
+published levels do.
+
+**AND `n_present`/`n_missing`, WHICH IS WHERE THIS RULE SENDS THE CELLS,
+IS ITSELF FLOOR-FREE.** Section 11 lists the presence split among the
+universal counts that are floor-free on every role, and it is not asked
+`parsing.census_nameable` anywhere. So a column of 1,977 `NORTH`, 11
+`SOUTH` and ONE one-row site at a floor of eleven publishes `n_present
+1988` and `n_missing 1` against `n_rows 1989`, and its twin holds one
+blank cell -- naming the one record whose site stands outside the
+published labels. That is the exception this format carries knowingly:
+publishing that a row is MISSING is ruling 5's own consequence, and
+asking the disclosure rule of the presence split would change every
+column block this format writes rather than repair this one. Plan
+P4-D271 records the measurement and puts the question to the owner.
 
 **Invariant B5 (the floor).** Every `entry.count` is at least the floor.
 
@@ -5901,6 +5958,20 @@ so a person can see the arithmetic and not only the verdict.
 | `n_distinct_by_occurrences` | multiplicity map | section 5.3 | how many different RAW present values covered one row, two rows, … |
 | `shape_forms` | object | section 7.9 | how many present cells were written in each shared WRITTEN FORM, under the floor |
 
+
+**The two alphabet counts ask the disclosure rule** (`parsing.absorbed_total`,
+plan P4-D277). Each is a census of two groups written as one number --
+the cells inside the alphabet, and the cells a reader takes by
+subtracting it from `n_present` -- so where either side is below
+max(2, `small_cell_floor`) the smaller is counted into the larger and the
+count is published as nought or as every present cell. Measured at a
+floor of eleven: 999 declared record numbers beside one `X Y` published
+`n_code_alphabet 999` against `n_present 1000`, naming the one
+identifier outside the alphabet, while the layout census that would have
+named it was withheld for the same reading. The censuses checked against
+these counts -- `layout_forms` under C6-131b, `shape_forms` under SF3 --
+are checked against the counts AS PUBLISHED, so the two can never part.
+
 `length.min` and `length.max` are integers ≥ 1; `length.mean` is a
 number or `null`; `length.p50` is a number or `null`. `words.min` and
 `words.max` are integers ≥ 0; `words.mean` is a number or `null`. A
@@ -5929,6 +6000,17 @@ of section 7.12a is admitted where a block carries `layout_prefixes`,
 and that key stands on the declared `identifier` role alone (6.11). A
 `free_text` block carries no layout census and no prefix, so on this
 role the amendment admits nothing and F3 binds exactly as it did.
+
+**WHAT F3 DOES NOT COVER, NAMED RATHER THAN LEFT TO BE FOUND.** F3 binds
+the block's values, spellings and fragments; it does not bind the four
+universal reading counts of section 5.1, which are numbers and not
+spellings. `n_numeric`, `n_not_numeric`, `n_out_of_range` and
+`n_contradictory` are absorbed under X2 on a declared record number and
+are NOT absorbed here, so on this role a part of one stands: 999 notes
+beside one `42` publish `n_numeric 1` against `n_present 1000`. The two
+alphabet counts above ARE absorbed, by `parsing.absorbed_total`. Section
+5.1 states the gap, what it would cost to close, and that it is the
+owner's to rule on.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
@@ -9891,6 +9973,24 @@ reach it too, so no entry says that one row of the table is written
 otherwise. Under `(column)` the second half is nought by construction and
 the first is that the column clears the line.
 
+AND EVERY ENTRY ASKS THE ROOM RULE (`parsing.prefix_leaves_room`; plan
+P4-D270). C6-130 names a layout only where `layout_room` is at least
+`n_distinct + small_cell_floor`, so that a named shape never spells the
+column's own value set out. A published prefix FIXES characters of that
+layout, and the count that has to clear the line is therefore
+`prefix_room` — the layout's room once the prefix's own marks are
+taken off it. Measured at a floor of eleven: 1,000 declared record
+numbers `REC000` to `REC999` beside a constant column published
+`layout_forms {"@@@%%%": 1000}`, `layout_prefixes {"(column)": "REC"}`
+and `n_distinct 1000`; `layout_room("@@@%%%")` is 17,576,000 and clears
+1,011 easily, `prefix_room` is 1,000 and does not, and seed 4 wrote all
+1,000 of the table's own record numbers with both files at exit 0.
+Where the room is short the PREFIX gives way and the census stands: the
+census is what the twin's shape is built from and LP1 lets a prefix
+stand only beside a named layout, so taking the census back would leave
+the prefix nothing to stand on. `REC` and seven figures over 800 rows
+leaves 10,000,000 cells for 811 and is published exactly as before.
+
 **C6-141 (invariants).** **LP1.** `(column)` stands alone; every other
 key is a layout `layout_forms` names; a census naming no layout carries
 no prefix. **LP2.** Each prefix's own layout — every character marked as
@@ -9901,7 +10001,10 @@ published for (every named layout under `(column)`), and a figure or a
 letter mark stands after it in each. That a `(column)` prefix stands
 on a column whose present cells reach the line needs no invariant of its
 own: LP1 puts it beside a named layout, and LF1 puts that layout's
-cells at the line. A value that is not a
+cells at the line. **LP3.** Every layout a prefix is published for could
+still have come from at least `n_distinct + small_cell_floor` different
+cells once the prefix's own characters are fixed
+(`parsing.prefix_room`, plan P4-D270). A value that is not a
 prefix by rule (4) and C6-139's figure rule is a refusal (R16), and no
 refusal quotes it.
 
@@ -10152,7 +10255,7 @@ where S13 says so.
 | id | statement | loader? |
 |---|---|---|
 | X1 | `n_present + n_missing == n_rows`, the DOCUMENT's `n_rows`, never the per-column echo, a different quantity | yes |
-| X2 | `n_numeric + n_not_numeric + n_out_of_range + n_contradictory == n_present`. The four classify the complete present CELL on all fourteen roles; on `affixed_number` they stand BESIDE its four core counts, never in place of them | yes |
+| X2 | `n_numeric + n_not_numeric + n_out_of_range + n_contradictory == n_present`. The four classify the complete present CELL on all fourteen roles; on `affixed_number` they stand BESIDE its four core counts, never in place of them. ON A DECLARED RECORD NUMBER a part below max(2, `small_cell_floor`) is counted into the LARGEST part before they are published, ties to the first of the four (plan P4-D277, ruling 6 of 2026-09-17): the four are a census of two or more groups written as scalars, and 999 `REC` identifiers beside one `42` published `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999` while the layout census beside them was withheld for saying the same thing. The sum is unchanged, so this invariant is unmoved | yes |
 | X3 | `n_distinct_folded <= n_distinct <= n_present` | yes |
 | X4 | `n_distinct == 0` ⇔ `n_present == 0` ⇔ `n_distinct_folded == 0` | yes |
 | X5 | `1 <= position <= n_columns` | yes |
@@ -10201,7 +10304,7 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
-| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239 | yes |
+| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows, the rows the published levels cover)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239, and bounded against HALF the rows the published levels cover, rather than against the smallest published level, by P4-D271 — whose amendment of 2026-09-18 refuses a pool of exactly one row per level outright wherever it covers fewer rows than the published levels do | yes |
 | B4c | `parsing.census_names_one_row` over each of `n_numeric`, `n_not_numeric`, `n_out_of_range` and `n_contradictory` against the published levels that read that way, with the class's own held-back rows handed in as a pool so a class no published level counts into is read too: no such difference is exactly one — plan P4-D261 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
@@ -10233,7 +10336,7 @@ These bind `n_distinct_by_occurrences` and `variants_withheld`.
 | W2 | trimming and case-folding a variant key yields the entry's `label` | yes |
 | W3 | every `variants` value is at most the entry's `count` | yes |
 | W4 | `sum(variants.values()) + sum(key × value over variants_withheld) == count` | yes |
-| W5 | every `variants` value is at least the floor; every `variants_withheld` key is in `1 .. floor - 1` | yes |
+| W5 | every `variants` value is at least the floor; every `variants_withheld` key is in `1 .. floor - 1`, which at a raised floor is empty, because the producer counts EVERY spelling below the floor into the level's commonest one (plan P4-D275, ruling 6 of 2026-09-17; the rule reached one-row spellings alone until then, so 490 `F`, 500 `M` and two `f` published `variants_withheld {"2": 1}` and the twin wrote two `f` cells) | yes |
 | W5b | no `variants_withheld` key, read as a number, is 1, because a spelling ONE row wrote is a count of one — owner ruling of 2026-09-17 item 5, plan P4-D240 | yes |
 | W6 | variant keys are distinct | yes |
 | W7 | `variants` and `variants_withheld` are not both empty on one entry | yes |
@@ -10300,7 +10403,7 @@ supplied a different test would refuse different files.
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(1, `small_cell_floor`) | yes |
 | WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(1, `small_cell_floor`) cells (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
 | DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder, and where that count is named what `+` leaves of it is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
-| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), pools under `(withheld)` only at that floor and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
 | TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
@@ -10343,7 +10446,7 @@ it answers to.
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
-| D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`, never `(withheld)`; every key maps to a count at least the floor and never below two (the disclosure rule, P4-D131, whose remainder the producer holds over the cells that could show a width, P4-D139); the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
+| D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`, never `(withheld)`; every key maps to a count at least the floor and never below two (the disclosure rule, P4-D131); the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` while leaving none of those cells over or at least the floor (landing 2b.6, plan P4-D278: a cell that could show no width is counted into the commonest width by the producer, because both conventions spell such a cell the same way, so a census that names anything reaches the parsed total and the remainder is asked of it like the other three) | yes |
 | D18 | every key of `month_name_styles` is one of the thirty-six joint style words, a name of May with the length `either` (P4-D133), and on `textual-day-first-date` one of the eighteen `no-comma` words; the census is held to the disclosure rule over `n_present - n_unparsed`, a count at least the floor and never below two and a remainder of nought or at least that many; the census is `{}` unless `format` is one of the two textual members; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
 | D19 | every key of `quarter_marker_case` is `upper` or `lower`; the census is held to D18's disclosure rule; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
@@ -10449,6 +10552,7 @@ stated in full at section 7.9.
 | LF7 | every NAMED layout's supply, `parsing.layout_supply` of its key, is at least `n_distinct` plus `small_cell_floor` (C6-130, plan P4-D260) |
 | LP1 | `layout_prefixes` holds `(column)` alone, or only keys `layout_forms` names; a census naming no layout, or carrying a hexadecimal mark, carries no prefix (C6-141, owner ruling of 2026-09-17) |
 | LP2 | each prefix's own layout opens every layout it is published for, and a figure or a letter mark stands after it in each |
+| LP3 | `parsing.prefix_room` of every layout a prefix is published for is at least `n_distinct + small_cell_floor`: a published prefix fixes characters of the layout it stands on, and the shape left must not spell the column's own values out — plan P4-D270 |
 
 A key that is neither `(withheld)` nor a written form by the grammar of
 C6-31d is a refusal and not an invariant: the loader checks the key
@@ -10472,7 +10576,7 @@ and not an invariant, and `(withheld)` is never a key of this census.
 
 | id | statement |
 |---|---|
-| RM1 | `resolution_mix` keys are exactly what the column's `format` permits: on a single-format column that member, on `iso-mixed` exactly `iso-date` and `iso-datetime` |
+| RM1 | `resolution_mix` keys are exactly what the column's `format` permits: on a single-format column that member, on `iso-mixed` exactly `iso-date` and `iso-datetime`. The counts are exact and no floor governs them, and that is safe only because a form written by fewer cells than max(2, `small_cell_floor`) is COUNTED INTO the commonest form before this census is taken, so by the time it counts anything either both forms reach the line or only one form is left (plan P4-D250; 395 ISO dates beside one moment publish `{"iso-date": 396}` and `datetime_separators {}`, naming no record) |
 | RM2 | values sum to `n_present - n_unparsed`; on `iso-mixed`, the joint reading being the chosen format, `n_unparsed` counts cells reading under neither member |
 | RM3 | where more than one form carries cells, every non-nought count is at least `census_floor` of the smallest group size: a form fewer cells wrote is counted into the commonest form and the column is published wholly in that form |
 
