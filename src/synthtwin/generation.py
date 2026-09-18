@@ -14475,7 +14475,7 @@ def _number_cells(
         if marks[index] in cells[index]:
             surviving = surviving + 1
     if surviving < allocated:
-        mark_notes = mark_notes + [
+        mark_notes += [
             _deviation(
                 column.name,
                 "thousands_marks",

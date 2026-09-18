@@ -6908,6 +6908,22 @@ def shows_a_width(column, day_number, word=""):
     return first < 10 or second < 10
 
 
+def counts_into_width(column, day_number, word):
+    """Whether a date on this day is counted under the census's one word.
+
+    THE CENSUS IS THE ABSORBED ONE (plan P4-D278).  A cell that shows no
+    width at all -- a date both of whose fields are ten or more -- is
+    counted into the column's commonest width by the producer and by the
+    checker, so the count a twin is held to includes it.  A cell showing
+    the OTHER convention is still not counted, which is the whole of what
+    plan P4-D256 turns on: the absorption reaches the cells that show
+    NOTHING, never the cells that show something else.
+    """
+    if shows_a_width(column, day_number, word):
+        return True
+    return not shows_a_width(column, day_number)
+
+
 def units_settled(column, ordinals, parsed, whole, lows, highs):
     """Method G7.3's two count passes (plan P4-D192).
 
@@ -7003,7 +7019,9 @@ def counts_off(column, ordinals, day, unit, word, distinct, widths):
         off += abs(len({value // unit for value in ordinals}) - distinct)
     if widths is not None:
         showing = sum(
-            1 for value in ordinals if shows_a_width(column, value // day, word)
+            1
+            for value in ordinals
+            if counts_into_width(column, value // day, word)
         )
         off += abs(showing - widths)
     return off
@@ -7054,7 +7072,7 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, dist
     for value in ordinals:
         held[value // unit] = held.get(value // unit, 0) + 1
     showing = sum(
-        1 for value in ordinals if shows_a_width(column, value // day, word)
+        1 for value in ordinals if counts_into_width(column, value // day, word)
     )
     if showing == widths:
         return False
@@ -7075,7 +7093,7 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, dist
 
     options, bare = [], set()
     for rank in range(parsed):
-        if pinned[rank] or shows_a_width(
+        if pinned[rank] or counts_into_width(
             column, ordinals[rank] // day, word
         ) != fewer:
             continue
