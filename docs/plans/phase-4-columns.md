@@ -17174,3 +17174,121 @@ and at a floor of eleven all seven are protected, every run at exits
 the first writing rebuilt at two blank places and two empty records are
 restored to their own one-of-a-kind shapes, positional assertion and
 all, because the default floor publishes them again.
+
+### P4-D291 A twin's date cell names a day of the calendar, and a column stored as dates is written as dates
+
+The minor item of the extra round's files pass, measured there and
+recorded as a defect rather than repaired because `sheet_class_fits`
+is a GENERATOR rule and narrowing it needs its mirror, a frozen case, a
+registered mutant and G14.3's own count. This is that landing.
+
+**The defect.** A workbook column of 118 cells stored as dates
+(`t="d"`) wearing `yyyy-mm-dd`, beside two texts and a label column,
+has its cell-class census held back whole at a smallest group of
+eleven; 118 of its 120 values read as dates where 119 are needed, so
+its ROLE falls to free text and its twin's cells are made up from the
+column's published SHAPE, `%%%%-%%-%%`. `dialect.sheet_class_fits`
+read the date SHAPE alone, so `2006-06-32` took the `date` class and
+was written as a date cell. **Measured** at seed 0: the twin's 118 date
+cells held `7001-26-23`, `5805-52-35`, `8404-45-66` and the like,
+openpyxl raised `day is out of range for month` and could not open the
+twin AT ALL, and `synthtwin validate` returned 0 for the table and 0
+for the twin — so nothing caught it.
+
+**Three options were measured on this tree before anything was built,
+and the numbers decided it.**
+
+*(a) The narrowing alone*, which the files fixer built and withdrew:
+`sheet_date_is_real` in `sheet_class_fits` and in the writer's date
+branch. The twin OPENS — openpyxl hands back 120 `str` — and its 118
+cells are written as TEXT, so `workbook.value-class` is MISSED (the
+description asks for `date`, the file holds `text`) at exit 3 on the
+twin against exit 0 on the table. It keeps one owner goal and breaks
+the other: the twin no longer fails silently, it fails loudly, and it
+still does not carry what the description publishes about that column.
+
+*(c) Not withholding the census*, weighed against the disclosure rule
+that withheld it. **It buys nothing.** Measured at a smallest group of
+two, where the same table publishes `date 118, text 2` in full: the
+count is handed out by number to the cells that FIT `date`, every
+made-up cell fits the shape, and openpyxl fails on the twin in exactly
+the same way. The defect was never a property of the withholding —
+it is a property of what `date` was taken to fit — so publishing the
+census would have cost the disclosure rule and left the file
+unreadable. This is the measurement that took option (c) off the table
+rather than an argument about it.
+
+*(b) Writing valid cells of the stored class whatever the role*, which
+is what was built, and which CONTAINS the narrowing of (a) as its
+second half. Measured at a smallest group of eleven and again at two:
+the twin opens, openpyxl hands back 118 `datetime.date` values and 2
+strings, the table is at exit 0 and the TWIN is at exit 0 with
+`workbook.value-class` HELD. Both owner goals stand.
+
+**The decision** (method G2.2 step 0a and step 1's fit rule;
+`dialect.sheet_date_is_real`, `dialect.sheet_date_on_the_calendar`,
+`parsing.valid_date` made public so the calendar is stated once,
+`sheetwriting._onto_the_calendar`). In two halves:
+
+1. **The `date` class fits only a cell that names a day.** The shape is
+   asked first, exactly as before, and then the fields: a month among
+   the twelve, a day the month has in that year, an hour of at most 23,
+   minutes and seconds of at most 59. The writer's own `t="d"` branch
+   asks the same question, so a cell that names no day cannot be
+   written as a date cell even if something else hands it the class.
+2. **A column the description says stores dates is written as dates.**
+   Before the classes are allocated, in a column publishing a `date`
+   cell-class count above nought or a `value_class` of `date` where
+   that census was withheld — the same question step 0 already asks —
+   every cell wearing the ISO shape and naming no day has each field
+   brought to the NEAREST value the calendar allows, at the width it
+   was written with. A cell that already names a day, and a cell that
+   is not of the shape, are left exactly as they came, so a column
+   whose dates ARE published is not touched here at all.
+
+**WHAT IT COSTS, MEASURED AND NAMED.** The cells this moves are cells
+of a column whose role publishes no value of it. Their SHAPE does not
+move — every one keeps its length and its form, so the form census and
+the length facts the description does publish are met exactly as
+before — and how many different values the column holds does not move
+either: 83 before and 83 after, because a made-up cell's four-figure
+year carries the differences. What moves is the figures, and they pile
+up at the top of each field's range: of the 118 cells, 105 carried a
+month above twelve and 108 of the twin's cells are written in December.
+A reader who groups the twin's column by month therefore sees one
+bucket where the real table has twelve. That is a fact about a column
+whose dates the description publishes NOTHING about — the alternative
+was 118 cells no reader can read at all — and it is written here rather
+than left to be discovered.
+
+**The frozen case.** `workbook_made_up_dates`, the ninth of
+`tests/reference/generation-document-vectors.json`, written from the
+rule statement in G2.2: a column whose census is withheld whole and
+whose commonest class is `date`, sixteen of whose twenty-two cells name
+no day and six of which do and must not move; a second column asking
+the same of a clock and of a day that moves under one; and a third the
+description does NOT store as dates, whose made-up cells the fit rule
+alone keeps off the class. It carries TWO mutants, one per half, each
+moving bytes. The eight cases beside it rebuilt BYTE-IDENTICAL, which
+is the measurement that says this rule touches nothing that already
+named a day — and also why the case was needed: no committed case
+reached either branch. G14.3's count moves from ninety-four to
+ninety-five and the fourth file's from eight to nine.
+
+**Beside the frozen case**, `tests/test_p4d291_dates_a_reader_opens.py`
+runs the rule end to end through the three commands at both floors and
+asks openpyxl — which `src/synthtwin` never imports — the question the
+defect was about, and the test that recorded the defect in
+`tests/test_files_review_2026_09_18.py` now records the repair. Each of
+the four ways to withdraw the rule was put back and measured: the fit
+narrowing, the calendar step, the writer's own branch, and the caller
+that runs the calendar step, and each turns a test red.
+
+**OPEN, AND PUT TO THE OWNER.** `synthtwin validate` read the
+unreadable twin without complaint and returned 0 for it, because
+synthtwin's own reader takes a `t="d"` cell's characters as they come.
+Nothing generated can reach that state any more, but a file somebody
+else wrote can, and the validator would still describe it as holding
+dates. Whether the reader should refuse a date cell that names no day —
+which is a change to what synthtwin ACCEPTS, not to what it writes — is
+a decision and not a repair, so it is left here rather than taken.

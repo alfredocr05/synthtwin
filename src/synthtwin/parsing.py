@@ -3409,12 +3409,20 @@ def is_whole_number(value: float) -> bool:
     return value == float(int(value))
 
 
-def _valid_date(year: int, month: int, day: int) -> bool:
+def valid_date(year: int, month: int, day: int) -> bool:
     """True when the year, month and day name a real calendar date.
 
     The leap-year rule is the Gregorian one: a year divisible by four
     is a leap year, except a century that is not divisible by four
     hundred.
+
+    It is PUBLIC because the twin's WORKBOOK writer asks the same
+    question of the cells it is about to store as dates
+    (`dialect.sheet_date_is_real`), and a calendar stated twice is a
+    calendar that can be repaired once (plan P4-D291).
+
+    Guarantees: accepts three whole numbers; returns a truth value;
+    raises nothing for whole-number input. No I/O of any kind.
     """
     if year < 1 or month < 1 or month > 12 or day < 1:
         return False
@@ -3432,7 +3440,7 @@ def _canonical_date(year: str, month: str, day: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(day, str):
         raise TypeError(_NOT_TEXT)
-    if not _valid_date(int(year), int(month), int(day)):
+    if not valid_date(int(year), int(month), int(day)):
         return None
     return f"{year}-{month}-{day}"
 
@@ -4209,7 +4217,7 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         if int(month) < 1 or int(month) > 12:
             return None
-        # THE YEAR IS ONE THE CALENDAR HAS. `_valid_date` refuses year
+        # THE YEAR IS ONE THE CALENDAR HAS. `valid_date` refuses year
         # zero for every reader that names a day, and the two SPAN
         # readers have to refuse it for the same reason: the contract's
         # canonical form runs from `0001` up, and a producer that
@@ -5718,7 +5726,7 @@ def days_from_civil(year: int, month: int, day: int) -> int:
     Guarantees: accepts three whole numbers naming a calendar date;
     returns a whole number of days, which is negative before the epoch;
     raises nothing for whole-number input, and does not check that the
-    date exists in the calendar -- `_valid_date` is where that is asked.
+    date exists in the calendar -- `valid_date` is where that is asked.
     No I/O of any kind.
 
     It is PUBLIC because the generation method requires exactly this

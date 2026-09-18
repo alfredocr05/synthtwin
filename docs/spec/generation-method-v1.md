@@ -286,9 +286,15 @@ A class FITS a cell's text where the cell can be written as that class
 (plan P4-D166): `text` fits every text; `error` fits one of the error
 kinds (`#DIV/0!`, `#N/A`, `#NAME?`, `#NULL!`, `#NUM!`, `#REF!`,
 `#VALUE!`, `#GETTING_DATA`, `#SPILL!`, `#CALC!`); `boolean` fits `TRUE`
-and `FALSE`; `date` fits ISO text — `YYYY-MM-DD`, optionally followed
-by `T` and a clock, or a clock alone, the clock being `hh:mm`, `hh:mm:ss`
-or `hh:mm:ss` with a point and figures; and `number` fits the text a
+and `FALSE`; `date` fits ISO text that NAMES A DAY OF THE CALENDAR —
+the shape is `YYYY-MM-DD`, optionally followed by `T` and a clock, or a
+clock alone, the clock being `hh:mm`, `hh:mm:ss` or `hh:mm:ss` with a
+point and figures, and the fields of that shape must be a month among
+the twelve, a day the month has in that year (G7.1's calendar, whose
+leap rule is the Gregorian one), an hour of at most 23 and minutes and
+seconds of at most 59 (plan P4-D291: the shape alone let `2006-06-32`
+fit, and a `t="d"` cell holding it is a file no reader can open at
+all); and `number` fits the text a
 workbook stores as a number (an optional sign, figures, an optional
 point with figures on one side or both, and an optional exponent whose
 mark is followed by an optional sign and at least one figure — never a
@@ -370,6 +376,46 @@ every reader handed back strings such as `"45315"`; asked without the
 census guard, 59 day counts of the study's titled book at a floor of
 eleven turned into `t="d"` cells and the twin missed
 `workbook.value-class`.
+
+**Step 0a — a column stored as dates is written as dates** (plan
+P4-D291). Step 1 hands the `date` class only to a cell that names a day
+of the calendar, and that narrowing on its own would write a column the
+description stores as dates as a column of TEXT: the cells of a column
+whose ROLE publishes no value of it — free text, a long tail — are made
+up from the column's published SHAPE, so a column of `2024-03-17` cells
+read as free text is written `7001-26-23`, which wears a date's shape
+and names no day. So, before step 0 and before step 1, in a column the
+description says stores dates — a published `date` cell-class count
+above nought, or a `value_class` of `date` where that census was
+withheld, the same question step 0 asks — every cell wearing the ISO
+shape above and naming no day of the calendar has each of its fields
+brought to the NEAREST value the calendar allows, at the width it was
+written with: the year to at least `0001` and at most `9999`, the month
+into the twelve, the day into the days that month has in that year, the
+hour to at most 23 and the minutes and the seconds to at most 59. A
+cell that is not of the ISO shape, and one that already names a day, is
+left exactly as it came — so a column whose dates ARE published, being
+generated from instants, is not touched here at all, and neither is a
+column of day counts.
+
+WHAT THIS COSTS, STATED RATHER THAN CLAIMED PAST. The cells this
+touches are cells of a column about whose values the description
+publishes nothing but their shape, and the shape does not move — every
+one keeps its length and its figures-and-marks form, so the form census
+and the length facts the description does publish are met exactly as
+before. What moves is the figures themselves, and they pile up at the
+top of each field's range: measured at a smallest group of eleven on
+118 made-up cells of the shape `%%%%-%%-%%`, 105 of the 118 months
+stood above twelve, and 108 of the twin's cells are written in
+December. How many DIFFERENT values the column holds does not move —
+83 before and 83 after — because a made-up cell's year is four figures
+and carries the differences. A reader who groups the twin's column by
+month sees one bucket where the real table has twelve —
+which is a fact about a column whose dates the description publishes
+NOTHING about, and is why it is written here. The alternative measured
+beside it was to write those cells as text, which opens in a reader and
+then misses `workbook.value-class` at exit 3, describing the twin as
+holding text where the description says date.
 
 **Step 2 — the kind of format each cell wears** (`cell_format_kinds`).
 A mixture is reproduced as its COUNTS and never collapsed to the
@@ -478,7 +524,8 @@ the rows —
   string, an `error` and a `boolean` and a `number` as their own kinds
   where the text can carry them and as shared text where it cannot, a
   `date` as an ISO date cell (`t="d"`) holding its text where the text
-  is ISO text (plan P4-D168), and anything else as shared text. A row placed as a record holding
+  is ISO text NAMING A DAY OF THE CALENDAR (plan P4-D168, narrowed by
+  plan P4-D291), and anything else as shared text. A row placed as a record holding
   nothing is written with no cells at all, and so is a row every one of
   whose cells turned out to be absent;
 - the rows of formatted blanks below the table, one blank cell apiece.
@@ -9746,7 +9793,9 @@ it names last, the cases the carried landings 2b.4, 2b.3 and 2b.2 added,
 less the one landing 2b.6 withdrew with the rule it pinned,
 and `tests/reference/generation-document-vectors.json` carries the five
 landing 2b.17 added for the transforms that produce a WHOLE DOCUMENT
-rather than one column's cells, and
+rather than one column's cells, the three the files review of
+2026-09-18 and its two repair passes added, and the one the landing
+that closed the withheld date census added (plan P4-D291), and
 `tests/reference/generation-branch-vectors-3.json` carries the seven the
 repair of the final Codex review of the number censuses added (plans
 P4-D142, P4-D145 and its amendment, P4-D147 and P4-D149), through the entry point
@@ -10024,7 +10073,10 @@ merge (plan P4-D193), one for the census of marks held at a thousand on
 a column with refunds (plan P4-D194), and one for a declared identifier's
 partners held to the cells its layout census names no layout for (plan
 P4-D196), and one for a workbook column of free text writing its truth
-values as them (plan P4-D198). **No case was added for the files review
+values as them (plan P4-D198). and ONE for the calendar a date cell is held to and the
+cells a column stored as dates is written from (plan P4-D291), which is
+the ninth case of the fourth file and the only case of any file that
+reaches either branch. **No case was added for the files review
 of 2026-09-18, and a COLUMN was**, which is recorded here rather than
 left to be noticed: `workbook_as_written` gained a fourth column storing
 its dates as their ISO text rather than as day counts (cell class
@@ -10092,7 +10144,7 @@ seventh file; merged, that file stood at 276235 bytes against the
 250000-byte cap, so all seven moved into
 `tests/reference/generation-branch-vectors-6.json` together.
 
-**All ninety-four are required.** The count is taken off the committed
+**All ninety-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10103,7 +10155,7 @@ and it is in no file. The first file,
 second, `tests/reference/generation-branch-vectors.json`, holds
 twenty-one; the third, `tests/reference/generation-branch-vectors-2.json`,
 holds eighteen; the fourth,
-`tests/reference/generation-document-vectors.json`, holds eight; the
+`tests/reference/generation-document-vectors.json`, holds nine; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
@@ -10211,6 +10263,7 @@ case passed, which is the failure the count exists to prevent:
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
 | `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
 | `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |
+| `workbook_made_up_dates` | G2.2 step 0a and the calendar step 1 asks of the `date` class (plan P4-D291), at a floor of eleven: a column whose census is withheld whole and whose commonest class is `date`, sixteen of whose twenty-two cells wear the ISO shape and name no day, each field brought to the nearest value the calendar allows and the six that DO name a day unmoved; the same asked of a clock, and of a day that moves under one; and a column the description does not store as dates, whose made-up cells the calendar keeps off the `date` class and which are written as shared text. It carries TWO mutants, one for each half of the rule |
 | `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |
 
 Each case is small enough to read by hand — at most a few dozen cells —
