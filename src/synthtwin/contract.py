@@ -4566,13 +4566,20 @@ def _workbook_rules(
     # loader then refused the very description the profiler had just
     # written -- with advice to describe the table again, which repeats
     # the refusal for ever. What a description may not claim is a split
-    # past the last row a worksheet has.
-    if form.frozen_rows > dialect.SHEET_MAXIMUM_ROWS:
+    # AT or past the last row a worksheet has: the split's own top-left
+    # cell is the row BELOW it, so a freeze of every row spells
+    # `A1048577` and no spreadsheet has that cell (the repair of the
+    # skeptic's finding 5 on P4-D288 -- measured: `ySplit="1048576"`
+    # loaded, and the twin's pane came out `topLeftCell="A1048577"`).
+    # `workbook.sheet_cells` holds such a pane one row inside the sheet,
+    # so no description synthtwin writes reaches this rule.
+    if form.frozen_rows >= dialect.SHEET_MAXIMUM_ROWS:
         raise _broken(
             "WB4", where,
             f"{form.frozen_rows} rows are frozen at the top",
-            f"no more rows than a worksheet has "
-            f"({dialect.SHEET_MAXIMUM_ROWS})",
+            f"fewer rows than a worksheet has "
+            f"({dialect.SHEET_MAXIMUM_ROWS}), so that the split has a row "
+            f"below it",
         )
 
 

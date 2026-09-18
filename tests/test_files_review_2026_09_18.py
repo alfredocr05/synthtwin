@@ -878,3 +878,470 @@ def test_the_packaging_rule_lets_an_ordinary_package_through() -> None:
     assert not workbook.is_packaged_unreadably(0, zipfile.ZIP_DEFLATED)
     assert workbook.is_packaged_unreadably(0x1, zipfile.ZIP_DEFLATED)
     assert workbook.is_packaged_unreadably(0, 99)
+
+
+# == the repair pass: what the skeptic found in the ten repairs ========
+#
+# A second reading of the ten repairs above attacked each of them and
+# closed six more holes. Every test below is built from that
+# reproduction and each is mutation-checked by withdrawing its own rule
+# in place:
+#
+# * the `commonest silhouette` condition put back into
+#   `reading._shares_the_shape_below` --
+#   `test_a_minority_layout_below_still_names_no_column`;
+# * `cli._delimiter_tie_notice` claiming the numbers reason again --
+#   `test_the_delimiter_notice_gives_the_reason_the_walk_used`;
+# * `workbook.mixed_number_formats` counting the general format again --
+#   `test_a_part_formatted_column_is_read_rather_than_refused`;
+# * the 32-character cap withdrawn from `workbook.sheet_cells` --
+#   `test_a_long_cell_reference_is_stopped_at_the_element`;
+# * the pane no longer held inside the sheet, or WB4 asking `>` again --
+#   `test_a_freeze_of_every_row_is_held_inside_the_sheet`;
+#
+# The skeptic's finding 6 (the autofilter waiver) and finding 7 (a
+# withheld date census writing a twin no reader opens) are MEASURED and
+# left for the owner: the first would reverse P4-D232 and the second is
+# a generator rule needing its own frozen case. The second is recorded
+# by `test_a_withheld_date_census_writes_a_twin_no_reader_opens`, which
+# states the defect it stands over.
+
+
+def _cohort_of(names: "list[str]") -> str:
+    """The same 240-record export, with those 239 identifiers below."""
+    lines = [_TITLE, _LEAD]
+    for index in range(1, 240):
+        lines += [f"{names[index - 1]},location {index},{1 + index / 10:.1f}"]
+    return "\n".join(lines) + "\n"
+
+
+def _mostly_missing(count: int) -> "list[str]":
+    return [
+        "NA" if index <= count else f"CASE-ALPHA-{1000 + index}"
+        for index in range(1, 240)
+    ]
+
+
+def _every_other() -> "list[str]":
+    """A file holding two identifier systems in equal measure."""
+    return [
+        f"CASE-ALPHA-{1000 + index}"
+        if index % 2 == 0
+        else f"CASE_ALPHA_{1000 + index}"
+        for index in range(1, 240)
+    ]
+
+
+@pytest.mark.parametrize(
+    "names",
+    [_mostly_missing(120), _mostly_missing(200), _every_other()],
+    ids=["missing_120_of_239", "missing_200_of_239", "two_systems"],
+)
+def test_a_minority_layout_below_still_names_no_column(
+    tmp_path: pathlib.Path, names: "list[str]"
+) -> None:
+    """The skeptic's finding 1 on P4-D280 (BLOCKER).
+
+    The first writing of that repair also asked that the first row's
+    silhouette be the COMMONEST below it, which MOVED the threshold
+    rather than removing it. Measured on the tree carrying it, varying
+    only how many of the 239 identifiers read `NA`: 119 was caught and
+    120 was not -- 239 records described where the file holds 240, the
+    whole first record published as the three column names, nothing
+    asked, and the twin's own header line the real record verbatim.
+    Two values below wearing the first row's layout is the whole of the
+    evidence, however many wear another.
+    """
+    found = _named_nothing(tmp_path, _cohort_of(names))
+    assert found["names"] == ["column_1", "column_2", "column_3"], found
+    assert found["n_rows"] == 240, found
+    assert found["source"] == "generated"
+    assert found["asked"] == 1
+    for cell in _LEAD.split(","):
+        assert cell not in found["bytes"], cell
+
+
+def test_two_values_below_are_the_evidence_and_one_is_not() -> None:
+    """The rule itself, at its own boundary, with nothing else moving."""
+    below = ["CASE-ALPHA-1001", "CASE-ALPHA-1002"] + ["NA"] * 200
+    assert reading._shares_the_shape_below("CASE-ZEBRA-471", below)
+    assert not reading._shares_the_shape_below(
+        "CASE-ZEBRA-471", ["CASE-ALPHA-1001"] + ["NA"] * 200
+    )
+    # ...and an ordinary header is still not a record: `A_A` over `A9`.
+    assert not reading._shares_the_shape_below("record_id", ["R001"] * 40)
+
+
+# -- the delimiter notice's reason -------------------------------------
+
+
+_WIDER_WINS = "id,note|tagA|tagB\n" + "".join(
+    f"{index},alpha{index}|x{index}|y{index}\n" for index in range(120)
+)
+
+
+def test_the_delimiter_notice_gives_the_reason_the_walk_used(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 2 on P4-D282 (MAJOR).
+
+    P4-D282 widened the competitor to any reading of the winner's own
+    share, so the notice began to be printed about files the WIDTH
+    settled -- and it went on saying synthtwin had taken "the reading
+    under which more of the values read as numbers", which
+    `dialect.delimiter_reading` asks only where the share AND the width
+    tie. Measured on this file: 120 values read as numbers under the
+    comma and NOUGHT under the winning vertical bar.
+    """
+    comma = dialect._best_reading(_WIDER_WINS, ",", 0)
+    bar = dialect._best_reading(_WIDER_WINS, "|", 0)
+    assert comma is not None and bar is not None
+    assert (comma[0], comma[1], dialect._numbers_read(comma[2])) == (1.0, 2, 120)
+    assert (bar[0], bar[1], dialect._numbers_read(bar[2])) == (1.0, 3, 0)
+    assert dialect.delimiter_reading(_WIDER_WINS, 0) == ("|", ("|", ","))
+
+    table = tmp_path / "table.csv"
+    table.write_text(_WIDER_WINS, encoding="utf-8", newline="")
+    code, said = _quiet(
+        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace",
+         "--smallest-group", _FLOOR_FIVE]
+    )
+    assert code == 0
+    assert "READS EQUALLY WELL WITH MORE THAN ONE DELIMITER" in said
+    notice = _delimiter_paragraph(said)
+    assert "the reading under which more of the values read as numbers" not in (
+        notice
+    ), notice
+    assert "gives your table the most columns" in notice, notice
+
+
+def _delimiter_paragraph(said: str) -> str:
+    """The tie notice alone, out of everything the run printed."""
+    for block in said.split("\n"):
+        if "READS EQUALLY WELL" in block:
+            continue
+        if "Every record of your file splits cleanly" in block:
+            return block
+    return ""
+
+
+# -- the general format is not a second population ---------------------
+
+
+def _part_formatted_book(code: str) -> bytes:
+    """120 numeric cells: sixty unstyled, sixty wearing ``code``."""
+    rows = [
+        (
+            1,
+            [
+                workbooks.cell("A1", "amount", "inlineStr"),
+                workbooks.cell("B1", "tag", "inlineStr"),
+            ],
+        )
+    ]
+    for index in range(120):
+        number = 2 + index
+        rows += [
+            (
+                number,
+                [
+                    workbooks.cell(
+                        f"A{number}", f"{(index % 10 + 1) / 10:.1f}", "",
+                        1 if index < 60 else 0,
+                    ),
+                    workbooks.cell(f"B{number}", f"t{index % 3}", "inlineStr"),
+                ],
+            )
+        ]
+    return _book(rows, [code], "A1:B121")
+
+
+def test_a_part_formatted_column_is_read_rather_than_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 3 on P4-D283 (MAJOR).
+
+    A numeric column where somebody formatted part of the range and left
+    the rest alone is an ordinary spreadsheet, not two populations a
+    person chose -- and the general format is also the code
+    `_leading_code` FALLS BACK to. Counting it here refused at exit 1 a
+    file `c5d09d5` described at exit 0.
+    """
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_part_formatted_book("0.00"))
+    assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_FIVE) == 0
+    assert _openpyxl_formats(table) == {"0.00": 60, "General": 60}
+
+
+@pytest.mark.parametrize(
+    "codes",
+    [["0%", "0.0"], ["#,##0.00", '"$"#,##0.00'], ["0%", "0.00%"]],
+    ids=["percent_beside_plain", "plain_beside_currency", "two_percents"],
+)
+def test_two_chosen_codes_of_one_kind_are_still_refused(
+    tmp_path: pathlib.Path, codes: "list[str]"
+) -> None:
+    """...and the mixed columns the item was about are untouched."""
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_two_code_book(60, codes))
+    code, said = _quiet(
+        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace",
+         "--smallest-group", _FLOOR_FIVE]
+    )
+    assert code == 1
+    assert "more than one number format of the same kind" in said
+    for one in codes:
+        assert one not in said, one
+
+
+# -- the cell reference cap, which nothing pinned ----------------------
+
+
+def _referenced(reference: str) -> "list[tuple[str, bytes]]":
+    rows = [(1, ['<c r="%s"><v>1</v></c>' % reference])]
+    return [
+        ("[Content_Types].xml", workbooks._content_types(1, False, False, False)),
+        ("_rels/.rels", workbooks._root_rels()),
+        ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+        ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, False)),
+        ("xl/styles.xml", _styles(["General"])),
+        ("xl/worksheets/sheet1.xml", workbooks.sheet(rows, dimension="A1:A1")),
+    ]
+
+
+def _refusal_for(tmp_path: pathlib.Path, reference: str) -> str:
+    table = tmp_path / "referenced.xlsx"
+    table.write_bytes(_stored_package(_referenced(reference)))
+    with pytest.raises(errors.ProfileError) as stopped:
+        reading.read_table(f"{table}")
+    return f"{stopped.value}"
+
+
+def test_a_long_cell_reference_is_stopped_at_the_element(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 4 on P4-D287 (MINOR).
+
+    `MAXIMUM_REFERENCE_CHARACTERS` was the one rule of that landing no
+    test pinned: withdrawn, all 31 tests stayed green. It is not
+    redundant. `reference_column`'s own bound reads LETTERS, and a
+    reference is refused by this cap for what it is -- the column past
+    the last -- rather than by whatever rule downstream happens to speak
+    first about a cell holding `1`. Measured at the boundary: a
+    reference of 32 characters is read by the ordinary path and refused
+    for its ROW, and one of 33 is stopped at the `<c>` element and
+    refused for its COLUMN.
+    """
+    assert workbook.MAXIMUM_REFERENCE_CHARACTERS == 32
+    inside = _refusal_for(tmp_path, "A" + "9" * 31)
+    assert f"past row {workbook.MAXIMUM_ROWS}" in inside, inside
+    for reference in ("A" + "9" * 32, "A" + "9" * 5_000, "A" * 160_000 + "1"):
+        past = _refusal_for(tmp_path, reference)
+        assert f"past column {workbook.MAXIMUM_COLUMNS}" in past, past
+
+
+def test_a_reference_of_figures_alone_is_never_made_into_a_number() -> None:
+    """The escape the cap stands in front of, asked of the rule itself.
+
+    `reference_row` gathers every figure of the reference and calls
+    `int` on them, and CPython refuses a conversion past 4,300 figures
+    outright. Measured: `reference_row("A" + "9" * 100_000)` raises
+    `ValueError` -- an escape, not a refusal -- so no reference that
+    long may reach it.
+    """
+    with pytest.raises(ValueError):
+        workbook.reference_row("A" + "9" * 100_000)
+    assert workbook.reference_row("A1048576") == 1_048_576
+    assert 100_000 > workbook.MAXIMUM_REFERENCE_CHARACTERS
+
+
+# -- a freeze that leaves no row below it ------------------------------
+
+
+def _frozen_book(frozen: int) -> bytes:
+    rows = [
+        (
+            1,
+            [
+                workbooks.cell("A1", "reading", "inlineStr"),
+                workbooks.cell("B1", "site", "inlineStr"),
+            ],
+        )
+    ]
+    for index in range(120):
+        number = 2 + index
+        rows += [
+            (
+                number,
+                [
+                    workbooks.cell(f"A{number}", f"{index + 1}"),
+                    workbooks.cell(f"B{number}", f"s{index % 4}", "inlineStr"),
+                ],
+            )
+        ]
+    return _book(rows, ["General"], "A1:B121", frozen=frozen)
+
+
+def test_a_freeze_of_every_row_is_held_inside_the_sheet(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 5 on P4-D288 (MINOR).
+
+    WB4's new bound asked `>`, so `ySplit="1048576"` loaded -- and the
+    twin's own pane then came out `topLeftCell="A1048577"`, a reference
+    no spreadsheet has. The split's top-left cell is the row BELOW it,
+    so the largest split a sheet can spell is one row inside it.
+    """
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_frozen_book(dialect.SHEET_MAXIMUM_ROWS))
+    assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_FIVE) == 0
+    described = tmp_path / "table-profile.json"
+    held = _document(described)["source"]["workbook"]["frozen_rows"]
+    assert held == dialect.SHEET_MAXIMUM_ROWS - 1, held
+    assert _quiet(
+        ["generate", f"{described}", "--out-dir", f"{tmp_path}",
+         "--replace", "--seed", "0"]
+    )[0] == 0
+    twin = tmp_path / "table-twin.xlsx"
+    with zipfile.ZipFile(twin) as packed:
+        sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    assert f'topLeftCell="A{dialect.SHEET_MAXIMUM_ROWS}"' in sheet, sheet[:400]
+    assert f'topLeftCell="A{dialect.SHEET_MAXIMUM_ROWS + 1}"' not in sheet
+    again = tmp_path / "again"
+    again.mkdir()
+    for checked in (table, twin):
+        assert _quiet(
+            ["validate", f"{described}", "--twin", f"{checked}",
+             "--out-dir", f"{again}", "--replace"]
+        )[0] == 0, checked
+
+
+def test_the_loader_refuses_a_freeze_with_no_row_below_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """WB4 itself, at the value the reader can no longer produce.
+
+    The reader holds the pane one row inside the sheet, so this bound is
+    reached only by a description somebody edited -- which is exactly
+    what WB4 is for. A split of every row leaves no top-left cell, so
+    the split itself, and not only what is past it, is refused.
+    """
+    assert dialect.SHEET_MAXIMUM_ROWS == 1_048_576
+    assert workbook.MAXIMUM_ROWS == dialect.SHEET_MAXIMUM_ROWS
+    from synthtwin import contract
+    from tests import fixtures
+
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_frozen_book(200))
+    assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_FIVE) == 0
+    written = _document(tmp_path / "table-profile.json")
+    written["source"]["workbook"]["frozen_rows"] = dialect.SHEET_MAXIMUM_ROWS - 1
+    inside = tmp_path / "inside"
+    inside.mkdir()
+    contract.load_profile(
+        f"{fixtures.write_profile(inside, 'table-profile.json', written)}"
+    )
+    written["source"]["workbook"]["frozen_rows"] = dialect.SHEET_MAXIMUM_ROWS
+    past = tmp_path / "past"
+    past.mkdir()
+    with pytest.raises(errors.ProfileError) as stopped:
+        contract.load_profile(
+            f"{fixtures.write_profile(past, 'table-profile.json', written)}"
+        )
+    assert "WB4" in f"{stopped.value}", f"{stopped.value}"
+
+
+# -- what this pass measured and did NOT change ------------------------
+
+
+def _withheld_date_book() -> bytes:
+    """118 ISO date cells beside two texts: the census is withheld whole."""
+    rows = [
+        (
+            1,
+            [
+                workbooks.cell("A1", "seen_on", "inlineStr"),
+                workbooks.cell("B1", "site", "inlineStr"),
+            ],
+        )
+    ]
+    for index in range(120):
+        number = 2 + index
+        if index < 118:
+            first = workbooks.cell(
+                f"A{number}",
+                f"2024-{1 + index % 12:02d}-{1 + index % 28:02d}",
+                "d",
+                1,
+            )
+        else:
+            first = workbooks.cell(f"A{number}", "not recorded", "inlineStr")
+        rows += [
+            (
+                number,
+                [first, workbooks.cell(f"B{number}", f"s{index % 4}", "inlineStr")],
+            )
+        ]
+    return _book(rows, ["yyyy-mm-dd"], "A1:B121")
+
+
+def test_a_withheld_date_census_writes_a_twin_no_reader_opens(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 7 (MINOR): MEASURED HERE, NOT REPAIRED.
+
+    Where the cell-class census is withheld whole, a cell no count
+    claims takes the first withheld class its SPELLING fits, and
+    `dialect.sheet_class_fits` reads the date SHAPE alone -- so a
+    made-up `2006-06-32` fits the `date` class and is written `t="d"`.
+    Measured at a floor of eleven on 118 date cells beside two texts:
+    openpyxl raises `day is out of range for month` and cannot open the
+    twin AT ALL, while `synthtwin validate` returns 0 for the table and
+    0 for the twin.
+
+    THIS TEST RECORDS THE DEFECT RATHER THAN THE REPAIR, and says so
+    where a reader will meet it. It predates `c5d09d5` -- the twins the
+    two commits write are byte-identical -- and the repair is a
+    GENERATOR rule: `sheet_class_fits` is mirrored in the oracle as
+    `sheet_fits`, so narrowing the date class needs the mirror, a frozen
+    case that reaches the branch, a registered mutant that moves its
+    cells, and G14.3's own count of the cases. That is a landing.
+    MEASURED with the one-line narrowing applied to this tree: the twin
+    opens, its 118 cells are written as text, and `workbook.value-class`
+    is then MISSED -- the description asks for `date` and the file holds
+    `text` -- at exit 3 on the twin and 0 on the table. Both halves of
+    that trade are the owner's to take.
+    """
+    openpyxl = pytest.importorskip("openpyxl")
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_withheld_date_book())
+    assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_ELEVEN) == 0
+    described = tmp_path / "table-profile.json"
+    assert _quiet(
+        ["generate", f"{described}", "--out-dir", f"{tmp_path}",
+         "--replace", "--seed", "0"]
+    )[0] == 0
+    twin = tmp_path / "table-twin.xlsx"
+    with zipfile.ZipFile(twin) as packed:
+        sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    written = _dates_written(sheet)
+    assert len(written) == 118, len(written)
+    impossible = [
+        one for one in written if not dialect.sheet_class_fits("date", one)
+    ]
+    assert impossible == [], impossible
+    # ...and this is the part that is wrong: every one of them fits the
+    # SHAPE, and openpyxl still cannot read the file.
+    with pytest.raises(ValueError):
+        openpyxl.load_workbook(twin)
+
+
+def _dates_written(sheet: str) -> "list[str]":
+    """Every ISO date spelling the twin's sheet stores as a date cell."""
+    out: "list[str]" = []
+    for piece in sheet.split('t="d"'):
+        opened = piece.find("<v>")
+        if opened < 0 or piece.find("<c ") in range(opened):
+            continue
+        out += [piece[opened + 3 : piece.find("</v>", opened)]]
+    return out

@@ -1252,9 +1252,24 @@ def sheet_cells(
             # three thousand frozen rows -- which the loader then refused
             # as an edited description, so a real workbook's own
             # description would not load.
+            #
+            # AND A SPLIT THAT LEAVES NO ROW BELOW IT IS HELD ONE ROW
+            # INSIDE THE SHEET (the repair of the skeptic's finding 5 on
+            # P4-D288). `ySplit="1048576"` freezes every row a worksheet
+            # has, so the cell below the split is `A1048577` -- a
+            # reference no spreadsheet can spell. MEASURED on the tree
+            # before this line: the description published `frozen_rows
+            # 1048576`, the loader took it (WB4 asked `>` and not `>=`)
+            # and the twin's own pane came out `topLeftCell="A1048577"`,
+            # which openpyxl tolerates and no spreadsheet should be
+            # handed. The largest split a sheet can spell is one row
+            # inside it, and that is what such a pane is read as.
             state = _marked(marks, "state", "split")
             if state in ("frozen", "frozenSplit"):
-                walk.frozen = _whole_number(_marked(marks, "ySplit", "0"), 0)
+                asked = _whole_number(_marked(marks, "ySplit", "0"), 0)
+                walk.frozen = (
+                    MAXIMUM_ROWS - 1 if asked >= MAXIMUM_ROWS else asked
+                )
             return
         if local == "autoFilter":
             walk.filtered = _marked(marks, "ref", "")
@@ -2321,6 +2336,25 @@ def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":
     carry one the column is declined by name rather than twinned wrong
     (principle 5).
 
+    THE GENERAL FORMAT IS NOT ONE OF THE TWO, and counting it turned
+    away the commonest workbook there is (the repair of the skeptic's
+    finding 3 on this entry). `General` is what a cell wears when
+    NOBODY gave it a format, and a numeric column where somebody
+    formatted part of the range and left the rest alone is an ordinary
+    spreadsheet, not two populations a person chose. MEASURED at a floor
+    of five on 120 numeric cells, sixty carrying no style at all beside
+    sixty carrying `0.00`: this rule refused the file where `c5d09d5`
+    had described it and written a twin. It is also the code
+    `_leading_code` FALLS BACK to when nothing else reaches the line, so
+    counting it here could refuse a column on the strength of the very
+    answer the reader would otherwise have given. The mixed columns
+    Codex measured are untouched -- `0%` beside `0.0`, `#,##0.00` beside
+    `"$"#,##0.00`, `0%` beside `0.00%` are each still refused -- and the
+    part-formatted column is read again, publishing the one code
+    somebody did choose. What that column still loses is named in the
+    contract: sixty cells wearing no format are written wearing the
+    column's chosen one.
+
     Returns the column's index and `errors.MIXED_CODES`. Guarantees: a
     fixed function of the sheet and the floor; raises nothing. No I/O.
     """
@@ -2333,7 +2367,7 @@ def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":
             worn[code] = (worn[code] if code in worn else 0) + 1
         standing: "dict[str, int]" = {}
         for code in sorted(worn):
-            if worn[code] < line:
+            if worn[code] < line or code == GENERAL_FORMAT:
                 continue
             kind = format_kind(code)
             standing[kind] = (standing[kind] if kind in standing else 0) + 1

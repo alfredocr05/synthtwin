@@ -1271,6 +1271,24 @@ def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
     It names the delimiters, never a cell: which character separates the
     columns is a fact about the file, and the reading taken is the one
     the file would have had anyway (review item CODEX-4).
+
+    AND THE REASON IT GIVES IS THE REASON THE WALK USED (the repair of
+    the skeptic's finding 2 on P4-D282). This sentence said synthtwin
+    had taken "the reading under which more of the values read as
+    numbers", and that was true while a competitor had to agree about
+    the WIDTH to be reported at all -- `dialect.delimiter_reading` asks
+    the count of numbers only where the share AND the width tie. P4-D282
+    widened the competitor to any reading of the winner's own share, so
+    the sentence began to be printed about files the width alone
+    settled. MEASURED on the tree carrying P4-D282: a header
+    `id,note|tagA|tagB` over 120 rows `{i},alpha{i}|x{i}|y{i}` reads at
+    a share of 1.0 under both, two columns and 120 values read as
+    numbers under the comma, three columns and NOUGHT under the vertical
+    bar; the bar wins on the width, and the person was told it won
+    because more of the values read as numbers -- false by 120 to 0, in
+    the one sentence that tells them whether to override the reading.
+    The order is now stated as the walk has it: the wider reading, and
+    the count of numbers only between readings of one width.
     """
     others = ""
     for one in tied[1:]:
@@ -1289,8 +1307,10 @@ def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
         f"{others} -- and the two readings need not give your table the "
         f"same number of columns at all. Nothing in the values can say "
         f"which your file uses. synthtwin has read it with "
-        f"{dialect.DELIMITER_WORDS[tied[0]]}, the reading under which "
-        f"more of the values read as numbers. If that is not how your "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}, which is the reading that "
+        f"gives your table the most columns; where two readings give it "
+        f"the same number of columns, the one under which more of the "
+        f"values read as numbers is taken. If that is not how your "
         f"file is written, describe the table again with --delimiter, "
         f"or answer the question under 'about_your_file' in the "
         f"questions file this run writes: your column names, and every "

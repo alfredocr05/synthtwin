@@ -11343,7 +11343,7 @@ Ruling 6 of 2026-09-17 (P4-D222, CONFIRMED by the owner) counts a spelling below
 
 Ruling 8 of 2026-09-17 (P4-D232) was met only for the shapes the FURNITURE rule reaches. **Measured:** a headerless export of 240 records whose first record is `CASE-ZEBRA-471,Northfield Clinic 3,<0.10`, with a column of numbers beside it, published that record as the three column names. `<0.10` is not a number, so the numeric column read as EVIDENCE that the first row is names, and `reading._names_evidence` is asked BEFORE the furniture rule. The record's text stood in the description four times, in the plain summary six, in the twin's report four and verbatim as row two of the twin CSV and of the twin workbook; the description said 239 rows where the file holds 240; nothing was asked; and profile, generate and both validates exited 0. It happened with a title above, with a comment above, with two titles and with NOTHING above at all, so no rule that reads the FILE's shape can close it. `NULL`, `.`, `NA` and `pending` in that column do it as readily as `<0.10`.
 
-**The decision** (`reading._silhouette`, `reading._shape_is_structured`, `reading._shares_the_shape_below`, the FOURTH rule of `reading._record_evidence`). A value's silhouette is its runs of letters and of figures collapsed, every mark standing for itself: `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, `record_id` is `A_A` and `R001` is `A9`. Where every value below the first row in one column wears the same silhouette, that silhouette is STRUCTURED, and the first row's value wears it too, the row is a record and the file is read as one. **AMENDED BY P4-D280 (the files review of 2026-09-18): "every value below" is now "the commonest silhouette below, worn by two values or more"**, because one cell defeated the unanimous rule -- see that entry. It is asked with the three record rules and not with the names evidence, so it does not depend on furniture and does not disturb the ordering P4-D232 measured.
+**The decision** (`reading._silhouette`, `reading._shape_is_structured`, `reading._shares_the_shape_below`, the FOURTH rule of `reading._record_evidence`). A value's silhouette is its runs of letters and of figures collapsed, every mark standing for itself: `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, `record_id` is `A_A` and `R001` is `A9`. Where every value below the first row in one column wears the same silhouette, that silhouette is STRUCTURED, and the first row's value wears it too, the row is a record and the file is read as one. **AMENDED BY P4-D280 (the files review of 2026-09-18 and its repair pass): "every value below" is now "worn by two values or more below"**, because one cell defeated the unanimous rule -- see that entry. It is asked with the three record rules and not with the names evidence, so it does not depend on furniture and does not disturb the ordering P4-D232 measured.
 
 **STRUCTURED is two marks and something that is not a word, and both halves were set by witnesses the first writing turned red.** A run of letters beside a run of figures is what an ordinary header shares with its own column all the time -- `visit1` over `a1`, `region,2019` over `r1`, `B10` over `B01` are all `A9` over `A9`, and each is a headed table this package has read without a question since review item P1-R6-F6 -- so fewer than two marks says nothing. Letters and spaces alone say nothing either: `Full Name` over `John Smith` is `A A` over `A A`, and `First Middle Last` over `John Paul Jones` is `A A A`. A figure, or a mark that is not a space, is what makes the shape a structure.
 
@@ -15509,7 +15509,7 @@ owner's eight rulings of 2026-09-17; two of them are that ruling's own
 repair (P4-D280, P4-D281) and one takes ruling 6 for its threshold
 (P4-D283).
 
-### P4-D280 A record's layout is the commonest below it, not the unanimous one (BLOCKER)
+### P4-D280 A record's layout is one that recurs below it, not the unanimous one (BLOCKER)
 
 `reading._shares_the_shape_below`. P4-D241's fourth record rule
 required EVERY value below the first row to wear that row's silhouette.
@@ -15526,12 +15526,46 @@ rows long, no question asked and both files validating with nothing
 missed. `NA` in that cell does it as readily.
 
 **The decision.** The first row's silhouette must be structured and
-must be the COMMONEST silhouette among the non-empty values below it,
-worn by at least two of them. A minority layout and a missing-value
-word are counted and beaten rather than obeyed. This is the same
-arithmetic ruling 6 makes for a spelling under the floor: the commonest
-stands, the rest is absorbed. **After:** all three variants describe 240
-records under placeholder names and ask the question.
+must be worn by at least TWO of the non-empty values below it. A
+minority layout and a missing-value word are counted and beaten rather
+than obeyed. **After:** all three variants describe 240 records under
+placeholder names and ask the question.
+
+**AMENDED IN THE REPAIR PASS: the first writing also asked that the
+silhouette be the COMMONEST below, and that MOVED the threshold rather
+than removing it.** MEASURED on the tree carrying that writing, same 239
+records at a floor of eleven, varying only how many identifiers read
+`NA`: 119 is caught -- 240 records, `column_1` to `column_3`, no
+character of the record anywhere -- and 120 is not: 239 records, the
+whole record published as the three column names, nothing asked, and
+`generate --seed 4` writing the real record verbatim as the twin's
+header line. Two further shapes did it: all 239 identifiers in
+`CASE_ALPHA_1001` layout with the first record in the other, and a
+50/50 split of the two systems whichever way the parity fell. The
+`commonest` test is dropped: the count that matters is the count of rows
+wearing the FIRST ROW'S layout, and two of them say the first row is one
+of a population, however many wear another. **After the amendment:** the
+missing-value shape is caught at 118, 119, 120 and 200 alike and the
+50/50 split at either parity; the five header and first-row suites run
+173 passed. At 239 -- every identifier of the file reading `NA`, so that
+NO value below wears the first row's layout -- it is still read as
+names, which is the class the next paragraph names and leaves with the
+owner.
+
+**WHAT THIS RULE STILL CANNOT SEE, measured and left for the owner.** A
+first record whose layout NO row below repeats -- 239 identifiers
+`CASE_ALPHA_1001` under the one record `CASE-ZEBRA-471` -- wears a
+structured silhouette worn by nought below it, and the rule is silent:
+that record is published as the three column names, 239 rows described
+where the file holds 240. The obvious widening is to read ANY structured
+silhouette recurring below as the evidence, and it has its own cost.
+MEASURED with exactly that widening applied to this tree: the header
+`id,measure|low|high` of P4-D282's own witness -- `A|A|A` over `9|9|9`,
+both structured -- loses its real column names to placeholders, and
+`test_the_declared_comma_reads_the_baseline_columns` turns red (172
+passed, 1 failed across the same five suites plus this landing's). So it
+is a SECOND rule with its own false-positive surface, not a widening of
+this one, and it is the owner's to rule on.
 
 ### P4-D281 A frozen pane is not evidence about which row holds the names (BLOCKER)
 
@@ -15585,6 +15619,25 @@ quoted-comma table and a comma table whose cells hold bars record no
 competitor at all — every other candidate fails to reach two fields,
 which `_best_reading` already rejects.
 
+**AMENDED IN THE REPAIR PASS: the tie notice's REASON was true only
+while a competitor had to agree about the width.** `cli.
+_delimiter_tie_notice` told the person synthtwin had taken "the reading
+under which more of the values read as numbers", and
+`dialect.delimiter_reading` asks the count of numbers only where the
+share AND the width tie -- so widening the competitor to any reading of
+the winner's share began printing that sentence about files the WIDTH
+settled. MEASURED on the tree carrying the widening: a header
+`id,note|tagA|tagB` over 120 rows `{i},alpha{i}|x{i}|y{i}` reads at a
+share of 1.0 under both, two columns with 120 values read as numbers
+under the comma and three columns with NOUGHT under the vertical bar;
+the bar wins on the width and the person was told it won for the
+numbers -- false by 120 to 0, in the one sentence that tells them
+whether to override the reading. The sentence now states the walk's own
+order: the reading that gives the table the most columns, and the count
+of numbers only between readings of one width. The two published
+sentences are `cli._delimiter_tie_notice` and
+`asking._delimiter_questions`; only the first carried the reason.
+
 ### P4-D283 A column wearing two number formats of one kind is refused (MAJOR)
 
 `workbook.mixed_number_formats`, `errors.MIXED_CODES`. P4-D164 publishes
@@ -15610,6 +15663,22 @@ counted into the column's commonest code exactly as a rare spelling is.
 **Measured, floor 5, 120 cells:** 1 and 4 cells of the second code are
 read and published as `0%`; 5 and 60 are refused. The refusal names the
 column and never a code, because a custom code can hold somebody's text.
+
+**AMENDED IN THE REPAIR PASS: the general format is not one of the two,
+and counting it turned away the commonest workbook there is.** `General`
+is what a cell wears when NOBODY gave it a format, and it is also the
+code `_leading_code` FALLS BACK to when nothing else reaches the line.
+MEASURED at a floor of five on 120 numeric cells, sixty carrying no
+style at all beside sixty carrying `0.00`: the first writing of this
+rule exited 1 where `c5d09d5` exited 0 and wrote a twin -- and a numeric
+column somebody formatted part of the range of is an ordinary
+spreadsheet, not two populations a person chose. The general format is
+skipped when counting the codes that stand. **After:** that column is
+read at exit 0, publishing `0.00`, and its twin wears `0.00` on all 120
+cells, which is what such a column loses here and is exactly what
+`c5d09d5` did with it. The mixed columns Codex measured are untouched: `0%`
+beside `0.0`, `#,##0.00` beside `"$"#,##0.00`, and `0%` beside `0.00%`
+are each still refused at exit 1, naming the column and no code.
 
 ### P4-D284 A cell's storage class is settled before its date is converted (MAJOR)
 
@@ -15680,6 +15749,22 @@ cap nor the archive caps bound it. **The decision:** the walk stops at
 than 32 characters — `XFD1048576` is ten — is refused as the column
 past the last that it is. **After:** 0.000 seconds at all three sizes.
 
+**AMENDED IN THE REPAIR PASS: the length cap was the one rule of this
+landing no test pinned, and it is not redundant.** Withdrawn, all 31
+tests of the landing stayed green. `reference_column`'s own bound reads
+LETTERS; the cap reads the whole reference, and what it stands in front
+of is `reference_row`, which gathers every FIGURE of the reference and
+calls `int` on them. MEASURED: `reference_row("A" + "9" * 100_000)`
+raises `ValueError` -- CPython refuses an integer conversion past 4,300
+figures -- which is an escape and not a refusal. MEASURED end to end at
+the cap's own boundary: a reference of 32 characters is read by the
+ordinary path and refused for its ROW (`past row 1048576`), and one of
+33 is stopped at the `<c>` element and refused for its COLUMN (`past
+column 16384`); with the cap withdrawn, the 33-character and
+5,000-figure references are refused instead as a cell holding more than
+32,767 characters of text, which is a sentence about a cell holding `1`.
+The boundary and the escape are both now tests.
+
 ### P4-D288 A freeze is bounded by the worksheet, not by the table (MAJOR)
 
 `contract` WB4, `dialect.SHEET_MAXIMUM_ROWS`. WB4 held `frozen_rows` to
@@ -15694,6 +15779,23 @@ failure for ever. **The decision:** the bound is Excel's own last row,
 layout. **After:** generate and validate both exit 0. The limit moves to
 `dialect` because the loader asks it and the loader may not import the
 reader.
+
+**AMENDED IN THE REPAIR PASS: the bound admitted a freeze the twin then
+wrote as a cell no worksheet has.** WB4 asked `>`, so `ySplit="1048576"`
+-- a freeze of every row a worksheet has -- loaded. MEASURED on the tree
+carrying that bound: profile exits 0 publishing `frozen_rows 1048576`,
+generate exits 0, and the twin's own pane comes out `<pane
+ySplit="1048576" topLeftCell="A1048577" .../>`. The split's top-left
+cell is the row BELOW it, so a freeze of every row spells a reference
+one row past the sheet; openpyxl tolerates it and both validates return
+0, and the twin is still not a layout a spreadsheet can spell. **The
+decision, in two halves.** The READER holds such a pane one row inside
+the sheet (`workbook.sheet_cells`), so no description synthtwin writes
+reaches the bound at all; WB4 asks `>=`, so a description somebody
+edited to claim it is refused, which is what WB4 is for. **After:**
+`ySplit="1048576"` publishes `frozen_rows 1048575`, the twin's pane
+spells `topLeftCell="A1048576"`, and profile, generate and both
+validates exit 0; `ySplit="200"` and `ySplit="1048575"` are unmoved.
 
 ### P4-D289 A package this reader cannot expand is refused in words (MINOR)
 
@@ -15714,3 +15816,43 @@ Nothing in this round required reversing one of the owner's eight
 rulings, so nothing is left for the owner on that ground. The one item
 whose full repair is deferred is P4-D283's census of format codes,
 which is named there with what it would cost.
+
+**The repair pass adds two more, both measured on this tree.**
+
+**(1) AN AUTOFILTER IS NOW THE ONLY DOOR LEFT, and narrowing it would
+reverse P4-D232 rather than implement it.** P4-D281 took the frozen pane
+out of the waiver; the autofilter clause (5a) stands, and it is enough
+on its own. MEASURED at a floor of five on the very sheet P4-D281 was
+written for -- `Study overview` in `A1`, two texts in `A2`/`B2`, 120
+records of text pairs below -- with the pane replaced by `<autoFilter
+ref="A2:B122"/>`: 120 records described where the sheet holds 121, both
+of row 2's values published as the column names, `header_source file`,
+and their text in the description. Without the filter: 121 records under
+`column_1`/`column_2` and neither value anywhere. This is NOT a
+regression of this landing -- `c5d09d5` does the same -- and the
+argument P4-D281 makes against the pane ("it falls where the person
+dragged it") applies to a filter dragged over a headerless selection
+too. It is put to the owner as a ruling-8 question, because narrowing
+the last waiver is a decision and not a repair.
+
+**(2) A WITHHELD DATE CENSUS WRITES A TWIN NO READER CAN OPEN.** Where
+the cell-class census is withheld whole, a cell no count claims takes
+the first withheld class its SPELLING fits, and
+`dialect.sheet_class_fits` reads the date SHAPE alone -- `2006-06-32`
+fits. MEASURED at a floor of eleven on 118 `t="d"` cells wearing
+`yyyy-mm-dd` beside two texts: the role is free text, the twin's 118
+date cells hold `2006-06-32`, `8204-84-03` and `2106-36-14`, openpyxl
+raises `day is out of range for month` and cannot open the twin AT ALL,
+and `synthtwin validate` returns 0 for the table and 0 for the twin. It
+predates `c5d09d5` -- the twins the two commits write are byte-identical
+-- and it is recorded as a test that states the defect it stands over
+(`test_a_withheld_date_census_writes_a_twin_no_reader_opens`). It is NOT
+repaired here because `sheet_class_fits` is a GENERATOR rule mirrored in
+the oracle as `sheet_fits`: narrowing the date class to a day of the
+calendar needs the mirror, a frozen case that reaches the branch, a
+registered mutant that moves its cells, and G14.3's own count of the
+cases -- a landing. MEASURED with the one-line narrowing applied to this
+tree: the twin opens, its 118 cells are written as text, and
+`workbook.value-class` is then MISSED -- the description asks for `date`
+and the file holds `text` -- at exit 3 on the twin and 0 on the table.
+Both halves of that trade are the owner's to take.

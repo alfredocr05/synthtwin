@@ -696,14 +696,15 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     that the row is NAMES. The row's own first field is what tells it:
     every value below it in that column is `A-A-9` and so is it.
 
-    THE COLUMN HAS TO SPEAK WITH ONE VOICE, AND ONE VOICE IS NOT ONE
-    SPELLING (plan P4-D280, the repair of review item 1 of the files
-    review of 2026-09-18). The first row's silhouette must be structured
-    (`_shape_is_structured` above) and it must be the COMMONEST
-    silhouette of the values below it, worn by at least two of them. A
-    column of words under a name of words says nothing here, and neither
-    does `record_id` over `R001` -- `A_A` is not `A9` -- which is what
-    keeps this rule off the ordinary headed export.
+    A LAYOUT RECURRING BELOW IS THE EVIDENCE, AND IT DOES NOT HAVE TO BE
+    THE COMMONEST ONE (plan P4-D280, the repair of review item 1 of the
+    files review of 2026-09-18 and of the skeptic's finding 1 on that
+    repair). The first row's silhouette must be structured
+    (`_shape_is_structured` above) and must be worn by at least TWO of
+    the non-empty values below it. A column of words under a name of
+    words says nothing here, and neither does `record_id` over `R001`
+    -- `A_A` is not `A9` -- which is what keeps this rule off the
+    ordinary headed export.
 
     IT USED TO DEMAND EVERY VALUE BELOW, AND ONE CELL DEFEATED IT.
     Measured on the tree before this rule, at a floor of eleven: the 240
@@ -714,11 +715,34 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     seventh ruling says a file may hold -- or as `NA`, left the shape
     unanimous no longer, this rule silent, and the whole record
     published as the three column names with the table 239 rows long.
-    A record number is not unspelled by the one row that wears another
-    layout or holds no value at all, so the minority is counted and
-    beaten rather than obeyed. It is the same arithmetic the owner's
-    sixth ruling makes for a spelling under the floor: the commonest
-    stands and the rest is absorbed.
+
+    AND COUNTING THE MINORITY WAS NOT ENOUGH EITHER: IT MOVED THE
+    THRESHOLD RATHER THAN REMOVING IT. The first writing of this repair
+    also asked that the first row's silhouette be the COMMONEST below
+    it. MEASURED on the tree carrying that writing, same 239 records at
+    a floor of eleven, varying only how many identifiers read `NA`: 119
+    of them is caught -- 240 records, `column_1` to `column_3`, nothing
+    of the record anywhere -- and 120 is not: 239 records, the whole
+    record published as the three column names, nothing asked, and the
+    twin's own header line the real record verbatim. A record number is
+    not unspelled by the rows that wear another layout or hold no value
+    at all, however many of them there are, so the count that matters
+    is the count of rows wearing the FIRST ROW'S layout and nothing
+    else: two of them say the first row is one of a population.
+
+    WHAT THIS RULE STILL CANNOT SEE, measured and left for the owner. A
+    first record whose layout NO row below repeats -- 239 identifiers
+    written `CASE_ALPHA_1001` under the one record `CASE-ZEBRA-471` --
+    wears a structured silhouette worn by nought below it, and this
+    rule is silent: the same 239 records publish that record as the
+    three column names. Reading any structured silhouette recurring
+    below as the evidence would catch it and would also catch an
+    ordinary headed export whose header is structured in another
+    layout: MEASURED, `Street Address, Line 1` over 40 addresses such
+    as `12 Oak St, Apt 3` is `A A, A 9` over `9 A A, A 9`, both
+    structured, and the file loses its real column names to
+    placeholders. That is a second rule with its own cost, not a widening
+    of this one, and P4-D280 puts it to the owner.
 
     Guarantees: accepts the first row's value in one column and the
     values below it; returns a bool. Determinism: a fixed function of
@@ -735,12 +759,7 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
         shape = _silhouette(text)
         worn[shape] = (worn[shape] if shape in worn else 0) + 1
     seen = worn[mine] if mine in worn else 0
-    if seen < 2:
-        return False
-    for shape in sorted(worn):
-        if worn[shape] > seen:
-            return False
-    return True
+    return seen >= 2
 
 
 def _record_evidence(
@@ -794,8 +813,8 @@ def _record_evidence(
             return (
                 f"in column {index + 1} the value in that row is written "
                 f"to the same pattern of letters, figures and marks as "
-                f"every value below it, which is what a record in that "
-                f"column looks like"
+                f"values written below it in that column, which is what "
+                f"a record in that column looks like"
             )
     return None
 

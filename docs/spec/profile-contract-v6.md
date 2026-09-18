@@ -714,11 +714,18 @@ that EVERY value below the first row wear that silhouette; so writing
 one identifier of 239 in a second system's layout, which the owner's
 seventh ruling says a file may hold, or leaving it `NA`, left the rule
 silent and published the whole first record as the column names with
-the table one row short. The first row's silhouette must now be the
-COMMONEST below it, worn by two values or more, and a minority layout
-or a missing-value word is counted and beaten rather than obeyed — the
-same arithmetic the owner's sixth ruling makes for a spelling under the
-floor (plan P4-D280). The third shape is waived only by an autofilter
+the table one row short. The first row's silhouette must now be worn by
+TWO or more of the non-empty values below it, and a minority layout or a
+missing-value word is counted and beaten rather than obeyed. Asking that
+it be the COMMONEST below moved the threshold rather than removing it:
+measured at a floor of eleven on the same 239 records, 119 identifiers
+reading `NA` was caught and 120 was not, and at 120 the whole record was
+published as the three column names with nothing asked (plan P4-D280).
+Two rows wearing the first row's layout say it is one of a population,
+however many wear another. A first record whose layout NO row below
+repeats is still read as names, and widening the rule to any structured
+silhouette recurring below costs an ordinary headed table its real
+names; that is left with the owner. The third shape is waived only by an autofilter
 whose range begins at the header row, and never by a frozen pane (plan
 P4-D281): a freeze says where the scrolling stops, it falls where the
 person dragged it, and counting it turned a `<pane ySplit="2"/>` on an
@@ -893,7 +900,7 @@ rule and what it does and does not withhold on a workbook.
 | `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
 | `defined_table` | boolean | — | the sheet carries a defined table |
 | `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the disclosure rule held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held exactly as a census is (WB3, plan P4-D164): published where it is every record or reaches the line at both ends, and `null` otherwise -- a nought included, so that a withheld count is never told from a real nought |
-| `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet, bounded by the worksheet's own last row and never by the rows the table fills (WB4, plan P4-D288). A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D169). **A freeze is not evidence about which row holds the NAMES** (plan P4-D281): the reader waives the first-row question of the owner's ruling 8 only for an autofilter whose range BEGINS at the header row, because a freeze is a viewing convenience that falls where the person dragged it, and counting it published a row that ruling 8 protects as the column names |
+| `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet, bounded by the worksheet's own last row and never by the rows the table fills (WB4, plan P4-D288). The split is held ONE ROW INSIDE that last row, because the split's top-left cell is the row below it: a pane freezing every row of the sheet spells `A1048577`, which no spreadsheet has, so the reader reads such a pane as the largest split a sheet can spell and WB4 refuses a description claiming more. A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D169). **A freeze is not evidence about which row holds the NAMES** (plan P4-D281): the reader waives the first-row question of the owner's ruling 8 only for an autofilter whose range BEGINS at the header row, because a freeze is a viewing convenience that falls where the person dragged it, and counting it published a row that ruling 8 protects as the column names |
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
 | `rows_above_header` | integer | ≥ 0 | rows standing above the header — a title, a merged banner, a note, and the blank rows between. The header is the first row of content holding two cells or more, or the one row a table one column wide begins with, or the written row index (one cell short, missing its first); a title above a table holds one. Where rows of one cell stand above that header and the sheet neither freezes its panes nor starts its autofilter at the header row, each is asked what a delimited file's line of one field is asked (`dialect.lone_field_leads_a_table`, plan P4-D186, which withdraws P4-D174's question): a cell of text that is empty, holds a space or begins with `#` is furniture and counted here, never published as text, and the first such row that is not -- one word, one number -- holds the names, which then meet the same first-row question a delimited header does; `--first-row names` puts the names on the first row of content (plan P4-D174). `0` where the person declared with `--first-row data` that every row is a record (plan P4-D165) |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
@@ -917,7 +924,8 @@ published as the source wrote it (plan P4-D189, WB6) -- `00000` and
 code AMONG THE CELLS HOLDING A VALUE where that code is worn by the line,
 else the canonical code of the commonest kind among them where that kind
 is worn by the line, else the general format (plan P4-D164). **A column
-whose value-holding cells wear TWO codes of one kind, each worn by the
+whose value-holding cells wear TWO codes of one kind, neither of them the
+general format, each worn by the
 line, is REFUSED rather than described** (`workbook.mixed_number_formats`,
 plan P4-D283), for the reason `mixed_storage` refuses a mix of kinds one
 level up: the column carries one code here, so the twin would put the
@@ -927,7 +935,15 @@ cells, sixty written `0%` and sixty `0.0`: the description published
 missed while sixty values a person reads as `0.5` read as `50%` off the
 twin. A code worn by FEWER cells than the line is not a second
 population and is counted into the commonest, which is the owner's sixth
-ruling of 2026-09-17. Publishing a census of codes is the repair that
+ruling of 2026-09-17. NEITHER IS THE GENERAL FORMAT A SECOND POPULATION:
+it is what a cell wears when nobody gave it a format, and it is also the
+code this rule falls back to when nothing else reaches the line, so a
+column somebody formatted part of the range of is read rather than
+refused. Measured at a floor of five on 120 numeric cells, sixty
+carrying no style at all beside sixty carrying `0.00`: read at exit 0,
+publishing `0.00`, and its twin wears `0.00` on all 120 cells -- which is
+what such a column loses here, and is what `c5d09d5` did with it.
+Publishing a census of codes is the repair that
 would keep such a column; until a description can carry one, the column
 is declined by name (principle 5). `cell_classes`
 counts the class of every cell of that column, over the closed set
