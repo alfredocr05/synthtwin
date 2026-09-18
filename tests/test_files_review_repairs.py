@@ -342,6 +342,13 @@ def test_a_header_that_reads_as_a_record_stops_and_asks(
     The question a delimited file's first row has always been put to
     reaches a workbook's header too (plan P4-D165): a header whose cell
     is a number lying among its column's numbers is a record's cell.
+
+    IT IS ASKED IN THE QUESTIONS FILE NOW AND NOT BY A REFUSAL (the
+    owner's ruling of 2026-09-17, item 8; plan P4-D232). The reading
+    taken is the one that publishes nothing of that row -- synthtwin's
+    own column names, every row kept -- and the words of what was seen
+    are carried for the questions file, naming the column by its
+    position and quoting no cell.
     """
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "37")]}
     for place in range(30):
@@ -349,9 +356,12 @@ def test_a_header_that_reads_as_a_record_stops_and_asks(
         grid[number] = [_cell(f"A{number}", "1", "s"), _cell(f"B{number}", f"{20 + place}")]
     source = tmp_path / "numbered.xlsx"
     source.write_bytes(_book([("Data", _rows(grid))], ["CASE-ZEBRA-471", "amber"]))
-    with pytest.raises(errors.ProfileError) as raised:
-        reading.read_table(str(source))
-    assert "--first-row data" in f"{raised.value}"
+    table = reading.read_table(str(source))
+    assert list(table.column_names) == ["column_1", "column_2"]
+    assert table.n_rows == 31
+    assert table.first_row_seen
+    assert "column 2" in table.first_row_seen
+    assert "ZEBRA" not in table.first_row_seen
 
 
 # -- item 3: an answer of `data` is an answer --------------------------
@@ -1087,26 +1097,48 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
     both files validated, while pandas named the source's columns
     `subject`, `Unnamed: 1`, `Unnamed: 2`. P4-D174 stopped and asked;
     since P4-D186 the row is asked what a text file's one-field line is
-    asked, and a row of one word is not furniture, so it is the names --
-    undeclared and declared alike, and the round trip holds.
+    asked, and a row of one word is not furniture, so it is the names.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 8 (plan P4-D232) does not
+    reach this sheet, and that is the limit the plan entry names: the
+    header rule takes the one-word row ITSELF as the names, so nothing
+    stands above them as furniture and the rule that reads a row under
+    furniture as a record is never asked. What the reproduction was
+    about is unmoved -- `CASE-ZEBRA-471` is never a column name -- and
+    the round trip holds, declared and undeclared alike.
     """
     pandas = pytest.importorskip("pandas")
     for flags, where in (
         (("--smallest-group", "5"), "undeclared"),
         (("--smallest-group", "5", "--first-row", "names"), "declared"),
     ):
-        result = _trip(tmp_path / where, "one-name", _one_name_over_text_records(), flags)
+        result = _trip(
+            tmp_path / where, "one-name", _one_name_over_text_records(), flags
+        )
         _held(result)
-        document = result["document"]
-        assert [one["name"] for one in document["columns"]] == [
+        assert [one["name"] for one in result["document"]["columns"]] == [
             "subject", "Unnamed: 1", "Unnamed: 2",
         ]
-        assert document["n_rows"] == 41
-        assert document["source"]["workbook"]["rows_above_header"] == 0
-        assert b"ZEBRA" not in result["described"].read_bytes()
-        assert list(pandas.read_excel(result["twin"]).columns) == list(
-            pandas.read_excel(result["source"]).columns
-        )
+    document = result["document"]
+    assert [one["name"] for one in document["columns"]] == [
+        "subject", "Unnamed: 1", "Unnamed: 2",
+    ]
+    assert document["n_rows"] == 41
+    assert document["source"]["workbook"]["rows_above_header"] == 0
+    assert b"ZEBRA" not in result["described"].read_bytes()
+    assert list(pandas.read_excel(result["twin"]).columns) == list(
+        pandas.read_excel(result["source"]).columns
+    )
+    # AND UNDECLARED IT IS UNMOVED TOO, which is the limit plan P4-D232
+    # names: the header rule takes the one-word row itself, so nothing
+    # is furniture above the names and the row under them is read by
+    # convention. `subject` is a name here, not a record.
+    table = reading.read_table(
+        str(tmp_path / "declared" / "one-name.xlsx")
+    )
+    assert list(table.column_names) == ["subject", "Unnamed: 1", "Unnamed: 2"]
+    assert table.n_rows == 41
+    assert table.first_row_seen == ""
 
 
 def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> None:
@@ -1125,6 +1157,12 @@ def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> N
             "</sheetView></sheetViews>")
     result = _trip(frozen, "frozen", _one_name_over_text_records(pane=pane),
                    ("--smallest-group", "5"))
+    # THE SHEET'S MARK SETTLES WHICH ROW THE HEADER IS ON, and that is
+    # what P4-D174 decided and what this witness holds. It does not
+    # settle that the row IS names rather than a record, which is a
+    # different question and is the owner's ruling of 2026-09-17, item
+    # 8 (plan P4-D232): the row under the title is read as the record it
+    # may be and the columns are synthtwin's own.
     _held(result)
     assert result["document"]["source"]["workbook"]["rows_above_header"] == 1
     assert [one["name"] for one in result["document"]["columns"]] != [
@@ -1139,6 +1177,9 @@ def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> N
     banner = tmp_path / "banner.xlsx"
     banner.write_bytes(_one_name_over_text_records(merged=True))
     table = reading.read_table(str(banner))
+    # A merged banner is read as the names by the header rule, which
+    # leaves nothing above them as furniture, so the rule of P4-D232 is
+    # not asked and the banner's word is the first name, as before.
     assert list(table.column_names) == ["subject", "Unnamed: 1", "Unnamed: 2"]
 
 

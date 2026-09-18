@@ -2432,6 +2432,55 @@ def prefix_nameable(carrying: int, present: int, floor: int) -> bool:
     return census_nameable([carrying], [present], floor)
 
 
+def pool_names_a_level(levels: int, rows: int) -> bool:
+    """Whether the published pool gives away a count of ONE.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan P4-D231, contract
+    invariant B4b): a label column's lone row that could be read by
+    subtraction is counted as missing, so that no count of one can be
+    derived. A label column publishes how many levels the floor held
+    back and how many rows they cover TOGETHER, and no size of any one
+    of them (P4-D201). Where that pair is ONE level over ONE row it is a
+    count of one outright: 480 `F`, 519 `M` and one `U` at a floor of
+    eleven said that one row holds a third value, and `n_present` less
+    the published counts reads the one even with both keys left out
+    (invariant B3). One row is one person.
+
+    Where this answers True the cells of every held-back level are
+    counted as MISSING instead, so the description is that of the table
+    with those cells blank and the pool is nought.
+
+    TWO WIDER READINGS WERE BUILT AND MEASURED BEFORE THIS ONE, and each
+    is recorded here because the next reader will reach for them (plan
+    P4-D231 puts both to the owner).
+
+    (a) *A pool of one LEVEL, whatever its size.* One level over seven
+    rows publishes that level's own count by subtraction, and seven is
+    below the floor, so it is a count the floor exists to refuse. Its
+    reach is wide because the shape is common: on the full suite it
+    moved 53 witnesses, among them every column whose one rare value is
+    counted out -- a `constant` column of four cells below the floor
+    becomes an EMPTY column, and a column of 98 readings beside two
+    `trace` cells becomes a column of numbers with two holes.
+
+    (b) *A pool that does not reach `census_floor`.* That is the one
+    disclosure rule asked of the subtraction, and it empties the
+    held-back machinery P4-D201 built wherever the floor is high: on the
+    full suite, 66 witnesses, three frozen cases unwritable, and the
+    rare VALUES of every small column at a raised floor turned into
+    holes. A pool of ten rows over four levels says nothing about any
+    one of them.
+
+    Neither is built. The ruling names a lone row and a count of one,
+    and this is that question and no wider one.
+
+    Guarantees: accepts how many levels were held back and how many rows
+    they cover; returns a bool. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    return levels == 1 and rows == 1
+
+
 # What one cell says about the comma inside it.
 COMMA_NONE = "no-comma"
 COMMA_GROUPED = "proves-a-thousands-separator"

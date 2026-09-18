@@ -120,10 +120,16 @@ def test_empty_column_name_is_named_and_written_back(
     assert [(entry.position, entry.text) for entry in written] == [(2, "")]
 
 
-def test_a_file_with_no_header_is_refused(tmp_path: pathlib.Path) -> None:
-    with pytest.raises(errors.ProfileError) as caught:
-        _read(tmp_path, "1,2\n3,4\n")
-    assert "does not look like column names" in f"{caught.value}"
+def test_a_file_with_no_header_names_its_own_columns(
+    tmp_path: pathlib.Path,
+) -> None:
+    # Refused until the owner's ruling of 2026-09-17, item 8 (plan
+    # P4-D232). A first row whose every value reads as a number is a
+    # record, so it is kept as one and the columns are synthtwin's own.
+    table = _read(tmp_path, "1,2\n3,4\n")
+    assert table.column_names == ["column_1", "column_2"]
+    assert table.n_rows == 2
+    assert table.header_source == reading.HEADER_GENERATED
 
 
 def test_a_header_with_one_word_is_accepted(tmp_path: pathlib.Path) -> None:

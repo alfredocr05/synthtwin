@@ -369,9 +369,10 @@ def _header_lines(profile: contract.Profile) -> "list[str]":
     else:
         lines = [
             "The twin has no line of column names, because the description",
-            "says your table's file had none and synthtwin made the names up",
-            "(column_1, column_2, and so on). The names are in the",
-            "description, and the twin's columns are in the same order.",
+            "says the names were made up (column_1, column_2, and so on).",
+            "The names are in the description, and the twin's columns are",
+            "in the same order. The description gives the reason in these",
+            f"words: {_shown(source.header_evidence)}",
         ]
     if source.header_by_convention:
         lines += [

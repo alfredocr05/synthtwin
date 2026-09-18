@@ -259,62 +259,17 @@ def no_data_rows(path: str) -> str:
     )
 
 
-def header_looks_like_data(path: str, reason: str) -> str:
-    """Message for a first row that does not look like column names."""
-    return (
-        f"The first row of {path} does not look like column names: "
-        f"{_shown(reason)}. synthtwin needs the first row to be the names of "
-        f"the columns. Add a first row with a name for every column, "
-        f"then run the command again. If that row is the first record "
-        f"and the table has no column names at all, run the command "
-        f"again with --first-row data: synthtwin will name the columns "
-        f"column_1, column_2, and so on and keep every record."
-    )
-
-
-def first_row_could_be_a_record(
-    path: str, columns: int, found: str = ""
-) -> str:
-    """Message for a first row the file shows could be a record.
-
-    ``found`` is what the reader actually found, in words, naming the
-    column by its POSITION -- one of the clauses `reading` builds. Left
-    out, the message states only the general shape of the trouble, which
-    is what a caller with no detail to hand can honestly say.
-
-    The wording says exactly what was found and nothing more. The
-    version this replaces claimed that "none of them stands out as a
-    name, and at least one has exactly the shape every other value in
-    its column has". Neither half was what the reader had checked: the
-    first is a claim no test can support, because nothing about a value
-    makes it a name, and the second could be false of every column in
-    the file while the refusal was raised for a different reason
-    entirely (review item P1-R6-F6).
-
-    The message deliberately quotes nothing from the row, and nothing
-    from below it. If the row is a record, printing it would print
-    somebody's data to the screen in order to ask a question about it,
-    and in an unsettled file the "column name" IS that row.
-    """
-    stated = (
-        _shown(found)
-        if found
-        else (
-            "at least one value in that row belongs among the values of "
-            "the column below it"
-        )
-    )
-    return (
-        f"synthtwin cannot tell whether the first row of {path} holds "
-        f"the names of the {columns} columns or the first record of the "
-        f"table, because {stated}. Guessing would either drop a whole "
-        f"record from the description or publish a record as if it were "
-        f"a set of column names, so synthtwin stops instead. Please run "
-        f"the command again with --first-row names if that row holds the "
-        f"column names, or with --first-row data if it is the first "
-        f"record. With --first-row data the columns are named column_1, "
-        f"column_2, and so on, and every record is kept."
-    )
+# WHERE THE TWO FIRST-ROW REFUSALS WENT (the owner's ruling of
+# 2026-09-17, item 8; plan P4-D232). `header_looks_like_data` and
+# `first_row_could_be_a_record` stood here. A first row that reads as a
+# record no longer stops the run and asks on the screen: the columns are
+# named `column_1`, `column_2` and so on, every row of the file is kept,
+# no text of that row is published anywhere, and the question is put in
+# the questions file, where `--first-row names` is the answer that takes
+# the other reading. So there is nothing left for either message to say,
+# and a message no code path raises is what `tests/test_failure_catalog.py`
+# exists to refuse. The words the reader found are not lost: they are the
+# questions file's account of what was SEEN (`reading._record_evidence`).
 
 
 def readers_disagree_about_a_name(

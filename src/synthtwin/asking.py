@@ -153,6 +153,19 @@ ANSWER_DELIMITERS = {
     "vertical-bar": "|",
 }
 
+# THE SEVENTH DECLARATION, AND THE THIRD ABOUT THE FILE (the owner's
+# ruling of 2026-09-17, item 8; plan P4-D232): which row the column
+# names are in, asked wherever the first row could not be told from a
+# record of the table. The reading that stands where nobody answers is
+# that the row is a RECORD -- the columns are named `column_1`,
+# `column_2` and so on and every row is kept -- because that reading
+# publishes no text of a row that may be somebody's data, and the other
+# publishes all of it.
+FIRST_ROW_SUBJECT = "which row your column names are in"
+BECAUSE_FIRST_ROW_UNTOLD = "first-row-not-told-from-a-record"
+ANSWER_FIRST_ROW_NAMES = "names"
+ANSWER_FIRST_ROW_DATA = "first-record"
+
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
 BECAUSE_PADDED = "padded"
@@ -826,20 +839,85 @@ def file_questions(
     metadata_shape: bool,
     declared_unseen: int = 0,
     tied_delimiters: "tuple[str, ...]" = (),
+    first_row_seen: str = "",
 ) -> "list[Question]":
     """The questions about the FILE rather than about a column.
 
-    Two subjects: the rows under the column names (`_metadata_questions`)
-    and, where the file reads equally well under more than one
-    delimiter, which one it is written with (`_delimiter_questions`,
-    plan P4-D110). In that order, which is the order a file is read in.
+    Three subjects: which row the column names are in
+    (`_first_row_questions`, the owner's ruling of 2026-09-17 item 8,
+    plan P4-D232), the rows under the column names
+    (`_metadata_questions`) and, where the file reads equally well under
+    more than one delimiter, which one it is written with
+    (`_delimiter_questions`, plan P4-D110). In that order, which is the
+    order a file is read in: which row the names are in is settled
+    before anything under it can be described.
 
     Guarantees: a fixed function of the arguments; opens nothing; and
     carries no value of the table.
     """
-    return _metadata_questions(
-        metadata_shape, declared_unseen
-    ) + _delimiter_questions(tied_delimiters)
+    return (
+        _first_row_questions(first_row_seen)
+        + _metadata_questions(metadata_shape, declared_unseen)
+        + _delimiter_questions(tied_delimiters)
+    )
+
+
+def _first_row_questions(seen: str) -> "list[Question]":
+    """Which row the column names are in, where the file cannot say.
+
+    THE QUESTION A FILE CANNOT ANSWER (the owner's ruling of 2026-09-17,
+    item 8; plan P4-D232). A row of text above a table is the column
+    names as often as it is the first record, and where the values below
+    it mark it as a record -- or where a title stands above it, so that
+    a headerless table and a headed one are the same bytes up to that
+    row -- nothing in the file settles which. synthtwin takes the
+    reading that publishes nothing of it: the columns are named
+    `column_1`, `column_2` and so on and every row is kept, including
+    that one. The other reading is a declaration, and this is where it
+    is offered.
+
+    WHAT IT SAYS WAS SEEN IS A FACT ABOUT THE FILE'S SHAPE, never a
+    cell: a value in that row reads as a number, a value in it belongs
+    among the values below it, or a line that is not a record stands
+    above it. The row's own text is exactly what the standing reading
+    withholds, so quoting it to ask about it would publish it.
+
+    Guarantees: accepts what the file showed, in words, or the empty
+    string where the reading was settled; returns at most one question;
+    opens nothing; and carries no value of the table.
+    """
+    if not seen:
+        return []
+    return [
+        Question(
+            FIRST_ROW_SUBJECT,
+            "",
+            BECAUSE_FIRST_ROW_UNTOLD,
+            seen,
+            [
+                Choice(
+                    ANSWER_FIRST_ROW_DATA,
+                    "the first row of the file is a record of the table",
+                    (
+                        "the columns are named column_1, column_2 and so "
+                        "on, every row of the file is described, and no "
+                        "text of the first row is published anywhere"
+                    ),
+                ),
+                Choice(
+                    ANSWER_FIRST_ROW_NAMES,
+                    "the first row of the file holds the column names",
+                    (
+                        "the columns are named as that row names them, "
+                        "which publishes its text in the description, in "
+                        "the summary, in the twin and in the quality "
+                        "report, and the table is described without it"
+                    ),
+                ),
+            ],
+            ANSWER_FIRST_ROW_DATA,
+        )
+    ]
 
 
 def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
@@ -1423,6 +1501,14 @@ class Answers:
     # `--metadata-rows 2` take a person's record out of the table and
     # publish it. This says which it was.
     metadata_rows_answered: bool = False
+    # ...and the seventh (the owner's ruling of 2026-09-17, item 8;
+    # plan P4-D232): which row the person says their column names are
+    # in, as the word they answered, or empty where they did not
+    # answer. `names` is `--first-row names`; `first-record` is the
+    # reading that already stands and changes nothing, and it is
+    # carried all the same, because an answer that is dropped is an
+    # answer a person was told had been heard.
+    first_row: str = ""
 
 
 def _entry_answer(
@@ -1569,6 +1655,7 @@ def answers_in(document: object, shown: str) -> Answers:
     metadata_rows = 0
     metadata_rows_answered = False
     delimiter = ""
+    first_row = ""
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -1602,6 +1689,10 @@ def answers_in(document: object, shown: str) -> Answers:
             # declaration (plan P4-D172).
             metadata_rows = 0
             metadata_rows_answered = True
+        elif written == ANSWER_FIRST_ROW_NAMES:
+            first_row = ANSWER_FIRST_ROW_NAMES
+        elif written == ANSWER_FIRST_ROW_DATA:
+            first_row = ANSWER_FIRST_ROW_DATA
         elif written in ANSWER_DELIMITERS:
             # The one answer that decides how the file is SPLIT (plan
             # P4-D110), which is `--delimiter`.
@@ -1623,4 +1714,5 @@ def answers_in(document: object, shown: str) -> Answers:
         metadata_rows,
         delimiter,
         metadata_rows_answered,
+        first_row,
     )

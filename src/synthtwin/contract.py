@@ -1321,6 +1321,11 @@ INVARIANTS = {
         "the labels held back cover at least one row each and fewer "
         "rows than the smallest group size"
     ),
+    "B4b": (
+        "the labels held back never come to one label on one row, "
+        "because that pool is a count of one a reader works out by "
+        "subtraction"
+    ),
     "B5": (
         "a label is published only at the smallest group size or more"
     ),
@@ -6737,7 +6742,9 @@ def _levels(
 
     Raises ProfileError for a wrong type or an out-of-range count, and
     for B1 to B7 and W2 to W7 -- B4 over the pooled total alone since the
-    owner's ruling of 2026-09-17 (plan P4-D201). B8 is a permission rather than a rule: an
+    owner's ruling of 2026-09-17 (plan P4-D201), and B4b over the pool a
+    reader takes by subtraction since item 5 of the same ruling (plan
+    P4-D231). B8 is a permission rather than a rule: an
     empty list of labels is a column every one of whose labels fell
     below the floor, and it is valid.
     """
@@ -6860,6 +6867,28 @@ def _levels(
                 f"held-back ones {suppressed_rows}"
             ),
             f"the column holds {n_present} values",
+        )
+    # B4b, THE POOL A READER SUBTRACTS (the owner's ruling of
+    # 2026-09-17, item 5; plan P4-D231). B3 above says the pool IS
+    # `n_present` less the published counts, so a reader holds it
+    # whether or not a key prints it; this asks the one disclosure rule
+    # of that subtraction. The pool is nought or reaches
+    # `parsing.census_floor`, and a document whose levels leave one row,
+    # or any group below that line, unaccounted for is refused. The
+    # producer counts those cells as missing instead, so no description
+    # it writes reaches this refusal.
+    if parsing.pool_names_a_level(suppressed_levels, suppressed_rows):
+        raise _broken(
+            "B4b",
+            where,
+            (
+                f"{suppressed_levels} label(s) held back are said to "
+                f"cover {suppressed_rows} row(s) between them"
+            ),
+            (
+                "one label on one row is a count of one, which a reader "
+                "works out by subtraction"
+            ),
         )
     return tuple(entries), suppressed_levels, suppressed_rows
 

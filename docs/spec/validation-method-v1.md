@@ -95,6 +95,17 @@ not.
   names came from the file. A twin whose names were generated is read
   first-row-as-data. The profiler's automatic header detection is never
   invoked here.
+- **Where the names were generated and the description is of a WORKBOOK
+  that counts rows above its table, the records start at the row the
+  description starts them on** (the owner's ruling of 2026-09-17, item
+  8; plan P4-D232). A description written where the first row could not
+  be told from a record keeps the rows above it as furniture and
+  publishes their count, so a reading that took every row from the
+  sheet's first would hold one row more and the very file the
+  description was written from would miss `rows.n_rows` and
+  `workbook.rows-above-header`. Measured: a titled sheet of 40 records
+  missed fourteen obligations on both its twin and its own book, and
+  holds every one of them read this way.
 - The expected column count, and the expected names where a header
   exists, are known before the first byte is read.
 - A profile publishing `n_rows: 0` leads to the degenerate forms of V6.4,

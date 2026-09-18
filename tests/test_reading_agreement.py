@@ -192,18 +192,21 @@ _HEADED = {
 
 
 @pytest.mark.parametrize("name", sorted(_HEADERLESS))
-def test_a_first_row_that_could_be_a_record_is_refused(
+def test_a_first_row_that_could_be_a_record_is_not_published_as_names(
     tmp_path: pathlib.Path, name: str
 ) -> None:
+    # Refused until the owner's ruling of 2026-09-17, item 8 (plan
+    # P4-D232); named `column_1`, `column_2` and so on since, with every
+    # row kept and the question put in the questions file.
     target = _write(tmp_path, _HEADERLESS[name])
-    with pytest.raises(errors.ProfileError) as caught:
-        reading.read_table(str(target))
-    message = f"{caught.value}"
-    assert "cannot tell whether the first row" in message, message
-    assert "--first-row names" in message and "--first-row data" in message
+    table = reading.read_table(str(target))
+    assert table.header_source == reading.HEADER_GENERATED, name
+    assert table.column_names[0] == "column_1", name
     # The row itself is never quoted back: if it IS a record, printing
     # it prints somebody's data in order to ask about it.
-    assert "P001" not in message and "pa-001" not in message, message
+    spoken = table.first_row_seen + table.header_evidence
+    assert spoken, name
+    assert "P001" not in spoken and "pa-001" not in spoken, spoken
 
 
 @pytest.mark.parametrize("name", sorted(_HEADED))
@@ -243,10 +246,14 @@ def test_first_row_names_still_reads_the_first_row_as_names(
 def test_the_command_refuses_and_then_accepts_the_answer(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # The command used to refuse and take the answer afterwards; it
+    # takes the safe reading and asks in the questions file now (plan
+    # P4-D232), and the answer a person gives is the same answer.
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
-    assert cli.main(["profile", str(target)]) == 1
-    refusal = capsys.readouterr()
-    assert "--first-row data" in refusal.err, refusal.err
+    assert cli.main(["profile", str(target)]) == 0
+    taken = capsys.readouterr().out
+    assert "6 rows" in taken, taken
+    assert "column_1" in taken, taken
     assert cli.main(["profile", str(target), "--first-row", "data"]) == 0
     written = capsys.readouterr().out
     assert "6 rows" in written, written

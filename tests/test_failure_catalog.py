@@ -28,7 +28,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "looks_like_utf16": ("/data/table.csv",),
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
-    "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
     "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
@@ -38,7 +37,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_folder_missing": ("/reports",),
     "output_not_writable": ("/reports/out.json", "read-only file system"),
     "floor_not_positive": ("0",),
-    "first_row_could_be_a_record": ("/data/table.csv", 3),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     # The same three refusals for a file `synthtwin validate` was only

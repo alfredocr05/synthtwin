@@ -667,7 +667,7 @@ written. A loader refuses an empty name and refuses a repeated one.
 | `encoding` | string | `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`, `utf-16-be` | the encoding that read the table, which the twin is written in | REPORT-ONLY |
 | `used_fallback_encoding` | boolean | — | true when the fallback rather than the primary encoding read the file | REPORT-ONLY |
 | `workbook` | `null` or object | section 4.3b | how a spreadsheet workbook holds the table, or `null` where the file was delimited text | EXACT-CONTROL |
-| `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: no names were in the file and synthtwin named the columns `column_1`, `column_2`, … | EXACT-CONTROL |
+| `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: the names are synthtwin's own — the person said the first row was a record, or the first row could not be TOLD from a record (the owner's ruling of 2026-09-17, item 8; plan P4-D232) — and the columns are named `column_1`, `column_2`, … | EXACT-CONTROL |
 | `header_by_convention` | boolean | — | true when the first row was taken as names because nothing in the file said otherwise, rather than because the file showed it | REPORT-ONLY, with a required sentence |
 | `header_evidence` | string | any non-empty text | the header verdict in one plain sentence | REPORT-ONLY, with a required sentence |
 
@@ -687,6 +687,35 @@ names may in fact be a first data row of the real table rather than
 names — not merely that a header was written. Phase 1's R1 residual is
 exactly this uncertainty, and a report that says only "a header was
 written" hides a warning the profile is carrying (plan P2-D6).
+
+**AND WHERE THE FIRST ROW COULD NOT BE TOLD FROM A RECORD** (the
+owner's ruling of 2026-09-17, item 8; plan P4-D232). Three shapes of
+file settle nothing about their first row and are answered the same
+way: one whose every first-row value reads as a number, one whose
+values below show the first row to be a record, and one where a line
+that is not a record — a title, a comment, a row of one cell in a
+workbook — stands above the row the reader would take as names, while
+no column of the file shows that row to be names. In each,
+`header_source` is `generated`, `header_by_convention` is false, the
+columns are named `column_1`, `column_2` and so on, EVERY row of the
+file is described including that one, and `header_evidence` is the
+enumerated sentence `taxonomy.HEADER_NAMES_NOT_TOLD`, which quotes no
+cell. The questions file puts the question, and `--first-row names`
+publishes the real names. The two refusals that stood here until then —
+"the first row does not look like column names" and "synthtwin cannot
+tell whether the first row holds the names" — are withdrawn: the
+reading taken is the one that publishes nothing of a row that may be
+somebody's data, and the question reaches the person where every other
+question about their file does.
+
+**Why the furniture rule is asked AFTER the file's own evidence.** A
+title over a real header is the commonest shape a spreadsheet exports.
+Where a column below the header holds numbers while the header's own
+value does not, the file SHOWS the row is names, and that reading
+stands. Asked the other way round, `Extract for unit 7` over
+`record_id,age,arm,site,reading` read as a headerless table, the header
+row became a value of every column, and the twin failed its own
+description at exit 3.
 
 ### 4.3a EXACT-CONTROL: `source.dialect`, the table's written form
 
@@ -1730,7 +1759,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 57 forms and 96 argument positions.
+**The census.** The table holds 58 forms and 96 argument positions.
 Of those, 83 are whole numbers, 4 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -3035,7 +3064,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 57 in section 4.5.1 |
+| NG14 | the form is one of the 58 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3084,6 +3113,20 @@ of empty cells, not the order of two event dates.
 ---
 
 <!-- s5: the column block: universal keys and the axes -->
+
+**NF58. `header_names_could_not_be_told`** — arity 0. The verdict
+where the first row could not be told from a record of the table (owner
+ruling of 2026-09-17, item 8; plan P4-D232). It names no column, quotes
+no cell, and cannot: the row it is about is the one the reading
+withholds.
+
+> The first row could not be told from a record of the table, so
+> synthtwin named the columns itself -- column_1, column_2, and so on --
+> and kept every row of the file, that first row included. No text of it
+> appears anywhere in this description. The questions file beside this
+> one asks which reading is right: run the command again with
+> --first-row names if that row holds the column names, or leave it as
+> it is if it is the first record.
 
 ## 5. The column block
 
@@ -4006,7 +4049,10 @@ one row, so where `suppressed_rows` is less than twice
 of them are provably single rows, and where `suppressed_levels` is 1
 that one label's size is the pool itself. That is a count about unnamed
 groups, the class `n_distinct_by_occurrences` already publishes, and it
-is put to the owner beside the pool of one (invariant B4).
+stands -- **except at its sharpest point** (owner ruling of 2026-09-17,
+item 5; plan P4-D231, invariant B4b): one label on one row is a count of
+ONE, and no description carries that pool any more. One label over more
+than one row still does, and P4-D231 puts it to the owner.
 
 #### 6.3.1 A level entry
 
@@ -4058,8 +4104,43 @@ the published counts reads it whether or not `suppressed_rows` is
 printed, so no key can hide it; the first writing of the ruling held
 the smallest published label back beside such a pool, and that was
 withdrawn because the label it held back had cleared the floor and the
-twin then wrote none of it. The pool of one stands as a stated limit
-awaiting the owner's ruling.
+twin then wrote none of it. **That limit is closed by invariant B4b
+below** (owner ruling of 2026-09-17, item 5; plan P4-D231): the pool of
+one is no longer written at all, because the cells that would leave it
+are counted as missing.
+
+**Invariant B4b (a pool that is a count of one).** The labels held back
+never come to one label on one row:
+`not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`
+(owner ruling of 2026-09-17, item 5; plan P4-D231). Such a pool is a
+count of one outright -- and B3 above makes that subtraction available
+to every reader whether or not `suppressed_rows` is printed, which is
+why no key left out could hide it. 480 `F`, 519 `M` and one `U` at a
+floor of eleven said one row holds a third value, and its twin wrote an
+invented label in exactly that person's row. Such a document is refused
+here. The producer does not write one: every cell of the held-back level
+is counted as MISSING, spelled as nothing, so the description is that of
+the table with those cells blank, the twin writes a blank in those rows,
+and no label that clears the floor is ever held back to hide one.
+
+**What B4b deliberately does NOT refuse**, and plan P4-D231 puts both to
+the owner with what each was measured to cost on the full suite. (a) One
+level over MORE than one row: the pool is still that level's own count,
+and the number is below the floor by construction, so a `region` column
+of four places beside seven `outlying` rows says seven people share a
+value it will not name. Refusing it moves 53 witnesses and turns a
+`constant` column whose one value is below the floor into an EMPTY
+column. (b) A pool that does not reach `parsing.census_floor`: that is
+the one disclosure rule asked of the subtraction, and it empties the
+held-back machinery P4-D201 built wherever the floor is high -- 66
+witnesses, three frozen cases unwritable, and the rare VALUES of every
+small column at a raised floor turned into holes. A pool of ten rows
+over four levels says nothing about any one of them. The standing limit
+of 6.3 above -- that where `suppressed_rows` is less than twice
+`suppressed_levels` some of them are provably single rows -- stays a
+stated limit for the same reason: it is true of every ordinary long
+tail, and the demonstration's `note` holds back 182 levels over 217
+rows.
 
 **Invariant B5 (the floor).** Every `entry.count` is at least the floor.
 
@@ -7204,7 +7285,7 @@ B1 through B8 are stated in section 6.3.2 over a block that carries
 `levels`, not over a list of roles, so each binds a `long_tail_labels`
 block identically and none needs widening or restating here: B1
 (published identity is normalized), B2 (level completeness), B3 (row
-completeness), B4 (the held-back pool), B5 (the floor), B6 (label order), B7 (labels are distinct) and B8 (levels may
+completeness), B4 (the held-back pool), B4b (the pool a reader subtracts), B5 (the floor), B6 (label order), B7 (labels are distinct) and B8 (levels may
 be empty).
 
 **What B8 comes to on this role, which is not what it comes to on the
@@ -9923,7 +10004,8 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B1 | every `label` is a folded identity: it equals its own trimmed, case-folded form, so a published label may never have appeared byte for byte in the table; what the table held is in `variants` | yes |
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
-| B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201; a pool of one row is not refused (repair pass of the same day) | yes |
+| B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
+| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`: the labels held back never come to one label on one row, because that pool is a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |
@@ -10217,7 +10299,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 57 the note grammar enumerates |
+| NG14 | for every form: one of the 58 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -11361,13 +11443,13 @@ this document, and the battery the plan requires turns red on it.
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
 | `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; on a nothing-publishing column confined to members of the published vocabulary (C6-126), which are synthtwin's own words and no table's |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
-| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover together (`suppressed_levels`, `suppressed_rows`) and, since the owner's ruling of 2026-09-17 (plan P4-D201), no size of any one of them; and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the two held-back facts publish the COUNT and the POOLED ROWS of unnamed groups, floor-free, a pool of one row included, which `n_present` less the published counts reads anyway (B4; a limit put to the owner, plan P4-D201); the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the two held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
+| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover together (`suppressed_levels`, `suppressed_rows`) and, since the owner's ruling of 2026-09-17 (plan P4-D201), no size of any one of them; and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the two held-back facts publish the COUNT and the POOLED ROWS of unnamed groups, floor-free, and never one label on one row, which `n_present` less the published counts reads as a count of one anyway (B4 and B4b; the owner's ruling of 2026-09-17 item 5, plan P4-D231, which counts that cell as missing instead); the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the two held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
 | ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs — the two ENDPOINTS are exact values of real cells on every role, and so are the nine interior rungs of a DATE ladder and of a CLOCK ladder; a NUMERIC ladder's nine interior rungs are INTERPOLATED between the order statistics either side and are usually numbers no cell holds (corrected 2026-09-04, measured on columns of 17 to 250 drawn values); moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`), the two values each run of those bins really lies between (`empty_edges`) and the offset map; `resolution_mix`; the separator census `datetime_separators` and the flag `all_at_midnight`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the style, fraction-width, padded-width, whole-number-width, offset and separator maps floor-governed with a `(withheld)` pool; `all_at_midnight` `true` only where the parsed cells reach the floor; `empty_bins` and `empty_edges` under NO floor at all — the first being the one published fact of this format that names only where nobody is (row 20), the second naming two values a stretch lies between and no group at all (row 21); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 57 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 58 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -12418,7 +12500,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 57 forms
+### 14.8 The note grammar — 58 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 96 argument positions: 83 whole numbers, 4 package words, 4
@@ -12483,6 +12565,7 @@ nested forms, 5 bound affix strings.
 | NG55 | `remark_a_letter_against_the_digits` | 1 |
 | NG56 | `remark_brackets_around_the_affix` | 0 |
 | NG57 | `remark_a_minus_after_the_figures` | 0 |
+| NG58 | `header_names_could_not_be_told` | 0 |
 
 **The package-word vocabulary — 24**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

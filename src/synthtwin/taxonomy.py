@@ -879,6 +879,13 @@ HEADER_NAMES_BY_OPTION = "header_names_because_you_said_so"
 HEADER_DATA_BY_OPTION = "header_data_because_you_said_so"
 HEADER_NAMES_BY_CONVENTION = "header_names_by_convention"
 HEADER_NAMES_SHOWN_BY_COLUMN = "header_names_shown_by_a_column"
+# WHERE THE FIRST ROW CANNOT BE TOLD FROM A RECORD (the owner's ruling
+# of 2026-09-17, item 8; plan P4-D232). The names are synthtwin's own,
+# the row is kept as the record it may be, and the question is put in
+# the questions file. No text of that row reaches this sentence, or any
+# other: it is the row this verdict is about, so quoting it here would
+# publish the very thing the verdict withholds.
+HEADER_NAMES_NOT_TOLD = "header_names_could_not_be_told"
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -986,6 +993,7 @@ NOTE_ARITY: "dict[str, int]" = {
     HEADER_DATA_BY_OPTION: 0,
     HEADER_NAMES_BY_CONVENTION: 0,
     HEADER_NAMES_SHOWN_BY_COLUMN: 1,
+    HEADER_NAMES_NOT_TOLD: 0,
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -2018,6 +2026,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "record, run the command again with --first-row data: the "
             "columns are then named column_1, column_2, and so on and every "
             "record is kept."
+        )
+    if form == HEADER_NAMES_NOT_TOLD:
+        return (
+            "The first row could not be told from a record of the table, so "
+            "synthtwin named the columns itself -- column_1, column_2, and "
+            "so on -- and kept every row of the file, that first row "
+            "included. No text of it appears anywhere in this description. "
+            "The questions file beside this one asks which reading is "
+            "right: run the command again with --first-row names if that "
+            "row holds the column names, or leave it as it is if it is the "
+            "first record."
         )
     if form == HEADER_NAMES_SHOWN_BY_COLUMN:
         return (
@@ -5101,18 +5120,24 @@ def _levels(
     apart; the ruling gives that up, and a twin writes its invented
     labels at sizes a fixed rule reads off the pool.
 
-    A POOL OF ONE ROW STANDS, AND IS PUT TO THE OWNER. A pool of one row
-    names the one row whose value is none of the published labels, and
-    `n_present` less the published counts reads it whether or not it is
-    printed, so no key this function leaves out can hide it. The first
-    writing of the ruling held the smallest published label back beside
-    such a pool; the repair pass of 2026-09-17 withdrew that, because the
-    label it held back had cleared the floor and the twin then wrote none
-    of it -- measured: 400 `north`, 15 `south` and one `west` at a floor
-    of eleven gave `south` 0 twin rows against 15, and a lab column's
-    `>1000` on 11 rows 0 against 11. The ruling asks for neither, so the
-    published labels stand as the floor admits them and the pool of one
-    is a stated limit awaiting the owner (plan P4-D201).
+    A POOL OF ONE ROW NEVER REACHES THIS FUNCTION (the owner's ruling of
+    2026-09-17, item 5; plan P4-D231, loader invariant B4b). A pool of
+    one level on one row IS a count of one, and `n_present` less the published counts reads it
+    whether or not it is printed, so no key this function leaves out can
+    hide it. Two remedies were tried and only the second is the owner's.
+    The first writing of P4-D201 held the smallest PUBLISHED label back
+    beside such a pool, and the repair pass of 2026-09-17 withdrew it,
+    because the label it held back had cleared the floor and the twin
+    then wrote none of it -- measured: 400 `north`, 15 `south` and one
+    `west` at a floor of eleven gave `south` 0 twin rows against 15, and
+    a lab column's `>1000` on 11 rows 0 against 11. The ruling of item 5
+    takes the other way out: where the pool would be one level on one
+    row, the cells of it are counted as missing before this function is
+    reached (`_levels_read_by_subtraction`, the level pass of
+    `profile_column`), so no label that clears the floor is ever held
+    back, and no pool that arrives here is a count of one. What a pool
+    of one level over MORE than one row still gives away is a limit plan
+    P4-D231 measures and puts to the owner.
 
     There is no "beyond the cap" outcome here any more. `categorical_
     ceiling` decides the ROLE again, as the plan says (review item
@@ -5159,6 +5184,106 @@ def _levels(
         suppressed_levels=suppressed_levels,
         suppressed_rows=suppressed_rows,
     )
+
+
+# THE LABEL ROLES WHOSE LEVELS ARE COUNTED OVER THE WHOLE COLUMN. The
+# fifth, `numbers_with_labels`, counts its levels over its label half
+# alone and is handled beside them.
+_LEVEL_ROLES = (
+    ROLE_BINARY,
+    ROLE_CATEGORICAL,
+    ROLE_CONSTANT,
+    ROLE_LONG_TAIL,
+)
+
+
+def _a_level_is_below_the_floor(cells: _Cells) -> bool:
+    """Whether any folded value of this column covers fewer rows than the floor.
+
+    The cheap gate in front of the level pass (plan P4-D231): no level
+    below the floor means no pool at all, and at the default floor of
+    one there can be no such level, so the pass costs nothing on the
+    files that do not need it and the trial reading below is never run.
+
+    Guarantees: accepts the tally; returns a bool. Determinism: a fixed
+    function of the tally and its settings. Raises nothing. No I/O.
+    """
+    floor = cells.settings.small_cell_floor
+    if floor <= 1:
+        return False
+    counts = cells.folded_counts
+    for label in sorted(counts):
+        if counts[label] < floor:
+            return True
+    return False
+
+
+def _levels_read_by_subtraction(
+    cells: _Cells, role: str
+) -> "tuple[str, ...]":
+    """The folded levels whose rows a reader could count by subtraction.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan P4-D231). A label
+    column publishes its levels at or above the floor and pools the
+    rest, as a count of levels and a count of rows and no size of any
+    one of them. Where that pool is ONE level on ONE row it is a count
+    of one outright, and `n_present` less the published counts reads it
+    whether or not a key prints it: 480 `F`, 519 `M` and one `U` at a
+    floor of eleven published 999 of 1,000 present cells and told every
+    reader that one row holds a third value. This answers which levels
+    those are, and the caller counts every cell of them as MISSING, so
+    the description is that of the table with those cells blank.
+
+    THE QUESTION IS `parsing.pool_names_a_level`, which states the rule
+    once and states the two wider readings that were measured and left
+    to the owner. It is asked over the levels of the population the list
+    is counted over: the whole column for the four roles that publish a
+    level list, and the LABEL HALF alone for `numbers_with_labels`,
+    whose own `n_present` is the cells of that half.
+
+    NO LABEL THAT CLEARS THE FLOOR IS EVER HELD BACK TO HIDE ONE. The
+    first writing of P4-D201 did exactly that and the twin then wrote
+    none of a published label; this answers only levels the floor
+    already refuses to name, so every label the floor publishes is
+    published and written.
+
+    Guarantees:
+
+    - Inputs: the tally of the column's present cells, and the role the
+      reading before this pass gave it.
+    - Determinism: a fixed function of the two; the answer is in sorted
+      order.
+    - Errors raised: none.
+    - Boundary: answers nothing at all for a role that publishes no
+      level list, for a column whose every level clears the floor, and
+      for any pool but one level on one row -- a long tail of hundreds
+      of held-back levels is untouched, and so is one level over five
+      rows, which plan P4-D231 puts to the owner as the limit it is. No
+      file is opened.
+    """
+    settings = cells.settings
+    floor = settings.small_cell_floor
+    counts = cells.folded_counts
+    if role == ROLE_COMPOUND:
+        compound = _compound_reading(cells)
+        if compound is None:
+            return ()
+        halved: "dict[str, int]" = {}
+        for cell in compound.labels:
+            key = cell.folded
+            halved[key] = (halved[key] if key in halved else 0) + 1
+        counts = halved
+    elif role not in _LEVEL_ROLES:
+        return ()
+    rare: "list[str]" = []
+    pooled = 0
+    for label in sorted(counts):
+        if counts[label] < floor:
+            rare += [label]
+            pooled = pooled + counts[label]
+    if not parsing.pool_names_a_level(len(rare), pooled):
+        return ()
+    return tuple(rare)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -11500,6 +11625,7 @@ def _decide(
     removed: int = 0,
     after_removal: bool = False,
     after_days: bool = False,
+    after_levels: bool = False,
     forced_code: bool = False,
     forced_measurement: bool = False,
     probing: bool = False,
@@ -11513,6 +11639,22 @@ def _decide(
     nothing else, so the question is asked exactly once and this
     function cannot call itself without end. Every other caller leaves
     it false and gets the ordinary reading.
+
+    ``after_levels`` says the LEVEL PASS took cells out of this column:
+    every cell of a label level the floor would not let the column name,
+    counted as missing because the pool they left could be read by
+    subtraction (the owner's ruling of 2026-09-17, item 5; plan
+    P4-D231). It silences rules 2, 5, 6, 8, 9 and 9c -- and rule 0c,
+    which reads a declared measurement as joined numbers -- exactly as
+    `--code` does, so the column stays a column of LABELS and which
+    label rule claims it follows the levels that remain. That narrowing
+    is the one the other two removal passes state in their own words: a
+    column may not change what KIND of thing it holds because cells left
+    it, and the cells this pass removed are the ones that were keeping
+    the parse-rate rules out. A column of 480 `F`, 519 `M` and one `U`
+    at a floor of eleven is therefore a `binary` column of `F` and `M`
+    with one cell counted absent, and its twin describes back to the
+    same role.
 
     ``described_as_pair`` says the DESCRIPTION a file is being checked
     against read this column as a slashed pair of plain whole numbers
@@ -11591,6 +11733,12 @@ def _decide(
     strict_needed = _needed(settings.minimum_parse_rate, n_present)
     folded_distinct = len(cells.folded_counts)
     ceiling = _categorical_ceiling(cells)
+    # THE FIVE RULES THAT READ A CELL AS SOMETHING OTHER THAN A LABEL,
+    # silenced by the `--code` declaration (rule 0b) and by the level
+    # pass (plan P4-D231), which each leave a column of labels behind
+    # them. One name for both, so the two can never silence different
+    # rules.
+    labels_only = forced_code or after_levels
 
     # AFTER THE CORE PASS, ONLY THE RULES THE CONTRACT LETS RUN AGAIN.
     # The affix-based stand-in pass runs only once every rule THROUGH
@@ -11639,7 +11787,7 @@ def _decide(
         # carries the measurement that says why: a rule reading the
         # values would claim this project's own date, clock, lab-code
         # and drug-code columns.
-        if forced_measurement and not after_days:
+        if forced_measurement and not after_days and not after_levels:
             reading = _joined_reading(cells)
             if reading is not None:
                 return _joined_verdict(cells, reading, notes, remarks)
@@ -11663,7 +11811,7 @@ def _decide(
         # already promises.
         if (
             not after_days
-            and not forced_code
+            and not labels_only
             and numeric_looking >= strict_needed
             and (len(cells.numbers) < strict_needed)
         ):
@@ -11789,7 +11937,7 @@ def _decide(
         # knows which. Such a column now lands where the ordinary rules put
         # it, and `--identifier` is how a column of codes is declared.
         matched = (
-            None if forced_code else _matching_date_format(present, settings)
+            None if labels_only else _matching_date_format(present, settings)
         )
         if matched is not None:
             format_name, pairs, sources, unparsed, evidence = matched
@@ -11864,7 +12012,7 @@ def _decide(
         # Falling short here decides nothing but this rule: the column goes
         # on to RULE 7 and may still be a set of categories. Below the line
         # is not a synonym for free text.
-        if numeric_looking >= strict_needed and not forced_code:
+        if numeric_looking >= strict_needed and not labels_only:
             return _numeric_verdict(cells, notes, remarks)
 
         # RULE 7 -- a set of categories: at most the ceiling of different
@@ -12035,7 +12183,7 @@ def _decide(
     # contract's and has a reason: clock text rarely splits as an
     # affixed number, but where both could fire the time reading is the
     # more specific claim.
-    clock = None if forced_code else _clock_reading(cells)
+    clock = None if labels_only else _clock_reading(cells)
     if clock is not None:
         return _clock_verdict(cells, clock, notes, remarks)
 
@@ -12050,7 +12198,7 @@ def _decide(
     # which is the one thing this phase's no-regression rule forbids.
     affixed = (
         None
-        if forced_code
+        if labels_only
         else _affixed_reading(cells, forced_measurement)
     )
     if affixed is not None:
@@ -12226,7 +12374,7 @@ def _decide(
     # written as two slashed figures is still a code this rule cannot
     # tell from a measurement, which is why the questions file goes on
     # asking about the column with `code` and `identifier` offered.
-    if not forced_code:
+    if not labels_only:
         paired = _joined_reading(cells, plain_pair=True)
         if paired is not None:
             return _joined_verdict(cells, paired, notes, remarks)
@@ -13379,7 +13527,11 @@ def profile_column(
       described as free text rather than rejected.
     - Boundary: no file is opened, and no value of a suppressed kind
       (identifier, free text, a number no format can hold, or a label
-      below the small-cell floor) appears in the returned description.
+      below the small-cell floor) appears in the returned description,
+      and no pool of one level on one row is left for a reader to read a
+      count of one off -- the cells of such a level are counted as
+      missing, spelled as nothing, by the level pass (the owner's ruling
+      of 2026-09-17, item 5; plan P4-D231).
       This is a property of the column's publication CLASS -- its role,
       plus the declaration that beats every role -- applied to the WHOLE
       block by `_publication_class_applied` once both are known, not of
@@ -13599,6 +13751,80 @@ def profile_column(
             # longer exists (contract C6-5).
             removed_by_cores = before - len(present)
             judged_over_cores = True
+
+    # THE LEVEL PASS: a label column's lone row that a reader could read
+    # by subtraction is counted as missing (the owner's ruling of
+    # 2026-09-17, item 5; plan P4-D231). The three passes above take out
+    # cells that stand for "no value"; this one takes out cells whose
+    # VALUE the floor will not let the column name, and it takes them
+    # out for the reason the floor exists. A pool of one level on one
+    # row IS a count of one, whether or not a key prints it (B3), so a
+    # column of 480 `F`, 519 `M` and one `U` at a floor of eleven told
+    # every reader that one row holds a third value -- and its twin
+    # wrote an invented label in exactly one row, which is that person's
+    # row. The cells are counted as missing, spelled as nothing, so the
+    # description is that of the table with those cells blank: no count
+    # is left to be worked out, and the twin writes a blank there.
+    #
+    # ITS ORDERING IS THE OTHER PASSES' (C6-5, A-P4-1 item 3). The role
+    # is decided first and then decided again, because taking cells out
+    # changes every count; the trial reading below is what says whether
+    # this column publishes a level list at all, and `_decide` is then
+    # asked again with `after_levels`, which holds the second reading to
+    # the label rules.
+    #
+    # THE GATE IS CHEAP. No level below the floor means no pool at all,
+    # and at the default floor of one there is no such level, so no
+    # ordinary run is charged for a second reading.
+    judged_over_levels = False
+    if (
+        present
+        and not forced_identifier
+        and _a_level_is_below_the_floor(cells)
+    ):
+        trial = _decide(
+            cells,
+            forced_identifier,
+            removed_by_cores,
+            after_removal=judged_over_cores,
+            after_days=judged_over_days,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
+        )
+        counted_out = _levels_read_by_subtraction(cells, trial.role)
+        if counted_out:
+            # AND WHETHER THE LABEL RULES ALONE MAY DECIDE AGAIN. On a
+            # column of LABELS they must: the cells this pass removed
+            # are the ones that were keeping the parse-rate rules out,
+            # and re-asking those rules would let a removal claim a
+            # column no rule would have given it (C6-5). On a column of
+            # numbers BESIDE labels they must not: what the pass removes
+            # there is the whole of a label half the floor would not
+            # name, and the numbers left were numbers all along --
+            # measured, 98 readings beside two `trace` cells became FREE
+            # TEXT and published no number at all, where the honest
+            # answer is a column of 98 numbers with two holes.
+            labels_alone = trial.role in _LEVEL_ROLES
+            level_kept: list[_Cell] = []
+            for cell in classified:
+                if cell.folded in counted_out:
+                    # THE SPELLING IS NOT CARRIED OVER, and that is the
+                    # whole point. A cell counted absent under its own
+                    # spelling would put that spelling in
+                    # `missing_by_source` or in the pool beside it, and
+                    # a reader who can tell such a cell from an ordinary
+                    # blank has been told the count this pass exists to
+                    # withhold.
+                    missing += [("", parsing.MISSING_BLANK)]
+                else:
+                    level_kept += [cell]
+            classified = level_kept
+            cells = _tally(
+                classified, n_rows, settings, forced_decimal_comma
+            )
+            present = cells.present
+            judged_over_levels = labels_alone
     entries, unpublished = _published_verdicts(verdicts, settings)
     # THE DAY VERDICTS FOLLOW THE NUMBER VERDICTS, and the order is the
     # contract's own (invariant V4): every numeric candidate, ascending
@@ -13650,6 +13876,7 @@ def profile_column(
             removed_by_cores,
             after_removal=judged_over_cores,
             after_days=judged_over_days,
+            after_levels=judged_over_levels,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,

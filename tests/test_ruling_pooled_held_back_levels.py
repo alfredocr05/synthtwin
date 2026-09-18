@@ -17,6 +17,10 @@ THE RED CHECKS, each measured by withdrawing the rule in place:
   `taxonomy._levels`) --
   `test_a_label_that_clears_the_floor_stays_published`, whose twin then
   writes none of `south` or `W04`;
+* the level pass of item 5 withdrawn (plan P4-D231) --
+  `test_the_pool_of_one_is_counted_as_missing`, which then reads a pool
+  of one row again, and the two pooled pairs of
+  `test_a_label_that_clears_the_floor_stays_published`;
 * the loader's bound on the pool -- the two B4 entries of
   `tests/test_contract_loader.py`'s battery;
 * the debts handed to the sizes withdrawn -- the committed cells of
@@ -128,6 +132,16 @@ def test_a_label_that_clears_the_floor_stays_published(
     ruling asks only that the sizes of held-back labels stop being
     published, so a label the floor admits stays published and the twin
     writes it at its count.
+
+    THE POOL ITSELF IS GONE SINCE THE LEVEL PASS (item 5 of the same
+    rulings; plan P4-D231): the one `west` cell and the one `home` cell
+    are counted as MISSING, because a pool of one is a count of one
+    taken by subtraction. What this witness holds is the half that did
+    not move, and it is the half the ruling turns on: `south` at 15 and
+    `W04` at 14 are published and written, so no label that clears the
+    floor is held back to hide the pool. Withdrawing the level pass
+    leaves these numbers exactly as they are and moves the pooled pair
+    below.
     """
     cells = ["north"] * 400 + ["south"] * 15 + ["west"]
     random.Random(5).shuffle(cells)
@@ -136,7 +150,8 @@ def test_a_label_that_clears_the_floor_stays_published(
     )
     column = _column(result)
     assert [level["label"] for level in column["levels"]] == ["north", "south"]
-    assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (0, 0)
+    assert (column["n_present"], column["n_missing"]) == (415, 1)
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
     assert _twin_rows(result, "value", "south") == 15
     wards = (
@@ -149,30 +164,40 @@ def test_a_label_that_clears_the_floor_stays_published(
     )
     column = _column(result)
     assert len(column["levels"]) == 4
-    assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (0, 0)
+    assert (column["n_present"], column["n_missing"]) == (854, 1)
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
     assert _twin_rows(result, "ward", "w04") == 14
 
 
-def test_a_pool_of_one_row_stands_as_the_named_limit(
+def test_the_pool_of_one_is_counted_as_missing(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The limit put to the owner: F 480, M 519 and one U at eleven.
+    """The limit P4-D201 put to the owner, closed: F 480, M 519, one U.
 
     `n_present` less the published counts is the pool whether or not
-    `suppressed_rows` is printed, so no key left out can hide a pool of
-    one; only withholding a label the floor publishes, or moving the
-    cell out of `n_present`, could, and the ruling authorises neither.
-    The pool of one stands, at its size, and both files hold.
+    `suppressed_rows` is printed, so no key left out could hide a pool
+    of one: only withholding a label the floor publishes, or moving the
+    cell out of `n_present`, could. The owner took the second on
+    2026-09-17 (item 5, plan P4-D231, loader invariant B4b), and this is
+    it. The one `U` cell is counted as missing, spelled as nothing; the
+    subtraction leaves nought; the twin writes a blank there; and both
+    files hold.
     """
     cells = ["F"] * 480 + ["M"] * 519 + ["U"]
     random.Random(5).shuffle(cells)
     result = _round_trip(tmp_path, {"answer": cells}, ("--smallest-group", "11"))
     column = _column(result)
     assert [level["label"] for level in column["levels"]] == ["m", "f"]
-    assert (column["suppressed_levels"], column["suppressed_rows"]) == (1, 1)
+    assert (column["suppressed_levels"], column["suppressed_rows"]) == (0, 0)
     covered = sum(level["count"] for level in column["levels"])
-    assert column["n_present"] - covered == 1
+    assert (column["n_present"], column["n_missing"]) == (999, 1)
+    assert column["n_present"] - covered == 0
+    # No spelling of the counted-out cell reaches the description: its
+    # level was below the floor, so its spelling is below the floor too
+    # and the missing side pools it under nothing at all.
+    assert column["missing_by_source"] == {}
+    assert column["n_missing_withheld"] == 1
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 
 

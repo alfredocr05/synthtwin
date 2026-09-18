@@ -1177,11 +1177,41 @@ def _changed(
     be a red case that can never go red.
     """
     rows = _rows_of(text)
+    left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
         if bool(rows[row][index]) != find_blank:
             rows[row][index] = value
-            return _rebuilt(rows)
+            left = left - 1
+            if not left:
+                return _rebuilt(rows)
     return ""
+
+
+def _smallest_reportable_edit(
+    described: contract.Profile, index: int
+) -> int:
+    """How many cells an edit must touch before a description can carry it.
+
+    ONE, EXCEPT ON A COLUMN THAT PUBLISHES A LEVEL LIST (the owner's
+    ruling of 2026-09-17, item 5; plan P4-D231), where it is TWO. A
+    single cell edited into a class of its own is a level of ONE row
+    below the floor, and the level pass counts such a cell as MISSING --
+    so the file's own description does not count it in any class, the
+    count of that class cannot miss, and a red case built on one cell
+    has no teeth. Two cells are one level of TWO rows, which the pool
+    publishes without saying a size, so they stay present and the class
+    count misses as it did.
+
+    It is the same reasoning `_floor_cells` gives for the style clauses:
+    the battery edits the smallest number of cells a description of the
+    edited file can still carry, and says which number that is and why.
+    """
+    if index >= len(described.columns):
+        return 1
+    role = described.columns[index].role
+    if role in ROLES_WITH_NUMBERS and role != "numbers_with_labels":
+        return 1
+    return 2
 
 
 def _mapped(
@@ -1539,7 +1569,13 @@ def _classed(
 def _one_cell(
     described: contract.Profile, text: str, index: int, value: str
 ) -> str:
-    """Exactly ONE written cell of one column replaced.
+    """The smallest reportable number of written cells of one column replaced.
+
+    ONE on a column of numbers and TWO on a column that publishes a
+    level list, for the reason `_smallest_reportable_edit` states (the
+    owner's ruling of 2026-09-17, item 5; plan P4-D231). The family
+    keeps its `one-` name, which says what it is FOR: the smallest edit
+    this battery can still be reported through.
 
     REVIEW ITEM P3-V2-B-F5, and the whole of why that register emptied.
     The register of gaps said four class counts "move only when a
@@ -1552,10 +1588,13 @@ def _one_cell(
     disclosure gate wide open.
     """
     rows = _rows_of(text)
+    left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
         if rows[row][index]:
             rows[row][index] = value
-            return _rebuilt(rows)
+            left = left - 1
+            if not left:
+                return _rebuilt(rows)
     return ""
 
 

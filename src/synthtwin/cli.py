@@ -1830,6 +1830,13 @@ def _run_profile(
         # statement and replaces a typed one.
         if written.delimiter:
             declared_delimiter = written.delimiter
+        # ...AND THE SEVENTH, FOR THE SAME REASON (the owner's ruling of
+        # 2026-09-17, item 8; plan P4-D232): which row holds the column
+        # names decides how the file is read, so the answer has to
+        # arrive before the read. `first-record` is the reading that
+        # already stands and leaves the option where it was.
+        if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+            first_row = _FIRST_ROW_NAMES
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -2500,6 +2507,12 @@ def _run_profile(
                         # ...and the delimiter, where the file reads
                         # equally well under more than one (P4-D110).
                         delimiter_tie,
+                        # ...and which row the column names are in,
+                        # where the first row could not be told from a
+                        # record of the table (the owner's ruling of
+                        # 2026-09-17, item 8; plan P4-D232). The words
+                        # are what the FILE showed, and no cell of it.
+                        read.first_row_seen,
                     ),
                 )
             ),

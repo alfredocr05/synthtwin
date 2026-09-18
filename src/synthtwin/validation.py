@@ -4491,9 +4491,18 @@ def measure(
             # ...AND WITH ITS NAMES ON THE ROW THE DESCRIPTION PUTS THEM
             # (plan P4-D174), where the checked workbook's sheet does not
             # settle which row holds them.
+            # ...AND WHERE THE NAMES ARE SYNTHTWIN'S OWN, the row the
+            # description starts its RECORDS on, which is the same
+            # number (the owner's ruling of 2026-09-17, item 8; plan
+            # P4-D232). A description written where the first row could
+            # not be told from a record keeps the rows above it as
+            # furniture and counts them; a checked file read from the
+            # sheet's first row instead holds one row more and misses
+            # `rows.n_rows` and `workbook.rows-above-header` on the very
+            # file it was written from.
             published_header=(
                 description.source.workbook.rows_above_header + 1
-                if description.source.workbook is not None and headed
+                if description.source.workbook is not None
                 else 0
             ),
             # ...AND THE CHECKED FILE IS READ THE WAY THE DESCRIPTION

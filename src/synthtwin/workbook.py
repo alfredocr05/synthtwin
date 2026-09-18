@@ -1605,6 +1605,24 @@ def _first_row_of(reference: str) -> int:
     return reference_row(reference if place < 0 else reference[:place])
 
 
+def marks_the_header(reading: Reading, header_row: int) -> bool:
+    """Whether the sheet itself marks this row as its header, for the reader.
+
+    `_marked_by_the_sheet` below under its public name, because the
+    reader asks it too (the owner's ruling of 2026-09-17, item 8; plan
+    P4-D232): a sheet that freezes its panes at a row, or puts its
+    autofilter on it, has said which row holds its column NAMES, and
+    that is the file's own evidence. The rule that reads a row under
+    furniture as a record is not asked of such a sheet, exactly as it is
+    not asked where a column of the file shows the row to be names.
+
+    Guarantees: accepts the workbook reading and a row number; returns a
+    bool. Determinism: a fixed function of the two. Raises nothing. No
+    I/O of any kind.
+    """
+    return _marked_by_the_sheet(reading, header_row)
+
+
 def _marked_by_the_sheet(reading: Reading, header_row: int) -> bool:
     """Whether the sheet itself marks this row as its header (P4-D174).
 
@@ -1697,6 +1715,7 @@ def table_of(
     records_from_the_top: bool = False,
     names_on_top: bool = False,
     published_header: int = 0,
+    records_from_the_header: bool = False,
 ) -> Sheet:
     """The table a sheet holds: its names, its cells and where it sits.
 
@@ -1709,6 +1728,16 @@ def table_of(
     record, and the columns are named by the caller. The workbook branch
     of the reader used to drop that declaration, so a person who said
     their first row was a record still had it published as names.
+
+    ``records_from_the_header`` is the reader's own answer where the row
+    the header rule found cannot be told from a record (the owner's
+    ruling of 2026-09-17, item 8; plan P4-D232): the rows ABOVE that row
+    stay furniture, counted and never published, and the row itself is
+    the first record. It differs from ``records_from_the_top`` in
+    exactly that: a title above the table is a title either way, and
+    reading it as a record would publish its text as a value of the
+    first column, which contract FD11 and plan P4-D80 forbid at every
+    smallest group.
 
     WHERE THE HEADER IS NOT SETTLED (`_header_unsettled`, plan P4-D174),
     ``names_on_top`` is the person's `--first-row names`: the first row
@@ -1775,6 +1804,7 @@ def table_of(
     wanted = _table_width(widths)
     header_row = 0
     top = content_rows[0] if content_rows[0] < 1 else 1
+    above = 0
     if not records_from_the_top:
         header_row = _header_row_of(
             held, content_rows, widths, wanted, first_column
@@ -1784,6 +1814,12 @@ def table_of(
             published_header,
         )
         top = header_row + 1
+        if records_from_the_header:
+            # The row the header rule found is a record, and every row
+            # above it is furniture still (plan P4-D232).
+            top = header_row
+            above = header_row - 1 if header_row else 0
+            header_row = 0
     span = (last_row - top + 1) * (last_column - first_column + 1)
     if span > MAXIMUM_CELLS:
         raise errors.ProfileError(
@@ -1798,7 +1834,7 @@ def table_of(
     # header's own row number: measured on the study's titled book,
     # pandas read 15 rows from the source and 13 from its twin. Where
     # every row is a record there is no header and nothing stands above.
-    rows_above = header_row - 1 if header_row else 0
+    rows_above = header_row - 1 if header_row else above
     header_cells: "list[str]" = []
     if header_row:
         for place in range(first_column, last_column + 1):

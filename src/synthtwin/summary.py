@@ -1756,12 +1756,17 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
     - Determinism: the text depends only on the document.
     - Errors raised: none for a document this package built.
     - Boundary: says nothing when the reading was settled by evidence or
-      by the person, and speaks only when the names were ASSUMED. An
-      assumption the reader is not told about is the defect this exists
-      to prevent; saying it on every ordinary run instead would train
-      people to skip it.
+      by the person, and speaks only when the names were ASSUMED or when
+      the first row could not be TOLD from a record (the owner's ruling
+      of 2026-09-17, item 8; plan P4-D232). An assumption the reader is
+      not told about is the defect this exists to prevent; saying it on
+      every ordinary run instead would train people to skip it.
     """
     source = _map_of(document["source"])
+    if "header_evidence" in source:
+        spoken = _text_of(source["header_evidence"])
+        if spoken == f"{taxonomy.note(taxonomy.HEADER_NAMES_NOT_TOLD)}":
+            return _names_not_told_lines()
     if "header_by_convention" not in source:
         return []
     if not source["header_by_convention"]:
@@ -1785,6 +1790,37 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
         "  the table -- becomes your column names and its words are",
         "  carried, where a line synthtwin reads as standing BEFORE the",
         "  table has no word of it published at any smallest group.",
+    ]
+
+
+def _names_not_told_lines() -> "list[str]":
+    """What the summary says where the first row could not be told apart.
+
+    The owner's ruling of 2026-09-17, item 8 (plan P4-D232). The names
+    in this description are synthtwin's own, every row of the file is
+    described including the first, and no text of that first row is
+    published anywhere -- which is the whole reason the reading was
+    taken. A person who knows the row holds their column names says so
+    with `--first-row names`, and is told here what taking that reading
+    would publish, because it publishes that row's words.
+
+    Guarantees: a fixed list of sentences; no argument, no value of any
+    table, and no I/O of any kind.
+    """
+    return [
+        "",
+        "About the first row of your file:",
+        "  synthtwin could not tell the first row apart from a record of",
+        "  your table, so it named the columns itself -- column_1,",
+        "  column_2, and so on -- and kept every row of the file, that",
+        "  first row included. No text of it appears in this description,",
+        "  in the twin, or in any report.",
+        "  The questions file beside this one asks which reading is right.",
+        "  If that row really holds your column names, run the command",
+        "  again with --first-row names: the columns are then named as",
+        "  that row names them, which publishes its words here, in the",
+        "  twin's own header line and in the quality report, and the",
+        "  table is described without that row.",
     ]
 
 

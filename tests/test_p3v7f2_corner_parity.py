@@ -1310,6 +1310,28 @@ def test_the_wide_band_boundary_stands_where_the_family_ends(
 # -- 4. no distinctness bar admits every count -------------------------
 
 
+def _one_column_text(values: "list[str]") -> str:
+    """A one-column table whose EMPTY cells are written as `""`.
+
+    `fixtures.single_column_table` writes an empty cell as an empty
+    line, and a blank line in a one-column table is refused: synthtwin
+    cannot tell it from a record whose one value is missing (plan
+    P4-D74). A probe's twin holds such a cell whenever the level pass
+    counted one out (the owner's ruling of 2026-09-17, item 5; plan
+    P4-D231), so the file this test builds from that twin writes the
+    two quotation marks the refusal itself asks for -- which is what
+    the product's own writer puts there.
+    """
+    lines = [NAME]
+    for cell in values:
+        if cell == "" or "," in cell or '"' in cell or "\n" in cell:
+            escaped = cell.replace('"', '""')
+            lines += [f'"{escaped}"']
+        else:
+            lines += [cell]
+    return "\n".join(lines) + "\n"
+
+
 def test_every_distinctness_bar_this_space_prints_can_be_missed(
     parity: "tuple[Probe, ...]",
     tmp_path: pathlib.Path,
@@ -1354,7 +1376,7 @@ def test_every_distinctness_bar_this_space_prints_can_be_missed(
                 path = fixtures.write(
                     folder,
                     f"{probe.stem}-{field}-{tag}.csv",
-                    fixtures.single_column_table(NAME, made),
+                    _one_column_text(made),
                 )
                 outcome = validation.measure(probe.described, str(path))
                 if validation.MISSED in _verdicts(outcome, subcheck):

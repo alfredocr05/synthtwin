@@ -118,11 +118,20 @@ Three outcomes, in this order.
      again below it, more than once. A value a column repeats is one of
      that column's own labels, and the first row is holding one.
 
-   The refusal names the column by its POSITION and says in words what
-   was found, then offers ``--first-row names`` and ``--first-row
-   data``. It quotes nothing from the row: in a file whose first row
-   may be a record, that row's text is somebody's data, and printing it
-   to ask a question about it is a disclosure.
+   **The reading taken is the one that publishes nothing of that row**
+   (the owner's ruling of 2026-09-17, item 8; plan P4-D232). Until then
+   this stopped the run and asked on the screen. Now the file is read
+   again with the first row as a RECORD: the columns are named
+   ``column_1``, ``column_2`` and so on, every row is kept, that one
+   included, and no text of it reaches the description, the summary, the
+   twin, the twin's report or the quality report. The question is put in
+   the questions file, naming the column by its POSITION and quoting
+   nothing from the row, and ``--first-row names`` is the answer that
+   takes the other reading. **A LINE THAT IS NOT A RECORD ABOVE THE ROW
+   SETTLES IT THE SAME WAY**: a title or a comment over a headerless
+   table and the same title over a headed one are the same bytes up to
+   the row in question, so a row under furniture cannot be told from a
+   record either, on delimited text and on a workbook sheet alike.
 
 3. **The file shows the first row is NOT a record -> names, shown.**
    One thing a file can genuinely show: a column whose every value
@@ -137,8 +146,8 @@ Three outcomes, in this order.
    not. Getting it wrong costs one sentence, never a record, which is
    why a rule too weak to decide the reading is strong enough here.
 
-4. **No evidence either way -> the first row is taken as the column
-   names, BY CONVENTION.** A CSV file normally begins with its column
+4. **No evidence either way, and no furniture above it -> the first row
+   is taken as the column names, BY CONVENTION.** A CSV file normally begins with its column
    names, and
    following that convention is what makes this tool usable on ordinary
    files. Nothing is claimed about the file: taking is not proving.
@@ -150,10 +159,10 @@ Three outcomes, in this order.
    published, so a person can see the assumption and take it back.
 
 One first row is settled before any of that: one whose EVERY value
-reads as a number. It is stopped with its own message, which says the
-row does not read as names and gives both ways on -- a row of names
-added to the file, or ``--first-row data``. Nothing is read from such a
-file and nothing is written, so no record is lost there either.
+reads as a number. It goes the way outcome 2 goes, and for the same
+reason -- a row of numbers is a record as surely as a row the columns
+below claim -- so the columns are named ``column_1``, ``column_2`` and
+so on, every record is kept, and the questions file asks.
 
 The question is put to the person AFTER the checking pass below, never
 before it. A file whose two readers disagree about a name or a value
@@ -357,6 +366,9 @@ _SAID_DATA = taxonomy.note(taxonomy.HEADER_DATA_BY_OPTION)
 # as many words, and carries the way to take it back. A person who reads
 # only this sentence has been told everything synthtwin assumed.
 _TAKEN_BY_CONVENTION = taxonomy.note(taxonomy.HEADER_NAMES_BY_CONVENTION)
+# WHERE THE ROW CANNOT BE TOLD FROM A RECORD (the owner's ruling of
+# 2026-09-17, item 8; plan P4-D232).
+_NOT_TOLD = taxonomy.note(taxonomy.HEADER_NAMES_NOT_TOLD)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -378,6 +390,15 @@ class Table:
     naming what in the file, or what on the command line, settled which
     row the names are in. It is written for a person to read and belongs
     beside ``header_source`` wherever that is published.
+
+    ``first_row_seen`` is what the FILE showed, in words, where the
+    first row could NOT be told from a record of the table (the owner's
+    ruling of 2026-09-17, item 8; plan P4-D232); it is empty on every
+    other outcome, ``--first-row data`` included -- a caller who SAID
+    the row is a record was told nothing, they told synthtwin. Where it
+    is filled the names are synthtwin's own placeholders, the row is
+    kept as a record, and the questions file puts the question with
+    these words as what was seen. They quote no cell of the file.
 
     ``header_by_convention`` is True exactly when the names came from
     the file's first row because nothing in the file contradicted the
@@ -405,6 +426,7 @@ class Table:
     # enumerated form (plan P2-D2). `read_table` never leaves it empty.
     header_evidence: str = ""
     header_by_convention: bool = False
+    first_row_seen: str = ""
     # How the file is written: its delimiter, quoting, line endings and
     # the lines that are not records (module `dialect`). The profile
     # publishes its form, and the validator holds a checked file to the
@@ -429,6 +451,7 @@ class _Reading:
     header_source: str
     header_evidence: str = ""
     header_by_convention: bool = False
+    first_row_seen: str = ""
     survey: "dialect.Survey | None" = None
     book: "workbook.Reading | None" = None
     sheet: "workbook.Sheet | None" = None
@@ -592,11 +615,12 @@ def _record_evidence(
     the first row as the names by convention and says so in those terms
     (outcome 3 of the module docstring, review item P1-R6-F6).
 
-    The returned words are a clause, ready to be dropped into
-    `errors.first_row_could_be_a_record`. The column is named by its
-    POSITION and nothing is quoted from the file: in a file whose first
-    row may be a record, the first row's text is somebody's data, and
-    the values below it always are.
+    The returned words are a clause, ready to be dropped into the
+    questions file as what synthtwin SAW (the owner's ruling of
+    2026-09-17, item 8; plan P4-D232; they were a refusal's words until
+    then). The column is named by its POSITION and nothing is quoted
+    from the file: in a file whose first row may be a record, the first
+    row's text is somebody's data, and the values below it always are.
 
     The three rules are tried in the order a person would want to hear
     them, which is also cheapest first for the common case: only a
@@ -916,20 +940,29 @@ def _read_authoritatively(
 
 def _settle_the_first_row(
     found: _Reading, shown: str, first_row: str
-) -> "tuple[str, bool]":
+) -> "tuple[str, bool, str]":
     """Settle WHICH row holds the column names, and say why (plan P1-D3).
 
-    Returns the verdict in words and whether it was reached by
-    convention, both to be published beside the names. Raises
-    ProfileError when the file shows the first row is a record: that
-    refusal is the ASK, and it names both ways for the person to say
-    which reading is right.
+    Returns the verdict in words, whether it was reached by convention,
+    and -- where the row could NOT be told from a record -- what the
+    file showed, in words, or the empty string where it could. The first
+    two are published beside the names; the third is what the questions
+    file says was SEEN.
 
-    The three outcomes are the module docstring's, in its order: a
-    caller who said which it is settles it; otherwise evidence that the
-    first row is a record stops the run; otherwise the first row is
-    taken as the names by convention, which is the sentence returned
-    and the True this returns beside it.
+    NOTHING IS REFUSED HERE ANY MORE (the owner's ruling of 2026-09-17,
+    item 8; plan P4-D232). Two outcomes used to stop the run and ask on
+    the screen -- a first row whose every value reads as a number, and a
+    first row the values below show to be a record. Both now come back
+    with the third answer, and the caller re-reads the file with the
+    first row as a RECORD: the columns are named `column_1`, `column_2`
+    and so on, every row is kept, no text of that row reaches the
+    description, and the questions file puts the question. A person who
+    knows the row holds the names says so with `--first-row names`.
+
+    The outcomes are the module docstring's, in its order: a caller who
+    said which it is settles it; otherwise a row that cannot be told
+    from a record is not told from one; otherwise the first row is taken
+    as the names, shown by a column or by convention.
 
     What this must never do is describe the third outcome as evidence.
     Absence of evidence for the record reading is not evidence for the
@@ -947,25 +980,97 @@ def _settle_the_first_row(
     """
     header = found.column_names
     if first_row != FIRST_ROW_AUTOMATIC:
-        return found.header_evidence, False
+        return found.header_evidence, False, ""
     numbers = [
         name for name in header if not parsing.looks_like_a_column_name(name)
     ]
     if len(numbers) == len(header):
-        raise errors.ProfileError(
-            errors.header_looks_like_data(
-                shown, "every value in it reads as a number"
-            )
-        )
+        return _NOT_TOLD, False, EVERY_VALUE_A_NUMBER
     spoken = _record_evidence(header, found.columns)
     if spoken is not None:
-        raise errors.ProfileError(
-            errors.first_row_could_be_a_record(shown, len(header), spoken)
-        )
+        return _NOT_TOLD, False, spoken
     shown_by = _names_evidence(header, found.columns)
     if shown_by is not None:
-        return shown_by, False
-    return _TAKEN_BY_CONVENTION, True
+        return shown_by, False, ""
+    # ...AND A ROW UNDER FURNITURE THE FILE SHOWS NOTHING ABOUT CANNOT
+    # BE TOLD EITHER (the owner's ruling of 2026-09-17, item 8; plan
+    # P4-D232). A title over a headerless table and a title over a
+    # headed one are the same bytes up to the row in question: the
+    # survey steps over the title and hands this the row beneath it,
+    # which is the column names as often as it is the first record.
+    # Measured on the tree before this rule: `subject id` over
+    # `CASE-ZEBRA-471,amber,Northfield` published that record as the
+    # three column names, in the description, in the summary, in the
+    # twin's header and in the quality report, and left the table one
+    # row short. Nothing in the VALUES marks it, so no rule reading them
+    # can catch it and the shape of the FILE is what answers.
+    #
+    # IT IS ASKED AFTER OUTCOME 3 AND NOT BEFORE IT, which is the whole
+    # of what keeps it from reading an ordinary export wrong. A title
+    # over a real header is the commonest shape a spreadsheet exports,
+    # and where a column below that header holds numbers while the
+    # header's own value does not, the file SHOWS the row is names --
+    # measured: `Extract for unit 7` over `record_id,age,arm,site,
+    # reading` and eighteen records read as a headerless table of
+    # nineteen when this was asked first, the header row became a value
+    # of every column, and the twin failed its own description at exit
+    # 3 (`tests/test_file_dialect_round_trip.py`).
+    if _stood_under_furniture(found):
+        return _NOT_TOLD, False, UNDER_FURNITURE
+    return _TAKEN_BY_CONVENTION, True, ""
+
+
+# What the file showed, for the questions file to say. Each is words a
+# person reads, and not one of them quotes a cell.
+EVERY_VALUE_A_NUMBER = "every value in that row reads as a number"
+UNDER_FURNITURE = (
+    "that row stands under a line that is not a record of the table -- a "
+    "title, or a comment -- so it is the column names as often as it is "
+    "the first record, and nothing in the values can say which"
+)
+
+
+def _stood_under_furniture(found: _Reading) -> bool:
+    """Whether a line that is not a record stood above the row taken as names.
+
+    True for a delimited file whose survey stepped over a line of TEXT
+    or a COMMENT before the table, and for a workbook sheet whose reader
+    stepped over rows of one cell above it (plan P4-D186). Both are the
+    same shape of file and are answered the same way, which is what the
+    ruling asks for: on delimited text and on workbooks alike.
+
+    A BLANK RUN IS NOT FURNITURE FOR THIS PURPOSE, and the difference is
+    measured rather than argued: a file beginning with a spare newline
+    is an ordinary file, its blank line says nothing about what the next
+    line holds, and counting it here read `age` over four numbers as a
+    headerless table of five records
+    (`tests/test_reading_header_shape.py`). A line of text or a comment
+    is a different thing: it is somebody's title, and a title stands
+    over a headerless table as readily as over a headed one.
+
+    Guarantees: accepts the reading; returns a bool. Determinism: a
+    fixed function of the reading. Raises nothing. No I/O of any kind.
+    """
+    survey = found.survey
+    if survey is not None:
+        for run in survey.form.preamble:
+            if run.kind != dialect.PREAMBLE_BLANK:
+                return True
+    sheet = found.sheet
+    if sheet is None or sheet.rows_above < 1:
+        return False
+    # ...AND A SHEET THAT MARKS ITS HEADER HAS SAID WHICH ROW HOLDS THE
+    # NAMES (plan P4-D174, P4-D232). Frozen panes ending at that row, or
+    # an autofilter beginning at it, are things a person does to a
+    # header and never to a record -- the file's own evidence, of the
+    # same standing as a column of numbers under a name that is not one.
+    # Measured without this clause: the autofilter of a marked sheet
+    # names the header's row, the twin with no header wrote it elsewhere,
+    # and `workbook.autofilter` MISSED on the twin.
+    book = found.book
+    return book is None or not workbook.marks_the_header(
+        book, sheet.header_row
+    )
 
 
 def _names_evidence(
@@ -1146,10 +1251,18 @@ def _read_workbook_table(
     # validator settles it by the description it checks against. The
     # row taken as names then meets the question below, as a text file's
     # header does.
+    # WHERE THE DESCRIPTION'S RECORDS START BELOW FURNITURE (plan
+    # P4-D232). A checked description whose names are synthtwin's own
+    # still says how many rows stood above the table, and a reading that
+    # took every row from the sheet's first would hold those rows as
+    # records -- so the file the description was written from would miss
+    # its own row count. Asked this way the two readings are one.
+    from_header = records and positions and published_header > 1
     sheet = workbook.table_of(
-        reading, shown, records,
+        reading, shown, records and not from_header,
         names_on_top=first_row == FIRST_ROW_NAMES and not positions,
         published_header=published_header if positions else 0,
+        records_from_the_header=from_header,
     )
     if not sheet.columns:
         if positions:
@@ -1212,8 +1325,41 @@ def _read_workbook_table(
     # on a delimited file; one that does not keeps the sentence a
     # workbook has always published, so a description that described
     # the same book before this rule describes it the same way now.
+    seen = ""
     if source == HEADER_FROM_FILE and not positions:
-        _settle_the_first_row(found, shown, first_row)
+        spoken, by_convention, seen = _settle_the_first_row(
+            found, shown, first_row
+        )
+        if seen:
+            # THE SHEET IS READ AGAIN AS A SHEET WITH NO NAMES IN IT
+            # (the owner's ruling of 2026-09-17, item 8; plan P4-D232),
+            # for the reason the delimited path gives: the row taken as
+            # names is kept as the record it may be, the columns are
+            # named `column_1`, `column_2` and so on, and no text of
+            # that row reaches the description. `table_of` is asked for
+            # the records reading, so the sheet's own facts -- which row
+            # the table starts at, how many rows stand above it -- are
+            # the facts of the reading that stands.
+            sheet = workbook.table_of(
+                reading, shown, records_from_the_header=True
+            )
+            names = _generated_column_names(len(sheet.columns))
+            found = dataclasses.replace(
+                found,
+                column_names=names,
+                columns=sheet.columns,
+                n_rows=sheet.n_rows,
+                header_source=HEADER_GENERATED,
+                sheet=sheet,
+            )
+            spoken = _NOT_TOLD
+            by_convention = False
+        found = dataclasses.replace(
+            found,
+            header_evidence=spoken,
+            header_by_convention=by_convention,
+            first_row_seen=seen,
+        )
     return Table(
         column_names=found.column_names,
         columns=found.columns,
@@ -1223,9 +1369,10 @@ def _read_workbook_table(
         header_source=found.header_source,
         header_evidence=found.header_evidence,
         header_by_convention=found.header_by_convention,
+        first_row_seen=found.first_row_seen,
         survey=None,
         book=reading,
-        sheet=sheet,
+        sheet=found.sheet,
     )
 
 
@@ -1439,12 +1586,37 @@ def read_table(
         raise errors.ProfileError(
             errors.out_of_memory(shown, _file_size(table_path))
         ) from error
+    seen = ""
     if found.header_source == HEADER_FROM_FILE:
-        spoken, by_convention = _settle_the_first_row(found, shown, first_row)
+        spoken, by_convention, seen = _settle_the_first_row(
+            found, shown, first_row
+        )
+        if seen:
+            # THE FILE IS WALKED AGAIN, AS A FILE WITH NO NAMES IN IT
+            # (the owner's ruling of 2026-09-17, item 8; plan P4-D232).
+            # The first walk had to read the row as names to ask the
+            # question at all -- the three record rules compare it with
+            # the values below it -- and the answer is that it may be a
+            # record, so the walk that stands is the one that keeps it
+            # as one. Nothing is patched into the first reading: the
+            # survey's own account of the file, its written names among
+            # it, is built again under the answer, which is why
+            # `source.dialect` then names no written name and no text of
+            # that row survives anywhere. A second walk is what `settle`
+            # already does where the first walk shows a guess was wrong.
+            found = _read_authoritatively(
+                table_path, shown, FIRST_ROW_DATA, refusals, encoding, data,
+                metadata_rows, decimal_comma_columns,
+                metadata_rows_confirmed, declared_delimiter,
+            )
+            _check_against_pandas(raw_path, found, shown, refusals)
+            spoken = _NOT_TOLD
+            by_convention = False
         found = dataclasses.replace(
             found,
             header_evidence=spoken,
             header_by_convention=by_convention,
+            first_row_seen=seen,
         )
     return Table(
         column_names=found.column_names,
@@ -1455,6 +1627,7 @@ def read_table(
         header_source=found.header_source,
         header_evidence=found.header_evidence,
         header_by_convention=found.header_by_convention,
+        first_row_seen=found.first_row_seen,
         survey=found.survey,
     )
 

@@ -2834,7 +2834,56 @@ def _published_workbook(
                 written_empty += [spelling]
         emptied += [tuple(written_empty)]
     block = workbook.document_of(table.book, table.sheet, floor, tuple(emptied))
-    return _stored_as_text_withheld(block, columns, floor)
+    return _stored_as_text_withheld(
+        _pooled_absence_withheld(block, columns), columns, floor
+    )
+
+
+def _pooled_absence_withheld(
+    block: "dict[str, object]",
+    columns: "list[dict[str, object]]",
+) -> "dict[str, object]":
+    """A column's class census withheld where the twin cannot be held to it.
+
+    A CENSUS OF THE SHEET'S CELLS BESIDE A COLUMN THAT CALLS SOME OF
+    THEM ABSENT (the owner's ruling of 2026-09-17, item 5; plan P4-D231).
+    `cell_classes` counts every cell of the column as the SHEET stored it
+    -- text, number, date -- and the column beside it says how many cells
+    are absent under a spelling the floor would not let it name
+    (`n_missing_withheld`). The twin writes those cells EMPTY, because
+    nothing published says what they held, so its own census counts an
+    empty cell where this one counts a text or a number, and the twin
+    misses a census it was never able to meet.
+
+    MEASURED: forty-one records of three texts at a floor of five, whose
+    first record holds a lone `amber` and a lone `Northfield`, published
+    `text: 41` on each column and wrote a twin whose census was withheld
+    -- `workbook.cell-classes` MISSED on both, with the real workbook
+    holding every obligation.
+
+    So the census is withheld for such a column, exactly as
+    `_stored_as_text_withheld` withholds one whose difference a reader
+    could take. A withheld census publishes no count and is never
+    missed, and what the column says about its own cells is unchanged.
+
+    Guarantees: returns the block, changed only so; a fixed function of
+    its arguments; raises nothing; no I/O of any kind.
+    """
+    censuses = block["columns"]
+    if not isinstance(censuses, list):
+        return block
+    for index in range(min(len(censuses), len(columns))):
+        entry = censuses[index]
+        pooled = columns[index]["n_missing_withheld"]
+        if not isinstance(entry, dict) or not isinstance(pooled, int):
+            continue
+        if isinstance(pooled, bool) or pooled < 1:
+            continue
+        classes = entry["cell_classes"]
+        if not isinstance(classes, dict):
+            continue
+        entry["cell_classes"] = {key: None for key in classes}
+    return block
 
 
 def _stored_as_text_withheld(

@@ -814,6 +814,26 @@ def battery() -> list[Mutation]:
             edit("region", suppressed_rows=11),
         ),
         Mutation(
+            # B4b, A POOL THAT IS A COUNT OF ONE (the owner's ruling of
+            # 2026-09-17, item 5; plan P4-D231). Every rule before it
+            # holds: one label covers one row fewer, one label is said
+            # to be held back over that one row, and the count of
+            # different values rises with it -- so B2, B3, B4 and B5 are
+            # all satisfied and what is left is one label on one row,
+            # which `n_present` less the published counts reads off.
+            # That is the description the producer stopped writing.
+            "B4b", "a pool of one label on one row",
+            both(
+                edit_level("region", 0, count=65),
+                both(
+                    lambda document: at(document, "region")["levels"][0].update(
+                        {"variants": {"west": 65}}
+                    ),
+                    edit("region", suppressed_rows=1),
+                ),
+            ),
+        ),
+        Mutation(
             "B5", "a label published below the floor",
             both(
                 edit_level("region", 3, count=5),

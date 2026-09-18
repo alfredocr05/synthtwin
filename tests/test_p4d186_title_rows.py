@@ -69,16 +69,38 @@ def test_a_title_row_is_counted_and_not_asked_about(
     header, published as a count, its text nowhere in the description,
     and the twin -- which writes the row back holding nothing -- is read
     the same way again.
+
+    THE NAMES ARE SYNTHTWIN'S OWN SINCE THE OWNER'S RULING OF 2026-09-17,
+    ITEM 8 (plan P4-D232): a row of text under a title, in a sheet no
+    column of which shows that row to be the names, cannot be told from
+    a record, so the columns are named `column_1`, `column_2` and so on
+    and the row is kept as the record it may be. What P4-D186 decided is
+    unmoved and is what this witness holds: the TITLE is furniture,
+    counted in `rows_above_header`, published by its shape and never by
+    its text, and the run is not stopped.
+
+    AND THE TWO RULINGS OF 2026-09-17 MEET HERE. The row kept as a
+    record holds three words, each a lone value of its column at this
+    floor of five, so the level pass of item 5 counts each as missing
+    and the twin writes a blank there -- while `workbook.cell_classes`
+    is a census of the SHEET's own cells and counts those three as text.
+    A census the twin cannot meet is withheld now
+    (`profile._pooled_absence_withheld`, plan P4-D231), so both files
+    hold every obligation they are set.
     """
     names = ["subject", "colour", "place"]
     result = _trip(tmp_path / where, "titled", _titled(title, names, _records(40)),
                    ("--smallest-group", "5"))
-    _held(result)
     document = result["document"]
-    assert [one["name"] for one in document["columns"]] == names
-    assert document["n_rows"] == 40
+    assert [one["name"] for one in document["columns"]] == [
+        "column_1", "column_2", "column_3"
+    ]
+    assert document["n_rows"] == 41
     assert document["source"]["workbook"]["rows_above_header"] == 1
     assert result["again"]["source"]["workbook"]["rows_above_header"] == 1
+    _held(result)
+    for name in names:
+        assert name.encode() not in result["described"].read_bytes()
     if title:
         assert title.encode() not in result["described"].read_bytes()
 
@@ -90,11 +112,19 @@ def test_the_workbook_and_the_text_file_of_the_same_rows_agree(
 
     Four shapes, each written once as a workbook and once as the text
     file of the same rows: a title holding a space over names; a title
-    over a row that reads as a record, which both stop and ask; a row of
-    one word over records of three, which a text file refuses as ragged
-    and a workbook reads as the names with the others blank (a text file
-    of that sheet writes `subject,,`, which reads the same); and a
-    comment over names.
+    over a row that reads as a record; a row of one word over records
+    of three, which a text file refuses as ragged and a workbook reads
+    as the names with the others blank (a text file of that sheet
+    writes `subject,,`, which reads the same); and a comment over names.
+
+    NOTHING STOPS ANY MORE (the owner's ruling of 2026-09-17, item 8;
+    plan P4-D232). The row under a title cannot be told from a record in
+    any of these shapes -- no column of them holds numbers under a
+    non-numeric name -- so each is read with synthtwin's own column
+    names and every row kept, and the questions file asks. PARITY IS
+    WHAT THIS WITNESS IS FOR and it is what it still checks: the
+    workbook and the text file of the same rows are read the same way,
+    down to the names and the row count.
     """
     records = _records(40)
     looking = [["CASE-ZEBRA-471", "red", "Eastham"]] + records
@@ -116,7 +146,8 @@ def test_the_workbook_and_the_text_file_of_the_same_rows_agree(
             except errors.ProfileError:
                 outcomes += [("asked",)]
         assert outcomes[0] == outcomes[1], (number, outcomes)
-        assert outcomes[0][0] == ("asked" if number == 1 else "read"), outcomes
+        assert outcomes[0][0] == "read", outcomes
+        assert outcomes[0][1] == ("column_1", "column_2", "column_3"), outcomes
     word = tmp_path / "word.xlsx"
     word.write_bytes(_titled("subject", ["CASE-ZEBRA-471", "amber", "Northfield"], records))
     commas = tmp_path / "word.csv"
