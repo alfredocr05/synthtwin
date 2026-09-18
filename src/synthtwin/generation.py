@@ -33850,7 +33850,19 @@ def _label_approximations(
             lowest=f"{lowest}",
             highest=f"{highest}",
             inside=lowest <= counted[2] <= highest,
-            note="how many different spellings this column holds",
+            # THE NOTE SAYS WHAT `n_distinct` MEANS ON THIS ROLE (plan
+            # P4-D276, as amended by the repair pass of 2026-09-18). On
+            # the four roles that publish a level list it counts the
+            # spellings the block SPEAKS OF, not the spellings the
+            # column holds, so the note printed to the person says that
+            # and no longer tells them a column of three spellings holds
+            # two. `_numeric_cardinalities` keeps the other wording,
+            # because on a column of numbers the count is still of raw
+            # present spellings.
+            note=(
+                "how many different spellings this column's description "
+                "speaks of"
+            ),
             covers_published=True,
         )
     ]

@@ -700,19 +700,8 @@ def test_a_blank_line_is_compared_by_its_own_spelling(
     """
     rows = _people(44)
     lines = ["record_id,age,arm,site,reading"] + _lines(rows)
-    # TWO PLACES AND NOT ONE (plan P4-D280). A blank place names a record
-    # position, so a file holding fewer of them than the line is
-    # described as holding none -- and this rule is about the SPELLING a
-    # published place carries, so it is measured at a shape that
-    # publishes.
-    spaced = (
-        "\n".join(lines[:2] + ["   "] + lines[2:6] + ["   "] + lines[6:])
-        + "\n"
-    ).encode()
-    tabbed = (
-        "\n".join(lines[:2] + ["\t"] + lines[2:6] + ["\t"] + lines[6:])
-        + "\n"
-    ).encode()
+    spaced = ("\n".join(lines[:2] + ["   "] + lines[2:]) + "\n").encode()
+    tabbed = ("\n".join(lines[:2] + ["\t"] + lines[2:]) + "\n").encode()
 
     described = _describe(tmp_path / "spaced", spaced)
     missed = _missed(tmp_path / "spaced-tabbed", described, tabbed)
@@ -722,8 +711,7 @@ def test_a_blank_line_is_compared_by_its_own_spelling(
     # tightened without becoming unmeetable.
     result = _round_trip(tmp_path / "round", spaced)
     assert result["form"]["blank_lines"] == [
-        {"after": 1, "lines": 1, "text": "   "},
-        {"after": 5, "lines": 1, "text": "   "},
+        {"after": 1, "lines": 1, "text": "   "}
     ], result["form"]["blank_lines"]
     _held(result)
 
@@ -975,11 +963,7 @@ def test_the_report_says_the_records_of_nothing_move(
     rows = _people(52)
     header = "record_id,age,arm,site,reading"
     lines = _lines(rows)
-    # TWO RECORDS OF NOTHING AND NOT ONE (plan P4-D280): an empty record
-    # is a record of the table, so a count below the line is published as
-    # nought and this rule is measured at a shape that publishes.
     lines[7] = ",,,,"
-    lines[29] = ",,,,"
     folder = tmp_path / "moved"
     folder.mkdir()
     real = folder / "real.csv"
@@ -997,7 +981,7 @@ def test_the_report_says_the_records_of_nothing_move(
     assert "spread evenly" in said
     twin = (folder / "real-twin.csv").read_bytes().split(b"\n")
     empty = [index for index in range(len(twin)) if twin[index] == b",,,,"]
-    assert len(empty) == 2, empty
+    assert len(empty) == 1, empty
 
 
 def test_a_declaration_the_file_does_not_bear_out_is_questioned(
@@ -1397,9 +1381,7 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
     assert "bytes.preamble" in _missed(tmp_path / "titled-plain", titled, plain)
 
     lines = plain.split(b"\n")
-    # TWO GAPS (plan P4-D280): one blank place is withheld, so the rule
-    # is measured where it is published.
-    gapped = b"\n".join(lines[:10] + [b""] + lines[10:20] + [b""] + lines[20:])
+    gapped = b"\n".join(lines[:10] + [b""] + lines[10:])
     spaced = _describe(tmp_path / "gapped", gapped)
     assert "bytes.blank-lines" in _missed(tmp_path / "gapped-plain", spaced, plain)
 
@@ -1483,11 +1465,7 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
     shortened = _describe(tmp_path / "short", short_text.encode())
     assert "bytes.short-rows" in _missed(tmp_path / "short-full", shortened, full_text.encode())
 
-    # TWO RECORDS OF NOTHING (plan P4-D280): a count of one is published
-    # as nought, so the rule is measured where it publishes.
-    emptied = [
-        [""] * 5 if index in (7, 29) else row for index, row in enumerate(rows)
-    ]
+    emptied = [[""] * 5 if index == 7 else row for index, row in enumerate(rows)]
     nothing = _describe(
         tmp_path / "nothing", ("\n".join([header] + _lines(emptied)) + "\n").encode()
     )
@@ -1595,25 +1573,13 @@ def test_a_sorted_excel_table_with_empty_records_below_it(
 def test_a_sorted_table_with_an_empty_record_inside(tmp_path: pathlib.Path) -> None:
     """The empty record keeps its place and the rows are sorted around it."""
     rows = sorted(_people(36), key=lambda row: row[0])
-    # TWO RECORDS OF NOTHING (plan P4-D280): a count of one is withheld,
-    # so the shape that proves the order is read around them carries two.
-    body = (
-        ["record_id,age,arm,site,reading"]
-        + _lines(rows[:60])
-        + [",,,,"]
-        + _lines(rows[60:80])
-        + [",,,,"]
-        + _lines(rows[80:])
-    )
+    body = ["record_id,age,arm,site,reading"] + _lines(rows[:60]) + [",,,,"] + _lines(rows[60:])
     data = ("\n".join(body) + "\n").encode()
     result = _round_trip(tmp_path, data)
     assert result["form"]["row_order"]["column"] == 1
-    assert result["form"]["empty_rows"] == {"interior": 2, "leading": 0, "trailing": 0}
+    assert result["form"]["empty_rows"] == {"interior": 1, "leading": 0, "trailing": 0}
     records = _records(result["twin"], "utf-8")[1:]
-    # The twin spreads its records of nothing evenly, so WHICH rows hold
-    # them is the twin's own arithmetic; what is pinned is that it holds
-    # as many as the description publishes and sorts around them.
-    assert len([row for row in records if row == ["", "", "", "", ""]]) == 2
+    assert records[60] == ["", "", "", "", ""]
     ids = [row[0] for row in records if row[0]]
     assert len(ids) == ROWS and ids == sorted(ids)
     _held(result)

@@ -2676,16 +2676,48 @@ def pool_names_a_level(
     any width. Every reading this rule was pinned at is unmoved, because
     in each of them the pool stands on the same side of both counts.
 
+    AND THE EXCEPTION MAY NOT RESCUE A POOL THAT IS ALL SINGLE ROWS
+    (plan P4-D271, as amended by the repair pass of 2026-09-18). The
+    exception above is a width, and a width lets the band's SHARPEST
+    point through wherever the pool is wide enough: `suppressed_levels`
+    equal to `suppressed_rows` says every held-back level covers exactly
+    one row -- not "at least one of them is a single row" but a count of
+    one for each of them, read off two published numbers by subtraction,
+    which is squarely what ruling 5 names. **Measured** at a floor of
+    eleven, on the commit this landing was cut from and on the landing
+    itself: 100 `NORTH` and 100 `SOUTH` beside 120 site codes written
+    once each published `suppressed_levels 120`, `suppressed_rows 120`
+    and `n_missing 0`, and the twin wrote 120 labels each covering one
+    row; 600 and 600 beside 700 such codes did the same at 700. Both
+    cleared the width, because 240 is not below 200 and 1,400 is not
+    below 1,200.
+
+    So a PINNED pool is read by subtraction outright, wherever it is
+    smaller than what the column publishes. That last clause is the
+    second half of the rule kept whole: 780 unique codes over 780 rows
+    beside one published value of twenty are pinned too, and they are
+    still the column rather than an exception beside it, so they still
+    stand -- as do 99 codes over 100 rows beside 200 published rows,
+    which are not pinned at all. After the amendment the two shapes
+    above publish no pool, count their 120 and their 700 rows as
+    missing, and both files validate at exit 0. Every reading this rule
+    was pinned at is unmoved, in the unit battery and in the round trips
+    alike.
+
     Guarantees: accepts how many levels were held back, how many rows
     they cover, and how many rows the column's published levels cover
     between them (nought where it publishes none); returns True exactly
-    where a level is published, a level is held back, the rows come to
-    fewer than twice the levels held back, and twice the pool's rows
-    come to fewer than the published rows. Determinism: a fixed function
-    of the three. Raises nothing. No I/O of any kind.
+    where a level is published, a level is held back, and either the
+    rows equal the levels held back while falling short of the published
+    rows, or the rows come to fewer than twice the levels held back
+    while twice the pool's rows come to fewer than the published rows.
+    Determinism: a fixed function of the three. Raises nothing. No I/O
+    of any kind.
     """
     if levels < 1 or published_rows < 1:
         return False
+    if rows == levels and rows < published_rows:
+        return True
     if rows * 2 >= published_rows:
         return False
     return rows < 2 * levels

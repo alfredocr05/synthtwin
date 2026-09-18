@@ -1239,14 +1239,36 @@ def _names_evidence(
     question about the first row at all, and wrote that person's record
     as the twin's header line.
 
-    So a first-row value CARRYING A FIGURE is no evidence here. A
-    column name carries figures rarely and a measurement carries them
-    always, and the cost of the rare case is a question rather than a
+    So a first-row value that carries a figure AS A VALUE is no evidence
+    here, and the cost of the rare case is a question rather than a
     record: the caller falls through to the furniture rule, which on a
     file with nothing above the row still takes it as the names by
-    convention and on a file with a title asks the person. `record_id`,
-    `age`, `arm`, `site` and `reading` over a title line are untouched,
-    because not one of them carries a figure.
+    convention and on a file with a title asks the person.
+
+    AND "CARRIES A FIGURE" ON ITS OWN WAS TOO WIDE (plan P4-D272, as
+    amended by the repair pass of 2026-09-18). The first writing of this
+    rule refused the evidence of ANY first-row value holding a figure,
+    and a column name holds one often: `q1`, `week_2` and `glucose1` are
+    column names by every reading. **Measured** at a floor of eleven,
+    against the commit before this rule was written: `Patient
+    questionnaire export 2021` over a real header `q1,q2,q3,q4` and 300
+    rows of numbers was read correctly before and afterwards published
+    `column_1` to `column_4` over 301 records -- the header row taken as
+    a RECORD, which then gave every numeric column `n_numeric 300`
+    beside `n_not_numeric 1`, a fresh count of one made by the very
+    landing that was closing them. The same as a workbook, and the same
+    for `subject,glucose1,week_2`. This rule returns on the FIRST column
+    that shows evidence, so one such name was enough to lose the header.
+
+    WHAT SEPARATES A MEASUREMENT FROM A NAME IS THE OPENING. `<0.10`,
+    `2-4` and `5 mg` open on a mark or on a figure; `q1`, `week_2` and
+    `glucose1` open on a letter, and a name written with a leading
+    underscore opens on one mark this rule reads the same way. So a
+    figure counts here only in a value that does not open on a letter or
+    an underscore. Ruling 8's shape is unmoved -- `<0.10` still yields
+    no evidence, so `R001,North Unit,<0.10` still gets placeholder names
+    and the question -- and `record_id`, `age`, `arm`, `site` and
+    `reading` over a title line are untouched as they always were.
     """
     for position, name in enumerate(header):
         if position >= len(columns):
@@ -1264,7 +1286,7 @@ def _names_evidence(
             continue
         if parsing.classify_number(f"{name}") != parsing.NOT_A_NUMBER:
             continue
-        if _holds_a_figure(f"{name}"):
+        if _holds_a_figure_as_a_value(f"{name}"):
             continue
         every_value_is_a_number = True
         for value in present:
@@ -1277,8 +1299,23 @@ def _names_evidence(
     return None
 
 
-def _holds_a_figure(text: str) -> bool:
-    """Whether any character of one value is a figure (plan P4-D272)."""
+def _holds_a_figure_as_a_value(text: str) -> bool:
+    """Whether one value carries a figure the way a VALUE does (P4-D272).
+
+    A figure counts only in a value that does not open on a letter or on
+    an underscore, which is what separates a measurement from a name:
+    `<0.10`, `2-4` and `5 mg` open on a mark or a figure, while `q1`,
+    `week_2` and `glucose1` open on a letter and `_2021` on the one mark a
+    name is written with. The opening character is read, never asked of
+    a method, because this value came out of the user's file.
+
+    Guarantees: accepts text; returns whether it carries a figure as a
+    value. Determinism: a fixed function of the text. Raises nothing. No
+    I/O of any kind.
+    """
+    opening = text[0] if text else ""
+    if opening in _SILHOUETTE_ALPHABET or opening == "_":
+        return False
     for character in text:
         if character in _SILHOUETTE_FIGURES:
             return True

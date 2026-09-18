@@ -258,7 +258,11 @@ disposed individually, in the disposition matrix.
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
 **Equality per path** (plan P2-D6). `n_distinct` counts RAW present
-spellings. `n_distinct_folded` counts FOLDED identities. Numeric
+spellings — except on the four roles that publish a level list, and on
+a compound column's label half, where it counts the spellings the block
+SPEAKS OF (plan P4-D276), so that the absorption of a spelling below the
+floor leaves no residual to subtract. `n_distinct_folded` counts FOLDED
+identities. Numeric
 statistics describe PARSED values. Level facts use the FOLDED
 identity. Datetime facts use the parsed instant at the recorded
 resolution. A conforming implementation never swaps one notion of
@@ -726,12 +730,12 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null`, and empty where the places number fewer than max(2, `small_cell_floor`), because a place is a RECORD POSITION and a handful of them are a handful of records (plan P4-D280: one blank line after record 57 of 120 published `{after: 57, lines: 1}`). The lines of a withheld place leave `line_endings` with them, which then collapses to one run, because FD2 has the endings account for every line the description keeps |
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null`, and empty where the places number fewer than max(2, `small_cell_floor`), because a place is a RECORD POSITION and a handful of them are a handful of records (plan P4-D280: one blank line after record 57 of 120 published `{after: 57, lines: 1}`) — that withholding applies only where the floor is ABOVE ONE, so a run in which nothing was asked of synthtwin keeps the file's form exactly as the source wrote it (P4-D280 as amended 2026-09-18). The lines of a withheld place leave `line_endings` with them, which then collapses to one run, because FD2 has the endings account for every line the description keeps |
 | `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and a count below max(2, `small_cell_floor`) is published as NOUGHT (plan P4-D280, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`) |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and, WHERE THE FLOOR IS ABOVE ONE, a count below max(2, `small_cell_floor`) is published as NOUGHT (plan P4-D280, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`; gated on a raised floor by the amendment of 2026-09-18, because at a floor of one the column censuses beside it publish a level covering one row) |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -739,7 +743,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
-| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), the whole file is published as ONE run of the commonest ending (plan P4-D280, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D280, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests apply only where the floor is above one |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
 | `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
 | `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
@@ -3159,7 +3163,7 @@ guess is what fails silently.
 | `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, except a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder), which the twin writes empty |
 | `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
 | `n_missing_withheld` | integer ≥ 0 | — | how many absent cells of this column wore a spelling — or a blankness — that fewer than `small_cell_floor` cells of the column shared, pooled together and unnamed | REPORT-ONLY, bound by the same sum identity |
-| `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds | set per role group, section 9 |
+| `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds — except on the four roles that publish a level list, and on a compound column's label half, where it counts the spellings the block SPEAKS OF (plan P4-D276) | set per role group, section 9 |
 | `n_distinct_folded` | integer ≥ 0 | ≤ `n_distinct` | how many different FOLDED identities it holds | set per role group, section 9 |
 | `n_numeric` | integer ≥ 0 | — | present cells that read as a number this file format can hold | EXACT-OBSERVABLE by class-preserving construction |
 | `n_not_numeric` | integer ≥ 0 | — | present cells that are not numeric notation at all | EXACT-OBSERVABLE by class-preserving construction |
@@ -3193,6 +3197,27 @@ cores, which are counted by four keys of that role's own, beginning
 with `n_core_numeric`. The `affixed_number` section states the split,
 and every quantitative invariant this format states over `n_numeric` is
 read on that role over `n_core_numeric`, and nowhere else.
+
+**THE FOUR ARE PROTECTED ON A DECLARED RECORD NUMBER AND NOWHERE ELSE,
+AND THAT IS A KNOWN GAP** (plan P4-D277, recorded by the repair pass of
+2026-09-18). Invariant X2 counts a part below max(2, `small_cell_floor`)
+into the largest part on `structural_role` `identifier`, because a
+declared record number's block promises to name no value of the table
+and a part of one names the one record that holds it. `free_text` carries
+the same promise (F3) and does NOT get the same protection. **Measured**
+at a floor of eleven: 999 different notes of eight words each beside one
+cell reading `42` publish `n_numeric 1` and `n_not_numeric 999` against
+`n_present 1000`, and a notes column with one stray number is an ordinary
+shape. It is not closed here because these three counts are what the
+NUMERIC roles are described BY -- a column of measurements publishes
+`n_not_numeric` beside a form census checked against it (SF3,
+`parsing.form_never_a_number`) -- so absorbing them on `free_text` alone
+would make one role's four counts mean something different from every
+other role's, and absorbing them everywhere changes what those roles
+describe. Whether the partition moves for every role at once is the
+owner's, and it is put to them with this measurement rather than settled
+here. Until it is, a reader of a `free_text` block should read these four
+counts as UNPROTECTED by the floor.
 
 **`detection_evidence` and `remarks` are built sentences, not free
 text.** Both are subject to the publication guard of section 4.5: each
@@ -4121,9 +4146,12 @@ one is no longer written at all, because the cells that would leave it
 are counted as missing.
 
 **Invariant B4b (a pool that forces a count of one).** The labels held
-back never come to fewer rows than twice their number:
-`not parsing.pool_names_a_level(suppressed_levels, suppressed_rows)`
-(owner ruling of 2026-09-17, item 5; plan P4-D231, widened by P4-D239).
+back never come to fewer rows than twice their number, and never come to
+exactly their number while covering fewer rows than the published levels
+do: `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows,
+the rows the published levels cover)` (owner ruling of 2026-09-17, item
+5; plan P4-D231, widened by P4-D239, bounded by P4-D271 and pinned by
+its amendment of the repair pass of 2026-09-18).
 Such a pool forces a count of one -- and B3 above makes that subtraction
 available to every reader whether or not `suppressed_rows` is printed,
 which is why no key left out could hide it. 480 `F`, 519 `M` and one `U`
@@ -4154,6 +4182,35 @@ of 6.3 above -- that where `suppressed_rows` is less than twice
 stated limit for the same reason: it is true of every ordinary long
 tail, and the demonstration's `note` holds back 182 levels over 217
 rows.
+
+**What the width does NOT let through** (plan P4-D271 as amended by the
+repair pass of 2026-09-18). The exception above is a width, and a width
+would otherwise let the band's sharpest point through wherever the pool
+is wide enough. `suppressed_levels` equal to `suppressed_rows` says
+every held-back level covers exactly ONE row -- a count of one for each
+of them, read off two published numbers -- so such a pool is refused
+whenever it covers fewer rows than the published levels do, whatever the
+width says. Measured at a floor of eleven: 100 `NORTH` and 100 `SOUTH`
+beside 120 site codes written once each published (120, 120) and no
+missing cell, and 600 and 600 beside 700 such codes published (700, 700);
+both cleared the width and both are refused now. A pool that is the
+column rather than an exception beside it is still not refused: 780
+unique codes over 780 rows beside one published value of twenty are
+pinned too and still stand, because the pool covers more rows than the
+published levels do.
+
+**AND `n_present`/`n_missing`, WHICH IS WHERE THIS RULE SENDS THE CELLS,
+IS ITSELF FLOOR-FREE.** Section 11 lists the presence split among the
+universal counts that are floor-free on every role, and it is not asked
+`parsing.census_nameable` anywhere. So a column of 1,977 `NORTH`, 11
+`SOUTH` and ONE one-row site at a floor of eleven publishes `n_present
+1988` and `n_missing 1` against `n_rows 1989`, and its twin holds one
+blank cell -- naming the one record whose site stands outside the
+published labels. That is the exception this format carries knowingly:
+publishing that a row is MISSING is ruling 5's own consequence, and
+asking the disclosure rule of the presence split would change every
+column block this format writes rather than repair this one. Plan
+P4-D271 records the measurement and puts the question to the owner.
 
 **Invariant B5 (the floor).** Every `entry.count` is at least the floor.
 
@@ -5812,6 +5869,17 @@ of section 7.12a is admitted where a block carries `layout_prefixes`,
 and that key stands on the declared `identifier` role alone (6.11). A
 `free_text` block carries no layout census and no prefix, so on this
 role the amendment admits nothing and F3 binds exactly as it did.
+
+**WHAT F3 DOES NOT COVER, NAMED RATHER THAN LEFT TO BE FOUND.** F3 binds
+the block's values, spellings and fragments; it does not bind the four
+universal reading counts of section 5.1, which are numbers and not
+spellings. `n_numeric`, `n_not_numeric`, `n_out_of_range` and
+`n_contradictory` are absorbed under X2 on a declared record number and
+are NOT absorbed here, so on this role a part of one stands: 999 notes
+beside one `42` publish `n_numeric 1` against `n_present 1000`. The two
+alphabet counts above ARE absorbed, by `parsing.absorbed_total`. Section
+5.1 states the gap, what it would cost to close, and that it is the
+owner's to rule on.
 
 **AND `shape_forms` DOES NOT BREAK F3, WHICH IS WHY IT MAY STAND ON
 THIS ROLE AT ALL.** A form is built by replacing every figure of a
@@ -10088,7 +10156,7 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
-| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows, the rows the published levels cover)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239, and bounded against HALF the rows the published levels cover, rather than against the smallest published level, by P4-D271 | yes |
+| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows, the rows the published levels cover)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239, and bounded against HALF the rows the published levels cover, rather than against the smallest published level, by P4-D271 — whose amendment of 2026-09-18 refuses a pool of exactly one row per level outright wherever it covers fewer rows than the published levels do | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |

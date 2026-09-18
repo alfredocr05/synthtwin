@@ -1991,7 +1991,21 @@ GOLDEN_REPORT_SHA256 = (
     # review measured: 40 of 2,000 made-up subject numbers were numbers
     # the real column held, at each of two seeds. The twin's own digest
     # above did NOT move, so not one cell of the twin changed with it.
-    "5a2dfcae0fbb7e4a0c833ca4b1398501a1d5d18b9fab3134b8b903a692b790b8"
+    #
+    # RE-RECORDED AT THE REPAIR PASS OF 2026-09-18 (plan P4-D276, as
+    # amended), read line by line against c5d09d5: FOUR LINES MOVED and
+    # not one other line of the report did. All four are the same note,
+    # one on each of the four columns of LABELS, and all four say what
+    # `n_distinct` means on those roles -- "how many different spellings
+    # this column's description speaks of" where they read "how many
+    # different spellings this column holds". P4-D276 changed the count
+    # itself on exactly those roles and left the sentence beside it
+    # saying the old meaning, so a person reading their own report was
+    # told a column of three spellings holds two. A column of NUMBERS
+    # keeps the old wording, because there the count is still of raw
+    # present spellings. The twin's own digest above did NOT move, so
+    # not one cell of the twin changed with it.
+    "415ded5df4f0bb4ae841cc65ace7f62e2025f86841dc5701a21b2041aaf2f04a"
 )
 
 

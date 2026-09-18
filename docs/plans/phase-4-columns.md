@@ -15526,6 +15526,37 @@ The ruling is unmoved everywhere it can be kept — `REC` and seven
 figures over 800 rows leaves 10,000,000 cells for 811 and publishes
 exactly as before.
 
+**OPEN, AND PUT TO THE OWNER: THE ROOM RULE'S THRESHOLD IS `n_distinct +
+floor`, AND THAT IS NOT ENOUGH TO KEEP REAL ROWS OUT OF THE TWIN** (the
+repair pass of 2026-09-18). The rule this decision restores is the one
+C6-130 already stated; restoring it closes the shape the review built
+and does not deliver the owner goal behind it in general. The generator
+never reads a table, so it draws its cells from the published shape at
+random, and a shape with room *R* drawn *n* times leaves about *n²/R*
+cells that happen to be cells of the real table. **Measured** at a floor
+of eleven, 1,000 declared record numbers beside a constant cohort, seed
+4, all runs at exits 0/0/0:
+
+| published layout | room | room ÷ `n_distinct` | record numbers of the real table in the twin |
+|---|---|---|---|
+| `@@@%%%%` (`REC` + 4 figures) | 10,000 | 10× | 100 of 1,000 — and all 100 are whole real ROWS |
+| `@@@%%%%%` | 100,000 | 100× | 10 of 1,000 |
+| `@@@%%%%%%` | 1,000,000 | 1,000× | 1 of 1,000 |
+| `@@@%%%%%%%` | 10,000,000 | 10,000× | 0 of 1,000 |
+
+Every one of those clears `n_distinct + floor` (1,011) and publishes its
+layout and its prefix. A column with no prefix at all behaves the same:
+989 identifiers `000` to `988` published `%%%` and its twin held 978 of
+the 989. **NO TWIN ROW IS A REAL ROW** is an owner goal, and at the
+current threshold it is not reached. The lever is the threshold, and it
+is the only one — a multiple of `n_distinct` rather than a sum with the
+floor, where 100× buys about one collision per hundred rows and 1,000×
+about one per thousand. It is NOT taken here, because raising it
+withdraws the published layout, and with it the prefix ruling 1 admits,
+from ordinary identifier columns whose figures are only as wide as the
+count needs — a fidelity decision and a bearing on ruling 1, not a
+defect this pass may settle. Put to the owner with the four rows above.
+
 ### P4-D271 The pool's exception is measured against the PUBLISHED ROWS
 
 The extra review round of 2026-09-18, blocking item 3. P4-D239 bounded
@@ -15558,6 +15589,60 @@ of what the column publishes is an exception beside it. Every reading
 the rule was pinned at is unmoved, because in each of them the pool
 stands on the same side of both counts.
 
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: A WIDTH IS NOT ENOUGH.** The
+verification of this landing measured the same arithmetic at other
+widths and it still stood. At a floor of eleven, 100 `NORTH` and 100
+`SOUTH` beside 120 site codes written once each published
+`suppressed_levels 120`, `suppressed_rows 120` and `n_missing 0`, and the
+twin wrote 120 labels each covering one row; 600 and 600 beside 700 such
+codes published (700, 700). Both cleared the exception, because 240 is
+not below 200 and 1,400 is not below 1,200 — and `suppressed_levels`
+equal to `suppressed_rows` is not "at least one of them is a single row"
+but a count of ONE for every one of them, read off two published numbers
+by subtraction. That is squarely ruling 5, so the ruling wins over the
+width.
+
+**The amendment** (`parsing.pool_names_a_level`, contract invariant
+B4b). A PINNED pool — the rows equal to the levels — is read by
+subtraction outright wherever it covers fewer rows than the published
+levels do, whatever the width says. The second half of the rule is kept
+whole above that line: 780 unique codes over 780 rows beside one
+published value of twenty are pinned too, cover more rows than the
+published levels, and still stand; 99 codes over 100 rows beside 200
+published rows are not pinned at all and still stand. **Measured:** the
+two shapes above now publish no pool, count their 120 and their 700 rows
+as missing, and both files validate at exit 0; every reading the rule was
+pinned at — the whole unit battery of
+`tests/test_ruling_levels_counted_by_subtraction.py`, the code and
+long-tail batteries of `tests/test_final_review_labels.py`, and
+`tests/test_p4d239_forced_counts_of_one.py` — is unmoved. Removing the
+exception altogether, which is what the review asked for, was built and
+measured first and turned five witnesses red, among them the 780-code
+register and the form census of a code column with a long tail; that
+reading is recorded here and not taken.
+
+**OPEN, AND PUT TO THE OWNER: `n_missing` IS THE DESTINATION AND IT IS
+NOT ASKED THE DISCLOSURE RULE** (the repair pass of 2026-09-18). This
+rule counts a held-back label's rows as MISSING, which is ruling 5's own
+consequence — and the presence split it counts them into is published
+without ever being asked `parsing.census_nameable`. **Measured** at a
+floor of eleven, unchanged on the commit this landing was cut from and
+after it: 1,977 `NORTH`, 11 `SOUTH` and ONE one-row site publish
+`levels [("north", 1977), ("south", 11)]`, `suppressed 0/0`,
+`n_present 1988` and `n_missing 1` against `n_rows 1989`, and the twin
+holds exactly one blank cell. That names the one record whose site is
+none of the published labels. It is pre-existing and it is not changed
+here, because publishing that a row is missing is what ruling 5 asks
+for, so closing it may be a question about the ruling rather than a
+defect under it — and because `n_present` and `n_missing` are a
+floor-free pair on EVERY role (section 11's table of the universal
+counts), so asking the rule of them is a change to every column block
+this format writes, not a repair in this lane. Put to the owner with
+those numbers: should the presence split clear `census_floor` like the
+other censuses? If yes it is one call to `parsing.census_nameable` at
+the split; if no, the exception belongs in the contract, which is where
+the repair pass wrote it.
+
 ### P4-D272 A value carrying a FIGURE is no evidence that the first row is names
 
 The extra review round of 2026-09-18, blocking item 2. `_names_evidence`
@@ -15583,6 +15668,32 @@ title puts ruling 8's question. `record_id`, `age`, `arm`, `site` and
 `reading` over a title line are untouched, because not one of them
 carries a figure. The cost of the rare case is a question rather than a
 record.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: "CARRIES A FIGURE" WAS TOO
+WIDE.** A column name carries a figure often, not rarely: `q1`, `week_2`
+and `glucose1` are column names by every reading. **Measured** at a floor of
+eleven, against the commit this landing was cut from: `Patient
+questionnaire export 2021` over a real header `q1,q2,q3,q4` and 300 rows
+of numbers was read correctly before and afterwards published `column_1`
+to `column_4` over 301 records — the header row taken as a RECORD, which
+then gave every numeric column `n_numeric 300` beside `n_not_numeric 1`,
+a fresh count of one made by the very landing that was closing them, and
+a twin whose columns are named `column_1..` so that code written against
+it does not run against the real table. The same as a workbook, and the
+same for a header `subject,glucose1,week_2`. `_names_evidence` returns on
+the FIRST column that shows evidence, so one such name was enough.
+
+**The amendment** (`reading._holds_a_figure_as_a_value`). What separates
+a measurement from a name is the OPENING: `<0.10`, `2-4` and `5 mg` open
+on a mark or on a figure, while `q1`, `week_2` and `glucose1` open on a
+letter and a name written `_2021` opens on the one mark a name is
+written with. So a figure counts here only in a value that does not open
+on a letter or an underscore. **Measured:** ruling 8's shape is unmoved —
+`R001,North Unit,<0.10` under a title still gets `column_1` to
+`column_3`, 240 records, the first-record question, and none of its three
+values in any published file — while `q1,q2,q3,q4` is back to its own
+names over 300 records and `subject,glucose1,week_2` to its own names over
+240.
 
 ### P4-D273 The questions file asks the complement too
 
@@ -15786,3 +15897,40 @@ The floor reaches the survey because the survey is what BOTH sides run:
 the profiler's reading of the table and the validator's reading of the
 checked file, so a real table and its twin are measured under one rule
 and each passes its own description.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18, IN TWO PLACES.**
+
+*(a) A RUN below the line counts, not only an ENDING below the line.*
+`endings_disclosed` read each ending's TOTAL over the whole file, so an
+ending with companions elsewhere never tripped the rule and its lone run
+stood. **Measured** at a floor of eleven, on the same header and 120
+records: lines 0 to 20 given CRLF endings AND record 57 given one, every
+other line LF, published `[{crlf: 21}, {lf: 36}, {crlf: 1}, {lf: 63}]` —
+record 57's exact position again, from an ending whose total is 22. A
+run says how many CONSECUTIVE lines ended one way, so a published run
+shorter than the line points at the records that carry it whatever the
+totals come to. The runs are read as well as the totals now, and that
+file publishes `[{lf: 121}]` with both files at exit 0.
+
+*(b) THE THREE FILE RULES ARE GATED ON A RAISED FLOOR.* The first
+writing let them bite at the DEFAULT floor, where `census_floor` is two
+and nothing has been asked of synthtwin at all — and at that same floor
+the column censuses beside them publish a level covering ONE row.
+**Measured** at the default floor, on a header and 120 records: a single
+blank line after record 57, a single bare-comma record and a single
+trailing blank line were each kept before this landing and each dropped
+after it, while the very same run published the level `("south", 1)` on
+a column of 239 `NORTH` and one `SOUTH`. Holding a file's own form to a
+stricter standard than the product holds its own column contents to, on
+the path where the person asked for no protection, costs the twin its
+form for nothing and moves against the owner goal that the twin writes
+everything exactly as the source wrote it. So all three rules now return
+their argument unchanged at a floor of one, exactly as
+`taxonomy._absorb_lone_spellings` does, and the floor's own value and
+unit stay the owner's deferred question. **Measured after the gate:** at
+the default floor all seven shapes are written as the source wrote them,
+and at a floor of eleven all seven are protected, every run at exits
+0/0/0. The four guards of `tests/test_file_dialect_round_trip.py` that
+the first writing rebuilt at two blank places and two empty records are
+restored to their own one-of-a-kind shapes, positional assertion and
+all, because the default floor publishes them again.

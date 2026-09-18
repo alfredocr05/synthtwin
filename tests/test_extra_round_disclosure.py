@@ -35,7 +35,7 @@ delimited file's own lines (P4-D280).
 THE RED CHECKS, each measured by withdrawing the rule in place:
 
 * `parsing.prefix_leaves_room` forced True -- the prefix test here;
-* `_holds_a_figure` forced False -- the header tests here;
+* `_holds_a_figure_as_a_value` forced False -- the header tests here;
 * `pool_names_a_level`'s exception restored to the smallest published
   level -- the forced-singleton test here;
 * `_joint_reading_names_a_group` forced True -- the joint-reading test;
@@ -48,6 +48,21 @@ THE RED CHECKS, each measured by withdrawing the rule in place:
   raw counts -- the identifier tests;
 * `endings_disclosed`, `blank_places_disclosed` and
   `row_count_disclosed` returning their arguments -- the file tests.
+
+AND FIVE MORE, from the repair pass of 2026-09-18, which measured what
+those nine left open or broke. Their tests stand in their own section at
+the foot of this file, and their red checks are:
+
+* `_holds_a_figure_as_a_value` without its opening test -- the ordinary
+  header that carries a figure loses its own names again;
+* `pool_names_a_level` without its pinned-pool branch -- 120 lone sites
+  beside 200 published rows publish a pool of one row a level again;
+* `endings_disclosed` without its run loop -- a lone CRLF run stands
+  again where the ending has companions elsewhere;
+* the three `dialect` rules without their `floor <= 1` gate -- the
+  default floor takes a file's lone blank line again;
+* the label note back at "how many different spellings this column
+  holds" -- the person is told a column of three spellings holds two.
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -673,3 +688,295 @@ def test_the_file_rules_are_asked_of_the_shared_line() -> None:
     one = [dialect.BlankPlace(after=57, lines=1, text="")]
     assert dialect.blank_places_disclosed(one, 11) == []
     assert dialect.blank_lines_withheld(one, 11) == 1
+
+
+# ============================================================ THE REPAIR PASS
+#
+# The verification of this landing measured five things the nine repairs
+# above left open or broke, each reproduced here from its own report and
+# each with the rule withdrawn to prove the check goes red.
+#
+# * `_holds_a_figure_as_a_value` without its opening test -- the two
+#   header tests below;
+# * `pool_names_a_level` without its pinned-pool branch -- the two pool
+#   tests below;
+# * `endings_disclosed` without its run loop -- the ending test below;
+# * the three `dialect` rules without their `floor <= 1` gate -- the
+#   default-floor test below;
+# * the label note back at "how many different spellings this column
+#   holds" -- the note test below.
+
+
+def _titled(folder: pathlib.Path, title: str, rows: "list[list[str]]") -> str:
+    """One title line over a table, written byte for byte, then described."""
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    table.write_text(
+        title + "\n" + "".join(",".join(row) + "\n" for row in rows),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace", *FLOOR]
+    ) == 0
+    return (folder / "real-profile.json").read_text(encoding="utf-8")
+
+
+def test_a_column_name_carrying_a_figure_still_names_its_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`q1,q2,q3,q4` and `subject,glucose1,week_2` under a title line.
+
+    The first writing of P4-D272 refused the header evidence of ANY
+    first-row value holding a figure, and a column name holds one often.
+    Both headers were read correctly before that rule and lost after it:
+    `column_1..` names, one record too many, and -- the header row having
+    become a RECORD -- a fresh `n_not_numeric 1` in every numeric column.
+    """
+    draw = random.Random(7)
+    answers = [
+        [f"{draw.randint(1, 5)}" for _ in range(4)] for _ in range(300)
+    ]
+    document = json.loads(
+        _titled(
+            tmp_path / "survey",
+            "Patient questionnaire export 2021",
+            [["q1", "q2", "q3", "q4"]] + answers,
+        )
+    )
+    assert [block["name"] for block in document["columns"]] == [
+        "q1", "q2", "q3", "q4",
+    ]
+    assert document["n_rows"] == 300
+    # No column carries the count of one the lost header made.
+    for block in document["columns"]:
+        assert block["n_not_numeric"] == 0
+
+    people = [
+        [f"S{index:03}", f"{draw.randint(40, 90) / 10:.1f}",
+         f"{draw.randint(1, 9)}"]
+        for index in range(240)
+    ]
+    clinic = json.loads(
+        _titled(
+            tmp_path / "clinic",
+            "Diabetes cohort extract",
+            [["subject", "glucose1", "week_2"]] + people,
+        )
+    )
+    assert [block["name"] for block in clinic["columns"]] == [
+        "subject", "glucose1", "week_2",
+    ]
+    assert clinic["n_rows"] == 240
+
+
+def test_a_figure_counts_in_a_value_and_not_in_a_name() -> None:
+    """The opening character is the whole of the difference (P4-D272).
+
+    A measurement opens on a mark or on a figure; a column name opens on
+    a letter, or on the one mark a name is written with. Stated here as
+    well as measured above, because this one character is what keeps
+    ruling 8's shape closed while an ordinary header stands.
+    """
+    from synthtwin import reading
+
+    for value in ("<0.10", "2-4", "5 mg", "0.5", "-3", ".25", "12345"):
+        assert reading._holds_a_figure_as_a_value(value)
+    for name in ("q1", "week_2", "glucose1", "visit1", "B10", "_2021", ""):
+        assert not reading._holds_a_figure_as_a_value(name)
+    # And a name with no figure at all is no figure either way.
+    for name in ("record_id", "age", "arm", "site", "reading"):
+        assert not reading._holds_a_figure_as_a_value(name)
+
+
+def _sites(published: int, held: int) -> "list[str]":
+    """Two published labels over `published` rows, beside `held` lone sites."""
+    half = published // 2
+    cells = ["NORTH"] * half + ["SOUTH"] * (published - half) + [
+        f"S{index:04}" for index in range(held)
+    ]
+    random.Random(9).shuffle(cells)
+    return cells
+
+
+def test_a_pool_of_one_row_a_level_is_read_at_every_width(
+    tmp_path: pathlib.Path,
+) -> None:
+    """120 lone sites beside 200 published rows, and 700 beside 1,200.
+
+    `suppressed_levels` equal to `suppressed_rows` is a count of ONE for
+    every held-back level, read off two published numbers. The width
+    P4-D271 set let both through, because 240 is not below 200 and 1,400
+    is not below 1,200; the pinned pool is read by subtraction whatever
+    the width says.
+    """
+    for folder, published, held in (
+        ("small", 200, 120), ("large", 1200, 700),
+    ):
+        result = _round_trip(
+            tmp_path / folder, {"value": _sites(published, held)}, FLOOR
+        )
+        block = _column(result)
+        assert block["suppressed_levels"] == 0
+        assert block["suppressed_rows"] == 0
+        assert block["n_present"] == published
+        assert block["n_missing"] == held
+        blanks = [cell for cell in result["twin"]["value"] if cell == ""]
+        assert len(blanks) == held
+        lone = [
+            cell for cell in result["twin"]["value"]
+            if cell and cell not in ("north", "south", "NORTH", "SOUTH")
+        ]
+        assert lone == []
+        _both_pass(result)
+
+
+def test_a_long_tail_that_is_the_column_still_keeps_its_pool(
+    tmp_path: pathlib.Path,
+) -> None:
+    """780 codes written once beside one value of twenty rows: the column.
+
+    The second half of P4-D271 is kept whole. This pool is pinned too --
+    780 levels over 780 rows -- and it covers MORE rows than the column
+    publishes, so it is the column's own shape and not an exception
+    beside it. Nothing is counted missing and every cell is written.
+    """
+    cells = [f"code-{index:05d}" for index in range(780)] + ["CODE-00999"] * 20
+    result = _round_trip(
+        tmp_path, {"value": cells}, ("--code", "value") + FLOOR
+    )
+    block = _column(result)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (780, 780)
+    assert block["n_missing"] == 0
+    assert [cell for cell in result["twin"]["value"] if cell == ""] == []
+    _both_pass(result)
+
+
+def test_the_pinned_pool_is_asked_before_the_width() -> None:
+    """The rule, stated: pinned and below the published rows, or the band."""
+    # Pinned, and smaller than what the column publishes.
+    assert parsing.pool_names_a_level(120, 120, 200)
+    assert parsing.pool_names_a_level(700, 700, 1200)
+    assert parsing.pool_names_a_level(12, 12, 1988)
+    # Pinned, and the column's own shape: the exception stands.
+    assert not parsing.pool_names_a_level(780, 780, 20)
+    assert not parsing.pool_names_a_level(3, 3, 3)
+    # Not pinned at all: the width decides, exactly as before.
+    assert not parsing.pool_names_a_level(99, 100, 200)
+    assert not parsing.pool_names_a_level(182, 400, 500)
+
+
+def test_a_rare_ending_s_run_names_no_record_among_its_companions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Lines 0-20 CRLF AND record 57 CRLF: a run of one stood before.
+
+    `endings_disclosed` read each ending's TOTAL over the file, so an
+    ending with twenty companions elsewhere never tripped the rule and
+    its lone run -- record 57's exact position -- was published.
+    """
+    lines = ["record,amount"] + _RECORDS
+    text = ""
+    for index, line in enumerate(lines):
+        crlf = index <= 20 or index == 57
+        text += line + ("\r\n" if crlf else "\n")
+    form = _file_form(tmp_path, text)
+    # LF is the commonest, at 99 lines against CRLF's 22.
+    assert form["line_endings"] == [{"ending": "lf", "lines": 121}]
+    assert form["line_endings_spread"] == []
+
+
+def test_a_run_below_the_line_is_read_as_well_as_a_total() -> None:
+    """The rule itself: a run shorter than the line collapses the file."""
+    from synthtwin import dialect
+
+    companions = [
+        dialect.EndingRun(ending="crlf", lines=21),
+        dialect.EndingRun(ending="lf", lines=36),
+        dialect.EndingRun(ending="crlf", lines=1),
+        dialect.EndingRun(ending="lf", lines=63),
+    ]
+    assert dialect.endings_disclosed(companions, 11) == [
+        dialect.EndingRun(ending="lf", lines=121)
+    ]
+    # Every run at the line and every total at the line: published.
+    even = [
+        dialect.EndingRun(ending="lf", lines=60),
+        dialect.EndingRun(ending="crlf", lines=61),
+    ]
+    assert dialect.endings_disclosed(even, 11) == even
+
+
+def test_at_the_default_floor_a_file_keeps_its_own_form(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A floor of one is a run in which nothing was asked of synthtwin.
+
+    At that same floor the column censuses beside these three publish a
+    level covering ONE row, so holding the file's form to a stricter
+    standard took its lone blank line, its lone empty record and its lone
+    rare ending out of the twin for nothing.
+    """
+    from synthtwin import dialect
+
+    one_place = [dialect.BlankPlace(after=57, lines=1, text="")]
+    assert dialect.blank_places_disclosed(one_place, 1) == one_place
+    assert dialect.blank_lines_withheld(one_place, 1) == 0
+    assert dialect.row_count_disclosed(1, 1) == 1
+    runs = [
+        dialect.EndingRun(ending="lf", lines=57),
+        dialect.EndingRun(ending="crlf", lines=1),
+        dialect.EndingRun(ending="lf", lines=63),
+    ]
+    assert dialect.endings_disclosed(runs, 1) == runs
+    # ...and a raised floor is unmoved.
+    assert dialect.blank_places_disclosed(one_place, 11) == []
+    assert dialect.row_count_disclosed(1, 11) == 0
+
+    folder = tmp_path / "default"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    table.write_bytes(
+        (
+            "record,amount\n"
+            + "".join(row + "\n" for row in _RECORDS[:57])
+            + "\n"
+            + "".join(row + "\n" for row in _RECORDS[57:])
+        ).encode("utf-8")
+    )
+    assert _exit_of(
+        [
+            "profile", str(table), "--out-dir", str(folder), "--replace",
+            "--identifier", "record",
+        ]
+    ) == 0
+    document = json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )
+    assert document["source"]["dialect"]["blank_lines"] == [
+        {"after": 57, "lines": 1, "text": ""}
+    ]
+
+
+def test_the_report_says_what_the_distinct_count_means_on_a_label_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """490 `F`, 500 `M` and one `f`: `n_distinct` is 2 and the note says so.
+
+    P4-D276 changed what the count means on the four label roles, and the
+    note printed to the person went on saying "how many different
+    spellings this column holds" -- telling them a column of three
+    spellings holds two.
+    """
+    cells = ["F"] * 490 + ["M"] * 500 + ["f"]
+    random.Random(2).shuffle(cells)
+    result = _round_trip(tmp_path, {"value": cells}, FLOOR)
+    assert _column(result)["n_distinct"] == 2
+    assert "how many different spellings this column holds" not in (
+        result["report"]
+    )
+    assert (
+        "how many different spellings this column's description speaks of"
+        in result["report"]
+    )
+    _both_pass(result)

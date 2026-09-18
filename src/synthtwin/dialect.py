@@ -1523,6 +1523,20 @@ def endings_disclosed(
     thing, so the file passes its own description. Ties for the
     commonest go to the first ending in sorted order.
 
+    AND A RUN BELOW THE LINE COUNTS THE SAME WAY, WHATEVER ITS ENDING'S
+    TOTAL COMES TO (the repair pass of 2026-09-18). The first writing of
+    this rule read each ENDING'S total over the whole file, so an ending
+    with companions somewhere else never tripped it and its lone run
+    stood. **Measured** at a floor of eleven, on the same header and 120
+    records: giving lines 0 to 20 CRLF endings AND record 57 a CRLF
+    ending, with every other line LF, published `[{crlf: 21}, {lf: 36},
+    {crlf: 1}, {lf: 63}]` -- record 57's exact position again, from an
+    ending whose total is 22. A run says how many CONSECUTIVE lines
+    ended one way, so a published run shorter than the line points at
+    the records that carry it whatever else the file holds; the runs are
+    read here as well as the totals, and the file then collapses to one
+    run of the commonest ending exactly as above.
+
     AND THE BLANK LINES THIS FILE DOES NOT PUBLISH LEAVE THE COUNT WITH
     THEM. `blank_places_disclosed` below withholds the places of a
     handful of blank lines, and invariant FD2 has the endings account for
@@ -1533,12 +1547,32 @@ def endings_disclosed(
     around a rare ending: their positions are what says where the
     withheld line stood.
 
+    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
+    A floor of one is a run in which the person has asked synthtwin for
+    no protection at all, and at that same floor the column censuses
+    beside this one publish a level covering ONE row -- so holding a
+    file's own form to a stricter standard than the product holds its
+    own column contents to, on the path where nothing was asked, took a
+    file's lone blank line, its lone empty record and its trailing blank
+    line out of the twin for nothing. **Measured** at the default floor,
+    on a header and 120 records: a single blank line after record 57, a
+    single bare-comma record and a single trailing blank line were all
+    kept before this rule was written, all three were dropped after it,
+    and the very same run published the level `("south", 1)` on a column
+    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
+    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
+    floor's own value and unit stay the owner's deferred question.
+
     Guarantees: accepts the runs in file order, the settings floor and
     how many lines are withheld from the published form; returns those
-    runs, or a single run of the commonest ending over every line the
-    description keeps. Determinism: a fixed function of the three.
+    runs at a floor of one, and otherwise those runs where every
+    ending's total AND every run's own length reach the line and no line
+    is withheld, or a single run of the commonest ending over every line
+    the description keeps. Determinism: a fixed function of the three.
     Raises nothing. No I/O of any kind.
     """
+    if floor <= 1:
+        return list(runs)
     line = parsing.census_floor(floor)
     totals: "dict[str, int]" = {}
     for run in runs:
@@ -1553,6 +1587,12 @@ def endings_disclosed(
             rare = True
         if not commonest or totals[ending] > totals[commonest]:
             commonest = ending
+    # A RUN below the line is an exceptional position whatever its
+    # ending's total over the file comes to (the repair pass of
+    # 2026-09-18). See the paragraph above.
+    for run in runs:
+        if run.lines < line:
+            rare = True
     if not commonest:
         return list(runs)
     if not rare and not withheld_lines:
@@ -1582,10 +1622,29 @@ def blank_places_disclosed(
     those blank lines in the twin, which is the price of not naming the
     records they stand beside.
 
+    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
+    A floor of one is a run in which the person has asked synthtwin for
+    no protection at all, and at that same floor the column censuses
+    beside this one publish a level covering ONE row -- so holding a
+    file's own form to a stricter standard than the product holds its
+    own column contents to, on the path where nothing was asked, took a
+    file's lone blank line, its lone empty record and its trailing blank
+    line out of the twin for nothing. **Measured** at the default floor,
+    on a header and 120 records: a single blank line after record 57, a
+    single bare-comma record and a single trailing blank line were all
+    kept before this rule was written, all three were dropped after it,
+    and the very same run published the level `("south", 1)` on a column
+    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
+    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
+    floor's own value and unit stay the owner's deferred question.
+
     Guarantees: accepts the places in file order and the settings floor;
-    returns those places or none at all. Determinism: a fixed function of
-    the two. Raises nothing. No I/O of any kind.
+    returns those places at a floor of one or where they reach the line,
+    and none at all otherwise. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
     """
+    if floor <= 1:
+        return list(places)
     if len(places) >= parsing.census_floor(floor):
         return list(places)
     return []
@@ -1629,10 +1688,29 @@ def row_count_disclosed(count: int, floor: int) -> int:
     empty row there and the file described again says nought too, so the
     file passes its own description.
 
+    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
+    A floor of one is a run in which the person has asked synthtwin for
+    no protection at all, and at that same floor the column censuses
+    beside this one publish a level covering ONE row -- so holding a
+    file's own form to a stricter standard than the product holds its
+    own column contents to, on the path where nothing was asked, took a
+    file's lone blank line, its lone empty record and its trailing blank
+    line out of the twin for nothing. **Measured** at the default floor,
+    on a header and 120 records: a single blank line after record 57, a
+    single bare-comma record and a single trailing blank line were all
+    kept before this rule was written, all three were dropped after it,
+    and the very same run published the level `("south", 1)` on a column
+    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
+    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
+    floor's own value and unit stay the owner's deferred question.
+
     Guarantees: accepts a count of empty rows and the settings floor;
-    returns that count or nought. Determinism: a fixed function of the
-    two. Raises nothing. No I/O of any kind.
+    returns that count at a floor of one or where it reaches the line,
+    and nought otherwise. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
     """
+    if floor <= 1:
+        return count
     if count >= parsing.census_floor(floor):
         return count
     return 0

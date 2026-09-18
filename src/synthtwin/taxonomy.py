@@ -5389,10 +5389,12 @@ def _levels_read_by_subtraction(
     - Errors raised: none.
     - Boundary: answers nothing at all for a role that publishes no
       level list, for a column whose every level clears the floor, and
-      for any pool whose rows reach twice its levels -- a long tail of
-      hundreds of held-back levels is untouched, and so is one level
-      over five rows, which plan P4-D231 puts to the owner as the limit
-      it is. No file is opened.
+      for any pool whose rows reach twice its levels and which is not
+      one row per level below the published rows -- a long tail of
+      hundreds of held-back levels covering more rows than the published
+      labels do is untouched, and so is one level over five rows, which
+      plan P4-D231 puts to the owner as the limit it is. No file is
+      opened.
     """
     settings = cells.settings
     floor = settings.small_cell_floor

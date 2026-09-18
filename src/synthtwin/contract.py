@@ -6899,8 +6899,9 @@ def _levels(
             ),
             (
                 "held-back labels covering fewer rows than twice their "
-                "number force a count of one, which a reader works out "
-                "by subtraction"
+                "number, or exactly their own number of rows while "
+                "covering fewer than the published labels do, force a "
+                "count of one, which a reader works out by subtraction"
             ),
         )
     return tuple(entries), suppressed_levels, suppressed_rows
