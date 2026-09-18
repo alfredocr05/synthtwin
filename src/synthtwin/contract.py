@@ -1771,12 +1771,12 @@ INVARIANTS = {
     ),
     "LP1": (
         "a prefix is published for the whole column alone, or for layouts "
-        "the census names, only beside a census naming a layout, and a "
-        "hexadecimal census publishes none"
+        "the census names, and only beside a census naming a layout"
     ),
     "LP2": (
-        "a prefix is the opening every layout it is published for starts "
-        "with, and a figure or a letter stands after it in each of them"
+        "a prefix's own layout, read under the census's own convention, "
+        "is the opening every layout it is published for starts with, and "
+        "a figure or a letter stands after it in each of them"
     ),
 }
 
@@ -10717,13 +10717,12 @@ def _layout_prefixes(
             "for layouts",
             "the whole column's prefix is written alone",
         )
-    if _layout_is_hexadecimal(layouts):
-        raise _broken(
-            "LP1",
-            where,
-            f"{len(prefixes)} prefix(es) published",
-            "the layout census is hexadecimal",
-        )
+    # A HEXADECIMAL CENSUS CARRIES A PREFIX TOO (plan P4-D233). It was
+    # refused here while `parsing.literal_prefix` wrote none for such a
+    # column; the prefix is now read under rule 3, which in a column
+    # whose every letter is a figure of base sixteen ends it at a mark,
+    # and LP2 below checks it against the census's own marks.
+    convention = _layout_census_convention(layouts)
     for scope in sorted(prefixes):
         governed = named
         if scope != parsing.PREFIX_OF_THE_COLUMN:
@@ -10736,7 +10735,7 @@ def _layout_prefixes(
                     f"the census names {len(named)} layout(s)",
                 )
             governed = [scope]
-        opening = parsing.prefix_layout(prefixes[scope])
+        opening = parsing.prefix_layout(prefixes[scope], convention)
         for layout in governed:
             after = layout[len(opening):]
             if layout[: len(opening)] != opening or not _holds_a_placeholder(
@@ -10782,6 +10781,24 @@ def _layout_is_hexadecimal(layouts: "dict[str, int]") -> bool:
             if character == "~" or character == "^":
                 return True
     return False
+
+
+def _layout_census_convention(layouts: "dict[str, int]") -> str:
+    """The alphabet convention a published layout census was built under.
+
+    Read off the keys and off nothing else, exactly as the generator
+    reads it (`generation._layout_convention`): one hexadecimal mark
+    anywhere settles the column, and LF6 has already refused a census
+    whose keys say two conventions. It is needed so that LP2 asks a
+    prefix's own marks of the census's own marks (plan P4-D233).
+    """
+    for name in sorted(layouts):
+        for character in name:
+            if character == parsing.LAYOUT_LOWER_HEX:
+                return parsing.LAYOUT_HEX_LOWER
+            if character == parsing.LAYOUT_UPPER_HEX:
+                return parsing.LAYOUT_HEX_UPPER
+    return parsing.LAYOUT_PLAIN
 
 
 def _layout_conventions_agree(

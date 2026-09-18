@@ -899,7 +899,9 @@ def test_one_form_per_stratum_is_what_keeps_the_spelling_count(
     monkeypatch.setattr(
         generation,
         "_style_strata",
-        lambda quotas, layout, values, whole, wanted, raw, styles: styles,
+        lambda quotas, layout, values, whole, wanted, raw, styles, absorbing=(
+            "", 0
+        ): styles,
     )
     spent = []
     for seed in SEEDS:
@@ -1835,19 +1837,24 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
     SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
     2026-09-17) the one `-20.5` is counted into `plain`, which publishes
     twenty-one, and the pinned minimum is the one of those no twin can
-    write point-free. THAT COSTS A NAMED COUNT, pinned here as the cost it
-    is: thirty-three point-free cells are claimed over thirty-two carriers,
-    no pool is left to give way first, and the placement gives up a padded
-    cell -- eleven where twelve are published, and the twin misses
-    `leading_zero`. The mutant is therefore held on the facts the column
-    published until then, set past the loader, where the pool of one is
-    the claim that gives way.
+    write point-free. THAT COST A NAMED COUNT UNTIL PLAN P4-D235: with
+    thirty-three point-free cells claimed over thirty-two carriers and no
+    pool left to give way first, the placement gave up a PADDED cell --
+    eleven where twelve are published -- and the twin missed
+    `leading_zero`, `plain`, the remainder and `pads.published.2` at exit
+    3. The cell no named form can write is owed from the form the recount
+    counts it into, which is the commonest named one, so the twin now
+    writes twelve padded cells, twenty plain and the one `-20.5` that
+    counts back into `plain`: the published census exactly, twin and
+    table both at exit 0. The mutant is held on the facts the column
+    published until P4-D222, set past the loader, where the pool of one
+    is the claim that gives way.
     """
     document, loaded = _described(tmp_path, BAND)
     published = document["columns"][0]["numeric_styles"]
     assert published == {"plain": 21, "leading_zero": 12}
     absorbed = _styles(generation.generate(loaded, 0))
-    assert absorbed == {"plain": 21, "leading_zero": 11, "decimal": 1}, absorbed
+    assert absorbed == {"plain": 20, "leading_zero": 12, "decimal": 1}, absorbed
     loaded = _with_styles_past_the_loader(
         loaded, {"plain": 20, "leading_zero": 12, "(withheld)": 1}
     )

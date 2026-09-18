@@ -182,9 +182,12 @@ def test_the_rules_that_keep_a_prefix_a_prefix() -> None:
     # (4) only characters a layout carries as they are, and a letter.
     assert parsing.literal_prefix(["Né-1", "Né-2"], plain) == ""
     assert parsing.literal_prefix(["{A1}", "{B2}"], plain) == ""
-    # ...and nothing in a hexadecimal column.
+    # ...and rule (3) asked of a hexadecimal column's own figures, where
+    # every letter is one of them (plan P4-D233): `ab` is half a number,
+    # and a prefix there always ends in a mark.
     hexadecimal = parsing.LAYOUT_HEX_LOWER
     assert parsing.literal_prefix(["ab12", "ab34"], hexadecimal) == ""
+    assert parsing.literal_prefix(["DE-a1b2", "DE-c3d4"], hexadecimal) == "DE-"
 
 
 def test_a_file_not_opening_with_the_prefix_misses_it(

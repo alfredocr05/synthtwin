@@ -416,8 +416,10 @@ def test_the_two_ceilings_are_what_keeps_the_case_pair(
     monkeypatch.setattr(  # type: ignore[attr-defined]
         generation,
         "_style_strata",
-        lambda quotas, layout, values, whole, wanted, raw, styles: kept(
-            quotas, layout, values, whole, wanted, wanted, styles
+        lambda quotas, layout, values, whole, wanted, raw, styles, absorbing=(
+            "", 0
+        ): kept(
+            quotas, layout, values, whole, wanted, wanted, styles, absorbing
         ),
     )
     short = 0

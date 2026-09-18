@@ -9671,8 +9671,14 @@ that is not a letter, so `REC` beside `REX` publishes nothing and
 letters, the fifteen marks of C6-127 and single spaces neither opening it
 nor standing beside another, and holds at least one letter — an opening
 holding anything else publishes nothing, and one of marks alone is
-already in the layout. A HEXADECIMAL column (C6-128) publishes none,
-because a letter there is a figure of base sixteen. `parsing.literal_prefix`
+already in the layout. A HEXADECIMAL column (C6-128) is read under the
+same four rules, with rule (3) asked of its own figures: every letter
+there is one of `abcdef` in either case, so every letter is a figure of
+base sixteen and the opening is cut back to its last character that is
+not one. A hexadecimal prefix therefore always ends in a mark — 800
+cells of `DE-` and six hexadecimal figures publish `DE-`, while `ab12`
+beside `ab34` publishes nothing, `ab` being half a number (plan P4-D233,
+closing the limit P4-D202 recorded). `parsing.literal_prefix`
 is the one statement of this rule.
 
 **C6-140 (the two scopes, and the disclosure rule).** The block carries
@@ -9698,9 +9704,11 @@ otherwise. Under `(column)` the second half is nought by construction and
 the first is that the column clears the line.
 
 **C6-141 (invariants).** **LP1.** `(column)` stands alone; every other
-key is a layout `layout_forms` names; a census naming no layout, and a
-hexadecimal census, carry no prefix. **LP2.** Each prefix's own layout — every letter marked by its
-case, every other character as itself — opens every layout it is
+key is a layout `layout_forms` names; a census naming no layout carries
+no prefix. **LP2.** Each prefix's own layout — every character marked as
+`layout_form` marks it under the census's own convention, so a letter by
+its CASE in a plain column and by the column's hexadecimal mark in a
+hexadecimal one — opens every layout it is
 published for (every named layout under `(column)`), and a figure or a
 letter mark stands after it in each. That a `(column)` prefix stands
 on a column whose present cells reach the line needs no invariant of its

@@ -437,6 +437,7 @@ FOURTH_BRANCH_CASES = (
 # its unnamed cells (plan P4-D196), and a workbook column's truth values
 # (plan P4-D198). Sorted, like the tuples above.
 FIFTH_BRANCH_CASES = (
+    "code_band_words",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
     "truth_values_written",
@@ -524,6 +525,8 @@ SEEDS = {
     "midnight_withheld_kept": 183,
     # The final pass over stage 2's close takes 190 onward.
     "grouped_thousands_signed": 176,
+    # The close of landing 2b takes 192 onward.
+    "code_band_words": 192,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -2386,6 +2389,19 @@ CASE_MUTANTS = {
         replacement=_partners_with_no_unnamed_quota,
         outcome="wear the layout '@%%%' 21 times",
     ),
+    "code_band_words": Mutant(
+        branch="plan P4-D234's headed enumeration of a band's made-up "
+        "words; the mutant counts the whole word over the alphabet and "
+        "puts the first permitted character in the leading place, and writes "
+        "`A-`, `A0`, `A1` for `A-`, `B-`, `C-`",
+        attribute="headed_spelling",
+        replacement=lambda head, alphabet, length, index: (
+            _SHIPPED_ENUMERATED_SPELLING(
+                alphabet, length, index, lambda figure: figure not in "0123456789"
+            )
+        ),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "truth_values_written": Mutant(
         branch="plan P4-D198's truth values; the mutant spells none, and the "
         "group of eleven is a made-up word",
@@ -3011,6 +3027,11 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
     before, _claims = gen.build_case(name)
     assert before["cells"], f"{name} builds no cells unmutated"
     monkeypatch.setattr(gen, mutant.attribute, mutant.replacement)
+    # THE ORACLE'S OWN DISTINCT RECOUNT IS NOT ASKED OF A MUTATED BUILD
+    # (plan P4-D237). It proves that a case's cells hold the counts the
+    # case publishes; a mutant that moves those counts would stop the
+    # oracle where this battery is there to see the cells MOVE.
+    monkeypatch.setattr(gen, "RECOUNT_DISTINCT", False)
     if mutant.outcome == CHANGES_THE_CELLS:
         after, _mutant_claims = gen.build_case(name)
         assert after["cells"] != before["cells"], (
@@ -3137,6 +3158,11 @@ def _carriage_return_written_raw(text):
 
 _SHIPPED_CELL_CLASSES = gen.sheet_cell_classes
 _SHIPPED_FORMAT_KINDS = gen.sheet_format_kinds
+# The reading of G9.2 this file held until plan P4-D234: the whole word
+# counted over the alphabet, with the band's leading rule applied by
+# substitution afterwards. It is the registered mutant of
+# `code_band_words` and nothing else.
+_SHIPPED_ENUMERATED_SPELLING = gen.enumerated_spelling
 
 
 # ----------------------------------------- the document cases, bound

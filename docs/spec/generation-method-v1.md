@@ -2672,6 +2672,27 @@ whole strata meets them all, and each stratum keeps one form. It is
 reached for only there, and where no such assignment exists the walk's
 answer stands.
 
+**AND A VALUE NO NAMED FORM CAN WRITE IS OWED FROM THE FORM THE RECOUNT
+COUNTS IT INTO** (plan P4-D235). Since P4-D222 a form fewer cells than
+`parsing.census_floor` wrote has no key of its own and its cells are
+counted into the commonest named form, so a column whose published
+forms are ALL point-free may still hold a value with no point-free
+spelling — a published minimum of `-20.5` beside padded and plain whole
+numbers. The twin writes that cell in its own canonical text, and when
+the twin is described again the cell is counted into the commonest
+named form. The packing therefore lets such a stratum wear THAT ONE
+form, and no other, and gives the packing up where more cells would be
+owed from it than `parsing.absorbed_room` says it can take in. The rule
+is asked only where the published map names NO point-carrying form: a
+map that names one must have those cells wear it, and a cell more would
+move that form's own printed count. Without it, thirty-three point-free
+cells claimed over thirty-two carriers made the placement give up a
+NAMED count instead: a 33-cell column of one `-20.5`, ten `-20`, twelve
+`00`, four `1`, three `6` and three `9` at a floor of eleven publishes
+`{"leading_zero": 12, "plain": 21}` and its twin wrote ELEVEN padded
+cells, missing `leading_zero`, `plain`, the remainder and
+`pads.published.2` at exit 3.
+
 **Which supply, against which ceiling** (R-P4-55). "More spellings than
 the column has" is TWO tests and not one, because a split does not
 always cost both published counts. Take the distinct pairs of VALUE and
@@ -6209,6 +6230,35 @@ with the two extreme lengths pinned:
 The pins are what make `min_length` and `max_length` EXACT-OBSERVABLE.
 They cost no word, exactly like the numeric endpoints.
 
+**A BAND'S LEFTMOST CHARACTER IS A FAMILY OF ITS OWN, NOT A CONSTRAINT
+APPLIED AFTERWARDS** (plan P4-D234). G9.1's substitution sentence above
+governs G9.1's OWN constraints — the space at either end and the four
+formula leaders — and nothing else. G9.5 step 4's band rule is not one
+of them: it says which characters a cell of that band may LEAD with, and
+that set, the family's **head**, is where the leftmost position counts.
+So a word of one band at length `L` is enumerated as
+
+```
+index k  ->  head[k mod |head|]  followed by  the base-|A| spelling of
+             k // |head| at length L - 1
+```
+
+with G9.1's own rules then applied to the result. The heads are fixed
+here and nowhere else: the figures band has none (every one of its
+characters keeps the cell in it); the code band's head is the LETTERS of
+`CODE`, so no cell of it reads as a number; the wide band's head is the
+characters of `WIDE` that are outside `CODE`, less the space and the
+four formula leaders, so no cell of it counts as code-alphabet. This is
+the family whose size G9.5's capacity paragraph already states —
+`|head| * |A|**(L-1)` — and it is a BIJECTION on its own indices, where
+substituting after the counting would put every index whose leading
+character the band refuses onto one spelling: the code band's `A-` would
+answer for eleven indices of sixty-four, and the wide band's `!!` for
+sixty-eight of ninety-five. **Two implementations parted company here
+and that is why it is written down**: the generator counted `A-`, `B-`,
+`C-` and the reference oracle `A-`, `A0`, `A1`, agreeing only at length
+one, where every index of the head is one spelling.
+
 **The index-to-spelling map is a mixed-radix decomposition and holds no
 search of any kind.** The `n`-th spelling is computed in a fixed number
 of steps from `n`, so two implementations cannot diverge by searching in
@@ -7764,11 +7814,15 @@ matched 800 real cells and 0 twin cells, and `^P\d{5}$` 800 and 30.
    they spread the layouts. Templates are offered in sorted order, as
    layouts are.
 2. **A cell is counted into a template only where it wears it**: its own
-   layout, read by the census's reader, is the template's layout with
-   every letter marked by its case, and every letter of the template
-   stands in the cell at its place. On a template holding no letter this
-   is the layout test and nothing more, so a column publishing no prefix
-   is written byte for byte as before.
+   layout, read by the census's reader, is the template's layout read
+   under the COLUMN'S OWN CONVENTION — every letter marked by its case in
+   a plain column, by the column's hexadecimal mark in a hexadecimal one
+   (`parsing.prefix_layout`, plan P4-D233) — and every letter of the
+   template stands in the cell at its place. On a template holding no
+   letter this is the layout test and nothing more, so a column
+   publishing no prefix is written byte for byte as before. A
+   hexadecimal template is `DE-~~~~~~` under the prefix `DE-`, and its
+   layout is `~~-~~~~~~`.
 3. **The mixes are made over templates**, whose letters are not kinds,
    and a mix whose own layout is a named one is stepped over, prefix or
    no prefix.
@@ -9962,7 +10016,7 @@ templates for the whole column and per layout (plan P4-D202), and
 `pooled_level_sizes`, G8.3's sizing of the invented levels off the
 pooled total (plan P4-D201).
 
-**All eighty-six are required.** The count is taken off the committed
+**All eighty-seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -9977,7 +10031,7 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; and the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds five (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+holds six (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -9998,6 +10052,7 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
 | `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over forty-five held-back labels pooled on sixty rows, whose sizes G8.3 reads off the pool and its debts as thirty-seven single rows, four of two, two of three, one of four and one of five (plan P4-D201). The stand-ins owed no form wear `&-` with the case kept, and the group of five paying `@@@@-@@` trades with five single rows so the shape's supply covers every place owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |
 | `lower_case_stand_ins` | contract C6-31a's lower-case keys: a column of categories whose census names `&&-&&` for its published level `ab-cd` and `&&&&-&&` for twenty-nine held-back cells. The level settles its own key in full under the key the census files it, so the stand-ins owe `&&&&-&&` alone, filled from the lower-case alphabet. Its mutant fills the key in capitals, and every stand-in moves; reading the level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too |

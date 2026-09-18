@@ -2306,8 +2306,16 @@ def literal_prefix(values: "list[str]", convention: str) -> str:
        publishes nothing, and so does one holding no letter at all,
        because marks alone are already in the layout.
 
-    NOTHING IN A HEXADECIMAL COLUMN, where a letter is a figure of base
-    sixteen and falls under rule 1.
+    A HEXADECIMAL COLUMN IS READ UNDER RULE 3 AND NOT BARRED (plan
+    P4-D233, closing the limit P4-D202 put to the owner). Every letter
+    of such a column is one of `abcdef` in either case, so every letter
+    is a figure of base sixteen and rule 3 -- no half a run of figures
+    -- cuts the opening back to the last character that is NOT one. A
+    prefix there therefore always ends in a mark: 800 cells of `DE-`
+    and six hexadecimal figures publish `DE-`, where `ab12` beside
+    `ab34` still publishes nothing, because `ab` is half a number.
+    Nothing else about the rules changes, and `is_a_literal_prefix`
+    admits the same text whatever the column.
 
     Guarantees: accepts a list of strings and a member of
     `LAYOUT_CONVENTIONS`; returns "" or a string satisfying
@@ -2317,7 +2325,7 @@ def literal_prefix(values: "list[str]", convention: str) -> str:
     """
     if not isinstance(values, list):
         raise TypeError(_NOT_TEXT)
-    if convention != LAYOUT_PLAIN or not values:
+    if convention not in LAYOUT_CONVENTIONS or not values:
         return ""
     common = ""
     shortest = -1
@@ -2359,9 +2367,29 @@ def literal_prefix(values: "list[str]", convention: str) -> str:
         if not goes_on:
             break
         common = common[: len(common) - 1]
+    # RULE 3 IN A HEXADECIMAL COLUMN. There a letter is a figure of base
+    # sixteen, so a prefix ending in one ends inside a number and is cut
+    # back to the last character that is not a figure of the base.
+    if convention != LAYOUT_PLAIN:
+        while common and _is_a_hex_figure(common[len(common) - 1]):
+            common = common[: len(common) - 1]
     if not is_a_literal_prefix(common):
         return ""
     return common
+
+
+def _is_a_hex_figure(character: str) -> bool:
+    """Whether one character is a figure of base sixteen, in either case.
+
+    A hexadecimal column's letters are all inside `abcdef`
+    (`layout_convention`), so this asks the same question of a letter
+    whichever case the column's marks say.
+    """
+    return (
+        _is_a_digit(character)
+        or character in _HEX_LOWER_LETTERS
+        or character in _HEX_UPPER_LETTERS
+    )
 
 
 def is_a_literal_prefix(text: str) -> bool:
@@ -2395,24 +2423,29 @@ def is_a_literal_prefix(text: str) -> bool:
     return letters >= 1
 
 
-def prefix_layout(text: str) -> str:
-    """The layout a plain column gives a literal prefix, mark by mark.
+def prefix_layout(text: str, convention: str) -> str:
+    """The layout a column gives a literal prefix, mark by mark.
 
-    Every letter becomes `LAYOUT_UPPER` or `LAYOUT_LOWER` by its case and
-    every other character stands as itself, so a prefix belongs to a
-    layout exactly where the layout opens with this. Raises TypeError if
-    handed anything that is not a string instance. No I/O of any kind.
+    Every letter takes the mark its own column's convention gives it --
+    `LAYOUT_UPPER` or `LAYOUT_LOWER` by its case in a plain column, the
+    column's hexadecimal mark in a hexadecimal one (plan P4-D233) --
+    and every other character stands as itself, so a prefix belongs to
+    a layout exactly where the layout opens with this. It is
+    `layout_form`'s own reader, asked character by character, so the
+    two can never drift: `REC` under a plain column is `@@@` and `DE-`
+    under a lower-hexadecimal one is `~~-`.
+
+    Raises TypeError if handed anything that is not a string instance,
+    and ValueError for a convention this module does not name. No I/O
+    of any kind.
     """
-    if not isinstance(text, str):
+    if not isinstance(text, str) or not isinstance(convention, str):
         raise TypeError(_NOT_TEXT)
+    if convention not in LAYOUT_CONVENTIONS:
+        raise ValueError(_NOT_A_LAYOUT_CONVENTION)
     built = ""
     for character in text:
-        if "a" <= character <= "z":
-            built = built + LAYOUT_LOWER
-        elif "A" <= character <= "Z":
-            built = built + LAYOUT_UPPER
-        else:
-            built = built + character
+        built = built + _layout_mark(character, convention, False)
     return built
 
 
@@ -5097,14 +5130,24 @@ def absorbed_census(
 def absorbed_room(census: "dict[str, int]", floor: int) -> "tuple[str, int]":
     """Which name of a published census took rare counts in, and how many at most.
 
-    `absorbed_census` read from the other side (plan P4-D222), for the open
-    vocabularies -- the offsets and the widths -- so that the producer reads
-    a value at the offset its rare one was counted into, and the checker
-    bounds the cells a width census counts at a width it does not name,
-    without a second statement of the rule. The name is the largest count,
-    the first in sorted order on a tie. What it took in is at most its
-    count less the line -- it was named before it took anything -- and
-    less the next largest count, which it was no smaller than.
+    `absorbed_census` read from the other side (plan P4-D222), so that the
+    producer reads a value at the offset its rare one was counted into,
+    the checker bounds the cells a width census counts at a width it does
+    not name, and the generator knows which form a cell no named form can
+    write is owed from (plan P4-D235), without a second statement of the
+    rule. The name is the largest count, the first in sorted order on a
+    tie. What it took in is at most its count less the line -- it was
+    named before it took anything -- and less the next largest count,
+    which it was no smaller than.
+
+    IT IS ASKED OF A CLOSED VOCABULARY TOO. It was written for the open
+    ones, the offsets and the widths; the six forms of a number are
+    closed, and the bound holds there unchanged, because a name below
+    the line is counted into the commonest whichever kind of vocabulary
+    it belongs to. Where the census is the vocabulary's DEFAULT name over
+    the whole population -- the band `census_pools` refuses a pool in --
+    that name is the commonest and the bound is its count less the line,
+    which is what it can take in there as well.
 
     Guarantees: accepts a published census and the settings floor; returns
     `("", 0)` for an empty census or a pool, and otherwise the name and a

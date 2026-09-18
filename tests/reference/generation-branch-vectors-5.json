@@ -1,6 +1,103 @@
 {
-  "case_set": "The 5 cases method section G14.3 adds with the final pass over the close of stage 2: a whole number a column writes two ways held by two strata, by the fill of a grid with no spare point and by the merge onto a whole neighbour (plan P4-D193), the census of marks held at a thousand on a column with refunds (plan P4-D194), and a declared identifier's partners held to the cells its layout census names no layout for (plan P4-D196), and a workbook column's truth values written as them (plan P4-D198). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json and tests/reference/generation-document-vectors.json, and live in a seventh file only because the sixth stands within a few kilobytes of the provenance manifest's byte cap.",
+  "case_set": "The 6 cases method section G14.3 adds with the final pass over the close of stage 2: a whole number a column writes two ways held by two strata, by the fill of a grid with no spare point and by the merge onto a whole neighbour (plan P4-D193), the census of marks held at a thousand on a column with refunds (plan P4-D194), and a declared identifier's partners held to the cells its layout census names no layout for (plan P4-D196), and a workbook column's truth values written as them (plan P4-D198), and the headed enumeration of a band's made-up words (plan P4-D234). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json and tests/reference/generation-document-vectors.json, and live in a seventh file only because the sixth stands within a few kilobytes of the provenance manifest's byte cap.",
   "cases": {
+    "code_band_words": {
+      "cells": [
+        "C-",
+        "B-",
+        "E-",
+        "A-",
+        "F-",
+        "D-"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "length": {
+          "max": 2,
+          "mean": {
+            "decimal": "2",
+            "exact": "2",
+            "float64": 2.0,
+            "proof": "nearest"
+          },
+          "min": 2,
+          "p50": {
+            "decimal": "2",
+            "exact": "2",
+            "float64": 2.0,
+            "proof": "nearest"
+          }
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 6,
+        "n_contradictory": 0,
+        "n_distinct": 6,
+        "n_distinct_by_occurrences": {
+          "1": 6
+        },
+        "n_distinct_folded": 6,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 6,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 6,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "free_text",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "(withheld)": 6
+        },
+        "statistical_type": "text",
+        "structural_role": "data",
+        "words": {
+          "max": 1,
+          "mean": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          },
+          "min": 1
+        }
+      },
+      "content": [
+        "A-",
+        "B-",
+        "C-",
+        "D-",
+        "E-",
+        "F-"
+      ],
+      "csv_bytes": "C-\nB-\nE-\nA-\nF-\nD-\n",
+      "float64": [],
+      "why": "method section G9.2's headed enumeration (plan P4-D234): a band's leftmost character is a family of its own and not one of G9.1's positional constraints, so the leftmost position counts over the head -- the letters of CODE -- and the rest of the word over the alphabet. Six one-word cells of the code alphabet at two characters are `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. The mutant counts the whole word over the alphabet and puts the first permitted character in the leading place where the band refuses the one that fell there, which is how this file read the rule until the two implementations were measured against each other, and writes `A-`, `A0`, `A1` instead.",
+      "word_budget": {
+        "content": 0,
+        "placement": 5
+      },
+      "words": [
+        "12157209929086961060",
+        "11173649564410634393",
+        "170528092174543603",
+        "1748054784394765760",
+        "17774581788724546784"
+      ]
+    },
     "grouped_thousands_signed": {
       "cells": [
         "1,000.6",

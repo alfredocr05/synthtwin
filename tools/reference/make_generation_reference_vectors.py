@@ -7912,17 +7912,14 @@ def layout_offer(column):
 PREFIX_OF_THE_COLUMN = "(column)"
 
 
-def prefix_layout(text):
-    """The layout of a prefix or a template: each letter marked by its case."""
-    built = ""
-    for character in text:
-        if "a" <= character <= "z":
-            built += LAYOUT_LOWER
-        elif "A" <= character <= "Z":
-            built += LAYOUT_UPPER
-        else:
-            built += character
-    return built
+def prefix_layout(text, convention):
+    """The layout of a prefix or a template, under the column's convention.
+
+    `layout_of`'s own reader asked character by character, so a plain
+    column's `REC` is `@@@` and a hexadecimal column's `DE-` is `~~-`
+    (plan P4-D233).
+    """
+    return "".join(_layout_mark(character, convention, False) for character in text)
 
 
 def templated_census(column):
@@ -7947,7 +7944,7 @@ def templated_census(column):
 
 def wears_template(candidate, template, convention):
     """The cell recounts into the template's layout and holds its letters."""
-    if layout_of(candidate, convention) != prefix_layout(template):
+    if layout_of(candidate, convention) != prefix_layout(template, convention):
         return False
     return all(
         candidate[place] == mark
@@ -8359,7 +8356,7 @@ def layout_stand_in(
     already started.  None where no mix serves.
     """
     tried = 0
-    named = {prefix_layout(name) for name in census}
+    named = {prefix_layout(name, convention) for name in census}
     for base, kinds in bases:
         if len(base) not in lengths:
             continue
@@ -8368,7 +8365,7 @@ def layout_stand_in(
             mix = layout_mix(base, kinds, mixed[base])
             mixed[base] += 1
             tried += 1
-            if mix in census or prefix_layout(mix) in named:
+            if mix in census or prefix_layout(mix, convention) in named:
                 continue
             if not _layout_admits(mix, convention, band, whole_numbers):
                 continue
@@ -8686,7 +8683,7 @@ def opened_with_prefix(
     if candidate in used or reads_as_absent(candidate, holes):
         return spelling
     moved = layout_of(candidate, convention)
-    if moved != own and moved in {prefix_layout(name) for name in offered}:
+    if moved != own and moved in {prefix_layout(name, convention) for name in offered}:
         return spelling
     bare, before = candidate.strip(), spelling.strip()
     digits = bool(bare) and set(bare) <= DIGIT_CHARACTERS
@@ -9733,11 +9730,63 @@ def _unrepresentable_content(column):
 # it does not count as all-digits; a wide cell carries a character
 # outside the code alphabet at its leftmost permitted position so it
 # does not count as code-alphabet.
+# The WORD alphabet is the wide alphabet WITHOUT the space, because the
+# space is what separates one word from the next and a word holding one
+# would be counted as two (method G9.5 step 6).
+WIDE_WORD = tuple(figure for figure in WIDE if figure != " ")
+
+# THE HEAD OF A FREE-TEXT WORD, and why it is a set of its own rather
+# than a constraint applied after the counting (method G9.2, plan
+# P4-D234). G9.5 step 4 fixes what the leftmost character of a band's
+# cell may be; that is not one of G9.1's positional constraints, so it
+# is not answered by substituting the alphabet's first permitted
+# character. The family's leftmost position is drawn from the head and
+# its remaining positions from the alphabet, which is the family whose
+# size G9.5's capacity states: |head| * |A|**(L-1).
+FREE_TEXT_HEADS = {
+    CODE_BAND: tuple(figure for figure in CODE if figure.isalpha()),
+    WIDE_BAND: tuple(
+        figure
+        for figure in WIDE_WORD
+        if figure not in CODE_CHARACTERS and figure not in FORMULA_LEADERS
+    ),
+}
+
 FREE_TEXT_BANDS = {
     FIGURES: (DIGITS, None),
     CODE_BAND: (CODE, _not_a_digit),
-    WIDE_BAND: (WIDE, _outside_the_code_alphabet),
+    WIDE_BAND: (WIDE_WORD, _outside_the_code_alphabet),
 }
+
+
+def raw_spelling(alphabet, length, index):
+    """Plain base-|A| counting, BEFORE the positional rules (G9.2)."""
+    size = len(alphabet)
+    characters = []
+    for place in range(length - 1, -1, -1):
+        characters.append(alphabet[(index // size**place) % size])
+    return "".join(characters)
+
+
+def headed_spelling(head, alphabet, length, index):
+    """The ``index``-th word whose leftmost character comes from ``head``.
+
+    The leftmost position counts over the head and the rest of the word
+    over the alphabet, so the family is a bijection on its own indices
+    and no two of them write one word (method G9.2, plan P4-D234). The
+    trailing space rule of G9.1 still applies, and the head already
+    holds no space and no formula leader.
+    """
+    first = head[index % len(head)]
+    rest = index // len(head)
+    body = raw_spelling(alphabet, length - 1, rest) if length > 1 else ""
+    built = first + body
+    if len(built) > 1 and built[-1] == " ":
+        for figure in alphabet:
+            if figure != " ":
+                built = built[:-1] + figure
+                break
+    return built
 
 # The longest word this file will freeze a free-text case for. Rule 4 of
 # G9.2 rejects a candidate that reads as a date under the shipped date
@@ -10062,13 +10111,28 @@ def _free_text_spelling(notation, band, length, used):
     ``LONGEST_FROZEN_WORD``.
     """
     alphabet, leading = FREE_TEXT_BANDS[band]
+    # THE FIGURES BAND HAS NO HEAD of its own: every one of its
+    # characters keeps the cell in the band it is being written for, so
+    # G9.1's substitution is the whole of its leftmost rule. The other
+    # two bands count their leftmost position over a head (plan
+    # P4-D234).
+    head = FREE_TEXT_HEADS[band] if band in FREE_TEXT_HEADS else ()
+    room = (
+        len(head) * len(alphabet) ** (length - 1)
+        if head
+        else len(alphabet) ** length
+    )
     # A NUMBER IS OFFERED ITS SPELLINGS WITH NO INVENTED LEADING ZERO
     # FIRST (G9.5 step 3), and those opening with a zero before another
     # figure only once they are spent; ordinary text has one pass.
     passes = (True, False) if notation == NOTATION_NUMBER else (False,)
     for clean in passes:
-        for index in range(len(alphabet) ** length):
-            candidate = enumerated_spelling(alphabet, length, index, leading)
+        for index in range(room):
+            candidate = (
+                headed_spelling(head, alphabet, length, index)
+                if head
+                else enumerated_spelling(alphabet, length, index, leading)
+            )
             if candidate in used:
                 continue
             if folded(candidate) in NO_VALUE_SPELLINGS:
@@ -10905,6 +10969,69 @@ def _numeric_content(column):
         shortfall -= 1
     content.extend(_straggler_cells(column, content))
     return content, chain, missed
+
+
+# WHAT A NUMERIC CASE'S OWN CELLS HOLD, where that is not the count the
+# case publishes (plan P4-D237). The recount below is the check the
+# green pass tried to add and could not, because three committed cases
+# already stood outside it and a refusal would have taken them with it.
+# Each is named here with the count its cells hold, so a NEW case whose
+# cells silently miss `n_distinct` is refused while these three keep
+# their bytes and their account. Each is a shortfall the shipped
+# generator reports as a deviation and the frozen case pins: the two
+# implementations agree on the cells, which is what a frozen case is
+# for, and this table is where they agree on the miss too.
+#
+#   name                     (n_distinct, n_distinct_folded) the cells hold
+NUMERIC_DISTINCT_RECOUNTS = {
+    # Twenty-two values over a ladder whose top plateau lands two strata
+    # on one number: the raw and the folded count are one short together.
+    "separated_in_order": (21, 21),
+    # The exponent case pair is two raw spellings of one folded identity
+    # (G6.4's "which supply, against which ceiling"), and this case is the
+    # one that carries it: its cells hold one raw spelling MORE than the
+    # block publishes and exactly the folded count.
+    "numeric_decimal_styles": (25, 23),
+    # Twelve whole numbers asked for over a ladder that reaches eleven.
+    "numeric_integer": (11, 11),
+}
+
+
+# WHETHER THE RECOUNT IS ASKED. It is a proof about a case as this file
+# BUILDS it, so the mutation battery of `tests/test_generation_reference.py`
+# -- which reverts one rule and asks whether the cells move -- turns it
+# off: a mutated build is not a build of the case, and a mutant that
+# moves the count would stop the oracle instead of moving the cells the
+# battery is there to compare.
+RECOUNT_DISTINCT = True
+
+
+def _numeric_distinct_recount(name, column, content):
+    """Recount `n_distinct` and `n_distinct_folded` off a case's own cells.
+
+    A count of different SPELLINGS is a fact ABOUT the cells, so a case
+    that publishes one its cells do not hold is a case describing a
+    column it did not build. The three cases of
+    `NUMERIC_DISTINCT_RECOUNTS` hold their own stated counts; every
+    other numeric case must hold exactly what it publishes.
+    """
+    if not RECOUNT_DISTINCT:
+        return
+    present = [text for text in content if text != ""]
+    raw = len(set(present))
+    fold = len({folded(text) for text in present})
+    wanted = (column["n_distinct"], column["n_distinct_folded"])
+    if name in NUMERIC_DISTINCT_RECOUNTS:
+        wanted = NUMERIC_DISTINCT_RECOUNTS[name]
+    if (raw, fold) != wanted:
+        raise AssertionError(
+            f"{name} built cells holding {raw} different spelling(s) and "
+            f"{fold} folded identity(ies), and {wanted[0]} and {wanted[1]} "
+            "were expected. A case whose cells do not hold the count it "
+            "publishes states what they DO hold in "
+            "NUMERIC_DISTINCT_RECOUNTS, with the reason; nothing here "
+            "guesses one."
+        )
 
 
 def spelled_census(census):
@@ -15083,6 +15210,60 @@ def _truth_values_written():
     }
 
 
+def _code_band_words():
+    """Six made-up words of TWO characters in the code band (plan P4-D234).
+
+    THE CASE THE TWO IMPLEMENTATIONS PARTED COMPANY OVER. A free-text
+    column whose every cell is one word of the code alphabet, all six
+    different, at exactly two characters: the family's leftmost position
+    counts over the head -- the letters of `CODE` -- and its second over
+    the alphabet, so the words are `A-`, `B-`, `C-`, `D-`, `E-`, `F-`.
+    Read as plain base-64 counting with the leading character substituted
+    after the fact, the same family answers `A-`, `A0`, `A1`, `A2`, `A3`,
+    `A4`. The two agree at length ONE, where every index of the head is
+    one spelling, which is why no case here caught it until this one.
+    """
+    length, claims = {}, {}
+    for name, text in (("mean", "2"), ("p50", "2")):
+        field, claim = nearest_field(text)
+        length[name] = field
+        claims[("column", "length", name)] = claim
+    length["min"] = 2
+    length["max"] = 2
+    words = {"min": 1, "max": 1}
+    field, claim = nearest_field("1")
+    words["mean"] = field
+    claims[("column", "words", "mean")] = claim
+    column = _universal(
+        "column_1", "free_text", "text", "data", "ok",
+        n_present=6, n_missing=0, n_distinct=6, n_distinct_folded=6,
+        n_numeric=0, n_not_numeric=6, n_out_of_range=0, n_contradictory=0,
+        length=length, words=words,
+        n_all_digits=0, n_code_alphabet=6,
+        n_distinct_by_occurrences={"1": 6},
+        # Six cells at a smallest group size of eleven: no written form
+        # is shared by enough of them to be named (plan P4-D18).
+        shape_forms={"(withheld)": 6},
+    )
+    return {
+        "why": "method section G9.2's headed enumeration (plan P4-D234): a "
+        "band's leftmost character is a family of its own and not one of "
+        "G9.1's positional constraints, so the leftmost position counts "
+        "over the head -- the letters of CODE -- and the rest of the word "
+        "over the alphabet. Six one-word cells of the code alphabet at two "
+        "characters are `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. The mutant "
+        "counts the whole word over the alphabet and puts the first "
+        "permitted character in the leading place where the band refuses "
+        "the one that fell there, which "
+        "is how this file read the rule until the two implementations were "
+        "measured against each other, and writes `A-`, `A0`, `A1` instead.",
+        "column": column,
+        "rows": 6,
+        "identifier_declared": False,
+        "claims": claims,
+    }
+
+
 def _identifier_unnamed_partners():
     column = _universal(
         "column_1", "identifier", "code", "identifier", "ok",
@@ -18909,6 +19090,8 @@ FOURTH_BRANCH_CASE_BUILDERS = {
 }
 
 FIFTH_BRANCH_CASE_BUILDERS = {
+    # Made-up words of two characters in the code band (plan P4-D234).
+    "code_band_words": _code_band_words,
     # The census of marks held on a column with refunds (plan P4-D194).
     "grouped_thousands_signed": _grouped_thousands_signed,
     # The cells no layout is named for, a quota for partners (P4-D196).
@@ -19076,7 +19259,8 @@ _FIFTH_BRANCH_ACCOUNT = (
     "thousand on a column with refunds (plan P4-D194), and a declared "
     "identifier's partners held to the cells its layout census names no "
     "layout for (plan P4-D196), and a workbook column's truth values "
-    "written as them (plan P4-D198). They are computed by the same oracle "
+    "written as them (plan P4-D198), and the headed enumeration of a "
+    "band's made-up words (plan P4-D234). They are computed by the same oracle "
     "and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -19117,6 +19301,10 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "code_band_words": (
+        12157209929086961060, 11173649564410634393, 170528092174543603,
+        1748054784394765760, 17774581788724546784,
+    ),
     "midnight_withheld_kept": (
         17551090684801377981, 16650619119811956828, 12704379148014193341,
         1470516867917299906, 14234896628325533118, 13760769856689378753,
@@ -20791,6 +20979,8 @@ def build_case(name):
             f"{name} built {len(content)} present cells and the column "
             f"publishes {column['n_present']}"
         )
+    if column["role"] in ("count", "continuous"):
+        _numeric_distinct_recount(name, column, content)
     # HOW MANY DIFFERENT NUMBERS the finished content holds (contract
     # Q17, plan P4-D4.9).  Counted off the cells this oracle built,
     # because it is a fact ABOUT those cells and a hand-written figure

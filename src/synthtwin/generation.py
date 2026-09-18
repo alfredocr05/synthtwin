@@ -11894,12 +11894,59 @@ def _shares_after(
     return tuple(after)
 
 
-def _style_wearable(value: float, whole_column: bool) -> int:
-    """Which of the six styles one value's finished text could read as."""
+_POINTED_STYLES = ("decimal", "exponent_lower", "exponent_upper")
+
+
+def _absorbing_form(styles: "dict[str, int]", floor: int) -> "tuple[str, int]":
+    """The named form a cell no named form can write is counted into (P4-D235).
+
+    THE CENSUS IS THE COLUMN'S OWN, RESPELLED (plan P4-D222): a form
+    fewer cells than `parsing.census_floor` wrote has no key of its own
+    and its cells are counted into the commonest named form. So where a
+    column's published forms are ALL point-free and one of its values
+    has no point-free spelling -- the published minimum `-20.5` of a
+    column of padded and plain whole numbers -- the cell the twin must
+    write with a point is counted into that commonest form when the twin
+    is described again, and the generator owes it from there and from
+    nowhere else. Spent anywhere else it comes out of a count the
+    description names: the entry file's `BAND` shape at a floor of
+    eleven wrote ELEVEN padded cells for twelve, its twin missed
+    `leading_zero`, `plain`, the remainder and `pads.published.2`, and
+    `validate` exited 3.
+
+    Answers the form and how many such cells it can take, both from the
+    one shared rule `parsing.absorbed_room`, and `("", 0)` where the
+    census names a point-carrying form (those cells wear it, and a cell
+    more would move that form's own count), where it is one pool (no
+    count is named, so nothing is owed) or where it is empty.
+
+    Guarantees: accepts a published forms map and the settings floor;
+    returns a name of `contract.NUMERIC_STYLES` and a whole number, or
+    `("", 0)`. Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    for name in sorted(styles):
+        if name in _POINTED_STYLES:
+            return "", 0
+    return parsing.absorbed_room(styles, floor)
+
+
+def _style_wearable(
+    value: float, whole_column: bool, absorbing: str = ""
+) -> int:
+    """Which of the six styles one value's finished text could read as.
+
+    ``absorbing`` is `_absorbing_form`'s answer, "" where there is none:
+    a value with no point-free spelling may be owed from that ONE form,
+    because the twin writes the cell canonically and the recount counts
+    it there (plan P4-D235). The caller checks afterwards that no more
+    cells were owed from it than the census can absorb.
+    """
     mask = 0
     for place in range(len(contract.NUMERIC_STYLES)):
         name = contract.NUMERIC_STYLES[place]
-        if name in _WHOLE_STYLES and not _carries_plainly(value, whole_column):
+        carries = _carries_plainly(value, whole_column)
+        if name in _WHOLE_STYLES and not carries and name != absorbing:
             continue
         if name == "leading_plus" and value < 0.0:
             continue
@@ -11915,6 +11962,7 @@ def _style_strata(
     wanted: int,
     raw: int,
     styles: "list[str]",
+    absorbing: "tuple[str, int]" = ("", 0),
 ) -> "list[str]":
     """One form per stratum, where two forms would cost a spelling.
 
@@ -11982,11 +12030,28 @@ def _style_strata(
         return styles
     counts = [quotas[name] for name in contract.NUMERIC_STYLES]
     allowed = [
-        _style_wearable(values[place], whole_column) for place in range(total)
+        _style_wearable(values[place], whole_column, absorbing[0])
+        for place in range(total)
     ]
     packed = _allotted(tuple(layout.sizes), counts, allowed)
     if packed is None:
         return styles
+    # AND NO MORE CELLS ARE OWED FROM THE ABSORBING FORM THAN THE CENSUS
+    # CAN TAKE IN (plan P4-D235). `_style_wearable` lets a value with no
+    # point-free spelling be owed from the commonest named form, because
+    # the recount counts the cell there; `parsing.absorbed_room` bounds
+    # how many such cells that form can take without its own printed
+    # count moving. A packing over the bound is given up for the cell
+    # walk's answer, which the recount names as it always did.
+    if absorbing[0]:
+        owed = 0
+        for place in range(total):
+            if contract.NUMERIC_STYLES[packed[place]] != absorbing[0]:
+                continue
+            if not _carries_plainly(values[place], whole_column):
+                owed = owed + layout.sizes[place]
+        if owed > absorbing[1]:
+            return styles
     settled: list[str] = []
     for place in range(total):
         name = contract.NUMERIC_STYLES[packed[place]]
@@ -12146,19 +12211,18 @@ def _pool_enough(
     """
     if facts.integer_valued:
         return layout, values, []
-    pool = _style_pool(facts.numeric_styles)
     # THE ROLE IS OWED ONE CELL WHATEVER THE CENSUS SAYS (round 1, items
     # 1 and 5). A column publishing `integer_valued: false` whose twin
-    # holds whole numbers in every cell re-describes as `count`, and the
+    # holds whole numbers in every cell re-describes as `count`, and a
     # pooled count is only ONE of the roads there: a description with no
     # pool at all can name a `decimal` quota its twin then writes as
-    # `1.0`, whole-valued in every cell with the form map still met. So
-    # one cell is owed always, and the pooled count is what is owed on
-    # top of it where `plain` is a named count and the fold makes every
-    # point-free cell a plain one.
+    # `1.0`, whole-valued in every cell with the form map still met.
+    # ONE CELL IS OWED, AND ONLY ONE. The older reading owed the WHOLE
+    # pooled count on top of it where `plain` was a named count beside
+    # the pool; since plan P4-D222 a pool stands alone and contract P6
+    # refuses a census that names a form beside one, so that arm was a
+    # rule no producer writes and no loader admits.
     owed = 1
-    if _style_named(facts.numeric_styles, "plain") >= 1 and pool >= 1:
-        owed = pool
     total = len(values)
     pointed = 0
     widest = 0
@@ -13969,6 +14033,7 @@ def _number_cells(
         wanted,
         min(layout.raw_budgets[0], column.n_numeric),
         styles,
+        _absorbing_form(facts.numeric_styles, floor),
     )
     # THE PADDED EXCHANGE RUNS BEFORE ANY WIDTH IS ASSIGNED, and the
     # order is the whole of the rule. `_width_places` assigns a
@@ -15566,6 +15631,10 @@ def _mark_weights(facts: contract.DatetimeFacts) -> "dict[str, int]":
             weights[name] = census[name]
     if contract.WITHHELD not in census:
         return weights
+    # A POOL STANDS ALONE, so `weights` is empty from here on: contract
+    # D12 refuses a census holding a pool beside a named mark, and the
+    # producer writes none (plan P4-D222). The split below therefore
+    # spends the pool over every permitted mark.
     unnamed: list[str] = []
     for name in _permitted_marks(facts):
         if name not in census:
@@ -15606,14 +15675,13 @@ def _pooled_marks(facts: contract.DatetimeFacts, parsed: int) -> "list[str]":
     for name in weights:
         covered = covered + weights[name]
     if covered < parsed:
-        top = ""
-        for name in sorted(facts.datetime_separators):
-            if name == contract.WITHHELD:
-                continue
-            if not top or facts.datetime_separators[name] > facts.datetime_separators[top]:
-                top = name
-        if not top:
-            top = _permitted_marks(facts)[0]
+        # THE CENSUS IS THE POOL AND NOTHING ELSE (plan P4-D222): a
+        # census carrying a pool names no mark, contract D12 refusing
+        # one that does, so the ranks the split leaves over go to the
+        # first permitted mark -- a `T` on an ISO reading, a space on a
+        # slashed stamp. The older reading looked for a commonest NAMED
+        # mark beside the pool, which no document the loader admits has.
+        top = _permitted_marks(facts)[0]
         if top in weights:
             weights[top] = weights[top] + (parsed - covered)
         else:
@@ -22597,7 +22665,7 @@ def _wears_template(candidate: str, template: str, convention: str) -> bool:
     a template holding no letter this is exactly the layout test.
     """
     if parsing.layout_form(candidate, convention) != parsing.prefix_layout(
-        template
+        template, convention
     ):
         return False
     for place in range(len(template)):
@@ -22624,7 +22692,7 @@ def _layout_worn(
     for template in sorted(keys):
         if template == layout:
             return template
-        if parsing.prefix_layout(template) == layout and _wears_template(
+        if parsing.prefix_layout(template, convention) == layout and _wears_template(
             candidate, template, convention
         ):
             return template
@@ -22677,7 +22745,7 @@ def _opened_with_prefix(
     moved = parsing.layout_form(candidate, convention)
     if moved != own:
         for template in _named_layouts(facts):
-            if parsing.prefix_layout(template) == moved:
+            if parsing.prefix_layout(template, convention) == moved:
                 return spelling
     return candidate
 
@@ -23485,7 +23553,7 @@ def _layout_stand_in(
     # its layout and this is the check that always stood.
     real: "dict[str, int]" = {}
     for template in sorted(census):
-        real[parsing.prefix_layout(template)] = 1
+        real[parsing.prefix_layout(template, convention)] = 1
     tried = 0
     for base, kinds in bases:
         if len(base) < window[0]:
@@ -23498,7 +23566,7 @@ def _layout_stand_in(
             mix = _layout_mix(base, kinds, mixed[base])
             mixed[base] = mixed[base] + 1
             tried = tried + 1
-            if mix in census or parsing.prefix_layout(mix) in real:
+            if mix in census or parsing.prefix_layout(mix, convention) in real:
                 continue
             asked = f"{kind} {band} {mix}"
             if asked not in admitted:
@@ -30469,9 +30537,11 @@ def _fraction_notes(
         published[int(key)] = facts.fraction_widths[key]
     if not published:
         return []
-    pooled = 0
-    if contract.WITHHELD in facts.fraction_widths:
-        pooled = facts.fraction_widths[contract.WITHHELD]
+    # A POOLED CENSUS PUBLISHES NO WIDTH AT ALL (plan P4-D222): a pool
+    # stands alone, so the walk above leaves `published` empty and this
+    # function has already returned. The window this recount used to
+    # widen by the pool's size beside a named width is a window no
+    # document the loader admits can ask for.
     # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, because that
     # is the population the census is about. Reading `$1.20` as a bare
     # number finds no number at all, so every cell of a column of
@@ -30534,7 +30604,7 @@ def _fraction_notes(
     notes: list[Deviation] = []
     for width in sorted(published):
         found = counted[width] if width in counted else 0
-        if published[width] <= found <= published[width] + pooled:
+        if found == published[width]:
             continue
         notes += [
             _deviation(
@@ -30575,9 +30645,11 @@ def _pad_notes(
         published[int(key)] = facts.pad_widths[key]
     if not published:
         return []
-    pooled = 0
-    if contract.WITHHELD in facts.pad_widths:
-        pooled = facts.pad_widths[contract.WITHHELD]
+    # A POOLED CENSUS PUBLISHES NO WIDTH AT ALL (plan P4-D222): a pool
+    # stands alone, so the walk above leaves `published` empty and this
+    # function has already returned. The window this recount used to
+    # widen by the pool's size beside a named width is a window no
+    # document the loader admits can ask for.
     # THE RECOUNT IS OVER THE CORES ON THE AFFIXED ROLE, for the reason
     # `_fraction_notes` gives: reading a padded core still wearing its
     # prefix as a bare number finds no number at all, and a report that
@@ -30639,7 +30711,7 @@ def _pad_notes(
     notes: list[Deviation] = []
     for width in sorted(published):
         found = counted[width] if width in counted else 0
-        if published[width] <= found <= published[width] + pooled:
+        if found == published[width]:
             continue
         notes += [
             _deviation(
@@ -30682,16 +30754,15 @@ def _field_notes(
         published[int(key)] = facts.field_widths[key]
     if not published:
         return []
-    pooled = 0
-    if contract.WITHHELD in facts.field_widths:
-        pooled = facts.field_widths[contract.WITHHELD]
-    # AND THE FORMS MAP'S OWN POOL WIDENS THE WINDOW, exactly as it does
-    # in the validator's reading of this census: a cell the forms map
-    # held back may be written point-free, and a point-free cell lands
-    # at some field width. Contract 7.10's P9c is that bound stated over
-    # the whole census; this is it read at one width.
-    if contract.WITHHELD in facts.numeric_styles:
-        pooled = pooled + facts.numeric_styles[contract.WITHHELD]
+    # A POOLED CENSUS PUBLISHES NO WIDTH AT ALL (plan P4-D222): a pool
+    # stands alone, so the walk above leaves `published` empty and this
+    # function has already returned. The window this recount used to
+    # widen by the pool's size beside a named width is a window no
+    # document the loader admits can ask for.
+    # AND A POOLED FORMS MAP PUBLISHES NO WIDTH EITHER (contract P8), so
+    # the window the forms map's own pool used to widen is unreachable
+    # from here too: `_width_censuses` hands both censuses back empty
+    # wherever the map is one pool.
     # THE COMMONEST WRAPPER'S CELLS, BY THE LONGEST-WRAPPER RULE. The
     # facts this recount is compared against are the commonest
     # wrapper's (plan P4-D37), so the population it counts is that
@@ -30746,7 +30817,7 @@ def _field_notes(
     notes: list[Deviation] = []
     for width in sorted(published):
         found = counted[width] if width in counted else 0
-        if published[width] <= found <= published[width] + pooled:
+        if found == published[width]:
             continue
         notes += [
             _deviation(
