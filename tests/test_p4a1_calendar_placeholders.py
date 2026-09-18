@@ -367,16 +367,24 @@ def test_a_kept_placeholder_in_the_table_s_own_spelling_reaches_both_consumers(
     REVIEW OF 158c811, ITEM 5 (plan P4-D136). Thirty `01/01/1900` beside
     470 consecutive dates written `%m/%d/%Y`, profiled with
     `--keep-value 01/01/1900`: the description records 500 values and the
-    verdict `kept_by_you`, and its settings block records no built-in day,
-    because the typed spelling is not the vocabulary's `1900-01-01` as
-    text. The validator rebuilt the reading rule from the settings block
-    alone, so the unchanged table read 470 values and 30 holes and missed
-    14 obligations, and its twin missed 14 too.
+    verdict `kept_by_you`. The validator rebuilt the reading rule from the
+    settings block alone, so the unchanged table read 470 values and 30
+    holes and missed 14 obligations, and its twin missed 14 too.
 
-    AND THE DECISION IS REPLAYED IN ITS OWN COLUMN ONLY. A second column
-    holds the same day written `1900-01-01`, outlying and frequent, which
-    the person's `01/01/1900` never named: it is judged a hole there, in
-    the description and when both files are checked.
+    THE SETTINGS RECORD THE MEMBER THE TYPED SPELLING DENOTES (plan
+    P4-D252, the extra review of c5d09d5 item 5), which they did not
+    while the comparison was of TEXT -- `01/01/1900` is not
+    `1900-01-01` as text -- and that is what lets a column whose own
+    verdict the publication floor withholds rebuild the instruction at
+    all. Nothing a person typed travels through that list: the member is
+    this package's own word.
+
+    AND THE DECISION IS STILL REPLAYED IN ITS OWN COLUMN ONLY. A second
+    column holds the same day written `1900-01-01`, outlying and
+    frequent, which the person's `01/01/1900` never named: it is judged
+    a hole there, in the description and when both files are checked,
+    because a column whose own description judged the day is one the
+    settings' member is not carried to.
     """
     start = datetime.date(2020, 1, 1)
     first = ["01/01/1900"] * 30 + [
@@ -395,7 +403,9 @@ def test_a_kept_placeholder_in_the_table_s_own_spelling_reaches_both_consumers(
     kept, judged = document["columns"]
     assert kept["n_present"] == 500
     assert kept["sentinel_verdicts"][0]["reason"] == "kept_by_you"
-    assert document["settings"]["kept_values"]["built_in_dates"] == []
+    assert document["settings"]["kept_values"]["built_in_dates"] == [
+        "1900-01-01"
+    ]
     assert judged["n_present"] == 470
     assert judged["sentinel_verdicts"][0]["verdict"] == "read_as_missing"
     assert (real_exit, twin_exit) == (0, 0), report[:2000]
@@ -453,15 +463,24 @@ def test_a_declared_placeholder_is_recorded_in_its_own_list() -> None:
     this package's own words, so a validator cannot rebuild the reading
     rule the description was written under -- and the summary tells a
     person they named none of synthtwin's own words when they named one.
+
+    THE LIST IS SPENT COLUMN BY COLUMN and not among the spellings every
+    column is read under (plan P4-D252): a day the settings record
+    reaches each column of the checked file whose own description did
+    not judge it, which is how far the person's own spelling reached.
     """
-    document, described, _folder = _described(
+    document, described, folder = _described(
         _dates(228) + [FAR] * 12, taxonomy.Settings(kept_values=(FAR,))
     )
     record = document["settings"]["kept_values"]
     assert record["built_in_dates"] == [FAR]
     assert record["n_declared"] == 1
     assert described.settings.kept_values.built_in_dates == (FAR,)
-    assert FAR in validation.kept_spellings(described)
+    assert FAR not in validation.kept_spellings(described)
+    table = reading.read_table(f"{folder / 'when.csv'}")
+    assert validation._kept_placeholders_here(described, table) == {
+        "when": (FAR,)
+    }
 
 
 def test_the_twin_report_counts_the_sixth_reason() -> None:

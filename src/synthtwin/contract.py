@@ -1640,6 +1640,11 @@ INVARIANTS = {
         "the values counted by the form they were written in come to "
         "the values that were read as dates at all"
     ),
+    "RM3": (
+        "where a column's values are counted under more than one form, "
+        "each form is named only when at least the smallest group size "
+        "of them wore it, and never by fewer than two"
+    ),
     "T1": (
         "every time of day this description publishes is written the "
         "way this column's own times were written"
@@ -7262,6 +7267,7 @@ def _resolution_mix(
     where: str,
     parser_family: str,
     parsed: int,
+    floor: int,
 ) -> "dict[str, int]":
     """How many parsed cells wore each form (contract C6-25).
 
@@ -7270,14 +7276,21 @@ def _resolution_mix(
     claimed names exactly the two members it joins. Anything else is a
     document describing a column no producer writes.
 
-    The counts are exact and no floor governs them, for the reason the
-    contract gives: a two-member space beside the published parsed
-    total makes a pooled remainder recoverable by subtraction, so a
-    floor would withhold nothing, and what these carry is a count of
-    FORMS rather than any value of the table.
+    AND NO COUNT IT PRINTS NAMES A ROW (invariant RM3, plan P4-D250).
+    This docstring said the counts needed no floor, because a
+    two-member space beside the published parsed total makes a pooled
+    remainder recoverable by subtraction. That is true of a POOL and is
+    no defence of the count itself: 118 ISO dates beside one
+    `2024-07-01T00:00:00` published `{"iso-date": 118, "iso-datetime":
+    1}` at a floor of eleven, and the one is that row. The producer
+    counts a form below `parsing.census_floor` into the commonest form
+    and publishes the column wholly in that form
+    (`taxonomy._forms_as_published`), so every count reaching this
+    loader is either nought -- the form no cell of the column wore,
+    which names nobody -- or at the line.
 
-    Raises ProfileError for RM1 -- the wrong key set -- and RM2, the
-    total that does not come to the cells that parsed.
+    Raises ProfileError for RM1 -- the wrong key set -- for RM2, the
+    total that does not come to the cells that parsed, and for RM3.
     """
     mix = _counts(value, "resolution_mix", where, 0)
     wanted: "tuple[str, ...]" = ISO_MEMBERS
@@ -7299,6 +7312,31 @@ def _resolution_mix(
             f"the values counted by their form come to {total}",
             f"{parsed} of the column's values were read as dates",
         )
+    split = 0
+    for key in sorted(mix):
+        if mix[key] > 0:
+            split = split + 1
+    if split < 2:
+        # ONE FORM IS NOT A CENSUS. Its count IS `n_present -
+        # n_unparsed`, which the block prints two fields away, so it
+        # cuts the column nowhere and names nobody however small the
+        # column is -- thirteen moments at a smallest group size of
+        # twenty are thirteen moments, and the document says so.
+        return mix
+    for key in sorted(mix):
+        # NOUGHT IS NOT A GROUP AND IS NOT REFUSED either: it says no
+        # cell of the column wore the form. What RM3 refuses is a form
+        # some cells wore, counted by fewer of them than a published
+        # count may name, beside another form that holds the rest.
+        if 0 < mix[key] < parsing.census_floor(floor):
+            raise _broken(
+                "RM3",
+                where,
+                f"the form '{key}' was written by {mix[key]} of the "
+                f"column's values",
+                f"a published count names at least "
+                f"{parsing.census_floor(floor)} of them",
+            )
     return mix
 
 
@@ -7435,7 +7473,11 @@ def _datetime_facts(
     # document D8 has already refused. Asking D8 first leaves RM1 with
     # the two key sets a real producer writes and nothing else.
     mix = _resolution_mix(
-        mapping["resolution_mix"], where, parser_family, n_present - unparsed
+        mapping["resolution_mix"],
+        where,
+        parser_family,
+        n_present - unparsed,
+        floor,
     )
     offsets = _counts(mapping["utc_offsets"], "utc_offsets", where, 1)
     named = 0

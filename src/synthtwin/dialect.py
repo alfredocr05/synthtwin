@@ -956,33 +956,23 @@ def _is_elapsed_token(inside: str) -> bool:
     return True
 
 
-def sheet_format_kind(code: str) -> str:
-    """Which kind of thing a number wearing this format code is.
+def _format_body(code: str) -> "tuple[str, bool]":
+    """One format code's first section, outside its quotes and brackets.
 
-    THE ONE RULE, IN THE MODULE EVERY SIDE MAY IMPORT (plan P4-D189). It
-    was the reader's (`workbook.format_kind`), and the loader and the
-    writer answered the same question from `SHEET_FORMAT_CODE_KINDS`, a
-    closed map of its answers; a code published as the source wrote it
-    is not in that map, so the rule itself moved here and the reader
-    asks it.
+    THE ONE SCAN, read by `sheet_format_kind` for the kind and by
+    `sheet_format_figures` for the figures after the second (plan
+    P4-D259). A format may spell positives, negatives and zeros
+    differently and only the first section is a positive number's; what
+    a bracket holds is not a date token except an elapsed count; the
+    character after `\\`, `_` and `*` is layout and skipped.
 
-    Guarantees: a fixed function of the code. The rule is the one every
-    reader the study measured uses -- the format decides the type -- and
-    it reads the code outside its quoted runs, so a currency symbol
-    spelling `"d"` inside quotation marks never makes a column of money
-    into a column of dates. Only the first section is read: a format may
-    spell positives, negatives and zeros differently, and the first
-    section is the one a positive number wears. What a bracket holds is
-    not read as a date token (plan P4-D169) -- a colour, a currency and
-    locale, a condition -- except an elapsed count, `[h]`, `[mm]`,
-    `[ss]`; the character after `_` and after `*` is layout and skipped.
+    Guarantees: accepts a format code; returns its readable characters
+    and whether it names an elapsed count. Determinism: a fixed function
+    of the code. Raises TypeError if handed anything that is not a string
+    instance. No I/O of any kind.
     """
     if not isinstance(code, str):
         raise TypeError("internal check: a format code was not text")
-    if code == "General" or not code:
-        return SHEET_FORMAT_PLAIN
-    if code == "@":
-        return SHEET_FORMAT_TEXT
     body = code.split(";")[0]
     plain = ""
     quoted = False
@@ -1015,6 +1005,85 @@ def sheet_format_kind(code: str) -> str:
             bracket = ""
             continue
         plain = plain + character
+    return (plain, elapsed)
+
+
+def sheet_format_figures(code: str) -> int:
+    """How many figures after the second a date format shows (P4-D259).
+
+    THE PRECISION EVIDENCE A SERIAL DOES NOT CARRY (the extra review of
+    c5d09d5, item 9). A workbook stores a moment as a day count and its
+    fraction, so a moment standing at a whole second stores exactly what
+    a moment with no subsecond figures stores; what tells them apart is
+    the FORMAT, which is where the figures are written and what every
+    reader shows a person. Measured: 240 serials formatted
+    `yyyy-mm-dd hh:mm:ss.000` published `subsecond` and three figures,
+    and their twin -- written back with the same format code, its
+    thousandths nought -- was read as whole seconds, so it missed both
+    obligations though its cells were right.
+
+    Guarantees: accepts a format code; returns 0 to 3 -- the figures
+    after the point following the seconds token, capped at the
+    millisecond a workbook's own arithmetic keeps. Determinism: a fixed
+    function of the code. Raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(code, str):
+        raise TypeError("internal check: a format code was not text")
+    plain = _format_body(code)[0]
+    place = 0
+    found = -1
+    for character in plain:
+        if character == "s" or character == "S":
+            found = place
+        place = place + 1
+    if found < 0:
+        return 0
+    rest = plain[found + 1 :]
+    while rest[0:1] == "s" or rest[0:1] == "S":
+        rest = rest[1:]
+    if rest[0:1] != ".":
+        return 0
+    figures = 0
+    for character in rest[1:]:
+        if character != "0":
+            break
+        figures = figures + 1
+        if figures == 3:
+            break
+    return figures
+
+
+def sheet_format_kind(code: str) -> str:
+    """Which kind of thing a number wearing this format code is.
+
+    THE ONE RULE, IN THE MODULE EVERY SIDE MAY IMPORT (plan P4-D189). It
+    was the reader's (`workbook.format_kind`), and the loader and the
+    writer answered the same question from `SHEET_FORMAT_CODE_KINDS`, a
+    closed map of its answers; a code published as the source wrote it
+    is not in that map, so the rule itself moved here and the reader
+    asks it.
+
+    Guarantees: a fixed function of the code. The rule is the one every
+    reader the study measured uses -- the format decides the type -- and
+    it reads the code outside its quoted runs, so a currency symbol
+    spelling `"d"` inside quotation marks never makes a column of money
+    into a column of dates. Only the first section is read: a format may
+    spell positives, negatives and zeros differently, and the first
+    section is the one a positive number wears. What a bracket holds is
+    not read as a date token (plan P4-D169) -- a colour, a currency and
+    locale, a condition -- except an elapsed count, `[h]`, `[mm]`,
+    `[ss]`; the character after `_` and after `*` is layout and skipped.
+    """
+    if not isinstance(code, str):
+        raise TypeError("internal check: a format code was not text")
+    if code == "General" or not code:
+        return SHEET_FORMAT_PLAIN
+    if code == "@":
+        return SHEET_FORMAT_TEXT
+    read = _format_body(code)
+    plain = read[0]
+    elapsed = read[1]
     day = "d" in plain or "D" in plain or "y" in plain or "Y" in plain
     # `m` is minutes next to an hour or a second, and months otherwise.
     month = "m" in plain or "M" in plain
@@ -1098,14 +1167,24 @@ def _plain_serial(text: str) -> bool:
     )
 
 
-def sheet_serial_moment(text: str, kind: str, epoch_1904: bool) -> str:
+def sheet_serial_moment(
+    text: str, kind: str, epoch_1904: bool, figures: int = 0
+) -> str:
     """A stored day count wearing a date format, read as the date it shows.
 
-    Guarantees: a fixed function of its three inputs. Where ``kind`` is
+    ``figures`` is what the cell's FORMAT shows after the second
+    (`sheet_format_figures`), and the fraction is written to that many
+    places even where it is nought (plan P4-D259): a serial standing at
+    a whole second under `hh:mm:ss.000` is a moment a person reads as
+    `12:00:00.000`, and dropping the figures lost the only evidence of
+    the column's precision the workbook holds.
+
+    Guarantees: a fixed function of its four inputs. Where ``kind`` is
     `date` or `datetime` and the text is a day count a workbook can show
     as a date, the answer is `YYYY-MM-DD` for a `date` cell holding a
-    whole day, and `YYYY-MM-DD HH:MM:SS` otherwise, with `.fff` added
-    where the time is not a whole second; the time is rounded to the
+    whole day, and `YYYY-MM-DD HH:MM:SS` otherwise, with the fraction
+    added to ``figures`` places, or to three where the time is not a
+    whole second and the format shows none; the time is rounded to the
     millisecond, which is finer than any format a workbook can wear.
     Anything else comes back unchanged: another kind, a negative or
     exponent spelling, a count before the epoch's first day, the 1900
@@ -1144,8 +1223,11 @@ def sheet_serial_moment(text: str, kind: str, epoch_1904: bool) -> str:
         f"{written} {seconds // 3600:02d}:{(seconds // 60) % 60:02d}"
         f":{seconds % 60:02d}"
     )
-    if part % 1000:
-        written = f"{written}.{part % 1000:03d}"
+    thousandths = f"{part % 1000:03d}"
+    if figures > 0:
+        written = f"{written}.{thousandths[0:figures]}"
+    elif part % 1000:
+        written = f"{written}.{thousandths}"
     return written
 
 
@@ -1153,8 +1235,10 @@ def sheet_moment_kind(text: str) -> str:
     """Which date format kind the reader's own spelling of a date is, or "".
 
     `date` for `YYYY-MM-DD`, `datetime` for `YYYY-MM-DD HH:MM:SS` with an
-    optional `.fff` -- exactly the two spellings `sheet_serial_moment`
-    writes, and nothing else.
+    optional fraction of one to three figures -- exactly the spellings
+    `sheet_serial_moment` writes, and nothing else. One and two figures
+    since plan P4-D259, which made the reader write as many figures as
+    the cell's format shows.
     """
     if not isinstance(text, str):
         raise TypeError("internal check: a cell's text was not text")
@@ -1168,7 +1252,9 @@ def sheet_moment_kind(text: str) -> str:
         return ""
     if len(text) == 10:
         return SHEET_FORMAT_DATE
-    if len(text) not in (19, 23) or text[10:11] != " ":
+    if len(text) < 19 or len(text) > 23 or text[10:11] != " ":
+        return ""
+    if len(text) == 20:
         return ""
     if text[13:14] != ":" or text[16:17] != ":":
         return ""
@@ -1178,8 +1264,8 @@ def sheet_moment_kind(text: str) -> str:
         and _figures_only(text[17:19])
     ):
         return ""
-    if len(text) == 23 and (
-        text[19:20] != "." or not _figures_only(text[20:23])
+    if len(text) > 19 and (
+        text[19:20] != "." or not _figures_only(text[20:])
     ):
         return ""
     return SHEET_FORMAT_DATETIME
@@ -1215,8 +1301,10 @@ def sheet_moment_serial(text: str, epoch_1904: bool) -> str:
         if hours > 23 or minutes > 59 or seconds > 59:
             return ""
         part = (hours * 3600 + minutes * 60 + seconds) * 1000
-        if len(text) == 23:
-            part = part + int(text[20:23])
+        if len(text) > 19:
+            # ONE TO THREE FIGURES, padded to the thousandth a workbook
+            # stores (plan P4-D259): `.5` is five hundred milliseconds.
+            part = part + int(f"{text[20:]:0<3s}"[0:3])
     if epoch_1904:
         days = count - _EPOCH_1904
         if days < 0:

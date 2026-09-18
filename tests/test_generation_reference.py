@@ -438,6 +438,16 @@ FOURTH_BRANCH_CASES = (
 # (plan P4-D198). Sorted, like the tuples above.
 FIFTH_BRANCH_CASES = (
     "code_band_words",
+    # The five cases of the extra review of c5d09d5 (plans P4-D254 to
+    # P4-D258): the feasible spend of the offsets, the offsets of the
+    # ranks tied at an end, the census key carried into the width pass,
+    # and G7.3's two merges -- the traded one and the one onto a unit
+    # that is no rank neighbour.
+    "date_endpoint_ties",
+    "date_midnight_feasible",
+    "date_nonadjacent_merge",
+    "date_second_field_class",
+    "date_traded_merge",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
     "truth_values_written",
@@ -531,6 +541,13 @@ SEEDS = {
     "truth_values_written": 189,
     "twice_written_filled": 190,
     "twice_written_merged": 191,
+    # The extra review of c5d09d5 takes 200 onward, clear of every block
+    # above it.
+    "date_midnight_feasible": 200,
+    "date_endpoint_ties": 201,
+    "date_second_field_class": 202,
+    "date_traded_merge": 203,
+    "date_nonadjacent_merge": 204,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -1486,6 +1503,15 @@ class Mutant(typing.NamedTuple):
     outcome: str
 
 
+def _either_field_below_ten(column, day_number, word=""):
+    """G7.3's width question as it stood before plan P4-D256: does the day
+    show a width AT ALL, whatever convention the census names."""
+    _year, month, day = gen.civil_from_days(day_number)
+    if column["format"] in gen.TEXTUAL_MEMBERS:
+        return day < 10
+    return month < 10 or day < 10
+
+
 def _toward_the_later_instant(position, denominator, rungs):
     """G7.3's rounding turned over: ceiling instead of floor."""
     segment = gen.ladder_segment(position, denominator)
@@ -2338,6 +2364,47 @@ CASE_MUTANTS = {
         "out of its share onto a point a later stratum held inside its own",
         attribute="separation_reaches",
         replacement=_reaches_stratum_by_stratum,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_midnight_feasible": Mutant(
+        branch="plan P4-D254's feasible spend of G7.4's offsets; the mutant "
+        "makes every offset look feasible, which is the lexical spend it "
+        "replaces, and the ranks whose gap holds no midnight under the "
+        "offset their block reached are left off midnight",
+        attribute="a_midnight_inside",
+        replacement=lambda *arguments: True,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_endpoint_ties": Mutant(
+        branch="plan P4-D255's hold on the ranks tied at an end; the mutant "
+        "holds none of them, and the interior ranks standing on the latest "
+        "instant take the offset that out-sorts the published one",
+        attribute="endpoint_tie_offsets",
+        replacement=lambda *arguments: {},
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_second_field_class": Mutant(
+        branch="plan P4-D256's census key in the width pass; the mutant asks "
+        "the older question -- is either field below ten -- and the twin's "
+        "dates fall on days counted under a joint word instead",
+        attribute="shows_a_width",
+        replacement=_either_field_below_ten,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_traded_merge": Mutant(
+        branch="plan P4-D258's traded merge; the mutant withdraws the "
+        "payment, so the merge whose gap holds no unit of its own width "
+        "kind is never made and the twin holds a value more",
+        attribute="traded_merges",
+        replacement=lambda *arguments, **named: 0,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_nonadjacent_merge": Mutant(
+        branch="plan P4-D258's merge onto a unit that is no rank neighbour; "
+        "the mutant offers the neighbours alone, and a run whose neighbours "
+        "are of the other width kind stays where it was",
+        attribute="nearest_held_unit",
+        replacement=lambda *arguments: None,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_widths_reached": Mutant(

@@ -10026,7 +10026,15 @@ templates for the whole column and per layout (plan P4-D202), and
 `pooled_level_sizes`, G8.3's sizing of the invented levels off the
 pooled total (plan P4-D201).
 
-**All eighty-seven are required.** The count is taken off the committed
+**The extra review of c5d09d5 adds five to the seventh file** (plans
+P4-D254 to P4-D258): `date_midnight_feasible`, the feasible spend of an
+offset where the column is moved onto midnight;
+`date_endpoint_ties`, the offsets a rank standing on an end's own
+instant may wear; `date_second_field_class`, the census key carried
+into the width pass; and `date_traded_merge` and
+`date_nonadjacent_merge`, G7.3's two merges.
+
+**All ninety-two are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10041,7 +10049,7 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; and the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds six (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+holds eleven (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -10131,6 +10139,11 @@ case passed, which is the failure the count exists to prevent:
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
 | `date_distinct_reached` | G7.3's pass on the count of different values (plan P4-D192): sixty ISO dates over thirty days publishing twelve different days, one more than its pins hold, reached by runs of ranks on one day moving whole onto a neighbour's day inside their gaps. Its mutant withdraws the pass and the twin holds more days |
+| `date_midnight_feasible` | G7.4's feasible spend of the offsets (plan P4-D254): forty-eight moments on two days at local midnight under `Z`, `+01:00` and `-05:00`, sixteen of each, published on the shared clock, whose gaps hold a midnight under one offset and none under the other two. Its mutant makes every offset look feasible, which is the lexical spend it replaces, and the ranks it leaves off midnight are written with a time of day |
+| `date_endpoint_ties` | G7.4's hold on the ranks tied at an end (plan P4-D255): forty-eight moments on three days at midnight or noon under `+01:00` and `+02:00`, twenty-four of each, published on the shared clock, several ranks standing on the latest instant. Its mutant holds none of them and the larger offset is published for that end |
+| `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
+| `date_traded_merge` | G7.3's traded merge (plan P4-D258): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three, whose first gap holds no day showing a width. Its mutant withdraws the payment and the twin holds a value more |
+| `date_nonadjacent_merge` | G7.3's merge onto a unit that is no rank neighbour (plan P4-D258): the same three days at other words, the runs of a gap being of both width kinds. Its mutant offers the rank neighbours alone and the runs of the other kind stay where they were |
 | `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `unpadded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass |
 | `midnight_withheld_kept` | G7.3's rule for a withheld count at midnight (plan P4-D191): sixty moments to the minute whose pins stand a minute either side of midnight in turn, so about half the ranks between a `23:59` and the next `00:01` land at midnight; the published instants stand off it, so fewer than the line of eleven may, and the ranks at midnight step a minute later. Its mutant leaves them there |
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |

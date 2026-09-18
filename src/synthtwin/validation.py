@@ -1842,12 +1842,18 @@ def _vocabulary_spellings(
         for value, spelling in _STAND_IN_SPELLINGS:
             if number == value:
                 found[spelling] = 1
-    # AND THE THIRD LIST (plan amendment A-P4-1 item 3). A placeholder
-    # day the person named is a value they kept, and a reconstruction
-    # that stopped at two lists could not rebuild the reading rule of a
-    # column whose placeholder they rescued.
-    for day in record.built_in_dates:
-        found[day] = 1
+    # THE THIRD LIST IS NOT SPENT HERE, and that is the difference
+    # between a declaration that reaches every column and one that
+    # reached the columns the person's own spelling touched (plan
+    # P4-D252). A placeholder day the person named is a value they
+    # kept, and `_kept_placeholders_here` carries it COLUMN BY COLUMN,
+    # skipping a column whose own description judged that day -- which
+    # is the account the producer itself gives, because a month-first
+    # column's `01/01/1900` never named an ISO column's `1900-01-01`.
+    # Spent here, it made the checked table's other columns keep a day
+    # their description counts as absent: measured on thirty
+    # `01/01/1900` beside thirty `1900-01-01` in a second column, the
+    # unchanged table missed fourteen obligations there.
     return tuple(sorted(found))
 
 
@@ -4966,22 +4972,54 @@ def _kept_placeholders_here(
     publish 500 values; the table checked against that description read
     470 and missed 14 obligations, and so did its twin.
 
+    AND THE SETTINGS CARRY IT WHERE THE COLUMN CANNOT (plan P4-D252).
+    The account above is a column's own published verdict, and the
+    publication floor withholds one whose occurrences are too few to
+    name: five `01/01/1900` beside 395 month-first dates at a floor of
+    eleven publish no verdict at all, so nothing here rebuilt the
+    instruction and the unchanged table missed fourteen obligations.
+    The settings block records the MEMBER a declaration named -- now
+    including one a typed spelling DENOTES -- and it is carried to every
+    column of the file EXCEPT one whose own description publishes a
+    `read_as_missing` verdict for that day, because such a column is one
+    the person's spelling did not reach. Where both columns' verdicts
+    are withheld for their size the two cannot be told apart and the day
+    is kept in both, which is the same corner `_cells_that_description_reads`
+    names for an unpublished stand-in and is bounded the same way.
+
     A column the checked file does not carry is dropped, for the reason
     `_declared_here` gives.
     """
+    named = _vocabulary_days(description.settings.kept_values)
     found: "dict[str, tuple[str, ...]]" = {}
     for column in description.columns:
         if column.name not in table.column_names:
             continue
-        days: "list[str]" = []
+        days: "dict[str, int]" = {}
+        judged: "dict[str, int]" = {}
         for verdict in column.sentinel_verdicts:
-            if verdict.reason != "kept_by_you":
+            if verdict.candidate not in parsing.calendar_placeholders():
                 continue
-            if verdict.candidate in parsing.calendar_placeholders():
-                days += [verdict.candidate]
+            if verdict.reason == "kept_by_you":
+                days[verdict.candidate] = 1
+            elif verdict.verdict == taxonomy.VERDICT_MISSING:
+                judged[verdict.candidate] = 1
+        for day in named:
+            if day not in judged:
+                days[day] = 1
         if days:
             found[column.name] = tuple(sorted(days))
     return found
+
+
+def _vocabulary_days(
+    record: contract.DeclarationRecord,
+) -> "tuple[str, ...]":
+    """The placeholder days one declaration record names (plan P4-D252)."""
+    found: "dict[str, int]" = {}
+    for day in record.built_in_dates:
+        found[day] = 1
+    return tuple(sorted(found))
 
 
 def _declared_commas_here(
@@ -7391,6 +7429,11 @@ def _holes_by_the_description(
     for candidate in _candidates_the_description_keeps(block):
         kept_numbers += [candidate]
     missing_candidates = _candidates_the_description_drops(block)
+    # AND THE CELLS ITS OWN PLACEHOLDER VERDICTS DROP (plan P4-D253),
+    # named by the spellings those verdicts publish rather than by the
+    # day they denote, so this rule reads a cell's identity as TEXT and
+    # asks no reader that rounds.
+    missing_days = _placeholder_spellings_dropped(block)
     certain: list[bool] = []
     unsettled: list[bool] = []
     for cell in cells:
@@ -7417,8 +7460,16 @@ def _holes_by_the_description(
             named_as_a_hole = _named(
                 declared_numbers, exact
             ) or _spelled_alike(cell, declared_folded)
+            judged_day = _spelled_alike(cell, missing_days)
             if named_as_data:
                 is_hole = False
+            elif judged_day:
+                # The column's own verdict on a candidate, exactly as
+                # the branch below reads one for a stand-in number: a
+                # declaration that keeps the day is `named_as_data`
+                # above, and a kept day carries the verdict
+                # `kept_by_you` rather than this one.
+                is_hole = True
             elif named_as_a_hole or parsing.is_missing_text(cell):
                 # Two rules of the producer's, in its order, and the
                 # order survives the `or`: a declaration is asked first
@@ -7522,6 +7573,67 @@ def _candidates_the_description_drops(
 ) -> "list[tuple[int, tuple[str, ...], int]]":
     """The stand-ins the file's own description read as "no value"."""
     return _candidates_with(block, taxonomy.VERDICT_MISSING)
+
+
+def _placeholder_spellings_dropped(
+    block: "dict[str, object]",
+) -> "dict[str, int]":
+    """The SPELLINGS of placeholder days the description read as "no value".
+
+    THE THIRD CANDIDATE KIND, AND IT WAS INVISIBLE HERE (plan P4-D253,
+    the extra review of c5d09d5, item 6). `_candidates_with` reads a
+    verdict's candidate as a NUMBER and a calendar day denotes none, so
+    every placeholder-day verdict fell out of the hole rule: the cells
+    a description judged as holes were handed to the recounts as
+    values. Measured on `01/01/1900` twenty times beside 380 day-first
+    dates of 2020 at a floor of eleven -- the description publishes
+    `date_field_widths={"second-field-padded": 380}` over the cells it
+    reads, the recount walked all 400, folded them into another width
+    class, and the unchanged source was told it missed two obligations.
+
+    AND THE SPELLINGS RATHER THAN THE DAYS, because this closure reads a
+    cell's identity and may ask no reader that rounds (review items
+    P1-R8-F2 and P3-V4-F1, guarded by
+    `tests/test_p3v4f1_kept_values.py`). A verdict publishes the
+    `missing_by_source` keys its own decision took out, so the cells it
+    judged are named as TEXT and no date has to be parsed to find them.
+
+    Guarantees: accepts one re-described block; returns the folded
+    spellings its own verdicts read as absent, as a mapping the text
+    comparison beside it takes. Determinism: a fixed function of the
+    block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        if _text_at(inner, "verdict") != taxonomy.VERDICT_MISSING:
+            continue
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        named = False
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                named = True
+        if not named:
+            continue
+        spellings = inner["spellings"] if "spellings" in inner else []
+        if not isinstance(spellings, list):
+            continue
+        for spelling in spellings:
+            if isinstance(spelling, str):
+                found[parsing.folded(spelling)] = 1
+    return found
 
 
 def _candidates_with(
@@ -14535,9 +14647,20 @@ def _written_form_checks(
             tallied = tally[named] if named in tally else 0
             if counted_exactly:
                 met = tallied == census[named]
-            shown = _FORM_NOT_NAMED
-            if named in measured:
-                shown = _shown_count(measured[named])
+            # WHAT IS PRINTED IS WHAT DECIDED THE VERDICT (plan P4-D253,
+            # the extra review of c5d09d5, item 6). The census of the
+            # file's own description stood here while the verdict was
+            # settled by the RECOUNT beside it, so a miss printed
+            # "the description asks for: 380 / the file was found to
+            # hold: 380" and gave a reader no way to see what was
+            # wrong. A recount below the line prints as the `unnamed`
+            # line beside it prints one, because a number that
+            # description withholds is not printed by this report.
+            shown = _shown_count(tallied)
+            if 0 < tallied < line:
+                shown = _below_the_floor(line)
+            if tallied == 0 and named not in measured:
+                shown = _FORM_NOT_NAMED
             # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
             # (plan P4-D195). A census of several widths was printed HELD on
             # a twin holding 381 and 393 against a published 369 and 381,
@@ -14580,8 +14703,17 @@ def _written_form_checks(
         bound = left_over + max(0, measured_total - published_total)
         unnamed = 0
         for named in counted:
-            if named not in census:
-                unnamed = unnamed + counted[named]
+            if named in census:
+                continue
+            # A STYLE THE CENSUS LEFT AT `either` IS NOT A STYLE NOBODY
+            # PUBLISHED (plan P4-D257). A column of May names publishes
+            # no length, and every cell of a file that writes another
+            # month has to resolve one; `parsing.name_style_agrees` is
+            # the one statement of which resolutions that permits, and
+            # the case, the mark and the comma are exact there as here.
+            if key == "month_name_styles" and _style_published(named, census):
+                continue
+            unnamed = unnamed + counted[named]
         shown_unnamed = _shown_count(unnamed)
         if 0 < unnamed < line:
             shown_unnamed = _below_the_floor(line)
@@ -14596,6 +14728,26 @@ def _written_form_checks(
             )
         ]
     return checks
+
+
+def _style_published(
+    written: str, census: "dict[str, int]"
+) -> bool:
+    """Whether some published month-name style this file's style meets.
+
+    `parsing.name_style_agrees` per published key, so the permitted
+    reading of `either` is asked rather than restated (plan P4-D257).
+
+    Guarantees: accepts one written style and the published census;
+    returns a bool. Determinism: a fixed function of the two. Errors
+    raised: none. No I/O of any kind.
+    """
+    for named in sorted(census):
+        if named == contract.WITHHELD:
+            continue
+        if parsing.name_style_agrees(named, written):
+            return True
+    return False
 
 
 def _raw_written_tally(

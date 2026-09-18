@@ -1856,8 +1856,10 @@ def table_of(
     n_rows = 0
     empty_inside = 0
     # A DATE CELL IS READ AS ITS DATE (`dialect.sheet_serial_moment`):
-    # the kind of each code is worked out once, not once per cell.
+    # the kind of each code is worked out once, not once per cell, and
+    # so are the figures it shows after the second (plan P4-D259).
     kinds_of: "dict[str, str]" = {}
+    figures_of: "dict[str, int]" = {}
     for number in range(top, last_row + 1):
         n_rows = n_rows + 1
         holding = False
@@ -1877,8 +1879,12 @@ def table_of(
                 code = standing.number_format
                 if code not in kinds_of:
                     kinds_of[code] = format_kind(code)
+                    figures_of[code] = dialect.sheet_format_figures(code)
                 shown_text = dialect.sheet_serial_moment(
-                    shown_text, kinds_of[code], reading.epoch_1904
+                    shown_text,
+                    kinds_of[code],
+                    reading.epoch_1904,
+                    figures_of[code],
                 )
             columns[index] += [shown_text]
             classes[index] += [standing.kind]

@@ -184,6 +184,25 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def a_form_one_row_wore(_column: str) -> Change:
+    """Read a column of stamps jointly, one value of it a whole date (RM3).
+
+    The count of one is the disclosure: it says which reading exactly
+    one row of the column was written in, as plainly as a census naming
+    a spelling one row wore. The producer counts such a form into the
+    commonest form and publishes the column wholly in that form, so no
+    document it writes reaches this shape.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(
+            format="iso-mixed",
+            resolution_mix={"iso-date": 1, "iso-datetime": parsed - 1},
+        )
+    return change
+
+
 def whole_dates_carrying_offsets(_column: str) -> Change:
     """Read a column of stamps jointly, every value a whole date (D16).
 
@@ -1148,6 +1167,10 @@ def battery() -> list[Mutation]:
         Mutation(
             "D16", "whole dates counted beside offsets only moments carry",
             whole_dates_carrying_offsets("logged_at"),
+        ),
+        Mutation(
+            "RM3", "a form census counting one row's own reading",
+            a_form_one_row_wore("logged_at"),
         ),
         # HOW THE DATES WERE WRITTEN, landing 2b.6. `recorded_on` is read
         # as `iso-date`: its fields are of fixed width, it writes no
