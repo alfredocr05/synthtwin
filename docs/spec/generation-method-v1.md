@@ -339,15 +339,37 @@ numbers by.
 (repair of the stage-2b integration). The reader hands the column
 machinery a number cell wearing a date or datetime format as its date
 (contract 4.3b), so the generator writes dates. Where a column
-publishes a positive `date` or `datetime` count, or a `format_code` of
-either kind, each cell holding `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`
-(with an optional `.fff`) is replaced, before step 1, by the day count
-a workbook stores for it in the published date system — a whole day in
+publishes a positive `date` or `datetime` FORMAT-KIND count, or a
+`format_code` of either kind, each cell holding `YYYY-MM-DD` or
+`YYYY-MM-DD HH:MM:SS` (with an optional `.fff`) is replaced, before
+step 1, by the day count a workbook stores for it in the published date
+system — a whole day in
 figures, a moment as the shortest spelling of its double — and the kind
 of date it was is carried beside the cell through step 6's exchanges.
 The 1900 system counts 1900-01-01 as day 1 and carries a 29 February
 1900 that never was, so a date before 1900-03-01 stands one day nearer
 its epoch; a date no day count of the system can hold stays text.
+
+**EXCEPT A CELL THE CENSUS STORES AS A DATE** (plan P4-D284). A day
+count is a NUMBER's spelling, and a workbook may instead store a date
+as its ISO text (`t="d"`, cell class `date`, contract 4.3b). So step 1
+is run FIRST, on the cells as the column generator wrote them, to
+settle which cells are to be stored as dates; each of those keeps its
+ISO text, every other date becomes its day count, and step 1 is then
+run again over the cells as they will be written. **And the census has
+to say so, not merely fail to deny it:** the first allocation is
+trusted only where the column publishes a `date` CELL-CLASS count above
+nought, or — where that census was withheld — a `value_class` of
+`date`. A withheld census lets a cell no count claims take the first
+withheld class its spelling fits, and a date's own spelling fits
+`date`, so a column of ordinary day counts wearing a date format would
+otherwise be given date storage it never had. Asked the other way
+round, 120 `t="d"` cells lost their ISO spelling before anything could
+fit the `date` class, the whole column fell through to `text`, and
+every reader handed back strings such as `"45315"`; asked without the
+census guard, 59 day counts of the study's titled book at a floor of
+eleven turned into `t="d"` cells and the twin missed
+`workbook.value-class`.
 
 **Step 2 — the kind of format each cell wears** (`cell_format_kinds`).
 A mixture is reproduced as its COUNTS and never collapsed to the
@@ -9981,7 +10003,14 @@ merge (plan P4-D193), one for the census of marks held at a thousand on
 a column with refunds (plan P4-D194), and one for a declared identifier's
 partners held to the cells its layout census names no layout for (plan
 P4-D196), and one for a workbook column of free text writing its truth
-values as them (plan P4-D198).
+values as them (plan P4-D198). **No case was added for the files review
+of 2026-09-18, and a COLUMN was**, which is recorded here rather than
+left to be noticed: `workbook_as_written` gained a fourth column storing
+its dates as their ISO text rather than as day counts (cell class
+`date`, plan P4-D284), and a third mutant that converts every date as
+the rule it replaced did. No committed case reached that branch of step
+0 before it, so every rule telling such a cell from a day count could
+have been withdrawn with every committed byte unchanged.
 
 **Landing 2b.6 PART 2 added no case either, and it WITHDREW a frozen
 mutant, which is recorded here rather than left to be noticed.** Part 2

@@ -11236,7 +11236,7 @@ The owner's ruling of 2026-09-17, item 8: where a file's first row cannot be tol
 
 (4) **A blank run above the table is not furniture for this purpose.** Measured: counting it read `age` over four numbers as a headerless table of five records. A blank line says nothing about the line below it; a title or a comment is somebody's words, and words stand over a headerless table as readily as over a headed one.
 
-(5a) **A sheet that MARKS its header row is not asked** (`workbook.marks_the_header`, the public name of P4-D174's `_marked_by_the_sheet`). Frozen panes ending at that row, or an autofilter beginning at it, are things a person does to a header and never to a record: the file's own evidence, of the same standing as a column of numbers under a name that is not one, and asked in the same place. Measured without it: the autofilter of a marked sheet names its header's row, the twin with no header wrote the filter elsewhere, and `workbook.autofilter` MISSED on the twin.
+(5a) **A sheet that MARKS its header row is not asked** (`workbook.marks_the_header`, the public name of P4-D174's `_marked_by_the_sheet`). An autofilter beginning at that row is a thing a person does to a header and never to a record: the file's own evidence, of the same standing as a column of numbers under a name that is not one, and asked in the same place. Measured without it: the autofilter of a marked sheet names its header's row, the twin with no header wrote the filter elsewhere, and `workbook.autofilter` MISSED on the twin. **AMENDED BY P4-D281 (the files review of 2026-09-18): a FROZEN PANE is no longer such evidence**, and this entry said it was. A freeze splits the window where the person dragged it, over a banner or a logo as readily as over a heading, and one `ySplit` attribute was enough to publish a row this ruling protects as the column names; `_marked_by_the_sheet` keeps the pane for the OTHER question it answers, which is which of the rows already settled as furniture is the header.
 
 (5) **A workbook keeps its furniture** (`workbook.table_of`'s new `records_from_the_header`). `--first-row data` reads every row of a sheet from the first, so a title row would become a record and its text a value of the first column, which contract FD11 and plan P4-D80 forbid at every smallest group. The reader's own answer keeps the rows above the header rule's row as furniture, counted and never published, and makes that row the first record. **The validator reads a checked workbook the same way** (validation method V1.5's new clause): it passes the row the description starts its records on whether or not the names came from the file, because a reading that took every row from the sheet's first holds one row more -- measured, the titled sheet of 40 records missed fourteen obligations on its twin AND on the very book it was described from, and holds every one of them read this way.
 
@@ -11343,7 +11343,7 @@ Ruling 6 of 2026-09-17 (P4-D222, CONFIRMED by the owner) counts a spelling below
 
 Ruling 8 of 2026-09-17 (P4-D232) was met only for the shapes the FURNITURE rule reaches. **Measured:** a headerless export of 240 records whose first record is `CASE-ZEBRA-471,Northfield Clinic 3,<0.10`, with a column of numbers beside it, published that record as the three column names. `<0.10` is not a number, so the numeric column read as EVIDENCE that the first row is names, and `reading._names_evidence` is asked BEFORE the furniture rule. The record's text stood in the description four times, in the plain summary six, in the twin's report four and verbatim as row two of the twin CSV and of the twin workbook; the description said 239 rows where the file holds 240; nothing was asked; and profile, generate and both validates exited 0. It happened with a title above, with a comment above, with two titles and with NOTHING above at all, so no rule that reads the FILE's shape can close it. `NULL`, `.`, `NA` and `pending` in that column do it as readily as `<0.10`.
 
-**The decision** (`reading._silhouette`, `reading._shape_is_structured`, `reading._shares_the_shape_below`, the FOURTH rule of `reading._record_evidence`). A value's silhouette is its runs of letters and of figures collapsed, every mark standing for itself: `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, `record_id` is `A_A` and `R001` is `A9`. Where every value below the first row in one column wears the same silhouette, that silhouette is STRUCTURED, and the first row's value wears it too, the row is a record and the file is read as one. It is asked with the three record rules and not with the names evidence, so it does not depend on furniture and does not disturb the ordering P4-D232 measured.
+**The decision** (`reading._silhouette`, `reading._shape_is_structured`, `reading._shares_the_shape_below`, the FOURTH rule of `reading._record_evidence`). A value's silhouette is its runs of letters and of figures collapsed, every mark standing for itself: `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, `record_id` is `A_A` and `R001` is `A9`. Where every value below the first row in one column wears the same silhouette, that silhouette is STRUCTURED, and the first row's value wears it too, the row is a record and the file is read as one. **AMENDED BY P4-D280 (the files review of 2026-09-18): "every value below" is now "the commonest silhouette below, worn by two values or more"**, because one cell defeated the unanimous rule -- see that entry. It is asked with the three record rules and not with the names evidence, so it does not depend on furniture and does not disturb the ordering P4-D232 measured.
 
 **STRUCTURED is two marks and something that is not a word, and both halves were set by witnesses the first writing turned red.** A run of letters beside a run of figures is what an ordinary header shares with its own column all the time -- `visit1` over `a1`, `region,2019` over `r1`, `B10` over `B01` are all `A9` over `A9`, and each is a headed table this package has read without a question since review item P1-R6-F6 -- so fewer than two marks says nothing. Letters and spaces alone say nothing either: `Full Name` over `John Smith` is `A A` over `A A`, and `First Middle Last` over `John Paul Jones` is `A A A`. A figure, or a mark that is not a space, is what makes the shape a structure.
 
@@ -15498,3 +15498,219 @@ catches more.
 no good pairing still reprofiles, and now says so. That is the
 residual's complaint answered — the column changed kind "and says
 nothing" — with the packing left as the honest remainder.
+
+## The files review of 2026-09-18 — decisions P4-D280 to P4-D289
+
+One review round on commit `c5d09d5`, four passes, ten items in the
+files area: three blockers, six major, one minor. Every item was
+reproduced on `c5d09d5` before anything was changed, and every number
+below is measured rather than argued. None of them reverses any of the
+owner's eight rulings of 2026-09-17; two of them are that ruling's own
+repair (P4-D280, P4-D281) and one takes ruling 6 for its threshold
+(P4-D283).
+
+### P4-D280 A record's layout is the commonest below it, not the unanimous one (BLOCKER)
+
+`reading._shares_the_shape_below`. P4-D241's fourth record rule
+required EVERY value below the first row to wear that row's silhouette.
+**Measured at a floor of eleven**, on the very shape P4-D241 was written
+for -- `Cohort extract`, then `CASE-ZEBRA-471,Northfield Clinic 3,<0.10`
+and 239 records `CASE-ALPHA-{1000+i},location {i},{n}`: unanimous, the
+rule speaks and the file is described as 240 records under `column_1`,
+`column_2`, `column_3`. Write ONE of the 239 identifiers
+`CASE_ALPHA_1120` -- a second system's layout, which ruling 7 says a
+file may hold -- and the rule falls silent, `_names_evidence` fires
+instead on the third column (`<0.10` is not a number), and the whole
+first record is published as the three column names with the table 239
+rows long, no question asked and both files validating with nothing
+missed. `NA` in that cell does it as readily.
+
+**The decision.** The first row's silhouette must be structured and
+must be the COMMONEST silhouette among the non-empty values below it,
+worn by at least two of them. A minority layout and a missing-value
+word are counted and beaten rather than obeyed. This is the same
+arithmetic ruling 6 makes for a spelling under the floor: the commonest
+stands, the rest is absorbed. **After:** all three variants describe 240
+records under placeholder names and ask the question.
+
+### P4-D281 A frozen pane is not evidence about which row holds the names (BLOCKER)
+
+`workbook.marks_the_header`. P4-D232's clause (5a) let a sheet waive
+ruling 8 by freezing its panes at the header row. **Measured at a floor
+of five**, on a sheet holding `Study overview` in `A1`, two texts in
+`A2`/`B2` and 120 records of text pairs below: without a pane, 121
+records under `column_1`/`column_2`, neither of row 2's values anywhere
+in the six files. Adding `<pane ySplit="2" topLeftCell="A3"
+state="frozen"/>` and nothing else: both of those values become the
+column names, the row count falls to 120, they are copied into the
+twin's own header, and the description passes every contract check.
+
+**The decision.** The reader's question — may a row standing under
+furniture be published as schema without asking anybody — is waived by
+an autofilter whose range BEGINS at the header row, and by nothing
+else. A freeze says where the scrolling stops: a person freezes two
+rows for a banner and a heading, one for a heading, four for a logo,
+and no reader can tell which. `_marked_by_the_sheet` keeps the pane for
+the other question it answers — which of the rows already settled as
+furniture is the header — because answering that wrongly costs a row's
+PLACE and never its publication. **After:** 121 records and placeholder
+names with the pane and without it alike.
+
+### P4-D282 A competing delimiter need not agree about the width (BLOCKER)
+
+`dialect.delimiter_reading`. P4-D110 recorded a competing candidate only
+where it tied the winner on the share AND the width, and the walk
+prefers the WIDER reading on a tie of the share — so the wider reading
+could take a file from a narrower one just as consistent, and say
+nothing. **Measured**: a header `id,measure|low|high` over 120 rows
+`{i},{100+i%4}|90|110` reads at a share of 1.0 under the comma (two
+columns) and at a share of 1.0 under the vertical bar (three columns).
+Commit `53bb012` read the comma; the current code chooses the bar, with
+no competitor recorded and no question asked, and reads the combined
+first field as a QUANTITY — role `count`, percentiles 100 to 119,103.
+Seed 4 writes rows such as `3,029|90|110`, so code using the source's
+own comma delimiter obtains the measurement `029` where the column
+holds 100 to 103. Both files validate with nothing missed, against a
+description of a table the person does not have.
+
+**The decision.** A competitor is every candidate reading the file at
+the winner's own share, whatever width it gives. The reading taken is
+unchanged, because a file the baseline twinned may not become refused;
+what changes is that the person is told and asked, and `--delimiter`
+answers. The two published sentences are reworded, because both said
+the readings give the same number of columns and that is no longer
+true. **Measured against ordinary files:** a plain comma table, a
+semicolon table of decimal commas, a tab table, a one-column table, a
+quoted-comma table and a comma table whose cells hold bars record no
+competitor at all — every other candidate fails to reach two fields,
+which `_best_reading` already rejects.
+
+### P4-D283 A column wearing two number formats of one kind is refused (MAJOR)
+
+`workbook.mixed_number_formats`, `errors.MIXED_CODES`. P4-D164 publishes
+ONE format code per column — the commonest among the value-holding
+cells. **Measured at a floor of five** on 120 numeric cells repeating
+0.1 to 1.0, sixty formatted `0%` and sixty `0.0`: the description
+publishes `0%`, seed 0 writes all 120 cells with it, openpyxl reads
+`{0%: 60, 0.0: 60}` from the source and `{0%: 120}` from the twin, and
+both files validate with nothing missed. Sixty values a person reads as
+`0.5` read as `50%` off the twin, and code selecting cells by their
+number format gets a different population.
+
+**The decision, and why it is the refusal and not the census.** The
+repair that keeps such a column is a published, allocated and validated
+census of format CODES; that is a new contract key with a loader half, a
+generator half, a validator half and its own frozen vectors, and it is
+a landing rather than a review item. Until a description can carry one,
+the column is declined by name — the treatment `mixed_storage` already
+gives a mix of KINDS one level up, and what principle 5 asks for. **The
+threshold is ruling 6's.** A code worn by fewer cells than the line is
+the stray cell somebody reformatted, not a second population, and it is
+counted into the column's commonest code exactly as a rare spelling is.
+**Measured, floor 5, 120 cells:** 1 and 4 cells of the second code are
+read and published as `0%`; 5 and 60 are refused. The refusal names the
+column and never a code, because a custom code can hold somebody's text.
+
+### P4-D284 A cell's storage class is settled before its date is converted (MAJOR)
+
+`sheetwriting._dates_as_day_counts`, `sheetwriting._stores_dates`.
+**Measured at a floor of five** on 120 `t="d"` cells holding
+`2024-01-01` to `2024-01-28` and wearing `yyyy-mm-dd`: generation
+succeeds, openpyxl reads dates from the source and strings such as
+`"45315"` from the twin, describing the twin again turns the column's
+role from `datetime` into `count`, and the twin misses its storage
+class, its value class, its role, its statistical type and its numeric
+counts while the source misses nothing. The conversion to the day count
+a workbook stores ran before the classes were allocated, so by the time
+anything could fit the `date` class the ISO spelling was gone.
+
+**The decision.** The classes are allocated first, from the census;
+only the cells NOT allocated ISO date storage are converted; the
+classes are then settled again over the cells as they will be written.
+**And the census has to SAY so.** Where the census is withheld, a cell
+no count claims takes the first withheld class its spelling fits, and
+the twin's spelling of a date fits `date` — so the allocation is
+trusted only where the column publishes a count of date cells above
+nought or a value class of `date`. Measured without that guard, on the
+study's titled book at a floor of eleven: 59 of the twin's date cells
+turned from `<v>45343</v>` into `t="d"` holding `2024-02-21` and the
+twin missed `workbook.value-class`. With it, that twin is BYTE-IDENTICAL
+to the one `c5d09d5` writes. **After:** the ISO shape's twin comes back
+as 120 dates and validates at 0; the serial shape is untouched.
+
+### P4-D285 An empty inline string is an empty string (MAJOR)
+
+`workbook._CellWalk.had_inline`. A cell was classified by asking whether
+the walk still STOOD inside an inline string, which `</is>` has already
+cleared, and whether that string had characters in it, which an empty
+one has not — so `<c t="inlineStr"><is><t></t></is></c>` was read as the
+styled blank it is not. **Measured** on 120 rows alternating 60 such
+cells with 60 texts: the description publishes `blank 60, empty 0`,
+openpyxl reads `""` from the source and `None` from the twin for those
+60 records, and both files validate with nothing missed — so code
+testing `cell.value is None` finds 60 records on the twin that the real
+table does not have. **The decision:** the walk remembers that the
+element was there. **After:** `blank 0, empty 60`, and the twin hands
+back `""` for all 60.
+
+### P4-D286 A refusal that names a column waits until there are names (MAJOR)
+
+`reading._read_workbook_table`. The mixed-storage refusal stood above
+the first-row decision and named the column it refused. **Measured:** a
+sheet holding a text and 12 in row 1, a date-formatted 45000 and 11 in
+row 2, and an ordinary 20 and 13 in row 3 refuses with "The column
+'<that text>' ..." printed on the screen — although 12 standing among 11
+and 13 is exactly the record evidence ruling 8 answers with placeholder
+names. **The decision:** the check is asked after the first row is
+settled, of the sheet that stands and with the names the reading
+settled on. **After:** the same refusal names `column_1` and no
+character of that row reaches the screen.
+
+### P4-D287 A cell reference is bounded by the last column, and by its length (MAJOR)
+
+`workbook.reference_column`, `workbook.MAXIMUM_REFERENCE_CHARACTERS`.
+The reference walk built the whole base-26 integer the letters spell
+before anything asked whether it was past the last column, which is
+quadratic in the letters for a cell that will be refused anyway.
+**Measured on uncompressed worksheets of 13, 43 and 163 KB, whose one
+cell is referenced by 10,000, 40,000 and 160,000 letters:** 0.011,
+0.162 and 2.592 seconds to refuse one invalid cell. Neither the cell
+cap nor the archive caps bound it. **The decision:** the walk stops at
+`MAXIMUM_COLUMNS` and returns one more than it, and a reference longer
+than 32 characters — `XFD1048576` is ten — is refused as the column
+past the last that it is. **After:** 0.000 seconds at all three sizes.
+
+### P4-D288 A freeze is bounded by the worksheet, not by the table (MAJOR)
+
+`contract` WB4, `dialect.SHEET_MAXIMUM_ROWS`. WB4 held `frozen_rows` to
+`n_rows + rows_above_header + 1`. **Measured:** a header and 120 records
+with `<pane ySplit="200" topLeftCell="A201" state="frozen"/>` — a
+layout openpyxl accepts, reporting `freeze_panes='A201'` — profiles at
+exit 0 publishing `frozen_rows 200`, and the loader then refuses that
+same description under WB4, so `generate` and `validate` both exit 1
+and the refusal's advice to describe the table again repeats the
+failure for ever. **The decision:** the bound is Excel's own last row,
+1,048,576. Splitting the window below everything written is a legal
+layout. **After:** generate and validate both exit 0. The limit moves to
+`dialect` because the loader asks it and the loader may not import the
+reader.
+
+### P4-D289 A package this reader cannot expand is refused in words (MINOR)
+
+`workbook.is_packaged_unreadably`,
+`errors.workbook_is_packaged_unreadably`. **Measured** on a workbook
+one of whose members carries the encrypted flag, and on one packed by
+compression method 99: `RuntimeError` and `NotImplementedError` escape
+the reader with no sentence a person can act on. **The decision:** both
+are read off the package's own listing, before a byte is expanded, and
+turned into one refusal of the workbook error catalog naming neither —
+it is a fact about the packaging, and both have the same answer.
+**After:** a controlled refusal telling the person to take the password
+off or save the sheet as a .csv file.
+
+### What was NOT changed, and why
+
+Nothing in this round required reversing one of the owner's eight
+rulings, so nothing is left for the owner on that ground. The one item
+whose full repair is deferred is P4-D283's census of format codes,
+which is named there with what it would cost.

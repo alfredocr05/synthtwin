@@ -4556,11 +4556,23 @@ def _workbook_rules(
                 f"{form.empty_rows_inside} of {n_rows} records hold nothing",
                 f"the line is {dialect.sheet_line(floor)}",
             )
-    if form.frozen_rows > n_rows + form.rows_above_header + 1:
+    # A FREEZE IS BOUNDED BY THE SHEET AND NOT BY THE TABLE (plan
+    # P4-D288, the repair of review item 9 of the files review of
+    # 2026-09-18). Freezing rows splits the WINDOW, and a person may
+    # split it below everything they have written: `ySplit="200"` over a
+    # header and 120 records is a layout Excel writes and every reader
+    # accepts. This rule held the split to the rows the table fills,
+    # so profiling such a sheet published `frozen_rows 200` and the
+    # loader then refused the very description the profiler had just
+    # written -- with advice to describe the table again, which repeats
+    # the refusal for ever. What a description may not claim is a split
+    # past the last row a worksheet has.
+    if form.frozen_rows > dialect.SHEET_MAXIMUM_ROWS:
         raise _broken(
             "WB4", where,
             f"{form.frozen_rows} rows are frozen at the top",
-            "no more rows than the sheet holds",
+            f"no more rows than a worksheet has "
+            f"({dialect.SHEET_MAXIMUM_ROWS})",
         )
 
 

@@ -696,12 +696,29 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     that the row is NAMES. The row's own first field is what tells it:
     every value below it in that column is `A-A-9` and so is it.
 
-    THE COLUMN HAS TO SPEAK WITH ONE VOICE. Every value below must wear
-    the SAME silhouette, that silhouette must be structured
-    (`_shape_is_structured` above), and the first row's value must wear
-    it too. A column of words under a name of words says nothing here,
-    and neither does `record_id` over `R001` -- `A_A` is not `A9` --
-    which is what keeps this rule off the ordinary headed export.
+    THE COLUMN HAS TO SPEAK WITH ONE VOICE, AND ONE VOICE IS NOT ONE
+    SPELLING (plan P4-D280, the repair of review item 1 of the files
+    review of 2026-09-18). The first row's silhouette must be structured
+    (`_shape_is_structured` above) and it must be the COMMONEST
+    silhouette of the values below it, worn by at least two of them. A
+    column of words under a name of words says nothing here, and neither
+    does `record_id` over `R001` -- `A_A` is not `A9` -- which is what
+    keeps this rule off the ordinary headed export.
+
+    IT USED TO DEMAND EVERY VALUE BELOW, AND ONE CELL DEFEATED IT.
+    Measured on the tree before this rule, at a floor of eleven: the 240
+    records of `CASE-ZEBRA-471,Northfield Clinic 3,<0.10` under a title
+    that this rule exists to catch were caught only while every
+    identifier below wore `A-A-9`. Writing ONE of the 239 as
+    `CASE_ALPHA_1120` -- a second system's layout, which the owner's
+    seventh ruling says a file may hold -- or as `NA`, left the shape
+    unanimous no longer, this rule silent, and the whole record
+    published as the three column names with the table 239 rows long.
+    A record number is not unspelled by the one row that wears another
+    layout or holds no value at all, so the minority is counted and
+    beaten rather than obeyed. It is the same arithmetic the owner's
+    sixth ruling makes for a spelling under the floor: the commonest
+    stands and the rest is absorbed.
 
     Guarantees: accepts the first row's value in one column and the
     values below it; returns a bool. Determinism: a fixed function of
@@ -710,15 +727,20 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     mine = _silhouette(f"{name}")
     if not _shape_is_structured(mine):
         return False
-    seen = 0
+    worn: "dict[str, int]" = {}
     for value in values:
         text = f"{value}"
         if text == "":
             continue
-        seen = seen + 1
-        if _silhouette(text) != mine:
+        shape = _silhouette(text)
+        worn[shape] = (worn[shape] if shape in worn else 0) + 1
+    seen = worn[mine] if mine in worn else 0
+    if seen < 2:
+        return False
+    for shape in sorted(worn):
+        if worn[shape] > seen:
             return False
-    return seen >= 2
+    return True
 
 
 def _record_evidence(
@@ -1301,6 +1323,19 @@ def opened_workbook(table_path: str, shown: str) -> "dict[str, bytes]":
                 raise errors.ProfileError(
                     errors.workbook_part_named_away(shown)
                 )
+            # A MEMBER NOBODY CAN EXPAND IS TURNED AWAY BEFORE ANYTHING
+            # TRIES (plan P4-D289). An encrypted member and a member
+            # packed by an unimplemented method both raise out of the
+            # standard library's own reader, as a bare `RuntimeError`
+            # and a bare `NotImplementedError`, and neither carries a
+            # sentence a person can act on; the checks are asked of the
+            # listing, which says both without expanding a byte.
+            if workbook.is_packaged_unreadably(
+                item.flag_bits, item.compress_type
+            ):
+                raise errors.ProfileError(
+                    errors.workbook_is_packaged_unreadably(shown)
+                )
             total = total + item.file_size
             if total > workbook.MAXIMUM_EXPANDED_BYTES:
                 raise errors.ProfileError(
@@ -1336,6 +1371,7 @@ def _read_workbook_table(
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
     published_header: int = 0,
+    floor: int = 1,
 ) -> Table:
     """One sheet of a workbook, as a table of text (plan P4-D77).
 
@@ -1423,14 +1459,6 @@ def _read_workbook_table(
     elif first_row == FIRST_ROW_NAMES:
         evidence = _SAID_NAMES
         by_convention = False
-    if not positions:
-        mixed = workbook.mixed_storage(sheet)
-        if mixed is not None:
-            raise errors.ProfileError(
-                errors.workbook_column_mixes_storage(
-                    shown, names[mixed[0]], mixed[1]
-                )
-            )
     found = _Reading(
         column_names=names,
         columns=sheet.columns,
@@ -1487,6 +1515,41 @@ def _read_workbook_table(
             header_by_convention=by_convention,
             first_row_seen=seen,
         )
+    # A REFUSAL THAT NAMES A COLUMN WAITS UNTIL THERE ARE NAMES TO USE
+    # (plan P4-D286, the repair of review item 7 of the files review of
+    # 2026-09-18). This refusal used to stand above the first-row
+    # question, and it names the column it refuses -- so on a sheet
+    # whose first row cannot be told from a record, it quoted a cell of
+    # that record in a message printed on the screen, which is exactly
+    # what the owner's eighth ruling forbids. MEASURED: a sheet holding
+    # a text and 12 in row 1, a date-formatted 45000 and 11 in row 2 and
+    # an ordinary 20 and 13 in row 3 refused with "The column '...' ..."
+    # naming the row-1 text, although 12 standing among 11 and 13 is the
+    # record evidence that ruling 8 answers with placeholder names.
+    # Asked here, the names are the ones the reading settled on --
+    # `column_1`, `column_2` and so on where the row could not be told
+    # -- and the sheet asked is the one that stands.
+    if not positions:
+        settled = found.sheet
+        if settled is not None:
+            mixed = workbook.mixed_storage(settled)
+            if mixed is not None:
+                raise errors.ProfileError(
+                    errors.workbook_column_mixes_storage(
+                        shown, found.column_names[mixed[0]], mixed[1]
+                    )
+                )
+            # ...AND THE MIX ONE LEVEL DOWN (plan P4-D283): two number
+            # format codes of one kind, each worn by the line. The
+            # description carries one code per column, so the twin would
+            # dress every cell in the commoner of them.
+            dressed = workbook.mixed_number_formats(settled, floor)
+            if dressed is not None:
+                raise errors.ProfileError(
+                    errors.workbook_column_mixes_number_formats(
+                        shown, found.column_names[dressed[0]]
+                    )
+                )
     return Table(
         column_names=found.column_names,
         columns=found.columns,
@@ -1522,8 +1585,16 @@ def read_table(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     published_header: int = 0,
+    floor: int = 1,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``floor`` is the person's smallest group. The reader wants it for
+    one question alone (plan P4-D283): whether a workbook column wears
+    two number formats of one kind, each worn by enough cells to be a
+    population of the column rather than the stray cell the owner's
+    sixth ruling absorbs. Left out, the line is the smallest a census
+    ever uses and the question is asked at its strictest.
 
     ``published_header`` is the validator's alone: the row a workbook
     description puts its names on, which settles a checked workbook's
@@ -1685,7 +1756,7 @@ def read_table(
             )
         return _read_workbook_table(
             f"{table_path}", shown, sheet, first_row, refusals,
-            published_header,
+            published_header, floor,
         )
     try:
         found = _read_authoritatively(

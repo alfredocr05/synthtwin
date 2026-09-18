@@ -3559,6 +3559,17 @@ DOCUMENT_MUTANTS = {
             replacement=lambda code: gen.SHEET_FORMAT_CODE_KINDS.get(code, "plain"),
             outcome=CHANGES_THE_CELLS,
         ),
+        Mutant(
+            branch="G2.2 step 0's rule that a cell the census stores as "
+            "a DATE keeps its ISO text and only a cell to be stored as a "
+            "number becomes a day count (plan P4-D284); the mutant "
+            "converts every date, as the rule it replaced did, and the "
+            "fourth column's twenty-two `t=\"d\"` cells are written as "
+            "text holding day counts instead",
+            attribute="sheet_stores_dates",
+            replacement=lambda column: False,
+            outcome=CHANGES_THE_CELLS,
+        ),
     ),
     "workbook_classes_by_spelling": (
         Mutant(
@@ -3622,7 +3633,7 @@ DOCUMENT_MUTANTS = {
             "mutant writes the date as text, which every reader then "
             "hands back as text",
             attribute="sheet_dates_as_day_counts",
-            replacement=lambda column, own, epoch_1904: (
+            replacement=lambda column, own, epoch_1904, stored=(): (
                 list(own), ["" for _cell in own]
             ),
             outcome=CHANGES_THE_CELLS,

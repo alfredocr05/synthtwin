@@ -708,6 +708,23 @@ reading taken is the one that publishes nothing of a row that may be
 somebody's data, and the question reaches the person where every other
 question about their file does.
 
+**Neither shape is settled by ONE cell.** The second shape reads a
+record made of structured text by its silhouette, and it used to demand
+that EVERY value below the first row wear that silhouette; so writing
+one identifier of 239 in a second system's layout, which the owner's
+seventh ruling says a file may hold, or leaving it `NA`, left the rule
+silent and published the whole first record as the column names with
+the table one row short. The first row's silhouette must now be the
+COMMONEST below it, worn by two values or more, and a minority layout
+or a missing-value word is counted and beaten rather than obeyed — the
+same arithmetic the owner's sixth ruling makes for a spelling under the
+floor (plan P4-D280). The third shape is waived only by an autofilter
+whose range begins at the header row, and never by a frozen pane (plan
+P4-D281): a freeze says where the scrolling stops, it falls where the
+person dragged it, and counting it turned a `<pane ySplit="2"/>` on an
+otherwise ambiguous sheet into a licence to publish both of that row's
+values as column names.
+
 **Why the furniture rule is asked AFTER the file's own evidence.** A
 title over a real header is the commonest shape a spreadsheet exports.
 Where a column below the header holds numbers while the header's own
@@ -876,7 +893,7 @@ rule and what it does and does not withhold on a workbook.
 | `defined_names` | integer | ≥ 0 | how many defined names the workbook carries |
 | `defined_table` | boolean | — | the sheet carries a defined table |
 | `empty_rows_inside` | integer or `null` | ≥ 0, or `null` where the disclosure rule held it back | records holding nothing in every cell, standing inside the table. This counts ROWS OF THE TABLE, so it is held exactly as a census is (WB3, plan P4-D164): published where it is every record or reaches the line at both ends, and `null` otherwise -- a nought included, so that a withheld count is never told from a real nought |
-| `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet. A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D169) |
+| `frozen_rows` | integer | ≥ 0 | how many rows are FROZEN at the top of the sheet, bounded by the worksheet's own last row and never by the rows the table fills (WB4, plan P4-D288). A pane that is SPLIT rather than frozen freezes none, and its `ySplit` is a distance rather than a count of rows: a split at `3000` was published as three thousand frozen rows and the loader then refused the workbook's own description (plan P4-D169). **A freeze is not evidence about which row holds the NAMES** (plan P4-D281): the reader waives the first-row question of the owner's ruling 8 only for an autofilter whose range BEGINS at the header row, because a freeze is a viewing convenience that falls where the person dragged it, and counting it published a row that ruling 8 protects as the column names |
 | `macro_project` | boolean | — | the workbook carries a macro project. It is never read and never copied; the report names it |
 | `rows_above_header` | integer | ≥ 0 | rows standing above the header — a title, a merged banner, a note, and the blank rows between. The header is the first row of content holding two cells or more, or the one row a table one column wide begins with, or the written row index (one cell short, missing its first); a title above a table holds one. Where rows of one cell stand above that header and the sheet neither freezes its panes nor starts its autofilter at the header row, each is asked what a delimited file's line of one field is asked (`dialect.lone_field_leads_a_table`, plan P4-D186, which withdraws P4-D174's question): a cell of text that is empty, holds a space or begins with `#` is furniture and counted here, never published as text, and the first such row that is not -- one word, one number -- holds the names, which then meet the same first-row question a delimited header does; `--first-row names` puts the names on the first row of content (plan P4-D174). `0` where the person declared with `--first-row data` that every row is a record (plan P4-D165) |
 | `sheet_count` | integer | ≥ 1 | how many sheets the workbook has |
@@ -899,7 +916,20 @@ published as the source wrote it (plan P4-D189, WB6) -- `00000` and
 `[$USD-409]#,##0.00` as the canonical code of their kind; it is the commonest
 code AMONG THE CELLS HOLDING A VALUE where that code is worn by the line,
 else the canonical code of the commonest kind among them where that kind
-is worn by the line, else the general format (plan P4-D164). `cell_classes`
+is worn by the line, else the general format (plan P4-D164). **A column
+whose value-holding cells wear TWO codes of one kind, each worn by the
+line, is REFUSED rather than described** (`workbook.mixed_number_formats`,
+plan P4-D283), for the reason `mixed_storage` refuses a mix of kinds one
+level up: the column carries one code here, so the twin would put the
+commoner of the two on every cell. Measured at a floor of five on 120
+cells, sixty written `0%` and sixty `0.0`: the description published
+`0%`, the twin wore it 120 times, and both files validated with nothing
+missed while sixty values a person reads as `0.5` read as `50%` off the
+twin. A code worn by FEWER cells than the line is not a second
+population and is counted into the commonest, which is the owner's sixth
+ruling of 2026-09-17. Publishing a census of codes is the repair that
+would keep such a column; until a description can carry one, the column
+is declined by name (principle 5). `cell_classes`
 counts the class of every cell of that column, over the closed set
 `absent`, `blank`, `empty`, `text`, `number`, `boolean`, `error`, `date`
 (`workbook.CELL_CLASSES`), counting a cell holding a value whose spelling
@@ -907,7 +937,18 @@ the column reads as absent and does not reproduce -- a spelling under the
 floor, or one a judged pass reads as missing -- as `absent`, the class
 its twin writes it as (plan P4-D174); `date` is a cell the file stores as ISO date
 text (`t="d"`), which every reader hands back as a date and which used to
-be counted a number and written back as text (plan P4-D168).
+be counted a number and written back as text (plan P4-D168); the twin
+writes such a cell back as ISO date text and converts to the day count a
+workbook stores only the cells it is to store as NUMBERS, which is
+settled from this census before the conversion and not after it (plan
+P4-D284) -- asked the other way round, the ISO spelling was gone before
+anything could fit the `date` class and 120 date cells came back as the
+strings `"45315"`. `empty` is a cell present in the sheet holding the
+empty string, which an inline string element spells `<is><t></t></is>`
+as readily as a shared string does (plan P4-D285): the element's
+PRESENCE is what tells it from `blank`, the styled cell holding no value
+at all, and reading the element's emptiness instead published 60 such
+cells as blanks whose twin every reader handed back as nothing.
 `format_kinds` counts what kind of thing each cell's number format makes
 of it, over `plain`, `date`, `datetime`, `time`, `elapsed`, `text`
 (`workbook.FORMAT_KINDS`); a colour, a currency and a condition written
@@ -1036,7 +1077,12 @@ figures stored as text -- by nought or by the line or more (plan
 P4-D197), so that no count, complement or difference a reader can take
 names one row; WB4 the records holding nothing inside the
 table are no more than the table itself holds, and no more rows are
-frozen than the sheet has; WB5 a workbook names one sheet for every
+frozen than a WORKSHEET has -- 1,048,576, and not the rows the
+populated table fills, because freezing rows splits the window and a person
+may split it below everything they have written (plan P4-D288): a
+legal `ySplit="200"` over a header and 120 records was published as
+`frozen_rows 200` and then refused by this very rule, with advice to
+describe the table again that repeated the refusal for ever; WB5 a workbook names one sheet for every
 sheet it has, every name it publishes is one this version would
 publish itself, and no two of them are one name in any case; WB6 the
 number format a column's twin wears is one of the published codes -- one
@@ -1150,7 +1196,7 @@ claim.
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `affixed_number`, `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. **THE AFFIXED ROLE IS HONOURED OVER ITS CORE** (landing 2b.16, plan P4-D106, closing the affixed half of residual R-P4-52). Such a cell is a number wearing one shared piece of text, and the two halves are read differently on purpose: the CORE is read, and written back, in the column's declared grammar, while the WRAPPER is published character for character and is never translated — a wrapper carrying either mark, `U.S.$ ` or a unit written `kg.`, is the file's own text and not a number this tool spelled. Before it, the commonest European export there is — `795,64 EUR`, `37,5 %` — had no substring the splitter's reader could hold, so every cell proposed a wrapper of its own, none reached the parse line, and the column was described as free text and rebuilt as punctuation stand-ins, with `synthtwin validate` reporting exit 0 on both files. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — a separator between several numbers, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer; on `joined_numbers` the same mark may be the separator itself, and that half of residual R-P4-52 is open. A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
-| `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
+| `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. **The competing readings need not give the table the same NUMBER of columns** (plan P4-D282): a header `id,measure|low|high` over rows such as `1,101|90|110` reads as two whole columns under the comma and three whole columns under the bar, both at a share of 1.0, and while a competitor had to tie on the width as well, the wider reading took such a file silently -- the first field became a QUANTITY, and code using the source's own comma delimiter read a measurement of `029` off a twin row of `3,029|90|110`. The share is what says a candidate reads the whole file; the width may break a tie but may not hide one. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
 | `forced_metadata_rows` | integer | ≥ 0, and at most 2 rows may be published | THE FIFTH DECLARATION (plan P4-D81), and the only one that is a count rather than a list of names: how many rows immediately under the column names DESCRIBE those columns rather than holding somebody's record. Some survey exports write two — a question wording, then a row of `ImportId` markers. synthtwin RECOGNISES that shape but never acts on it unasked: undeclared, those rows stay in the table and are described as data. Declared, they are taken out of the table and published under `source.dialect.header_rows`, where they are schema text and are published like column names — but only where the file BEARS THE DECLARATION OUT, or the person confirmed it by answering `about_your_file` in the questions file. A `--metadata-rows` typed on a file wearing none of the shape is read and not acted on: the rows stay in the table, the person is told so and asked in the questions file, and answering there is what makes the declaration act (review of landing 2b.17). The reason is the same one the guess was taken out for, read from the other side — measured on an ordinary table of 122 records, `--metadata-rows 2` published two people's records verbatim as the columns' description, exempt from the smallest group, and left the table counted at 120 — and a notice on the screen is no safeguard against it, because by the time it is read the description has been written. So the settings value alone no longer says whether those rows left the table; the published rows say it, and `validate` reads a checked file by them. The guess this replaced took the rows out on its own, so a file it recognised WRONGLY had two real records removed from every count and published verbatim as schema, one of them a person's own row (review item CODEX-2). A declaration that finds no such rows publishes none and is not a refusal: the safe reading is the one where the rows stayed in the table |

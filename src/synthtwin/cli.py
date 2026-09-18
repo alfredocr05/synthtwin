@@ -1283,10 +1283,11 @@ def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
         f"{'=' * 66}\n"
         f"YOUR FILE READS EQUALLY WELL WITH MORE THAN ONE DELIMITER\n"
         f"{'=' * 66}\n"
-        f"Every record of your file splits into the same number of "
-        f"columns whether it is read with "
+        f"Every record of your file splits cleanly, into one steady "
+        f"number of columns, whether it is read with "
         f"{dialect.DELIMITER_WORDS[tied[0]]} or with "
-        f"{others}, and nothing in the values can say "
+        f"{others} -- and the two readings need not give your table the "
+        f"same number of columns at all. Nothing in the values can say "
         f"which your file uses. synthtwin has read it with "
         f"{dialect.DELIMITER_WORDS[tied[0]]}, the reading under which "
         f"more of the values read as numbers. If that is not how your "
@@ -1926,6 +1927,10 @@ def _run_profile(
         # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
         # (plan P4-D110). Nothing is guessed about a declared one.
         declared_delimiter=declared_delimiter,
+        # AND WITH THE SMALLEST GROUP, which decides whether a
+        # workbook column's second number format is a population of it
+        # or the one cell somebody reformatted (plan P4-D283).
+        floor=smallest_group,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
