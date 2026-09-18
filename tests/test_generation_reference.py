@@ -150,6 +150,18 @@ FIFTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-5.json"
 )
+# THE EIGHTH FILE (the extra review round of 2026-09-18, its date pass and
+# its number pass together). They are a file of their own because the
+# seventh, rebuilt at the integration to hold them, stood at 276235 bytes
+# against the manifest's 250000-byte cap.
+SIXTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_6.py"
+)
+SIXTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-6.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -205,6 +217,10 @@ def _fourth_branch_document() -> dict:
 
 def _fifth_branch_document() -> dict:
     return json.loads(FIFTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _sixth_branch_document() -> dict:
+    return json.loads(SIXTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -438,21 +454,27 @@ FOURTH_BRANCH_CASES = (
 # (plan P4-D198). Sorted, like the tuples above.
 FIFTH_BRANCH_CASES = (
     "code_band_words",
-    # The five cases of the extra review of c5d09d5 (plans P4-D254 to
-    # P4-D258): the feasible spend of the offsets, the offsets of the
-    # ranks tied at an end, the census key carried into the width pass,
-    # and G7.3's two merges -- the traded one and the one onto a unit
-    # that is no rank neighbour.
-    "date_endpoint_ties",
-    "date_midnight_feasible",
-    "date_nonadjacent_merge",
-    "date_second_field_class",
-    "date_traded_merge",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
     "truth_values_written",
     "twice_written_filled",
     "twice_written_merged",
+)
+
+# The seven cases the extra review round of 2026-09-18 added: the five of
+# its date pass (plans P4-D254 to P4-D258) -- the feasible spend of the
+# offsets, the offsets of the ranks tied at an end, the census key carried
+# into the width pass, and G7.3's two merges, the traded one and the one
+# onto a unit that is no rank neighbour -- and the two of its number pass
+# (plans P4-D269 and P4-D265). Sorted, like the tuples above.
+SIXTH_BRANCH_CASES = (
+    "date_endpoint_ties",
+    "date_midnight_feasible",
+    "date_nonadjacent_merge",
+    "date_second_field_class",
+    "date_traded_merge",
+    "saturated_representable",
+    "unmarked_duplicates_first",
 )
 
 ALL_CASES = tuple(
@@ -463,6 +485,7 @@ ALL_CASES = tuple(
         + THIRD_BRANCH_CASES
         + FOURTH_BRANCH_CASES
         + FIFTH_BRANCH_CASES
+        + SIXTH_BRANCH_CASES
     )
 )
 
@@ -537,6 +560,9 @@ SEEDS = {
     "grouped_thousands_signed": 176,
     # The close of landing 2b takes 192 onward.
     "code_band_words": 192,
+    # The extra round's repair pass takes the next seeds after 192.
+    "saturated_representable": 193,
+    "unmarked_duplicates_first": 194,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -600,7 +626,9 @@ DECLARED_IDENTIFIERS = frozenset(
 
 def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
-    if name in FIFTH_BRANCH_CASES:
+    if name in SIXTH_BRANCH_CASES:
+        document = _sixth_branch_document()
+    elif name in FIFTH_BRANCH_CASES:
         document = _fifth_branch_document()
     elif name in FOURTH_BRANCH_CASES:
         document = _fourth_branch_document()
@@ -831,14 +859,16 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     third = _third_branch_document()
     fourth = _fourth_branch_document()
     fifth = _fifth_branch_document()
+    sixth = _sixth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
     assert tuple(sorted(third["cases"])) == THIRD_BRANCH_CASES
     assert tuple(sorted(fourth["cases"])) == FOURTH_BRANCH_CASES
     assert tuple(sorted(fifth["cases"])) == FIFTH_BRANCH_CASES
+    assert tuple(sorted(sixth["cases"])) == SIXTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, third, fourth, fifth, papers)
+    every = (named, branch, second, third, fourth, fifth, sixth, papers)
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -853,6 +883,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (third, THIRD_BRANCH_VECTORS),
         (fourth, FOURTH_BRANCH_VECTORS),
         (fifth, FIFTH_BRANCH_VECTORS),
+        (sixth, SIXTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -875,6 +906,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         THIRD_BRANCH_GENERATOR,
         FOURTH_BRANCH_GENERATOR,
         FIFTH_BRANCH_GENERATOR,
+        SIXTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1111,6 +1143,8 @@ FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
 FIFTH_BRANCH_PUBLISHED_NUMBERS = 623
 FIFTH_BRANCH_NAMED_COUNTS = 254
+SIXTH_BRANCH_PUBLISHED_NUMBERS = 318
+SIXTH_BRANCH_NAMED_COUNTS = 234
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1151,6 +1185,12 @@ COMMITTED_FILES = (
         FIFTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        SIXTH_BRANCH_VECTORS,
+        gen.SIXTH_BRANCH_PART,
+        SIXTH_BRANCH_PUBLISHED_NUMBERS,
+        SIXTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1164,7 +1204,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1206,7 +1246,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1225,7 +1265,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -2318,6 +2358,24 @@ def _no_layout_packing(*_arguments, **_keywords):
 
 
 CASE_MUTANTS = {
+    "unmarked_duplicates_first": Mutant(
+        branch="plan P4-D265's visiting order for the distinct-spelling "
+        "repair of G6.5; the mutant visits the duplicates in index order, "
+        "spends a raised order on cells the census of marks had already "
+        "marked, and four of the eleven marks come off the column",
+        attribute="unmarked_duplicates_first",
+        replacement=lambda repeats, marks: list(repeats),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "saturated_representable": Mutant(
+        branch="plan P4-D269's fill of a saturated REPRESENTABLE grid, the "
+        "last resort where the published widths fix no decimal grid at "
+        "all; the mutant withdraws it, the ladder interpolates between "
+        "rungs one binary64 apart, and several strata land on one number",
+        attribute="representable_grid",
+        replacement=lambda *arguments: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "identifier_column_prefix": Mutant(
         branch="G9.6a's templates, which write a published prefix as part "
         "of its layout (plan P4-D202, owner ruling of 2026-09-17); the mutant "
@@ -3798,6 +3856,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (THIRD_BRANCH_VECTORS, _third_branch_document()),
         (FOURTH_BRANCH_VECTORS, _fourth_branch_document()),
         (FIFTH_BRANCH_VECTORS, _fifth_branch_document()),
+        (SIXTH_BRANCH_VECTORS, _sixth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

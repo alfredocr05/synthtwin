@@ -9422,6 +9422,13 @@ def _numeric_content(
     values = _grouped_enough(
         column, facts, layout, values, plan.small_cell_floor
     )
+    # AND THE PUBLISHED MODE IS HELD BY THE STRATUM THE PUBLISHED COUNT
+    # SIZES (Codex item 4 of the extra round, 2026-09-18; plan P4-D267):
+    # see `_mode_held`. LAST of the value passes, because it is the one
+    # pass that moves a value to a number the description PRINTS, and it
+    # refuses every move the passes above would have to redo.
+    values, mode_notes = _mode_held(column, facts, layout, values)
+    notes = notes + mode_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
     # style recount already names exactly this, as "at least 34 cell(s)
@@ -9446,6 +9453,124 @@ def _numeric_content(
 # number. Every other form -- an exponent, a leading nought, a leading
 # plus -- decides for itself whether a mark is written.
 _GROUPED_AT_A_THOUSAND = ("decimal", "plain")
+
+
+def _mode_held(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+) -> "tuple[list[float], list[Deviation]]":
+    """The published mode is a number the twin holds, at its own count.
+
+    THE ONE PAIR OF NUMBERS THE DESCRIPTION PRINTS THAT THE TWIN COULD
+    LOSE WITHOUT A WORD (Codex item 4 of the extra round, 2026-09-18;
+    plan P4-D267). `mode` and `mode_count` are the commonest number and
+    how many cells held it, and `_stratum_cap` already sizes the largest
+    stratum by the count -- but nothing put the mode's own VALUE on that
+    stratum, so the ladder's interpolation decided it. MEASURED: eleven
+    one-place values from -1.7 to 6.9 at the counts 150, 170, 150, 210,
+    10, 10, 160, 60, 40, 180, 60, floor eleven, seed 4. The description
+    publishes the mode -0.6 at a count of 210; the twin held -0.2 exactly
+    210 times and **wrote no -0.6 at all**, which moved the median from
+    -0.6 to -0.2 -- accepted as WITHIN-BOUND inside [-1.35, 3.05] -- with
+    no validation miss on either file and no deviation in the report.
+
+    THE PASS IS THE NARROWEST MOVE THAT MEETS THE PAIR. The stratum is the
+    one the published count sizes; where several are that size it is the
+    one standing nearest the mode, earliest on a tie. The move is made
+    only where every guarantee the passes before it established survives
+    it untouched:
+
+    - the mode is not already a value of some stratum, and the stratum is
+      neither pinned end;
+    - the strata stay in their published order, so the mode lies strictly
+      between its neighbours;
+    - its sign band admits the mode, and the zero band takes nought
+      alone;
+    - on a column that writes some cells with no figure, the stratum
+      keeps whether its value has a point-free spelling, so G6.4's
+      carrier count does not move;
+    - the mode stands on the grid the published widths fix, where one
+      does;
+    - and the mode's histogram bin is not one the description calls
+      empty.
+
+    Where the move cannot be made the pair is REPORTED and not silently
+    dropped, which is the other half of the item.
+
+    Guarantees: accepts the block, its numeric facts, the layout and the
+    stratum values; returns the values and any deviation. Determinism: a
+    fixed function of the four. Raises nothing. No I/O of any kind.
+    """
+    mode = facts.mode
+    if mode is None or facts.mode_count < 1:
+        return values, []
+    total = len(values)
+    if total < 3:
+        return values, []
+    for value in values:
+        if value == mode:
+            return values, []
+    chosen = -1
+    for place in range(1, total - 1):
+        if layout.sizes[place] != facts.mode_count:
+            continue
+        if chosen < 0 or abs(values[place] - mode) < abs(
+            values[chosen] - mode
+        ):
+            chosen = place
+    if chosen < 0:
+        return values, _mode_note(column, facts)
+    if not values[chosen - 1] < mode < values[chosen + 1]:
+        return values, _mode_note(column, facts)
+    band = layout.bands[chosen]
+    if band == _BAND_ZERO and mode != 0.0:
+        return values, _mode_note(column, facts)
+    if band != _BAND_ZERO and mode == 0.0:
+        return values, _mode_note(column, facts)
+    if band == _BAND_NEGATIVE and mode >= 0.0:
+        return values, _mode_note(column, facts)
+    if band == _BAND_POSITIVE and mode <= 0.0:
+        return values, _mode_note(column, facts)
+    if _whole_demand(facts) > 0 and _carries_plainly(
+        mode, facts.integer_valued
+    ) != _carries_plainly(values[chosen], facts.integer_valued):
+        return values, _mode_note(column, facts)
+    figures = _pinned_fraction(column, facts)
+    if figures == 0 and mode != _whole_valued(mode):
+        return values, _mode_note(column, facts)
+    if figures > 0 and _on_the_grid(mode, figures) != mode:
+        return values, _mode_note(column, facts)
+    ends = _bin_ends(facts)
+    if ends is not None and facts.empty_bins:
+        place = parsing.histogram_bin(mode, ends[0], ends[1])
+        for empty in facts.empty_bins:
+            if empty == place:
+                return values, _mode_note(column, facts)
+    moved = [value for value in values]
+    moved[chosen] = mode
+    return moved, []
+
+
+def _mode_note(
+    column: contract.ColumnBlock, facts: contract.NumericFacts
+) -> "list[Deviation]":
+    """The sentence for a published mode the twin could not hold (P4-D267)."""
+    return [
+        _deviation(
+            column.name,
+            "mode",
+            f"{facts.mode}",
+            "a number of its own",
+            "This column's commonest number, and how many cells held "
+            "it, are both published, and the twin holds that many cells "
+            "of one number -- but the ladder, the widths and the "
+            "stretches your table leaves empty left no room to write "
+            "that number itself, so the twin's commonest number is a "
+            "different one.",
+        )
+    ]
 
 
 def _grouped_enough(
@@ -10925,7 +11050,18 @@ def _apart_enough(
     # the integer grid along with the unknown one; `-1` is the only
     # answer that means "no grid this stage can act on".
     if figures < 0:
-        return values
+        # ...AND WHERE THERE IS NO DECIMAL GRID AT ALL, THE GRID IS THE
+        # REPRESENTABLE NUMBERS THEMSELVES (Codex item 10 of the extra
+        # round, 2026-09-18; plan P4-D269). MEASURED: 120 numbers
+        # `i * 5e-324`, each one a step of the subnormal grid, at a floor
+        # of eleven. All 120 enter the statistics and the source passes;
+        # the twin held 120 different TEXTS and only 95 different
+        # NUMBERS, reported as MISSED. The ladder interpolates between
+        # rungs a single representable step apart, so several strata land
+        # on one binary64 -- two strata written as one cell, which is
+        # exactly what this pass exists to stop, at the one boundary
+        # where the step between neighbours is not a decimal.
+        return _apart_on_the_representable_grid(layout, values)
     total = len(values)
     if total < 2:
         return values
@@ -11212,6 +11348,87 @@ def _saturated_levels(
         given += [value]
         place = place + 1
     return given
+
+
+def _next_representable(value: float) -> float:
+    """The next binary64 above one POSITIVE finite value, or 0.0.
+
+    Written from `frexp` and `ldexp`, which are two of the five names the
+    offline scan admits from `math`: `nextafter` is not one of them, and
+    the allowlist is a policy decision rather than a routine change (plan
+    P4-D269). `frexp` gives a mantissa in [0.5, 1) and an exponent, so
+    the step above ``value`` is two raised to that exponent less
+    fifty-three -- and where that underflows to nought the value is
+    subnormal, whose grid is evenly spaced at two to the minus 1074.
+
+    Answers 0.0 for anything that is not a positive finite number, which
+    the one caller reads as "no step".
+    """
+    if not math.isfinite(value) or value <= 0.0:
+        return 0.0
+    _mantissa, exponent = math.frexp(value)
+    step = math.ldexp(1.0, exponent - 53)
+    if step <= 0.0:
+        step = math.ldexp(1.0, -1074)
+    found = value + step
+    if not math.isfinite(found) or found <= value:
+        return 0.0
+    return found
+
+
+def _apart_on_the_representable_grid(
+    layout: "_NumericLayout", values: "list[float]"
+) -> "list[float]":
+    """A SATURATED representable grid is filled in order (plan P4-D269).
+
+    THE LAST RESORT, AND ONLY WHERE NO DECIMAL GRID EXISTS. Where the
+    column's two pinned ends are exactly as many representable numbers
+    apart as it has strata, every stratum has exactly one number it can
+    hold and there is nothing to choose: the strata take the grid's own
+    points in ascending order, which is what `_saturated_integers`
+    already does on the integer grid. MEASURED: 120 numbers
+    `i * 5e-324`, each one step of the subnormal grid, at a floor of
+    eleven -- all 120 enter the statistics and the source passes, while
+    the ladder interpolates between rungs one representable step apart
+    and the twin held 120 different TEXTS and only 95 different NUMBERS.
+
+    POSITIVE VALUES ONLY, which is a bound and is stated rather than
+    implied: `_next_representable` steps upward from a positive number,
+    and a column reaching below nought keeps the behaviour it had. The
+    boundary this pass exists for is the subnormal grid, where a whole
+    column sits on one side of nought.
+
+    NOTHING IS TRADED FOR IT AND NOTHING ELSE IS TOUCHED. The walk stops
+    the moment the grid runs past the upper end, so a column whose ends
+    are many steps apart -- every ordinary column -- leaves with its
+    values exactly as they came, after at most one step per stratum. The
+    two pinned ends keep their own values by construction, and the pass
+    is withdrawn whole where any stratum's sign band would not hold the
+    point the grid gives it.
+
+    Guarantees: accepts the layout and the stratum values in ascending
+    order; returns values of the same length and order. Determinism: a
+    fixed function of the two. Raises nothing. No I/O of any kind.
+    """
+    total = len(values)
+    if total < 3 or values[0] <= 0.0 or not math.isfinite(values[0]):
+        return values
+    ceiling = values[total - 1]
+    if not math.isfinite(ceiling) or ceiling <= values[0]:
+        return values
+    grid = [values[0]]
+    step = values[0]
+    for _each in range(total - 1):
+        step = _next_representable(step)
+        if step <= 0.0 or step > ceiling:
+            return values
+        grid += [step]
+    if grid[total - 1] != ceiling:
+        return values
+    for place in range(total):
+        if layout.bands[place] != _BAND_POSITIVE:
+            return values
+    return grid
 
 
 def _apart_walk(
@@ -14156,8 +14373,30 @@ def _number_cells(
     )
     identities: dict[str, int] = {}
     spellings: dict[str, int] = {}
-    cells: list[str] = []
+    written: dict[int, str] = {}
+    # THE UNMARKED DUPLICATES ARE EXPANDED FIRST (Codex item 6 of the
+    # extra round, 2026-09-18; plan P4-D265). A raised leading-zero order
+    # carries no thousands mark -- `_styled_base` says why, and that rule
+    # stands -- so spending the order on a cell the mark walk has already
+    # marked takes the mark back off it and the column writes one grouped
+    # cell fewer than it published. MEASURED before this: three values
+    # written grouped and plain, forty cells, twenty of them grouped and
+    # twenty carrying a plus; the twin wrote NINETEEN grouped cells,
+    # among them an invented `+02387.27 kg`, and validation missed the
+    # count 20 against 19 while `generation.deviations` was empty. A
+    # duplicate with no mark expands at exactly the same cost in
+    # spellings and costs the census nothing, so the walk takes those
+    # first and reaches a marked cell only when no unmarked duplicate is
+    # left. A column whose cells all carry the mark, or none of them,
+    # visits its cells in index order exactly as before.
+    visiting: list[int] = []
     for index in range(len(holds)):
+        if not marks[index]:
+            visiting += [index]
+    for index in range(len(holds)):
+        if marks[index]:
+            visiting += [index]
+    for index in visiting:
         style = styles[index]
         spelling = base[index]
         if (
@@ -14216,7 +14455,39 @@ def _number_cells(
             owed = owed - 1
         identities[parsing.folded(spelling)] = 1
         spellings[spelling] = 1
-        cells += [spelling]
+        written[index] = spelling
+    cells: list[str] = []
+    for index in range(len(holds)):
+        cells += [written[index]]
+    # AND THE MARKS ARE RECOUNTED OFF THE FINISHED TEXT (Codex item 6 of
+    # the extra round, 2026-09-18; plan P4-D265). `_mark_places` reports
+    # what it could not ALLOCATE; the identity walk above runs after it
+    # and can take an allocated mark back off a cell, so a recount is the
+    # only thing that sees the finished column. The walk now expands
+    # unmarked duplicates first and leaves the marks alone wherever it
+    # can, and this says so whenever it could not.
+    allocated = 0
+    surviving = 0
+    for index in range(len(holds)):
+        if not marks[index]:
+            continue
+        allocated = allocated + 1
+        if marks[index] in cells[index]:
+            surviving = surviving + 1
+    if surviving < allocated:
+        mark_notes = mark_notes + [
+            _deviation(
+                column.name,
+                "thousands_marks",
+                f"{allocated}",
+                f"{surviving}",
+                "The twin groups its thousands with the marks the "
+                "description counts, but it also owes more different "
+                "spellings than its values supply, and the spelling it "
+                "reached for to make one of them carries no mark, so "
+                "fewer cells carry one than the description counts.",
+            )
+        ]
     # NO NOTE IS MADE HERE, and that is deliberate. This function used
     # to predict one style miss -- a leading plus with only negative
     # values left to put it on -- from its own bookkeeping. A prediction
@@ -20739,6 +21010,7 @@ def _is_a_usable_stand_in(
     holes: "tuple[str, ...]" = (),
     reads_as: str = parsing.NOT_A_NUMBER,
     decimal_comma: bool = False,
+    wearing: str = "",
 ) -> bool:
     """Whether a made-up spelling may stand in a twin cell at all.
 
@@ -20789,7 +21061,9 @@ def _is_a_usable_stand_in(
     if parsing.is_missing_text(candidate):
         return False
     if reads_as != parsing.NOT_A_NUMBER:
-        return _reads_as_its_class(candidate, reads_as, decimal_comma)
+        return _reads_as_its_class(
+            candidate, reads_as, decimal_comma, wearing
+        )
     # A TEXT STAND-IN MUST READ AS NO NUMERIC CLASS AT ALL, not merely as
     # no finite number (landing 2b.8, Codex item 8 of landing 2b.4). This
     # asked only whether the candidate was a NUMBER, so the two other
@@ -21264,6 +21538,20 @@ _HELD_BACK_REASON = (
     "keeps how many there were and the rows they covered together, "
     "but not the labels or the rows of each one."
 )
+# AND THE ANCHORED SENTENCE CARRIES THE WARNING THE OTHER TWO CARRY
+# (Codex item 3 of the extra round, 2026-09-18; plan P4-D266). Being
+# anchored says where the made-up numbers START, not that they stand
+# where the held-back ones stood: the walk steps outward from the
+# published ends and knows nothing of the held-back values' own size or
+# spread. MEASURED: a column of a hundred `alpha`, twenty `100` and ten
+# each of `200` to `209` at a floor of eleven has a numeric mean and
+# population spread of 187.083333 and 39.033017; its twin replaces the
+# held-back cluster with 95 to 99 and 101 to 105 and comes back at 100
+# and 3.027650, with both files passing all 99 executable checks. The
+# two unanchored sentences beside this one already ended by saying a
+# statistic over these cells is not a fact about the table; this one
+# did not, and a reader who met only this one was told the numbers were
+# worked out from the published ones and nothing more.
 _HELD_BACK_NUMBERS_REASON = (
     "Those labels covered too few rows to publish, so the twin "
     "keeps how many there were and the rows they covered together, "
@@ -21273,7 +21561,10 @@ _HELD_BACK_NUMBERS_REASON = (
     "published, at as many decimal places as those numbers were "
     "written with, the largest group nearest. A made-up number can "
     "equal one your table held back, but it is worked out from the "
-    "published numbers alone and from no fact about the held-back one."
+    "published numbers alone and from no fact about the held-back one. "
+    "Where those numbers lie is this version's own choice and not a "
+    "fact about your table, so an average or a spread computed over "
+    "the column's numbers is not a fact about your table either."
 )
 _HELD_BACK_UNPLACED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
@@ -21354,7 +21645,7 @@ def _published_an_unspellable_number(
 
 
 def _reads_as_its_class(
-    candidate: str, reads_as: str, decimal_comma: bool
+    candidate: str, reads_as: str, decimal_comma: bool, wearing: str = ""
 ) -> bool:
     """The neutrality rules for a stand-in that must read as a number.
 
@@ -21365,6 +21656,21 @@ def _reads_as_its_class(
     one can be read back as absent. A date, a quote and a formula
     leader are refused as they are for text; a minus sign is not a
     formula leader here, it is how a negative number is written.
+
+    ``wearing`` IS A FORM THE COLUMN ITSELF PUBLISHED, and where it is
+    given the two refusals that are about a CHARACTER rather than about
+    a reading are asked of the form instead of being asked absolutely
+    (Codex item 5 of the extra round, 2026-09-18; plan P4-D268). A
+    thousands mark and a leading plus were refused outright, so a column
+    whose census requires `+%%` on forty cells could not have one made
+    up at all and its held-back cells came back as `1` and `2`. Where
+    the published census names a form carrying the mark, the REAL column
+    wrote cells carrying it -- the twin already writes the published
+    ones -- so a made-up cell wearing that same form is as faithful as
+    those and no more dangerous to whatever opens the file. The
+    relaxation reaches exactly the characters the form itself holds and
+    nothing else; every other refusal here is unchanged, and a candidate
+    wearing no published form is asked exactly what it was asked before.
     """
     read = _read_in_grammar(candidate, decimal_comma)
     if parsing.classify_number(read) != reads_as:
@@ -21380,8 +21686,10 @@ def _reads_as_its_class(
     for character in candidate:
         if character == '"':
             return False
-        if character == "," and not decimal_comma:
+        if character == "," and not decimal_comma and "," not in wearing:
             return False
+    if candidate[0] == "+" and wearing[:1] == "+":
+        return True
     return candidate[0] not in "=+@"
 
 
@@ -21550,6 +21858,74 @@ def _plain_units(spelling: str) -> "tuple[int, int] | None":
 _LONGEST_PLAIN_FIGURES = 4300
 
 
+def _anchor_units(read: str, size: "float | None") -> "tuple[int, int] | None":
+    """One accepted numeric spelling as a whole number of its last places.
+
+    THE LADDER IS ANCHORED BY EVERY PUBLISHED NUMBER, not only by the
+    ones already written plainly (Codex item 5 of the extra round,
+    2026-09-18; plan P4-D268). `_plain_units` reads an optional minus,
+    figures and at most one point, which is the shape the walk STEPS in;
+    a leading plus, a thousands mark and accounting brackets are ways of
+    writing the same magnitude, and refusing them threw the magnitude
+    away with the spelling. MEASURED: a hundred `alpha` beside twenty
+    `+10`, ten `+11` and ten `+12` at a floor of eleven publishes
+    `shape_forms {"+%%": 40}`, and its twin replaced the two held-back
+    levels with ten `1`s and ten `2`s -- the source passing its own
+    description and the twin missing the form count, 40 against 20. The
+    `1,100`/`1,101`/`1,102` column did the same, replacing numbers above
+    a thousand with 1 and 2.
+
+    So the spelling is read a second way where the first refuses it: a
+    leading plus is dropped, accounting brackets and a trailing minus are
+    read as the leading minus they mean, and every thousands mark and
+    space between the figures is taken out. What is left is the same
+    magnitude written plainly, and `_plain_units` reads it. A spelling no
+    such rewriting reaches -- an exponent above all -- is read from its
+    VALUE instead, at no places where the value is whole and at the
+    places its own shortest spelling writes otherwise.
+
+    Guarantees: accepts a cell already read in the column's own grammar
+    and the value it parsed to; returns the pair `_plain_units` returns,
+    or None. Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    units = _plain_units(read)
+    if units is not None:
+        return units
+    body = parsing.trimmed(read)
+    negative = False
+    if len(body) > 1 and body[:1] == "(" and body[len(body) - 1 :] == ")":
+        negative = True
+        body = body[1 : len(body) - 1]
+    if body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        negative = True
+        body = body[1:]
+    elif len(body) > 1 and body[len(body) - 1 :] == "-":
+        negative = True
+        body = body[: len(body) - 1]
+    bare = ""
+    for character in body:
+        if character in parsing.GROUP_MARKS:
+            continue
+        bare = bare + character
+    units = _plain_units(("-" if negative else "") + bare)
+    if units is not None:
+        return units
+    if size is None or not math.isfinite(size):
+        return None
+    if size == _whole_valued(size) and abs(size) < _WHOLE_VALUE_LIMIT:
+        return int(size), 0
+    return _plain_units(repr(size))
+
+
+# The largest magnitude a whole binary64 is read back as a whole number
+# of no places here. Above it the value's own shortest spelling is read
+# instead, which is the same rule `_plain_units` already applies to a
+# spelling of very many figures.
+_WHOLE_VALUE_LIMIT = 1 << 53
+
+
 def _ten_to(exponent: int) -> int:
     """Ten raised to a whole power of zero or more, as a whole number."""
     result = 1
@@ -21636,7 +22012,7 @@ def _number_ladder(
         size = parsing.parse_number(read)
         if size is not None:
             span += [size]
-        units = _plain_units(read)
+        units = _anchor_units(read, size)
         if units is None:
             continue
         parsed += [units]
@@ -21902,6 +22278,137 @@ def _units_spelled(units: int, places: int, decimal_comma: bool) -> str:
     return f"{lead}{whole}{mark}{part:0{places}d}"
 
 
+def _dressed_in_form(
+    candidate: str,
+    form: str,
+    named: "dict[str, int]",
+    decimal_comma: bool,
+) -> str:
+    """The same number written into one published form, or "".
+
+    THE LADDER SPELLS A NUMBER PLAINLY AND THE CENSUS MAY ASK FOR IT
+    DRESSED (Codex item 5 of the extra round, 2026-09-18; plan P4-D268).
+    A form like `+%%` or `%,%%%` is a plain decimal with a decoration
+    the writer put on it, and every step of the ladder is written by
+    `_units_spelled`, which puts none on: so such a form was worn by no
+    step, its group was given no form at all, and the held-back cells
+    came back as bare numbers. MEASURED: a hundred `alpha` beside twenty
+    `+10`, ten `+11` and ten `+12` at a floor of eleven requires
+    `shape_forms {"+%%": 40}`, and the twin wrote twenty -- the source
+    passing its own description and the twin missing the count, 40
+    against 20; the `1,100` column lost its marks the same way.
+
+    THE FIGURES ARE FITTED AND THE RESULT IS THEN VERIFIED, which is what
+    keeps this from writing a different number: the form's figure
+    places take the candidate's own figures in order, a figure place the
+    candidate has no figure for takes a NOUGHT, a letter place takes the
+    one letter an exponent is written with, every other character of the
+    form stands as itself, and the answer is given back only where it
+    reads as a number, wears exactly ``form`` under the published census,
+    and parses to the same value the candidate does. A form with fewer
+    figure places than the candidate has figures is refused rather than
+    truncated.
+
+    THE EXPONENT IS DRESSED TOO, and this paragraph said a form carrying
+    a letter place is never dressed until the skeptic measured it on
+    2026-09-18. MEASURED then: a hundred `alpha` beside twenty-six
+    `1235.00e0`, eight `1236.00e0`, five `1237.00e0` and nine
+    `1238.00e0` at a floor of eleven requires
+    `shape_forms {"%%%%.%%&%": 48}`, and the twin wore it 26 times and
+    exited 3 on its own description while the real table exited 0 --
+    every one of the five failures left in the skeptic's thirty-shape
+    sweep was this one spelling. The exponent letter is not a
+    decoration, but it is not a reason to refuse the form either: what
+    keeps the dressing honest is the verification, not the refusal. A
+    lower-case key takes `e` and a case-blind key `E`, so the cell is
+    counted under the key that asked for it.
+
+    THE NOUGHTS GO AT THE END, and at the front only where the form
+    carries a letter place. `1236` into `%%%%.%%&%` is `1236.00e0`, the
+    same value; the same four figures placed to the RIGHT inside `%,%%%`
+    would give `0,011` for eleven, which wears the form and reads back
+    but is a spelling no ladder should invent outside an exponent. AN
+    EXPONENT FORM FIXES ITS MANTISSA'S WIDTH and the ladder's own grid is
+    not that width, so its figures have to be aligned against the point
+    rather than against the start: measured on a census naming
+    `%%.%%&%`, whose ladder walks in thousandths, the step `9.990` wears
+    the form only as `09.99e0` -- the same value -- and the end-aligned
+    `99.90e0` is a hundred times it and is refused by the verification.
+    The two placements are tried in that order and the first that
+    verifies is the answer, so the rule is deterministic, and a candidate
+    neither placement holds is refused.
+
+    Guarantees: accepts a plainly spelled candidate, a form key, the
+    published census and the column's grammar; returns "" or a spelling
+    of the candidate's own value wearing ``form``. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    figures = ""
+    for character in candidate:
+        if character in "0123456789":
+            figures = figures + character
+    places = 0
+    letters = 0
+    for character in form:
+        if character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
+            letters = letters + 1
+        if character == parsing.SHAPE_DIGIT:
+            places = places + 1
+    if places < len(figures) or not figures or letters > 1:
+        return ""
+    spare = ""
+    while len(spare) < places - len(figures):
+        spare = spare + "0"
+    fittings: "tuple[str, ...]" = (figures + spare,)
+    if letters == 1 and spare:
+        fittings = (figures + spare, spare + figures)
+    for fitting in fittings:
+        built = _figures_into_form(fitting, form)
+        if built == candidate or parsing.census_form(built, named) != form:
+            continue
+        read = _read_in_grammar(built, decimal_comma)
+        if parsing.classify_number(read) != parsing.NUMBER:
+            continue
+        dressed = parsing.parse_number(read)
+        plain = parsing.parse_number(_read_in_grammar(candidate, decimal_comma))
+        if dressed is None or plain is None or dressed != plain:
+            continue
+        return built
+    return ""
+
+
+def _figures_into_form(figures: str, form: str) -> str:
+    """One form key's places filled with these figures, in order.
+
+    THE TEMPLATE HALF of `_dressed_in_form` (plan P4-D268), split out so
+    that the two placements a candidate may take are one statement read
+    twice and not two. A figure place takes the next figure, a letter
+    place the one letter an exponent is written with -- `e` for a
+    lower-case key and `E` for a case-blind one, so the cell is counted
+    under the key that asked for it -- and every other character stands
+    as itself. Nothing here verifies: the caller does that.
+
+    Guarantees: accepts as many figures as the form has figure places
+    and a form key; returns the filled spelling. Determinism: a function
+    of the two. Raises nothing. No I/O of any kind.
+    """
+    built = ""
+    step = 0
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            built = built + figures[step : step + 1]
+            step = step + 1
+            continue
+        if character == parsing.SHAPE_LOWER:
+            built = built + "e"
+            continue
+        if character == parsing.SHAPE_LETTER:
+            built = built + "E"
+            continue
+        built = built + character
+    return built
+
+
 def _next_on_ladder(
     ladder: "_Ladder",
     name: str,
@@ -21988,6 +22495,7 @@ def _next_on_ladder(
             if state == _LADDER_SKIP:
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
+            wearing = ""
             form = parsing.census_form(candidate, named)
             if name == _OWED_NUMBER:
                 if form in named:
@@ -22007,16 +22515,29 @@ def _next_on_ladder(
                         cursor[low_key] = 1
                     continue
             elif form != name:
-                wider = _whole_figures(units, places) > reach
-                if side == _SIDE_HIGH and units > 0 and wider:
-                    cursor[high_key] = 1
-                if side == _SIDE_LOW and units < 0 and wider:
-                    cursor[low_key] = 1
-                continue
+                # THE SAME NUMBER, WRITTEN THROUGH THE FORM THE CENSUS
+                # ASKS FOR (Codex item 5 of the extra round, 2026-09-18;
+                # plan P4-D268). `_units_spelled` writes a plain decimal,
+                # so a form that is a plain decimal WITH A DECORATION --
+                # a leading plus, a thousands mark, accounting brackets --
+                # was never worn by any step of the ladder, and the
+                # group fell through to the unformed walk.
+                dressed = _dressed_in_form(
+                    candidate, name, named, decimal_comma
+                )
+                if not dressed:
+                    wider = _whole_figures(units, places) > reach
+                    if side == _SIDE_HIGH and units > 0 and wider:
+                        cursor[high_key] = 1
+                    if side == _SIDE_LOW and units < 0 and wider:
+                        cursor[low_key] = 1
+                    continue
+                candidate = dressed
+                wearing = name
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
             if not _is_a_usable_stand_in(
-                candidate, holes, parsing.NUMBER, decimal_comma
+                candidate, holes, parsing.NUMBER, decimal_comma, wearing
             ):
                 continue
             return candidate

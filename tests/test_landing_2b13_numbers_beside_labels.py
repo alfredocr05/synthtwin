@@ -316,12 +316,30 @@ def test_a_leading_plus_or_a_grouping_mark_is_still_carried() -> None:
     assert generation._form_reading("+%%", False) == parsing.NUMBER
     assert generation._form_reading("%,%%%", False) == parsing.NUMBER
 
-    # Neither spelling may be CHOSEN as a stand-in, and that is the rule.
+    # Neither spelling may be CHOSEN as a stand-in WEARING NO PUBLISHED
+    # FORM, and that is still the rule.
     assert not generation._is_a_usable_stand_in(
         "+11", (), parsing.NUMBER, False
     )
     assert not generation._is_a_usable_stand_in(
         "1,100", (), parsing.NUMBER, False
+    )
+    # ...and where the census names the form itself, the refusal lifts
+    # for exactly the characters that form holds (plan P4-D268, Codex
+    # item 5 of the extra round of 2026-09-18): the REAL column wrote
+    # cells carrying the mark, and the twin already writes the published
+    # ones, so a made-up cell wearing that same form is as faithful as
+    # those. Without this the census `{"+%%": 40}` could not be met at
+    # all and the held-back cells came back as `1` and `2`.
+    assert generation._is_a_usable_stand_in(
+        "+11", (), parsing.NUMBER, False, "+%%"
+    )
+    assert generation._is_a_usable_stand_in(
+        "1,100", (), parsing.NUMBER, False, "%,%%%"
+    )
+    # The lift reaches the form's own characters and nothing else.
+    assert not generation._is_a_usable_stand_in(
+        "+11", (), parsing.NUMBER, False, "%,%%%"
     )
     # ...while the same number written plainly is perfectly usable, so
     # the refusal is about the MARK and not about the value.
@@ -390,11 +408,16 @@ def test_a_forms_own_walk_is_held_to_the_published_ends() -> None:
         "%.%@%", 4, {}, {}, (), parsing.NUMBER, False, point
     ) == 0
 
-    # AND WHERE THE COLUMN PUBLISHED NO PLAIN NUMBER there are no ends
-    # at all: nothing places a made-up number, so none is written and
-    # the debt stands. This is Codex's own column.
+    # AND WHERE THE COLUMN PUBLISHED NO PLAIN NUMBER IT IS ANCHORED ALL
+    # THE SAME, since plan P4-D268 (Codex item 5 of the extra round,
+    # 2026-09-18). It was not: `_plain_units` read one shape and a column
+    # of exponents published another, so nothing placed a made-up number
+    # and the debt stood. The anchors come from every ACCEPTED numeric
+    # spelling now -- an exponent is read from its value -- so this
+    # column's ends are its own two magnitudes.
     nowhere = generation._number_ladder(["1.1e6", "1.2e6"], False, ["%.%@%"])
-    assert not nowhere.anchored
+    assert nowhere.anchored
+    assert nowhere.lowest == 1100000 and nowhere.highest == 1200000
     assert generation._class_form_stand_in(
         "%.%@%", parsing.NUMBER, {}, {}, {}, (), False, nowhere
     ) == ""

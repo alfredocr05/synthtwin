@@ -1326,6 +1326,12 @@ INVARIANTS = {
         "because that pool is a count of one a reader works out by "
         "subtraction"
     ),
+    "B4c": (
+        "no total saying what the column's cells read as, less the "
+        "published labels that read that way, leaves exactly one row, "
+        "because that row is a held-back label of one -- and a total no "
+        "published label reads into is read the same way"
+    ),
     "B5": (
         "a label is published only at the smallest group size or more"
     ),
@@ -1777,6 +1783,11 @@ INVARIANTS = {
     ),
     "LF6": (
         "every key of a layout census is written under one convention"
+    ),
+    "LF7": (
+        "every layout the census names could have been worn by at least "
+        "as many different cells as the column has different values, and "
+        "the smallest group size besides"
     ),
     "LP1": (
         "a prefix is published for the whole column alone, or for layouts "
@@ -6926,7 +6937,84 @@ def _levels(
                 "by subtraction"
             ),
         )
+    _levels_against_their_classes(mapping, where, entries, inside_a_half)
     return tuple(entries), suppressed_levels, suppressed_rows
+
+
+# What one published label READS AS, and the total that counts it. The
+# four are the U-family of contract 6.2 and they come to `n_present`.
+_READING_TOTALS = (
+    (parsing.NUMBER, "n_numeric"),
+    (parsing.NOT_A_NUMBER, "n_not_numeric"),
+    (parsing.NUMBER_OUT_OF_RANGE, "n_out_of_range"),
+    (parsing.NUMBER_CONTRADICTORY, "n_contradictory"),
+)
+
+
+def _levels_against_their_classes(
+    mapping: "dict[str, object]",
+    where: str,
+    entries: "list[LevelEntry]",
+    inside_a_half: bool,
+) -> None:
+    """B4c: no SIBLING TOTAL leaves exactly one held-back row (P4-D261).
+
+    B4b asks the disclosure rule of the whole pool. This asks it of each
+    of the four totals a reader holds beside the levels -- `n_numeric`,
+    `n_not_numeric`, `n_out_of_range` and `n_contradictory` -- because a
+    pool far too large to force a count of one can still leave ONE row
+    inside one of them. Measured before this check: `alpha` and `beta` a
+    hundred rows each, `1` five rows, `2` six rows and `gamma` one row at
+    a floor of eleven published `n_not_numeric` 201 with both words at
+    100, and 201 less 200 is the withheld word's own count of one.
+
+    THE QUESTION IS `parsing.census_names_one_row`, over the same pairs
+    the form and layout censuses hand it, so the difference of one is
+    refused by the one rule and not by a second copy of it. A total no
+    published label counts into is not read, exactly as there: a census
+    that says nothing about a total leaves a reader nothing to subtract.
+
+    A LABEL WHOSE CLASS THE TWO GRAMMARS DISAGREE ABOUT IS NOT READ, and
+    nor is any other label of that column. A column declared
+    `--decimal-comma` is read by the producer with the comma as a point,
+    and a loader that guessed wrong would refuse a description nobody had
+    touched -- which this repository treats as the worst refusal there
+    is. Where every label reads the same way under both grammars there is
+    nothing to guess, and that covers the shape this rule is for.
+
+    Raises ProfileError for B4c. No I/O of any kind.
+    """
+    if inside_a_half or "n_numeric" not in mapping:
+        return
+    covered: "dict[str, int]" = {}
+    for entry in entries:
+        plain = parsing.classify_number(entry.label)
+        commaed = parsing.classify_number(
+            parsing.written_with_a_decimal_comma(entry.label)
+        )
+        if plain != commaed:
+            return
+        covered[plain] = (covered[plain] if plain in covered else 0) + entry.count
+    for reading, key in _READING_TOTALS:
+        total = _whole(mapping[key], key, where, 0)
+        seen = covered[reading] if reading in covered else 0
+        rest = total - seen
+        if rest < 0:
+            continue
+        if parsing.census_names_one_row({reading: rest}, [(total, seen)]) == -1:
+            continue
+        raise _broken(
+            "B4c",
+            where,
+            (
+                f"the published labels that read as '{reading}' cover "
+                f"{seen} of the {total} rows {key} counts"
+            ),
+            (
+                f"the {rest} row(s) left over are held back, so one "
+                f"held-back label covers that one row"
+            ),
+        )
 
 
 def _shape_form_cells(
@@ -10656,8 +10744,21 @@ def _layout_forms(
     REACHES A READER BY SUBTRACTION EITHER (C6-131b, plan P4-D124): the
     census is checked against the three totals a reader holds beside it.
 
+    AND NO LAYOUT WITH A SMALL SUPPLY IS NAMED (C6-130, LF7, plan
+    P4-D260). The rule is over PUBLISHED facts alone -- the key's own
+    supply, `n_distinct` and the floor are all on the page -- so the
+    loader asks it exactly as the producer does, with
+    `parsing.layout_supply` and not `parsing.layout_room`: the supply is
+    how many cells could have been COUNTED under the key, and on a key of
+    figures alone the zero fill takes the leading noughts into a key of
+    their own. Measured before this check: 900 record numbers `100` to
+    `999` at a floor of eleven published `{"%%%": 900}` beside
+    `n_distinct` 900, and the census then named every cell that could
+    wear the layout, which is the source's own value set.
+
     Raises ProfileError for a wrong type, a key that is not a layout, a
-    key longer than the limit, a named layout below the line, a pool of
+    key longer than the limit, a named layout below the line, a named
+    layout with a small supply, a pool of
     one, a census that leaves one cell over against a total, and keys
     built under two conventions.
     """
@@ -10679,6 +10780,8 @@ def _layout_forms(
             f"the column holds {present} present cells",
         )
     line = parsing.census_floor(floor)
+    distinct = _whole(mapping["n_distinct"], "n_distinct", where, 0)
+    needed = distinct + floor
     for name in sorted(layouts):
         if name == WITHHELD:
             # THE POOL IS THE FLOOR'S OWN, AND AT A FLOOR OF ONE THERE
@@ -10714,6 +10817,20 @@ def _layout_forms(
                 f"the layout '{name}' was written by {layouts[name]} cells",
                 f"the line is {line}: the smallest group size, and never "
                 "under two",
+            )
+        if parsing.layout_supply(name) < needed:
+            raise _broken(
+                "LF7",
+                where,
+                (
+                    f"the layout '{name}' could have been worn by "
+                    f"{parsing.layout_supply(name)} different cells"
+                ),
+                (
+                    f"the column has {distinct} different values, and with "
+                    f"the smallest group size of {floor} a layout naming "
+                    f"fewer than {needed} names the values it describes"
+                ),
             )
     _layout_conventions_agree(layouts, where)
     # LF4 AND LF5 ASK THE PRODUCER'S OWN QUESTION, `parsing.

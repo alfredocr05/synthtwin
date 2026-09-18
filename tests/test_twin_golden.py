@@ -2669,7 +2669,15 @@ GOLDEN_QUALITY_SHA256 = (
     # 463 of plan P4-D201, plus `prefix.(column)` on `record_code` (plan
     # P4-D202), plus `recorded_on`'s two distinct counts HELD where they
     # were WITHIN-BOUND (plan P4-D192). No obligation was lost.
-    "8c55d7fe340fc2cd251f57fd8f470879b3b8721d159842a88e80ba05b24da525"
+    # RE-RECORDED FOR THE MODE'S OWN SENTENCE (plan P4-D267). Not one
+    # verdict moved and not one obligation was gained or lost: the census
+    # is the same 532 and the same 466 HELD, and what changed is the
+    # sentence the two mode listings carry, which now says that the twin
+    # DOES write the published number where its ladder leaves room and
+    # that the report beside it says so when it does not. Read against
+    # the previous report line by line, those two lines are the only ones
+    # that differ.
+    "aed2e30afaf5abc0c87d4b9ad24a9a0a5a8184c6f6efe96cf96abdec0d2706cc"
 )
 
 

@@ -504,10 +504,23 @@ def test_an_exponent_that_reads_back_is_admitted_and_another_form_is_not(
     mantissa was never a published obligation, so every exponent text
     reading back as its value is admitted, `46E+02` among them.
 
-    WHAT STAYS CHECKED is the FORM. A file writing one of these cells in
-    a form the description does not publish -- a point where every cell
-    of the source wrote an exponent -- is still MISSED, which is what
-    keeps the family's generosity from becoming a check that cannot fail.
+    WHAT STAYS CHECKED is the FORM. A file writing these cells in a form
+    the description does not publish -- a point where every cell of the
+    source wrote an exponent -- is still MISSED, which is what keeps the
+    family's generosity from becoming a check that cannot fail.
+
+    HOW MANY SUCH CELLS IT TAKES IS RULING 6'S OWN COST (plan P4-D263,
+    Codex item 8 of the extra round of 2026-09-18). A style fewer cells
+    than the line wrote is counted into the column's commonest style, so
+    a census naming one style says nothing whatever about the cells it
+    absorbed, and a checker that allowed none of them accused the real
+    table -- thirty whole numbers beside one `1254.00` failed
+    `styles.spelled` against a description made from themselves. The
+    allowance is `parsing.absorbed_room`, bounded again by what a census
+    of six names can hide: five of the six can have been absorbed and
+    each was below the line, so at a floor of eleven at most fifty cells.
+    ONE odd cell is now inside that allowance and sixty are not, so this
+    spoiler writes sixty.
     """
     cells = ["%.2E" % (4600.0 + 100.0 * (step % 7)) for step in range(300)]
     folder = tmp_path / "unfamiliar"
@@ -533,10 +546,13 @@ def test_an_exponent_that_reads_back_is_admitted_and_another_form_is_not(
         # Engineering notation and extra precision: admitted.
         ("engineering", "4600000E-03"),
         ("precise", "4.600000000000000000E+03"),
-        # The same value in a form the description does not publish.
+        # The same value in a form the description does not publish,
+        # on more cells than ruling 6's absorbed allowance can pay.
         ("pointed", "4600.00"),
     ):
         changed = [first] + cells[1:]
+        if tag == "pointed":
+            changed = ["4600.00"] * 60 + cells[60:]
         spoiled = folder / f"{tag}.csv"
         spoiled.write_text(
             fixtures.rows_to_csv(["amount"], [[cell] for cell in changed]),

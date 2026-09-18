@@ -853,6 +853,20 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # B4c, A SIBLING TOTAL THAT LEAVES ONE ROW (Codex blocker 2
+            # of the extra round, 2026-09-18; plan P4-D261). `region`
+            # publishes four word levels over 233 rows and holds one back
+            # over seven, so the POOL forces nothing. Move six of its
+            # rows into `n_numeric` and the words' own total is 234
+            # against 233 published: the held-back WORD level covers the
+            # one row left, and a reader subtracts it without arithmetic.
+            "B4c", "a class total one row above the labels that read that way",
+            both(
+                edit("region", n_not_numeric=234),
+                edit("region", n_numeric=6),
+            ),
+        ),
+        Mutation(
             "B5", "a label published below the floor",
             both(
                 edit_level("region", 3, count=5),
@@ -1418,6 +1432,17 @@ def battery() -> list[Mutation]:
             "LF6",
             "a layout census whose keys say two conventions",
             edit("record_code", layout_forms={"@%%%%%": 120, "~~~~~~": 120}),
+        ),
+        # THE SMALL SUPPLY, COUNTED THE CENSUS'S OWN WAY (contract
+        # C6-130, LF7, plan P4-D260). `record_code` has 240 different
+        # values at a floor of eleven, so a named layout needs a supply
+        # of 251. `%%` could have been worn by ninety cells -- ninety and
+        # not a hundred, because `05` wears `!%` -- so naming it names
+        # the values it describes.
+        Mutation(
+            "LF7",
+            "a layout named by fewer cells than could ever wear it",
+            edit("record_code", layout_forms={"@%%%%%": 229, "%%": 11}),
         ),
         # THE LITERAL PREFIX (contract 7.12a, owner ruling of 2026-09-17,
         # item 1, plan P4-D202). `record_code` is `R` and five figures on

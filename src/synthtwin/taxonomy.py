@@ -5305,6 +5305,26 @@ _LEVEL_ROLES = (
 )
 
 
+# THE FOUR TOTALS A READER HOLDS BESIDE ANY COLUMN'S LEVELS, in the
+# order the block prints them (contract 6.2, U-family): what each present
+# cell READS AS. Every present cell answers exactly one of them, and the
+# four come to `n_present`, so a reader subtracts the published levels of
+# one class from its own total and is left with the rows that class holds
+# back (plan P4-D261).
+_READING_CLASSES = (
+    parsing.NUMBER,
+    parsing.NOT_A_NUMBER,
+    parsing.NUMBER_OUT_OF_RANGE,
+    parsing.NUMBER_CONTRADICTORY,
+)
+
+# The stand-in for a folded identity whose cells do not all read the same
+# way. It belongs to no published total, so no reader can subtract it,
+# and it is never counted out by the class pass. It holds a space, which
+# no cell kind holds, so it can be mistaken for none of them.
+_CLASS_MIXED = "two readings"
+
+
 def _a_level_is_below_the_floor(cells: _Cells) -> bool:
     """Whether any folded value of this column covers fewer rows than the floor.
 
@@ -5395,9 +5415,134 @@ def _levels_read_by_subtraction(
             pooled = pooled + counts[label]
         elif not smallest or counts[label] < smallest:
             smallest = counts[label]
-    if not parsing.pool_names_a_level(len(rare), pooled, smallest):
+    if parsing.pool_names_a_level(len(rare), pooled, smallest):
+        return tuple(rare)
+    return _levels_read_by_class(cells, role, rare, smallest)
+
+
+def _levels_read_by_class(
+    cells: _Cells, role: str, rare: "list[str]", smallest: int
+) -> "tuple[str, ...]":
+    """The same ruling asked of each SIBLING TOTAL, not of the pool alone.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 5, OVER A SUBDIVISION OF THE
+    POOL (Codex blocker 2 of the extra round, 2026-09-18; plan P4-D261).
+    Every column publishes four totals saying what its present cells
+    READ AS -- `n_numeric`, `n_not_numeric`, `n_out_of_range` and
+    `n_contradictory` -- and a reader subtracts from each of them the
+    published levels that read that way. The whole pool can be far too
+    large to force a count of one while ONE of those four differences is
+    a count of one on its own.
+
+    MEASURED before this pass: `alpha` and `beta` a hundred rows each,
+    `1` five rows, `2` six rows and `gamma` one row, at a floor of
+    eleven. The block published `n_not_numeric` 201 with both named
+    words at 100, so 201 less 200 is one: the withheld WORD level occurs
+    once, although the pool itself was three levels over twelve rows and
+    every printed count cleared the floor. The twin wrote one `group-1`,
+    and both files passed every executable check.
+
+    THE QUESTION IS `parsing.census_names_one_row`, asked of the class's
+    own POOL and of the pair together, which is the rule the form and
+    layout censuses already ask of their own sibling totals and the rule
+    the LOADER asks here (invariant B4c). It is asked at that width and
+    no wider, so the producer and the loader cannot part.
+
+    THE CLASS NO PUBLISHED LEVEL COUNTS INTO IS READ TOO, and this
+    paragraph said the opposite until the skeptic measured it on
+    2026-09-18. The pair alone answers nothing where the census covers
+    none of the total -- an absent census leaves a reader nothing to
+    subtract -- and a class whose every level the floor held back is
+    exactly that shape. MEASURED: `alpha` and `beta` a hundred rows each,
+    `gamma` six, `delta` five, and ONE further cell at a floor of eleven.
+    With that cell `77` the block published `n_numeric` 1 beside two
+    published WORDS, so exactly one row of the column reads as a number
+    and its value is withheld; with `1e999` the same of `n_out_of_range`
+    and with `(+5)` of `n_contradictory`, which names the accounting
+    notation ONE individual's cell was written in. All three passed
+    every executable check and the twin wrote the row. So the class's
+    held-back rows are handed in as a POOL as well: a pool of one is the
+    one rule's first reading, and it does not need a census beside it.
+
+    THE WIDER READING IS REFUSED BY MEASUREMENT AND NOT BY PREFERENCE.
+    `parsing.pool_names_a_level`'s whole forced band -- a class whose
+    rows come to fewer than twice its held-back levels -- is the natural
+    generalisation, and it breaks the twin. The generator spends a
+    pooled class over the group sizes G8.3 reads off the pool, which are
+    not the source's: 25 out-of-range cells over eight source levels
+    beside 9 words over four, at a floor of eleven, come back as six
+    groups and six, and the TWIN's own description then falls in the
+    band although the source's does not. Counting those cells out of the
+    twin's description left it missing eight of its own obligations --
+    `n_present`, `n_missing`, `n_not_numeric`, both distinct counts, both
+    held-back counts and a published form -- on a file that passed
+    before. The band belongs with the two readings plan P4-D231 already
+    puts to the owner, and it waits on the generator spending a pooled
+    class in sizes its own description cannot read a one out of.
+
+    Guarantees:
+
+    - Inputs: the tally, the role the reading before this pass gave it,
+      the levels the floor holds back, and the smallest count the column
+      publishes beside them (unused here, and taken so the two halves of
+      the ruling have one signature).
+    - Determinism: a fixed function of those; the answer is in sorted
+      order.
+    - Errors raised: none.
+    - Boundary: answers nothing where the floor holds nothing back, and
+      nothing for a class whose held-back rows are none, or more than
+      one, or which no published level of the column counts into. A
+      level whose cells do not all read the same way belongs to no class
+      and is never counted out by this pass. No file is opened.
+    """
+    if not rare or smallest < 0:
         return ()
-    return tuple(rare)
+    population = cells.classified
+    if role == ROLE_COMPOUND:
+        compound = _compound_reading(cells)
+        if compound is None:
+            return ()
+        population = compound.labels
+    by_class: "dict[str, str]" = {}
+    counts: "dict[str, int]" = {}
+    totals: "dict[str, int]" = {}
+    for cell in population:
+        key = cell.folded
+        counts[key] = (counts[key] if key in counts else 0) + 1
+        totals[cell.kind] = (
+            totals[cell.kind] if cell.kind in totals else 0
+        ) + 1
+        if key in by_class and by_class[key] != cell.kind:
+            by_class[key] = _CLASS_MIXED
+            continue
+        by_class[key] = cell.kind
+    held: "dict[str, list[str]]" = {}
+    for label in rare:
+        if label not in by_class:
+            continue
+        reading = by_class[label]
+        held[reading] = (held[reading] if reading in held else []) + [label]
+    counted_out: "list[str]" = []
+    for reading in _READING_CLASSES:
+        if reading not in held:
+            continue
+        total = totals[reading] if reading in totals else 0
+        rows = 0
+        for label in held[reading]:
+            rows = rows + counts[label]
+        covered = total - rows
+        # THE CLASS'S OWN HELD-BACK ROWS ARE A POOL, and the one rule
+        # refuses a pool of one exactly as it refuses a printed count of
+        # one. Handing `rows` in as that pool is what reaches the class
+        # NO PUBLISHED LEVEL COUNTS INTO, where `covered` is nought and
+        # the pair alone says nothing (the skeptic's blocker of
+        # 2026-09-18; plan P4-D261). Both readings are the one rule's,
+        # asked in one call, so this is not a second copy of it.
+        if parsing.census_names_one_row(
+            {reading: rows}, [(total, covered)]
+        ) != -1:
+            counted_out += held[reading]
+    return tuple(sorted(counted_out))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -6111,9 +6256,14 @@ def layout_census(
 
     - a layout is NAMED at the line, which is the floor or TWO, whichever
       is larger: no count of one is ever published (plan P4-D124);
-    - a layout whose possible spellings number fewer than the column's
-      different values plus the floor is not named, because a layout with
-      a small supply names the values it describes;
+    - a layout under whose key fewer cells could ever have been counted
+      than the column's different values plus the floor is not named,
+      because a layout with a small supply names the values it
+      describes. The supply is `parsing.layout_supply` and not
+      `parsing.layout_room`: on a key of figures alone the zero fill
+      takes the leading noughts into a key of their own, so `%%%` is
+      worn by nine hundred cells and not a thousand (Codex blocker 1 of
+      the extra round, 2026-09-18; plan P4-D260);
     - a ZERO-FILLED layout of two or more fill noughts that either rule
       refuses is counted under the layout one nought SHALLOWER
       (`parsing.layout_shallower`), deepest first, so a fill depth too
@@ -6157,7 +6307,7 @@ def layout_census(
                 continue
             if (
                 counts[layout] >= line
-                and parsing.layout_room(layout) >= room_needed
+                and parsing.layout_supply(layout) >= room_needed
             ):
                 continue
             shallower = parsing.layout_shallower(layout)
@@ -6169,7 +6319,7 @@ def layout_census(
     pooled = 0
     census: dict[str, int] = {}
     for layout in sorted(counts):
-        if parsing.layout_room(layout) < room_needed:
+        if parsing.layout_supply(layout) < room_needed:
             continue
         if counts[layout] >= line:
             census[layout] = counts[layout]

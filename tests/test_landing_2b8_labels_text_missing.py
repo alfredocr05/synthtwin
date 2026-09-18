@@ -166,6 +166,14 @@ def test_a_column_publishing_exponents_is_not_told_it_published_none(
     a column that published two numbers on twenty-two rows. A reader who
     checks the description finds the numbers and stops believing the
     report.
+
+    AND SINCE PLAN P4-D268 THE LADDER IS ANCHORED HERE (Codex item 5 of
+    the extra round of 2026-09-18): the anchors come from every accepted
+    numeric spelling, so an exponent is read from its own value and this
+    column's ends are 1,100,000 and 1,200,000. The sentence that was
+    false is still absent, and the one printed now is the ANCHORED one,
+    which says the made-up numbers are stepped outward from the published
+    ends -- which is what the walk here really does.
     """
     folder = tmp_path / "exponents"
     cells = ["alpha"] * 30 + ["1.1e6"] * 11 + ["1.2e6"] * 11 + ["1.3e6"] * 4
@@ -176,8 +184,10 @@ def test_a_column_publishing_exponents_is_not_told_it_published_none(
     assert reports, sorted(folder.iterdir())
     printed = reports[0].read_text(encoding="utf-8")
     assert "published no number at all" not in printed
-    # ...and it says what IS true instead.
-    assert "cannot step from" in printed, printed[-2000:]
+    # ...and it says what IS true instead (plan P4-D268).
+    assert "cannot step from" not in printed
+    assert "stepped outward from the smallest and the largest" in printed
+    assert "is not a fact about your table" in printed
 
 
 # -- item 8: a text stand-in must read as no numeric class at all --

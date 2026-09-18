@@ -656,7 +656,10 @@ _NOT_CHECKABLE_MODE = (
     "that many: a twin allots its cells to values by the runs of the "
     "published ladder rather than by any published count of them, and "
     "the only value given a group of its own sized to a published "
-    "count is zero. A file whose "
+    "count is zero. The twin does write that number where its ladder, "
+    "its widths and the stretches your table leaves empty leave room "
+    "for it, and the report beside the twin says so when they do not. "
+    "A file whose "
     "commonest number differs, or whose count of it differs, misses no "
     "obligation this description makes"
 )
@@ -12248,6 +12251,56 @@ def _window_at_least(
     return None
 
 
+def _window_between(
+    window: "tuple[int, int]", found: int, least: int, most: int,
+    reach: int = -1,
+) -> "bool | None":
+    """Whether ``found`` lies in a permitted BAND, or None where saying tells.
+
+    THE POOL LICENSES A BAND AND NOT A POINT (Codex item 9 of the extra
+    round, 2026-09-18; plan P4-D264). A count the census pools has no
+    published form at all, so every allocation of the pooled cells across
+    the six forms is a file the description describes; a clause that
+    demanded one of them -- the allocation the generator happens to make
+    -- reported the REAL TABLE as missing an obligation its own
+    description never set. Measured: ten `+100.00` to `+109.00` beside ten
+    `110e0` to `119e0` at a floor of eleven publish
+    `numeric_styles {"(withheld)": 20}`, and the source failed
+    `styles.remainder` while the canonical twin passed.
+
+    The verdict is the recount's own where it may be reported at all: the
+    envelope the file's own description draws is reported when it lies
+    wholly inside the band or wholly outside it, and nothing is said when
+    it straddles an edge, because two files that description describes
+    alike would then get different verdicts (V5.3).
+
+    A BAND THAT EXCLUDES NOTHING IS WITHHELD AND NOT HELD (the skeptic's
+    finding of 2026-09-18, review priority 6). ``reach`` is the largest
+    count this file could possibly show the clause; where the band starts
+    at nought and ends at or past that, no file the description admits
+    can fail, and reporting HELD tells a reader an obligation was
+    verified when nothing about the file was asked. MEASURED: a census
+    pooling every cell -- ten `+100.00` to `+109.00` beside ten `110e0`
+    to `119e0` at a floor of eleven, `numeric_styles {"(withheld)": 20}`
+    -- was HELD on all four of four hand-built allocations of those
+    twenty cells, all plain, all exponent, all leading-plus and all
+    leading-zero, beside `0 MISSED` and NO CHECKABLE OBLIGATION WAS
+    MISSED. The clause is not vacuous in general: beside
+    `{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+    spelling 55 cells plain still misses, and that case is unchanged.
+    ``reach`` left at -1 asks nothing, so every other caller is as it
+    was.
+    """
+    low, high = window
+    if reach >= 0 and least <= 0 and most >= reach:
+        return None
+    inside = least <= low and high <= most
+    outside = high < least or low > most
+    if low < high and not inside and not outside:
+        return None
+    return least <= found <= most
+
+
 def _window_at_most(
     window: "tuple[int, int]", found: int, target: int
 ) -> "bool | None":
@@ -12449,10 +12502,29 @@ def _style_checks(
             "numeric.numeric_styles",
             "styles.remainder",
             "the pooled cells are spelled by their own values",
-            _window_equals(
+            # THE BAND THE POOL LEAVES, NOT THE GENERATOR'S OWN CHOICE
+            # INSIDE IT (plan P4-D264). The named counts pin what they
+            # name; the pooled cells name no form, so `plain` is owed at
+            # least what the census names it and at most that plus the
+            # pool, less the cells `styles.spill` has already sent to the
+            # two point-carrying forms. The generator writes the pool
+            # plain and still meets this; a source that wrote it with a
+            # leading plus or an exponent now meets it too, and a file
+            # spelling MORE cells plain than the pool can pay still
+            # misses.
+            _window_between(
                 window((parsing.STYLE_PLAIN,)),
                 found((parsing.STYLE_PLAIN,)),
+                named(parsing.STYLE_PLAIN),
                 named(parsing.STYLE_PLAIN) + remainder - spill,
+                # ...AND THE LARGEST COUNT THIS FILE COULD SHOW, so a
+                # band no file the description admits can fall outside is
+                # WITHHELD rather than HELD (the skeptic's finding of
+                # 2026-09-18). Every numeric cell of the file is either
+                # counted plain here or sent to the two point-carrying
+                # forms by `styles.spill`, so the most `plain` can reach
+                # is the recount less that spill.
+                found(contract.NUMERIC_STYLES) - spill,
             ),
             _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
             _GATE_POOLED,
@@ -12495,6 +12567,8 @@ def _style_checks(
                 # carrying one of the other marks is offered that one.
                 ",",
                 _pooled_widths(facts, floor),
+                _absorbed_styles(facts, floor),
+                _named_styles(facts),
             )
             == 0,
             _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
@@ -13363,7 +13437,112 @@ def _pooled_widths(facts: contract.NumericFacts, floor: int) -> int:
         for style in sorted(facts.numeric_styles):
             if style == taxonomy.SUPPRESSED_LABEL:
                 pooled = pooled + facts.numeric_styles[style]
+        # ...AND THE CELLS THE COMMONEST NAMED STYLE TOOK IN (Codex item
+        # 8 of the extra round, 2026-09-18; plan P4-D263). Ruling 6 of
+        # 2026-09-17 counts a spelling below the floor into the column's
+        # commonest spelling, so a lone `1254.00` among thirty whole
+        # numbers is counted under `plain` and the fraction census is
+        # left empty -- a description that says nothing whatever about
+        # the width that cell was written at. The allowance is the same
+        # bound the producer absorbed it under, `parsing.absorbed_room`,
+        # asked of the style census exactly as it is asked of the width
+        # census two lines above, and it stands only where no `decimal`
+        # count is named: a named `decimal` count licenses its own
+        # spellings and needs no allowance. MEASURED before it: thirty
+        # whole numbers beside one `1254.00`, at a floor of one and at
+        # eleven alike, published `numeric_styles {"plain": 31}` with
+        # `fraction_widths {}`, and the REAL FILE failed `styles.spelled`
+        # while its seed-4 twin passed.
+        _named, absorbed = parsing.absorbed_room(facts.numeric_styles, floor)
+        # ...BOUNDED AGAIN BY WHAT A CENSUS OF SIX NAMES CAN HIDE. A style
+        # counted into the commonest was below the LINE, so it covered at
+        # most one cell less than the line, and five of the six names can
+        # have been absorbed at once. On a column of three hundred cells
+        # `absorbed_room` alone is 289, which is the census saying almost
+        # nothing; this pair of bounds is what keeps `styles.spelled` a
+        # check that can still fail.
+        absorbed = min(
+            absorbed,
+            (len(contract.NUMERIC_STYLES) - 1) * (parsing.census_floor(floor) - 1),
+        )
+        pooled = pooled + absorbed
     return pooled
+
+
+# THE TWO STYLES THE ABSORBED ALLOWANCE REACHES, and it reaches no
+# others (the skeptic's finding of 2026-09-18, narrowed by the entry
+# table of review item P3-V1-F2). A `decimal` cell absorbed into a named
+# style is allowed for on the WIDTH axis by `_pooled_widths`, which is
+# where P4-D263 put it and where it is bounded by a width the census does
+# not name; offering it here as well made the entry table's `padded` red
+# case -- one cell rewritten with a trailing nought -- pass, and a
+# perturbation that no longer misses is a check nothing shows can fail.
+# The two exponents are reached by the source-spelling family above. What
+# is left is the leading nought and the leading plus, which is the pair
+# the finding was measured on.
+_ABSORBED_STYLE_FAMILY = (
+    parsing.STYLE_LEADING_ZERO,
+    parsing.STYLE_LEADING_PLUS,
+)
+
+
+def _absorbed_styles(facts: contract.NumericFacts, floor: int) -> int:
+    """How many cells the STYLE census may have counted into another name.
+
+    RULING 6 ON THE STYLE AXIS, the allowance `_pooled_widths` already
+    offers on the width axis (the skeptic's finding of 2026-09-18, the
+    item 7/8/9 family in a shape those three do not reach). A spelling
+    below the floor is counted into the column's commonest spelling, so
+    a style that covered too few cells to name leaves the census naming
+    it nowhere -- and the recount then finds a cell wearing no published
+    style and accuses the file its own description was written from.
+
+    MEASURED before this allowance, at a floor of one and at eleven
+    alike: thirty grouped counts `10,100` to `39,129` beside one
+    `0,472`, whose style is `leading_zero`, published
+    `numeric_styles {"plain": 31}` with `thousands_marks {}` and
+    `pad_widths {}`; the seed-4 twin passed and the REAL TABLE failed
+    `styles.spelled`, exit 3. Three of forty random European
+    decimal-comma shapes failed the same way, and the ungrouped
+    equivalents -- thirty plain integers beside one `0123`, one `+123`
+    or one `123e0` -- passed, so it is the grouped column that breaks.
+
+    THE ALLOWANCE REACHES TWO STYLES, not six: `_ABSORBED_STYLE_FAMILY`
+    beside this says which and why.
+
+    THE BOUND IS THE PAIR `_pooled_widths` USES, and for the same
+    reason: `parsing.absorbed_room`'s own answer, and what a census of
+    six names can hide -- five of the six can have been absorbed and
+    each was below the line, so at most five times one less than the
+    line. On a three-hundred-cell column at a floor of eleven that is
+    fifty, so one odd cell passes and sixty do not, and the check can
+    still fail.
+
+    Guarantees: accepts the column's numeric facts and the settings
+    floor; returns a count of cells. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    commonest, absorbed = parsing.absorbed_room(facts.numeric_styles, floor)
+    if not commonest:
+        return 0
+    return min(
+        absorbed,
+        (len(contract.NUMERIC_STYLES) - 1) * (parsing.census_floor(floor) - 1),
+    )
+
+
+def _named_styles(facts: contract.NumericFacts) -> "tuple[str, ...]":
+    """The style names this column's own census prints, ascending.
+
+    The pooled remainder is not one of them, exactly as in
+    `_published_widths`: it names no style and so authorizes none.
+    """
+    names: "tuple[str, ...]" = ()
+    for style in sorted(facts.numeric_styles):
+        if style == taxonomy.SUPPRESSED_LABEL:
+            continue
+        names = names + (style,)
+    return names
 
 
 def _published_widths(
@@ -13727,6 +13906,8 @@ def _cells_outside_the_styles(
     cells: "list[str]", whole_column: bool, widths: "tuple[int, ...]",
     mark: str = "",
     pooled_widths: int = 0,
+    absorbed_styles: int = 0,
+    named_styles: "tuple[str, ...]" = (),
 ) -> int:
     """How many written cells are in no permitted spelling of their value.
 
@@ -13755,6 +13936,7 @@ def _cells_outside_the_styles(
     """
     outside = 0
     spent = 0
+    styled = 0
     for cell in cells:
         body = parsing.trimmed(cell)
         if not body:
@@ -13832,6 +14014,22 @@ def _cells_outside_the_styles(
                         worn = True
                 if worn:
                     spent = spent + 1
+        # ...AND THE STYLE RULING 6 ABSORBED (the skeptic's finding of
+        # 2026-09-18). A spelling below the floor is counted into the
+        # column's commonest spelling, so the census names that style
+        # nowhere and a cell wearing it is outside every published
+        # spelling of its value. `absorbed_styles` is how many cells that
+        # can be -- `_absorbed_styles` states the pair of bounds -- and
+        # the permission reaches only a cell whose OWN style the census
+        # does not name AND which is one of the two styles no other
+        # clause reaches. MEASURED before it: thirty grouped counts beside
+        # one `0,472`, whose real table failed `styles.spelled` at both
+        # floors while its twin passed.
+        if not worn and styled < absorbed_styles:
+            own = parsing.numeric_style(body)
+            if own in _ABSORBED_STYLE_FAMILY and own not in named_styles:
+                worn = True
+                styled = styled + 1
         if not worn:
             outside = outside + 1
     return outside
@@ -16208,6 +16406,8 @@ def _form_checks(
     held_back = 0
     if taxonomy.SUPPRESSED_LABEL in census:
         held_back = census[taxonomy.SUPPRESSED_LABEL]
+    if measured is not None and cells is not None:
+        held_back = held_back + _judged_absent(block, cells)
     checks: "list[Check]" = []
     for form in sorted(census):
         if form == taxonomy.SUPPRESSED_LABEL:
@@ -16225,6 +16425,45 @@ def _form_checks(
             )
         ]
     return checks
+
+
+def _judged_absent(block: "dict[str, object]", cells: "list[str]") -> int:
+    """How many written cells the file's own description counts as ABSENT.
+
+    THE CENSUS COUNTS THE CELLS THE DESCRIPTION WAS MADE FROM, and the
+    recount walks every cell the file holds, so the two populations part
+    wherever the producer judged a written cell absent (Codex item 7 of
+    the extra round, 2026-09-18; plan P4-D262). Four passes do that: the
+    declared missing words and sentinels, the cores, the placeholder
+    days, and the levels a reader could count by subtraction (the owner's
+    ruling of 2026-09-17, item 5). None of them leaves a spelling behind
+    -- that indistinguishability is what the level pass exists for -- so
+    no recount can name WHICH cells went, and the number is what the file
+    can evidence: the cells it wrote, less the cells its own description
+    says are present.
+
+    MEASURED before this allowance: `0.0` nineteen rows, `1.0` nineteen,
+    `2.0` one, `3.0` thirty and a word twelve, at a floor of five. The
+    producer counts the lone `2.0` as missing and publishes
+    `shape_forms {"%.%": 68}`; the recount walked all 69 written cells of
+    that form and the REAL TABLE was told it had missed an obligation set
+    by its own description. The count is added to the pool's own window,
+    which is the same treatment and the same arithmetic: a form may be
+    recounted at its published number and at most that number plus the
+    cells no published count covers.
+
+    Guarantees: accepts the file's own description block and its cells;
+    returns nought or more. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    written = 0
+    for cell in cells:
+        if parsing.trimmed(cell):
+            written = written + 1
+    present = _count_at(block, "n_present")
+    if present is None or present >= written:
+        return 0
+    return written - present
 
 
 def _form_recount(
@@ -17404,6 +17643,25 @@ def _numeric_listings(
     # published on every column of this role that has one, so its
     # listing does not hang off the histogram beside it; a column with
     # no dominant value publishes no pair and gets no listing.
+    #
+    # IT STAYS A LISTING, AND THE MEASUREMENT IS WHY (plan P4-D267, the
+    # half of Codex item 4 of the extra round that is refused). The item
+    # asks for the pair to be CHECKED rather than reported. The
+    # generator now holds the published NUMBER wherever it can
+    # (`generation._mode_held`), which is what closes the defect the item
+    # reproduced; the COUNT is another matter, because a stratum's size
+    # comes from the runs of the published ladder and not from
+    # `mode_count`. MEASURED on the product's own demonstration: the
+    # `visits` column publishes the mode 9.0 over 28 rows, its mode is
+    # the column's LARGEST value and therefore a pinned end of the
+    # ladder, and the ladder gives that end 27 cells. Checking the pair
+    # exactly turned the demonstration twin's quality report from
+    # nothing missed to two obligations missed -- `mode.value` 9.0
+    # against 8.0 and `mode.count` 28 against 27 -- on a twin that is
+    # otherwise exactly what the description asks for. A check that a
+    # conforming twin cannot meet is not an obligation, so the pair is
+    # listed until a landing gives the mode's own stratum its published
+    # size. The reason below says exactly that.
     if facts.mode is not None:
         listings += [
             Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),

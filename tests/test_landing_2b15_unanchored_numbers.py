@@ -283,13 +283,22 @@ def test_the_report_says_where_the_made_up_numbers_were_held(
     # `1.1e6`, and the census now carries that case.
     assert "5.0e6" in written
     report = (tmp_path / "real-twin-report.txt").read_text(encoding="utf-8")
-    # What is true of these cells now.
-    assert "held between the smallest and the largest number" in report
+    # WHAT IS TRUE OF THESE CELLS NOW (plan P4-D268, Codex item 5 of the
+    # extra round of 2026-09-18). The ladder is ANCHORED on this column
+    # since the anchors are taken from every accepted numeric spelling,
+    # so the report carries the anchored sentence and not the unspelled
+    # one: the numbers are stepped outward from the published ends, which
+    # is what the walk now really does here.
+    assert "stepped outward from the smallest and the largest" in report
+    assert "held between the smallest and the largest number" not in report
     # ...and the clause the placed sentence already carried.
     assert "can equal one your table held back" in report
     # The sentence that was false of them is GONE as an unconditional
     # claim: it now stands only as the case where the span spells none.
     assert "made-up ones lie: they count upward" not in report
+    # ...and the anchored sentence carries the statistical warning the
+    # two unanchored ones always carried (plan P4-D266).
+    assert "is not a fact about your table" in report
 
 
 # -- NAMED LIMIT 3 of P4-D100, pinned (it was pinned by nothing) --
@@ -317,22 +326,27 @@ def _rungs_narrower_than_the_published_values() -> "list[str]":
 def test_the_anchored_bound_keeps_its_own_narrower_ends(
     tmp_path: pathlib.Path, seed: str
 ) -> None:
-    """P4-D100 limit 3, which the landing named and nothing held.
+    """P4-D100 limit 3, CLOSED by plan P4-D268, and this says so.
 
-    Where the ladder has rungs of its own the bound is the RUNGS, not
-    the value span, so this column's form debt goes short and says so
-    at exit 3 -- its four made-up cells falling back to the plain
-    `1100001`, which settles the class and not the form. Widening the
-    anchored branch to the value span would pay it with `5.0E6` and
-    turn this test red, which is the whole point of writing it: the
-    limit was measured and left standing deliberately, and a later
-    change that takes it now has to say so.
+    The limit was written to be taken: "a later change that takes it now
+    has to say so". Codex item 5 of the extra round of 2026-09-18 takes
+    it. The ladder's anchors come from every ACCEPTED numeric spelling
+    now, not only from the ones `_plain_units` can step in, so `8.8e6` is
+    an anchor of this column as well as a value of its span -- and the
+    form debt is paid rather than going short.
+
+    MEASURED, at both seeds: the census names `%.%&%` fifteen times, the
+    twin wears it fifteen times where it wore it eleven, its four made-up
+    cells come out `5.0e6` where they came out the plain `1100001`, and
+    the twin validates at exit 0 where it exited 3. The real table exits
+    0 as it always did.
     """
     cells = _rungs_narrower_than_the_published_values()
     first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
     assert first["shape_forms"]["%.%&%"] == 15
-    assert _worn(written)["%.%&%"] == 11
-    assert twin_exit == 3
+    assert _worn(written)["%.%&%"] == 15
+    assert "5.0e6" in written
+    assert twin_exit == 0
     assert real_exit == 0

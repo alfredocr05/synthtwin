@@ -3075,6 +3075,63 @@ def _band_holds(band, value):
     )
 
 
+def next_representable(value):
+    """The next binary64 above one positive finite value, or None -- G6.5a.
+
+    Written from the rule and not from the interpreter's own step: frexp
+    gives a mantissa in [0.5, 1) and an exponent, so the gap above
+    ``value`` is two raised to that exponent less fifty-three, and where
+    that underflows to nought the value is subnormal, whose grid is
+    evenly spaced at two to the minus 1074.
+    """
+    if not math.isfinite(value) or value <= 0.0:
+        return None
+    _mantissa, exponent = math.frexp(value)
+    gap = math.ldexp(1.0, exponent - 53)
+    if gap <= 0.0:
+        gap = math.ldexp(1.0, -1074)
+    found = value + gap
+    if not math.isfinite(found) or found <= value:
+        return None
+    return found
+
+
+def representable_grid(total, bands, values):
+    """The binary64 numbers themselves, where the ends saturate them -- G6.5a.
+
+    Plan P4-D269, the last resort of the separation pass and the only one
+    reached where the published widths fix NO decimal grid at all.  Where
+    the column's two pinned ends are exactly as many representable
+    numbers apart as it has strata, every stratum has one number it can
+    hold and there is nothing to choose: the strata take the grid's own
+    points in ascending order, which is what `saturated_grid` does on a
+    written grid.  Positive values only, and the pass is withdrawn whole
+    where any stratum's sign band would not hold the point the grid gives
+    it, so it can only add.  The walk stops the moment the grid runs past
+    the upper end, so a column whose ends are many steps apart leaves
+    with its values exactly as they came.
+    """
+    if total < 3 or not values or not math.isfinite(values[0]):
+        return None
+    if values[0] <= 0.0:
+        return None
+    ceiling = values[total - 1]
+    if not math.isfinite(ceiling) or ceiling <= values[0]:
+        return None
+    grid = [values[0]]
+    step = values[0]
+    for _each in range(total - 1):
+        step = next_representable(step)
+        if step is None or step > ceiling:
+            return None
+        grid.append(step)
+    if grid[total - 1] != ceiling:
+        return None
+    if not all(_band_holds(bands[place], grid[place]) for place in range(total)):
+        return None
+    return grid
+
+
 def saturated_grid(wanted, figures, total, bands, ladder):
     """The points of a grid with no spare one, in order, or None -- G6.5a.
 
@@ -3343,9 +3400,14 @@ def apart_values(
     ITS STRATA TAKES THEM (plan P4-D178, `saturated_levels`); where
     neither answers, the walk runs.
     """
-    if figures < 0:
-        return values
     total = len(values)
+    if figures < 0:
+        # AND WHERE NO DECIMAL GRID EXISTS AT ALL, THE GRID IS THE
+        # REPRESENTABLE NUMBERS (plan P4-D269).
+        filled = representable_grid(total, bands, values)
+        if filled is not None:
+            return filled
+        return values
     if total < 2:
         return values
     filled = saturated_grid(wanted, figures, total, bands, ladder)
@@ -11274,7 +11336,7 @@ def _numeric_content(column):
         else:
             held.add(identity)
     shortfall = max(0, folded_budget - len(held))
-    for index in repeats:
+    for index in unmarked_duplicates_first(repeats, marks):
         if not shortfall:
             break
         if styles[index] == "plain":
@@ -11373,6 +11435,23 @@ def spelled_census(census):
     for spelling in sorted(census, key=lambda text: (int(text), text)):
         content.extend([spelling] * census[spelling])
     return content
+
+
+def unmarked_duplicates_first(repeats, marks):
+    """The duplicates a raised order may be spent on, in order -- G6.5.
+
+    Plan P4-D265.  A raised order of the leading-zero family writes one
+    more figure and carries NO mark between thousands, so spending it on
+    a cell the census of marks has already marked takes that mark back
+    off the column.  A duplicate with no mark expands at exactly the same
+    cost in spellings and costs the census nothing, so the walk takes
+    those first and reaches a marked cell only when no unmarked duplicate
+    is left.  A column whose duplicates all carry the mark, or none of
+    them, is visited in index order exactly as before.
+    """
+    unmarked = [index for index in repeats if not marks[index]]
+    marked = [index for index in repeats if marks[index]]
+    return unmarked + marked
 
 
 def _straggler_cells(column, used):
@@ -13912,14 +13991,23 @@ def _label_numbers():
     its held-back readings written as words, and at a floor of twenty a
     column of 853 readings kept 359 of them.
 
-    Forty-four rows at a floor of eleven. One published label, `ab-cd`,
+    Forty-five rows at a floor of eleven. One published label, `ab-cd`,
     on twelve rows; two published readings, `5.1` and `5.3`, on eleven
-    each; and four held-back levels of one, two, three and four rows,
+    each; and four held-back levels of two, two, three and four rows,
     which the source it stands for wrote `xy-zw`, `12.5`, `5.0` and
     `5.2`. The published spellings pay twenty-two of the thirty-one
     numbers, so the held-back levels owe nine; the census names `%.%`
-    on twenty-nine cells and `@@-@@` on thirteen, and pools the two
+    on twenty-nine cells and `@@-@@` on fourteen, and pools the two
     cells of `12.5` under the withheld key.
+
+    THE HELD-BACK WORD COVERS TWO ROWS AND NOT ONE, since invariant B4c
+    (Codex blocker 2 of the extra round, 2026-09-18; plan P4-D261). It
+    covered one while `n_not_numeric` was thirteen and the published word
+    covered twelve, and thirteen less twelve is the withheld word's own
+    count of one -- a description the producer no longer writes and the
+    loader no longer admits. One row is added to the column and to that
+    level, so the word class is two rows over one level and nothing is
+    derivable from it.
 
     SINCE THE OWNER'S RULING OF 2026-09-17 (plan P4-D201) the description
     publishes those four levels as a pool of ten rows and no size of any
@@ -13942,8 +14030,8 @@ def _label_numbers():
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
-        n_present=44, n_missing=0, n_distinct=7, n_distinct_folded=7,
-        n_numeric=31, n_not_numeric=13, n_out_of_range=0, n_contradictory=0,
+        n_present=45, n_missing=0, n_distinct=7, n_distinct_folded=7,
+        n_numeric=31, n_not_numeric=14, n_out_of_range=0, n_contradictory=0,
         levels=[
             {
                 "label": "ab-cd", "count": 12,
@@ -13961,27 +14049,28 @@ def _label_numbers():
                 "shape_form_cells": 11,
             },
         ],
-        suppressed_levels=4, suppressed_rows=10,
+        suppressed_levels=4, suppressed_rows=11,
         level_ceiling=20,
-        shape_forms={"%.%": 29, "@@-@@": 13, "(withheld)": 2},
+        shape_forms={"%.%": 29, "@@-@@": 14, "(withheld)": 2},
     )
     return {
         "why": "the class debt of G8.3a: a held-back level that was a number "
         "is written as a number. The published spellings pay twenty-two of "
         "the thirty-one numbers; the four held-back levels, published as a "
-        "pool of ten rows (plan P4-D201), owe nine, and the sizes G8.3 reads "
-        "off the pool and its debts, one, two, two and five, make nine as "
-        "five, two and two, so the level of one row stays a word. Inside the "
-        "number class `%.%` still owes seven, which five and two make, so "
-        "one level of two wears no named form. The "
+        "pool of eleven rows (plan P4-D201), owe nine, and the sizes G8.3 "
+        "reads off the pool and its debts split into a word class and a "
+        "number class. Inside the "
+        "number class `%.%` still owes seven. The "
         "numbers come from the published ones: the one value strictly "
         "between them that none holds, `5.2`, goes to the largest level, "
-        "the first step outward, `5.0`, to the next, and the level wearing "
-        "no named form walks past every value `%.%` writes to `10.0`. The "
-        "word takes the first spelling of `@@-@@`. A label column consumes "
+        "the first step outward, `5.0`, to the next, and a level wearing "
+        "no named form walks past every value `%.%` writes. The "
+        "word takes the first spelling of `@@-@@`. The pool is eleven rows "
+        "and not ten because invariant B4c refuses a word class of one row "
+        "(plan P4-D261). A label column consumes "
         "no content word, so every byte here is fixed by published counts.",
         "column": column,
-        "rows": 44,
+        "rows": 45,
         "identifier_declared": False,
     }
 
@@ -13990,16 +14079,19 @@ def _label_numbers():
 def _label_number_tiers():
     """What the census could hold, and the places a number may take (G8.3a).
 
-    Landing 2b.4's repair. Fifty-five rows at a floor of eleven: one
+    Landing 2b.4's repair. Fifty-six rows at a floor of eleven: one
     published label, `ab-cd`, on twelve rows; two published readings,
     `5.1` and `5.3`, and one published whole number, `7`, on eleven
-    each; and four held-back levels of one, two, three and four rows,
+    each; and four held-back levels of two, two, three and four rows,
     which the source it stands for wrote `xy-zw`, `6`, `5.0` and `5.2`.
-    The census names `%.%` on twenty-nine cells and `@@-@@` on thirteen
+    The census names `%.%` on twenty-nine cells and `@@-@@` on fourteen
     and pools nothing: the whole numbers wear no form. Since the owner's
     ruling of 2026-09-17 (plan P4-D201) the four levels are published as a
-    pool of ten rows, and G8.3 reads their sizes off it and its debts:
-    `1, 2, 2, 5`.
+    pool of eleven rows, and G8.3 reads their sizes off it and its debts.
+
+    THE HELD-BACK WORD COVERS TWO ROWS AND NOT ONE, for the reason
+    `_label_numbers` gives: invariant B4c refuses a word class of one row
+    (plan P4-D261).
 
     - the class split: the published spellings pay thirty-three of the
       forty-two numbers, and nine is `5 + 2 + 2`;
@@ -14016,8 +14108,8 @@ def _label_number_tiers():
     """
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
-        n_present=55, n_missing=0, n_distinct=8, n_distinct_folded=8,
-        n_numeric=42, n_not_numeric=13, n_out_of_range=0, n_contradictory=0,
+        n_present=56, n_missing=0, n_distinct=8, n_distinct_folded=8,
+        n_numeric=42, n_not_numeric=14, n_out_of_range=0, n_contradictory=0,
         levels=[
             {
                 "label": "ab-cd", "count": 12,
@@ -14040,24 +14132,26 @@ def _label_number_tiers():
                 "shape_form_cells": 0,
             },
         ],
-        suppressed_levels=4, suppressed_rows=10,
+        suppressed_levels=4, suppressed_rows=11,
         level_ceiling=20,
-        shape_forms={"%.%": 29, "@@-@@": 13},
+        shape_forms={"%.%": 29, "@@-@@": 14},
     )
     return {
         "why": "what the census could hold, and the places a number wearing no "
         "named form may take (G8.3a, landing 2b.4's repair). The held-back "
-        "levels, a pool of ten rows whose sizes G8.3 reads as `1, 2, 2, 5` "
-        "(plan P4-D201), owe nine numbers, `5 + 2 + 2`, and `%.%` owes seven "
-        "of them, `5 + 2`, which take the gaps `5.2` and `6.9`. The other "
-        "level of two wears "
+        "levels, a pool of eleven rows whose sizes G8.3 reads off the pool "
+        "and its debts (plan P4-D201), owe nine numbers, and `%.%` owes seven "
+        "of them, which take the gaps nearest each end. A "
+        "level wears "
         "no named form: every one-place value it could step to wears the "
         "named `%.%` until `10.0`, whose form the census would have counted "
         "and pooled, and it pools nothing, so that side ends. The walk then "
         "takes the other count of places the published numbers were written "
-        "with, none, and writes the gap `6`. The word takes `AA-AA`.",
+        "with, none, and writes a gap. The word takes `AA-AA`. The pool is "
+        "eleven rows and not ten because invariant B4c refuses a word class "
+        "of one row (plan P4-D261).",
         "column": column,
-        "rows": 55,
+        "rows": 56,
         "identifier_declared": False,
     }
 
@@ -14439,6 +14533,14 @@ FOURTH_BRANCH_PART = "branches-4"
 # P4-D193), which the sixth, within a few kilobytes of the byte cap, could
 # not hold.
 FIFTH_BRANCH_PART = "branches-5"
+# The eighth file: the seven cases the extra review round of 2026-09-18
+# added in its date pass (plans P4-D254 to P4-D258) and its number pass
+# (plans P4-D265 and P4-D269).  They are an eighth file for the reason the
+# seventh was a seventh: rebuilt into the seventh at the integration of the
+# two passes, that file stood at 276235 bytes against the provenance
+# manifest's 250000-byte cap (G14.2).  No case was dropped, no proof was
+# shortened and the cap was not raised.
+SIXTH_BRANCH_PART = "branches-6"
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -15868,6 +15970,114 @@ def _saturated_integers():
         "still needs.",
         "column": column,
         "rows": 33,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _unmarked_duplicates_first():
+    """The distinct-spelling repair, visited unmarked first (P4-D265, G6.5).
+
+    Forty-four cells of one value, written plain, with a leading plus and
+    with a point, whose census of marks names eleven of the twenty-two
+    groupable cells: so the duplicates the repair may spend a raised
+    order on are MIXED, some marked and some not, and the order it visits
+    them in decides whether the census of marks survives it.  `grouped_
+    charges` beside it raises two orders and every duplicate of it wears
+    the mark, so the visiting order could be reverted with its cells
+    where they are.
+    """
+    column, rungs, claims = _flat_numbers(
+        "12345", 44,
+        n_missing=0, n_distinct=10, n_distinct_folded=10, n_negative=0,
+        numeric_styles={"decimal": 22, "leading_plus": 11, "plain": 11},
+        fraction_widths={"1": 22}, pad_widths={}, field_widths={"5": 22},
+        group_separator=",", decimal_plus={"+": 11},
+        thousands_marks={",": 11},
+    )
+    return {
+        "why": "G6.5's distinct-spelling repair, visited unmarked first "
+        "(plan P4-D265, Codex item 6 of the extra round of 2026-09-18). "
+        "The column counts ten spellings of one value where the four "
+        "styles supply six, so four cells spend a zero -- and a raised "
+        "order of the leading-zero family writes one more figure and "
+        "carries NO mark between thousands, so spending it on a cell the "
+        "census of marks has already marked takes that mark back off the "
+        "column. Eleven of the twenty-two groupable cells are marked, so "
+        "the duplicates are mixed and the order is what decides. The "
+        "mutant visits them in index order, which is what the shipped "
+        "generator did until this round: eleven cells wear the comma with "
+        "the rule and SEVEN without it, against a census of eleven.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _saturated_representable():
+    """The binary64 grid with no spare point (plan P4-D269, G6.5a).
+
+    Twelve numbers one representable step apart, from one upward, whose
+    census names no fraction width at all -- so the separation pass has
+    NO decimal grid to act on and the last resort is the only rule that
+    can answer.  Every ordinary numeric case in the seven files publishes
+    a width, so this branch could be withdrawn whole with every committed
+    byte unchanged, which is why the case exists.
+    """
+    # THE LADDER IS FLAT UNTIL ITS UPPER END, and that is what makes the
+    # case publishable at all: the ninety finer rungs of plan P4-D4.10
+    # are written to six decimal places, so a ladder whose rungs differ
+    # below that place publishes ninety rungs that all floor to the same
+    # number -- which is exactly this column, whose twelve values lie one
+    # binary64 apart. Every rung but `max` is the lower end, and the
+    # published ends are twelve representable numbers apart.
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "1", "p01": "1", "p05": "1", "p10": "1", "p25": "1",
+        "p50": "1", "p75": "1", "p90": "1", "p95": "1", "p99": "1",
+        "max": "1.0000000000000024",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1.000000000000001"),
+                       ("std", "7.665096401009793e-16"),
+                       ("skew", "0"),
+                       ("kurtosis", "1.7832167832167831"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_distinct_values=12,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=12,
+        numeric_styles={"(withheld)": 12},
+        mode=None, mode_count=0, pad_widths={}, fraction_widths={},
+        field_widths={},
+        **moments,
+    )
+    return {
+        "why": "G6.5a's last resort, the representable grid (plan P4-D269). "
+        "The column's twelve numbers lie one binary64 step apart, from "
+        "one upward, and its census names no fraction width, so "
+        "neither the pinned width nor the finest width gives the "
+        "separation pass a grid to act on. The two published ends are "
+        "exactly twelve representable numbers apart, so every stratum has "
+        "one number it can hold and the strata take the grid's own points "
+        "in ascending order. The mutant withdraws that fill: the ladder "
+        "then interpolates between rungs a single representable step "
+        "apart, several strata land on one binary64, and the twin holds "
+        "fewer different numbers than the column publishes.",
+        "column": column,
+        "rows": 12,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -19222,6 +19432,7 @@ _DOCUMENT_ACCOUNT = (
     "any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -19697,18 +19908,29 @@ FIFTH_BRANCH_CASE_BUILDERS = {
     # A whole number written two ways (plan P4-D193).
     "twice_written_filled": _twice_written_filled,
     "twice_written_merged": _twice_written_merged,
-    # THE FIVE CASES OF THE EXTRA REVIEW OF c5d09d5 (plans P4-D254 to
-    # P4-D258). Each rule it repaired in the date path could otherwise be
-    # withdrawn with every committed byte unchanged.
+}
+
+# THE SEVEN CASES OF THE EXTRA REVIEW ROUND OF 2026-09-18, its date pass
+# and its number pass together.  Each rule they pin could otherwise be
+# withdrawn with every committed byte unchanged.  They are an eighth file
+# and not a thirteen-case seventh because the seventh, holding all of
+# them, measured 276235 bytes against the 250000-byte cap.
+SIXTH_BRANCH_CASE_BUILDERS = {
+    # The five of the date pass (plans P4-D254 to P4-D258).
     "date_endpoint_ties": _endpoint_tie_offsets_case,
     "date_midnight_feasible": _midnight_feasible_offsets,
     "date_nonadjacent_merge": _nonadjacent_merge_restoration,
     "date_second_field_class": _second_field_width_class,
     "date_traded_merge": _traded_merge_restoration,
+    # The representable grid, where no decimal grid exists (P4-D269).
+    "saturated_representable": _saturated_representable,
+    # The distinct-spelling repair's visiting order (plan P4-D265).
+    "unmarked_duplicates_first": _unmarked_duplicates_first,
 }
 
 CASE_SETS = {
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
+    SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     FOURTH_BRANCH_PART: FOURTH_BRANCH_CASE_BUILDERS,
     NAMED_PART: NAMED_CASE_BUILDERS,
     BRANCH_PART: BRANCH_CASE_BUILDERS,
@@ -19724,6 +19946,7 @@ CASE_BUILDERS = {
     **THIRD_BRANCH_CASE_BUILDERS,
     **FOURTH_BRANCH_CASE_BUILDERS,
     **FIFTH_BRANCH_CASE_BUILDERS,
+    **SIXTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -19753,6 +19976,7 @@ _NAMED_ACCOUNT = (
     "it. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -19785,6 +20009,7 @@ _BRANCH_ACCOUNT = (
     "same reason again. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -19808,6 +20033,7 @@ _SECOND_BRANCH_ACCOUNT = (
     "room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -19829,6 +20055,7 @@ _THIRD_BRANCH_ACCOUNT = (
     "of a declared identifier (plan P4-D182) fits beside them."
     " The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -19853,6 +20080,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     "file only because the fifth stands within a few kilobytes of the "
     "provenance manifest's byte cap."
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -19874,11 +20102,40 @@ _FIFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "seventh file only because the sixth stands within a few kilobytes of "
     "the provenance manifest's byte cap."
+    " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
+)
+
+_SIXTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the extra review round of "
+    "2026-09-18, its date pass and its number pass together: the feasible "
+    "spend of an offset where the column is moved onto midnight (plan "
+    "P4-D254), the offsets a rank standing on an end's own instant may "
+    "wear (plan P4-D255), the census key carried into the width pass "
+    "(plan P4-D256), G7.3's two merges -- onto a unit that is no rank "
+    "neighbour, and paid for by ranks moved the other way (plan P4-D258) "
+    "-- G6.5a's last resort on the REPRESENTABLE grid, where the census "
+    "names no fraction width at all (plan P4-D269), and G6.5's visiting "
+    "order for the distinct-spelling repair, unmarked duplicates first "
+    "(plan P4-D265). They are computed by the same oracle "
+    "and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json and "
+    "tests/reference/generation-document-vectors.json, and live in an "
+    "eighth file only because the seventh, rebuilt to hold them, stood at "
+    "276235 bytes against the provenance manifest's 250000-byte cap. No "
+    "case was dropped, no proof was shortened and the cap was not raised."
 )
 
 CASE_SET_ACCOUNTS = {
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
+    ),
+    SIXTH_BRANCH_PART: (
+        f"The {len(SIXTH_BRANCH_CASE_BUILDERS)} {_SIXTH_BRANCH_ACCOUNT}"
     ),
     FOURTH_BRANCH_PART: (
         f"The {len(FOURTH_BRANCH_CASE_BUILDERS)} {_FOURTH_BRANCH_ACCOUNT}"
@@ -20093,6 +20350,37 @@ GIVEN_WORDS = {
         160521001491911533, 10702506125747700096, 4814554069630885143,
         15150372085088450294, 6521254566465853015, 16807375705772830742,
         91691173470257007, 13740769129415587871, 14043504349668044876,
+    ),
+    # The visiting order of plan P4-D265, at seed 194.
+    "unmarked_duplicates_first": (
+        15951440350176933158, 15973533414106169898, 4848658055522511236,
+        8883309111577902641, 8582921644934328446, 17635896241352919254,
+        5586964252459883488, 5652148719928231464, 17394328843753899727,
+        7712528052261724656, 17976072980136951405, 2030370658483910179,
+        6006364908990458481, 11637502879712830515, 5417068352890769320,
+        15802982282781947883, 9919818036174942083, 17195111972283515096,
+        14138852467492742795, 11437159270567502078, 11719142884217131125,
+        829970683474166593, 8459415914846193940, 14836105518398070100,
+        3692079025241968434, 10107353182649735091, 15924255087588740894,
+        3499976198692245420, 17160539458077912862, 15723843770885461993,
+        14983957577739337834, 8300021650281071424, 7497574414154390440,
+        15216132695686840369, 16172585122319634650, 9506774639746098847,
+        15296758782073362368, 14968491857436697267, 14077118052934399852,
+        15718132095856558827, 938098269106511785, 1483215163081429304,
+        10164565904230123816, 4420225975753013384, 14360071080554720299,
+        5684573465110795118, 1439559132375741639, 9393007774451326948,
+        4222821510639412640, 16420704850908043950, 7918683666435300808,
+    ),
+    # The representable grid of plan P4-D269, at the next seed after the
+    # highest in use (193).
+    "saturated_representable": (
+        9334235032495672809, 4645934572268274229, 12982486128735967291,
+        2418558801206734542, 1215681553050494248, 10080059187304888040,
+        8918148440705000046, 8915346275007409379, 10837346305539127496,
+        14307118661346302640, 16379050214646425763, 13836750415623653084,
+        2662714713635309702, 10600124432826303366, 7078024768302717400,
+        10385870333783179108, 16720028779484443916, 361741584871362962,
+        13645293826148230158, 3910532982760333739, 9633262234299078663,
     ),
     "code_band_words": (
         12157209929086961060, 11173649564410634393, 170528092174543603,
@@ -20930,6 +21218,13 @@ GIVEN_WORDS = {
         17841136179427949105, 3153720365097832194, 12904746883321067555,
         15289589415482460436, 11790829620896665457, 16118600836855221284,
         14339110349838762356,
+        # The forty-fourth word, given when the case gained its
+        # forty-fifth row for invariant B4c (plan P4-D261). Like every
+        # other word here it is an INPUT this tool does not draw: it is
+        # the next word of the one stream the case's words open, which
+        # the suite checks against the locked library rather than against
+        # anything this file computes.
+        3346176665544244880,
     ),
     "label_number_tiers": (
         15712004738899576826, 9106234749995103221, 7197214430348145549,
@@ -20950,6 +21245,11 @@ GIVEN_WORDS = {
         1786132738446827029, 12470419375819469909, 1224946779267958078,
         14893380431211633658, 11306254306392298651, 12068320809430943003,
         347872208542651383, 18007349395004237999, 17724797172735929015,
+        # The fifty-fifth word, given when the case gained its
+        # fifty-sixth row for invariant B4c (plan P4-D261), on the same
+        # terms as `label_numbers`' own added word: the next word of the
+        # one stream this case's words open.
+        8869353500042892814,
     ),
     "long_tail_levels": (
         16141117999568644869, 2912390137437105406, 11142961259136265613,
