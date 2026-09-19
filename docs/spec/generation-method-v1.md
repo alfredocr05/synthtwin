@@ -6231,12 +6231,23 @@ number when it is one under that reading.
    together with (c) moved cells), because the held-back anchors frozen cases publish are
    whole spellings with a leading plus, which (c) reads as (b) does. They
    are witnessed one call at a time in
-   `tests/test_oracle_rule_witnesses.py`: sixteen spellings with the
+   `tests/test_oracle_rule_witnesses.py`: eighteen spellings with the
    answers worked out from this step, asked of the oracle and of the
-   generator, and six registered mutants -- the leading plus, the
-   brackets, the trailing minus and the marks each left unread, the value
-   not read, a whole value read at one place -- each of which turns that
-   witness red.
+   generator, and eight registered mutants -- the leading plus, the
+   leading minus, the brackets, the trailing minus and the marks each
+   left unread, the value not read, a whole value read at one place, and
+   the value's own minus not written -- each of which turns that
+   witness red. TWO OF THOSE EIGHT WERE ADDED BY THE ROUND-2 LEDGER PASS
+   (item 6), and with them two negative spellings: the NEGATIVE clauses
+   of (b) and (c) had a case that touched them and no case that parted
+   their two roads. Measured on that pass, each mutant rebuilding all
+   nine vectors files byte for byte: with (b)'s leading-minus frame
+   removed `-0.05` still answers `(-5, 2)`, falling through to (c) whose
+   shortest spelling writes the same two places, while `-12.50` drops
+   from `(-1250, 2)` to `(-125, 1)`; and with the minus taken out of the
+   characters (c) lets a shortest spelling hold, every positive spelling
+   is unmoved while `-1.5e-3` drops from `(-15, 4)` to no anchor at all.
+   Both spellings are in that file's table now.
    Their finest count of figures after the point is `P`, and the
    smallest and the largest of them are the two ENDS. A level is
    written at `P` places, or, where it wears a form, at that form's own

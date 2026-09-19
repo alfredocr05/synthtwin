@@ -77,6 +77,7 @@ start and takes the first member the column has not written whose length
 its own window admits.
 """
 
+import ast
 import importlib.util
 import json
 import pathlib
@@ -3719,6 +3720,48 @@ DOCUMENT_CASES = (
 
 EVERY_CASE = tuple(sorted(ALL_CASES + DOCUMENT_CASES))
 
+# WHICH TEST BINDS WHICH DOCUMENT CASE, stated once so that coverage is
+# derived from the transforms and not from how many cases happen to be
+# stored (round-2 ledger item 3). The KPI ledger promised "every frozen
+# case" (K-P2-01) and "each document binding" (K-2B-39) while pinning
+# neither `written_form_classes`, `withheld_line_marks` nor
+# `delimiter_reading`: measured at 05e7d89, moving
+# `dialect.cell_class("NaT")` from absent to text left all 103 pinned
+# cases of those two entries green -- the 98 column cases, the four
+# workbook cases, the case-count checks and the three document pins --
+# while the unpinned `written_form_classes` binding failed at once
+# against the frozen bytes. `tests/test_kpi_ledger_integrity.py` holds
+# the ledger to pinning every node named here.
+DOCUMENT_BINDINGS = {
+    "delimiter_reading":
+        "tests/test_generation_reference.py::"
+        "test_the_delimiter_is_settled_the_way_the_method_settles_it",
+    "row_arrangement":
+        "tests/test_generation_reference.py::"
+        "test_the_rows_stand_where_the_method_puts_them",
+    "withheld_line_marks":
+        "tests/test_generation_reference.py::"
+        "test_the_lines_before_the_table_are_published_as_their_shape",
+    "workbook_as_written":
+        "tests/test_generation_reference.py::"
+        "test_the_workbook_twin_is_the_package_the_method_requires",
+    "workbook_classes_by_spelling":
+        "tests/test_generation_reference.py::"
+        "test_the_workbook_twin_is_the_package_the_method_requires",
+    "workbook_made_up_dates":
+        "tests/test_generation_reference.py::"
+        "test_the_workbook_twin_is_the_package_the_method_requires",
+    "workbook_sheet":
+        "tests/test_generation_reference.py::"
+        "test_the_workbook_twin_is_the_package_the_method_requires",
+    "written_form_classes":
+        "tests/test_generation_reference.py::"
+        "test_each_cell_is_quoted_under_the_rule_of_its_own_class",
+    "written_form_lines":
+        "tests/test_generation_reference.py::"
+        "test_the_written_form_is_the_file_the_method_requires",
+}
+
 
 def _document_document() -> dict:
     return json.loads(DOCUMENT_VECTORS.read_text(encoding="utf-8"))
@@ -4216,6 +4259,29 @@ def test_the_document_mutant_table_names_every_document_case() -> None:
     assert tuple(sorted(DOCUMENT_MUTANTS)) == DOCUMENT_CASES
     for name in DOCUMENT_CASES:
         assert DOCUMENT_MUTANTS[name], name
+
+
+def test_the_binding_table_names_every_document_case_and_a_test_that_exists() -> None:
+    """Coverage is derived from the transforms, not from the stored case count.
+
+    Round-2 ledger item 3: the ledger's two oracle KPIs promised "every
+    frozen case" and "each document binding" while three transforms --
+    `written_form_classes`, `withheld_line_marks`, `delimiter_reading` --
+    were pinned by nothing. A binding added without a test, or a test
+    renamed out from under one, turns this red here; that the LEDGER pins
+    each of them is held in tests/test_kpi_ledger_integrity.py.
+    """
+    assert tuple(sorted(DOCUMENT_BINDINGS)) == DOCUMENT_CASES
+    here = pathlib.Path(__file__).resolve()
+    defined = {
+        node.name
+        for node in ast.walk(ast.parse(here.read_text(encoding="utf-8")))
+        if isinstance(node, ast.FunctionDef)
+    }
+    for name in DOCUMENT_CASES:
+        path, _mark, function = DOCUMENT_BINDINGS[name].partition("::")
+        assert path == "tests/" + here.name, name
+        assert function in defined, (name, function)
 
 
 @pytest.mark.parametrize("name", DOCUMENT_CASES)

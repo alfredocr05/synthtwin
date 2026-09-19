@@ -214,6 +214,14 @@ def test_the_anchored_held_back_sentence_warns_about_statistics(
     assert round(statistics.pstdev(real), 6) == 39.033017
     # The fidelity is still unmet; what the repair adds is the warning.
     assert abs(statistics.fmean(twin) - statistics.fmean(real)) > 50
+    # ...AND IT MAY NOT GET WORSE (round-2 ledger item 1, K-2B-50). A
+    # floor of "more than 50" is a ceiling on nothing: a twin whose mean
+    # error grew to 187 passed this line. The measured errors at
+    # 05e7d89, the same on seeds 4, 0 and 1, are the ledger's OPEN bound.
+    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) <= 87.083333
+    assert round(abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6) <= 36.005366
+    # Both files validate clean, which is why no miss count can see this.
+    assert (twin_exit, real_exit) == (0, 0)
     report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "is not a fact about your table" in report
     # All three held-back sentences end by warning about a statistic;

@@ -76,6 +76,34 @@ def test_the_ledger_is_the_size_and_shape_it_was_built_to() -> None:
         assert entry["value_at"]["commit"], entry["id"]
 
 
+def test_every_document_binding_of_the_oracle_is_pinned_by_the_ledger() -> None:
+    """Round-2 ledger item 3: coverage read off the binding registry, not a case count.
+
+    K-P2-01 promises every frozen case and K-2B-39 each document
+    binding, and neither pinned `written_form_classes`,
+    `withheld_line_marks` or `delimiter_reading`. MEASURED at 05e7d89:
+    `dialect.cell_class("NaT")` moved from absent to text left all 103
+    pinned cases of those two entries green -- 98 column cases, four
+    workbook cases, the case-count checks and the three document pins --
+    while the unpinned `written_form_classes` binding failed at once.
+    The set the ledger must pin is `DOCUMENT_BINDINGS`, so a transform
+    added with no pin is red here rather than silently uncovered.
+    """
+    import test_generation_reference as reference
+
+    pinned = {node for entry in LEDGER["entries"] for node in entry.get("nodes", [])}
+    unpinned = sorted(
+        f"{case} -> {node}"
+        for case, node in reference.DOCUMENT_BINDINGS.items()
+        if node not in pinned
+    )
+    assert unpinned == [], (
+        "these whole-document transforms of the oracle are bound by a test that no "
+        "ledger entry pins, so the binding can be withdrawn with every KPI green: "
+        + "; ".join(unpinned)
+    )
+
+
 def test_every_entry_s_expected_value_is_judged_true_of_itself() -> None:
     """A bound that its own recorded value breaks is a ledger that lies about today.
 
@@ -319,6 +347,66 @@ def test_a_kpi_test_that_fails_before_recording_is_a_drop() -> None:
     assert row["verdict"] == kpi_rules.FAIL, row
     row = _row(entry, {entry["test"]: [{"outcome": "passed", "kpi": recorded}]})
     assert row["verdict"] == kpi_rules.OPEN_HELD, row
+
+
+def test_a_driver_that_died_after_printing_its_value_is_a_drop() -> None:
+    """The round-2 ledger item 5, reproduced: K-2B-14's record beside exit 1.
+
+    `_run_drivers` printed the driver's exit status and threw it away, so
+    a driver that emitted a valid KPI line and then failed an assertion
+    produced verdict PASS, pass True, partial False -- the runner green
+    over a measurement that never finished. The status is carried beside
+    the records now: the same records with exit 0 still PASS, and with
+    exit 1 the entry FAILS and names the status.
+    """
+    entry = ENTRIES["K-2B-14"]
+    records = {entry["id"]: [{"id": entry["id"], "value": entry["value_at"]["value"],
+                              "detail": ""}]}
+
+    def row(exits: "dict[str, int]") -> "dict":
+        rows = RUNNER.judge_rows(  # type: ignore[attr-defined]
+            [entry], LEDGER, True, {}, records, True, exits
+        )
+        return rows[0]
+
+    finished = row({entry["driver"]: 0})
+    assert finished["verdict"] == kpi_rules.PASS and finished["pass"], finished
+    died = row({entry["driver"]: 1})
+    assert died["verdict"] == kpi_rules.FAIL and not died["pass"], died
+    assert "exited 1" in died["message"], died
+    # A command nobody ran here says nothing about the entry.
+    assert row({})["verdict"] == kpi_rules.PASS
+
+
+def test_the_runner_carries_every_driver_s_exit_status() -> None:
+    """`_run_drivers` returns the status beside the records, for two drivers at once."""
+
+    class Done:
+        def __init__(self, stdout: str, code: int) -> None:
+            self.stdout = stdout
+            self.stderr = ""
+            self.returncode = code
+
+    answers = {
+        "tools/measurements/one.py --kpi": Done(
+            'KPI {"id": "K-2B-14", "value": {"a": 1}, "detail": ""}\n', 0),
+        "tools/measurements/two.py --kpi": Done(
+            'KPI {"id": "K-2B-47", "value": {"b": 2}, "detail": ""}\nboom\n', 1),
+    }
+    commands = sorted(answers)
+    calls: "list[str]" = []
+
+    def fake_run(argv: "list[str]", **_rest: object) -> object:
+        command = " ".join(argv[1:])
+        calls.append(command)
+        return answers[command]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(RUNNER.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+        found, exits = RUNNER._run_drivers(commands)  # type: ignore[attr-defined]
+    assert calls == commands
+    assert sorted(found) == ["K-2B-14", "K-2B-47"]
+    assert exits == {commands[0]: 0, commands[1]: 1}
 
 
 def test_an_open_seconds_target_is_never_improved_where_seconds_are_not_judged() -> None:

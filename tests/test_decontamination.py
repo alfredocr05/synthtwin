@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+import kpi_rules
+
 TOOLS = Path(__file__).resolve().parent.parent / "tools" / "decontamination"
 
 spec = importlib.util.spec_from_file_location("decontam_check", TOOLS / "check.py")
@@ -327,6 +329,87 @@ def test_scanner_rejects_missing_mandatory_header(
 def test_repo_tree_is_clean_under_real_manifest() -> None:
     repo = TOOLS.parent.parent
     assert check.main([str(repo)]) == 0
+
+
+# ---------- the measurement behind K-P0-05's non-vacuity floor -------------
+
+
+def _driver() -> object:
+    """tools/measurements/kpi_decontamination.py, loaded (it scans nothing on import)."""
+    repo = TOOLS.parent.parent
+    place = repo / "tools" / "measurements" / "kpi_decontamination.py"
+    loaded = importlib.util.spec_from_file_location("kpi_decontamination_here", place)
+    assert loaded is not None and loaded.loader is not None
+    module = importlib.util.module_from_spec(loaded)
+    loaded.loader.exec_module(module)
+    return module
+
+
+def test_the_scan_counts_the_reads_it_completes_and_not_the_paths_it_lists(
+    tree: Path, tmp_path: Path
+) -> None:
+    """Round-2 ledger item 4, reproduced: an empty scan must not read 400 files.
+
+    MEASURED on the repository at 05e7d89: with `check.file_surfaces`
+    replaced by an empty iterator, the driver reported "447 files
+    scanned, 0 matches, exit 0" -- a scan that opened no file at all --
+    and K-P0-05 judged PASS, because `files_scanned` was the LISTING
+    taken before the scan ran. The count is taken from the surfaces the
+    scan actually pulls now, so the same attack reports 0 files read and
+    K-P0-05's floor of 400 fails.
+    """
+    driver = _driver()
+    manifest = make_manifest(tmp_path, [CANARY])
+    for extra in range(4):
+        (tree / f"more{extra}.md").write_text(
+            f"ordinary words number {extra}\n", newline="\n", encoding="utf-8"
+        )
+    honest = driver.counted_scan(check, tree, manifest)  # type: ignore[attr-defined]
+    assert honest["files_listed"] == 5
+    assert honest["files_scanned"] == 5
+    assert honest["surfaces_scanned"] >= 5
+    assert honest["matches"] == 0 and honest["exit"] == 0 and honest["completed"]
+
+    read_nothing = check.file_surfaces
+    try:
+        check.file_surfaces = lambda *arguments, **named: iter(())
+        empty = driver.counted_scan(check, tree, manifest)  # type: ignore[attr-defined]
+    finally:
+        check.file_surfaces = read_nothing
+    # The scan still exits 0 and still lists every path: that is the
+    # defect, and only the completed-read count can see it.
+    assert empty["exit"] == 0 and empty["files_listed"] == 5
+    assert empty["files_scanned"] == 0, empty
+    assert empty["surfaces_scanned"] == 0, empty
+
+    # ...and K-P0-05's own rule, as the ledger states it, is what turns
+    # red on it: the scan at repository scale passes, the same scan with
+    # nothing read does not.
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-P0-05"]
+    at_scale = dict(entry["value_at"]["value"])
+    assert not kpi_rules.judge(entry, at_scale).is_drop
+    vacuous = dict(at_scale, files_scanned=0, surfaces_scanned=0)
+    verdict = kpi_rules.judge(entry, vacuous)
+    assert verdict.is_drop and "files_scanned" in verdict.message, verdict
+
+
+def test_a_scan_that_raises_is_never_reported_as_a_measurement() -> None:
+    """`completed` is False when the scan dies, so the driver exits non-zero."""
+    driver = _driver()
+
+    class Died:
+        file_surfaces = staticmethod(lambda *arguments, **named: iter(()))
+
+        @staticmethod
+        def tracked_files(root: Path) -> list:
+            return [root]
+
+        @staticmethod
+        def main(argv: list) -> int:
+            raise RuntimeError("the scan died half way through")
+
+    with pytest.raises(RuntimeError):
+        driver.counted_scan(Died, Path("."))  # type: ignore[attr-defined]
 
 
 # ---------- attestation ----------------------------------------------------
