@@ -6,6 +6,609 @@ exists).
 
 ## [Unreleased]
 
+### Changed: stage 2 is closed, and the twin writes each column the way the source wrote it (2026-09-15 to 2026-09-18)
+
+**Until this stage, code that ran on the twin could still fail on the
+real table because the twin spelled things its own way.** Dates came
+back in ISO form, a declared record number came back as
+`A----------------------------------J`, a European price came back as
+punctuation, and a workbook could not be read at all. On 2026-09-15 the
+owner ruled that the twin writes everything as the source wrote it. The
+entries below are grouped by what a researcher now gets. The eighteen
+landings of stage 2b were built on separate branches, merged into one,
+reviewed three times, and closed under the owner's rulings of
+2026-09-17 and 2026-09-18.
+
+| suite, at each close                        | collected | failed |
+|---------------------------------------------|-----------|--------|
+| first review round's fixes, merged and repaired | 6,056 | 3      |
+| stage 2 closed, before the extra round      | 6,397     | 1      |
+| extra round merged and landed               | 6,626     | 57     |
+| stage 2b closed                             | 6,911     | @@FAILED@@ |
+
+At every close, one of the failures was the state page's own record of
+the suite size. That page is written separately.
+
+@@FINALPARA@@
+
+### Fixed: a twin's numbers stay much closer to the column's own distribution (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A twin could hold one number far more often than the real column ever
+did, move a column's published mode, or place held-back values
+nowhere near the table's own.** Some of these failed the twin's own
+validation and some passed every check while wrong; the table gives
+both.
+
+| case                                                    | before           | after                  |
+|---------------------------------------------------------|------------------|------------------------|
+| 4,000 rows, published mode count 62: most copies of one number | 760       | at most 62             |
+| 2,000 tenths publishing 517 numbers: numbers held       | 479              | 517                    |
+| the same: cells at full binary precision                | 227              | none                   |
+| 96 twins of spreadsheet decimals: checked with nothing missed | 4          | 70                     |
+| the same: leading zeros invented                        | 736              | 16                     |
+| floor of 11: most copies of one number, 30 twins        | 45 (4,000 amounts) | 10 or fewer          |
+| two reports on 44 columns: windows printed differently  | 923 of 985       | none                   |
+| readings beside labels (skeptic's case): twin spread / table | 1.9 (up to 4.9) | 0.99               |
+| six narrow-width shapes: twins failing, of 48           | 19               | none                   |
+| readings written both `4` and `4.0`: misses, of 240     | 61               | 1                      |
+| signed grouped twins: marks census misses, of 80        | 36               | 0                      |
+| published mode `-0.6` over 210 rows: twin holds it      | 0 times          | 210 times              |
+| held-back number shapes: twins failing, of 30           | 17               | 0                      |
+
+- **Numbers beside labels keep their numbers.** A column of one-decimal
+  readings beside two labels published 853 numbers at 1,200 rows and a
+  floor of twenty, and its twin held 359. Over 242 runs every twin now
+  meets its class counts and validates. Where the column published a
+  number (222 runs), the twin's mean stays within 0.42 of the table's
+  standard deviation, and the spread is within a fifth of the table's
+  in 217 runs.
+- **A column of a few levels keeps its levels.** 2,000 quantities of
+  eleven levels, and 1,423 discounts of six, wrote a whole level at a
+  number the source never held in six twins of eight (`7.4` 225 times,
+  `1.3` 199 times). The twin now uses the published levels. A level too
+  rare to be named on the published ladder can still move.
+- **A held-back number stays inside the numbers the column has.** An
+  exponent-written column's made-up cells came back `9.6E6`. The twin's
+  mean was 2,450,000 against the table's 1,173,077, its spread was 43
+  times the table's, and validation passed. A made-up number now lies
+  between the smallest and largest published values. On an amounts
+  column published from 1,100,000 to 8,800,000, the twin's mean is
+  4,957,692 against the table's 5,034,615, where it had been 4,188,462.
+- **Grouped and bare amounts are spread across the column.** The bare
+  cells had always been the largest amounts. The twin's grouped and
+  bare means are now 486k and 485k against the real 493k and 476k,
+  where they had been 289k and 795k.
+- **The twin's report and the quality report print the same window.**
+  A twin scaled by 1.03 or 1.05 is still reported MISSED, so the check
+  lost none of its power.
+
+**Cost, stated rather than hidden.** Where a held-back level lies outside
+the published span, the census is met at the statistics' expense. On
+one measured column the twin's mean was 17.9% high and its spread 34.0%
+low, and the twin's report says the placement is synthtwin's own.
+
+**Measured and left open, each held at a ceiling in the KPI ledger.**
+
+- **On columns shaped like a bell curve, the twin's spread is 1.4 to
+  3.7% too wide.** Measured on potassium, sodium, systolic pressure,
+  haemoglobin, body mass and saturation from 5,000 rows. At 20,000 rows
+  by 20 columns, 19 of 1,021 checks miss on the standard deviation; at
+  5,000 rows none do. The cause is how the twin fills the outermost 1% of
+  a column: a straight line out to the exact published minimum and
+  maximum, where the real column reaches those ends only with its last
+  few cells. The repair is known and needs only published facts. It is
+  left for stage 3, which replaces the exact extremes with a published
+  tail shape and so rewrites this same step. Until then a test holds
+  four bell-shaped columns at 5,000 rows within 2.2% of their published
+  spread, and the ledger records the rest: +1.07 to +3.11% at 5,000
+  rows and +1.74 to +3.83% at 20,000 across its twenty columns.
+- **Cells holding three or four numbers.** 597 of 2,160 pair agreements
+  fall outside their window, and 7 counts of rows where one number
+  exceeds another are missed. When recorded, the figures were 550 and 0.
+  The cause is the walk that pairs the numbers. A repair was tried and
+  withdrawn, because it moved length of stay's mean 12% further off.
+  After the merge the figures are 609 and 3: the repair of a nearly full
+  band (below) trades 12 agreements for 4 exact counts, and the
+  orchestrator accepted that trade.
+
+### Fixed: the common ways a number is spelled come back (stage 2b, 2026-09-15 to 2026-09-18)
+
+**Four spellings of a number were lost with no error.** A charge grouped
+with a space, an apostrophe or a thin space was read as free text. An
+accounting negative `(1,234.56)` came back as `-1,234.56`, and the real
+table then failed its own description. A plus on a decimal was dropped.
+`1,483.65-` and `−6.09` were published with no negatives. A bare copy
+of a grouped twin also validated at exit 0.
+
+- **Seven thousands marks, four negative notations and the signed
+  decimal are read, published and written back.** A mixed column is
+  written as a mix. 600 charges, 480 written with a minus and 120 in
+  brackets, had come back as 600 minuses. 200 cells grouped with a space
+  beside 100 grouped with a narrow no-break space had come back as 300
+  ordinary spaces. Both now come back exact at three seeds.
+- **A German count column is asked whether its point is a thousands
+  mark.** It is asked on 6 of 6 runs, where 3 of 3 seeds had asked
+  nothing, and the answered mean equals the true mean. The signed
+  decimal is exact on 6 of 6 seeds.
+- **A declared European price is read as money.** `795,64 EUR` had been
+  read as free text, with a twin of `)!!!!! !!!!!` and both files
+  passing. It now comes back as `624,60 EUR`. `92.959,11 EUR` had lost
+  its grouping point on 800 of 800 twin cells, and now keeps it on 800
+  of 800.
+- **A real export meets its own description.** Excel, SAS, Stata, SPSS
+  and Fortran exports (`4.60E+03`, `6E9`, `.05`, seventeen-figure
+  numbers) had failed their own description on 14 runs of 14, and now
+  pass. A Fortran column written with a `D` exponent still comes back as
+  stand-ins. A ledger of signed seventeen-figure keys had 398 of 800 cells
+  refused, and now passes at both seeds.
+- **Wide keys say how they were written.** 800 seventeen-figure keys,
+  790 of them respelled into neighbours a computer cannot tell apart,
+  had checked out at exit 0. The description now records whether the
+  column wrote its numbers the way the numbers write themselves, and a
+  respelled file is caught. Zero-padded keys are included: 786 of 800
+  respelled had passed, and they are now reported at exit 3.
+- **A whole-number column written `44.0` stays whole.** 23 cells of 800
+  had moved to values such as `25.6`. None move now.
+- **An undeclared blood pressure is read as two numbers.** `128/79` had
+  been free text without `--measurement`. Near the long-tail line, 22 of
+  80 round trips had been reported MISSED, and none are now.
+- Offsets written both `+0123` and `0123` keep their spellings: 917 of
+  917, where there had been 776. A zero-filled code no longer gains a
+  sixth figure in a five-figure field (`099613`).
+
+**Not yet fixed.** A column mixing notations can write `101.88` beside
+`0101.88` and hold one different number fewer than published. The twin
+fails at exit 3 and its report names it.
+
+### Fixed: timestamps and dates are written as the source wrote them (stage 2b, 2026-09-15 to 2026-09-18)
+
+**The twin wrote every date in ISO form.** `strptime('%m/%d/%Y')` parsed
+400 of 400 real cells of a month-first export and none of its twin's.
+`'%d-%b-%Y'` failed the same way on a SAS export. `2024-q1` came back as
+`2024-Q4`. A compact `YYYYMMDD` column's twin failed synthtwin's own
+validation. On eighteen export shapes at three seeds, 240 of 240 twin
+cells now parse under the export's own format, none is written as ISO,
+and the twin and the real table both validate.
+
+| case                                                | before                  | after              |
+|-----------------------------------------------------|-------------------------|--------------------|
+| per-day count variance, twin / real (54 runs)       | 0.057 to 0.514          | 0.52 to 1.41       |
+| interior percentile dates exact (54 runs)           | none (one day early)    | 54 of 54           |
+| 2,000 rows, 1,900 bare dates beside moments at midnight       | written as moments      | written bare       |
+| partly-midnight columns: midnight cells kept        | 2 of 361; 1 of 1,429    | 361; 1,429         |
+| CET/CEST export at local midnight                   | 2 of 900, a day early   | exact              |
+| midnight under three offsets: invented times        | 11 of 120 cells         | none               |
+| exact distinct-date counts                          | 4 came back as 7; 3 as 6 | 4; 3              |
+| 400 `05-Mar-2021` dates over 250 days               | 246 different dates     | 250                |
+| export of 1,077 distinct dates                      | 1,065 or 1,107          | 1,077              |
+
+- **Each spelling detail is kept:** field order, delimiter, field widths,
+  month-name case and length, quarter and zulu case, and the mark
+  between day and clock. A mark written by fewer rows than the floor is
+  the exception: under ruling 6 it is counted into the commonest mark, so
+  a rare lower-case `t` beside many `T` comes back as `T`.
+- **A twin's dates spread across days as real dates do.** The first
+  review round found a shape the table above missed: 3,000 dates over
+  60 days piled onto the published percentile days, and the twin's
+  day-to-day variance was 4.8 to 6.6 times the table's. It is now 0.61
+  to 1.02 times. The first attempt at that fix made a week of thinning
+  dates come back 0.32 standard deviations late; its repair returned
+  them to +0.06 to +0.10, where they had been.
+- **A declared day-first column is judged in its own order.** Twenty
+  January dates had been removed as placeholders, leaving 380 of 400
+  values. All 400 are now kept.
+- **A table no longer fails its own description on a placeholder day.**
+  20 judged `1900-01-01 00:00:00` beside 30 declared placeholders had
+  left the real table missing thirteen obligations. Five kept
+  `01/01/1900` cells below the floor had left it missing fourteen. Both
+  now validate.
+
+**Accepted as a limit (2026-09-18).** Fractions of a second are written
+as nought. 240 of 240 source cells held a thousandth and the twin held
+none, while both files validated. The twin's report now says so.
+Generating at the millisecond is a landing of its own.
+
+**Deferred.** The time of day inside a timestamp is not reproduced. On a
+clinical table, 932 of 2,000 twin discharges fell outside the real 07:00
+to 19:00 range. This is stage 3b.
+
+**A slowdown this stage caused, found by the KPI ledger and fixed.** One
+of the extra round's date repairs added a search that stepped one second
+at a time. Generating a 2,000-row date-time column took 28.5 s where it
+had taken 0.16 s. The search now sorts the column once and walks that
+order. Medians of three on a shared machine:
+
+| column | before | after |
+|---|---|---|
+| 400 date-times, partly at midnight | 55.3 s | 0.12 s |
+| 2,000 date-times, partly at midnight | 63.5 s | 0.52 s |
+| 20,000 US-style dates | 2.7 s | 1.3 s |
+
+The twins are byte-identical to the slow ones. A test counts the
+search's steps, so the suite fails if the one-second walk comes back.
+
+### Fixed: labels, free text and missing values keep their own spellings (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A cell holding only a space was published and written as an empty
+cell.** A 500-row readings column published 315 blanks when 177 of them
+held a space, two spaces or a no-break space. `pandas.to_numeric` then
+ran on the twin and raised on the real table. Each whitespace spelling
+is now published at its own count, and the twin writes it back.
+
+- **Free text names the missing-value words it used.** A 500-row note
+  column with 101 blanks and 174 `NA` or `N/A` had its twin write 275
+  empty cells. The real table also failed its own description. The twin
+  now writes `N/A` 95 times and `NA` 79 times, and both files validate.
+  The real table of a declared identifier with 59 `NA` cells now meets
+  its own description, where it had exited 3.
+- **Codes wear their own shapes.** 800 rows whose description names
+  forty forms came back wearing none of them, 405 cells short. They now
+  meet every form at three seeds. A notes column mixing codes and prose
+  went from 320, 310, 138, 117 and 114 cells short to none. A
+  two-convention telephone column had worn its form on 531 of 532 cells
+  that owed it, and now wears it on all 532.
+- **Lower-case codes stay lower case**: 800 of 800, where none had been.
+  Held-back codes wear their column's shape instead of `group-N`: the
+  mean length is 7.204 against the table's 7.204, where it had been
+  9.907.
+- **Missing words pooled below a raised floor count as absent (ruling
+  4).** 280 record numbers beside ten `NA` and ten `N/A` at a floor of
+  twenty now validate, where the real table had exited 3.
+
+**A `-999` that synthtwin judges to mean "no value" is written as the
+source wrote it.** It used to be written blank, so pandas read the twin's
+column as decimals (`float64`) where the real column is whole numbers
+(`int64`). On the twin, `df.reading == -999` found nothing; on the table
+it found 13 rows. The twin now writes the judged spelling at its
+published count. The column reads `int64` on both files at every seed
+and floor tried. Of 16 judged shapes, none now gives a column a
+different type in pandas, where 9 did before. A judged spelling below
+the floor is still absorbed, like any spelling below the floor, and that
+column still reads as decimals. This supersedes the Phase 4 decision
+that wrote judged placeholders blank.
+
+### Fixed: record numbers and codes keep their layout (stage 2b, 2026-09-16 to 2026-09-18)
+
+**A declared record number came back as a row of hyphens.** A UUID
+column matched its own pattern on 800 real rows and 0 twin rows. A site
+code `NYC-2033` came back as `A------J`. A zero-filled `02254257` came
+back as `10000020`. A column mixing two numbering systems had its length
+mix `{10: 573, 7: 227}` collapse to `{7: 799, 10: 1}`. Both files
+validated at exit 0.
+
+The description now publishes each record number's layout: what kind of
+character stood at each position, never which one, apart from a prefix
+every record shares (ruling 1). The twin writes to that layout.
+
+| twin cells matching the source's pattern, 800 rows | before | after |
+|----------------------------------------------------|--------|-------|
+| UUID, braced GUID, site code                        | 0      | 800   |
+| `%08d` zero fill opening `00`                       | 78     | 800   |
+| `^P\d{5}$`                                          | 30     | 800   |
+| `^REC\d{7}$`                                        | 0      | 800   |
+| `^ABC-\d{4}$`                                       | 0      | 800   |
+| two systems `^(REC\d{7}|E\d{6})$`                   | 9      | 800   |
+| hexadecimal `DE-[0-9a-f]{6}`                        | 0      | 800   |
+
+- **A shared prefix is published and written (ruling 1), per system on a
+  two-system column (ruling 7).**
+- Made-up identifiers no longer lean on the figure nought: 11% noughts
+  on a 13-figure code, where there had been 45%. On the identifier test
+  battery, the runs short of a layout fell from 488 to 200 of 800.
+- **One exact rebuild of real record numbers is closed; one is not.**
+  `REC000` to `REC999` published a prefix and a layout with one
+  solution, and the twin held all 1,000 original rows. The prefix is now
+  withheld there, and the twin holds none of them. 900 record numbers
+  from `100` to `999` no longer publish their layout, but the lengths
+  and counts that remain still pin the set, and the twin still holds all
+  900 real numbers (see the limit below).
+- **The twin's report no longer says its made-up values "are not your
+  data".** 40 of 2,000 made-up subject numbers matched real ones, which
+  is the chance rate, and the report now says this can happen.
+
+**Accepted as a limit (2026-09-18).** When a column's layout has little
+room to spare, real record numbers still reach the twin. At 1,000 rows,
+`REC` plus four figures leaves 100 real record numbers in the twin,
+plus five leaves 10, plus six leaves 1, and plus seven leaves none.
+Withholding the layout does not help: `100` to `999` leaves all 900,
+and 989 numbers from `000` to `988` leave 978.
+
+### Fixed: the file itself, and Excel workbooks (stage 2b, 2026-09-15 to 2026-09-18)
+
+**synthtwin now reads Excel workbooks and writes each twin in the same
+form as its source file.** Following the owner's ruling of 2026-09-15,
+it reads Excel and delimited text only. Workbooks are read and written
+with Python's standard library. openpyxl is used only by the tests, as
+an independent check.
+
+- **The delimited form is kept:** the delimiter (including Excel's
+  `sep=` line), line endings, encoding and byte-order mark, quoting,
+  blank lines, preamble lines, index columns, padding and row order. A
+  line ending or blank line too rare to publish is not reproduced. When
+  the file form landed, five ordinary UTF-8 comma files with LF endings
+  gave twins byte-identical to before; the number, date and label fixes
+  above change twin cells where they apply.
+- **Three ordinary spreadsheets now make usable twins:** a table behind
+  a hidden notes sheet, a sheet named like "Cohort extract", and a
+  macro-enabled workbook. None of the three had worked before. Numbers
+  stored as text are read. Format codes are written as the source wrote
+  them where they use only the format language's own tokens. The twin's
+  report names the sheet it writes.
+- **A workbook twin can always be opened.** A column stored as dates
+  had its twin hold `2006-06-32` and `8204-84-03`. openpyxl could not
+  open the twin at all, while validation passed on both files. Every
+  date cell now names a real day, and openpyxl reads 118 dates and 2
+  strings. *Cost:* those made-up cells pile up at the top of each
+  field's range, and 108 of 118 fall in December.
+- **A file that reads two ways is asked about.** `id,measure|low|high`
+  had silently been read with the bar, and code splitting on the comma
+  read `029` where the column holds 100 to 103. The competing reading is
+  now recorded and asked about, and `--delimiter` declares it. The
+  twin's cells are made up under the reading taken, so code splitting
+  the twin by the other character can still find ragged rows.
+- **Other fixes.** A quoted title line, a regression of this stage
+  caught before it merged, had left a twin failing about 120
+  obligations that synthtwin could not read back. Two number formats
+  of one kind (`0%` beside `0.0`) had collapsed into one, and are now
+  refused by name. ISO dates stored as text had come back as `45315`.
+  Empty strings had become blank cells. A hostile cell reference had
+  taken 2.592 s to refuse, and now takes 0.000 s. A spreadsheet packing
+  a million cells into 5 MB had been read in 4 s and 630 MB, and is now
+  refused in 3 s within 300 MB.
+
+**Accepted as a limit (2026-09-18).** The reader still accepts a workbook
+date cell that names no day, when another program wrote it.
+
+### Fixed: far fewer published counts can single out one row (stage 2b, 2026-09-16 to 2026-09-18)
+
+**Many published counts could single out one row, either directly or
+by subtraction.** In one example, 400 five-figure numbers, 399 codes
+and one `hello` published counts from which 800 − 400 − 399 = 1. The
+rule that no count, remainder or difference may name a row had been
+written out four separate times. It is now stated once and applied to
+every census of how the table was written, and since the extra review
+round to the file's own lines. A lone CRLF at record 57 had been
+published as runs of 57, 1 and 63 lines, and no longer is. It does not
+yet reach everything: the exact smallest and largest values are still
+published, and one row can hold them (stage 3), and the counts of one
+accepted as limits below still stand.
+
+**The owner's eight rulings of 2026-09-17, all built:**
+
+1. **A record number's shared prefix is published.** Results are in the
+   table above.
+2. **Held-back label levels publish a pooled total only.** On 2,000
+   Zipf codes at a floor of 11, the held-back single-row levels fell
+   from 215 to 151 and the largest held-back level from 10 to 4. The
+   distinct count of 414 was unchanged.
+3. **A workbook with a second table stays refused**, and the message now
+   asks which sheet is the table.
+4. **Missing words pooled below a raised floor count as absent.**
+5. **A label row recoverable by subtraction counts as missing.**
+   `F` 480, `M` 519 and one `U` at a floor of eleven now publish two
+   levels and one missing cell. Work at the close and in the extra
+   review round closed four more shapes that forced a count of one. These were a clinical site column with
+   three one-patient sites, one lower-case `f` beside 490 `F`, 201 − 100
+   − 100 = 1 across sibling totals, and 120 site codes written once each
+   beside `NORTH` and `SOUTH`.
+6. **A spelling below the floor counts into the commonest.** 400 stamps
+   with one `t` publish `{"upper_t": 400}`. The first repair pooled the
+   rare spellings instead, and made one `T` among 5,000 space-separated
+   stamps turn 4,998 of the twin's stamps into `T`. It was replaced.
+7. **The prefix is published per system.**
+8. **An ambiguous first row gets placeholder names and a question.** A
+   headerless export whose first record was `CASE-ZEBRA-471,Northfield
+   Clinic 3,<0.10` had published that record as the column names,
+   described 239 rows where the file holds 240, and written the record
+   into the twin. It now describes 240 rows under `column_1` to
+   `column_3` and asks the question. The same holds for `R001,North
+   Unit,<0.10` with no title above it.
+
+**Costs.** A file with fewer than the floor's number of respelled cells
+describes, and validates, as the file without them. A column name such
+as `2019_total` over numbers now gets placeholder names and a question.
+A spelling common enough to publish can be held back to hide a single
+stray cell beside it.
+
+### Fixed: what three review rounds found, and how each was closed (2026-09-16 to 2026-09-18)
+
+**Every round found real defects, and some fixes had to be repaired
+again after a second look.** Each fix was reproduced before it was made,
+pinned by a test built from that reproduction, and checked by
+withdrawing it to confirm a test turns red.
+
+- **The final Codex round of stage 2b (2026-09-16): 52 items.** These
+  were 7 on dates, 8 on numbers, 10 on labels, 19 on files and 8 on the
+  merge. They were fixed on four branches and merged. An independent
+  check re-ran all 52: 50 fixed, one partly (row order kept, but 119
+  distinct numbers of 120, closed in the repair that followed), and one
+  waiting on the owner, which became ruling 4. The check of the merge
+  found one blocker, six major and five minor items. The blocker, three
+  of the majors and two of the minors were repaired; the time of day,
+  heavy tails, a repeated count of one and three minor workbook and
+  date items were measured and carried. The round's verdict files were
+  lost in a restart. The round was not re-run, under the rule of one
+  round per landing.
+- **The independent review of the close (2026-09-18): nine items,
+  four of them blockers.** Rulings 5 and 8 held only on their sharpest
+  cases, and each broke on a common shape. Both were widened, and the
+  extra round then broke each once more on another shape; both were
+  closed again there, apart from the autofilter limit accepted below. A
+  spelling written by one row, a comma in a made-up value, and the "not
+  your data" sentence were also fixed. A separator census at a raised
+  floor was only partly fixed, and a percent column that writes two
+  fraction widths still misses both (carried). One finding stays with
+  the owner: a
+  timestamp column whose rare mark is absorbed can publish a description
+  no file satisfies. Its twin fails and describes itself again as a
+  two-value column, and the quality report names all three missed
+  obligations.
+- **The extra Codex round (2026-09-18): 39 items, nine of them
+  blockers.** These were 10 on dates, 10 on numbers, 10 on files and 9 on
+  disclosure, and all four passes rejected the tree. Each area was fixed
+  on its own branch, and each fix was checked by a second reader, which
+  found more on every branch. The four were then merged. A final check
+  re-ran all 39: 35 closed with numbers on their own reproductions, and
+  the 4 that still reproduced were confirmed as never closed rather than
+  lost in the merge. Of
+  those four, one is now fixed and the loss of fractions of a second is
+  now named in the twin's report. The other two went to the owner: the
+  identifier room ratio, since accepted as a limit, and the scale of a
+  pooled population of numbers. The same check then spent an hour on
+  realistic tables of its own and found one blocker, five major and two
+  minor problems. Four are fixed above: the headerless first record,
+  month-name dates, a count of one in the census of missing values, and
+  workbook date cells no reader could open. The notation mix and the
+  delimiter residue are not, and the red tests are the placeholder
+  below.
+
+**The four fix branches of the extra round had each run only their own
+area's tests.** Together they left 56 tests failing elsewhere, and each
+one was resolved on its own. A skeptic then worked out every changed
+number again from its rule, without looking at the fixer's number:
+
+| resolution | tests |
+|---|---|
+| a real defect, fixed in the code | 14 |
+| a number a ruling deliberately moved, re-derived from the rule | 18 |
+| a guard that had stopped catching its defect, re-armed and mutation-checked | 39 |
+
+The counts include neighbouring tests the repairs reached. No assertion
+was loosened, and no expected value was copied from the tool's output.
+The merged suite came to 6,763 collected, with one failure: the state
+page's own count.
+
+**Paid back.** Two frozen reference cases for the date merge rules had
+stopped reaching the rules they were written for. The rules were not
+dead: a census naming one width word over fewer cells than the column
+holds reaches both. Two new frozen cases reach them, each with a mutant
+that moves its cells.
+
+### Added: a ledger of measured outcomes, with a one-command runner (2026-09-19)
+
+**Six thousand tests passing do not tell you that a UUID column still
+comes back 800 of 800, or that a 20,000-row twin still builds in
+seconds.** Every phase and stage now has its outcomes recorded as
+measured numbers, and one command re-measures all of them:
+
+    .venv/bin/python tools/measurements/kpi_run.py          # about 2 minutes
+    .venv/bin/python tools/measurements/kpi_run.py --slow   # timings and scale
+
+`tests/kpi/ledger.json` holds 147 KPIs across phases 0 to 4
+and stages 1, 2 and 2b, 29 of them headlines. Each has its
+value, the commit it was measured on, and a fixed rule for passing.
+132 are green, 11 are open with the stage that owns
+them, and 4 are limits the owner accepted. The runner prints
+every KPI against its rule and exits non-zero if any drops, even when
+every test passes. It is run at every stage close.
+
+| a few headlines | before | now |
+|---|---|---|
+| generate 20,000 rows x 20 numeric columns | 1,113 s | 23 s |
+| most copies of one number, where the real mode is 62 | 760 | 62 |
+| US dates parsed by the source's own format | 0 twin cells | every cell |
+| `^REC\d{7}$` on a prefixed record number | 0 of 800 | 800 of 800 |
+| eight realistic shapes: real tables and twins passing | twins 6 of 8 | 8 of 8 each, floors 1 and 11 |
+| twin columns whose pandas type differs from the real one | 1 | 0 |
+| cases where the generator matches the independent oracle | 95 | 107 |
+
+An open KPI asserts a ceiling rather than its target. The suite stays
+green while the ledger shows the KPI open, and fails if it gets worse.
+The ledger checks itself: every test it names must exist and be
+collected, a skipped test counts as a failure, and a mutation shows that
+each of those checks can fail.
+
+**Building it found five things the tests had missed.** Four are above:
+the speed regression, the judged `-999`, the spread, and the readings.
+The fifth concerns privacy. The headline "no twin row is a real row"
+passed only because its table's made-up record number made every row
+differ. On two of four realistic shapes, 1 twin row in 400 equals a
+real row, record number included. That happens when a made-up number
+coincides with a real one, which the owner accepted, and the rest of the
+row coincides with that record's own values. This is open, and it is
+one question for the owner.
+
+### The owner's decisions recorded in this stage
+
+- **2026-09-15.** The twin writes everything as the source wrote it,
+  which reverses the earlier decision to write dates in ISO form.
+  synthtwin reads Excel and delimited text only, and openpyxl is a test
+  dependency only.
+- **2026-09-17.** Rulings 1 to 8, as listed above.
+- **2026-09-18.** Seven limits accepted, plus fractions of a second
+  written as nought (below).
+
+**Accepted by the owner (2026-09-18), in the owner's words:**
+
+- real record numbers can reach the twin when a declared identifier has
+  little spare room: 100 of 1,000 at `REC` plus four figures, and all
+  900 when `100` to `999` are declared ("Identifier room: no worries.
+  Fine");
+- the twin can rebuild a held-back rare value: 55 of 251 held-back cells
+  on a fresh sweep, 1 of 19 columns rebuilt exactly ("Rare values: ok.
+  Fine");
+- an autofilter can still make an ambiguous first row the header ("I
+  wouldn't care");
+- the count of unreadable cells can be one, which subtraction gives
+  anyway ("If makes no difference, don't loose your time");
+- the reader accepts a workbook date cell that names no day ("wouldn't
+  be worried about").
+
+**Left as they are after the owner asked what they change.** Free text
+publishes that one cell is numeric. The missing count that ruling 5
+sends a pooled label to can be one. Neither changes the owner's code or
+results. Closing the first would move every numeric column's
+description. Closing the second would withhold missing counts on every
+column.
+
+**The orchestrator's calls under the owner's rule, each open to
+reversal:**
+
+- fractions of a second are written as nought;
+- the spread fix waits for stage 3;
+- the readings trade is accepted;
+- descriptions written by hand that no producer writes are left as they
+  are;
+- a record number's class counts can show that one record below the
+  line exists, but not its value;
+- the column-wide fill keeps its trade on grids of whole numbers.
+
+**Still with the owner:**
+
+- whether a made-up record number that coincides with a real one may
+  carry that real row whole;
+- a pooled population of numbers beside labels loses its scale: a mean
+  and standard deviation of 187.08 and 39.03 came back as 100 and 3.03,
+  and the twin's report says the placement is not a fact about the
+  table;
+- the timestamp column whose absorbed mark leaves a description no file
+  satisfies.
+
+### What later stages inherit
+
+- **Stage 3:** the exact smallest and largest values that one row can
+  hold, and the disclosure floor. At the shipped floor of 1, the
+  every-role table publishes 147 labels held by one row. Stage 3 also
+  inherits the spread of bell-shaped columns, and the mean and spread of
+  heavy-tailed columns: on one 5,000-row column the twin's mean was 41%
+  high and its spread 161% high.
+- **Stage 3b:** the time of day inside timestamps.
+- **Stage 4:** the largest tables. 100,000 rows by 20 columns runs in
+  264 s; 1 million and 2 million rows have not been measured.
+- **Stage 6:** relationships between columns (a rank correlation of
+  0.747 comes back as 0.027), and the walk that pairs the numbers of a
+  three- or four-number cell.
+- **Also carried, each held at a ceiling by the ledger's known-miss
+  entry:**
+  - two date-width allocations;
+  - one record-number layout, `(-%)`;
+  - a sign band given more slots than it has numbers;
+  - the read floor of hand-built descriptions;
+  - two generator passes the oracle does not yet mirror;
+  - a column that mixes notations can lose one distinct number;
+  - a Fortran `D` exponent written as stand-ins;
+  - a percent column with two fraction widths.
+
 ### Fixed: what a confirmation review found after stage 2 closed (2026-09-15)
 
 **An independent review of the committed stage 2 answered "not fixed",

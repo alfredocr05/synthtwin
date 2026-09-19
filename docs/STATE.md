@@ -45,13 +45,14 @@ stays in scope.
 
 | | |
 |---|---|
-| branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only |
+| branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 5,011 collected. The run that closed landing 1 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| suite | 6,911 collected. The run that closed stage 2 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 147 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 132 green, 11 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request, five Pythons across Ubuntu and Windows. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
-| review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. `ultra` is valid and verified; do not substitute `high` |
+| CI | runs on every pull request, five Pythons across Ubuntu and Windows. **It has not yet seen stages 1, 2 or 2b.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
 
@@ -61,12 +62,14 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 
 | # | landing | gate | wk |
 |---|---|---|---|
-| 1 | **DONE 2026-09-13. The list idiom and the heap merge.** `x = x + [item]` at 661 sites became `x += [item]`; the merge loop became `_merge_down`, a heap over a linked list. Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, 4,200 randomised cases agree with `_merge_nearest`, suite green at 4,406, and `tests/test_growth_is_linear.py` turns red on either defect | done |
-| 2 | **DONE 2026-09-14, closed after an independent audit. The three silent defects.** A grouped number keeps its mark: a comma, including whole numbers such as `12,345`, or a point on a declared decimal-comma column; a moment keeps the mark between its day and its clock at each mark's count; a date stored at midnight stays at midnight. Landed in three commits: the comma, the moment and midnight, and the repairs the audit found | MET: `tests/test_stage2_round_trip.py` describes the twin again for 19 shapes and finds every stage-2 fact returned with nothing missed; the four shapes designed not to return are pinned beside it | done |
-| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared | no published number is held by fewer than the floor; a one-row table is refused | 5 |
-| 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour | 8 |
+| 1 | **DONE 2026-09-13. The list idiom and the heap merge.** Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, and `tests/test_growth_is_linear.py` turns red on either defect. KPIs `K-S1-*` | done |
+| 2 | **DONE 2026-09-14. The three silent defects.** A grouped number keeps its mark, a moment keeps its separator, a date at midnight stays at midnight | MET: `tests/test_stage2_round_trip.py`, 19 shapes, every stage-2 fact returned. KPIs `K-S2-*` | done |
+| 2b | **DONE 2026-09-19. The twin writes each column as the source wrote it.** Numbers keep their distribution and every common spelling; dates their own format; labels, text and missing values their spellings; record numbers and codes their layout; the file its dialect; Excel in and out. Every published count asks one floor rule. Owner rulings of 2026-09-17 built. Three review rounds closed | MET: the KPI ledger's `K-2B-*` entries, green or at their recorded ceiling, and the whole suite green | done |
+| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared. **Inherits:** the spread 1.4–3.7% too wide on normal-shaped columns (the straight outer segment to the exact extreme, `K-P3-03`); the heavy-tail mean and spread; 147 single-row labels published at the shipped floor of 1 (`K-P4-22`) | no published number is held by fewer than the floor; a one-row table is refused | 5 |
+| 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
+| 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
-| 6 | **Cross-column, pairwise.** Rank correlation over cut indicators, applied as a reordering of values already generated | every marginal unchanged; a known odds ratio comes back; the report names what it carries per relationship | 21 |
+| 6 | **Cross-column, pairwise.** Rank correlation over cut indicators, applied as a reordering of values already generated. **Inherits:** today a rank correlation of 0.747 comes back 0.027 (`K-S6-01`), and the pairing walk of three- and four-number cells (`K-P4-06`) | every marginal unchanged; a known odds ratio comes back; the report names what it carries per relationship | 21 |
 | 7 | **Higher-order structure.** Design pending measurement (four prototypes scored as this page was written) | a known three-way interaction comes back with the right sign, or the limit declared per relationship | 25 |
 | 7b | **Higher-order structure, chosen.** A declared model plus one cross-tabulation for the outcome; the cross-column floor is ABOVE one, which is what lifts the reviewer's veto | a known three-way comes back at the real table's own estimate; no published cell names one subject | 25 |
 | 8 | **The screen.** The bundled toolkit with its scripting engine STRIPPED at startup — seventeen commands deleted, proven unrebuildable, mutation-tested one per command. The strip is the deliverable, not the toolkit | `tk.call`/`tk.eval` banned by the scanner; a table whose column name is an injection string has no effect | 33 |
@@ -82,6 +85,27 @@ ones.
   reasoning, which it contradicts.
 - **Both goals are mandatory.** Reliable statistics is no longer second.
 - **Joins are out of scope.** Repeated rows per subject are not.
+- **The twin writes everything as the source wrote it** (2026-09-15).
+  This reversed ISO dates and every earlier decision that wrote
+  otherwise, including judged placeholders written blank.
+- **Excel workbooks and delimited text only** (2026-09-15). `openpyxl`
+  is a TEST-ONLY dependency.
+- **The eight rulings of 2026-09-17:** a record number's constant prefix
+  is published where every cell carries it, per system; held-back rare
+  labels publish a pooled total only; a workbook with a second table is
+  refused and asks which sheet; missing words pooled below a raised
+  floor count as absent; a label row recoverable by subtraction counts
+  as missing; a spelling below the floor counts into the commonest; an
+  ambiguous first row gets placeholder names and a question, and no
+  record's text is ever published.
+- **Accepted limits, 2026-09-18** (plan: "Owner decisions of
+  2026-09-18"): real record numbers can reach the twin when a declared
+  identifier has little spare room; held-back rare values can be rebuilt;
+  an autofilter can still make an ambiguous first row the header; a
+  workbook date cell naming no day is read; free text's "one cell is a
+  number" and a pooled label's one missing cell stay published.
+  **Judge any such question by its effect on the owner's code and
+  results; if there is none, do not spend time on it.**
 - **Asking the person is part of the product** (A-P4-56, A-P4-58).
 - **Being synthetic is not an answer to an obligation.** The screen may
   not present the twin as settling a privacy rule. What it MAY say: your rows never leave this
@@ -91,40 +115,34 @@ ones.
 - **The documentation regime is LEAN** (A-P4-40), and tightened on
   2026-09-12: stop producing text that describes the project. What is
   NOT cut: the tests, the reference vectors, the claim inventory, the
-  decontamination scan.
+  decontamination scan, the KPI ledger.
 - **Version 6 is extended in place** until the first release (A-P4-41).
 - **The release is parked** until the tool has been used on real tables.
 
 ## What is broken right now
 
-- ~~Both commands are quadratic.~~ **Repaired 2026-09-13, landing 1.**
-  What remains is only the largest tables: a million rows by twenty
-  columns is about 35 minutes, two million by fifty is about three
-  hours. Landing 4 closes that by doing the ladder work once per
-  distinct value rather than once per row.
-- **Spellings stage 2 did not reach.** A number grouped with a space or
-  an apostrophe is read as free text; an accounting bracket or a plus
-  sign on a decimal is not a published style, so the twin writes a
-  minus and drops the plus; a column mixing bare dates with midnight
-  moments is written wholly as moments; a column only partly at
-  midnight, or at midnight on the shared clock, still gets invented
-  times. Carried in `CHANGELOG.md`.
-- **Twins of date columns spread their values across days too
-  evenly**: on 400 rows the day-to-day variance was about a third of
-  the real table's. It predates stage 2 and bears on the second goal.
-- **The validator can call a faithful numeric twin MISSED** on a
-  percentile rung: it estimates the widest stratum from the description,
-  the generator uses the real one, and on a 2,000-row column 6 seeds of
-  8 were accused. It predates stage 2 and bears on the second goal.
-- **A small column of numbers and labels that falls to a free-text or
-  long-tail role** writes stand-ins that cannot reproduce its numeric
-  forms. It predates stage 2.
-- **The description names individuals.** On a 1,200-row table the
-  published maximum of two columns was held by exactly one subject.
-  A population floor cannot fix this; the extremes must stop being
-  published exactly. Landing 3.
-- **R-P4-61** — the generator and the validator print moment windows
-  differing in their last two digits. Carried.
+Each item is an OPEN entry in the KPI ledger, held at a ceiling so it
+cannot get worse unseen.
+
+- **The description still names individuals.** Exact minima and maxima
+  are published, and at the shipped floor of 1 so are labels held by one
+  row: 147 on the every-role table. Landing 3.
+- **Spread too wide on normal-shaped columns**, 1.4–3.7% (potassium,
+  sodium, systolic pressure, haemoglobin): the twin draws the outer 1%
+  as a straight line to the exact published extreme. At 20,000 rows the
+  twin misses its own spread check on 19 of 20 columns. Landing 3
+  replaces those extremes, so it repairs this there.
+- **Relationships between columns are not carried.** Landing 6.
+- **Time of day inside timestamps** is spread over the whole day.
+  Landing 3b.
+- **Cells of three or four numbers** sit at 597 of 2,160 pair
+  agreements outside their window, against 550 when recorded; the
+  pairing walk. Landing 6.
+- **A short list of carried edge cases** fails the twin's own check on
+  one shape each: two date-width allocations, one identifier layout, a
+  sign band given more slots than it has numbers. The known-miss entry
+  of the ledger names them.
+- **The largest tables** are measured only to 100,000 rows. Landing 4.
 
 ## The rules an assistant breaks first here
 
@@ -141,11 +159,13 @@ ones.
 5. **Never close a residual on a reading.** Build the column it
    describes and run it.
 6. **Grow a list with `x += [item]`, never `x = x + [item]`.** The
-   second is quadratic and it is currently in 661 places. The scanner
-   forbids `.append`; `+=` is allowed and is 3,000 times faster at
-   100,000 items.
+   second is quadratic; stage 1 removed it from 661 places and a guard
+   now forbids it. The scanner forbids `.append`.
 7. **Run the guards AFTER `git add`**, then the seal LAST, then ONE full
-   suite. Breaking that order costs another nineteen minutes.
+   suite. Breaking that order costs another hour.
+8. **A branch is not done until the WHOLE suite has run on it.** Four
+   fix branches each ran only their own area's tests and together left
+   56 tests red elsewhere.
 
 ## Already tried here, and it does not work
 
@@ -162,6 +182,9 @@ ones.
   replaced.**
 - **Measure a ruling against the suite BEFORE building it.** The tests
   are the record of decisions already taken.
+- **A test that fails after a ruling is not fixed by copying the new
+  output into it.** Derive the new number from the rule, or it is not a
+  test.
 - **Declaring column types does not make generation faster.** It helps
   only the describing step, and only by skipping the reading cascade.
   The generator's cost is the idiom and the ladder.
@@ -186,4 +209,5 @@ half: when you would have written a contract clause, write a test.
 | what the reviewer holds this to | `AGENTS.md` |
 | what a description may contain | `docs/spec/profile-contract-v6.md` |
 | what changed, in order | `CHANGELOG.md` |
+| what must still hold, measured | `tests/kpi/ledger.json` and `tools/measurements/kpi_run.py` |
 | the project in plain language | `STATUS.md` |
