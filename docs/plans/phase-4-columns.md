@@ -16963,6 +16963,48 @@ spelling at, so `variants_withheld` is empty on every level of every
 raised-floor description and carries entries only at a floor of one,
 where nothing is held back at all.
 
+### P4-D275.1 The form census counts the spellings the level entries speak of
+
+Found when the four branches of the extra round were run against each
+other's tests. P4-D275 respelled a level's cells and left the column's
+`shape_forms` counting them as the source wrote them, so one block
+described two tables. **Measured** at a floor of eleven, on 181
+four-figure codes beside a level of twenty `E11.9`, three `e11.9` and
+five `E11.9` written with trailing spaces: the level published `variants
+{"E11.9": 28}` and `shape_form_cells 28` beside `shape_forms {"@%%.%":
+204}`. The twin writes the level's one spelling in all 28 rows, holds
+209, and `synthtwin validate` MISSED it while the table passed; and 209
+less 204 is the held-back group of five the absorption exists to hide.
+It turned two witnesses red that the landing which made it did not run:
+`test_the_twins_own_report_names_neither_direction_any_more` in
+`tests/test_p4r34_form_census_per_level.py`, and the census line of
+`test_the_form_keeping_spelling_goes_to_the_largest_held_back_group` in
+`tests/test_p4d18_shape_forms.py` (110 published, 112 written).
+
+**The decision** (`taxonomy.described_spellings`, `taxonomy._shape_forms`,
+`validation._column_checks`, contract C6-31b). On the four label roles
+the census counts every present cell as the level entries speak of it:
+a cell of a published level is written as `_absorb_lone_spellings`
+counts it, and a cell of a level the floor holds back keeps its own
+spelling, which no key names. The room rule and the case rule are asked
+of the number of different spellings in that answer, which is the
+published `n_distinct` of P4-D276 and the count C6-31c and C6-31d were
+always stated over. The checker's recount respells the file's cells by
+the same statement, because repairing the producer alone turned the
+same table the other way -- its raw recount found 204 against a
+published 209. At a floor of one nothing is absorbed and no description
+moves.
+
+**What it leaves.** A description carrying `variants_withheld` at a
+raised floor still loads -- W5 refuses a key of 1 and nothing else -- and
+still drives G8.1a and G8.2a, which is how the tests of that walk are
+kept armed. `synthtwin validate` describes a twin of such a description
+under ruling 6 as it describes any file, so it counts the twin's
+held-back stand-ins into the level's commonest spelling and reports the
+five facts that respelling moves. No producer writes such a
+description; whether the loader should refuse one, which would leave the
+walk reachable by no description at all, is not settled here.
+
 ### P4-D276 A label role's `n_distinct` counts the spellings the block SPEAKS OF
 
 The extra review round of 2026-09-18, item 5, second half. `n_distinct`

@@ -1862,7 +1862,12 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   lower-case cells apart, on the measured values, and a twin whose 200
   lower-case codes no longer folded onto a capitalised neighbour named
   them `&&%%%` against a published `@@%%%` and was told it held fewer
-  than eleven. A recount under the floor is not printed.
+  than eleven. A recount under the floor is not printed. **On the four
+  label roles the file's cells are first respelled as its own
+  description speaks of them** (plan P4-D275.1,
+  `taxonomy.described_spellings`): a spelling below the floor of a label
+  that reaches it is counted as that label's commonest, which is how the
+  census was made, so a table is not told it missed its own description.
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells

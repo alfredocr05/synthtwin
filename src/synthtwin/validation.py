@@ -9546,9 +9546,15 @@ def _role_checks(
         # it stood on that role alone; a categorical column with a rare
         # tail carries it too, and it is exactly the case the census
         # was raised for.
+        # ...RECOUNTED OVER THE CELLS AS THE LEVEL ENTRIES SPEAK OF THEM
+        # (plan P4-D275.1): the census counts a spelling below the floor
+        # as the level's commonest, so a recount of the raw cells would
+        # tell a table it missed its own description.
         return _label_checks(column, facts, block, floor) + _form_checks(
             column.name, "label.shape_forms", facts.shape_forms,
-            block, floor, cells=cells,
+            block, floor, cells=taxonomy.described_spellings(
+                cells, taxonomy.Settings(small_cell_floor=floor)
+            ),
         )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(

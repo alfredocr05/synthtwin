@@ -9400,6 +9400,19 @@ maps a written form to the number of present cells written in it, with
 the pooled key `(withheld)` for the forms fewer than
 `small_cell_floor` cells share.
 
+**ON THE FOUR LABEL ROLES A CELL IS COUNTED AS ITS LEVEL ENTRY SPEAKS OF
+IT** (plan P4-D275.1). W5 counts every spelling below the floor into its
+level's commonest, so the block describes the table with those cells
+written that way, and the census counts them there too: a cell of a
+published level is counted in the spelling its level entry counts it
+in, and a cell of a level the floor holds back in its own. The number of
+different spellings C6-31c and C6-31d ask about is then the block's own
+`n_distinct`. Measured before this sentence, at a floor of eleven: a
+level of twenty `E11.9`, three `e11.9` and five `E11.9` with trailing
+spaces published `variants {"E11.9": 28}` beside a census counting 23 of
+its cells in the form, and the twin, writing the 28, was reported
+MISSED.
+
 **A FORM IS NAMED ON ITS COUNT ALONE, AND NEVER ON WHAT ELSE THE
 COLUMN HOLDS.** The guarantee above reaches every cell that HAS a
 form; a FORMLESS cell — one carrying a placeholder — is under no such

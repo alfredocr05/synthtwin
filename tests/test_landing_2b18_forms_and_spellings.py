@@ -102,13 +102,19 @@ def lower_two_forms(seed: int, rows: int = 800) -> "list[str]":
     ]
 
 
-def lower_long_tail(seed: int, rows: int = 800) -> "list[str]":
+# THE FOUR COMMON CODES OF THE TWO LONG TAILS BELOW.
+COMMON_CODES = ["ab1", "cd2", "ef3", "gh4"]
+
+
+def lower_long_tail(
+    seed: int, rows: int = 800, common_share: float = 0.8
+) -> "list[str]":
     """Four common lower-case codes and a tail of rare ones."""
     draw = random.Random(seed)
-    common = ["ab1", "cd2", "ef3", "gh4"]
+    common = COMMON_CODES
     built = []
     for _row in range(rows):
-        if draw.random() < 0.8:
+        if draw.random() < common_share:
             built += [draw.choice(common)]
         else:
             built += [
@@ -172,12 +178,48 @@ def test_two_lower_case_forms_come_back_at_their_counts(
     )
 
 
+def _the_tail_stands(cells: "list[str]") -> bool:
+    """Whether ruling 5 leaves a tail beside `COMMON_CODES` standing.
+
+    Written from the rule statement of plan P4-D271, not read off any
+    description: a pool whose rows come to fewer than twice its levels
+    forces single rows, and it is counted as missing unless it covers at
+    least half of the rows the column's published levels cover -- or
+    unless every held-back level is ONE row, which is counted as missing
+    outright wherever it covers fewer rows than the published levels.
+    """
+    published = 0
+    tail: "dict[str, int]" = {}
+    for cell in cells:
+        if cell in COMMON_CODES:
+            published = published + 1
+            continue
+        tail[cell] = (tail[cell] if cell in tail else 0) + 1
+    rows = len(cells) - published
+    levels = len(tail)
+    if rows == levels and rows < published:
+        return False
+    return not (rows < 2 * levels and rows * 2 < published)
+
+
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
 def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
     tmp_path: pathlib.Path, seed: int
 ) -> None:
-    """Base: every stand-in -- 156 to 176 of 800 cells -- in capitals."""
-    cells = lower_long_tail(seed)
+    """Base: every stand-in -- 156 to 176 of 800 cells -- in capitals.
+
+    THE TAIL COVERS TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH, because
+    that is where ruling 5 lets it stand (plan P4-D271). At one fifth the
+    pool -- some 170 rows over some 100 levels, so dozens of single rows
+    forced -- covers less than half of the 620-odd rows the four common
+    codes publish, and it is counted as missing: no stand-in is written
+    at all and this test has nothing left to guard. That column is pinned
+    as the ruling's witness below. At two fifths the pool covers more
+    than half of the published rows and stands, and the stand-ins are
+    written again.
+    """
+    cells = lower_long_tail(seed, common_share=0.6)
+    assert _the_tail_stands(cells)
     got = _round_trip(tmp_path, cells, seed="13", floor=20, declared=False)
     assert got["source"]["role"] == "long_tail_labels"
     assert got["source"]["shape_forms"] == {"&&%": 800}
@@ -189,6 +231,43 @@ def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
             lambda cell: len(cell) == 3, str.islower,
         )
     )
+
+
+@pytest.mark.parametrize("seed", SOURCE_SEEDS)
+def test_a_narrow_lower_case_tail_is_counted_as_missing_under_ruling_5(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """THE OWNER'S RULING 5, ON THE COLUMN THE TEST ABOVE WAS FIRST BUILT ON.
+
+    Four common codes over four fifths of 800 rows and a tail of rare
+    ones: the tail's rows come to fewer than twice its levels, so single
+    rows are forced, and they cover less than half of what the common
+    codes publish (plan P4-D271). Every tail cell is counted as missing,
+    so the column is four labels wide, its census counts the common cells
+    alone, and the twin writes a blank wherever the table wrote a tail
+    code. Every number below is counted off the source cells.
+    """
+    cells = lower_long_tail(seed)
+    assert not _the_tail_stands(cells)
+    common = 0
+    for cell in cells:
+        if cell in COMMON_CODES:
+            common = common + 1
+    tail = len(cells) - common
+    got = _round_trip(tmp_path, cells, seed="13", floor=20, declared=False)
+    assert got["source"]["role"] == "categorical"
+    assert got["source"]["suppressed_levels"] == 0
+    assert got["source"]["n_missing"] == tail
+    assert got["source"]["shape_forms"] == {"&&%": common}
+    assert got["twin_profile"]["shape_forms"] == {"&&%": common}
+    assert (got["twin_exit"], got["real_exit"]) == (0, 0)
+    checks = _checks(
+        cells, got["cells"], r"[a-z]{2}[0-9]",
+        lambda cell: len(cell) == 3, str.islower,
+    )
+    for name in sorted(checks):
+        real, twin = checks[name]
+        assert (real, twin) == (common + tail, common), name
 
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
@@ -530,13 +609,15 @@ def test_a_file_writing_a_lower_case_column_in_capitals_is_missed(
     assert "forms.published.&%&-%&% [free_text.shape_forms]: MISSED" in report
 
 
-def lower_codes_beside_rare_capitals(seed: int, rows: int = 800) -> "list[str]":
+def lower_codes_beside_rare_capitals(
+    seed: int, rows: int = 800, common_share: float = 0.8
+) -> "list[str]":
     """Common lower-case codes, published; rare four-character capitals, held back."""
     draw = random.Random(seed)
-    common = ["ab1", "cd2", "ef3", "gh4"]
+    common = COMMON_CODES
     built = []
     for _row in range(rows):
-        if draw.random() < 0.8:
+        if draw.random() < common_share:
             built += [draw.choice(common)]
         else:
             built += [
@@ -556,8 +637,14 @@ def test_published_lower_case_labels_pay_their_own_key(
     held-back capitals owe `@@%%` alone. A walk reading the published
     cells blind to case would count them under `@@%`, find `&&%` unpaid
     and hand it stand-ins -- overpaying a key the table already met.
+
+    THE CAPITALS COVER TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH, for
+    the reason the lower-case long tail's test gives (ruling 5, plan
+    P4-D271): at one fifth they are counted as missing, `@@%%` is never
+    published and no stand-in is owed anything.
     """
-    cells = lower_codes_beside_rare_capitals(seed)
+    cells = lower_codes_beside_rare_capitals(seed, common_share=0.6)
+    assert _the_tail_stands(cells)
     got = _round_trip(tmp_path, cells, seed="4", floor=20, declared=False)
     published = got["source"]["shape_forms"]
     assert "&&%" in published and "@@%%" in published, published
