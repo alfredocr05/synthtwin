@@ -23,6 +23,15 @@ harness, forty seeds:
   and 3. The push trades twelve agreements for four above-counts, all in
   column 9 (110 and 6 to 117 and 0) and column 11 (68 and 0 to 63 and 2).
 
+THE CEILING, ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner
+ruling; the owner may reverse it): the carried-f-numbers push (G6.5a)
+repairs a twin that missed its own distinct-value count on a nearly full
+band, and on this battery it trades 12 more agreements outside the 0.02
+window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to
+3). The ceiling is 609 and 3 from here; the target stays 550 and 0 (the
+pairing walk, stage 6). Ceilings move in their own commit, never inside
+a merge.
+
 WHY THE FILL STAYS. P4-D147 gives stratum `k` the `k`-th integer
 whatever integer the ladder put it at, so a column on a saturated grid
 holds every number it publishes -- and the plan holds a joined position
@@ -68,9 +77,9 @@ from tests.test_stage2_round_trip import _round_trip
 # THE CEILINGS: the ledger's own rule for K-P4-06, "no worse than the
 # figures measured on the tree it stands on". They were e53d5f4's 597
 # outside and 7 missed; the integrated tree of 2026-09-19 measures 609
-# and 3, moved by G6.5a's push (see above), and that measurement is the
-# ceiling now -- the missed count tightened with it. The recorded 550
-# and 0 are the target and are not met.
+# and 3, moved by G6.5a's push, and the orchestrator accepted that trade
+# on 2026-09-19 (THE CEILING, above) -- the missed count tightened with
+# it. The recorded 550 and 0 are the target and are not met.
 OUTSIDE_CEILING = 609
 MISSED_CEILING = 3
 PAIRS = 2160

@@ -3435,6 +3435,22 @@ them, which is what makes a bin number mean one thing in the producer,
 the loader and here. A block whose ends this format
 cannot hold, or whose ends are finite and whose WIDTH is not, has no
 scale, publishes an empty list, and this section does nothing.
+**THE ARITHMETIC OF ONE BIN, stated so that a second reader computes
+the same number** (the oracle's independence repair of 2026-09-19).
+The division is done in the format's own binary64 arithmetic, because
+contract C6-31f's case with no scale is two ends whose DIFFERENCE the
+format cannot hold, so the division it states is a binary64 one: the width is
+`max - min`; a scale with no width -- the two ends equal, or `max`
+below `min`, or any of the value, the ends and the width not finite --
+puts the value in bin 0, and so does a value that is not finite, which
+no statistic a block publishes holds. Otherwise the clamp is taken
+FIRST, before any arithmetic, so that no step of it can overflow: a
+value at or above `max` is in the last bin, one at or below `min` in
+bin 0; and a value strictly between the ends is in bin
+`floor((v - min) / width * 32)`, each operation rounded to binary64 in
+that order, the difference, the quotient, then the product, and the
+result held to at most the last bin, since the quotient of a value just
+below `max` may round to one.
 
 **G6.7.3 The stretches.** Consecutive named bins are taken as one
 STRETCH, and the move is out of the whole stretch rather than out of
@@ -6113,6 +6129,33 @@ number when it is one under that reading.
 3. **What a number is.** The walk starts from the PUBLISHED numbers: the
    published spellings reading as numbers that are plain decimals -- an
    optional minus, figures, and at most one point followed by figures.
+   **EVERY PUBLISHED NUMBER ANCHORS IT, not only the plain ones** (plan
+   P4-D268; stated here in full by the oracle's independence repair of
+   2026-09-19, the passage below on spellings this walk cannot step from
+   being the rule that P4-D268 replaced). Each published number is taken
+   as a whole count of UNITS of its last place and the count of PLACES
+   after its point, and is read in the first of three ways that reaches
+   it. (a) Its spelling, trimmed of surrounding white space, read as a
+   plain decimal: the figures with the point taken out are the units,
+   negative where a minus leads, and the figures after the point are the
+   places. (b) Its spelling rewritten and then read as (a): a spelling
+   wrapped whole in round brackets is negative and is read inside them;
+   then a leading plus is dropped, or else a leading minus is dropped and
+   makes it negative, or else, where neither leads, a trailing minus is
+   dropped and makes it negative -- one of the three at most, and a
+   leading sign with a trailing minus reaches nothing; every mark contract
+   GS1 lets stand between thousands (a comma, a space, an apostrophe,
+   U+2019, U+00A0, U+202F, U+2009) is taken out wherever it stands; and
+   what is left, with a minus in front where it is negative, must be a
+   plain decimal. (c) Its VALUE, for a spelling no rewriting reaches, an
+   exponent above all: a whole value below two to the fifty-third in
+   magnitude is its own units at no places; any other value is read as
+   (a) reads the shortest decimal spelling that parses back to the same
+   binary64, written the way that spelling is conventionally printed --
+   positionally from 10^-4 up to below 10^16, with a single nought after
+   the point where the value is whole, and with an exponent outside that
+   range, which gives the ladder no anchor; a value that is not finite
+   gives none either.
    Their finest count of figures after the point is `P`, and the
    smallest and the largest of them are the two ENDS. A level is
    written at `P` places, or, where it wears a form, at that form's own
@@ -7226,7 +7269,14 @@ through the disclosure rule (profile contract, "the two alphabet counts
 ask the disclosure rule"): where a side of either census is below
 max(2, `small_cell_floor`) the smaller is counted into the larger, so
 the block publishes nought or every present cell where the table's own
-count sat just short of that end. A twin meets such a count wherever
+count sat just short of that end. **Stated as arithmetic** (the
+oracle's independence repair of 2026-09-19), with `L` = max(2,
+`small_cell_floor`): a count `c` of `n` present cells splits them into
+the `c` inside and the `n - c` outside, and each side that is not
+nought is a group. Where no group is below `L`, `c` is published as it
+is. Otherwise the smaller side is counted into the larger, and an even
+split goes INSIDE: `c` is published as `n` where `c` is at least half
+of `n`, and as nought where it is less. A twin meets such a count wherever
 describing it again publishes the same number — which is how
 `synthtwin validate` holds a twin to it — and the table itself meets it
 in exactly that sense: eleven figures beside one `ab` publish

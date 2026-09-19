@@ -18343,16 +18343,18 @@ ids are chance collisions at that room, so whether such an id may carry
 its real row whole is a question of its own. The entry is OPEN at its
 must-not-get-worse bound until the owner answers.
 
-**Awaiting the orchestrator's acceptance:** the three- and four-number
-readings (ledger K-P4-06). The recorded target is 550 outside and 0
-missed. The integrated tree of 2026-09-19 measures 609 and 3, where
-e53d5f4 measured 597 and 7. G6.5a's push made the move, trading twelve
-agreements for four above-counts, and the pin's ceiling on agreements
-outside was raised from 597 to 609 inside merge 604fdce. The orchestrator
-is to accept that trade or revert the push.
+**ACCEPTED BY THE ORCHESTRATOR 2026-09-19** (not an owner ruling; the
+owner may reverse it): the three- and four-number readings (ledger
+K-P4-06). The carried-f-numbers push (G6.5a) repairs a twin that missed
+its own distinct-value count on a nearly full band, and on this battery
+it trades 12 more agreements outside the 0.02 window (597 to 609 of
+2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
+and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
+Ceilings move in their own commit, never inside a merge.
 
-**Open, and needing no ruling:** the pairing walk of G6B.4, the open
-cause of the readings' distance from 550 and 0. Also open are the
+**Open:** the pairing walk of G6B.4, the open cause of the readings'
+distance from 550 and 0, which the acceptance above leaves as their
+target. Also open, and needing no ruling, are the
 carried width, band and layout defects:
 P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
 G5.2 band split, `build_document`'s read floor (documented, not

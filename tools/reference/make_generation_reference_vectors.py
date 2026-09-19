@@ -2673,29 +2673,25 @@ HISTOGRAM_BINS = 32
 def histogram_bin(value, lowest, highest):
     """Which of the thirty-two bins one value falls in -- contract C6-31f.
 
-    Equal widths between the published ``min`` and ``max``, each bin
-    half-open at the top so a value on a shared edge belongs to the bin
-    that STARTS there, and the last closed so the maximum has a bin.  A
-    value at or below ``min`` is in the first bin and one at or above
-    ``max`` in the last; a scale with no width puts everything in the first.
+    Written from method G6.7.2's statement of the arithmetic (the oracle's
+    independence repair of 2026-09-19): in binary64, the width is
+    ``max - min``; no width, an end, the width or the value not finite,
+    and the value is in bin 0; the clamp comes before any arithmetic, the
+    last bin at or above ``max`` and bin 0 at or below ``min``; and a value
+    strictly between is in ``floor((v - min) / width * 32)``, rounded in
+    that order and held to at most the last bin.
     """
-    if not (math.isfinite(value) and math.isfinite(lowest) and math.isfinite(highest)):
-        return 0
-    if not highest > lowest:
-        return 0
-    reach = highest - lowest
-    if not math.isfinite(reach) or not reach > 0.0:
-        return 0
-    if value <= lowest:
+    width = highest - lowest
+    last = HISTOGRAM_BINS - 1
+    finite = all(map(math.isfinite, (value, lowest, highest, width)))
+    if not finite or not width > 0.0:
         return 0
     if value >= highest:
-        return HISTOGRAM_BINS - 1
-    share = (value - lowest) / reach
-    if not math.isfinite(share) or share <= 0.0:
+        return last
+    if value <= lowest:
         return 0
-    if share >= 1.0:
-        return HISTOGRAM_BINS - 1
-    return min(int(share * HISTOGRAM_BINS), HISTOGRAM_BINS - 1)
+    step = math.floor((value - lowest) / width * HISTOGRAM_BINS)
+    return min(step, last)
 
 
 def mode_held(values, sizes, bands, column, integer_valued, numeric, demand, ladder):
@@ -3734,19 +3730,23 @@ def pushed_apart(
             point = point + step * unit
         return None
 
+    # G6.5a's refusals of one move, each asked as a check the move must
+    # pass: on a column writing some cells with no point, the value stays
+    # whole or not whole; on a column whose styles ask for a point-free
+    # cell, it keeps having a point-free spelling or not having one; and
+    # the stratum is neither the first nor the last.
     def allowed(place, point):
-        number = reads(point)
-        value = moved[place]
-        if place == 0 or place == total - 1:
-            return False
-        if keep_whole and float(number).is_integer() != float(value).is_integer():
-            return False
-        if point_free and (
-            (point_free_spelling(number, integer_valued) is None)
-            != (point_free_spelling(value, integer_valued) is None)
-        ):
-            return False
-        return True
+        was, now = moved[place], reads(point)
+        checks = []
+        if keep_whole:
+            checks += [float(was).is_integer() == float(now).is_integer()]
+        if point_free:
+            checks += [
+                (point_free_spelling(was, integer_valued) is None)
+                == (point_free_spelling(now, integer_valued) is None)
+            ]
+        checks += [place not in (0, total - 1)]
+        return all(checks)
 
     immovable = set()
     while len(held) < wanted:
@@ -5439,40 +5439,45 @@ GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
 def anchor_units(text, value):
     """One accepted numeric spelling as whole last places -- G8.3a, P4-D268.
 
-    Read from the method: the ladder is anchored by EVERY published
-    number, not only by the plain ones.  A spelling ``plain_units`` refuses
-    is read a second way -- a leading plus dropped, accounting brackets and
-    a trailing minus read as the leading minus they mean, every thousands
-    mark taken out -- and what is left is read plainly.  A spelling no such
+    Written from G8.3a step 3's statement of the three readings (stated in
+    full by the oracle's independence repair of 2026-09-19): the ladder is
+    anchored by EVERY published number, not only by the plain ones.  A
+    spelling that is not a plain decimal is read a second way -- a leading
+    plus dropped, accounting brackets and a trailing minus read as the
+    leading minus they mean, every thousands mark taken out -- and what is
+    left is read plainly.  A spelling no such
     rewriting reaches, an exponent above all, is read from its VALUE: at no
     places where the value is whole and below two to the fifty-third, and
     otherwise at the places its own shortest spelling writes.
     """
-    units = plain_units(text)
-    if units is not None:
-        return units
-    body = text.strip()
-    negative = False
-    if len(body) > 1 and body[:1] == "(" and body[-1:] == ")":
-        negative = True
-        body = body[1:-1]
-    if body[:1] == "+":
-        body = body[1:]
-    elif body[:1] == "-":
-        negative = True
-        body = body[1:]
-    elif len(body) > 1 and body[-1:] == "-":
-        negative = True
-        body = body[:-1]
-    bare = "".join(character for character in body if character not in GROUP_MARKS)
-    units = plain_units(("-" if negative else "") + bare)
-    if units is not None:
-        return units
+    # (a) and (b) of G8.3a step 3 in one reading: the brackets, then the
+    # first of the three sign frames the spelling wears (a plain spelling
+    # wears the leading minus or none), then the marks taken out.
+    spelled = text.strip()
+    bracketed = len(spelled) > 1 and spelled.startswith("(") and spelled.endswith(")")
+    inner = spelled[1:-1] if bracketed else spelled
+    frames = (("+", "", False), ("-", "", True), ("", "-", True), ("", "", False))
+    lead, trail, minus = next(
+        frame for frame in frames
+        if inner.startswith(frame[0]) and inner.endswith(frame[1])
+        and (frame[1] == "" or len(inner) > 1)
+    )
+    core = inner[len(lead):len(inner) - len(trail)]
+    digits = core.translate({ord(mark): None for mark in GROUP_MARKS})
+    whole, point, after = digits.partition(".")
+    if whole.isdigit() and (after.isdigit() or not point):
+        size = F(whole + point + after) * 10 ** len(after)
+        return int(-size if bracketed or minus else size), len(after)
+    # (c): the value, where no rewriting reaches the spelling.
     if value is None or not math.isfinite(value):
         return None
-    if float(value).is_integer() and abs(value) < 2 ** 53:
+    if value == math.floor(value) and abs(value) < 2 ** 53:
         return int(value), 0
-    return plain_units(repr(value))
+    shortest = repr(float(value))
+    if not set(shortest) <= set("-.0123456789"):
+        return None
+    places = len(shortest.partition(".")[2])
+    return int(F(shortest) * 10 ** places), places
 
 
 def form_places(form):
@@ -11362,33 +11367,21 @@ def census_line(floor):
 def absorbed_count(count, population, floor):
     """One alphabet count as the block publishes it (contract 6.9, P4-D277).
 
-    Printed as it is where it and what it leaves of the population each
-    reach the line or are nought; otherwise the smaller side is counted
-    into the larger, ties to the population.
+    Written from method G9.5's statement of the arithmetic (the oracle's
+    independence repair of 2026-09-19): the count and what it leaves of
+    the population are two sides, each a group where it is not nought;
+    with no group below the line the count is printed as it is, and
+    otherwise it is printed as the population where it holds at least
+    half of it, an even split going inside, and as nought where it holds
+    less.
     """
     line = census_line(floor)
-    rest = population - count
-    if count >= line and (rest == 0 or rest >= line):
+    groups = [side for side in (count, population - count) if side != 0]
+    below = [side for side in groups if side < line]
+    if not below:
         return count
-    return population if 2 * count >= population else 0
-
-
-def counts_meeting(published, population, floor):
-    """Every count a twin may hold for one published count (P4-D298).
-
-    The published count itself first, then every other count from nought
-    to the population that `absorbed_count` publishes as it, in ascending
-    distance from it, ties to the smaller.
-    """
-    others = [
-        count
-        for count in range(population + 1)
-        if count != published
-        and absorbed_count(count, population, floor) == published
-    ]
-    return [published] + sorted(
-        others, key=lambda count: (abs(count - published), count)
-    )
+    half = F(population, 2)
+    return population if count >= half else 0
 
 
 def alphabet_readings(column):
@@ -11398,7 +11391,11 @@ def alphabet_readings(column):
     then every other pair of a figures count and a code-alphabet count
     each meeting its published count, the figures never more than the
     code alphabet, in ascending order of the two differences summed, ties
-    by the figures count and then the code count, the smaller first.
+    by the figures count and then the code count, the smaller first.  A
+    count meets its published count where it is that count or where
+    `absorbed_count` publishes it as that count; the pairs are gathered
+    as one set and put in that order by a single sort (the oracle's
+    independence repair of 2026-09-19).
 
     **G9.5'S CAP OF 256 READINGS IS NOT WRITTEN HERE, and that is a
     statement about reach.**  A count strictly between nought and the
@@ -11410,20 +11407,27 @@ def alphabet_readings(column):
     binds from a floor of seventeen, where no case is frozen;
     tests/test_p4d298_absorbed_readings.py derives both products.
     """
+    published = (column["n_all_digits"], column["n_code_alphabet"])
     present = column["n_present"]
-    digits = column["n_all_digits"]
-    coded = column["n_code_alphabet"]
-    others = []
-    for figures in counts_meeting(digits, present, SMALL_CELL_FLOOR):
-        for code in counts_meeting(coded, present, SMALL_CELL_FLOOR):
-            if figures > code or (figures, code) == (digits, coded):
-                continue
-            others.append(
-                (abs(figures - digits) + abs(code - coded), figures, code)
-            )
-    return [(digits, coded)] + [
-        (figures, code) for _moved, figures, code in sorted(others)
+    meeting = [
+        {
+            count for count in range(present + 1)
+            if count == target
+            or absorbed_count(count, present, SMALL_CELL_FLOOR) == target
+        }
+        for target in published
     ]
+    candidates = {
+        (figures, code)
+        for figures in meeting[0]
+        for code in meeting[1]
+        if figures <= code
+    } - {published}
+
+    def moved_then_counts(pair):
+        return (abs(pair[0] - published[0]) + abs(pair[1] - published[1]), pair)
+
+    return [published] + sorted(candidates, key=moved_then_counts)
 
 
 def absorbed_partition(parts, floor):

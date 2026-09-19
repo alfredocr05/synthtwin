@@ -2334,7 +2334,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "CEILING MOVED BY MEASUREMENT, NOT YET ACCEPTED: agreements outside rose from 597 to 609 (and missed fell from 7 to 3) because the carried-f-numbers push (G6.5a) trades 12 agreements for 4 above-counts; the pin's ceilings were re-based inside merge 604fdce. The orchestrator is to accept that trade explicitly or revert the push. Not an owner ruling."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and on this battery it trades 12 more agreements outside the 0.02 window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6). Ceilings move in their own commit, never inside a merge."
   },
   {
    "id": "K-P4-07",
