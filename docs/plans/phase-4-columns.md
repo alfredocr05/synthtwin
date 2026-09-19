@@ -18311,6 +18311,60 @@ ledger's 19 of 1,021 is re-derived by the driver.
 
 **Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread on both sides: within 2.2 per cent on its four normal columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab column at 5,000. The ledger's twenty `gauss(50, 10)` columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000, held at those widths by K-P3-03. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
 
+### P4-D299 An oracle rule no frozen case reaches is witnessed one call at a time
+
+The skeptic of the oracle's independence repair of 2026-09-19 (K-2B-42)
+made 23 mutants of the five oracle functions that repair rewrote and
+rebuilt every vectors file under each. Two BLOCKERs, two MAJORs and a
+MINOR were rules no frozen case witnesses: `histogram_bin` (the shared
+edge sent to the lower bin, a bin shifted up and `return 0` each left
+the ten files unchanged, and `return 0` left
+`tests/test_generation_reference.py` at 770 passed); G6.5a's push
+refusals (each removed, and every move allowed, left them unchanged);
+each of G8.3a step 3's three readings alone; G9.5's even split and census
+line; and G9.5's filter keeping the figures at or under the code
+alphabet.
+
+**Measured, and two of them cannot be reached by a frozen case as the
+oracle stands.** Rebuilding all ten files with the oracle instrumented:
+`histogram_bin` is called no times. Its one caller is G6.1's mode pass,
+which reaches the bin clause once (`mode_held`, publishing no empty
+bin); the one case publishing empty bins (`saturated_band`, twenty-five
+of them) publishes no mode; and a producer's description never puts
+its mode in a bin it names empty, though the loader accepts one that
+does (a mode of 25.0 in bin 15, named empty with its edges, loaded).
+The push is asked once (`pushed_along_band`), makes five checks and
+refuses none, in the oracle and the generator alike. Over 40,000 random
+draws of strata the walks could hand on (28,723 asked the push), removing
+the whole refusal or the end refusal moved no value, and removing the
+point-free refusal moved values in 482, every one on a column asking
+for a point-free cell while every cell has a width.
+
+**Decided:** no frozen case is added, because the repair keeps every
+vectors file byte-identical and P4-D295 routes the next case into the
+eighth file. Instead `tests/test_oracle_rule_witnesses.py` asks each
+rule's clauses of the oracle AND of the shipped function it is compared
+with, against answers worked out by hand from the statement (C6-31f with
+G6.7.2, G6.5a, G8.3a step 3, G9.5), and registers 24 source mutants of
+the oracle, each of which must turn its witness red, the skeptic's
+among them. The test also holds the two push refusals that cannot
+decide to moving nothing over 3,000 seeded draws, and the point-free
+one to moving some, only on the shape above. The method records what is
+witnessed and how: G6.7.2 (and that its non-finite clause was completed
+from the shipped code and decides nothing, the loader refusing a
+non-finite number), G6.5a, G8.3a step 3 (and that its positional window
+is the shipped code's `repr`), and G9.5.
+
+**What this lowers, named.** A witness called one function at a time
+is weaker than a frozen case: it pins each clause, not the column those
+clauses build. The empty-bin pass (G6.7) and the width pass (G6.6) stay
+unmirrored and K-P4-23 stays at 2. The whole refusal has no witness and
+can have none on inputs the walks build; the end refusal is witnessed
+only on an input no published column produces. `allowed`'s rewrite
+changed its shape, not its three checks, which G6.5a dictates, so its
+drop from 0.60 to 0.48 in K-2B-42 is a score and not evidence of
+independence. K-2B-42 stays 176 of 393: no oracle function changed.
+
 ## Owner decisions of 2026-09-18
 
 The owner's own words are quoted where the owner gave them. Calls the
@@ -18343,6 +18397,17 @@ ids are chance collisions at that room, so whether such an id may carry
 its real row whole is a question of its own. The entry is OPEN at its
 must-not-get-worse bound until the owner answers.
 
+**Open:** the pairing walk of G6B.4, the open cause of the readings'
+distance from 550 and 0, which the orchestrator's acceptance below
+leaves as their target. Also open, and needing no ruling, are the
+carried width, band and layout defects:
+P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
+G5.2 band split, `build_document`'s read floor (documented, not
+enforced) and the unmirrored G6.6 and G6.7. The KPI ledger carries each
+of them with a must-not-get-worse ceiling.
+
+## Orchestrator acceptances of 2026-09-19
+
 **ACCEPTED BY THE ORCHESTRATOR 2026-09-19** (not an owner ruling; the
 owner may reverse it): the three- and four-number readings (ledger
 K-P4-06). The carried-f-numbers push (G6.5a) repairs a twin that missed
@@ -18351,12 +18416,3 @@ it trades 12 more agreements outside the 0.02 window (597 to 609 of
 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
 Ceilings move in their own commit, never inside a merge.
-
-**Open:** the pairing walk of G6B.4, the open cause of the readings'
-distance from 550 and 0, which the acceptance above leaves as their
-target. Also open, and needing no ruling, are the
-carried width, band and layout defects:
-P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
-G5.2 band split, `build_document`'s read floor (documented, not
-enforced) and the unmirrored G6.6 and G6.7. The KPI ledger carries each
-of them with a must-not-get-worse ceiling.

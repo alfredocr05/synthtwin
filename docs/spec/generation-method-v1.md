@@ -3173,6 +3173,38 @@ given more strata than it has points -- G5.2 divides the strata between
 the bands by their cells, not by their different numbers, which the
 description does not publish per band -- and that shortfall is named.
 
+**WHICH OF THE THREE REFUSALS CAN DECIDE A PUSH, measured** (the skeptic
+of the oracle's independence repair, 2026-09-19). Two of them never
+decide a push the walk builds, and they are stated above only so that
+the rule reads whole. The WHOLE refusal: on a column that writes some
+cells with no point the walk visits only points of the mover's kind, so
+every stratum it moves goes from a point of that kind to the next one,
+and the refusal could fire only on a stratum whose value is not the
+number its grid text reads back as, which no walk leaves. The END
+refusal: the first and last strata stand on the published ends, and the
+walk would have to pass an end to move one, so it could fire only where
+they do not. The POINT-FREE refusal is the one that decides, and only on
+a column whose styles map asks for a point-free cell while every numeric
+cell has a published width, which is a map pooling a share below the
+floor that G6.4 writes plain; there the walk takes points of either kind.
+Measured on the oracle's push over 40,000 random draws of strata in
+order with the two ends pinned and every value on its own text (28,723
+of them asked the push): without the whole refusal and without the end
+refusal no value moved, and without the point-free refusal values moved
+in 482, every one of that shape. No frozen case is of that shape: the
+one push a frozen case asks (`pushed_along_band`) makes five checks and
+none refuses, in the oracle and in the generator alike. So the push
+refusals are witnessed one call at a time in
+`tests/test_oracle_rule_witnesses.py`, against the oracle's push and the
+generator's alike: the point-free refusal holding a collision immovable,
+the end refusal holding one whose first stratum stands above the
+published `min` -- an input no published column produces, and the only
+way that refusal can be reached -- and a push each allows, with four
+registered mutants (each of those two refusals removed, every move
+allowed, every move refused) each turning that witness red. The same
+file holds the two refusals that cannot decide to moving nothing over
+3,000 seeded draws of that shape.
+
 **A WHOLE NUMBER THE COLUMN WRITES TWO WAYS IS HELD BY TWO STRATA** (plan
 P4-D193, the final pass over the close of stage 2). A column whose numeric
 cells are written at ONE fraction width `f` of one figure or more beside
@@ -3441,16 +3473,50 @@ The division is done in the format's own binary64 arithmetic, because
 contract C6-31f's case with no scale is two ends whose DIFFERENCE the
 format cannot hold, so the division it states is a binary64 one: the width is
 `max - min`; a scale with no width -- the two ends equal, or `max`
-below `min`, or any of the value, the ends and the width not finite --
-puts the value in bin 0, and so does a value that is not finite, which
-no statistic a block publishes holds. Otherwise the clamp is taken
-FIRST, before any arithmetic, so that no step of it can overflow: a
-value at or above `max` is in the last bin, one at or below `min` in
+below `min`, or an end or the width not finite -- puts the value in bin
+0, as C6-31f's two cases with no division say. Otherwise the clamp is
+taken FIRST, before any arithmetic, so that no step of it can overflow:
+a value at or above `max` is in the last bin, one at or below `min` in
 bin 0; and a value strictly between the ends is in bin
 `floor((v - min) / width * 32)`, each operation rounded to binary64 in
 that order, the difference, the quotient, then the product, and the
 result held to at most the last bin, since the quotient of a value just
-below `max` may round to one.
+below `max` may round to one. In binary64 `0.125` on the scale `0` to
+`0.2` is in bin 20, where exact rationals over the two doubles would
+give 19.
+
+**A VALUE THAT IS NOT FINITE IS OUTSIDE C6-31F, and what this method
+answers for it was completed from the shipped code, not read from the
+contract** (the skeptic of the independence repair, 2026-09-19). The
+contract's formula takes no floor of a quotient that is not a number,
+and its clamp read literally would put `+inf` in the last bin; this
+method puts every value that is not finite in bin 0, which is what the
+shipped division answers (the one the producer, the loader and the
+generator share), so that the rule is total. The
+clause decides nothing any description reaches: the loader refuses a
+description holding an infinity or a not-a-number (measured
+2026-09-19: a `mode` and a `max` written as `Infinity`, as `NaN` and as
+`1e999` were each refused), so every end and every mode the generator
+bins is finite, and no witness pins the clause.
+
+**WHERE THE DIVISION IS WITNESSED.** The oracle bins a value in one
+place, G6.1's mode pass (plan P4-D267), and there only on a column
+publishing an empty bin, to ask whether the mode stands in one. A
+description a producer writes never puts its mode there, since the
+mode is one of the values the statistics used and C6-122 names only the
+bins holding none of them; the loader does accept one that does
+(measured 2026-09-19: a mode of 25.0 standing in bin 15, bin 15 named
+empty with its edges, loaded). So no frozen case reaches the division:
+rebuilding every vectors file with the oracle instrumented calls it no
+times. Its clauses are witnessed one call at a time instead, in
+`tests/test_oracle_rule_witnesses.py`: thirteen values with the answers
+worked out from this statement, asked of the oracle and of the shipped
+division, and seven registered mutants of the oracle's division -- a
+shared edge to the lower bin, one bin up, no cap at the last bin, the
+top clamped to bin 0, the clamp after the arithmetic, exact rationals,
+and bin 0 always -- each of which turns that witness red. The empty-bin
+PASS itself (G6.7.3 onward) is not mirrored by the oracle, and ledger
+K-P4-23 counts it.
 
 **G6.7.3 The stretches.** Consecutive named bins are taken as one
 STRETCH, and the move is out of the whole stretch rather than out of
@@ -6155,7 +6221,22 @@ number when it is one under that reading.
    positionally from 10^-4 up to below 10^16, with a single nought after
    the point where the value is whole, and with an exponent outside that
    range, which gives the ladder no anchor; a value that is not finite
-   gives none either.
+   gives none either. That window is the way Python's own `repr` prints
+   a binary64, which the generator's own reading calls: it was COMPLETED
+   FROM THE SHIPPED CODE'S BEHAVIOUR at the independence repair, since
+   P4-D268 named no window, and the skeptic of that repair recorded it
+   so. **No frozen case tells the three readings apart** (measured by
+   that skeptic: each of six mutants changing one reading alone left
+   every vectors file unchanged, and removing (b)'s leading plus
+   together with (c) moved cells), because the held-back anchors frozen cases publish are
+   whole spellings with a leading plus, which (c) reads as (b) does. They
+   are witnessed one call at a time in
+   `tests/test_oracle_rule_witnesses.py`: sixteen spellings with the
+   answers worked out from this step, asked of the oracle and of the
+   generator, and six registered mutants -- the leading plus, the
+   brackets, the trailing minus and the marks each left unread, the value
+   not read, a whole value read at one place -- each of which turns that
+   witness red.
    Their finest count of figures after the point is `P`, and the
    smallest and the largest of them are the two ENDS. A level is
    written at `P` places, or, where it wears a form, at that form's own
@@ -7292,6 +7373,21 @@ until one packs:
    it, the figures never more than the code alphabet, in ascending
    order of the two differences summed, ties by the figures count and
    then the code count, each the smaller first.
+
+**No frozen case witnesses the even split, the census line or the
+filter above** (measured by the skeptic of the independence repair,
+2026-09-19: an even split sent outside, a side on the line counted as
+below it, and the figures let exceed the code alphabet each left every
+vectors file unchanged). They are witnessed one call at a time in
+`tests/test_oracle_rule_witnesses.py`, asked of the oracle and of the
+shipped rules alike (the producer's `absorbed_total` and the generator's
+readings): fifteen counts with the answers worked out
+from the arithmetic above (five of ten at a floor of eleven is published
+as ten; eleven of thirty is published as eleven, a side on the line not
+being below it), and the whole ordered list of readings of twelve cells
+publishing nought and nought (twenty-one pairs, 0 to 5 each, the figures
+never more than the code alphabet), with four registered mutants of
+the count and three of the readings each turning its witness red.
 
 A description that packs as published is answered exactly as before,
 byte for byte; the four class counts are free text's own and are not
