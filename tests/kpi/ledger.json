@@ -2559,7 +2559,7 @@
    "headline": true,
    "name": "Your own 'no value' spellings reach the twin at their counts",
    "status": "GREEN",
-   "rule": "recount of each recorded spelling == missing_by_source; the judged stand-ins (a -999 read as missing) are NOT part of this entry: they are written blank, and what that does to code is K-2B-46",
+   "rule": "recount of each recorded spelling == missing_by_source; the judged stand-ins (a -999 read as missing) are written in the source's spelling at their count since plan P4-D6.4 (g-sentinel, merged 2026-09-19), and what that does to code is K-2B-46",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -2575,7 +2575,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "test_p4d61 single columns, 20 holes each",
-   "evidence": "NA 20 written 20; 'Not recorded' 20/20; NA + #N/A 20+20; twin re-describes to the same counts (before: every hole blank). Judged stand-ins written blank are taken out of this entry's green value (critic correction): on the every-role table they make pandas read 'reading' as float64 on the twin and int64 on the table",
+   "evidence": "NA 20 written 20; 'Not recorded' 20/20; NA + #N/A 20+20; twin re-describes to the same counts (before: every hole blank). Judged stand-ins written blank are taken out of this entry's green value (critic correction): on the every-role table they make pandas read 'reading' as float64 on the twin and int64 on the table. Since P4-D6.4 the judged stand-ins are written too, and the pinned nodes pass on the integrated tree",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
