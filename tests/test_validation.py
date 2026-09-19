@@ -397,6 +397,17 @@ def test_red_a_recased_label_misses_that_level(
     smallest edit this check can report is therefore two cells, exactly
     as the entry table's own smallest reportable edit became two for the
     columns that publish levels.
+
+    AND TWO STOPPED BITING AT THE MERGE OF THE EXTRA ROUND (plan
+    P4-D293's re-measurement, the merge-close of 2026-09-18). The
+    absorption P4-D240 named is the census floor's, and the floor this
+    battery's fixture is described at is above two, so a re-cased
+    spelling worn by two cells is counted back onto its level exactly as
+    one was and the map HELD -- a red case that had stopped catching the
+    mutant it was written for, which is worse than a red case that
+    fails. The edit is now `parsing.census_floor` of the description's
+    own floor, asked rather than written down, so this check follows the
+    rule instead of restating a number the rule can move.
     """
     described, twin = every_role
     position = _column_of(described, taxonomy.ROLE_CATEGORICAL)
@@ -415,6 +426,7 @@ def test_red_a_recased_label_misses_that_level(
             break
     assert spelling
     lines = twin.split("\n")
+    wanted = parsing.census_floor(described.settings.small_cell_floor)
     changed = 0
     for index in range(1, len(lines)):
         cells = lines[index].split(",")
@@ -422,9 +434,9 @@ def test_red_a_recased_label_misses_that_level(
             cells[position - 1] = spelling.upper()
             lines[index] = ",".join(cells)
             changed = changed + 1
-            if changed == 2:
+            if changed == wanted:
                 break
-    assert changed == 2
+    assert changed == wanted
     outcome = _measure(tmp_path, described, "\n".join(lines))
     assert (
         _verdicts(outcome, f"levels.{label}.variants")

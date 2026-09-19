@@ -7080,7 +7080,11 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, dist
 
     def offer(value, low, high):
         def kind(candidate):
-            return shows_a_width(column, candidate // day, word) != fewer
+            # THE DAY'S KIND IS WHETHER IT COUNTS INTO THE WORD, not
+            # whether it shows the width (method G7.3, plan P4-D294):
+            # the pass counts the absorbed census, so an offer that
+            # leaves that count where it was is no offer at all.
+            return counts_into_width(column, candidate // day, word) != fewer
 
         if not distinct:
             return nearest_fitting(value, low, high, kind, day)
@@ -7127,9 +7131,9 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
     unit = step if day == 86400 else 1
 
     def standing(value, target):
-        if widths and shows_a_width(
+        if widths and counts_into_width(
             column, value // day, word
-        ) != shows_a_width(column, target // day, word):
+        ) != counts_into_width(column, target // day, word):
             return False
         return day != 86400 or written_at_midnight(value, 0, step) == written_at_midnight(target, 0, step)
 
@@ -7239,7 +7243,8 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             changed = True
     if count < distinct:
         changed = standing_swaps(
-            column, ordinals, pinned, lows, highs, day, step, unit, held, widths, distinct - count
+            column, ordinals, pinned, lows, highs, day, step, unit, held,
+            widths, distinct - count, word,
         ) or changed
     return changed
 
@@ -7283,7 +7288,7 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
     made = 0
 
     def flips(value, target):
-        if shows_a_width(column, value // day, word) == shows_a_width(
+        if counts_into_width(column, value // day, word) == counts_into_width(
             column, target // day, word
         ):
             return False
@@ -7320,7 +7325,7 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
             return made
         _distance, size, start, target = best
         own = ordinals[start] // unit
-        gaining = shows_a_width(column, target // day, word)
+        gaining = counts_into_width(column, target // day, word)
         paid = repaid_standings(
             column, ordinals, pinned, lows, highs, day, step, unit, held, spot,
             word, size, not gaining, own, target // unit,
@@ -7354,7 +7359,7 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
         own = ordinals[rank] // unit
         if own in (skip, onto) or held[own] <= 1:
             continue
-        if shows_a_width(column, ordinals[rank] // day, word) == gaining:
+        if counts_into_width(column, ordinals[rank] // day, word) == gaining:
             continue
         value = ordinals[rank]
         found = nearest_fitting(
@@ -7364,8 +7369,10 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
                 and held.get(candidate // unit, 0) > 0
                 and spot.get(candidate // unit) is not None
                 and low <= spot[candidate // unit] <= high
-                and shows_a_width(column, spot[candidate // unit] // day, word)
-                != shows_a_width(column, own_value // day, word)
+                and counts_into_width(
+                    column, spot[candidate // unit] // day, word
+                )
+                != counts_into_width(column, own_value // day, word)
                 and (
                     day != 86400
                     or written_at_midnight(spot[candidate // unit], 0, step)
@@ -7381,16 +7388,22 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
     return paid
 
 
-def standing_of(column, value, day, step, widths):
+def standing_of(column, value, day, step, widths, word=""):
     """A unit's width kind (where widths are held) and whether it stands at
-    midnight (on a column counted in seconds)."""
+    midnight (on a column counted in seconds).
+
+    THE KIND IS THE CENSUS'S OWN MEMBERSHIP (method G7.3, plan P4-D294):
+    a day whose fields are both ten or more shows no width and is
+    absorbed into the census's one word, so it stands with the days that
+    show that word and not against them.
+    """
     return (
-        bool(widths) and shows_a_width(column, value // day),
+        bool(widths) and counts_into_width(column, value // day, word),
         day == 86400 and written_at_midnight(value, 0, step),
     )
 
 
-def nearest_free_where(column, value, low, high, day, step, unit, held, widths, standing, same):
+def nearest_free_where(column, value, low, high, day, step, unit, held, widths, standing, same, word=""):
     """The nearest free unit inside [low, high] of (``same``) or not of a
     standing; a unit at a midnight is sought one day at a time, from the
     one starting the value's own day outward, and every other among the
@@ -7405,12 +7418,12 @@ def nearest_free_where(column, value, low, high, day, step, unit, held, widths, 
         for candidate in (earlier, later):
             if not low <= candidate <= high or held.get(candidate // unit, 0) > 0:
                 continue
-            if (standing_of(column, candidate, day, step, widths) == standing) == same:
+            if (standing_of(column, candidate, day, step, widths, word) == standing) == same:
                 return candidate
         away += 1
 
 
-def standing_swaps(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, owed):
+def standing_swaps(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, owed, word=""):
     """The trade of plan P4-D192: in rank order, an unpinned rank sharing
     its unit takes the nearest free unit of another standing inside its gap,
     where the first unpinned rank of that standing alone on its unit can take
@@ -7422,18 +7435,18 @@ def standing_swaps(column, ordinals, pinned, lows, highs, day, step, unit, held,
             break
         if pinned[rank] or held[ordinals[rank] // unit] < 2:
             continue
-        own = standing_of(column, ordinals[rank], day, step, widths)
-        off = nearest_free_where(column, ordinals[rank], lows[rank], highs[rank], day, step, unit, held, widths, own, False)
+        own = standing_of(column, ordinals[rank], day, step, widths, word)
+        off = nearest_free_where(column, ordinals[rank], lows[rank], highs[rank], day, step, unit, held, widths, own, False, word)
         if off is None:
             continue
-        wanted = standing_of(column, off, day, step, widths)
+        wanted = standing_of(column, off, day, step, widths, word)
         for other in range(len(ordinals)):
             if other == rank or pinned[other]:
                 continue
             value = ordinals[other]
-            if held[value // unit] != 1 or standing_of(column, value, day, step, widths) != wanted:
+            if held[value // unit] != 1 or standing_of(column, value, day, step, widths, word) != wanted:
                 continue
-            onto = nearest_free_where(column, value, lows[other], highs[other], day, step, unit, held, widths, own, True)
+            onto = nearest_free_where(column, value, lows[other], highs[other], day, step, unit, held, widths, own, True, word)
             if onto is None or onto // unit == off // unit:
                 continue
             held[ordinals[rank] // unit] -= 1
@@ -13787,12 +13800,24 @@ def _free_text_joint():
 def _date_widths_reached():
     """A month-first column whose cells showing a width are counted (P4-D192).
 
-    Eighty dates over a year leaning into its last quarter, where a day
-    past the ninth of October, November or December shows no width. The
-    census names one convention, `unpadded`, on forty-four cells, so the
-    twin's cells showing a width must be forty-four: each gap's ranks move
-    a whole day at a time to the nearest day of the other kind, nearest
-    first, until they are.
+    Eighty dates over a year leaning into its last quarter. The census
+    names one convention, `second-field-padded`, on forty-four cells, so
+    the twin's cells counted under that word must be forty-four: each
+    gap's ranks move a whole day at a time to the nearest day of the
+    other kind, nearest first, until they are.
+
+    THE WORD IS A ONE-FIELD WORD AND NOT A JOINT ONE (plan P4-D294, the
+    merge-close of 2026-09-18). It was `unpadded` on forty-four of the
+    eighty until the day's KIND was corrected to the census's own
+    membership question: a joint word absorbs the cells that show no
+    width at all, so every day of the year counts into it, a column of
+    eighty cells can only ever publish eighty, and the pass had nothing
+    left to reach. Under `second-field-padded` a day counts when its
+    month is ten or more -- it shows that word when its day is below ten
+    too, and is absorbed into it when neither field shows -- so the
+    column carries two kinds and the pass moves ranks between them
+    again. Measured: with the joint word this case's own mutant moved no
+    committed byte; with this one it moves them.
     """
     rungs = [
         "2024-01-03", "2024-02-20", "2024-04-11", "2024-06-01", "2024-09-28",
@@ -13809,15 +13834,15 @@ def _date_widths_reached():
         earliest_utc_offset="(none)", latest_utc_offset="(none)",
         date_percentiles=dict(zip(LADDER_KEYS, rungs)),
         n_unparsed=0, utc_offsets={"(none)": 80},
-        date_field_widths={"unpadded": 44},
+        date_field_widths={"second-field-padded": 44},
     )
     return {
         "why": "the widths count of G7.3's count passes (plan P4-D192): a "
-        "census naming one convention is worn by every cell showing a width, "
-        "so the twin holds as many dates whose day shows one as the census "
-        "counts, moving ranks whole days inside their gaps. Drawn alone, the "
-        "ranks put a different number of dates in the last quarter's days past "
-        "the ninth, and that is this case's mutant.",
+        "census naming one convention is worn by every cell counted under "
+        "it, so the twin holds as many dates counted under the census's own "
+        "word as it counts, moving ranks whole days inside their gaps. "
+        "Drawn alone, the ranks put a different number of dates in the "
+        "months of ten and above, and that is this case's mutant.",
         "column": column,
         "rows": 80,
         "identifier_declared": False,

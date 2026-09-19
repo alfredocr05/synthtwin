@@ -17292,3 +17292,229 @@ else wrote can, and the validator would still describe it as holding
 dates. Whether the reader should refuse a date cell that names no day —
 which is a change to what synthtwin ACCEPTS, not to what it writes — is
 a decision and not a repair, so it is left here rather than taken.
+
+### P4-D292 A headerless table with nothing above it stops publishing its first record
+
+The merge skeptic's BLOCKER, found by attacking the merged tree rather
+than by re-running a listed item, and it breaks the owner's ruling 8 of
+2026-09-17 outright.
+
+**The defect.** 240 records `R001,North Unit,<0.10` then
+`R002,East,2.5` … `R240,East,240.5`, no header line and no title line,
+at a smallest group of eleven. The description named the columns
+`R001`, `North Unit` and `<0.10`, counted 239 rows where the file holds
+240, put NO first-row question in the questions file, and wrote that
+person's record into `real-profile.json`, `real-profile.txt` and
+`real-questions.json` — and, as a workbook, into the twin's own header
+row. The SAME table under a title line was read correctly, by the
+furniture rule, which is why the extra round's disclosure item read as
+closed.
+
+**Why nothing caught it.** `_numeric_fit` declines `<0.10` because it is
+not a number. `_shape_is_structured` deliberately excludes the `A9` that
+`R001` wears (review item P1-R6-F6, so that `visit1` over `a1` asks
+nothing), so the fourth record rule never reached column 1.
+`_names_evidence` refuses `<0.10` as evidence of NAMES (P4-D272) — and
+refusing evidence of names is not evidence of a record, so the row fell
+through to outcome 4 and was taken as the names by convention. That
+function's own docstring claimed the shape "still gets placeholder names
+and the question"; it was measured and it was false, and the sentence is
+corrected in the same commit.
+
+**The decision.** A fifth record rule,
+`reading._measurement_among_numbers`: a first-row value that does NOT
+read as a number but carries a figure AS A VALUE — it opens on a mark or
+on a figure rather than on a letter or an underscore — standing over a
+column every one of whose values below reads as a number, is evidence
+that the row is a record. It is the exact complement of what
+`_names_evidence` refuses, which is what keeps the two functions from
+answering one question two ways. A value that IS a number never reaches
+it: `_numeric_fit` is the rule for those and it measures the distance,
+so `region,2019` over fourteen rows near 1234 stays a header.
+
+**Measured after.** The bare table: `column_1`…`column_3`, 240 rows, one
+first-row question naming column 3 and quoting nothing, and no text of
+the record in any document. As a workbook: the same, and the twin's
+header row is made-up cells. Unmoved: the same table under a title line,
+`subject,q1,week_2,glucose1` over 300 rows of numbers, and
+`region,2019,2020` over forty rows near 1234.
+
+**Its named cost.** A column name that opens on a figure or on a mark
+AND carries a figure — `2019_total` over a column of numbers — is now
+read as a record: the file gets placeholder names and the question
+rather than that name. `%change`, `n_total` and `_2021` are untouched,
+because the first carries no figure at all and the other two open on a
+letter or on the one mark a name is written with. The trade is the one
+ruling 8 states: a question costs a sentence and a wrong reading costs a
+person's record, and the answer `--first-row names` takes the other
+reading in one word.
+
+### P4-D293 A pool of one is not a pool, in either absent-value census
+
+The merge skeptic's third MAJOR. `parsing.census_floor`'s own rule is
+"NEVER ONE, WHATEVER THE SETTINGS FLOOR", and both absent-value maps
+pooled what the floor could not name without ever asking whether the
+POOL named a row.
+
+**The defect.** 400 rows — `north` ×200, `south` ×180, `NA` ×19 and one
+`-999` — at a smallest group of eleven: `n_missing` 20,
+`missing_by_source {"NA": 19}`, `missing_by_class {"(text-code)": 19,
+"(withheld)": 1}` and `n_missing_withheld` 1. Two readings name that one
+row: the published count of one outright, and 20 less 19 by subtraction
+from the sibling total. Both documents loaded and every exit was nought.
+
+**Two repairs were built and measured.** Counting the rare cell into the
+commonest spelling — ruling 6's treatment — publishes `{"NA": 20}` over a
+table holding nineteen, and the REAL TABLE then misses its own
+description (`holes.by_source.NA` MISSED, 20 asked and 19 held, exit 3 on
+the table itself). A description that does not describe the table is not
+a repair. So the rule taken is the floor's own: while
+`parsing.census_names_one_row` says either map names a row, the smallest
+NAMED spelling joins the pool — in both maps at once, because a class
+holds every cell of each of its spellings — and the maps are counted
+again. The same 400 rows now publish `missing_by_source {}`,
+`missing_by_class {"(withheld)": 20}` and `n_missing_withheld` 20, which
+is exactly what the same table publishes at a floor of twenty, and every
+exit is nought.
+
+**What it costs, stated:** a column with ONE named absent spelling loses
+that spelling's census to a single stray cell. That is the floor's own
+arithmetic and not a new cost; a column with two named spellings loses
+only the smaller. **And a spelling that clears the floor on its own can
+be taken into the pool to hide a lone stray beside it** — measured on
+the judged-provenance witness of stage 2: 20 cells of a judged spelling
+beside 30 declared `NA` and one `NULL`, floor eleven, where the pool
+takes the judged spelling and `sentinel_verdicts` then publishes no
+spelling for its candidate. The verdict, its candidate and its count of
+20 are unmoved and both files still validate at nought; what is lost is
+the provenance of the spelling, and it is lost to the same subtraction
+the rule exists to close (51 absent less the 50 the census covers is
+one).
+
+**Its named limit.** Where the pool already holds every absent cell — one
+lone `NA` among 380 present — there is no named group left to raise it
+with, and `missing_by_class` publishes `{"(withheld)": 1}`. The pool is
+then `n_missing` itself, which the column publishes beside it on its own
+terms, so the map carries no reading the description does not already
+carry. The rule binds above a floor of one only: at a floor of one
+nothing is pooled and `profile._remainder_is_published` refuses a
+remainder above nought outright.
+
+### P4-D294 A day's width KIND is the census's own membership question
+
+The merge skeptic's second MAJOR, and the repair reaches further than the
+shape it was found on.
+
+**The defect.** 400 cells, `(2021-01-01 + n days).strftime("%d-%b-%Y")`
+over 250 different days, at a smallest group of eleven: published
+`n_distinct` 250, twin 246, `distinct.n_distinct` and
+`distinct.n_distinct_folded` both MISSED, validate exit 3 on the twin and
+0 on the table. The same 400 rows spelt `%Y-%m-%d` or `%m/%d/%Y` came
+back 250 of 250 at exit 0, so it was the month-name spelling alone.
+
+**The cause.** G7.3's two count passes COUNT the width census with
+`_counts_into_width` — the absorbed census of P4-D278, where a cell
+showing no width at all is counted into the column's one convention —
+but asked `_shows_a_width` when deciding whether a rank could MOVE. The
+two are different questions, and the guard was both too strict and too
+loose: too strict because a day showing the word and a day absorbed into
+it are the same to the census and it refused the move; too loose because
+two days that both fail to show the word can sit on opposite sides of it
+when one shows the OTHER convention. On a textual member every day below
+ten shows `padded` and every other day is absorbed, so the restoration
+could never move a rank across the tenth of a month however many rounds
+it ran.
+
+**The decision.** Every rule that speaks of a day's width KIND asks
+`_counts_into_width`: `_same_standing`, `_nearest_day_of_kind`,
+`_standing_of`, and both halves of the traded merge. The rule statement
+in G7.3 says so in as many words. Measured after: month-name 250 of 250,
+ISO 250 of 250, slashed 250 of 250, every exit nought.
+
+**What it cost the frozen cases, stated rather than left to be found.**
+`date_widths_reached` published `{"unpadded": 44}` on 80 cells — a census
+the producer cannot write, because a JOINT word absorbs every day, so it
+is now `{"second-field-padded": 44}` and its own mutant bites again.
+`date_traded_merge` and `date_nonadjacent_merge` are textual columns
+under a joint word, so they carry ONE kind and no longer reach P4-D258's
+two branches at all; 500 candidate columns were measured for a
+replacement and none reached either. They are re-registered against the
+rule they DO pin, which is this one, and the loss of coverage is written
+into G14.3 under the case table. A case that reaches either branch is
+owed.
+
+### P4-D295 Where the next frozen case goes is chosen before the gate fails
+
+The merge skeptic's first MINOR. The extra round's brief assumed 25,000
+bytes of headroom under the 250,000-byte fixture cap; measured, the
+second vectors file stands at 249,482 — 518 bytes — with the first at
+248,177 and the third at 246,851. A case routed into a full file is
+discovered by `tools/provenance/check_provenance.py` refusing the build,
+which is the worst moment to be choosing one. The eighth entry point's
+header now says it: the next case goes there, and the one after it, until
+its output passes 200,000 bytes, at which point a ninth is written the
+way the eighth was — by moving cases whole rather than by raising the
+cap. Splitting the second file was the other option and it was not taken:
+it moves committed bytes for no defect, and the choice it would make is
+the choice this sentence makes for nothing.
+
+### P4-D296 A fraction of a second written as nought is named
+
+The merge skeptic's second carried item (the extra date review's item 9),
+which it measured as never closed rather than lost in the merge.
+
+**The defect.** A column published at `time_precision` `subsecond` with
+`subsecond_digits` 3 is generated at the SECOND: every rank is a whole
+number of seconds, so every cell wears `.000`. **Measured** on 240
+moments a thousandth of a second past the half day, at a floor of eleven,
+as a workbook and as delimited text alike: the source's cells read
+`microsecond=1000` in all 240 and the twin's read `microsecond=0` in all
+240, re-describing the twin published `subsecond` and 3 again — the
+workbook check reads the format code and the delimited one reads three
+noughts — and both files validated at nought with the twin's report
+naming nothing.
+
+**What was taken, and what was not.** Spending the fraction over the
+ranks moves their instants, and `earliest` and `latest` are EXACT
+obligations at the precision they are published at; a repair that buys
+the milliseconds by missing the two ends breaks the half of the goal that
+says the twin validates, which is the trade P4-D291 refused for the same
+reason. Drawing the ranks at the subsecond unit instead is the real
+repair and it reaches the percentile ladder, the midnight rules and both
+distinct counts, so it is a landing of its own. Until it is made, the
+loss is a DEVIATION `generation._subsecond_notes` puts in the twin's own
+report, which is this package's rule for a count a pass cannot reach.
+
+**OPEN, for the owner.** Should a subsecond column be generated at the
+subsecond unit? It is the only repair that keeps the milliseconds, it
+costs a landing with an oracle mirror and a frozen case, and the twin is
+correct at every published fact today — it simply holds no spread of
+fractions where the real table has one.
+
+### P4-D297 What the delimiter answer costs is said in the answer
+
+The merge skeptic's second MINOR, and the half of it that can be paid
+without breaking something else.
+
+**The residue.** `id,measure|low|high` over 120 rows of
+`i,{100+i%4}|90|110`, at a smallest group of eleven. Plan P4-D282's
+repair works: the vertical bar wins, the comma is recorded as a
+competing reading, and the questions file asks which one the file uses
+with both answers offered. But the source's first column holds `0`, `1`,
+`2` beside its comma while the TWIN's holds `100|90|110`, so a reader
+splitting by the comma finds two fields per row on the source and one on
+the twin, and its rows come back ragged. Both files validate at nought,
+because no published fact is about the losing reading.
+
+**Why the other half was not paid.** Holding the twin's cells to the
+losing delimiter's field count binds every made-up cell of every column
+to a second shape, against the length and form censuses those cells
+already owe — a constraint with no published fact behind it, added to
+buy a reading the person is being asked about anyway. So the cost is
+stated where the person is choosing: each answer of the delimiter
+question now says that the twin's cells are made up under the reading
+taken alone, and that a reader splitting the twin by the other character
+need not find the rows the file gives it. The tie itself reaches the
+questions file and not the description, so the twin's report cannot say
+it without a new published field, which is a contract change and not a
+minor edit.

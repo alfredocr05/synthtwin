@@ -2492,6 +2492,18 @@ def _form_perturbations(
         ("blank-name", CLASS_HEADER, blank_name),
         ("trailing-delimiters", CLASS_SHAPE, trailing),
         ("short-rows", CLASS_SHAPE, short),
+        # MEASURED AT THE MERGE-CLOSE OF 2026-09-18 AND LEFT WHERE IT
+        # STANDS. The merge skeptic reported that this case no longer
+        # makes `bytes.blank-lines` miss on the `compound` fixture, and
+        # it is right: plan P4-D280 taught the description to absorb a
+        # blank line, so one added line lands inside what that fixture
+        # already declares. TWO blank lines were built and measured
+        # instead, and they are worse -- `bytes.blank-lines` then misses
+        # on NO fixture of the battery rather than on all but one, so
+        # the coverage identity loses the subcheck outright. Re-arming
+        # this case needs a perturbation of the blank-line COUNT that
+        # the absorption cannot take, which is a fixture change and not
+        # an edit; it is left red and named rather than made quiet.
         ("blank-line", CLASS_LINE_ENDINGS, twin + "\n"),
         ("empty-record", CLASS_ROWS, empty_row),
         # Named after the column the rows are sorted by, which is where

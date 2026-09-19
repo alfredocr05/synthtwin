@@ -189,15 +189,30 @@ def test_a_notation_worn_by_one_cell_is_not_published(
     """One bracket among 599 minuses names nobody.
 
     The mixture clause does not license publishing a group of one: the
-    census floor is two whatever the settings floor is, and a pool that
-    would itself be below the floor makes the whole census unavailable.
+    census floor is two whatever the settings floor is.
+
+    **HOW IT NAMES NOBODY CHANGED, AND WHAT IT CLAIMS DID NOT** (the
+    extra disclosure review of 2026-09-18, item 7; re-measured at the
+    merge-close). This witness asserted `{"(unavailable)": 0}` -- the
+    whole census withheld -- and that reading was itself the defect item
+    7 closed: a census withheld ONLY where a group of one exists tells a
+    reader that a group of one exists, which is the singleton it was
+    meant to hide. The lone bracket is now counted into the column's
+    commonest notation, the owner's ruling 6 of 2026-09-17 applied to a
+    notation, so the census reads `{"minus": 600}` and is
+    indistinguishable from the census of 600 cells that all wore a
+    minus. Measured on the merge-close of 2026-09-18. The claim this
+    test makes is unchanged: no group of one is published, and both
+    files validate.
     """
     cells = [f"-{n}.25" for n in range(1000, 1600)]
     cells[7] = "(1007.25)"
     first, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "lone", cells, header="charge"
     )
-    assert first["negative_notations"] == {"(unavailable)": 0}
+    assert first["negative_notations"] == {"minus": 600}
+    assert 1 not in first["negative_notations"].values()
+    assert "(unavailable)" not in first["negative_notations"]
     assert twin_exit == 0
     assert real_exit == 0
 

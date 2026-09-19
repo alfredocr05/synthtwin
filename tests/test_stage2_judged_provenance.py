@@ -212,6 +212,23 @@ def test_the_same_when_the_declared_word_is_pooled_beside_a_built_in_one(
     attribute. The pooled remainder was added to the keys denoting the
     candidate, which is what made 21 cells stand against a verdict of
     20 and promoted the judged spelling a second way.
+
+    **WHAT THE POOL HOLDS CHANGED, AND WHAT THIS TEST CLAIMS DID NOT**
+    (plan P4-D293, the merge-close of 2026-09-18). A pool of ONE is a
+    pool that names a row -- here by subtraction, 51 absent cells less
+    the 50 the spellings census covers -- so the pool is now raised by
+    the smallest NAMED spelling until it names none. This column's
+    smallest named spelling is the judged one, worn by 20 cells, so the
+    pool holds 21 and `missing_by_source` publishes `{"NA": 30}` alone.
+    **That is a measured cost of P4-D293 and it is stated in that entry:
+    a spelling that clears the floor on its own can be taken into the
+    pool to hide a lone stray beside it, and the sentinel verdict then
+    publishes no spelling for its candidate.** What this test exists for
+    is unmoved and is asserted below: the verdict still reads
+    `read_as_missing` over the right candidate at its own 20 occurrences,
+    the pooled remainder is NOT added to the keys denoting it, the
+    judging column's neighbour still holds all 500 of its values, and
+    both files validate at nought.
     """
     end = (
         [SPACED] * 20
@@ -231,13 +248,24 @@ def test_the_same_when_the_declared_word_is_pooled_beside_a_built_in_one(
     assert real_exit == 0, _missed(folder / "check-real")
     assert twin_exit == 0, _missed(folder / "check-twin")
     ended = _block(document, "end")
-    assert ended["n_missing_withheld"] == 1, "the pooled hole must be there"
+    # The lone `NULL` is pooled, and P4-D293 then raises the pool by the
+    # smallest named spelling -- the judged one, 20 cells -- so 21 stand
+    # here where 1 stood before that entry.
+    assert ended["n_missing_withheld"] == 21, "the pooled hole must be there"
+    assert ended["missing_by_source"] == {"NA": 30}, ended["missing_by_source"]
+    assert ended["n_missing"] == 51, ended["n_missing"]
     judged = [
         entry
         for entry in ended["sentinel_verdicts"]
         if entry["verdict"] == "read_as_missing"
     ]
-    assert judged[0]["spellings"] == [SPACED], judged[0]
+    # THE CLAIM THIS TEST WAS WRITTEN FOR. The pooled remainder is not
+    # added to the cells denoting the candidate: 21 are pooled and the
+    # verdict still counts its own 20.
+    assert len(judged) == 1, ended["sentinel_verdicts"]
+    assert judged[0]["n_occurrences"] == 20, judged[0]
+    # A spelling inside the pool is not named, which is the cost above.
+    assert judged[0]["spellings"] == [], judged[0]
     assert _block(document, "start")["n_present"] == 500
 
 

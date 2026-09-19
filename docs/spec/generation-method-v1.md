@@ -4735,9 +4735,17 @@ that way.
 - **The widths** (P4-D192), on a column read on its own clock, writing
   no bare date, counted in days or in seconds, whose member shows
   widths and whose census names exactly ONE convention: every cell
-  showing a width wears it, so the ranks whose day shows one -- a
-  numeric field below ten, or a textual member's day below ten -- must
-  number that count. While they do not, each unpinned rank of the kind
+  showing a width wears it, so the ranks whose day COUNTS INTO the
+  census's word must number that count. A day counts into the word when
+  it shows that width -- a numeric field below ten, or a textual
+  member's day below ten -- or when it shows NO width at all, since the
+  producer and the checker both absorb a showing-nothing cell into the
+  column's one convention (P4-D278). **A DAY'S KIND IS THAT ONE
+  QUESTION AND NOT THE NARROWER ONE** (P4-D294, the merge-close of
+  2026-09-18): every rule below that speaks of a day's "width kind"
+  means whether it counts into the word, which is the quantity these
+  passes count, and not whether it shows a width, which is a different
+  question wherever the census is an absorbed one. While they do not, each unpinned rank of the kind
   in surplus is offered the nearest instant a whole number of days away
   inside its gap whose day is of the other kind, earlier first at one
   distance, and the offers are taken nearest first, ties to the lower
@@ -8821,6 +8829,7 @@ the floor, so without the note a different count passed unsaid.
 * `percentiles`
 * `resolution_mix`
 * `shape_forms`
+* `subsecond_digits`
 * `suppressed_levels`
 * `thousands_marks`
 * `utc_offsets`
@@ -10256,9 +10265,9 @@ case passed, which is the failure the count exists to prevent:
 | `date_midnight_feasible` | G7.4's feasible spend of the offsets (plan P4-D254): forty-eight moments on two days at local midnight under `Z`, `+01:00` and `-05:00`, sixteen of each, published on the shared clock, whose gaps hold a midnight under one offset and none under the other two. Its mutant makes every offset look feasible, which is the lexical spend it replaces, and the ranks it leaves off midnight are written with a time of day |
 | `date_endpoint_ties` | G7.4's hold on the ranks tied at an end (plan P4-D255): forty-eight moments on three days at midnight or noon under `+01:00` and `+02:00`, twenty-four of each, published on the shared clock, several ranks standing on the latest instant. Its mutant holds none of them and the larger offset is published for that end |
 | `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
-| `date_traded_merge` | G7.3's traded merge (plan P4-D258): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three, whose first gap holds no day showing a width. Its mutant withdraws the payment and the twin holds a value more |
-| `date_nonadjacent_merge` | G7.3's merge onto a unit that is no rank neighbour (plan P4-D258): the same three days at other words, the runs of a gap being of both width kinds. Its mutant offers the rank neighbours alone and the runs of the other kind stay where they were |
-| `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `unpadded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass |
+| `date_traded_merge` | The day's width KIND (plan P4-D294): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three. Its mutant asks the narrower question -- does the day SHOW the width -- in place of the census's own membership, and the twin's dates move. It was frozen for G7.3's traded merge (plan P4-D258) and no longer reaches it: under a joint word every day counts into the census, so a column of one kind has no gap without a unit of its own kind. See the note below this table |
+| `date_nonadjacent_merge` | The same three days at other words, pinning the same corrected kind question (plan P4-D294); its mutant is the same narrowing and it moves these cells too. It was frozen for G7.3's merge onto a unit that is no rank neighbour (plan P4-D258) and no longer reaches it, for the reason the row above gives |
+| `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `second-field-padded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass. The word was `unpadded` until plan P4-D294: a JOINT word absorbs every day, so a column of eighty cells can publish only eighty under it and the pass had nothing left to reach |
 | `midnight_withheld_kept` | G7.3's rule for a withheld count at midnight (plan P4-D191): sixty moments to the minute whose pins stand a minute either side of midnight in turn, so about half the ranks between a `23:59` and the next `00:01` land at midnight; the published instants stand off it, so fewer than the line of eleven may, and the ranks at midnight step a minute later. Its mutant leaves them there |
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
 | `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
@@ -10268,6 +10277,23 @@ case passed, which is the failure the count exists to prevent:
 
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
+
+**WHAT PLAN P4-D294 COST THIS TABLE, STATED RATHER THAN LEFT TO BE
+FOUND.** Correcting a day's width KIND to the census's own membership
+question made the two branches of plan P4-D258 — the traded merge and
+the merge onto a unit that is no rank neighbour — unreachable by the two
+cases frozen for them. Both are textual columns under a JOINT word, and
+a joint word absorbs every day that shows no width at all, so such a
+column carries ONE kind and no gap of it can be without a unit of its
+own kind. Both branches remain in the generator and in this oracle, for
+the column that carries two kinds — a ONE-FIELD word, where a day is
+counted out when its other field shows the other convention — and 500
+candidate columns measured on the merge-close of 2026-09-18 reached
+neither of them, so neither is pinned by a committed byte today. The two
+cases were re-registered against the rule they DO pin, which is P4-D294
+itself: asking the narrower question moves their committed cells. This
+is a loss of coverage and it is recorded as one; a case that reaches
+either branch is owed to G14.3.
 
 **Every case must also FAIL when the branch it exists for is removed or
 reverted**, and that mutant is committed beside it. A case a withdrawn

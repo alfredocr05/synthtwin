@@ -98,7 +98,7 @@ Three outcomes, in this order.
    is the one side of the question that can be shown positively, so it
    is the one side that is tested for. The first row is evidence of a
    record when, in ANY column, its value belongs to the population of
-   values written below it. Three ways it can belong, any one of them
+   values written below it. Five ways it can belong, any one of them
    enough on its own:
 
    * **A number among numbers.** Every value below reads as a number,
@@ -117,6 +117,22 @@ Three outcomes, in this order.
    * **A label the column repeats.** The first row's value appears
      again below it, more than once. A value a column repeats is one of
      that column's own labels, and the first row is holding one.
+   * **A layout the column repeats** (plan P4-D241, amended by P4-D280).
+     The first row's value wears the same silhouette -- its runs of
+     letters and of figures collapsed, every mark standing for itself --
+     as two values or more written below it, and that silhouette carries
+     two marks and something that is not a word. ``CASE-ZEBRA-471``
+     above ``CASE-ALPHA-0101`` is a record made of structured text.
+   * **A measurement among numbers** (plan P4-D292, the merge-close of
+     2026-09-18). The first row's value does not read as a number but
+     carries a figure AS A VALUE -- it opens on a mark or on a figure,
+     not on a letter or an underscore -- and every value below it in
+     that column reads as a number. ``<0.10`` above ``2.5``, ``3.5``,
+     ``4.5`` is a reading under a limit of detection standing among the
+     readings of its own column, and no column name is written that
+     way. This is the exact shape `_names_evidence` already refuses to
+     read as evidence of NAMES; until this rule it fell through to the
+     convention instead of being read as the record it is.
 
    **The reading taken is the one that publishes nothing of that row**
    (the owner's ruling of 2026-09-17, item 8; plan P4-D232). Until then
@@ -762,6 +778,59 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     return seen >= 2
 
 
+def _measurement_among_numbers(name: str, values: list[str]) -> bool:
+    """True when the first row's value is a MEASUREMENT of a numeric column.
+
+    THE FIFTH RECORD RULE (the owner's ruling of 2026-09-17, item 8;
+    plan P4-D292, the merge-close of 2026-09-18). It closes the hole the
+    merge skeptic walked through: a headerless table with NO furniture
+    above it, `R001,North Unit,<0.10` over 239 rows of `R###,East,#.5`,
+    published that first record as the three column names, described 239
+    rows where the file holds 240, asked no question at all, and wrote
+    the record verbatim as the twin's header line -- in delimited text
+    and in a workbook alike. The same table under a title line was read
+    correctly, which is why the shape read as closed.
+
+    IT IS THE COMPLEMENT OF `_names_evidence`, NOT A NEW JUDGEMENT.
+    P4-D272 taught that function that a first-row value carrying a
+    figure AS A VALUE -- `<0.10`, `2-4`, `5 mg`, which open on a mark or
+    on a figure rather than on a letter or an underscore -- is no
+    evidence that the row is NAMES, because that is how a MEASUREMENT is
+    written and a column name is not written that way. That left the
+    shape with no evidence on either side, and outcome 4 takes a row
+    with no evidence and no furniture as the names by convention. So
+    exactly what that function refuses to read as names is read here as
+    the record it is.
+
+    WHY IT CANNOT SWALLOW THE PIVOTED YEAR TABLE. A value that reads as
+    a NUMBER never reaches this rule: `_numeric_fit` is the rule for
+    those, and it is the one that measures the distance, so `region,2019`
+    over fourteen rows of `1234` is settled there and stays settled --
+    2019 is a number, so this rule declines it before looking at the
+    column at all. What is left is the value that is not a number and
+    not a name either.
+
+    Two values are required below, as in `_names_evidence`: one number
+    under a first-row value says nothing about a population.
+
+    Guarantees: accepts the first row's value in one column and the
+    values below it; returns a bool. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    text = f"{name}"
+    if parsing.classify_number(text) != parsing.NOT_A_NUMBER:
+        return False
+    if not _holds_a_figure_as_a_value(text):
+        return False
+    present = [f"{value}" for value in values if f"{value}" != ""]
+    if len(present) < 2:
+        return False
+    for value in present:
+        if parsing.classify_number(value) == parsing.NOT_A_NUMBER:
+            return False
+    return True
+
+
 def _record_evidence(
     header: list[str], columns: list[list[str]]
 ) -> "str | None":
@@ -779,13 +848,16 @@ def _record_evidence(
     from the file: in a file whose first row may be a record, the first
     row's text is somebody's data, and the values below it always are.
 
-    The four rules are tried in the order a person would want to hear
+    The five rules are tried in the order a person would want to hear
     them, which is also cheapest first for the common case: only a
     numeric first-row value reaches the walk of a numeric column at all.
     Each rule stops at the first column that speaks. The fourth,
     `_shares_the_shape_below`, was added by plan P4-D241 and is the one
-    that reads a record made of structured TEXT; it is asked last
-    because it is the only one that walks every column of the file.
+    that reads a record made of structured TEXT; it is asked fourth
+    because it walks every column of the file. The fifth,
+    `_measurement_among_numbers`, was added by plan P4-D292 and reads
+    the measurement written the way no column name is written -- the
+    exact shape `_names_evidence` refuses as evidence of names.
     """
     for index in range(len(header)):
         if _numeric_fit(header[index], columns[index]):
@@ -815,6 +887,15 @@ def _record_evidence(
                 f"to the same pattern of letters, figures and marks as "
                 f"values written below it in that column, which is what "
                 f"a record in that column looks like"
+            )
+    for index in range(len(header)):
+        if _measurement_among_numbers(header[index], columns[index]):
+            return (
+                f"in column {index + 1} the value in that row is not a "
+                f"number but is written the way a measurement is written, "
+                f"standing over a column whose every value below it is a "
+                f"number, which is what a reading in that column looks "
+                f"like"
             )
     return None
 
@@ -1306,10 +1387,23 @@ def _names_evidence(
     `glucose1` open on a letter, and a name written with a leading
     underscore opens on one mark this rule reads the same way. So a
     figure counts here only in a value that does not open on a letter or
-    an underscore. Ruling 8's shape is unmoved -- `<0.10` still yields
-    no evidence, so `R001,North Unit,<0.10` still gets placeholder names
-    and the question -- and `record_id`, `age`, `arm`, `site` and
-    `reading` over a title line are untouched as they always were.
+    an underscore. `record_id`, `age`, `arm`, `site` and `reading` over
+    a title line are untouched as they always were.
+
+    WHERE RULING 8'S SHAPE IS ACTUALLY HELD UP, AND IT WAS NOT HERE
+    (plan P4-D292, the merge-close of 2026-09-18). Until that entry this
+    docstring claimed that `<0.10` yielding no evidence here meant
+    `R001,North Unit,<0.10` "still gets placeholder names and the
+    question". **Measured** and false: refusing evidence of NAMES is not
+    evidence of a RECORD, and under a title line it was the furniture
+    rule -- not this one -- that asked. With no title line the same 240
+    records published `R001`, `North Unit` and `<0.10` as the column
+    names, described 239 rows where the file holds 240, asked nothing,
+    and wrote that record as the twin's header line. The shape is now
+    read as a record by `_measurement_among_numbers`, the fifth record
+    rule, and by nothing else: `_shape_is_structured` deliberately
+    excludes the `A9` that `R001` wears, so the fourth rule never
+    reached it either.
     """
     for position, name in enumerate(header):
         if position >= len(columns):

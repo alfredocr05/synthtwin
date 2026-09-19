@@ -4557,15 +4557,147 @@ def _missing_maps(
     item P1-R7-F2). The whole rule now lives in
     `_publication_class_applied`, which sees the whole block; this
     function applies the floor and nothing else.
+
+    AND A POOL OF ONE IS NOT A POOL (plan P4-D293, the merge-close of
+    2026-09-18; `parsing.census_floor`'s own rule, "NEVER ONE, WHATEVER
+    THE SETTINGS FLOOR"). Both maps pool what the floor cannot name, and
+    until this entry neither asked whether the POOL named a row.
+    **Measured** at a floor of eleven on 400 rows -- `north` x200,
+    `south` x180, `NA` x19 and one `-999`: the description published
+    `n_missing` 20, `missing_by_source {"NA": 19}`, `missing_by_class
+    {"(text-code)": 19, "(withheld)": 1}` and `n_missing_withheld` 1,
+    and two readings named that one row -- the count of one outright,
+    and 20 less 19 by subtraction from the sibling total. Both documents
+    loaded and every exit was nought.
+
+    THE REPAIR RAISES THE POOL, IT DOES NOT MOVE A CELL INTO A NAMED
+    GROUP. Both were built and both were measured. Counting the rare
+    cell into the commonest spelling -- ruling 6's treatment of a
+    spelling -- publishes `missing_by_source {"NA": 20}` over a table
+    holding nineteen, and the REAL TABLE then misses its own
+    description: `holes.by_source.NA` MISSED, 20 asked and 19 held,
+    validate exit 3 on the table itself. A description that does not
+    describe the table is not a repair, so the rule here is the floor's
+    own: while `parsing.census_names_one_row` says either map names a
+    row, the SMALLEST NAMED SPELLING joins the pool, in both maps at
+    once, and the maps are counted again. The same 400 rows now publish
+    `missing_by_source {}`, `missing_by_class {"(withheld)": 20}` and
+    `n_missing_withheld` 20, which is exactly what the same table
+    publishes at a floor of twenty, and both files validate at nought.
+
+    THE TWO MAPS ARE RAISED TOGETHER because they cut the same cells two
+    ways: a class holds every cell of each of its spellings, so pooling
+    a spelling in one map and not the other would leave the class map
+    naming the row the spelling map had just stopped naming.
+
+    ITS NAMED LIMIT: where the pool already holds EVERY absent cell --
+    one lone `NA` among 380 present -- there is no named group left to
+    raise it with, and `missing_by_class` publishes `{"(withheld)": 1}`.
+    The pool is then `n_missing` itself, a count the column publishes on
+    its own terms beside it, so the map adds no reading to the one the
+    description already carries. `census_names_one_row` reads no row
+    there for the same reason: a census covering no cell of a total
+    leaves the reader nothing to subtract.
+    """
+    held_back: "list[str]" = []
+    if settings.small_cell_floor <= 1:
+        # A FLOOR OF ONE IS THE PERSON SAYING NO GROUP IS TOO SMALL, and
+        # the pool is empty there by construction: `profile.
+        # _remainder_is_published` refuses a remainder above nought at
+        # that floor outright. Raising the pool here would build the very
+        # description that guard exists to stop, so the rule below binds
+        # where pooling happens at all -- above one (plan P4-D293).
+        return _missing_counted(missing, settings, held_back)
+    for _round in range(len(missing) + 1):
+        by_source, pooled, named_blank, withheld = _missing_counted(
+            missing, settings, held_back
+        )
+        named_classes: dict[str, int] = {}
+        covered_classes = 0
+        for name in parsing.MISSING_CLASSES:
+            if name == parsing.MISSING_WITHHELD:
+                continue
+            named_classes[name] = pooled[name]
+            covered_classes = covered_classes + pooled[name]
+        covered_spellings = named_blank
+        for key in sorted(by_source):
+            covered_spellings = covered_spellings + by_source[key]
+        total = len(missing)
+        names_a_row = parsing.census_names_one_row(
+            named_classes, [(total, covered_classes)]
+        ) != -1 or parsing.census_names_one_row(
+            by_source, [(total, covered_spellings)]
+        ) != -1
+        if not names_a_row:
+            return by_source, pooled, named_blank, withheld
+        smallest = _smallest_named_spelling(by_source, named_blank, settings)
+        if smallest is None:
+            return by_source, pooled, named_blank, withheld
+        held_back += [smallest]
+    return _missing_counted(missing, settings, held_back)
+
+
+def _smallest_named_spelling(
+    by_source: "dict[str, int]", named_blank: int, settings: Settings
+) -> "str | None":
+    """The named absent spelling the pool takes next, or None (P4-D293).
+
+    The smallest of the spellings the floor let `_missing_maps` name,
+    with the empty spelling standing for the blank cells counted beside
+    the map; ties are settled by the sorted spelling, so the answer is a
+    function of the counts alone and the pool grows the same way twice.
+    The smallest is taken because it is the one whose loss costs the
+    description least. None means no named spelling is left, which is
+    the limit `_missing_maps` states.
+
+    Guarantees: reads its three arguments; returns a spelling or None.
+    Determinism: a fixed function of the arguments. Raises nothing. No
+    I/O of any kind.
+    """
+    smallest: "str | None" = None
+    count = 0
+    if named_blank >= settings.small_cell_floor:
+        smallest = ""
+        count = named_blank
+    for key in sorted(by_source):
+        if smallest is None or by_source[key] < count:
+            smallest = key
+            count = by_source[key]
+    return smallest
+
+
+def _missing_counted(
+    missing: "list[tuple[str, str]]",
+    settings: Settings,
+    held_back: "list[str]",
+) -> "tuple[dict[str, int], dict[str, int], int, int]":
+    """The two maps and the two counts, with the floor applied once.
+
+    This is the arithmetic `_missing_maps` has always run, with one
+    argument added by P4-D293: ``held_back`` names spellings the caller
+    has already decided the pool takes, whatever the floor says of them.
+    A cell wearing one of those spellings is pooled in BOTH maps -- its
+    class is not named either -- which is what keeps the two maps
+    cutting the same cells.
+
+    Guarantees: accepts the absent cells, the settings and the
+    held-back spellings; returns the spellings map, the class map, the
+    named blank count and the pooled count. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
     """
     by_class: dict[str, int] = {}
     for name in parsing.MISSING_CLASSES:
         by_class[name] = 0
-    for _spelling, name in missing:
+    withheld_cells = 0
+    for spelling, name in missing:
+        if spelling in held_back:
+            withheld_cells = withheld_cells + 1
+            continue
         by_class[name] = by_class[name] + 1
     pooled: dict[str, int] = {}
     for name in parsing.MISSING_CLASSES:
         pooled[name] = 0
+    pooled[parsing.MISSING_WITHHELD] = withheld_cells
     for name in parsing.MISSING_CLASSES:
         if name == parsing.MISSING_WITHHELD:
             continue
@@ -4592,12 +4724,12 @@ def _missing_maps(
             exact[spelling] = 1
     withheld = 0
     for key in sorted(exact):
-        if exact[key] >= settings.small_cell_floor:
+        if exact[key] >= settings.small_cell_floor and key not in held_back:
             by_source[key] = exact[key]
         else:
             withheld = withheld + exact[key]
     named_blank = 0
-    if blank >= settings.small_cell_floor:
+    if blank >= settings.small_cell_floor and "" not in held_back:
         named_blank = blank
     else:
         withheld = withheld + blank

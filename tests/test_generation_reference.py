@@ -1552,6 +1552,17 @@ def _either_field_below_ten(column, day_number, word=""):
     return month < 10 or day < 10
 
 
+def _shows_it(column, day_number, word):
+    """The day's width KIND as it stood before plan P4-D294: does the day
+    SHOW the census's width, rather than is it COUNTED into it.
+
+    The narrower of the two questions. It differs on the day that shows
+    NO width at all, which the producer and the checker absorb into the
+    column's one convention and this one counts out.
+    """
+    return gen.shows_a_width(column, day_number, word)
+
+
 def _toward_the_later_instant(position, denominator, rungs):
     """G7.3's rounding turned over: ceiling instead of floor."""
     segment = gen.ladder_segment(position, denominator)
@@ -2449,20 +2460,30 @@ CASE_MUTANTS = {
         replacement=_either_field_below_ten,
         outcome=CHANGES_THE_CELLS,
     ),
+    # THESE TWO WERE FROZEN FOR PLAN P4-D258's TWO MERGES AND NO LONGER
+    # REACH THEM (plan P4-D294, the merge-close of 2026-09-18). Both are
+    # textual columns under a JOINT width word, and a joint word absorbs
+    # every day that shows no width at all, so the column carries ONE
+    # width kind and no gap of it can be without a unit of its own kind
+    # -- which is the situation both branches exist for. 500 candidate
+    # columns were measured and none reached either branch, so they are
+    # registered here against the rule they DO pin, which is P4-D294
+    # itself. The loss of coverage is stated in G14.3 under the case
+    # table rather than left to be discovered.
     "date_traded_merge": Mutant(
-        branch="plan P4-D258's traded merge; the mutant withdraws the "
-        "payment, so the merge whose gap holds no unit of its own width "
-        "kind is never made and the twin holds a value more",
-        attribute="traded_merges",
-        replacement=lambda *arguments, **named: 0,
+        branch="plan P4-D294's width KIND; the mutant asks whether the day "
+        "SHOWS the census's width in place of whether it is COUNTED into "
+        "it, and the twin's dates move",
+        attribute="counts_into_width",
+        replacement=_shows_it,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_nonadjacent_merge": Mutant(
-        branch="plan P4-D258's merge onto a unit that is no rank neighbour; "
-        "the mutant offers the neighbours alone, and a run whose neighbours "
-        "are of the other width kind stays where it was",
-        attribute="nearest_held_unit",
-        replacement=lambda *arguments: None,
+        branch="plan P4-D294's width KIND, asked of the same three days at "
+        "other words; the mutant is the same narrowing and it moves these "
+        "cells too",
+        attribute="counts_into_width",
+        replacement=_shows_it,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_widths_reached": Mutant(

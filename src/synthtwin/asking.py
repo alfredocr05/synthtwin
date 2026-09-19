@@ -931,6 +931,20 @@ def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
     bytes, so the reading taken stands -- a file this tool twinned
     before may not be refused now -- and the person is asked. What the
     question names is the delimiters, never a cell.
+
+    AND WHAT THE ANSWER COSTS IS SAID IN THE ANSWER (plan P4-D297, the
+    merge-close of 2026-09-18). The merge skeptic measured the residue
+    this question leaves: on `id,measure|low|high` over 120 rows of
+    `i,{100+i%4}|90|110` the vertical bar wins and the comma is recorded,
+    but the source's first column holds `0`, `1`, `2` beside its comma
+    while the twin's holds `100|90|110`, so a comma reader finds two
+    fields per row on the source and one on the twin. Both files
+    validate at nought against the description, because no published
+    fact is about the losing reading. Holding the twin's cells to the
+    losing delimiter's field count as well would bind every made-up cell
+    of every column to a second shape, against the length and form
+    censuses those cells already owe; so the cost is stated here, where
+    the person is choosing, rather than paid there.
     """
     if len(tied) < 2:
         return []
@@ -944,7 +958,11 @@ def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
                 (
                     f"the file is read with {dialect.DELIMITER_WORDS[one]}, "
                     f"which decides every column name and every column's "
-                    f"values, and the twin is written with it"
+                    f"values, and the twin is written with it -- the "
+                    f"twin's own cells are made up under this reading "
+                    f"alone, so a reader that splits the twin by the "
+                    f"other character need not find the rows your file "
+                    f"gives it"
                 ),
             )
         ]

@@ -16763,7 +16763,83 @@ def _date_count_notes(
                     reason,
                 )
             ]
+    notes = notes + _subsecond_notes(column, facts, cells)
     return notes
+
+
+def _subsecond_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[Deviation]":
+    """Name a fraction of a second the twin writes as nought (plan P4-D296).
+
+    THE LOSS THAT PASSED IN SILENCE (the merge skeptic's second carried
+    item, the extra date review's item 9). A column published at
+    `time_precision` `subsecond` with `subsecond_digits` 3 is written by
+    this generator at the SECOND: every rank is a whole number of
+    seconds, so every cell wears `.000` and the milliseconds the source
+    column held are gone. **Measured** on 240 moments a thousandth of a
+    second past the half day, at a floor of eleven, as a workbook and as
+    delimited text alike: the source's cells read `microsecond=1000` in
+    all 240 and the twin's read `microsecond=0` in all 240, while
+    re-describing the twin published `subsecond` and 3 again -- the
+    workbook check reads the FORMAT CODE, and the delimited one reads
+    the figures written, which are three noughts. Both files validated
+    at nought and the twin's report named nothing.
+
+    WHY THIS NAMES IT RATHER THAN WRITING IT. Spending the fraction over
+    the ranks moves their instants, and a column's `earliest` and
+    `latest` are EXACT obligations at the precision they are published
+    at; a repair that buys the milliseconds by missing the two ends
+    breaks the half of the goal that says the twin validates. Drawing
+    the ranks at the subsecond unit instead is the real repair and it
+    reaches the percentile ladder, the midnight rules and both distinct
+    counts, so it is a landing of its own. Until it is made, the loss is
+    a DEVIATION the twin's own report carries, which is this package's
+    own rule for a count a pass cannot reach.
+
+    Guarantees: accepts a column block, its datetime facts and the cells
+    written; returns a list of deviations, empty where the column
+    publishes no subsecond precision or where some cell carries a
+    fraction above nought. Determinism: a fixed function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    if facts.time_precision != "subsecond" or facts.subsecond_digits < 1:
+        return []
+    written = 0
+    carried = 0
+    for cell in cells:
+        text = f"{cell}"
+        place = -1
+        for index in range(len(text)):
+            if text[index] == ".":
+                place = index
+        if place < 0:
+            continue
+        written = written + 1
+        for index in range(place + 1, len(text)):
+            if text[index] >= "1" and text[index] <= "9":
+                carried = carried + 1
+                break
+    if written < 1 or carried > 0:
+        return []
+    return [
+        _deviation(
+            column.name,
+            "subsecond_digits",
+            f"{written} value(s) written to {facts.subsecond_digits} "
+            f"figure(s) after the second",
+            f"{written} value(s) whose figures after the second are all "
+            f"nought",
+            "The description says this column's moments are written to a "
+            "fraction of a second. This twin draws its moments a whole "
+            "second at a time, so every cell's fraction is nought: code "
+            "that reads the milliseconds off this column meets a column "
+            "of zeros where your table has a spread of them, and an "
+            "average of the fractions is not a fact about your table.",
+        )
+    ]
 
 
 def _offset_allocation(
@@ -18129,7 +18205,7 @@ def _nearest_day_of_kind(
         for candidate in (earlier, later):
             if candidate < lowest or candidate > highest:
                 continue
-            if _shows_a_width(facts, candidate // day, word) != showing:
+            if _counts_into_width(facts, candidate // day, word) != showing:
                 continue
             if held is None:
                 return candidate
@@ -18405,7 +18481,7 @@ def _traded_merges(
         start = best[2]
         target = best[3]
         own = moved[start] // unit
-        gaining = _shows_a_width(facts, target // day, word)
+        gaining = _counts_into_width(facts, target // day, word)
         paid = _repaid_standings(
             facts, moved, pinned, lows, highs, day, step, unit, held, spot,
             word, size, not gaining, own, target // unit,
@@ -18478,7 +18554,7 @@ def _repaid_standings(
             continue
         if held[own] <= 1:
             continue
-        if _shows_a_width(facts, moved[rank] // day, word) == gaining:
+        if _counts_into_width(facts, moved[rank] // day, word) == gaining:
             continue
         target = _nearest_held_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit,
@@ -18500,7 +18576,7 @@ def _standing_of(
     word: str = "",
 ) -> "tuple[bool, bool]":
     """What a unit holds for the other counts: its width kind and midnight."""
-    shows = widths and _shows_a_width(facts, value // day, word)
+    shows = widths and _counts_into_width(facts, value // day, word)
     at = day == 86400 and _written_at_midnight(value, 0, step)
     return (shows, at)
 
@@ -18649,7 +18725,7 @@ def _same_standing(
     word: str = "",
 ) -> bool:
     """Whether moving between these instants keeps what the counts hold."""
-    if widths and _shows_a_width(facts, value // day, word) != _shows_a_width(
+    if widths and _counts_into_width(facts, value // day, word) != _counts_into_width(
         facts, target // day, word
     ):
         return False
@@ -18712,7 +18788,7 @@ def _nearest_held_unit(
                 # THE OTHER WIDTH STANDING, THE SAME MIDNIGHT ONE (plan
                 # P4-D258): this is the half of a trade, and a trade
                 # gives the width count back with its other half.
-                if _shows_a_width(facts, found // day, word) == _shows_a_width(
+                if _counts_into_width(facts, found // day, word) == _counts_into_width(
                     facts, value // day, word
                 ):
                     continue

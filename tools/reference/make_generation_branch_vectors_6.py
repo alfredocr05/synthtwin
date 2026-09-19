@@ -32,6 +32,22 @@ permitted in tools/ (the D6 restriction applies to src/ only).  Nothing
 about the oracle's own rule changes: it still imports neither synthtwin,
 nor numpy, nor pandas, and a test asserts that of every entry point.
 
+**WHERE THE NEXT CASE GOES, SO THE CHOICE IS NOT MADE UNDER A FAILING
+GATE** (plan P4-D295, the merge-close of 2026-09-18).  The merge skeptic
+measured the eight committed files against the 250000-byte cap and found
+518 bytes of headroom on the second, not the twenty-five thousand the
+round's brief assumed: `generation-branch-vectors-2.json` stands at
+249482 bytes, the first at 248177 and the third at 246851, while THIS
+file's output stands at 129683 and the fifth at 162596.  A case routed
+into a full file is discovered by `tools/provenance/check_provenance.py`
+refusing the build, which is the worst moment to be choosing a file.  So
+it is chosen here instead: **the next case goes in this file**, and the
+one after it too, until this file's output passes 200000 bytes -- at
+which point a ninth entry point is written the way this one was, by
+moving cases whole rather than by raising the cap.  The first three files
+are FULL and take no case; the fifth takes one only where this file
+cannot.
+
 Usage:  python3 make_generation_branch_vectors_6.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is
         accepted and ignored, because these vectors are a fixed transform
