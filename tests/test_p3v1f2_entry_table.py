@@ -34,7 +34,8 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(670 rows over 666 sites, 73 curated and 597 derived); each derived row
+(measured on 2026-09-19: 1403 rows over 1313 sites, 252 curated and
+1151 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -7751,16 +7752,18 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 670 rows
-    over 666 sites, 73 curated and 597 derived, each derived one an edit
-    aimed at the site it covers. THREE sites carry more than one row on
-    purpose: `columns.order` carries three, because it is the whole of
-    what the shipped table files for the STRUCTURAL disposition and the
-    floor below asks that class for three edits; `rows.n_rows` carries
-    two, a row taken out and a row added; and the headerless
-    `header.presence` carries the plain edit and the compensating one
-    that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 665 is on its own.
+    up. The registration is now total over the shipped sites -- measured
+    on 2026-09-19, 1403 rows over 1313 sites, 252 curated and 1151
+    derived -- each derived one an edit aimed at the site it covers.
+    89 sites carry more than one row. Some do so on purpose:
+    `columns.order` carries three on `every-role`, because it is the
+    whole of what the shipped table files for the STRUCTURAL disposition
+    and the floor below asks that class for three edits; `rows.n_rows`
+    carries a row
+    taken out and a row added; and the headerless `header.presence`
+    carries the plain edit and the compensating one that used to defeat
+    it. At every such site deleting one row is not enough to turn this
+    red; each of the other 1224 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The

@@ -16989,6 +16989,29 @@ withheld map is empty, so on a producer's description the validator's
 `levels.<label>.variants_withheld` can miss only where the level itself
 is absent from the checked file; no spelling edit can move it.
 
+**AND THE HAND-WRITTEN ROUTE IS A DESCRIPTION NO FILE MEETS** (the
+repair pass of 2026-09-19, measured, not decided). The loader still
+reads a `variants_withheld` key in `2 .. floor - 1` at a raised floor,
+as section 7.4's W5 states it, while section 8.8's W5 row and this
+decision call that map empty. **Measured** over the corner-parity
+file's 27 hand-written descriptions: the 17 carrying a non-empty
+withheld map are each reported MISSED on `levels.<label>.variants` and
+`levels.<label>.variants_withheld` of every level holding a spelling
+back, BOTH against the generator's own twin and against the very source
+table the description was written from, and on `distinct.n_distinct`
+as well against all 17 twins and 16 of the 17 source tables; the 10
+whose map stayed empty pass. The validator
+describes the checked file again with this rule, so no file can show it
+a withheld spelling. That is P3-V7-F3's symptom -- the product's own
+twin reported MISSED -- on a description the format admits, and the
+guards re-armed above over the hand-written route compare arithmetic
+taken from the description alone, so they are not touched by it. **An
+owner question, open:** should W5 refuse a non-empty map at a raised
+floor, as W5b refuses the key `1` and as P5, P6 and P6c refuse a pool
+beside a named count (P4-D222)? If so, those guards lose their route
+and must be re-armed at the loader's refusal; if not, it is an accepted
+limit and wants a test witnessing the MISSED.
+
 ### P4-D276 A label role's `n_distinct` counts the spellings the block SPEAKS OF
 
 The extra review round of 2026-09-18, item 5, second half. `n_distinct`

@@ -92,8 +92,10 @@ behaviour back, so every guarantee here has a demonstrated red:
   corner asked in the short direction only;
 * `P3-V7-F4-vacuity` -- the spelling envelope kept as a check where it
   licenses every count a file of that length can hold;
-* `P3-V7-styles` -- a named style count compared exactly against a
-  description whose style map the floor has pooled;
+* `P3-V7-styles` -- a named count compared exactly against a census
+  the floor has partly pooled. Since plan P4-D222 no style map pools
+  beside a named form, so it bites on the layout census, which still
+  may (re-armed by the repair pass of 2026-09-19);
 * `P3-V8-F3` -- the corner asked without the field, so G12.7's raw-only
   authorization lands on a folded count as well;
 * `P3-V8-F4` -- G12.8's supply written with its first summand alone, and
@@ -763,6 +765,16 @@ def _by_hand_entries() -> "list[Entry]":
     so no file can show it a withheld spelling to compare. What they are
     for needs no twin -- G12.7's supply and the corner it decides, which
     both sides compute from the description alone.
+
+    MEASURED, AND AN OPEN OWNER QUESTION (plan P4-D275's amendment of
+    2026-09-19). Of these descriptions, every one whose map is not
+    empty -- seventeen of them -- is reported MISSED on `variants` and
+    `variants_withheld` of each level holding a spelling back, against
+    the generator's own twin AND against the source table it was written
+    from, and on `n_distinct` against every such twin. The format admits
+    a description no file meets; whether W5 should refuse it is the
+    owner's to decide, and these guards stand on the route only until
+    then.
     """
     built: list[Entry] = []
     for entry in _space():
@@ -2043,6 +2055,16 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
     The bar is a window now, and it still has teeth in the direction
     that matters: the published cells are owed, so a file writing fewer
     of them than the description names still misses.
+
+    WHERE THE WINDOW STANDS NOW (the repair pass of 2026-09-19). Since
+    plan P4-D222 a forms map pools only where it names nothing (the
+    loader's P6 refuses a pool beside a named form), so every pooled
+    style map below is the pool alone -- asserted -- and no named style
+    of this space is compared under the window at all. The window is
+    still the rule wherever a census may keep a pool beside a named
+    count, and the one this space reaches is the identifier's layout
+    census: `test_a_pooled_layout_census_holds_a_file_inside_its_window`
+    carries the `P3-V7-styles` red check there.
     """
     pooled = 0
     for probe in parity:
@@ -2052,6 +2074,10 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
         if taxonomy.SUPPRESSED_LABEL not in facts.numeric_styles:
             continue
         pooled = pooled + 1
+        assert list(facts.numeric_styles) == [taxonomy.SUPPRESSED_LABEL], (
+            probe.stem,
+            dict(facts.numeric_styles),
+        )
         for check in probe.outcome.checks:
             if not check.subcheck.startswith("styles.published."):
                 continue
@@ -2092,6 +2118,95 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
     assert validation.MISSED in _verdicts(
         outcome, f"styles.published.{parsing.STYLE_LEADING_ZERO}"
     )
+
+
+def test_a_pooled_layout_census_holds_a_file_inside_its_window(
+    parity: "tuple[Probe, ...]",
+    tmp_path: pathlib.Path,
+) -> None:
+    """The fifth divergence's window, where a census still pools beside a name.
+
+    RE-ARMED BY THE REPAIR PASS OF 2026-09-19. The `P3-V7-styles`
+    reinstatement puts the exact bar back on a named count beside a
+    pool, and it had turned nothing red since plan P4-D222 left no style
+    map of this space with a pool beside a named form. The identifier's
+    layout census still keeps one (`{"&": 11, "(withheld)": 7}` at a
+    floor of eleven), and `validation._form_checks` states the rule for
+    it: a recounted form numbers AT LEAST its published count and AT
+    MOST that count plus the pool, because a pooled cell has no
+    published layout and a file may give it this one.
+
+    So for every probe whose layout census names a layout beside a
+    pool, a file is built from the twin's own cells with ``k`` of them
+    wearing the named layout, and the verdict is asserted at the four
+    edges the rule fixes: ``published - 1`` MISSED, ``published`` HELD,
+    ``published + pool`` HELD, and ``published + pool + 1`` MISSED where
+    the column is long enough to hold it. The exact bar misses the
+    third, and the product's own twin, which writes the published count,
+    is asserted HELD beside it. Both layouts this space reaches publish
+    exactly the floor, so the first edge is decided by the floor (a
+    recount below it is not printed) rather than by the window's low
+    end; red checks run: the high end widened by one turns this red,
+    the low end lowered by one does not.
+    """
+    folder = tmp_path / "layout-window"
+    folder.mkdir()
+    reached = 0
+    for probe in parity:
+        facts = probe.column.facts
+        if not isinstance(facts, contract.IdentifierFacts):
+            continue
+        census = facts.layout_forms
+        if taxonomy.SUPPRESSED_LABEL not in census or len(census) < 2:
+            continue
+        pool = census[taxonomy.SUPPRESSED_LABEL]
+        present = [cell for cell in probe.twin.columns[0] if cell]
+        convention = parsing.layout_convention(present)
+        for layout in sorted(census):
+            if layout == taxonomy.SUPPRESSED_LABEL:
+                continue
+            reached = reached + 1
+            published = census[layout]
+            subcheck = f"forms.published.{layout}"
+            assert _verdicts(probe.outcome, subcheck) == [validation.HELD]
+            wearing = [
+                cell for cell in present
+                if parsing.layout_form(cell, convention) == layout
+            ]
+            other = [
+                cell for cell in present
+                if parsing.layout_form(cell, convention) != layout
+            ]
+            assert wearing and other, (probe.stem, layout)
+            edges = {
+                published - 1: validation.MISSED,
+                published: validation.HELD,
+                published + pool: validation.HELD,
+            }
+            if published + pool + 1 <= len(present):
+                edges[published + pool + 1] = validation.MISSED
+            for count in sorted(edges):
+                made = [
+                    wearing[place % len(wearing)]
+                    if place < count
+                    else other[place % len(other)]
+                    for place in range(len(present))
+                ]
+                path = fixtures.write(
+                    folder,
+                    f"{probe.stem}-{count}.csv",
+                    _one_column_text(made),
+                )
+                outcome = validation.measure(probe.described, str(path))
+                assert _verdicts(outcome, subcheck) == [edges[count]], (
+                    probe.stem,
+                    layout,
+                    f"{count} cells wearing it against {published} "
+                    f"published beside a pool of {pool}",
+                )
+    # TWO IN THIS SPACE, measured on 2026-09-19: `id-5` publishes
+    # `{"&": 11, "(withheld)": 7}` and `id-28` `{"&": 11, "(withheld)": 2}`.
+    assert reached >= 2, reached
 
 
 # -- the space itself, so neither walk above can narrow ----------------

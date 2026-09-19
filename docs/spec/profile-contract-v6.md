@@ -8029,7 +8029,9 @@ none of them. Its keys are bounded here to 1 through
 ruling of 2026-09-17 item 5, plan P4-D240: a spelling ONE row wrote is
 counted into the label's commonest spelling instead), and `{}` is valid
 — a published label with no held-back spelling. At a floor of one that range is empty, so every
-map of this key is `{}`; `variants_withheld` is one of the fields S13
+map of this key is `{}`; and since plan P4-D275 the producer counts
+every spelling below a raised floor into the level's commonest, so the
+producer writes `{}` at every floor; `variants_withheld` is one of the fields S13
 names, and S13 is checked before any column block is read.
 
 Worked example — floor 11, one entry of a `categorical` column:
@@ -8052,9 +8054,12 @@ one row wrote is counted into the level's commonest (W5b, plan P4-D240),
 so the three are counted under `North` and the entry publishes 25 and 15.
 25 + 15 = 40, the entry's own `count`. **This example read 22 and
 `variants_withheld {"1": 3}` until P4-D240**, which is the count of one
-that key states outright; with three spellings of TWO rows each instead,
-the entry would read `{"North": 22, "north": 12}` beside
-`variants_withheld {"2": 3}` and 22 + 12 + 3 × 2 = 40.
+that key states outright. With three spellings of TWO rows each instead,
+the entry read `{"North": 22, "north": 12}` beside
+`variants_withheld {"2": 3}` until plan P4-D275, which counts EVERY
+spelling below the floor into the level's commonest: it now reads
+`{"North": 28, "north": 12}` beside `variants_withheld {}`, the six
+rows of the three spellings counted under `North`, and 28 + 12 = 40.
 
 #### 7.4.3 Stored exactly, escaped only where it is shown
 
