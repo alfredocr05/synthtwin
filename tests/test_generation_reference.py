@@ -3313,6 +3313,7 @@ DOCUMENT_CASES = (
     "withheld_line_marks",
     "workbook_as_written",
     "workbook_classes_by_spelling",
+    "workbook_made_up_dates",
     "workbook_sheet",
     "written_form_classes",
     "written_form_lines",
@@ -3543,7 +3544,12 @@ def test_the_workbook_twin_is_the_package_the_method_requires(
     would produce is in question here, and a case that generated them
     would be testing two transforms at once.
     """
-    for name in ("workbook_sheet", "workbook_classes_by_spelling", "workbook_as_written"):
+    for name in (
+        "workbook_sheet",
+        "workbook_classes_by_spelling",
+        "workbook_as_written",
+        "workbook_made_up_dates",
+    ):
         _package_matches(_document_case(name), tmp_path / name)
 
 
@@ -3693,6 +3699,31 @@ DOCUMENT_MUTANTS = {
             "text holding day counts instead",
             attribute="sheet_stores_dates",
             replacement=lambda column: False,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "workbook_made_up_dates": (
+        Mutant(
+            branch="G2.2 step 0a's rule that a column the description "
+            "stores as dates has its made-up cells brought onto the "
+            "calendar before anything is allocated (plan P4-D291); the "
+            "mutant hands every cell back as it came, and the first "
+            "column's sixteen cells that name no day fit no class but "
+            "`text` and are written as shared strings instead of date "
+            "cells",
+            attribute="sheet_on_the_calendar",
+            replacement=lambda text: text,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 1's rule that the `date` class fits only a "
+            "cell naming a day of the calendar (plan P4-D291); the "
+            "mutant asks the SHAPE alone, as the rule it replaced did, "
+            "and the third column's twenty made-up cells are written as "
+            'date cells (`t="d"`) holding days no month has -- which is '
+            "the twin openpyxl could not open at all",
+            attribute="sheet_date_is_real",
+            replacement=lambda text: gen.sheet_is_iso_date(text),
             outcome=CHANGES_THE_CELLS,
         ),
     ),

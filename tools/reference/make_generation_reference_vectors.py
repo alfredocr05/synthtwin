@@ -17553,6 +17553,111 @@ def sheet_is_iso_date(text):
     )
 
 
+def sheet_date_fields(text):
+    """A date cell's fields: year, month, day, hours, minutes, seconds.
+
+    G2.2 step 1's shape, split. A field the text does not carry comes
+    back empty. Asked only of text `sheet_is_iso_date` has accepted.
+    """
+    year = month = day = ""
+    clock = text
+    if len(text) >= 10 and text[4:5] == "-":
+        year, month, day = text[0:4], text[5:7], text[8:10]
+        clock = text[11:] if len(text) > 10 else ""
+    if not clock:
+        return year, month, day, "", "", ""
+    seconds = clock[6:8] if len(clock) > 5 else ""
+    return year, month, day, clock[0:2], clock[3:5], seconds
+
+
+def sheet_date_is_real(text):
+    """Whether ISO date text names a day of the calendar (G2.2 step 1).
+
+    Plan P4-D291, written from the rule: the shape first, then the
+    fields -- a month among the twelve, a day the month has in that
+    year, an hour of at most 23 and minutes and seconds of at most 59.
+    The calendar is G7.1's, asked here by the round trip through
+    ``days_from_civil`` and ``civil_from_days``: a date the calendar has
+    is the date those two hand back, and a day past the month's end is
+    not.
+    """
+    if not sheet_is_iso_date(text):
+        return False
+    year, month, day, hours, minutes, seconds = sheet_date_fields(text)
+    if year:
+        if int(year) < 1 or not 1 <= int(month) <= 12 or int(day) < 1:
+            return False
+        made = civil_from_days(days_from_civil(int(year), int(month), int(day)))
+        if made != (int(year), int(month), int(day)):
+            return False
+    if hours and int(hours) > 23:
+        return False
+    if minutes and int(minutes) > 59:
+        return False
+    if seconds and int(seconds) > 59:
+        return False
+    return True
+
+
+def sheet_month_days(year, month):
+    """How many days that month of that year has, by G7.1's calendar."""
+    next_year = year + 1 if month == 12 else year
+    next_month = 1 if month == 12 else month + 1
+    return days_from_civil(next_year, next_month, 1) - days_from_civil(
+        year, month, 1
+    )
+
+
+def sheet_nearest_allowed(figures, least, most):
+    """One field at the nearest value its range allows, at its own width."""
+    found = min(max(int(figures), least), most)
+    return f"{found}".rjust(len(figures), "0")
+
+
+def sheet_on_the_calendar(text):
+    """A made-up date cell brought onto the calendar (G2.2 step 0a).
+
+    Plan P4-D291, written from the rule: each field to the NEAREST value
+    the calendar allows, at the width it was written with -- the year
+    into 1 to 9999, the month into the twelve, the day into the days
+    that month has in that year, the hour to at most 23 and the minutes
+    and the seconds to at most 59. Text that is not the ISO shape, and
+    text that already names a day, comes back exactly as it came.
+    """
+    if not sheet_is_iso_date(text) or sheet_date_is_real(text):
+        return text
+    year, month, day, hours, minutes, seconds = sheet_date_fields(text)
+    head = ""
+    if year:
+        year = sheet_nearest_allowed(year, 1, 9999)
+        month = sheet_nearest_allowed(month, 1, 12)
+        day = sheet_nearest_allowed(
+            day, 1, sheet_month_days(int(year), int(month))
+        )
+        head = f"{year}-{month}-{day}"
+        if not hours:
+            return head
+        head = head + "T"
+    written = (
+        sheet_nearest_allowed(hours, 0, 23)
+        + ":"
+        + sheet_nearest_allowed(minutes, 0, 59)
+    )
+    if seconds:
+        clock = text[11:] if text[4:5] == "-" else text
+        # Past the seconds stands the fraction of a second, which is
+        # figures and has no range of its own.
+        written = (
+            written + ":" + sheet_nearest_allowed(seconds, 0, 59) + clock[8:]
+        )
+    return head + written
+
+
+def sheet_column_on_the_calendar(cells):
+    """Every cell of a date-storing column brought onto the calendar."""
+    return [sheet_on_the_calendar(text) for text in cells]
+
+
 def sheet_fits(kind, text):
     """Whether a cell holding this text can be written as this class (G2.2)."""
     if kind == "error":
@@ -17560,7 +17665,7 @@ def sheet_fits(kind, text):
     if kind == "boolean":
         return text in ("TRUE", "FALSE")
     if kind == "date":
-        return sheet_is_iso_date(text)
+        return sheet_date_is_real(text)
     if kind == "number":
         return sheet_number_spelling(text) != ""
     return True
@@ -18515,7 +18620,7 @@ def sheet_table_sheet_part(
             if kind == "error":
                 line = line + sheet_cell_element(reference, "e", value, style)
                 continue
-            if kind == "date" and sheet_is_iso_date(value):
+            if kind == "date" and sheet_date_is_real(value):
                 line = line + sheet_cell_element(reference, "d", value, style)
                 continue
             if kind == "boolean":
@@ -18587,6 +18692,11 @@ def workbook_parts(block, names, cells, n_rows, write_header):
     for index in range(width):
         census = block["columns"][index]["cell_classes"]
         written = list(cells[index])
+        # A COLUMN STORED AS DATES IS WRITTEN AS DATES (G2.2 step 0a,
+        # plan P4-D291): the made-up cells of a column whose role
+        # publishes no value of it wear a date's shape and name no day.
+        if sheet_stores_dates(block["columns"][index]):
+            written = sheet_column_on_the_calendar(written)
         held = sheet_cell_classes(
             census, written, block["columns"][index]["value_class"]
         )
@@ -19411,6 +19521,129 @@ def _workbook_as_written():
     }
 
 
+def _workbook_made_up_dates():
+    """G2.2 step 0a and step 1's calendar, added by plan P4-D291."""
+    withheld = {
+        "absent": None, "blank": None, "empty": None, "text": None,
+        "number": None, "boolean": None, "error": None, "date": None,
+    }
+    kinds_withheld = {
+        "plain": None, "date": None, "datetime": None, "time": None,
+        "elapsed": None, "text": None,
+    }
+    # Six of these name a day of the calendar and must come back exactly
+    # as they came; the other sixteen wear the shape and name no day --
+    # a month above twelve and one below one, a day above the month's
+    # end and one below one, the end of February in a year that is not a
+    # leap year, the end of February in a century that is not one
+    # either, and a year of noughts.
+    seen_on = [
+        "2024-03-17", "2006-06-32", "2024-02-29", "8204-84-03",
+        "2106-36-14", "0000-01-01", "2019-12-31", "2023-02-29",
+        "2024-00-10", "2001-01-01", "2024-01-00", "2024-04-31",
+        "1999-13-01", "2024-06-30", "3333-99-99", "5805-52-35",
+        "7001-26-23", "2020-02-29", "2024-11-31", "2100-02-29",
+        "4004-74-44", "9999-99-99",
+    ]
+    # The same, asked of a clock: an hour above 23, minutes and seconds
+    # above 59, a fraction of a second that has no range of its own, and
+    # a day that must move under the clock rather than beside it.
+    logged_at = [
+        "2024-03-17T14:05:00", "2024-03-18T24:00:00", "2024-03-19T09:60:00",
+        "2024-03-20T09:05:60", "2024-03-21T99:99:99", "2024-02-30T10:15:30",
+        "2024-03-22T23:59:99.250", "2024-03-23T00:00:00", "2024-13-24T07:45:10",
+        "2024-03-25T08:00:59", "2024-03-26T88:00:00", "2024-03-27T12:34:56",
+        "2024-03-28T00:99:00", "2024-03-29T23:59:59", "2024-04-31T06:30:00",
+        "2024-03-31T05:05:05", "2024-03-32T21:15:00", "2024-04-02T19:00:60",
+        "2024-04-03T00:00:99", "2024-04-04T13:13:13", "2024-04-05T25:61:61",
+        "2024-04-06T11:11:11",
+    ]
+    # A column the description does NOT store as dates: its census is
+    # withheld and its commonest class is `number`, so step 0a leaves it
+    # alone and only the calendar of step 1 keeps its made-up cells off
+    # the `date` class.
+    serial_no = ["104", "205"] + [
+        f"{2000 + 111 * row}-{70 + row:02d}-{80 + row:02d}" for row in range(20)
+    ]
+    published_dates = {
+        "absent": 0, "blank": 0, "empty": 0, "text": 0,
+        "number": 0, "boolean": 0, "error": 0, "date": 22,
+    }
+    moment_kinds = {
+        "plain": 0, "date": 0, "datetime": 22, "time": 0, "elapsed": 0,
+        "text": 0,
+    }
+    return {
+        "why": "method section G2.2 step 0a and the calendar step 1 asks "
+        "of the `date` class (plan P4-D291), in one table of three "
+        "columns and twenty-two rows, at the floor of eleven every case "
+        "here is held to. A cell wearing the ISO shape names no day of "
+        "the calendar merely by wearing it, and a workbook cell marked "
+        "as holding a date carries those characters AS the date, so a "
+        "twin holding `2006-06-32` is a file no reader can open at all "
+        "-- measured on 118 such cells, openpyxl raised `day is out of "
+        "range for month` and stopped on the whole file. The FIRST "
+        "column is the one the defect was measured on: its census is "
+        "withheld whole and its commonest class is `date`, so every one "
+        "of its cells is to be stored as a date, and sixteen of the "
+        "twenty-two wear the shape and name no day -- each field is "
+        "brought to the nearest value the calendar allows, at the width "
+        "it was written with, and the six that already name a day do "
+        "not move. The SECOND asks the same of a clock, and of a day "
+        "that moves under one. The THIRD is a column the description "
+        "does NOT store as dates -- a withheld census whose commonest "
+        "class is `number` -- so step 0a leaves it alone and the "
+        "calendar of step 1 is all that keeps its made-up cells off the "
+        "`date` class: they are written as shared text. It carries TWO "
+        "mutants, one for each half of the rule.",
+        "kind": "workbook",
+        "names": ["seen_on", "logged_at", "serial_no"],
+        "n_rows": 22,
+        "write_header": True,
+        "cells": [seen_on, logged_at, serial_no],
+        "workbook": {
+            "autofilter": False,
+            "columns": [
+                {
+                    "cell_classes": dict(withheld),
+                    "format_code": "yyyy-mm-dd",
+                    "format_kinds": dict(kinds_withheld),
+                    "formulas": None,
+                    "value_class": "date",
+                },
+                {
+                    "cell_classes": dict(published_dates),
+                    "format_code": "yyyy-mm-dd hh:mm:ss",
+                    "format_kinds": dict(moment_kinds),
+                    "formulas": None,
+                    "value_class": "date",
+                },
+                {
+                    "cell_classes": dict(withheld),
+                    "format_code": "General",
+                    "format_kinds": dict(kinds_withheld),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+            ],
+            "date_system": "1900",
+            "defined_names": 0,
+            "defined_table": False,
+            "empty_rows_inside": None,
+            "frozen_rows": 1,
+            "macro_project": False,
+            "rows_above_header": 0,
+            "sheet_count": 1,
+            "sheet_extents": [None],
+            "sheet_hidden": False,
+            "sheet_names": ["Data"],
+            "sheet_position": 1,
+            "trailing_blank_columns": 0,
+            "trailing_blank_rows": 0,
+        },
+    }
+
+
 DOCUMENT_PART = "documents"
 
 # The cases landing 2b.17 added for the transforms that produce a WHOLE
@@ -19421,6 +19654,7 @@ DOCUMENT_CASE_BUILDERS = {
     "withheld_line_marks": _withheld_line_marks,
     "workbook_sheet": _workbook_sheet,
     "workbook_as_written": _workbook_as_written,
+    "workbook_made_up_dates": _workbook_made_up_dates,
     "workbook_classes_by_spelling": _workbook_classes_by_spelling,
     "written_form_classes": _written_form_classes,
     "written_form_lines": _written_form_lines,

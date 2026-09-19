@@ -33,13 +33,19 @@ THE RED CHECKS, each measured by withdrawing the rule in place:
 * WB4 held to how many rows the table has again --
   `test_a_legal_freeze_below_the_table_loads`;
 * `workbook.is_packaged_unreadably` returning False --
-  `test_a_package_this_reader_cannot_expand_is_refused_in_words`.
+  `test_a_package_this_reader_cannot_expand_is_refused_in_words`;
+* `dialect.sheet_date_on_the_calendar` handing the text back unchanged,
+  and `dialect.sheet_date_is_real` asking the shape alone -- the two
+  halves of plan P4-D291, each measured against
+  `test_a_withheld_date_census_writes_a_twin_a_reader_opens` and
+  `test_a_column_not_stored_as_dates_keeps_made_up_dates_off_the_class`.
 
 Every table and every workbook here is built by neutral code at runtime
 (plan D13); the vocabulary is made up on the spot.
 """
 
 import contextlib
+import datetime
 import io
 import json
 import pathlib
@@ -50,7 +56,7 @@ import zipfile
 
 import pytest
 
-from synthtwin import asking, dialect, errors, reading, workbook
+from synthtwin import asking, dialect, errors, reading, sheetwriting, workbook
 from tests import workbooks
 
 _FLOOR_ELEVEN = "11"
@@ -1251,7 +1257,13 @@ def test_the_loader_refuses_a_freeze_with_no_row_below_it(
     assert "WB4" in f"{stopped.value}", f"{stopped.value}"
 
 
-# -- what this pass measured and did NOT change ------------------------
+# -- what this pass measured, and the landing that closed it ----------
+#
+# The minor item of this pass was recorded here as a DEFECT, with the
+# repair named as a landing of its own because `sheet_class_fits` is a
+# generator rule and narrowing it needs its mirror, a frozen case, a
+# registered mutant and G14.3's own count. That landing is plan P4-D291,
+# and the two tests below now hold the repair rather than the defect.
 
 
 def _withheld_date_book() -> bytes:
@@ -1285,32 +1297,39 @@ def _withheld_date_book() -> bytes:
     return _book(rows, ["yyyy-mm-dd"], "A1:B121")
 
 
-def test_a_withheld_date_census_writes_a_twin_no_reader_opens(
+def test_a_withheld_date_census_writes_a_twin_a_reader_opens(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The skeptic's finding 7 (MINOR): MEASURED HERE, NOT REPAIRED.
+    """The skeptic's finding 7, MEASURED HERE AND NOW REPAIRED (P4-D291).
 
-    Where the cell-class census is withheld whole, a cell no count
-    claims takes the first withheld class its SPELLING fits, and
-    `dialect.sheet_class_fits` reads the date SHAPE alone -- so a
-    made-up `2006-06-32` fits the `date` class and is written `t="d"`.
-    Measured at a floor of eleven on 118 date cells beside two texts:
-    openpyxl raises `day is out of range for month` and cannot open the
-    twin AT ALL, while `synthtwin validate` returns 0 for the table and
-    0 for the twin.
+    Where the cell-class census is withheld whole, the role falls to
+    free text and the column's cells are made up from its published
+    SHAPE, so they wear a date's shape and name no day. Written as date
+    cells they were a file no reader could open: measured at a floor of
+    eleven on these 118 cells, openpyxl raised `day is out of range for
+    month` and stopped on the whole workbook, while `synthtwin
+    validate` returned 0 for the table AND 0 for the twin, so nothing
+    caught it.
 
-    THIS TEST RECORDS THE DEFECT RATHER THAN THE REPAIR, and says so
-    where a reader will meet it. It predates `c5d09d5` -- the twins the
-    two commits write are byte-identical -- and the repair is a
-    GENERATOR rule: `sheet_class_fits` is mirrored in the oracle as
-    `sheet_fits`, so narrowing the date class needs the mirror, a frozen
-    case that reaches the branch, a registered mutant that moves its
-    cells, and G14.3's own count of the cases. That is a landing.
-    MEASURED with the one-line narrowing applied to this tree: the twin
-    opens, its 118 cells are written as text, and `workbook.value-class`
-    is then MISSED -- the description asks for `date` and the file holds
-    `text` -- at exit 3 on the twin and 0 on the table. Both halves of
-    that trade are the owner's to take.
+    What this test now holds is the repair, in both halves. A column
+    the description stores as dates has its made-up cells brought onto
+    the calendar before its classes are allocated, so the twin's 118
+    cells are date cells an independent reader hands back as DATES; and
+    the `date` class fits only a cell that names a day, so no cell can
+    be written as a date a reader cannot parse whatever the census
+    said.
+
+    THE TRADE THIS CLOSES, since it was the reason the repair was
+    withdrawn once. Narrowing the class alone opens the twin and writes
+    those cells as TEXT, and `workbook.value-class` is then MISSED at
+    exit 3 -- the description asks for `date` and the file holds `text`.
+    Bringing the cells onto the calendar first keeps the class, so the
+    twin opens AND meets its own description: exit 0 for the table and
+    exit 0 for the twin, asserted below.
+
+    Red check: withdraw either half in `dialect` -- return
+    `sheet_iso_date` from `sheet_date_is_real`, or hand the text back
+    unchanged from `sheet_date_on_the_calendar` -- and this fails.
     """
     openpyxl = pytest.importorskip("openpyxl")
     table = tmp_path / "table.xlsx"
@@ -1326,14 +1345,48 @@ def test_a_withheld_date_census_writes_a_twin_no_reader_opens(
         sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
     written = _dates_written(sheet)
     assert len(written) == 118, len(written)
-    impossible = [
-        one for one in written if not dialect.sheet_class_fits("date", one)
+    unreadable = [
+        one for one in written if not dialect.sheet_date_is_real(one)
     ]
-    assert impossible == [], impossible
-    # ...and this is the part that is wrong: every one of them fits the
-    # SHAPE, and openpyxl still cannot read the file.
-    with pytest.raises(ValueError):
-        openpyxl.load_workbook(twin)
+    assert unreadable == [], unreadable
+    # AN INDEPENDENT READER, asked the question the defect was about.
+    book = openpyxl.load_workbook(twin)
+    sheet_read = book[book.sheetnames[0]]
+    values = [
+        row[0].value
+        for row in sheet_read.iter_rows(min_row=2, min_col=1, max_col=1)
+    ]
+    dates = [one for one in values if isinstance(one, datetime.date)]
+    assert len(dates) == 118, [len(dates), values[:4]]
+    # ...and the twin still meets its own description, as does the table.
+    for checked in (table, twin):
+        code, _said = _quiet(
+            ["validate", f"{described}", "--twin", f"{checked}",
+             "--out-dir", f"{tmp_path}", "--replace"]
+        )
+        assert code == 0, (checked.name, code)
+
+
+def test_a_column_not_stored_as_dates_keeps_made_up_dates_off_the_class(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other half of P4-D291, where step 0a does not run at all.
+
+    A column the description does NOT store as dates -- its census
+    withheld and its commonest class `number` -- is left alone by the
+    calendar step, and a made-up cell wearing a date's shape is then
+    kept off the `date` class by the fit rule alone. Without that, a
+    withheld census hands the first withheld class a spelling fits, and
+    `date` fits every four figures, a hyphen, two figures, a hyphen and
+    two figures.
+    """
+    census: "dict[str, int | None]" = {
+        "absent": None, "blank": None, "empty": None, "text": None,
+        "number": None, "boolean": None, "error": None, "date": None,
+    }
+    cells = ("2024-77-88", "2024-03-17", "104")
+    classes = sheetwriting.cell_classes(census, cells, "number")
+    assert classes == ("text", "date", "number"), classes
 
 
 def _dates_written(sheet: str) -> "list[str]":

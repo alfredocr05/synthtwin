@@ -639,20 +639,150 @@ def sheet_iso_date(text: str) -> bool:
     return clock[8:9] == "." and _figures_only(clock[9:])
 
 
+def _clock_fields(text: str) -> "tuple[str, str, str, str]":
+    """A date cell's clock split into its hours, minutes, seconds, rest.
+
+    Asked only of text `sheet_iso_date` has already accepted, so the
+    shape is known: an empty field is a clock the text does not carry.
+    """
+    clock = text
+    if len(text) >= 10 and text[4:5] == "-":
+        if len(text) == 10:
+            return "", "", "", ""
+        clock = text[11:]
+    seconds = ""
+    rest = ""
+    if len(clock) > 5:
+        seconds = clock[6:8]
+        rest = clock[8:]
+    return clock[0:2], clock[3:5], seconds, rest
+
+
+def sheet_date_is_real(text: str) -> bool:
+    """Whether the text names a day of the calendar and a time of the clock.
+
+    THE NARROWING A TWIN NO READER COULD OPEN TAUGHT (plan P4-D291).
+    `sheet_iso_date` reads the SHAPE alone, and a made-up cell of four
+    figures, a hyphen, two figures, a hyphen and two figures wears that
+    shape whatever the figures say: `2006-06-32` and `8204-84-03` both
+    wear it. A workbook cell marked as holding a date (`t="d"`) carries
+    those characters as the date itself, so a reader that parses the
+    cell -- which is every reader but this one -- stops on the whole
+    FILE rather than on the cell. Measured at a smallest group of
+    eleven on 118 date cells: openpyxl raised `day is out of range for
+    month` and could not open the twin at all.
+
+    So the shape is asked first and then the calendar: the month is one
+    of the twelve, the day is one the month has in that year
+    (`parsing.valid_date`, the one statement of the calendar), the hour
+    is at most 23 and the minutes and seconds at most 59. A fraction of
+    a second is figures and has no range of its own.
+
+    Guarantees: accepts text; returns a truth value; a fixed function of
+    the text. Raises `TypeError` where what it was handed is not text.
+    No I/O of any kind.
+    """
+    if not sheet_iso_date(text):
+        return False
+    if len(text) >= 10 and text[4:5] == "-":
+        if not parsing.valid_date(
+            int(text[0:4]), int(text[5:7]), int(text[8:10])
+        ):
+            return False
+    hours, minutes, seconds, _rest = _clock_fields(text)
+    if hours and int(hours) > 23:
+        return False
+    if minutes and int(minutes) > 59:
+        return False
+    if seconds and int(seconds) > 59:
+        return False
+    return True
+
+
+def _month_length(year: int, month: int) -> int:
+    """How many days that month of that year has, by the one calendar."""
+    day = 31
+    while day > 28 and not parsing.valid_date(year, month, day):
+        day = day - 1
+    return day
+
+
+def _brought_to(figures: str, least: int, most: int) -> str:
+    """One field moved to the nearest value its range allows, at its width."""
+    found = int(figures)
+    if found < least:
+        found = least
+    if found > most:
+        found = most
+    written = f"{found}"
+    while len(written) < len(figures):
+        written = "0" + written
+    return written
+
+
+def sheet_date_on_the_calendar(text: str) -> str:
+    """The same date cell with every field brought onto the calendar.
+
+    WHAT THE WRITER DOES INSTEAD OF WRITING A FILE NOBODY CAN OPEN
+    (plan P4-D291). A column whose cells the source stored as dates is
+    written as dates, and where the column's ROLE publishes no value of
+    it -- free text, a long tail -- the cells handed here are made up
+    from the column's published SHAPE and wear a date's shape without
+    naming a date. Each field is moved to the nearest value the
+    calendar allows, at the width it was written with: the year to at
+    least `0001`, the month into the twelve, the day into the days that
+    month has, the hour to at most 23 and the minutes and seconds to at
+    most 59. The shape is what the description publishes about such a
+    column, and the shape does not move, so what the twin holds of that
+    column is what it held before -- written as a date a reader can
+    read.
+
+    A cell that is not a date's shape, and a cell that already names a
+    day of the calendar, are returned exactly as they came: a column
+    whose dates ARE published is generated from instants and never
+    reaches the first branch below.
+
+    Guarantees: accepts text; returns text of the same length; a fixed
+    function of the text. Raises `TypeError` where what it was handed is
+    not text. No I/O of any kind.
+    """
+    if sheet_date_is_real(text) or not sheet_iso_date(text):
+        return text
+    dated = ""
+    clock = text
+    if len(text) >= 10 and text[4:5] == "-":
+        year = _brought_to(text[0:4], 1, 9999)
+        month = _brought_to(text[5:7], 1, 12)
+        day = _brought_to(text[8:10], 1, _month_length(int(year), int(month)))
+        dated = f"{year}-{month}-{day}"
+        if len(text) == 10:
+            return dated
+        clock = text[11:]
+        dated = dated + "T"
+    hours, minutes, seconds, rest = _clock_fields(text)
+    written = f"{_brought_to(hours, 0, 23)}:{_brought_to(minutes, 0, 59)}"
+    if seconds:
+        written = written + f":{_brought_to(seconds, 0, 59)}" + rest
+    if len(clock) != len(written):
+        raise ValueError("internal check: a date cell changed its width")
+    return dated + written
+
+
 def sheet_class_fits(kind: str, text: str) -> bool:
     """Whether a cell holding this text can be written as this class.
 
     Text can hold anything, and so can a class holding nothing (its cell
     is written without its text). An error is one of the error kinds, a
     boolean is `TRUE` or `FALSE` as the reader spells one, a date is ISO
-    text, and a number is a plain number's spelling.
+    text naming a day of the calendar (`sheet_date_is_real`, plan
+    P4-D291), and a number is a plain number's spelling.
     """
     if kind == SHEET_CELL_ERROR:
         return text in SHEET_ERROR_KINDS
     if kind == SHEET_CELL_BOOLEAN:
         return text in (SHEET_BOOLEAN_TRUE, SHEET_BOOLEAN_FALSE)
     if kind == SHEET_CELL_DATE:
-        return sheet_iso_date(text)
+        return sheet_date_is_real(text)
     if kind == SHEET_CELL_NUMBER:
         return sheet_number_spelling(text) != ""
     return True

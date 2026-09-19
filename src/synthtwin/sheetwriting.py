@@ -1008,10 +1008,14 @@ def _sheet_part(
             if kind == dialect.SHEET_CELL_ERROR:
                 line = line + _cell(reference, "e", value, style)
                 continue
-            if kind == dialect.SHEET_CELL_DATE and dialect.sheet_iso_date(value):
+            if kind == dialect.SHEET_CELL_DATE and dialect.sheet_date_is_real(
+                value
+            ):
                 # A date stored as its ISO text is written back as one
                 # (plan P4-D168), never as a string a reader hands back
-                # as text.
+                # as text -- and never where the text wears a date's
+                # shape without naming a day of the calendar, which is
+                # a cell no reader but this one can read (plan P4-D291).
                 line = line + _cell(reference, "d", value, style)
                 continue
             if kind == dialect.SHEET_CELL_BOOLEAN:
@@ -1314,6 +1318,19 @@ def _stores_dates(column: "contract.WorkbookColumn") -> bool:
     return column.value_class == dialect.SHEET_CELL_DATE
 
 
+def _onto_the_calendar(own: "tuple[str, ...]") -> "tuple[str, ...]":
+    """A date-storing column's cells brought onto the calendar (P4-D291).
+
+    `dialect.sheet_date_on_the_calendar` per cell: a cell that is not a
+    date's shape, and one that already names a day, come back exactly as
+    they came.
+    """
+    out: "list[str]" = []
+    for text in own:
+        out += [dialect.sheet_date_on_the_calendar(text)]
+    return tuple(out)
+
+
 def _dates_as_day_counts(
     column: "contract.WorkbookColumn",
     own: "tuple[str, ...]",
@@ -1430,12 +1447,14 @@ def _members(
     for index in range(width):
         column = form.columns[index]
         written = tuple(twin.columns[index])
+        stores_dates = _stores_dates(column)
+        if stores_dates:
+            written = _onto_the_calendar(written)
         held = cell_classes(
             column.cell_classes, written, column.value_class
         )
         own, dated = _dates_as_day_counts(
-            column, written, epoch_1904,
-            held if _stores_dates(column) else (),
+            column, written, epoch_1904, held if stores_dates else (),
         )
         cells += [own]
         dates += [dated]
