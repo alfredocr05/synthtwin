@@ -625,6 +625,15 @@ def _spellings_held_back_by_hand(
     `withheld` is stated by the caller from how its fixture was built,
     and it must cover the level's rows exactly (W4), which the loader
     checks.
+
+    THE COLUMN'S COUNT OF DIFFERENT SPELLINGS MOVES WITH THE LEVEL (the
+    integration of the carried passes, 2026-09-19). The loader now asks
+    invariant W9, plan P4-D276's statement that `n_distinct` is the
+    spellings the block speaks of, so a level whose one named spelling is
+    replaced by `withheld` changes the count by exactly that: less the
+    spellings the level named, plus the spellings `withheld` counts.
+    Left as the producer wrote it -- one spelling beside eleven counted in
+    the map -- the document is refused by W9 before any page is written.
     """
     columns = document["columns"]
     assert isinstance(columns, list)
@@ -637,6 +646,17 @@ def _spellings_held_back_by_hand(
         assert isinstance(levels, list) and len(levels) == 1
         level = levels[0]
         assert isinstance(level, dict)
+        named = level["variants"]
+        counted = level["variants_withheld"]
+        assert isinstance(named, dict) and isinstance(counted, dict)
+        n_distinct = entry["n_distinct"]
+        assert isinstance(n_distinct, int)
+        entry["n_distinct"] = (
+            n_distinct
+            - len(named)
+            - sum(counted.values())
+            + sum(withheld.values())
+        )
         level["variants"] = {}
         level["variants_withheld"] = dict(withheld)
         edited = edited + 1

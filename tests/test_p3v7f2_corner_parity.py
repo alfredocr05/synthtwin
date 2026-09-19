@@ -848,7 +848,31 @@ def _spellings_held_back_as_before(
     A spelling one row wrote is a count of one W5b refuses, so a column
     whose rewrite would need that key is left as the producer wrote it
     and the caller's coverage assertions say how many were rewritten.
+
+    THE COUNT OF DIFFERENT SPELLINGS IS THE ONE P4-D276 STATES, not the raw
+    count (the integration of the carried passes, 2026-09-19). The loader
+    now asks invariant W9 -- `n_distinct` is the spellings the block speaks
+    of: every spelling a published level names, in `variants` or counted in
+    `variants_withheld`, and the own spellings of each level held back --
+    and a raw count also counted a spelling ruling 5 (P4-D271) turned into a
+    missing cell, which no level speaks of: `label-0` (eleven `Beta`, ten
+    `beta`, eight `BETA` and one `alpha` at a floor of eleven, the lone
+    `alpha` counted missing) read `n_distinct 4` beside the three spellings
+    its one level names, and W9 refused it; `label-36` the same. On every
+    other rewritten entry the two counts agree. So the rewrite changes the count by exactly what it changes
+    in the published levels: the producer's count, less the spellings those
+    levels named after absorption, plus the spellings they name here. The
+    held-back levels' part is the producer's and is left as it stands.
     """
+    def spoken(levels: "list[dict[str, object]]") -> int:
+        named = 0
+        for level in levels:
+            variants = level["variants"]
+            withheld = level["variants_withheld"]
+            assert isinstance(variants, dict) and isinstance(withheld, dict)
+            named = named + len(variants) + sum(withheld.values())
+        return named
+
     columns = document["columns"]
     assert isinstance(columns, list) and len(columns) == 1
     column = columns[0]
@@ -882,8 +906,12 @@ def _spellings_held_back_as_before(
         entry["variants_withheld"] = taxonomy._multiplicity_map(sizes)
         entry["shape_form_cells"] = taxonomy.shape_form_cells(spellings)
         rewritten = rewritten + [entry]
+    produced = column["levels"]
+    assert isinstance(produced, list)
+    n_distinct = column["n_distinct"]
+    assert isinstance(n_distinct, int)
     column["levels"] = rewritten
-    column["n_distinct"] = len([value for value in written if value != ""])
+    column["n_distinct"] = n_distinct - spoken(produced) + spoken(rewritten)
     return document
 
 
