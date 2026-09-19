@@ -16963,6 +16963,32 @@ spelling at, so `variants_withheld` is empty on every level of every
 raised-floor description and carries entries only at a floor of one,
 where nothing is held back at all.
 
+**AMENDED BY THE CARRIED-TEST PASS OF 2026-09-18: WHERE NO SPELLING
+CLEARS THE LINE, THE COMMONEST OF THEM.** `_absorb_lone_spellings` took
+the first spelling in sorted order when none reached the floor, which was
+the commonest only while every spelling it saw was written once (P4-D240).
+**Measured** at a floor of eleven: a level written as 2 `A` and 9 `a`
+published `variants {"A": 11}`, and the twin wrote in all eleven cells the
+spelling two rows wore. The commonest spelling now takes them, ties to the
+first in sorted order, which is the rule `parsing.absorbed_census` states
+for every number census (P4-D242): the same level publishes `{"a": 11}`.
+Red check, run and recorded: putting `lone[0]` back turns
+`test_where_no_spelling_clears_the_floor_the_commonest_takes_them` red.
+
+**THE SUITE THAT PINNED THE WITHHELD MAP, RE-ARMED** (the same pass).
+Six tests asserted what the producer wrote BEFORE this rule --
+`variants_withheld {"2": 3}`, a label whose every spelling the producer
+held back, and the invention class that follows -- and went red when it
+landed. Each is now a witness of this rule with its numbers derived from
+it; where what they guarded is a route the contract still accepts
+(invariant W5 admits keys `2 .. floor - 1`), the route is written by hand
+from the producer's document and read back by the strict loader, so the
+twin's page, the summary and G12.7's two supplies stay held to one answer
+over it. **What that leaves, measured:** at every floor the producer's
+withheld map is empty, so on a producer's description the validator's
+`levels.<label>.variants_withheld` can miss only where the level itself
+is absent from the checked file; no spelling edit can move it.
+
 ### P4-D276 A label role's `n_distinct` counts the spellings the block SPEAKS OF
 
 The extra review round of 2026-09-18, item 5, second half. `n_distinct`
@@ -17174,6 +17200,23 @@ and at a floor of eleven all seven are protected, every run at exits
 the first writing rebuilt at two blank places and two empty records are
 restored to their own one-of-a-kind shapes, positional assertion and
 all, because the default floor publishes them again.
+
+**AMENDED BY THE CARRIED-TEST PASS OF 2026-09-18: A ONE-COLUMN
+DESCRIPTION FILES NO BLANK-LINE RULE AT A RAISED FLOOR** (`validation`,
+V3.4). A one-column file holds at most ONE blank place -- the reader
+refuses a blank line between its records, a line before the table is a
+preamble, and the lines after the last record are one place -- and a
+place is published only from `census_floor` of them, so both sides of
+`bytes.blank-lines` said "no blank lines" whatever the file held.
+**Measured** at a floor of eleven on a one-column description of 300 rows:
+one trailing blank line HELD, eleven trailing lines HELD, eleven leading
+lines missed only `bytes.preamble`, and interior blank lines were refused;
+the coverage identity of `tests/test_p3v1f2_entry_table.py` found the rule
+unfalsifiable on all five one-column fixtures. At a floor of one it is
+filed and a trailing blank line misses it. The battery's own blank-line
+and empty-record edits are written at the place and row counts this rule
+publishes, `census_floor` of each, because one line was absorbed and two
+trailing lines are still one place.
 
 ### P4-D291 A twin's date cell names a day of the calendar, and a column stored as dates is written as dates
 

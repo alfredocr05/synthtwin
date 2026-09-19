@@ -601,38 +601,118 @@ def test_the_screen_sentence_is_pinned_whole(
 # -- the variant-only invention path -----------------------------------
 
 
+def _spellings_held_back_by_hand(
+    document: "dict[str, object]",
+    name: str,
+    withheld: "dict[str, int]",
+) -> "dict[str, object]":
+    """The producer's document with one label column's every spelling
+    held back: its one level's `variants` emptied and `withheld` put in
+    `variants_withheld` in their place.
+
+    WHY BY HAND. Since plan P4-D275 (ruling 6 of 2026-09-17, asked of a
+    label's spellings) the producer counts EVERY spelling below the floor
+    into the level's commonest one, so no description it writes at a
+    raised floor carries a withheld spelling at all. The contract still
+    ACCEPTS one -- invariant W5 bounds a key to `1 .. floor - 1` and W5b
+    refuses only the key `1` -- so a description can still reach the
+    twin's page with every spelling of a published label held back, and
+    the arithmetic that reads such a map on both pages has to keep
+    counting those cells as made up. This is the one way left to reach
+    it, and the loader that reads the edited document is the product's
+    own, so a map it refuses never reaches an assertion here.
+
+    `withheld` is stated by the caller from how its fixture was built,
+    and it must cover the level's rows exactly (W4), which the loader
+    checks.
+    """
+    columns = document["columns"]
+    assert isinstance(columns, list)
+    edited = 0
+    for entry in columns:
+        assert isinstance(entry, dict)
+        if entry["name"] != name:
+            continue
+        levels = entry["levels"]
+        assert isinstance(levels, list) and len(levels) == 1
+        level = levels[0]
+        assert isinstance(level, dict)
+        level["variants"] = {}
+        level["variants_withheld"] = dict(withheld)
+        edited = edited + 1
+    assert edited == 1, f"no label column named {name}"
+    return document
+
+
 def test_a_label_whose_every_spelling_is_below_the_floor_is_all_invented(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The second route amendment A-P4-2 names, and the one no test had.
+    """The second route amendment A-P4-2 names, and what ruling 6 did to it.
 
-    No level is suppressed here: one folded label covers every present
-    row, so it is published. What the floor holds back is every
-    SPELLING of it -- each written by too few rows to name -- so
-    `variants` is empty, `variants_withheld` carries them all, and the
-    generator invents every cell. Deleting the withheld-variant loop
-    from `_held_back_cells` reds this test AND the producer/loaded
-    agreement test below it -- two, not one: the summary's own helper
-    keeps the right answer while the renderer's loses it, which is
-    exactly the disagreement that test exists to catch (measured;
-    review items P4-C2-F4 and P4-C3-F4).
+    REWRITTEN AS A WITNESS OF PLAN P4-D275 (the extra review round of
+    2026-09-18). This test used to assert that the PRODUCER holds back
+    every spelling of this label, so that its twin invents every cell.
+    Ruling 6 of 2026-09-17, asked of a label's spellings by P4-D275,
+    counts every spelling below the floor into the level's commonest --
+    ties to the first in sorted order -- so the producer now publishes
+    the one level with ONE named spelling carrying all of its rows, and
+    the twin writes that spelling and invents nothing. The first half
+    pins that at equal strength: the exact variants map, the exact empty
+    withheld map, a held-back count of exactly nought, and the NOTHING
+    class.
+
+    The second half keeps the route itself under test, because the
+    contract still accepts it (`_spellings_held_back_by_hand` says why):
+    the same level with every spelling held back is all invented, and
+    deleting the withheld-variant loop from `_held_back_cells` reds this
+    test AND the producer/loaded agreement test below it (review items
+    P4-C2-F4 and P4-C3-F4).
     """
     header = ["sort_of"]
     rows: list[list[str]] = []
     # Twenty-two rows over eleven CASE spellings of one word: every
     # spelling folds to the same label, so one level is published, and
     # each spelling is worn by two rows -- far below the floor of
-    # eleven -- so every spelling of it is held back.
+    # eleven.
     for place in range(22):
         rows = rows + [[_cased("kind", place // 2)]]
-    loaded = _described(tmp_path, fixtures.rows_to_csv(header, rows))
+    spellings = sorted({_cased("kind", place) for place in range(11)})
+    assert len(spellings) == 11
+    table_path = fixtures.write(
+        tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
+    )
+    document = profile.build_document(
+        reading.read_table(str(table_path)), SETTINGS, []
+    )
+    written = fixtures.write_profile(tmp_path, "table-profile.json", document)
+    loaded = contract.load_profile(str(written))
+    column = _column(loaded, "sort_of")
+    facts = column.facts
+    assert isinstance(facts, contract.LabelFacts)
+    assert facts.suppressed_rows == 0, "no level is held back"
+    assert len(facts.levels) == 1
+    # P4-D275: eleven spellings of two rows each, all below the floor and
+    # all tied, so every one is counted into the first in sorted order,
+    # which then carries 11 x 2 = 22 rows.
+    assert facts.levels[0].variants == {spellings[0]: 22}
+    assert facts.levels[0].variants_withheld == {}
+    assert rendering._held_back_cells(facts) == 0
+    assert rendering._made_up_class(column) == NOTHING
+    page = rendering.report(loaded, generation.generate(loaded, SEED))
+    assert "MADE UP" not in "\n".join(_block(page, "sort_of"))
+
+    # The route the contract still accepts: the same level, its eleven
+    # spellings of two rows each all held back.
+    edited = _spellings_held_back_by_hand(document, "sort_of", {"2": 11})
+    written = fixtures.write_profile(tmp_path, "edited-profile.json", edited)
+    loaded = contract.load_profile(str(written))
     column = _column(loaded, "sort_of")
     facts = column.facts
     assert isinstance(facts, contract.LabelFacts)
     assert facts.suppressed_rows == 0, "no level is held back, only spellings"
     assert len(facts.levels) == 1
     assert facts.levels[0].variants == {}
-    assert facts.levels[0].variants_withheld != {}
+    assert facts.levels[0].variants_withheld == {"2": 11}
     assert rendering._held_back_cells(facts) == column.n_present == 22
     assert rendering._made_up_class(column) == EVERYTHING
     page = rendering.report(loaded, generation.generate(loaded, SEED))
@@ -653,15 +733,31 @@ def test_the_producers_page_and_the_twins_page_agree_on_what_is_invented(
     where the other is, so the arithmetic is written twice -- and a
     change to one that is not a change to the other is caught here
     rather than by a person noticing two pages disagreeing.
+
+    RE-ARMED FOR PLAN P4-D275. The fully invented answer used to come
+    from `all_held`, a label whose every spelling the producer held
+    back; ruling 6 now counts those spellings into the level's
+    commonest, so the producer publishes one named spelling there and
+    the column invents nothing, and this fixture reached only the
+    answer False. The True answer now comes from both routes that still
+    reach it: `levels_held`, whose every LEVEL the floor holds back,
+    which the producer writes; and `all_held` with its every SPELLING
+    held back, which the contract still accepts and is therefore written
+    by hand (`_spellings_held_back_by_hand`). The two pages are held to
+    the same answer on the producer's document and on the edited one.
     """
-    header = ["all_held", "some_held", "none_held"]
+    header = ["all_held", "levels_held", "some_held", "none_held"]
     rows: list[list[str]] = []
     for place in range(44):
         rows = rows + [
             [
-                # Every spelling below the floor, all folding to one
-                # published label: fully invented.
+                # Eleven case spellings of four rows each, all folding to
+                # one published label and all below the floor: counted
+                # into the commonest (P4-D275), so nothing is invented.
                 _cased("kind", place % 11),
+                # One label worn by four rows, every other cell blank:
+                # the floor holds back the column's every level.
+                "only" if place < 4 else "",
                 # One rare label beside two published ones: partly.
                 (
                     "rare"
@@ -675,26 +771,44 @@ def test_the_producers_page_and_the_twins_page_agree_on_what_is_invented(
     text = fixtures.rows_to_csv(header, rows)
     table_path = fixtures.write(tmp_path, "table.csv", text)
     table = reading.read_table(str(table_path))
-    document = profile.build_document(table, SETTINGS, [])
-    written = fixtures.write_profile(tmp_path, "table-profile.json", document)
-    loaded = contract.load_profile(str(written))
-    for entry in document["columns"]:
-        name = entry["name"]
-        column = _column(loaded, name)
-        facts = column.facts
-        assert isinstance(facts, contract.LabelFacts)
-        producer_says = summary._all_labels_held_back(entry)
-        twin_says = rendering._made_up_class(column) == EVERYTHING
-        assert producer_says == twin_says, (
-            f"the producer's page and the twin's page disagree about "
-            f"{name}: {producer_says} against {twin_says}"
-        )
-    # And the fixture is not vacuous: it reaches both answers.
-    answers = {
-        summary._all_labels_held_back(entry)
-        for entry in document["columns"]
+    produced = profile.build_document(table, SETTINGS, [])
+    expected = {
+        "all_held": False,
+        "levels_held": True,
+        "some_held": False,
+        "none_held": False,
     }
-    assert answers == {True, False}
+    for document, stem in (
+        (produced, "table-profile.json"),
+        (
+            _spellings_held_back_by_hand(
+                profile.build_document(table, SETTINGS, []),
+                "all_held",
+                {"4": 11},
+            ),
+            "edited-profile.json",
+        ),
+    ):
+        written = fixtures.write_profile(tmp_path, stem, document)
+        loaded = contract.load_profile(str(written))
+        answers: "dict[str, bool]" = {}
+        for entry in document["columns"]:
+            name = entry["name"]
+            column = _column(loaded, name)
+            facts = column.facts
+            assert isinstance(facts, contract.LabelFacts)
+            producer_says = summary._all_labels_held_back(entry)
+            twin_says = rendering._made_up_class(column) == EVERYTHING
+            assert producer_says == twin_says, (
+                f"the producer's page and the twin's page disagree about "
+                f"{name} in {stem}: {producer_says} against {twin_says}"
+            )
+            answers[name] = producer_says
+        # And the fixture is not vacuous: each document reaches both
+        # answers, and the edited one moves exactly the column it edits.
+        assert answers == expected, (stem, answers)
+        expected = dict(expected)
+        expected["all_held"] = True
 
 
 def test_the_summary_names_the_label_columns_a_twin_would_wholly_invent(
@@ -708,17 +822,25 @@ def test_the_summary_names_the_label_columns_a_twin_would_wholly_invent(
     green while the page went back to naming none of them -- the exact
     defect P4-C2-F1 reported. This asks the page.
 
-    Three columns, three answers: a label column whose every spelling
-    the floor held back IS named; one with a rare label beside two
-    published ones is NOT, because its twin carries real labels too;
-    and a declared column with no present cell is NOT, because its twin
-    holds nothing to invent.
+    Four columns, four answers: a label column whose every level the
+    floor held back IS named; one whose every SPELLING is below the
+    floor is NOT, because plan P4-D275 counts those spellings into the
+    level's commonest and its twin writes that spelling; one with a rare
+    label beside two published ones is NOT, because its twin carries
+    real labels too; and a declared column with no present cell is NOT,
+    because its twin holds nothing to invent.
+
+    RE-ARMED FOR PLAN P4-D275: the named column used to be `all_held`,
+    which the producer no longer writes as fully invented, so the page
+    named no column at all and the forward sentence was gone. The
+    producer still reaches the shape through `levels_held`.
     """
-    header = ["all_held", "some_held", "blank"]
+    header = ["levels_held", "all_held", "some_held", "blank"]
     rows: list[list[str]] = []
     for place in range(44):
         rows = rows + [
             [
+                "only" if place < 4 else "",
                 _cased("kind", place % 11),
                 (
                     "rare"
@@ -738,6 +860,7 @@ def test_the_summary_names_the_label_columns_a_twin_would_wholly_invent(
     opened = page.find("If you build a twin from this description")
     assert opened >= 0, "the forward sentence is missing from the page"
     named = page[opened : page.find("column by column.", opened)]
-    assert "all_held" in named
+    assert "levels_held" in named
+    assert "all_held" not in named
     assert "some_held" not in named
     assert "blank" not in named

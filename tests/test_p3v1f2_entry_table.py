@@ -1205,10 +1205,20 @@ def _smallest_reportable_edit(
     It is the same reasoning `_floor_cells` gives for the style clauses:
     the battery edits the smallest number of cells a description of the
     edited file can still carry, and says which number that is and why.
+
+    AND THE FLOOR'S WORTH ON A DECLARED RECORD NUMBER (plan P4-D277).
+    Its four-way reading split counts a part below the line into the
+    largest part, and its two alphabet counts ask `census_nameable`
+    over the count and its complement, so every class those counts name
+    is published only from `census_floor` cells up: two cells moved into
+    a class are counted back out of it by the file's own description,
+    and a red case built on them has no teeth.
     """
     if index >= len(described.columns):
         return 1
     role = described.columns[index].role
+    if role == "identifier":
+        return parsing.census_floor(described.settings.small_cell_floor)
     if role in ROLES_WITH_NUMBERS and role != "numbers_with_labels":
         return 1
     return 2
@@ -1812,10 +1822,17 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     """Two cells of one label written with a trailing space.
 
     The two cells still fold to the same published label, so the level's
-    own count is untouched; what changes is the spelling map, and at two
-    cells the file's own description holds the new spelling back below
-    the floor -- which is the `variants_withheld` map, published empty on
-    a twin and not empty here.
+    own count is untouched; what changes is the spelling map. At two
+    cells the file's own description USED to hold the new spelling back
+    below the floor -- the `variants_withheld` map, published empty on a
+    twin and not empty here. Since plan P4-D275 every spelling below the
+    floor is counted into the level's commonest, so no description of
+    any file holds one back and this edit can no longer move that map;
+    the rows that named it for `variants_withheld` are registered against
+    `reshaped-<column>` now, measured to be the narrowest edit of the
+    column that does. It stays in the battery, where on some columns it
+    still moves other facts -- a count of different values, a form
+    census -- that a trailing space reaches.
     """
     rows = _rows_of(text)
     first = _first_record(described)
@@ -2475,9 +2492,21 @@ def _form_perturbations(
     reversed_name = "reversed-rows"
     if 1 <= sorted_by <= len(described.columns):
         reversed_name = f"reversed-{described.columns[sorted_by - 1].name}"
+    # THE FILE'S OWN LINES ARE HELD TO THE DISCLOSURE RULE (plan
+    # P4-D290), so the two edits below are written at the smallest count
+    # a description of the edited file can still carry: a blank PLACE is
+    # a record position and is published only where there are at least
+    # `census_floor` of them, and an empty-row count below that line is
+    # published as nought. At a floor of one nothing is held back and one
+    # is enough, which is the edit this battery made before P4-D290.
+    floor = described.settings.small_cell_floor
+    reportable = parsing.census_floor(floor) if floor > 1 else 1
     empty_row = ""
     if width > 1:
-        empty_row = twin + ",".join("" for _place in range(width)) + "\n"
+        empty_row = twin + (
+            ",".join("" for _place in range(width)) + "\n"
+        ) * reportable
+    blank_line = _blank_places(twin, rows, first, width, reportable)
     return [
         ("semicolons", CLASS_SHAPE, semicolons),
         ("spaced-delimiters", CLASS_SHAPE, spaced),
@@ -2492,24 +2521,57 @@ def _form_perturbations(
         ("blank-name", CLASS_HEADER, blank_name),
         ("trailing-delimiters", CLASS_SHAPE, trailing),
         ("short-rows", CLASS_SHAPE, short),
-        # MEASURED AT THE MERGE-CLOSE OF 2026-09-18 AND LEFT WHERE IT
-        # STANDS. The merge skeptic reported that this case no longer
-        # makes `bytes.blank-lines` miss on the `compound` fixture, and
-        # it is right: plan P4-D280 taught the description to absorb a
-        # blank line, so one added line lands inside what that fixture
-        # already declares. TWO blank lines were built and measured
-        # instead, and they are worse -- `bytes.blank-lines` then misses
-        # on NO fixture of the battery rather than on all but one, so
-        # the coverage identity loses the subcheck outright. Re-arming
-        # this case needs a perturbation of the blank-line COUNT that
-        # the absorption cannot take, which is a fixture change and not
-        # an edit; it is left red and named rather than made quiet.
-        ("blank-line", CLASS_LINE_ENDINGS, twin + "\n"),
+        # RE-ARMED FOR PLAN P4-D290 (it was one trailing blank line).
+        # The merge skeptic reported that the one added line no longer
+        # made `bytes.blank-lines` miss, and two trailing lines were then
+        # measured to miss on NO fixture: both are ONE blank place, and a
+        # place is published only where there are `census_floor` of them.
+        # What the absorption cannot take is the PLACE count, so this
+        # edit puts one blank line after each of that many records; see
+        # `_blank_places`.
+        ("blank-line", CLASS_LINE_ENDINGS, blank_line),
         ("empty-record", CLASS_ROWS, empty_row),
         # Named after the column the rows are sorted by, which is where
         # the order is filed: the edit breaks that one column's order.
         (reversed_name, CLASS_CELL, _rebuilt(header + list(reversed(data)))),
     ]
+
+
+def _blank_places(
+    twin: str,
+    rows: "list[list[str]]",
+    first: int,
+    width: int,
+    places: int,
+) -> str:
+    """The twin with one blank line after each of ``places`` records.
+
+    Records are written back one at a time through the twin writer's own
+    rules (`_rebuilt`), so a quoted cell is never cut and the file is the
+    twin byte for byte apart from the blank lines. They stand after the
+    second record onwards, so none of them can be read as a line before
+    the table. Where ``places`` is one -- a floor of one, where nothing
+    is held back -- the one blank line is the trailing line this edit
+    always was.
+
+    A ONE-COLUMN FILE CANNOT CARRY IT at a raised floor, and "" leaves
+    the edit out: the reader refuses a blank line between the records of
+    a one-column table (a blank line there could be a record whose one
+    value is missing), a line before the table is a preamble and the
+    lines after it are one place. `validation` files no `bytes.blank-lines`
+    for such a description for exactly that reason.
+    """
+    if places <= 1:
+        return twin + "\n"
+    data = rows[first:]
+    if width < 2 or len(data) < places + 2:
+        return ""
+    written = _rebuilt(rows[:first]) if first else ""
+    for place in range(len(data)):
+        written = written + _rebuilt([data[place]])
+        if 1 <= place <= places:
+            written = written + "\n"
+    return written
 
 
 def _quoted_column(twin: str, first: int, index: int) -> str:
@@ -3334,9 +3396,17 @@ NAMED_RED_CASES = (
         "label.variants",
         "levels.north.variants",
     ),
+    # RE-ARMED FOR PLAN P4-D275 (it was `spaced-region`). Two cells
+    # written with a trailing space were a spelling the file's own
+    # description held back; ruling 6 now counts every spelling below the
+    # floor into the level's commonest, so no description of any file
+    # holds one back and that edit moves nothing. What still moves the
+    # map is the level itself leaving the file, which `reshaped-region`
+    # does -- the edit the joined fixture's curated row already names for
+    # the same fact.
     RedCase(
         "every-role",
-        "spaced-region",
+        "reshaped-region",
         "region",
         "label.variants_withheld",
         "levels.north.variants_withheld",
@@ -3749,6 +3819,28 @@ NAMED_RED_CASES = (
 # which is V8.2's own complaint at the grain of the identity, and
 # `test_a_registered_case_is_aimed_at_the_site_it_covers` holds every
 # row to it with the two exceptions named there.
+#
+# THE ROWS THE EXTRA ROUND'S DISCLOSURE RULES DISARMED, chosen again by
+# that rule over the battery as it now stands (measured, 2026-09-18):
+#
+# - `levels.<label>.variants_withheld` was `spaced-<column>`. Plan
+#   P4-D275 counts every spelling below the floor into the level's
+#   commonest, so two spaced cells are absorbed and no file's own
+#   description holds a spelling back; `reshaped-<column>` takes the
+#   level's cells out of it, which is what still moves the map.
+# - `distinct.n_distinct` on the two-level label columns was
+#   `spaced-<column>`, absorbed the same way (and P4-D276 counts the
+#   spellings the block speaks of); `marked-<column>` is the narrowest.
+# - the free-text alphabet counts were one-cell edits. Plan P4-D277 asks
+#   the disclosure rule of `n_all_digits` and `n_code_alphabet`, so one
+#   cell is counted back into the larger side; `marked-<column>`, the
+#   floor's worth of cells, is the only own-column edit that reaches
+#   them. A declared record number's class edits are the floor's worth
+#   of cells instead (`_smallest_reportable_edit`), so its rows kept
+#   their names.
+# - `bytes.blank-lines` and `bytes.empty-rows` kept their edits, which
+#   were re-armed to the place and row counts P4-D290 publishes; a
+#   one-column description at a raised floor files no blank-line rule.
 COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
     # THE FIFTEENTH ROLE (residual R-P4-13, landing L8). Every site of
     # a compound column, and each named against an edit of its OWN
@@ -3797,7 +3889,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-clinic", "levels.one.label"),
             ("reshaped-clinic", "levels.one.shape_form_cells"),
             ("marked-clinic", "levels.one.variants"),
-            ("spaced-clinic", "levels.one.variants_withheld"),
+            ("reshaped-clinic", "levels.one.variants_withheld"),
             ("marked-clinic", "levels.set"),
             ("renamed-clinic", "position.at"),
             ("blanked-clinic", "presence.n_missing"),
@@ -3990,19 +4082,19 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-answer", "counts.n_not_numeric"),
             ("one-bracketed-answer", "counts.n_numeric"),
             ("one-overflowed-answer", "counts.n_out_of_range"),
-            ("spaced-answer", "distinct.n_distinct"),
+            ("marked-answer", "distinct.n_distinct"),
             ("marked-answer", "distinct.n_distinct_folded"),
             ("marked-answer", "levels.no.count"),
             ("rewritten-answer", "levels.no.label"),
             ("reshaped-answer", "levels.no.shape_form_cells"),
             ("recased-answer", "levels.no.variants"),
-            ("spaced-answer", "levels.no.variants_withheld"),
+            ("reshaped-answer", "levels.no.variants_withheld"),
             ("marked-answer", "levels.set"),
             ("marked-answer", "levels.yes.count"),
             ("rewritten-answer", "levels.yes.label"),
             ("reshaped-answer", "levels.yes.shape_form_cells"),
             ("recased-answer", "levels.yes.variants"),
-            ("spaced-answer", "levels.yes.variants_withheld"),
+            ("reshaped-answer", "levels.yes.variants_withheld"),
             ("renamed-answer", "position.at"),
             ("blanked-answer", "presence.n_missing"),
             ("blanked-answer", "presence.n_present"),
@@ -4018,13 +4110,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-batch", "counts.n_not_numeric"),
             ("one-bracketed-batch", "counts.n_numeric"),
             ("one-overflowed-batch", "counts.n_out_of_range"),
-            ("spaced-batch", "distinct.n_distinct"),
+            ("marked-batch", "distinct.n_distinct"),
             ("marked-batch", "distinct.n_distinct_folded"),
             ("blanked-batch", "levels.one.count"),
             ("rewritten-batch", "levels.one.label"),
             ("reshaped-batch", "levels.one.shape_form_cells"),
             ("recased-batch", "levels.one.variants"),
-            ("spaced-batch", "levels.one.variants_withheld"),
+            ("reshaped-batch", "levels.one.variants_withheld"),
             ("marked-batch", "levels.set"),
             ("renamed-batch", "position.at"),
             ("blanked-batch", "presence.n_missing"),
@@ -4037,8 +4129,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("emptied-comment", "axes.quality_state"),
             ("one-word-comment", "axes.role"),
             ("one-word-comment", "axes.statistical_type"),
-            ("one-zero-led-comment", "counts.n_all_digits"),
-            ("one-worded-comment", "counts.n_code_alphabet"),
+            ("marked-comment", "counts.n_all_digits"),
+            ("marked-comment", "counts.n_code_alphabet"),
             ("one-contradicted-comment", "counts.n_contradictory"),
             # `marked` writes the floor's worth of `na`, which landing
             # 2b.8 made a published absence word on a column publishing
@@ -4357,7 +4449,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.east.label"),
             ("reshaped-region", "levels.east.shape_form_cells"),
             ("recased-region", "levels.east.variants"),
-            ("spaced-region", "levels.east.variants_withheld"),
+            ("reshaped-region", "levels.east.variants_withheld"),
             ("marked-region", "levels.north.count"),
             ("rewritten-region", "levels.north.label"),
             ("reshaped-region", "levels.north.shape_form_cells"),
@@ -4366,12 +4458,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.south.label"),
             ("reshaped-region", "levels.south.shape_form_cells"),
             ("recased-region", "levels.south.variants"),
-            ("spaced-region", "levels.south.variants_withheld"),
+            ("reshaped-region", "levels.south.variants_withheld"),
             ("marked-region", "levels.west.count"),
             ("rewritten-region", "levels.west.label"),
             ("reshaped-region", "levels.west.shape_form_cells"),
             ("recased-region", "levels.west.variants"),
-            ("spaced-region", "levels.west.variants_withheld"),
+            ("reshaped-region", "levels.west.variants_withheld"),
             ("renamed-region", "position.at"),
             ("blanked-region", "presence.n_missing"),
             ("blanked-region", "presence.n_present"),
@@ -4446,7 +4538,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
-            ('blank-line', 'bytes.blank-lines'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
             ('semicolons', 'bytes.delimiter'),
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
@@ -4570,7 +4667,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("emptied-lab_code", "axes.quality_state"),
             ("emptied-lab_code", "axes.role"),
             ("emptied-lab_code", "axes.statistical_type"),
-            ("one-zero-led-lab_code", "counts.n_all_digits"),
+            ("marked-lab_code", "counts.n_all_digits"),
             ("blanked-lab_code", "counts.n_code_alphabet"),
             ("one-contradicted-lab_code", "counts.n_contradictory"),
             ("blanked-lab_code", "counts.n_not_numeric"),
@@ -4643,7 +4740,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
-            ('blank-line', 'bytes.blank-lines'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
             ('semicolons', 'bytes.delimiter'),
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
@@ -4731,7 +4833,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("not-utf8", "header.names"),
             ("not-utf8", "header.presence"),
             ("added-row", "rows.n_rows"),
-            ('blank-line', 'bytes.blank-lines'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
             ('semicolons', 'bytes.delimiter'),
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
@@ -4810,7 +4917,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
-            ('blank-line', 'bytes.blank-lines'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
             ('semicolons', 'bytes.delimiter'),
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
@@ -4891,7 +5003,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
-            ('blank-line', 'bytes.blank-lines'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
             ('semicolons', 'bytes.delimiter'),
             ('end-of-file-mark', 'bytes.end-of-file-mark'),
             ('backslashed-quote', 'bytes.escape'),
@@ -4996,23 +5113,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.east.label"),
             ("reshaped-region", "levels.east.shape_form_cells"),
             ("recased-region", "levels.east.variants"),
-            ("spaced-region", "levels.east.variants_withheld"),
+            ("reshaped-region", "levels.east.variants_withheld"),
             ("marked-region", "levels.north.count"),
             ("rewritten-region", "levels.north.label"),
             ("reshaped-region", "levels.north.shape_form_cells"),
             ("recased-region", "levels.north.variants"),
-            ("spaced-region", "levels.north.variants_withheld"),
+            ("reshaped-region", "levels.north.variants_withheld"),
             ("marked-region", "levels.set"),
             ("marked-region", "levels.south.count"),
             ("rewritten-region", "levels.south.label"),
             ("reshaped-region", "levels.south.shape_form_cells"),
             ("recased-region", "levels.south.variants"),
-            ("spaced-region", "levels.south.variants_withheld"),
+            ("reshaped-region", "levels.south.variants_withheld"),
             ("marked-region", "levels.west.count"),
             ("rewritten-region", "levels.west.label"),
             ("reshaped-region", "levels.west.shape_form_cells"),
             ("recased-region", "levels.west.variants"),
-            ("spaced-region", "levels.west.variants_withheld"),
+            ("reshaped-region", "levels.west.variants_withheld"),
             ("renamed-region", "position.at"),
             ("blanked-region", "presence.n_missing"),
             ("blanked-region", "presence.n_present"),
@@ -5157,23 +5274,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-column_2", "levels.east.label"),
             ("reshaped-column_2", "levels.east.shape_form_cells"),
             ("recased-column_2", "levels.east.variants"),
-            ("spaced-column_2", "levels.east.variants_withheld"),
+            ("reshaped-column_2", "levels.east.variants_withheld"),
             ("marked-column_2", "levels.north.count"),
             ("rewritten-column_2", "levels.north.label"),
             ("reshaped-column_2", "levels.north.shape_form_cells"),
             ("recased-column_2", "levels.north.variants"),
-            ("spaced-column_2", "levels.north.variants_withheld"),
+            ("reshaped-column_2", "levels.north.variants_withheld"),
             ("marked-column_2", "levels.set"),
             ("blanked-column_2", "levels.south.count"),
             ("rewritten-column_2", "levels.south.label"),
             ("reshaped-column_2", "levels.south.shape_form_cells"),
             ("recased-column_2", "levels.south.variants"),
-            ("spaced-column_2", "levels.south.variants_withheld"),
+            ("reshaped-column_2", "levels.south.variants_withheld"),
             ("marked-column_2", "levels.west.count"),
             ("rewritten-column_2", "levels.west.label"),
             ("reshaped-column_2", "levels.west.shape_form_cells"),
             ("recased-column_2", "levels.west.variants"),
-            ("spaced-column_2", "levels.west.variants_withheld"),
+            ("reshaped-column_2", "levels.west.variants_withheld"),
             ("blanked-column_2", "presence.n_missing"),
             ("blanked-column_2", "presence.n_present"),
             ("one-worded-column_2", "suppressed.suppressed_levels"),
@@ -5330,7 +5447,16 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     "shaped-text": {
         "lab_code": "free_text",
         "region": "categorical",
-        "dx_code": "long_tail_labels",
+        # `categorical` since plan P4-D271, and derived rather than read
+        # off the run: the rare tail is 26 levels over 39 rows (13 codes
+        # of two rows, 13 of one) beside 201 published rows. It is not a
+        # pinned pool (39 rows, 26 levels), it is not the exception
+        # (39 x 2 = 78 < 201), and 39 < 2 x 26, so the pool names a
+        # level, ruling 5 counts its rows as missing, and the column
+        # publishes its five common codes and no tail -- which is a set
+        # of categories. Before P4-D271 the exception was "smaller than
+        # the smallest published level", 22, and 39 cleared it.
+        "dx_code": "categorical",
     },
     "pooled": {"reading": "continuous"},
     "saturated": {"reading": "continuous"},
@@ -7117,6 +7243,106 @@ def test_every_registered_red_case_misses_the_site_it_names(
             f"and THAT check did not report MISSED -- so whatever else "
             f"went red, the named check did not do its job"
         )
+
+
+def _blank_line_verdicts(
+    folder: pathlib.Path,
+    described: contract.Profile,
+    text: str,
+    name: str,
+) -> "list[str]":
+    """Every verdict one measured file files under `bytes.blank-lines`."""
+    outcome = _measured(folder, described, text, name)
+    return [
+        check.verdict
+        for check in outcome.checks
+        if check.subcheck == "bytes.blank-lines"
+    ]
+
+
+def test_a_one_column_description_files_no_blank_line_rule_it_cannot_miss(
+    tmp_path: pathlib.Path,
+) -> None:
+    """V3.4 at a raised floor, asked of the one-column form (plan P4-D290).
+
+    THE REPRODUCTION. A blank place is published only from
+    `census_floor` places up, and a one-column file holds at most one:
+    the reader refuses a blank line between its records, a line before
+    the table is a preamble, and the lines after the last record are one
+    place. At a floor of eleven the shipped validator still FILED
+    `bytes.blank-lines` against such a description, and every file held
+    it -- one trailing blank line HELD, eleven trailing lines HELD, and
+    eleven leading lines missed `bytes.preamble` and HELD this rule. A
+    subcheck no file can make miss is what V3.4 refuses, and the
+    coverage identity of this file found it on five fixtures.
+
+    So at a raised floor the rule is not filed for a one-column
+    description; at a floor of one it is filed and a trailing blank line
+    misses it; and a two-column description at the raised floor still
+    files it and misses it on a blank line after each of `census_floor`
+    records.
+    """
+    values = [f"{index % 100 - 5}" for index in range(300)]
+    text = fixtures.single_column_table("reading", values)
+    raised = _described(tmp_path, text, stem="one-column-raised")
+    assert raised.settings.small_cell_floor == SMALL_CELL_FLOOR > 1
+    twin = rendering.twin_csv(generation.generate(raised, SEED))
+    for label, written in (
+        ("green", twin),
+        ("one-trailing", twin + "\n"),
+        ("floor-trailing", twin + "\n" * SMALL_CELL_FLOOR),
+        ("floor-leading", "\n" * SMALL_CELL_FLOOR + twin),
+    ):
+        assert _blank_line_verdicts(
+            tmp_path, raised, written, f"raised-{label}.csv"
+        ) == [], label
+
+    folder = tmp_path / "default-floor"
+    folder.mkdir()
+    table = reading.read_table(str(fixtures.write(folder, "t.csv", text)))
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    default = contract.load_profile(
+        str(fixtures.write_profile(folder, "t-profile.json", document))
+    )
+    twin = rendering.twin_csv(generation.generate(default, SEED))
+    assert _blank_line_verdicts(folder, default, twin, "green.csv") == [
+        validation.HELD
+    ]
+    assert _blank_line_verdicts(
+        folder, default, twin + "\n", "one-trailing.csv"
+    ) == [validation.MISSED]
+
+    pairs = fixtures.rows_to_csv(
+        ["reading", "region"],
+        [
+            [values[index], fixtures.REGIONS[index % 4]]
+            for index in range(len(values))
+        ],
+    )
+    wide = _described(tmp_path, pairs, stem="two-columns-raised")
+    twin = rendering.twin_csv(generation.generate(wide, SEED))
+    rows = _rows_of(twin)
+    first = _first_record(wide)
+    places = parsing.census_floor(SMALL_CELL_FLOOR)
+    assert _blank_line_verdicts(tmp_path, wide, twin, "wide-green.csv") == [
+        validation.HELD
+    ]
+    assert _blank_line_verdicts(
+        tmp_path,
+        wide,
+        _blank_places(twin, rows, first, 2, places),
+        "wide-places.csv",
+    ) == [validation.MISSED]
+    # ...and one place fewer is absorbed, which is why the edit is that
+    # wide and not narrower.
+    assert _blank_line_verdicts(
+        tmp_path,
+        wide,
+        _blank_places(twin, rows, first, 2, places - 1),
+        "wide-fewer.csv",
+    ) == [validation.HELD]
 
 
 def test_no_two_sites_of_one_fixture_share_a_name(

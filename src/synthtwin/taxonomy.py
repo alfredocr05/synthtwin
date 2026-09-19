@@ -5220,7 +5220,18 @@ def _absorb_lone_spellings(
     for spelling in sorted(rest):
         absorbed[spelling] = rest[spelling]
     if not commonest:
-        commonest = lone[0]
+        # NO SPELLING REACHES THE LINE, AND THE COMMONEST IS STILL ONE OF
+        # THEM -- the tie rule `parsing.absorbed_census` states (plan
+        # P4-D242). This took the first in sorted order whatever the
+        # counts, which was the commonest only while every spelling here
+        # was written once (P4-D240). Once P4-D275 brought in every
+        # spelling below the line it was not: **measured** at a floor of
+        # eleven, a level written as 2 `A` and 9 `a` published
+        # `variants {"A": 11}` and the twin wrote the spelling two rows
+        # wore in all eleven.
+        for spelling in lone:
+            if not commonest or spellings[spelling] > spellings[commonest]:
+                commonest = spelling
         absorbed[commonest] = 0
     taken = 0
     for spelling in lone:

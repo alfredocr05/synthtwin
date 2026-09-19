@@ -1527,10 +1527,14 @@ def _all_labels_held_back(column: dict[str, object]) -> bool:
 
     Two shapes reach it. The floor held every one of this column's
     levels back; or the floor held back every spelling of the levels it
-    did publish, which is reachable with no suppressed level at all. In
-    both the generator writes neutral stand-ins for every present cell,
-    so plan amendment A-P4-2 calls such a column fully invented however
-    its role publishes.
+    did publish, which needs no suppressed level at all. In both the
+    generator writes neutral stand-ins for every present cell, so plan
+    amendment A-P4-2 calls such a column fully invented however its role
+    publishes. Since plan P4-D275 the producer writes only the first:
+    every spelling below the floor is counted into the level's
+    commonest, so `variants_withheld` is empty on every level it
+    publishes. The second is still read here because the contract still
+    accepts it (invariant W5) and the twin's page reads it too.
 
     THIS ARITHMETIC IS WRITTEN TWICE, HERE AND IN `rendering`, and the
     duplication is deliberate rather than tidy: this side reads the
