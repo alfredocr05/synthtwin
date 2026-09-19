@@ -59,6 +59,7 @@ written.
 | `r_p4_40_l7_joined.py` | how many different numbers a joined column's positions hold against their published counts (landing L7) |
 | `r_p4_136_l8_empty_bins.py` | how many twin cells land in a stretch the real column left empty, before and after landing L8, and the two families where the twin still cannot get out |
 | `a_p4_52_l7_parity.py` | how many of a position's own turns the above-count proposal aims on, and what each variant of that gate costs a twin in above-counts and agreements (amendment A-P4-52) |
+| `k_p3_03_spread.py` | why a numeric twin's spread is too wide (ledger K-P3-03): the straight ladder's own spread, the same with the real outer segments put back, the bend the published spread fixes, the twin's, and the `moments.std` window, by rows, by shape and on lab-like columns the verdict does not flag |
 
 **This table went stale before landing L8 and is repaired there**: it
 listed four of the ten scripts, so six measured claims in the phase
