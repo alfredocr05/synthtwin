@@ -466,15 +466,13 @@ FIFTH_BRANCH_CASES = (
 # offsets, the offsets of the ranks tied at an end, the census key carried
 # into the width pass, and G7.3's two merges, the traded one and the one
 # onto a unit that is no rank neighbour -- and the two of its number pass
-# (plans P4-D269 and P4-D265) -- and a saturated grid walked first inside a
-# joined position (ledger K-P4-06). Sorted, like the tuples above.
+# (plans P4-D269 and P4-D265). Sorted, like the tuples above.
 SIXTH_BRANCH_CASES = (
     "date_endpoint_ties",
     "date_midnight_feasible",
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
-    "joined_saturated_position",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -576,8 +574,6 @@ SEEDS = {
     "date_second_field_class": 202,
     "date_traded_merge": 203,
     "date_nonadjacent_merge": 204,
-    # The repair of ledger K-P4-06 takes the next seed after 204.
-    "joined_saturated_position": 205,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -2340,11 +2336,6 @@ def _apart_without_the_fill(*_arguments, **_keywords):
     return None
 
 
-def _fill_inside_a_position(_column):
-    """Ledger K-P4-06 withdrawn: the fill in order inside a joined position."""
-    return False
-
-
 def _no_tenths_fill(wanted, figures, total, bands, ladder):
     """Plan P4-D176's fill withdrawn on a written grid, the integers' kept."""
     if figures > 0:
@@ -2618,16 +2609,6 @@ CASE_MUTANTS = {
         "published one",
         attribute="mark_places",
         replacement=_pool_on_the_published_mark,
-        outcome=CHANGES_THE_CELLS,
-    ),
-    "joined_saturated_position": Mutant(
-        branch="ledger K-P4-06's joined position; the mutant takes G6.5a's "
-        "fill in order inside each position as it does on a plain column, "
-        "which moves the whole run of strata between the doubled point and "
-        "the empty one where the walk and its leftover fill move one "
-        "stratum",
-        attribute="fill_stands_aside",
-        replacement=_fill_inside_a_position,
         outcome=CHANGES_THE_CELLS,
     ),
     "saturated_integers": Mutant(

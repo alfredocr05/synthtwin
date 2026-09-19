@@ -13,45 +13,45 @@ harness, forty seeds:
   seed 4, pair (2, 4), 111 rows against 110, and is still there today;
 - `8a59eee` (Phase 4 closed): 554 and 1;
 - `d14969c` (landing 2b.1): 562 and 1;
-- `f545bf1` (the final Codex review of the number censuses, first commit
-  of carried-fix-numbers): 615 and 6 -- plan P4-D147, the fill of a
-  saturated integer grid;
+- `f545bf1` (first commit of carried-fix-numbers): 615 and 6 -- plan
+  P4-D147, the fill of a saturated integer grid;
 - `b93b285` (G6.5a reconciled): 597 and 7, which is e53d5f4.
 
-WHAT P4-D147 IS FOR, AND WHAT IT DID HERE. It exists so that a column on
-a saturated grid -- 400 rows of `+1.0` to `+400.0` -- holds every number
-it publishes, and the plan holds a joined position to that count exactly
-too (`tests/test_p2c4f1_disposition_registry.py` refuses a position
-short of it). It gives stratum `k` the `k`-th integer whatever integer
-the ladder put it at, so the whole run of strata between a doubled point
-and an empty one moves one integer off the ladder together. Inside a
-joined position that moves which rows stand above the other position's
-numbers: on battery column 9, `first/second/third/100 - first`, the
-column went from 54 agreements outside and 0 above-counts missed to 110
-and 6.
+WHY THE FILL STAYS. P4-D147 gives stratum `k` the `k`-th integer
+whatever integer the ladder put it at, so a column on a saturated grid
+holds every number it publishes -- and the plan holds a joined position
+to that count exactly (`tests/test_p2c4f1_disposition_registry.py`).
+Inside a joined position the fill moves a run of strata one integer off
+the ladder, and that moves which rows stand above another position's
+numbers. Three other rules were measured against it on this battery:
 
-THE REPAIR, AND WHAT IT DOES NOT RESTORE. Inside a joined position the
-walk now runs first and only the points it leaves empty are filled, each
-by the doubled stratum moving the fewest rows the least distance (method
-G6.5a), so every position still holds its count. Measured on the
-repaired tree with the same harness: 604 outside and 1 missed. The six
-above-counts the fill cost are back; the one left is Phase 4's own.
-The agreements are NOT back to 550: the fill in order leaves 597, the
-walk and its leftover fill 604, and only withdrawing the fill from
-positions altogether reaches 546 -- by leaving 185 more position runs of
-the battery's 1,680 short of their count, an exact fact the registry
-test holds, and by turning that test red. Every assignment meeting a
-saturated position's count moves the position off its ladder somewhere,
-and column 9 carries most of the difference (110 or 115 outside with a
-fill, 56 without).
+- the walk alone inside positions: 546 outside and 1 missed, by leaving
+  185 more position runs of 1,680 short of their published count;
+- the walk, then the points it left empty each taken by the doubled
+  stratum of least size times distance: 604 and 1. It was withdrawn in
+  review: on a length-of-stay column it moved a large low stratum onto
+  an empty point far out in the tail -- the first position's spread 11.6
+  where the real one is 7.4, its ninetieth percentile 30 where the real
+  one is 16 -- and on a repeated-reading column (`a/a/c/50 - a`) it
+  missed a published above-count of 0 in 7 runs of 40;
+- that rule held to moves no costlier than the fill in order, or an
+  order-keeping cascade toward each empty point: the marginals return,
+  and 5 or all 6 of the recovered above-counts are lost again.
+
+So the six above-counts are bought only by long moves that break the
+marginals, and the trade -- agreement windows and above-counts against
+the positions' shape -- is the owner's decision, not a repair. The open
+cause is G6B.4's pairing walk, which cannot trade a few order breaks
+for an exact above-count. This file pins the ledger's no-regression
+rule on the battery and the two shapes the withdrawn rule broke.
 """
 
 from __future__ import annotations
 
 import concurrent.futures
-import importlib.util
 import os
 import pathlib
+import random
 
 import fixtures
 import joined_battery
@@ -59,26 +59,16 @@ import synthtwin
 from synthtwin import contract, generation
 from tests.test_stage2_round_trip import _round_trip
 
-# THE CEILINGS. Above-counts: 1, restored -- the recorded 0 was true of
-# round 3 only; round 4 of the same landing (da73c1c, Phase 4) missed one
-# and the record was not moved. Agreements: 604, the figure of the rule
-# as it stands, which is 7 above e53d5f4's 597 and 54 above the recorded
-# 550; the docstring above says why no rule keeping every position's
-# count reaches below it on this battery.
-OUTSIDE_CEILING = 604
-MISSED_CEILING = 1
+# THE CEILINGS: the ledger's own rule for K-P4-06, "no worse than 597
+# outside and 7 missed" -- e53d5f4's figures, which this tree reproduces.
+# The recorded 550 and 0 are its target and are not met; see above.
+OUTSIDE_CEILING = 597
+MISSED_CEILING = 7
 PAIRS = 2160
-
-ORACLE = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "tools"
-    / "reference"
-    / "make_generation_reference_vectors.py"
-)
 
 # Battery column 9 and the seed its witness is taken at.
 FOURTH_COLUMN = 9
-ABOVE_SEED = 7
+COUNT_SEED = 7
 
 
 def _column_nine(folder: pathlib.Path) -> "tuple[contract.Profile, contract.JoinedFacts]":
@@ -90,57 +80,94 @@ def _column_nine(folder: pathlib.Path) -> "tuple[contract.Profile, contract.Join
     return loaded, facts
 
 
-def test_a_saturated_position_keeps_its_count_and_its_pairs_keep_theirs(
+def _stay_cells() -> "list[str]":
+    """Length of stay over days in intensive care: 845 cells.
+
+    800 stays drawn with `random.Random(11)` -- the stay one plus an
+    exponential of rate 0.18 capped at 45 days, the intensive-care days
+    an exponential of rate 0.35 capped at the stay -- and one stay of
+    each length from 1 to 45 with no intensive-care day, so the first
+    position is a saturated integer grid of 45 points, crowded at its
+    low end and thin in its tail.
+    """
+    draw = random.Random(11)
+    cells: "list[str]" = []
+    for _ in range(800):
+        stay = min(45, 1 + int(draw.expovariate(0.18)))
+        care = max(0, min(stay, int(draw.expovariate(0.35))))
+        cells += [f"{stay}/{care}"]
+    for stay in range(1, 46):
+        cells += [f"{stay}/0"]
+    return cells
+
+
+def _repeated_cells() -> "list[str]":
+    """A reading taken twice, beside two others: 300 cells `a/a/c/50 - a`.
+
+    Drawn with `random.Random(99)`, `a` from 5 to 35 and `c` from 1 to
+    20. The first two positions are equal on every row, so the
+    description publishes 0 rows holding the first above the second.
+    """
+    draw = random.Random(99)
+    cells: "list[str]" = []
+    for _ in range(300):
+        first = draw.randint(5, 35)
+        third = draw.randint(1, 20)
+        cells += [f"{first}/{first}/{third}/{50 - first}"]
+    return cells
+
+
+def _spread_and_tail(numbers: "list[float]") -> "tuple[float, float]":
+    """The population spread and the ninetieth percentile, nearest rank."""
+    mean = sum(numbers) / len(numbers)
+    total = 0.0
+    for number in numbers:
+        total = total + (number - mean) ** 2
+    ordered = sorted(numbers)
+    return (total / len(numbers)) ** 0.5, ordered[int(0.9 * len(ordered))]
+
+
+def test_a_saturated_position_holds_every_number_it_publishes(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Battery column 9 at seed 7, where the fill in order cost a row.
+    """Battery column 9 at seed 7: positions 1 and 4 hold 51 of 51.
 
-    Its first and fourth positions are saturated integer grids: 51
-    different numbers from 10 to 60, and from 40 to 90, the fourth being
-    `100 - first`, published at an agreement of -1.0 with 22 rows holding
-    the first above the fourth. The twin must hold both exact facts at
-    once: every one of the 51 numbers in each position, and every
-    published above-count.
+    Both are saturated integer grids -- 51 different numbers from 10 to
+    60, and from 40 to 90, the fourth being `100 - first` -- and the
+    count is the exact fact the fill exists for. It is why the walk
+    alone, which reaches 546 agreements outside on the battery, is not
+    taken.
 
-    Mutation, both halves: taking the fill in order inside the positions
-    (e53d5f4's rule) holds the counts and misses pair (1, 4) at 23 rows
-    against 22; withdrawing the leftover fill (the walk alone) meets the
-    above-counts and holds 50 and 49 of the 51 numbers.
+    Mutation: withdrawing the fill (`_saturated_integers` answering
+    nothing, so the walk alone places the strata) holds 50 and 49 of the
+    51 numbers at this seed.
     """
     loaded, facts = _column_nine(tmp_path)
-    seat = 2
-    assert facts.part_agreements[seat] == -1.0, facts.part_agreements
-    assert facts.part_above[seat] == 22, facts.part_above
-    twin = generation.generate(loaded, ABOVE_SEED)
+    twin = generation.generate(loaded, COUNT_SEED)
     held = joined_battery.position_numbers(list(twin.columns[0]), facts)
     counts = [
         (place, len(set(held[place])), facts.parts[place].n_distinct_values)
         for place in (0, 3)
     ]
+    assert [count[2] for count in counts] == [51, 51], counts
     assert all(count[1] == count[2] for count in counts), (
-        f"(position, held, published) at seed {ABOVE_SEED}: {counts}"
+        f"(position, held, published) at seed {COUNT_SEED}: {counts}"
     )
-    scores = joined_battery.pair_scores(held, facts)
-    missed = [
-        (place, scores[place][1], facts.part_above[place])
-        for place in range(len(scores))
-        if scores[place][1] != facts.part_above[place]
-    ]
-    assert not missed, f"(pair, held, published) at seed {ABOVE_SEED}: {missed}"
 
 
 def test_the_battery_of_three_and_four_positions_keeps_its_figures(
 ) -> None:
-    """Twelve columns, forty seeds, 2,160 pairs: 604 outside, 1 missed.
+    """Twelve columns, forty seeds, 2,160 pairs: at most 597 and 7.
 
     The KPI of ledger K-P4-06, measured the way the driver measures it.
     The columns are spread over worker processes because each takes
     about twenty-five seconds; a worker builds its own column from the
-    recipe, so nothing crosses the process boundary but three counts.
+    recipe, so nothing crosses the process boundary but three counts
+    and the path of the synthtwin it imported.
 
-    Mutation: the fill in order inside joined positions gives 597
-    outside and 7 missed, which is e53d5f4's figure, and this test red
-    on the above-counts.
+    Mutation: the withdrawn rule (the walk inside positions, then the
+    leftover points by least size times distance) gives 604 outside and
+    1 missed, and this test red on the agreements.
     """
     workers = max(1, min(6, os.cpu_count() or 1))
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as pool:
@@ -164,38 +191,70 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures(
     )
 
 
-def test_the_oracle_case_holds_every_number_only_through_the_leftover_fill(
-    monkeypatch,
+def test_a_crowded_saturated_position_keeps_its_spread_and_its_tail(
+    tmp_path: pathlib.Path,
 ) -> None:
-    """The frozen case's second half, beside its registered mutant.
+    """Length of stay: the twin's first position keeps the real shape.
 
-    `joined_saturated_position`'s registered mutant takes the fill in
-    order inside the positions. This withdraws the other half instead --
-    the leftover fill -- and the oracle's positions then hold twenty-one
-    numbers of the twenty-two each publishes, with twenty-four cells
-    moved, so both halves of the rule are held up by committed bytes.
+    The real first position has a spread of 7.373 and a ninetieth
+    percentile of 16 days. At seeds 0 and 1 the twin must hold its 45
+    numbers, a spread within a tenth of the real one, and a ninetieth
+    percentile within two days of it. The fill in order gives 7.320 and
+    17 at both seeds.
+
+    Mutation: the withdrawn leftover rule moves a doubled stratum of the
+    crowded low end onto an empty point of the tail -- spread 10.635
+    and 11.441, ninetieth percentile 30 at both seeds -- and this test
+    goes red, while `synthtwin validate` exits 0 on that twin.
+    Withdrawing the fill (the walk alone) holds 43 of the 45 numbers.
     """
-    spec = importlib.util.spec_from_file_location("oracle_k_p4_06", ORACLE)
-    assert spec is not None and spec.loader is not None
-    oracle = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(oracle)
-    shipped, _claims = oracle.build_case("joined_saturated_position")
-    cells = shipped["cells"]
-    for place in range(2):
-        assert len({cell.split("/")[place] for cell in cells}) == 22
-    monkeypatch.setattr(oracle, "RECOUNT_DISTINCT", False)
-    monkeypatch.setattr(
-        oracle,
-        "onto_leftover_points",
-        lambda walked, _points, _sizes, _bands, _figures: walked,
-    )
-    walked, _claims = oracle.build_case("joined_saturated_position")
-    moved = sum(
-        1 for row in range(len(cells)) if walked["cells"][row] != cells[row]
-    )
-    assert moved == 24, moved
-    for place in range(2):
-        assert len({cell.split("/")[place] for cell in walked["cells"]}) == 21
+    cells = _stay_cells()
+    real = [float(cell.split("/")[0]) for cell in cells]
+    real_spread, real_tail = _spread_and_tail(real)
+    assert (round(real_spread, 3), real_tail) == (7.373, 16.0)
+    loaded = joined_battery.described(cells, tmp_path)
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.JoinedFacts), loaded.columns[0].role
+    assert facts.parts[0].n_distinct_values == 45
+    for seed in (0, 1):
+        twin = generation.generate(loaded, seed)
+        held = joined_battery.position_numbers(list(twin.columns[0]), facts)
+        spread, tail = _spread_and_tail(held[0])
+        assert len(set(held[0])) == 45, (seed, len(set(held[0])))
+        assert abs(spread - real_spread) <= 0.1 * real_spread, (
+            seed, spread, real_spread
+        )
+        assert abs(tail - real_tail) <= 2.0, (seed, tail, real_tail)
+
+
+def test_a_reading_taken_twice_never_stands_above_itself(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`a/a/c/50 - a`: the published 0 rows above, at seven seeds.
+
+    The seeds are the seven of forty where the withdrawn rule missed
+    it: each of the two equal positions was walked on its own and they
+    stopped landing on the same numbers, so 1 to 6 rows held the first
+    above the second. The fill in order meets 0 at all forty.
+
+    Mutation: the withdrawn rule gives 3, 1, 6, 1, 3, 3 and 5 rows above
+    at seeds 1, 5, 16, 18, 22, 26 and 32, and so does withdrawing the
+    fill (the walk alone): the break is the walk taking the fill's
+    place, not the leftover points, which it never reached here.
+    """
+    loaded = joined_battery.described(_repeated_cells(), tmp_path)
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.JoinedFacts), loaded.columns[0].role
+    assert facts.n_parts == 4
+    assert facts.part_above[0] == 0, facts.part_above
+    missed: "list[tuple[int, int]]" = []
+    for seed in (1, 5, 16, 18, 22, 26, 32):
+        twin = generation.generate(loaded, seed)
+        held = joined_battery.position_numbers(list(twin.columns[0]), facts)
+        above = joined_battery.pair_scores(held, facts)[0][1]
+        if above != 0:
+            missed += [(seed, above)]
+    assert not missed, f"(seed, rows above) against a published 0: {missed}"
 
 
 def test_a_saturated_pressure_comes_back_whole_through_the_commands(
@@ -211,8 +270,8 @@ def test_a_saturated_pressure_comes_back_whole_through_the_commands(
     twin holds every number of both positions, and the rows with the
     first number above the second are the published count.
 
-    Mutation: withdrawing the leftover fill leaves the diastolic position
-    98 numbers of 100 at this seed.
+    Mutation: withdrawing the fill (the walk alone) leaves the diastolic
+    position 98 numbers of 100 at this seed.
     """
     cells = fixtures.joined_column_text(240)
     first, second, written, twin_exit, real_exit = _round_trip(

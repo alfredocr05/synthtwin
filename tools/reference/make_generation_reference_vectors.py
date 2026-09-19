@@ -3382,67 +3382,9 @@ def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric,
     return merged
 
 
-def fill_stands_aside(column):
-    """Whether G6.5a's fill in order stands aside -- G6.5a, G6B.2.
-
-    Ledger K-P4-06.  Inside one position of a joined column a saturated
-    grid is not filled in order: the numbers built there are paired with
-    another position's, and a fill that moves a whole run of strata one
-    point off the ladder moves which rows stand above the other
-    position's numbers -- ``part_above``, an exact pair fact.  The walk
-    runs instead and `onto_leftover_points` fills what it leaves empty.
-    A position is the view `joined_part_view` builds, which keeps the
-    joined role.
-    """
-    return column.get("role") == "joined_numbers"
-
-
-def onto_leftover_points(walked, points, sizes, bands, figures):
-    """A saturated grid's empty points, each taken by a doubled stratum -- G6.5a.
-
-    Ledger K-P4-06, inside one position of a joined column.  ``points``
-    are every point of the saturated grid; ``walked`` is where the walk
-    left the strata.  While a point is empty, one stratum moves onto one:
-    only a stratum whose text another stratum also holds, never the first
-    or last (the published ends), never the zero stratum, and only onto a
-    point its sign band holds.  Of those moves the one taken moves the
-    fewest rows the least distance: smallest size times distance, then
-    smallest distance, then earliest stratum, then lowest point.  Where no
-    stratum can move, the points left stay empty.
-    """
-    moved = list(walked)
-    count = {}
-    for value in moved:
-        text = grid_text(value, figures)
-        count[text] = count.get(text, 0) + 1
-    empty = [point for point in points if grid_text(point, figures) not in count]
-    while empty:
-        choices = []
-        for stratum in range(1, len(moved) - 1):
-            if bands[stratum] == "zero":
-                continue
-            if count[grid_text(moved[stratum], figures)] < 2:
-                continue
-            for slot, point in enumerate(empty):
-                if not _band_holds(bands[stratum], point):
-                    continue
-                distance = abs(point - moved[stratum])
-                choices.append(
-                    (sizes[stratum] * distance, distance, stratum, slot)
-                )
-        if not choices:
-            break
-        _cost, _distance, stratum, slot = min(choices)
-        count[grid_text(moved[stratum], figures)] -= 1
-        moved[stratum] = empty.pop(slot)
-        count[grid_text(moved[stratum], figures)] = 1
-    return moved
-
-
 def apart_values(
     wanted, figures, values, sizes, starts, bands, ladder, numeric,
     mode=None, point_free=False, integer_valued=False, keep_whole=False,
-    in_position=False, skip_grid=False,
 ):
     """Two strata are two cells, so they are written two ways -- G6.5a.
 
@@ -3468,22 +3410,9 @@ def apart_values(
         return values
     if total < 2:
         return values
-    # EXCEPT INSIDE ONE POSITION OF A JOINED COLUMN (ledger K-P4-06,
-    # `fill_stands_aside`): there the levels and the walk below run as if
-    # the grid had room, and only the points they leave empty are filled
-    # afterwards (`onto_leftover_points`).
-    grid = None if skip_grid else saturated_grid(
-        wanted, figures, total, bands, ladder
-    )
-    if grid is not None:
-        if not in_position:
-            return grid
-        walked = apart_values(
-            wanted, figures, values, sizes, starts, bands, ladder, numeric,
-            mode, point_free, integer_valued, keep_whole,
-            in_position=True, skip_grid=True,
-        )
-        return onto_leftover_points(walked, grid, sizes, bands, figures)
+    filled = saturated_grid(wanted, figures, total, bands, ladder)
+    if filled is not None:
+        return filled
     filled = saturated_levels(
         wanted, figures, values, bands, ladder, mode, point_free,
         integer_valued,
@@ -11355,7 +11284,6 @@ def _numeric_content(column):
         demand > 0,
         integer_valued,
         sum(widths.values()) < numeric,
-        fill_stands_aside(column),
     )
     # AND A WHOLE NUMBER WRITTEN TWO WAYS IS HELD BY TWO STRATA (plan
     # P4-D193), straight after the walk.
@@ -16091,101 +16019,6 @@ def _saturated_integers():
     }
 
 
-def _joined_saturated_position():
-    """A saturated integer grid inside a joined position (ledger K-P4-06).
-
-    Both positions of this column are `saturated_integers`'s own column:
-    thirty-three whole numbers publishing twenty-two different values
-    between the ends one and twenty-two.  On a plain column G6.5a fills
-    that grid in order; inside a position the walk runs first and only
-    the point it leaves empty is filled, by the doubled stratum that
-    moves the fewest rows the least distance.  Every other joined case
-    holds positions with a spare grid point, so the rule could be
-    withdrawn with every committed byte unchanged, which is why the case
-    exists.
-    """
-    ladder_texts = {
-        "min": "1", "p01": "1.32", "p05": "2.6", "p10": "4.2",
-        "p25": "9", "p50": "11", "p75": "14", "p90": "18.8",
-        "p95": "20.4", "p99": "21.68", "max": "22",
-    }
-    claims = {}
-    parts = []
-    all_rungs = []
-    for place in range(2):
-        ladder, ladder_claims, rungs, finer = _ladder_fields(ladder_texts)
-        all_rungs.append(rungs)
-        for key, value in ladder_claims.items():
-            claims[("column", "parts", place) + key] = value
-        block = {
-            "percentiles": ladder,
-            "percentiles_between": finer, "n_rows": 33, "n_zero": 0,
-            "n_negative": 0, "n_negative_unrepresentable": 0,
-            "n_used_in_statistics": 33, "n_left_out_of_statistics": 0,
-            "integer_valued": True, "numeric_styles": {"plain": 33},
-            "fraction_widths": {}, "pad_widths": {},
-            # A position is read from figures and one point alone, so it
-            # carries no mark, no notation and no sign, exactly as
-            # `joined_readings` states for its own positions.
-            "group_separator": "",
-            "negative_form": "minus",
-            "decimal_plus": {},
-            "negative_notations": {},
-            "thousands_marks": {},
-            "wide_runs": "none",
-            # Twenty-four readings two figures wide and nine one figure
-            # wide, and the nine sit below the floor: the census is one
-            # pool, as it is on `saturated_integers`.
-            "field_widths": {"(withheld)": 33},
-            "std_unrepresentable": False, "value_histogram": {},
-            "empty_bins": [],
-            "empty_edges": [],
-            "n_distinct_values": 22,
-            "mode_count": 12,
-        }
-        for name, text in (("mean", "11.333333333333334"),
-                           ("std", "5.26584909265986"),
-                           ("skew", "0.09615802208472209"),
-                           ("kurtosis", "2.687623796188785"),
-                           ("numeric_share", "1"), ("mode", "11")):
-            field, claim = nearest_field(text)
-            block[name] = field
-            claims[("column", "parts", place, name)] = claim
-        parts.append(block)
-    agreement, agreement_claim = nearest_field("0.5")
-    claims[("column", "part_agreements", 0)] = agreement_claim
-    column = _universal(
-        "column_1", "joined_numbers", "joined_numbers", "data", "ok",
-        n_present=33, n_missing=0, n_distinct=33, n_distinct_folded=33,
-        n_numeric=0, n_not_numeric=33, n_out_of_range=0, n_contradictory=0,
-        parts=parts, separator="/", n_parts=2, n_joined=33, n_unparsed=0,
-        part_min_widths=[1, 1], part_agreements=[agreement],
-        part_above=[14],
-    )
-    return {
-        "why": "G6.5a's saturated grid inside a joined position (ledger "
-        "K-P4-06). Each position publishes twenty-two different numbers "
-        "between the ends one and twenty-two, so on a plain column the "
-        "strata would take those integers in order. Inside a position the "
-        "walk runs first, as on a grid with room, and leaves one point "
-        "empty and one point doubled; the empty point is then taken by "
-        "the doubled stratum moving the fewest rows the least distance, "
-        "and each position holds all twenty-two. The fill in order moves "
-        "the whole run of strata between the doubled point and the empty "
-        "one, which moves which rows of one position stand above the "
-        "other's -- the published above-count of a pair. The mutant takes "
-        "the fill in order inside the positions as on a plain column, and "
-        "eighteen cells move; with the leftover step withdrawn instead, "
-        "each position holds twenty-one numbers and twenty-four cells "
-        "move.",
-        "column": column,
-        "rows": 33,
-        "identifier_declared": False,
-        "rungs": all_rungs,
-        "claims": claims,
-    }
-
-
 def _unmarked_duplicates_first():
     """The distinct-spelling repair, visited unmarked first (P4-D265, G6.5).
 
@@ -20370,8 +20203,6 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "saturated_representable": _saturated_representable,
     # The distinct-spelling repair's visiting order (plan P4-D265).
     "unmarked_duplicates_first": _unmarked_duplicates_first,
-    # A saturated grid inside a joined position (ledger K-P4-06).
-    "joined_saturated_position": _joined_saturated_position,
 }
 
 CASE_SETS = {
@@ -20562,9 +20393,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     "-- G6.5a's last resort on the REPRESENTABLE grid, where the census "
     "names no fraction width at all (plan P4-D269), and G6.5's visiting "
     "order for the distinct-spelling repair, unmarked duplicates first "
-    "(plan P4-D265) -- and, added after that round, G6.5a's saturated "
-    "grid walked first inside a joined position and only its leftover "
-    "points filled (ledger K-P4-06). They are computed by the same oracle "
+    "(plan P4-D265). They are computed by the same oracle "
     "and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -20610,45 +20439,6 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
-    # A saturated grid inside a joined position (ledger K-P4-06), at the
-    # next seed after the highest in use (204).
-    "joined_saturated_position": (
-        16753067613118181217, 4206969878013758167, 15183236063515065596,
-        3512088490783040569, 7725610893990452298, 2494333057669011223,
-        8533281968869854761, 1737086052085467765, 7101881046494449767,
-        17847366998111331008, 16564834437627974812, 11210015810459439155,
-        8307737580329409017, 15798750171846463714, 16598408470897088910,
-        17345061366051683496, 8111427045086381449, 4584279234199797975,
-        11874096871536886657, 15808901984533200843, 3307606362816493519,
-        7033059853087329512, 8841608128506827616, 5540637724523648198,
-        13864833439530146341, 18379436573089841627, 8602246322466314637,
-        17438706838672563547, 6976404982193339737, 339626846689194753,
-        6048325271769779232, 667295759908664269, 13720017675106288473,
-        17020170578420173678, 13079020210315421790, 12693996482168092443,
-        8184439931291787126, 11898737543103007182, 1649323465032450776,
-        8801677747796875780, 18047053460541097455, 1218777032769744567,
-        1178006417815128179, 16565496060575845657, 6235668078579430265,
-        283276246513352814, 11471448768032915452, 17996514995398699586,
-        5646120977912611198, 9427082364266152894, 17930113847532318830,
-        9578472086543710395, 2698874601795055012, 6579319824702500182,
-        6314780298353892404, 11137493940384032545, 14434029421590554165,
-        4595771470895362348, 18020051548039489980, 15213280571888054554,
-        5994919313629988495, 270950277585038329, 15209131555138577144,
-        3726390849028908478, 16410319154498860066, 9940451749455050235,
-        4773914079378368089, 16823686131544670911, 3974876809913600278,
-        17777707952629785269, 6125642683871963205, 10215317898059218619,
-        405776157578902971, 7019693769361374698, 9455020089012351620,
-        11654656744910376489, 15493068477953102800, 8540270022091808185,
-        8462517032983394322, 17604298064986907905, 12843255769113280658,
-        12297518262032475104, 5278658800897468539, 11664624611114711615,
-        15425826491678700620, 9677026147536292638, 4115902217721369432,
-        1590054466052331069, 924925072000978069, 14720256499823623961,
-        2836969744081406424, 12514986450512092905, 4322089975220071823,
-        12022203532756281753, 4890796055272367479, 315542832160010160,
-        398104528873799681, 1913853998197102401, 481211603449413288,
-        13423725960934369126, 3584135561184152940, 11997169208773667470,
-        14212794210882799757, 2646258405563313980,
-    ),
     "date_endpoint_ties": (
         18275811836973565638, 9899137660592151493, 9008307879817683416,
         10920000133462893375, 12618927426165946623, 9586850028823316644,
