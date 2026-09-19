@@ -1,0 +1,100 @@
+"""K-P3-03, K-P3-12 and K-S1-01: twenty plain numeric columns at 5,000 and 20,000 rows.
+
+The stage-1 shape (`numeric20`, Random(20260913), each column Gaussian
+at two decimals) described, generated and validated through the command
+line, in this process, at both sizes. Printed per size: the seconds each
+command took and the obligations the twin's quality report MISSED.
+
+- K-P3-03 (OPEN): MISSED obligations at 20,000 rows, read from the
+  validator's census (19 on the frozen copy, the spread too wide; 10 on
+  e53d5f4, moments.std on 10 of 20 columns), 0 at 5,000.
+- K-P3-12: validate seconds at 20,000 (reference machine only) and the
+  5k-to-20k ratio, which is machine-free.
+- K-S1-01: generate seconds at 20,000 (reference machine only) and the
+  5k-to-20k ratio.
+
+Each ratio is a median of three at each size; the small size takes
+well over a second, so scheduler noise cannot move it past its bound.
+About six minutes on the reference machine.
+
+    .venv/bin/python tools/measurements/kpi_numeric_20k.py --kpi
+"""
+
+import pathlib
+import random
+import statistics
+import sys
+import tempfile
+import time
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests"))
+import kpi_rules  # noqa: E402
+import kpi_shapes  # noqa: E402
+from synthtwin import contract, validation  # noqa: E402
+
+kpi_rules.guard_this_tree()
+
+
+def table(rows):
+    draw = random.Random(20260913)
+    head = [f"m{c:02d}" for c in range(20)]
+    lines = [",".join(head)]
+    for _ in range(rows):
+        lines += [",".join(f"{draw.gauss(50 + c, 5 + c % 7):.2f}" for c in range(20))]
+    return "\n".join(lines) + "\n"
+
+
+def timed(argv):
+    started = time.perf_counter()
+    code = kpi_shapes.quiet_cli(argv)
+    return code, time.perf_counter() - started
+
+
+def missed_in(description, twin):
+    """The census's MISSED count, by the validator the command itself runs."""
+    loaded = contract.load_profile(str(description))
+    return validation.measure(loaded, str(twin)).census.missed
+
+
+found = {}
+with tempfile.TemporaryDirectory() as folder:
+    home = pathlib.Path(folder)
+    for rows in (5000, 20000):
+        here = home / f"n{rows}"
+        here.mkdir()
+        source = here / "numeric20.csv"
+        source.write_text(table(rows), encoding="utf-8")
+        code, profile_s = timed(["profile", str(source), "--out-dir", str(here)])
+        assert code == 0, code
+        description = here / "numeric20-profile.json"
+        generate_s, validate_s, exits = [], [], []
+        missed = None
+        for repeat in range(3):
+            code, seconds = timed(["generate", str(description), "--out-dir", str(here),
+                                   "--seed", "0", "--replace"])
+            generate_s += [seconds]
+            report = here / f"v{repeat}"
+            report.mkdir()
+            code, seconds = timed(["validate", str(description), "--twin",
+                                   str(here / "numeric20-twin.csv"), "--out-dir", str(report)])
+            validate_s += [seconds]
+            exits += [code]
+            missed = missed_in(description, here / "numeric20-twin.csv")
+            if rows == 20000:
+                break
+        found[rows] = dict(profile=profile_s, generate=statistics.median(generate_s),
+                           validate=statistics.median(validate_s), missed=missed, exits=exits)
+        print(rows, {k: (round(v, 2) if isinstance(v, float) else v) for k, v in found[rows].items()},
+              flush=True)
+
+small, large = found[5000], found[20000]
+kpi_rules.emit("K-P3-03", {"missed_5k": small["missed"], "missed_20k": large["missed"]})
+kpi_rules.emit("K-P3-12", {
+    "validate_seconds_20k": round(large["validate"], 1),
+    "validate_ratio_4x_rows": round(large["validate"] / small["validate"], 2)})
+kpi_rules.emit("K-S1-01", {
+    "generate_seconds_20k": round(large["generate"], 1),
+    "generate_ratio_4x_rows": round(large["generate"] / small["generate"], 2),
+    "profile_seconds_20k": round(large["profile"], 1)})
