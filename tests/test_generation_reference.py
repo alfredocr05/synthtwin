@@ -95,6 +95,7 @@ from synthtwin import (
     parsing,
     rendering,
     sheetwriting,
+    taxonomy,
     workbook,
 )
 
@@ -468,11 +469,19 @@ FIFTH_BRANCH_CASES = (
 # onto a unit that is no rank neighbour -- and the two of its number pass
 # (plans P4-D269 and P4-D265). Sorted, like the tuples above.
 SIXTH_BRANCH_CASES = (
+    # The joint word of a rank showing both fields where the census names
+    # one-field words alone (the repair pass of the carried date items of
+    # 2026-09-18, plan P4-D294 amended).
+    "date_both_fields_disagree",
     "date_endpoint_ties",
     "date_midnight_feasible",
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
+    # P4-D258's two merges reached again, on a column carrying two width
+    # kinds (the carried date items of 2026-09-18).
+    "date_two_kinds_nonadjacent",
+    "date_two_kinds_traded",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -574,6 +583,11 @@ SEEDS = {
     "date_second_field_class": 202,
     "date_traded_merge": 203,
     "date_nonadjacent_merge": 204,
+    # The carried date items of 2026-09-18 take the next two.
+    "date_two_kinds_traded": 205,
+    "date_two_kinds_nonadjacent": 206,
+    # Its repair pass takes the next.
+    "date_both_fields_disagree": 207,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -2486,6 +2500,47 @@ CASE_MUTANTS = {
         replacement=_shows_it,
         outcome=CHANGES_THE_CELLS,
     ),
+    # P4-D258's TWO MERGES, REACHED AGAIN (the carried date items of
+    # 2026-09-18). A one-field census whose unnamed remainder stands on
+    # days of the other kind is a column carrying two width kinds, which
+    # is the situation both merges exist for and which the two cases
+    # above no longer describe. Each mutant withdraws exactly its own
+    # merge and moves its own case's cells. REBUILT BY THE REPAIR PASS OF
+    # THE SAME DAY from the descriptions the producer writes of the tables
+    # the two cases describe, which publish FOUR different values -- the
+    # remainder's day is written two ways -- where the first freezing
+    # published three, a count no such table can reach.
+    "date_two_kinds_traded": Mutant(
+        branch="plan P4-D258's traded merge; the mutant makes no trade, "
+        "and the twin's fourth date falls on another day while the three "
+        "published days hold other numbers of cells",
+        attribute="traded_merges",
+        replacement=lambda *arguments: 0,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_two_kinds_nonadjacent": Mutant(
+        branch="plan P4-D258's merge onto a held unit that is no rank "
+        "neighbour; the mutant offers the neighbours alone, and the run "
+        "whose neighbours are both of the other kind stays where it was "
+        "drawn, five different dates against four",
+        attribute="nearest_held_unit",
+        replacement=lambda *arguments: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # THE JOINT WORD OF A RANK SHOWING BOTH FIELDS (the repair pass of the
+    # carried date items of 2026-09-18, plan P4-D294 amended). The mutant
+    # is the rule it replaced: the joint word that AGREES with the named
+    # one-field word, which folds the whole named count into itself.
+    "date_both_fields_disagree": Mutant(
+        branch="method G7.5 step 1's joint word for a rank showing both "
+        "fields under a census naming one-field words alone; the mutant "
+        "builds the joint word that agrees with the census, and the "
+        "twin's dates of the third of March are written with the month "
+        "padded, which folds the twenty-two named cells into `padded`",
+        attribute="both_fields_width_of",
+        replacement=lambda census: gen.joint_width_of(census),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "date_widths_reached": Mutant(
         branch="plan P4-D192's widths pass; the mutant leaves the ranks where "
         "they were drawn, and a different number of dates show a width than "
@@ -3191,6 +3246,91 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
             f"{name}: the mutant of {mutant.branch} stopped the oracle for "
             "some other reason than its own"
         )
+
+
+_GENERATOR_NEAREST_HELD_UNIT = generation._nearest_held_unit
+
+
+def _no_unit_past_the_neighbours(*arguments, **named):
+    """The generator's plain merge offered its rank neighbours alone.
+
+    The traded merge asks the same search with ``flip`` set, and keeps
+    it: only the offer of a held unit of the run's OWN kind is withdrawn.
+    """
+    flip = arguments[11] if len(arguments) > 11 else named.get("flip", False)
+    if flip:
+        return _GENERATOR_NEAREST_HELD_UNIT(*arguments, **named)
+    return None
+
+
+@pytest.mark.parametrize(
+    ("name", "attribute", "replacement"),
+    [
+        ("date_two_kinds_traded", "_traded_merges", lambda *arguments: 0),
+        (
+            "date_two_kinds_nonadjacent",
+            "_nearest_held_unit",
+            _no_unit_past_the_neighbours,
+        ),
+    ],
+)
+def test_the_generator_s_own_merge_writes_the_two_kinds_cases(
+    name: str, attribute: str, replacement, tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """P4-D258's two merges, withdrawn from the IMPLEMENTATION this time.
+
+    The mutant table above withdraws each merge from the oracle. This is
+    the same question asked of `synthtwin.generation`: its own traded
+    merge, and its own offer of a held unit past the rank neighbours,
+    are what write these two committed columns, so either withdrawn
+    writes different cells -- which is what makes the pair a pin on the
+    generator and not only on the oracle beside it.
+    """
+    case = _case(name)
+    profile = _load(case, name, tmp_path)
+    assert [row[0] for row in generation.generate(profile, SEEDS[name]).rows] == (
+        case["cells"]
+    )
+    monkeypatch.setattr(generation, attribute, replacement)
+    withdrawn = [row[0] for row in generation.generate(profile, SEEDS[name]).rows]
+    assert withdrawn != case["cells"], name
+
+
+def test_the_generator_s_own_joint_word_keeps_the_named_one_field_count(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """Method G7.5 step 1's joint word for a rank showing both fields.
+
+    The repair pass of the carried date items of 2026-09-18 (plan
+    P4-D294, amended). Where the census names a one-field word and no
+    joint word, a rank of the twin showing both fields is written in the
+    convention no named one-field word wears. Asked of the committed cells
+    the way the producer counts them -- tallied, folded, absorbed -- they
+    give back the named count exactly, with the third of March counted
+    under a joint word of its own. Withdrawn from `synthtwin.generation`
+    itself, the joint word that AGREES with the census is written instead
+    and the fold takes the named count away: the committed cells move, and
+    the moved cells count no `second-field-padded` at all.
+    """
+    name = "date_both_fields_disagree"
+    case = _case(name)
+    member = case["column"]["format"]
+
+    def census_of(cells: "list[str]") -> "dict[str, int]":
+        written = [cell for cell in cells if cell]
+        folded = parsing.folded_width_tally(taxonomy.width_tally(written, member))
+        return taxonomy.absorbed_width_tally(folded, len(written))
+
+    profile = _load(case, name, tmp_path)
+    kept = [row[0] for row in generation.generate(profile, SEEDS[name]).rows]
+    assert kept == case["cells"]
+    assert census_of(kept) == {"first-padded": 14, "second-field-padded": 22}
+    monkeypatch.setattr(
+        generation, "_both_fields_width_of", generation._joint_width_of
+    )
+    moved = [row[0] for row in generation.generate(profile, SEEDS[name]).rows]
+    assert moved != case["cells"]
+    assert census_of(moved) == {"padded": 36}
 
 
 def test_the_style_case_writes_each_published_form_as_itself() -> None:

@@ -2945,7 +2945,19 @@ def build_document(
 
     - Inputs: a Table as produced by the reader, the settings that
       govern the taxonomy, and the names of columns the user declared
-      to be record numbers.
+      to be record numbers. THE TABLE MUST HAVE BEEN READ AT THE FLOOR
+      IT IS DESCRIBED AT: `reading.read_table` holds a delimited file's
+      own lines and a workbook's number formats to the floor it is
+      given (plans P4-D283 and P4-D290), and this function publishes
+      the form the reader settled without asking the floor again. A
+      table read at the default floor of one and described here at
+      eleven publishes its line facts as a floor of one would -- a run
+      of trailing blank lines at one place, which the floor-eleven rule
+      withholds -- and is a description `synthtwin profile` never
+      writes. `synthtwin profile` and the validator both pass
+      ``settings.small_cell_floor`` to the reader; nothing here checks
+      that a library caller did (the merge skeptic of the carried date
+      items of 2026-09-18, measured and carried).
     - Determinism: the document depends only on those inputs. No clock,
       no environment, no random source, and every mapping written out
       is written in sorted key order.

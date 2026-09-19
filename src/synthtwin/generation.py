@@ -4195,6 +4195,46 @@ def _joint_width_of(census: "dict[str, int]") -> str:
     )
 
 
+def _both_fields_width_of(census: "dict[str, int]") -> str:
+    """The joint word a rank showing BOTH fields takes where none is named.
+
+    FIELD BY FIELD, THE CONVENTION NO NAMED ONE-FIELD WORD WEARS (plan
+    P4-D294, amended by the repair pass of the carried date items of
+    2026-09-18). A census that names a one-field word and no joint word
+    says something about every cell of its table showing both fields: none
+    of them padded that field the way the named word does. Had one done
+    so, `parsing.folded_width_tally` would have joined the named word to
+    that cell's joint word and the census would name the joint word
+    instead. So a field whose commonest named one-field word is padded is
+    written unpadded here, one whose word is unpadded is written padded,
+    and a field the census names no word for keeps the padded default.
+
+    WHY. This used to be `_joint_width_of`, which builds the joint word
+    that AGREES with the named one-field words -- so a twin's cell
+    showing both fields folded the whole named count into its own word.
+    **Measured** on eleven `03/19/2020`, eleven `04/10/2020`, seven
+    `3/3/2020` and seven `3/03/2020` at a floor of eleven: the census is
+    `{"first-field-padded": 22}`, and the twin at seeds 4, 0 and 1 wrote
+    its cells of the third of March `03/03/2020`, described
+    again as `{"padded": 36}` and validated at exit 3 with
+    `widths.first-field-padded` and `widths.unnamed` MISSED.
+
+    Guarantees: accepts a published width census; returns a member of
+    `parsing.FIELD_WIDTH_STYLES_BOTH`. Determinism: a function of the
+    census. Raises nothing. No I/O of any kind.
+    """
+    first = _commonest_of(
+        _census_weights(census, parsing.FIELD_WIDTH_STYLES_FIRST), ""
+    )
+    second = _commonest_of(
+        _census_weights(census, parsing.FIELD_WIDTH_STYLES_SECOND), ""
+    )
+    return parsing.joint_width(
+        first != parsing.WIDTH_FIRST_FIELD_PADDED,
+        second != parsing.WIDTH_SECOND_FIELD_PADDED,
+    )
+
+
 def _field_weights(
     census: "dict[str, int]", which: int
 ) -> "dict[str, int]":
@@ -4237,7 +4277,9 @@ def _width_allocation(
     Each class of rank is written from its own words (`_date_width_places`),
     every published word held to its least by `_reserved`; a class the
     census has no count for is written as the census's other classes pad
-    that field, and a rank that shows no width takes `_joint_width_of`.
+    that field, a rank showing both fields where the census names no joint
+    word takes `_both_fields_width_of`, and a rank that shows no width
+    takes `_joint_width_of`.
     """
     census = facts.date_field_widths
     fallback = _joint_width_of(census)
@@ -4252,7 +4294,9 @@ def _width_allocation(
             styles[first[index]] = spread[index]
         return styles
     weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_BOTH)
-    spread = _reserved(weights if weights else {fallback: 1}, len(both), floor)
+    if not weights:
+        weights = {_both_fields_width_of(census): 1}
+    spread = _reserved(weights, len(both), floor)
     for index in range(len(both)):
         styles[both[index]] = spread[index]
     for which, ranks in ((1, first), (2, second)):

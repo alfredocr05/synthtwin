@@ -529,7 +529,15 @@ def test_one_date_showing_no_width_keeps_the_widths_census(
     first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "no-width", cells
     )
-    assert first["date_field_widths"] == {"unpadded": len(cells) - 1}
+    # COUNTED AGAINST THE PARSED CELLS (plan P4-D278, which moved this
+    # figure). 244 cells each show `unpadded`; `12/25/2019` shows no width
+    # at all and is written identically under either convention, so the
+    # rule counts it into the column's commonest width: 244 + 1 = 245,
+    # every parsed cell. The count of cells SHOWING the width is kept
+    # beside it, so the absorption is asserted and not assumed.
+    showing = [cell for cell in cells if cell != "12/25/2019"]
+    assert len(showing) == len(cells) - 1
+    assert first["date_field_widths"] == {"unpadded": len(showing) + 1}
     unpadded = [
         cell for cell in written
         if all(part == str(int(part)) for part in cell.split("/")[:2])
@@ -581,7 +589,20 @@ def test_a_twin_of_unpadded_month_first_dates_near_the_floor_validates(
         tmp_path / seed, cells, ("--smallest-group", "11"), seed=seed,
         check_real=seed == "0",
     )
-    assert first["date_field_widths"] == {"unpadded": 114}
+    # COUNTED AGAINST THE PARSED CELLS (plan P4-D278, which moved this
+    # figure from 114). 114 of the 150 dates have a field below ten and
+    # show `unpadded`; the other 36 have both fields at ten or more, show
+    # no width, and are counted into the column's one width: 114 + 36.
+    showing = [
+        cell for cell in cells
+        if int(cell.split("/")[0]) < 10 or int(cell.split("/")[1]) < 10
+    ]
+    showing_none = [
+        cell for cell in cells
+        if int(cell.split("/")[0]) >= 10 and int(cell.split("/")[1]) >= 10
+    ]
+    assert (len(showing), len(showing_none)) == (114, 36)
+    assert first["date_field_widths"] == {"unpadded": 114 + 36}
     assert (twin_exit, real_exit) == (0, 0)
 
 

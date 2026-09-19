@@ -282,8 +282,19 @@ def _described(
 ) -> "tuple[contract.Profile, str, dict]":
     """One table through the real producer, loader and all."""
     path = fixtures.write(folder, f"{stem}.csv", text)
+    # READ AT THE FLOOR THE DESCRIPTION IS WRITTEN AT, as `synthtwin
+    # profile` reads it (plan P4-D290): the survey of the file's own lines
+    # is held to the disclosure rule on both sides, so a description read
+    # at the default floor and written at eleven is one the product never
+    # makes. Measured on the `nothing-named` control after the repair pass
+    # gated those rules on a raised floor: read at one, its twelve trailing
+    # blank lines at ONE place were published, and the validator, reading
+    # the same file at eleven, withheld that place and reported
+    # `bytes.blank-lines` MISSED on the file the description was made from.
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=settings.small_cell_floor,
     )
     document = profile.build_document(table, settings, [])
     loaded = contract.load_profile(

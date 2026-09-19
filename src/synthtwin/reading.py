@@ -1782,9 +1782,14 @@ def read_table(
     rather than the stray cell the owner's sixth ruling absorbs. On a
     delimited file (plan P4-D290): the written form carries counts and
     positions of its own lines, and those are held to the one disclosure
-    rule like every other count synthtwin publishes. Left out, the line
-    is the smallest a census ever uses and both questions are asked at
-    their strictest.
+    rule like every other count synthtwin publishes. Left out, it is the
+    default floor of one. The workbook question is then asked at the
+    smallest line a census ever uses; the delimited file's line rules are
+    NOT asked at all, because the repair pass of 2026-09-18 gated them on
+    a raised floor (plan P4-D290, amendment b). A caller describing a
+    table at a raised floor passes that floor here, as `synthtwin
+    profile` and the validator both do, or the form it reads is one no
+    description at that floor publishes.
 
     ``published_header`` is the validator's alone: the row a workbook
     description puts its names on, which settles a checked workbook's

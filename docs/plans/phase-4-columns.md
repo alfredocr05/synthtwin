@@ -17037,6 +17037,23 @@ The silence P4-D139 measured is not taken: it left 212 of a twin's 245
 cells written `04/14/2020`, and the absorption costs nothing at all.
 The checker asks the same one function, so both sides count one way.
 
+**AMENDED BY THE CARRIED DATE ITEMS OF 2026-09-18: THE CHECKER ABSORBS
+ON A CENSUS OF SEVERAL WIDTHS TOO.** `taxonomy._width_counts` absorbs the
+cells showing no width into the commonest width whatever the census
+names, and `validation._written_form_checks` absorbed them only where the
+census named ONE width. **Measured** on the 900 visits of
+`tests/test_p4d195_width_conventions_named.py`, half written `1/5/2021`
+and half `01/05/2021`: the description published `{"padded": 369,
+"unpadded": 531}` -- 381 cells showing `unpadded` and 150 showing none --
+and validating the TABLE ITSELF printed `widths.unpadded` WITHIN-BOUND,
+comparing 531 with the bare 381. The recount is now the absorbed one on
+every width census, so both sides count one way; a census of several
+widths is still MET at its floor on the cells that show each convention,
+and HELD only where the absorbed count is the published one. **Measured
+after:** the table prints both widths HELD with 369 and 531, and its twin
+at seeds 4 and 11 still prints WITHIN-BOUND with both counts named in its
+report.
+
 ### P4-D279 The joint ISO reading is not taken where one of its forms is below the line — SUPERSEDED at the integration by P4-D250
 
 **SUPERSEDED 2026-09-18, at the integration of the extra round's four
@@ -17442,6 +17459,116 @@ replacement and none reached either. They are re-registered against the
 rule they DO pin, which is this one, and the loss of coverage is written
 into G14.3 under the case table. A case that reaches either branch is
 owed.
+
+**AMENDED BY THE CARRIED DATE ITEMS OF 2026-09-18: THE OWED CASES
+EXIST.** A census naming one word over EVERY parsed cell leaves the twin
+nothing of the other kind to hold, whatever the word, and that is the
+column every replacement tried above described. The loader and the
+producer also allow one word over FEWER cells: a ONE-FIELD word whose
+unnamed remainder -- at least the line, written by words that each fall
+below it and fold into no named one -- stands on days of the other kind.
+Such a column carries two width kinds and reaches both of P4-D258's
+branches. **Measured** at the oracle, on 200 random month-first and
+day-first columns under the four one-field words with a remainder of
+eleven to sixteen cells: 21 reached the merge onto a held unit that is no
+rank neighbour and 29 the traded merge; every hit of a second search,
+handed to the generator, wrote the oracle's cells and moved when the same
+branch was withdrawn there. Two are
+frozen in the eighth file, each on three days: `date_two_kinds_traded`
+(seed 205), whose mutant withdraws the trade and leaves four different
+dates against three, and `date_two_kinds_nonadjacent` (seed 206), whose
+mutant offers the rank neighbours alone and leaves five. A test withdraws
+each merge from `synthtwin.generation` as well and the committed cells
+move there too. Nothing earlier moved: the seven cases already in the
+file are byte-identical, and the two cases this entry re-registered stay
+where it put them, as the pins of P4-D294's own question. **Measured on
+the way, and CARRIED rather than repaired here:** the twin of such a
+column writes its remainder cells in the named word's own padding --
+`03/03/2020` under `first-field-padded` -- which is a joint word that
+agrees with the named one, so describing the twin again folds the named
+count into it. **Measured** on the table such a census comes from --
+twenty-two cells `03/19/2020` and `04/10/2020`, seven `3/3/2020` and seven
+`3/03/2020`, at a floor of eleven: the producer publishes
+`{"first-field-padded": 22}`, the twin at seed 4 describes again as
+`{"padded": 36}`, and validating it exits 3 with
+`widths.first-field-padded` and `widths.unnamed` MISSED. The branches
+above are what the cases pin; the written spelling of a remainder the
+census does not name is a separate question for the owner.
+
+**AMENDED AGAIN BY THE REPAIR PASS OF THE SAME DAY: THE CARRIED DEFECT IS
+REPAIRED, BECAUSE THE CENSUS ALREADY ANSWERS IT.** It is not a question
+for the owner after all: the spelling of a remainder cell showing BOTH
+fields is fixed by the census itself. A census naming a one-field word
+says that no cell of its table showing both fields wore that word's
+convention in that field -- `parsing.folded_width_tally` would have
+joined the named count to such a cell's joint word, and the census would
+name the joint word instead. The twin wrote exactly the cell the census
+rules out, because the rank showing both fields took `_joint_width_of`,
+which builds the joint word that AGREES with the named one-field words.
+Method G7.5 step 1 now gives such a rank, where the census names no joint
+word, the joint word built field by field from the convention the
+commonest named one-field word of that field does not wear, a field the
+census names nothing for staying padded (`_both_fields_width_of`, and
+`both_fields_width_of` in the oracle). A rank showing no width keeps
+`_joint_width_of`; nothing it writes can show. **Measured after**, on the
+reproduction above at seeds 4, 0 and 1: the twin writes the third of
+March `3/03/2020`, describes again as `{"first-field-padded": 22,
+"second-padded": 14}` and validates at exits (0, 0); so does the same
+table written day first, `second-field-padded` on twenty-two. The twin's
+own description names the remainder's word where the table's held it
+back: the validator lets the cells a description leaves unnamed take any
+form (`widths.unnamed` is held to the published total less the named
+counts), and a count derived from the published total and the named one
+names no row. **Pinned** by `date_both_fields_disagree`, a new frozen
+case in the eighth file (seed 207), whose mutant is the rule replaced.
+**What moved:** `date_two_kinds_traded`'s fourteen cells of the third of
+March (`03/03/2020` to `3/03/2020`) and six cells of `date_widths_reached`
+in the sixth file (`06/01/2024` to `06/1/2024`: its census names
+`second-field-padded` alone, so a day whose two fields both show is now
+written with the day unpadded). Every other committed byte of the eight
+files rebuilt identical.
+
+**THE TWO CASES ABOVE ARE REBUILT FROM THE PRODUCER'S OWN DESCRIPTIONS**
+(the merge skeptic of the carried date items, its third MINOR). Both were
+frozen publishing three different values and ladder rungs no table of
+their cells can publish: a remainder of fourteen or thirteen cells on one
+day needs two spellings each below the line of eleven, so the day is
+written two ways and the producer publishes four. Each is now exactly the
+description `synthtwin profile --smallest-group 11` writes of the table
+its builder names, at the same seeds; the trade and the merge onto a
+held unit past the rank neighbours are still what write their cells, and
+each mutant still moves them -- withdrawn, the trade leaves the traded
+twin's fourth date on the sixth of April instead of the eleventh of
+March, and the neighbours alone leave the other twin five different
+dates against four.
+
+**CARRIED, AND MEASURED, NOT REPAIRED HERE: A REMAINDER WRITTEN IN ONE
+SPELLING.** The repair above settles the cells showing both fields
+under a census of one-field words. Two siblings of it stand, and both
+stood on e53d5f4 before any of this round's date work, measured by the
+same round trip at seeds 4, 0 and 1 on e53d5f4 and on this repair alike.
+(a) A census naming ONE JOINT word beside an unnamed remainder: fifteen
+`03/05/2020`, fifteen `04/06/2020`, seven `3/7/2020` and seven
+`03/8/2020` publish `{"padded": 30}`; every day counts under a joint word,
+so the widths pass has no day of another kind to put the remainder on,
+the twin writes all forty-four cells padded and validates at exit 3 with
+`widths.padded` MISSED. (b) A remainder that OUTNUMBERS the named word's
+visible cells: ten `11/05/2020`, seventeen `11/15/2020`, seventeen
+`12/20/2020`, nine `3/15/2020`, nine `03/16/2020` and nine `11/5/2020`
+publish `{"second-field-padded": 44}` -- ten cells showing it and
+thirty-four showing no width, absorbed into it as the commonest (plan
+P4-D278). The twin writes every cell showing its first field alone in
+the one word `first-field-padded`, which then outnumbers the named word's
+visible cells and takes the absorbed cells for itself: described again
+as `{"first-field-padded": 49, "second-field-padded": 22}` at seed 0,
+exit 3 with `widths.second-field-padded` MISSED. Both are one rule that
+does not exist yet: the census's unnamed remainder, the published total
+less the named counts, has to be written over words the census does not
+name, each below the line and none outnumbering the word the absorbed
+cells belong to, on ranks chosen so that the count of different values
+still holds. That is a new allocation of G7.5, with its own statement,
+oracle mirror and frozen case; it is recorded here for the next date
+landing rather than built under a repair pass.
 
 ### P4-D295 Where the next frozen case goes is chosen before the gate fails
 
