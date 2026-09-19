@@ -323,6 +323,71 @@ def test_the_table_and_its_twin_both_meet_the_census_the_levels_speak_of(
         ] == [(f"forms.published.{FORM}", "HELD", "209", "209")]
 
 
+
+def test_the_room_rule_reads_the_distinct_count_the_column_publishes(
+) -> None:
+    """THE OTHER HALF OF P4-D275.1: a form's room is asked of the page.
+
+    The small-supply rule names a form only where `form_room` reaches
+    `n_distinct` plus the floor (contract C6-31c), and it is safe because
+    both are PUBLISHED, so a reader predicts every refusal. Under ruling 6
+    the published `n_distinct` counts the respelled column, and the raw
+    count of different spellings is a fact the page no longer carries.
+
+    Five labels of forty rows written `A-` to `E-`, and forty more rows
+    of `A-` with one to six spaces at either edge, each spelling ONE row.
+    Every spaced spelling is below the floor of eleven, so all forty are
+    counted into `A-` and the column publishes five different values.
+    `@-` has room 52: at least 5 + 11 = 16, the line the page states, and
+    short of 45 + 11 = 56, the line the raw spellings would draw. Read off
+    the raw count the form was refused and the column published no
+    census at all; read off the page it is named, 5 x 40 + 40 = 240 cells
+    all in capitals, and the table and its twin both meet it.
+    """
+    values: "list[str]" = []
+    for label in ("A-", "B-", "C-", "D-", "E-"):
+        values = values + [label for _row in range(40)]
+    spaced = [
+        " " * before + "A-" + " " * after
+        for before in range(7)
+        for after in range(7)
+        if before or after
+    ]
+    values = values + spaced[:40]
+    random.Random(SEED).shuffle(values)
+    assert len(set(values)) == 5 + 40
+    assert 5 + SMALL_CELL_FLOOR <= parsing.form_room("@-")
+    assert parsing.form_room("@-") < 5 + 40 + SMALL_CELL_FLOOR
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "codes.csv",
+        fixtures.rows_to_csv(["code", "other"], [[v, "x"] for v in values]),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}"),
+        taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
+        [],
+    )
+    block = document["columns"][0]
+    assert block["n_distinct"] == 5
+    assert block["shape_forms"] == {"@-": 5 * 40 + 40}
+    described = _reloaded(document, folder, "codes.json")
+    twin = generation.generate(described, SEED)
+    assert _form_deviations(twin) == []
+    on_twin = _census_verdicts(described, twin, folder)
+    on_table = [
+        check
+        for check in validation.measure(described, f"{table}").checks
+        if check.fact == "label.shape_forms" and check.column == "code"
+    ]
+    for checks in (on_twin, on_table):
+        assert [
+            (check.subcheck, check.verdict, check.published, check.achieved)
+            for check in checks
+        ] == [("forms.published.@-", "HELD", "240", "240")]
+
+
 def test_the_census_is_met_where_the_larger_group_wore_the_form() -> None:
     """THE DIRECTION THE RESIDUAL NAMED, at its own counts.
 

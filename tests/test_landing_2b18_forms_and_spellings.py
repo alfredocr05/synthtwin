@@ -206,17 +206,21 @@ def _the_tail_stands(cells: "list[str]") -> bool:
 def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
     tmp_path: pathlib.Path, seed: int
 ) -> None:
-    """Base: every stand-in -- 156 to 176 of 800 cells -- in capitals.
+    """Base: every stand-in written in capitals, on the column of one
+    fifth this was first built on (156 to 176 tail cells of 800).
 
     THE TAIL COVERS TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH, because
     that is where ruling 5 lets it stand (plan P4-D271). At one fifth the
-    pool -- some 170 rows over some 100 levels, so dozens of single rows
-    forced -- covers less than half of the 620-odd rows the four common
-    codes publish, and it is counted as missing: no stand-in is written
-    at all and this test has nothing left to guard. That column is pinned
-    as the ruling's witness below. At two fifths the pool covers more
-    than half of the published rows and stands, and the stand-ins are
-    written again.
+    pool -- 156 to 174 rows over 88 to 103 levels, fewer rows than twice
+    the levels, so single rows are forced -- covers less than half of the
+    626 to 644 rows the four common codes publish, and it is counted as
+    missing: no stand-in is written at all and this test has nothing left
+    to guard. That column is pinned as the ruling's witness below. At two
+    fifths the pool is 315 to 332 rows over 126 to 130 levels, more than
+    two rows a level on average, so NO single row is forced and the rule
+    does not reach the pool at all; it stands, and its 315 to 332 cells
+    are stand-ins again. `_the_tail_stands` asks both halves of the rule,
+    so it answers for either reason.
     """
     cells = lower_long_tail(seed, common_share=0.6)
     assert _the_tail_stands(cells)
@@ -638,10 +642,15 @@ def test_published_lower_case_labels_pay_their_own_key(
     cells blind to case would count them under `@@%`, find `&&%` unpaid
     and hand it stand-ins -- overpaying a key the table already met.
 
-    THE CAPITALS COVER TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH, for
-    the reason the lower-case long tail's test gives (ruling 5, plan
-    P4-D271): at one fifth they are counted as missing, `@@%%` is never
-    published and no stand-in is owed anything.
+    THE CAPITALS COVER TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH (ruling
+    5, plan P4-D271), and they stand for a different reason than the
+    lower-case tail above. Their codes are nearly all single rows -- 312
+    to 330 rows over 284 to 289 levels at two fifths -- so single rows
+    ARE forced; the pool stands because it covers at least half of the
+    470 to 488 rows the common codes publish. At one fifth, 161 to 178
+    rows beside 622 to 639 published, it covers less than half, is
+    counted as missing, `@@%%` is never published and no stand-in is owed
+    anything.
     """
     cells = lower_codes_beside_rare_capitals(seed, common_share=0.6)
     assert _the_tail_stands(cells)
