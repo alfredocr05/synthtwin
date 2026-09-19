@@ -118,12 +118,20 @@ def test_the_verdict_says_what_was_decided_and_why() -> None:
 
 
 def test_a_twin_of_such_a_column_holds_no_placeholder() -> None:
-    """The whole way through."""
+    """The whole way through: no VALUE of the twin is a placeholder day.
+
+    The twelve absent cells are written as the table wrote them since
+    plan P4-D6.4 (the owner's ruling of 2026-09-15), so the twin holds
+    `9999-12-31` in exactly those twelve and in no cell it worked out:
+    the published dates the values are drawn from never reach the
+    placeholder, which is what this test has always pinned.
+    """
     _document, described, folder = _described(_dates(228) + [FAR] * 12)
     twin = generation.generate(described, 5)
     cells = [cell for cell in twin.columns[0] if cell]
-    for cell in cells:
-        assert not cell.startswith("9999"), cell
+    far = [cell for cell in cells if cell.startswith("9999")]
+    assert far == [FAR] * 12, far
+    assert described.columns[0].missing_by_source == {FAR: 12}
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     missed = [

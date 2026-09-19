@@ -291,6 +291,21 @@ WITHDRAWN_CHECKS = (
     "region|label.suppressed_level_counts|suppressed.counts",
 )
 
+# THE ONE CHECK PLAN P4-D6.4 ADDED, set aside on the same doctrine, and
+# it is the only one that can be: the demonstration's `reading` column
+# publishes ONE judged key, the thirteen `-999` cells its stand-in pass
+# read as "no value". Until the owner's ruling of 2026-09-15 reached
+# them the twin wrote those cells blank and the key was on the census of
+# facts no file can evidence; the twin writes them now, so the key is a
+# check, and the listing it replaces is named below where the listings
+# are held. MEASURED before this entry was written: the wide list read
+# 417 against 416, and with this line set aside both digests come back.
+JUDGED_KEY_CHECK = "reading|universal.missing_by_source|holes.by_source.-999"
+# ...and the listing it replaces, which LEFT the census: an obligation
+# that moved to the checks is put back before the frozen listing digest
+# is taken, and asserted absent from the run first.
+JUDGED_KEY_LISTING = JUDGED_KEY_CHECK
+
 # The one fact every rule of the file's written form is filed under (plan
 # P4-D86): thirteen on the document, one quoting rule per column and the
 # row order on the column the table is sorted by.
@@ -395,7 +410,14 @@ NARROW_COLUMN_DIGESTS = {
     # byte-identical, the report's variance, skew and kurtosis of this
     # column move in their fourth figure, and the quality report still
     # holds 467 obligations with nothing missed.
-    "reading": "098660ff8d21500dd0cd3a74629cf021",
+    # RE-RECORDED FOR PLAN P4-D6.4 (the owner's ruling of 2026-09-15 that
+    # the twin writes everything as the source wrote it). `reading`'s
+    # thirteen judged `-999` cells were written blank; they are written
+    # `-999` now. MEASURED cell by cell against a git archive of e53d5f4
+    # at this seed: exactly those thirteen cells differ, blank to `-999`,
+    # in the narrow and the wide run alike, and every other column of
+    # both is byte-identical.
+    "reading": "1664296eb80cf6a59193e013209467d1",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
@@ -475,8 +497,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     "region": "48583e2c694ee365c884cd8b99719dd1",
     "visits": "fac456b2607b807ffa636be2068ed181",
     # Re-recorded for plan P4-D183 with the sorted digest above: the same
-    # ten cells, as written.
-    "reading": "7cba14b078ef72e8e17b5cc013a9b68e",
+    # ten cells, as written. Re-recorded for plan P4-D6.4 with the sorted
+    # digest above: the same thirteen cells, blank to `-999`, in place.
+    "reading": "c03c829c35e02af9d93d1aca17ce29bd",
     "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
@@ -551,6 +574,8 @@ def test_widening_the_demonstration_lost_no_obligation(
         # than counted.
         if f"|{FORM_FACT}|" in entry:
             return True
+        if entry == JUDGED_KEY_CHECK:
+            return True
         for one in (
             AFFIX_SET_SUBCHECKS
             + SPELLING_SUBCHECKS
@@ -563,6 +588,8 @@ def test_widening_the_demonstration_lost_no_obligation(
 
     for entry in WITHDRAWN_CHECKS:
         assert entry not in checks, entry
+    # The check plan P4-D6.4 added is in the run, once, named.
+    assert checks.count(JUDGED_KEY_CHECK) == 1, JUDGED_KEY_CHECK
     counted = sorted(
         [entry for entry in checks if not _since(entry)]
         + list(WITHDRAWN_CHECKS)
@@ -689,9 +716,17 @@ def test_widening_the_demonstration_lost_no_obligation(
     # check -- which the check baseline above shows arriving there, as
     # `MEMBER_SUBCHECK`. The demonstration has one column of dates, so
     # one listing left.
-    assert len(kept) == NARROW_LISTING_COUNT - 5, len(kept)
+    # ...AND A SIXTH LEFT IT ON 2026-09-18 (plan P4-D6.4), named on the
+    # same doctrine: `reading`'s judged key `-999` was listed because the
+    # twin wrote its cells blank. The owner's ruling of 2026-09-15 has
+    # the twin write them, so the key is a check -- `JUDGED_KEY_CHECK`
+    # above shows it arriving there -- and it is put back here before
+    # the digest is taken, so nothing else can leave with it.
+    assert JUDGED_KEY_LISTING not in listings, JUDGED_KEY_LISTING
+    assert len(kept) == NARROW_LISTING_COUNT - 6, len(kept)
+    restored = sorted(kept + [JUDGED_KEY_LISTING])
     assert (
-        hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
+        hashlib.sha256("\n".join(restored).encode("utf-8")).hexdigest()
         == NARROW_LISTING_DIGEST
     ), (
         "a listing the demonstration carried before plan P4-D30 is "
@@ -1493,7 +1528,11 @@ GOLDEN_TWIN_SHA256 = (
     # `record_code`'s 240 cells opens with the published `R`, `Z09235`
     # becoming `R55235` (plan P4-D202, owner ruling of 2026-09-17 item 1).
     # No other column moved from either side's recording.
-    "d7c9051a6b73c078ca152672527672ccc2c7a6e3e187bf02ecaf4840c0633f2c"
+    # RE-RECORDED FOR PLAN P4-D6.4 (the owner's ruling of 2026-09-15):
+    # diffed cell by cell against a git archive of e53d5f4, exactly
+    # thirteen cells moved, all in `reading`, each from blank to the
+    # `-999` the real table wrote there; the description digest held.
+    "03accd33a302b30205fb6918051af004b6c396b733e9082d1fd7473e38280102"
 )
 
 
@@ -2005,7 +2044,15 @@ GOLDEN_REPORT_SHA256 = (
     # keeps the old wording, because there the count is still of raw
     # present spellings. The twin's own digest above did NOT move, so
     # not one cell of the twin changed with it.
-    "415ded5df4f0bb4ae841cc65ace7f62e2025f86841dc5701a21b2041aaf2f04a"
+    # RE-RECORDED FOR PLAN P4-D6.4, read as a diff against e53d5f4:
+    # `reading`'s absent-cell block says the twin WRITES its thirteen
+    # `-999` cells rather than leaving them empty, and marks `-999` as a
+    # spelling the twin writes; the stand-in heading drops "The twin does
+    # not reproduce them"; the page's carried-spellings paragraph is
+    # printed, because a spelling now travels; and the spreadsheet note
+    # names the thirteen cells that begin with a minus. No other line
+    # moved.
+    "9db362b1eedbf9cc0023343b3b9b34be4d4ad3f57262a09a1fc7e11bfc92e1d4"
 )
 
 
@@ -2691,7 +2738,12 @@ GOLDEN_QUALITY_SHA256 = (
     # that the report beside it says so when it does not. Read against
     # the previous report line by line, those two lines are the only ones
     # that differ.
-    "aed2e30afaf5abc0c87d4b9ad24a9a0a5a8184c6f6efe96cf96abdec0d2706cc"
+    # RE-RECORDED FOR PLAN P4-D6.4, read as a diff against e53d5f4: one
+    # obligation MOVED from the census of facts no file can evidence to
+    # the checks -- `holes.by_source.-999` on `reading`, HELD at 13 -- so
+    # 532 obligations became 533, 466 HELD became 467, and 164 not
+    # checkable became 163. No other line moved and no verdict moved.
+    "08e8fb0972a13a70f386b79e3e49ae0266600a51b819a0953e24a56ea51652e3"
 )
 
 

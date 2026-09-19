@@ -95,23 +95,22 @@ def test_a_named_hole_spelling_is_an_obligation(
     assert holes[0].published == "12" and holes[0].achieved == "0"
 
 
-def test_a_judged_hole_is_the_one_key_that_is_not_checked(
+def test_a_judged_hole_is_checked_like_every_other_key(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A CENSUS LINE, named rather than checked or passed over.
+    """HELD where the twin writes it, MISSED where a file drops it.
 
     Where the profiler JUDGED a number to be a stand-in for "no value"
-    -- a `-999` among readings -- the twin writes those cells blank,
-    because reproducing the number would make the twin's own
-    measurement depend on a re-judgement of it (contract C6-116). The
-    registry's word for that key is "REPORT-ONLY", so it belongs on the
-    not-checkable census with the sentence that says why.
+    -- a `-999` among readings -- the twin wrote those cells blank until
+    plan P4-D6.4, and this key was the one filed on the not-checkable
+    census. The owner's ruling of 2026-09-15 has the twin write them as
+    the source wrote them, so the key is an obligation like any other:
+    the count is of cells WEARING the spelling, which no judgement
+    enters.
 
-    NOT AN AUTHORIZED-DEVIATION CHECK, which is what this was built as
-    first: a check that can only ever come back with one verdict is a
-    check nothing can make miss, and the entry table's red battery
-    refuses those by name. The battery was right and the first design
-    was wrong.
+    Both directions, because a check nothing can make miss is no check:
+    the twin holds all twelve and is HELD at twelve; the same file with
+    the twelve written blank is MISSED at nought.
     """
     spread = random.Random(3)
     rows = [
@@ -123,21 +122,30 @@ def test_a_judged_hole_is_the_one_key_that_is_not_checked(
     block = document["columns"][0]
     assert block["missing_by_source"] == {"-999": 12}
     assert block["sentinel_verdicts"][0]["verdict"] == contract.VERDICT_MISSING
+    assert honest.split("\n").count("-999") == 12
 
     outcome = validation.measure(
         described, str(fixtures.write(tmp_path, "judged-twin.csv", honest))
     )
-    assert not _holes(outcome), _holes(outcome)
-    listed = [
+    holes = _holes(outcome)
+    assert [one.verdict for one in holes] == [validation.HELD], holes
+    assert holes[0].published == "12" and holes[0].achieved == "12"
+    assert not [
         one for one in outcome.listings
         if one.subcheck == "holes.by_source.-999"
     ]
-    assert len(listed) == 1, [one.subcheck for one in outcome.listings]
-    assert listed[0].fact == "universal.missing_by_source"
-    assert "JUDGED" in listed[0].reason
     assert not [
         one for one in outcome.checks if one.verdict == validation.MISSED
     ]
+
+    lines = honest.split("\n")
+    blanked = "\n".join('""' if line == "-999" else line for line in lines)
+    seen = validation.measure(
+        described, str(fixtures.write(tmp_path, "blanked.csv", blanked))
+    )
+    holes = _holes(seen)
+    assert [one.verdict for one in holes] == [validation.MISSED], holes
+    assert holes[0].published == "12" and holes[0].achieved == "0"
 
 
 def test_the_field_is_not_named_twice(tmp_path: pathlib.Path) -> None:
@@ -168,11 +176,13 @@ def test_a_judged_candidate_is_matched_by_value_and_not_by_text(
 
     A column whose twelve outlier cells are spelled `-999.0` publishes
     that spelling, and the profiler's verdict names the candidate
-    `-999`. The generator compares the NUMBER each denotes and writes
-    twelve blanks; the validator compared the TEXT, did not match, built
-    an exact check, and reported a CORRECT twin MISSED -- twelve
-    published against nothing written. Accusing a correct twin is the
-    one thing a check must never do.
+    `-999`. While the twin wrote a judged key blank, the generator
+    compared the NUMBER each denotes and the validator compared the
+    TEXT, and a CORRECT twin was reported MISSED. Since plan P4-D6.4 the
+    twin writes `-999.0` in all twelve cells, and the validator reads a
+    cell denoting the candidate `-999` as absent in this column by the
+    description's own verdict, so the key is HELD at twelve and nothing
+    else moves.
     """
     spread = random.Random(3)
     rows = [
@@ -184,16 +194,14 @@ def test_a_judged_candidate_is_matched_by_value_and_not_by_text(
     block = document["columns"][0]
     assert block["missing_by_source"] == {"-999.0": 12}
     assert block["sentinel_verdicts"][0]["candidate"] == "-999"
+    assert honest.split("\n").count("-999.0") == 12
 
     outcome = validation.measure(
         described, str(fixtures.write(tmp_path, "spelled-twin.csv", honest))
     )
-    assert not _holes(outcome), _holes(outcome)
-    listed = [
-        one for one in outcome.listings
-        if one.subcheck == "holes.by_source.-999.0"
-    ]
-    assert len(listed) == 1, [one.subcheck for one in outcome.listings]
+    holes = _holes(outcome)
+    assert [one.verdict for one in holes] == [validation.HELD], holes
+    assert holes[0].published == "12" and holes[0].achieved == "12"
     assert not [
         one for one in outcome.checks if one.verdict == validation.MISSED
     ]
@@ -204,7 +212,7 @@ def test_a_judged_candidate_is_matched_by_value_and_not_by_text(
     # the other, so a test walks both.
     for spelling in block["missing_by_source"]:
         assert generation._is_the_same_candidate(spelling, "-999") == (
-            spelling in validation._judged_hole_spellings(
-                described.columns[0], described
+            validation._one_judged_candidate(
+                described.columns[0], spelling, False
             )
         )

@@ -1,5 +1,5 @@
 {
-  "case_set": "The 7 cases method section G14.3 adds with the extra review round of 2026-09-18, its date pass and its number pass together: the feasible spend of an offset where the column is moved onto midnight (plan P4-D254), the offsets a rank standing on an end's own instant may wear (plan P4-D255), the census key carried into the width pass (plan P4-D256), G7.3's two merges -- onto a unit that is no rank neighbour, and paid for by ranks moved the other way (plan P4-D258) -- G6.5a's last resort on the REPRESENTABLE grid, where the census names no fraction width at all (plan P4-D269), and G6.5's visiting order for the distinct-spelling repair, unmarked duplicates first (plan P4-D265). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json and tests/reference/generation-document-vectors.json, and live in an eighth file only because the seventh, rebuilt to hold them, stood at 276235 bytes against the provenance manifest's 250000-byte cap. No case was dropped, no proof was shortened and the cap was not raised.",
+  "case_set": "The 8 cases method section G14.3 adds with the extra review round of 2026-09-18, its date pass and its number pass together: the feasible spend of an offset where the column is moved onto midnight (plan P4-D254), the offsets a rank standing on an end's own instant may wear (plan P4-D255), the census key carried into the width pass (plan P4-D256), G7.3's two merges -- onto a unit that is no rank neighbour, and paid for by ranks moved the other way (plan P4-D258) -- G6.5a's last resort on the REPRESENTABLE grid, where the census names no fraction width at all (plan P4-D269), and G6.5's visiting order for the distinct-spelling repair, unmarked duplicates first (plan P4-D265) -- and, added after the round, G10.1's write rule with a judged stand-in among a column's absent cells, written as the table wrote it (plan P4-D6.4). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json and tests/reference/generation-document-vectors.json, and live in an eighth file only because the seventh, rebuilt to hold them, stood at 276235 bytes against the provenance manifest's 250000-byte cap. No case was dropped, no proof was shortened and the cap was not raised.",
   "cases": {
     "date_endpoint_ties": {
       "cells": [
@@ -1517,6 +1517,1160 @@
         "91691173470257007",
         "13740769129415587871",
         "14043504349668044876"
+      ]
+    },
+    "judged_stand_in_written": {
+      "cells": [
+        "18",
+        "",
+        "",
+        "-4",
+        "-5",
+        "-999",
+        "-6",
+        "0",
+        "-999",
+        "34",
+        "3",
+        "-999",
+        "-7",
+        "0",
+        "-999",
+        "",
+        "3",
+        "9",
+        "3",
+        "",
+        "0",
+        "-8",
+        "",
+        "-999",
+        "-999",
+        "-999",
+        "-999",
+        "",
+        "3",
+        "3",
+        "-3",
+        "-999",
+        "-999",
+        "0",
+        "3",
+        "",
+        "",
+        "",
+        "12",
+        "-999",
+        "",
+        ""
+      ],
+      "column": {
+        "decimal_plus": {},
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
+        "empty_edges": [],
+        "field_widths": {
+          "(withheld)": 20
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": {
+          "decimal": "2.5",
+          "exact": "5/2",
+          "float64": 2.5,
+          "proof": "nearest"
+        },
+        "mean": {
+          "decimal": "4.25",
+          "exact": "17/4",
+          "float64": 4.25,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 11,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 11,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {
+          "-999": 11
+        },
+        "mode": null,
+        "mode_count": 0,
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_distinct_values": 12,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 22,
+        "n_missing_blank": 11,
+        "n_missing_withheld": 0,
+        "n_negative": 6,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 20,
+        "n_out_of_range": 0,
+        "n_present": 20,
+        "n_rows": 42,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 20,
+        "n_zero": 4,
+        "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "plain": 20
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": {
+            "decimal": "34",
+            "exact": "34",
+            "float64": 34.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "-8",
+            "exact": "-8",
+            "float64": -8.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "-7.75",
+            "exact": "-31/4",
+            "float64": -7.75,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "-7",
+            "exact": "-7",
+            "float64": -7.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "-6.5",
+            "exact": "-13/2",
+            "float64": -6.5,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "-3.25",
+            "exact": "-13/4",
+            "float64": -3.25,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "2.5",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "2.5",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "16.25",
+            "exact": "65/4",
+            "float64": 16.25,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "21.5",
+            "exact": "43/2",
+            "float64": 21.5,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "29.75",
+            "exact": "119/4",
+            "float64": 29.75,
+            "proof": "nearest"
+          }
+        },
+        "percentiles_between": {
+          "p02": {
+            "decimal": "-7.562500",
+            "exact": "-121/16",
+            "float64": -7.5625,
+            "proof": "nearest"
+          },
+          "p03": {
+            "decimal": "-7.375000",
+            "exact": "-59/8",
+            "float64": -7.375,
+            "proof": "nearest"
+          },
+          "p04": {
+            "decimal": "-7.187500",
+            "exact": "-115/16",
+            "float64": -7.1875,
+            "proof": "nearest"
+          },
+          "p06": {
+            "decimal": "-6.900000",
+            "exact": "-69/10",
+            "float64": -6.9,
+            "proof": "nearest"
+          },
+          "p07": {
+            "decimal": "-6.800000",
+            "exact": "-34/5",
+            "float64": -6.8,
+            "proof": "nearest"
+          },
+          "p08": {
+            "decimal": "-6.700000",
+            "exact": "-67/10",
+            "float64": -6.7,
+            "proof": "nearest"
+          },
+          "p09": {
+            "decimal": "-6.600000",
+            "exact": "-33/5",
+            "float64": -6.6,
+            "proof": "nearest"
+          },
+          "p11": {
+            "decimal": "-6.283334",
+            "exact": "-3141667/500000",
+            "float64": -6.283334,
+            "proof": "nearest"
+          },
+          "p12": {
+            "decimal": "-6.066667",
+            "exact": "-6066667/1000000",
+            "float64": -6.066667,
+            "proof": "nearest"
+          },
+          "p13": {
+            "decimal": "-5.850000",
+            "exact": "-117/20",
+            "float64": -5.85,
+            "proof": "nearest"
+          },
+          "p14": {
+            "decimal": "-5.633334",
+            "exact": "-2816667/500000",
+            "float64": -5.633334,
+            "proof": "nearest"
+          },
+          "p15": {
+            "decimal": "-5.416667",
+            "exact": "-5416667/1000000",
+            "float64": -5.416667,
+            "proof": "nearest"
+          },
+          "p16": {
+            "decimal": "-5.200000",
+            "exact": "-26/5",
+            "float64": -5.2,
+            "proof": "nearest"
+          },
+          "p17": {
+            "decimal": "-4.983334",
+            "exact": "-2491667/500000",
+            "float64": -4.983334,
+            "proof": "nearest"
+          },
+          "p18": {
+            "decimal": "-4.766667",
+            "exact": "-4766667/1000000",
+            "float64": -4.766667,
+            "proof": "nearest"
+          },
+          "p19": {
+            "decimal": "-4.550000",
+            "exact": "-91/20",
+            "float64": -4.55,
+            "proof": "nearest"
+          },
+          "p20": {
+            "decimal": "-4.333334",
+            "exact": "-2166667/500000",
+            "float64": -4.333334,
+            "proof": "nearest"
+          },
+          "p21": {
+            "decimal": "-4.116667",
+            "exact": "-4116667/1000000",
+            "float64": -4.116667,
+            "proof": "nearest"
+          },
+          "p22": {
+            "decimal": "-3.900000",
+            "exact": "-39/10",
+            "float64": -3.9,
+            "proof": "nearest"
+          },
+          "p23": {
+            "decimal": "-3.683334",
+            "exact": "-1841667/500000",
+            "float64": -3.683334,
+            "proof": "nearest"
+          },
+          "p24": {
+            "decimal": "-3.466667",
+            "exact": "-3466667/1000000",
+            "float64": -3.466667,
+            "proof": "nearest"
+          },
+          "p26": {
+            "decimal": "-3.020000",
+            "exact": "-151/50",
+            "float64": -3.02,
+            "proof": "nearest"
+          },
+          "p27": {
+            "decimal": "-2.790000",
+            "exact": "-279/100",
+            "float64": -2.79,
+            "proof": "nearest"
+          },
+          "p28": {
+            "decimal": "-2.560000",
+            "exact": "-64/25",
+            "float64": -2.56,
+            "proof": "nearest"
+          },
+          "p29": {
+            "decimal": "-2.330000",
+            "exact": "-233/100",
+            "float64": -2.33,
+            "proof": "nearest"
+          },
+          "p30": {
+            "decimal": "-2.100000",
+            "exact": "-21/10",
+            "float64": -2.1,
+            "proof": "nearest"
+          },
+          "p31": {
+            "decimal": "-1.870000",
+            "exact": "-187/100",
+            "float64": -1.87,
+            "proof": "nearest"
+          },
+          "p32": {
+            "decimal": "-1.640000",
+            "exact": "-41/25",
+            "float64": -1.64,
+            "proof": "nearest"
+          },
+          "p33": {
+            "decimal": "-1.410000",
+            "exact": "-141/100",
+            "float64": -1.41,
+            "proof": "nearest"
+          },
+          "p34": {
+            "decimal": "-1.180000",
+            "exact": "-59/50",
+            "float64": -1.18,
+            "proof": "nearest"
+          },
+          "p35": {
+            "decimal": "-0.950000",
+            "exact": "-19/20",
+            "float64": -0.95,
+            "proof": "nearest"
+          },
+          "p36": {
+            "decimal": "-0.720000",
+            "exact": "-18/25",
+            "float64": -0.72,
+            "proof": "nearest"
+          },
+          "p37": {
+            "decimal": "-0.490000",
+            "exact": "-49/100",
+            "float64": -0.49,
+            "proof": "nearest"
+          },
+          "p38": {
+            "decimal": "-0.260000",
+            "exact": "-13/50",
+            "float64": -0.26,
+            "proof": "nearest"
+          },
+          "p39": {
+            "decimal": "-0.030000",
+            "exact": "-3/100",
+            "float64": -0.03,
+            "proof": "nearest"
+          },
+          "p40": {
+            "decimal": "0.200000",
+            "exact": "1/5",
+            "float64": 0.2,
+            "proof": "nearest"
+          },
+          "p41": {
+            "decimal": "0.430000",
+            "exact": "43/100",
+            "float64": 0.43,
+            "proof": "nearest"
+          },
+          "p42": {
+            "decimal": "0.660000",
+            "exact": "33/50",
+            "float64": 0.66,
+            "proof": "nearest"
+          },
+          "p43": {
+            "decimal": "0.890000",
+            "exact": "89/100",
+            "float64": 0.89,
+            "proof": "nearest"
+          },
+          "p44": {
+            "decimal": "1.120000",
+            "exact": "28/25",
+            "float64": 1.12,
+            "proof": "nearest"
+          },
+          "p45": {
+            "decimal": "1.350000",
+            "exact": "27/20",
+            "float64": 1.35,
+            "proof": "nearest"
+          },
+          "p46": {
+            "decimal": "1.580000",
+            "exact": "79/50",
+            "float64": 1.58,
+            "proof": "nearest"
+          },
+          "p47": {
+            "decimal": "1.810000",
+            "exact": "181/100",
+            "float64": 1.81,
+            "proof": "nearest"
+          },
+          "p48": {
+            "decimal": "2.040000",
+            "exact": "51/25",
+            "float64": 2.04,
+            "proof": "nearest"
+          },
+          "p49": {
+            "decimal": "2.270000",
+            "exact": "227/100",
+            "float64": 2.27,
+            "proof": "nearest"
+          },
+          "p51": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p52": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p53": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p54": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p55": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p56": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p57": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p58": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p59": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p60": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p61": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p62": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p63": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p64": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p65": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p66": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p67": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p68": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p69": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p70": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p71": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p72": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p73": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p74": {
+            "decimal": "2.500000",
+            "exact": "5/2",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "p76": {
+            "decimal": "3.416666",
+            "exact": "1708333/500000",
+            "float64": 3.416666,
+            "proof": "nearest"
+          },
+          "p77": {
+            "decimal": "4.333333",
+            "exact": "4333333/1000000",
+            "float64": 4.333333,
+            "proof": "nearest"
+          },
+          "p78": {
+            "decimal": "5.250000",
+            "exact": "21/4",
+            "float64": 5.25,
+            "proof": "nearest"
+          },
+          "p79": {
+            "decimal": "6.166666",
+            "exact": "3083333/500000",
+            "float64": 6.166666,
+            "proof": "nearest"
+          },
+          "p80": {
+            "decimal": "7.083333",
+            "exact": "7083333/1000000",
+            "float64": 7.083333,
+            "proof": "nearest"
+          },
+          "p81": {
+            "decimal": "8.000000",
+            "exact": "8",
+            "float64": 8.0,
+            "proof": "nearest"
+          },
+          "p82": {
+            "decimal": "8.916666",
+            "exact": "4458333/500000",
+            "float64": 8.916666,
+            "proof": "nearest"
+          },
+          "p83": {
+            "decimal": "9.833333",
+            "exact": "9833333/1000000",
+            "float64": 9.833333,
+            "proof": "nearest"
+          },
+          "p84": {
+            "decimal": "10.750000",
+            "exact": "43/4",
+            "float64": 10.75,
+            "proof": "nearest"
+          },
+          "p85": {
+            "decimal": "11.666666",
+            "exact": "5833333/500000",
+            "float64": 11.666666,
+            "proof": "nearest"
+          },
+          "p86": {
+            "decimal": "12.583333",
+            "exact": "12583333/1000000",
+            "float64": 12.583333,
+            "proof": "nearest"
+          },
+          "p87": {
+            "decimal": "13.500000",
+            "exact": "27/2",
+            "float64": 13.5,
+            "proof": "nearest"
+          },
+          "p88": {
+            "decimal": "14.416666",
+            "exact": "7208333/500000",
+            "float64": 14.416666,
+            "proof": "nearest"
+          },
+          "p89": {
+            "decimal": "15.333333",
+            "exact": "15333333/1000000",
+            "float64": 15.333333,
+            "proof": "nearest"
+          },
+          "p91": {
+            "decimal": "17.300000",
+            "exact": "173/10",
+            "float64": 17.3,
+            "proof": "nearest"
+          },
+          "p92": {
+            "decimal": "18.350000",
+            "exact": "367/20",
+            "float64": 18.35,
+            "proof": "nearest"
+          },
+          "p93": {
+            "decimal": "19.400000",
+            "exact": "97/5",
+            "float64": 19.4,
+            "proof": "nearest"
+          },
+          "p94": {
+            "decimal": "20.450000",
+            "exact": "409/20",
+            "float64": 20.45,
+            "proof": "nearest"
+          },
+          "p96": {
+            "decimal": "23.562500",
+            "exact": "377/16",
+            "float64": 23.5625,
+            "proof": "nearest"
+          },
+          "p97": {
+            "decimal": "25.625000",
+            "exact": "205/8",
+            "float64": 25.625,
+            "proof": "nearest"
+          },
+          "p98": {
+            "decimal": "27.687500",
+            "exact": "443/16",
+            "float64": 27.6875,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [
+          {
+            "candidate": "-999",
+            "n_occurrences": 11,
+            "reason": "outlier_and_frequent",
+            "spellings": [
+              "-999"
+            ],
+            "verdict": "read_as_missing"
+          }
+        ],
+        "skew": {
+          "decimal": "0.5",
+          "exact": "1/2",
+          "float64": 0.5,
+          "proof": "nearest"
+        },
+        "statistical_type": "continuous",
+        "std": {
+          "decimal": "14.5",
+          "exact": "29/2",
+          "float64": 14.5,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "content": [
+        "-8",
+        "-7",
+        "-6",
+        "-5",
+        "-4",
+        "-3",
+        "0",
+        "0",
+        "0",
+        "0",
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "9",
+        "12",
+        "18",
+        "34"
+      ],
+      "csv_bytes": "18\n\"\"\n\"\"\n-4\n-5\n-999\n-6\n0\n-999\n34\n3\n-999\n-7\n0\n-999\n\"\"\n3\n9\n3\n\"\"\n0\n-8\n\"\"\n-999\n-999\n-999\n-999\n\"\"\n3\n3\n-3\n-999\n-999\n0\n3\n\"\"\n\"\"\n\"\"\n12\n-999\n\"\"\n\"\"\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "-14740072596363253/2251799813685248",
+            "float64": -6.5459071924515175,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 9,
+          "stratum": 1,
+          "t": {
+            "exact": "4872246958375341/9007199254740992",
+            "float64": 0.540928075484819,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4134952296365651/9007199254740992",
+            "float64": 0.459071924515181,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-7",
+            "float64": -7.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-15363289937413375305804874544009/5070602400912917605986812821504",
+            "float64": -3.0298747018001944,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-63339210458879433/18014398509481984",
+            "float64": -3.5160324906513236,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-3520089636628971/562949953421312",
+            "float64": -6.252935301327815,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 11,
+          "stratum": 2,
+          "t": {
+            "exact": "631861649501767/4503599627370496",
+            "float64": 0.14030147033089846,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3871737977868729/4503599627370496",
+            "float64": 0.8596985296691015,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-6",
+            "float64": -6.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-6847560787293017985425746798017/1267650600228229401496703205376",
+            "float64": -5.401773001219874,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-4315905602493885598086566105507/5070602400912917605986812821504",
+            "float64": -0.8511623001079407,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-5094687464391363/1125899906842624",
+            "float64": -4.524991460989159,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 19,
+          "stratum": 3,
+          "t": {
+            "exact": "519825200863555/4503599627370496",
+            "float64": 0.11542438135582311,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3983774426506941/4503599627370496",
+            "float64": 0.8845756186441769,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-5",
+            "float64": -5.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-20408257213372176091113929170599/5070602400912917605986812821504",
+            "float64": -4.0248190648310045,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-2536175352829904527052751901125/5070602400912917605986812821504",
+            "float64": -0.5001723961581543,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-148693622849104799/36028797018963968",
+            "float64": -4.127077092550135,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 20,
+          "stratum": 4,
+          "t": {
+            "exact": "4287217395975391/4503599627370496",
+            "float64": 0.9519534929170772,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "216382231395105/4503599627370496",
+            "float64": 0.048046507082922796,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-4",
+            "float64": -4.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-1055707343820463326071251512375/5070602400912917605986812821504",
+            "float64": -0.20820156272367016,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-2483882458802119506350990752833/633825300114114700748351602688",
+            "float64": -3.9188755298264653,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "-99741143967709033/36028797018963968",
+            "float64": -2.768372863385078,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 27,
+          "stratum": 5,
+          "t": {
+            "exact": "846956212174393/9007199254740992",
+            "float64": 0.09403102876053204,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "8160243042566599/9007199254740992",
+            "float64": 0.905968971239468,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "-3",
+            "float64": -3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "-25633451099214543731696457747679/10141204801825835211973625643008",
+            "float64": -2.5276534297581157,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "-4882370152381085621682329344355/20282409603651670423947251286016",
+            "float64": -0.24071943362696205,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "22517998136852479/9007199254740992",
+            "float64": 2.5,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 54,
+          "stratum": 7,
+          "t": {
+            "exact": "254642440242219/4503599627370496",
+            "float64": 0.05654198004072941,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4248957187128277/4503599627370496",
+            "float64": 0.9434580199592706,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "21244785935641385/9007199254740992",
+            "float64": 2.3586450498981764,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1273212201211095/9007199254740992",
+            "float64": 0.14135495010182353,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "20724524231678141/2251799813685248",
+            "float64": 9.203537590564421,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 82,
+          "stratum": 8,
+          "t": {
+            "exact": "88087794447787/281474976710656",
+            "float64": 0.3129507122700197,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "193387182262869/281474976710656",
+            "float64": 0.6870492877299803,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "9",
+            "float64": 9.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "242683349802245230091586808281/39614081257132168796771975168",
+            "float64": 6.126189024226132,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "243812672326888365446594254375/79228162514264337593543950336",
+            "float64": 3.0773485663382893,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "6810719274779781/562949953421312",
+            "float64": 12.098267764990178,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 85,
+          "stratum": 9,
+          "t": {
+            "exact": "2120466372174643/4503599627370496",
+            "float64": 0.470838117866333,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2383133255195853/4503599627370496",
+            "float64": 0.529161882133667,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "12",
+            "float64": 12.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3912955311846288781564836082353/633825300114114700748351602688",
+            "float64": 6.17355493878486,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7510465770319060164212505152847/1267650600228229401496703205376",
+            "float64": 5.924712826205318,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "82286246750946311/4503599627370496",
+            "float64": 18.271217150577513,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 91,
+          "stratum": 10,
+          "t": {
+            "exact": "4165688759463549/4503599627370496",
+            "float64": 0.9249687148357275,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "337910867906947/4503599627370496",
+            "float64": 0.07503128516427249,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "18",
+            "float64": 18.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1645462748566868574049011542503/1267650600228229401496703205376",
+            "float64": 1.298041233341914,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "10758028319631518970665770374681/633825300114114700748351602688",
+            "float64": 16.9731759172356,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "G10.1's write rule with a judged stand-in among the absent cells (plan P4-D6.4, the owner's ruling of 2026-09-15 that the twin writes everything as the source wrote it).  Eleven of the twenty-two absent cells held -999, which the column's own stand-in pass judged to mean 'no value', and eleven held nothing; the twin writes -999 in eleven cells and leaves eleven empty, placed by the same single arrangement as every value.  Its mutant is the rule this replaced, which wrote a judged pass's cells blank: the eleven -999 cells then come back empty, and a reader of the twin takes the column for decimals where the table's is whole numbers.",
+      "word_budget": {
+        "content": 9,
+        "placement": 41
+      },
+      "words": [
+        "16753067613118181217",
+        "4206969878013758167",
+        "15183236063515065596",
+        "3512088490783040569",
+        "7725610893990452298",
+        "2494333057669011223",
+        "8533281968869854761",
+        "1737086052085467765",
+        "7101881046494449767",
+        "17847366998111331008",
+        "16564834437627974812",
+        "11210015810459439155",
+        "8307737580329409017",
+        "15798750171846463714",
+        "16598408470897088910",
+        "17345061366051683496",
+        "8111427045086381449",
+        "4584279234199797975",
+        "11874096871536886657",
+        "15808901984533200843",
+        "3307606362816493519",
+        "7033059853087329512",
+        "8841608128506827616",
+        "5540637724523648198",
+        "13864833439530146341",
+        "18379436573089841627",
+        "8602246322466314637",
+        "17438706838672563547",
+        "6976404982193339737",
+        "339626846689194753",
+        "6048325271769779232",
+        "667295759908664269",
+        "13720017675106288473",
+        "17020170578420173678",
+        "13079020210315421790",
+        "12693996482168092443",
+        "8184439931291787126",
+        "11898737543103007182",
+        "1649323465032450776",
+        "8801677747796875780",
+        "18047053460541097455",
+        "1218777032769744567",
+        "1178006417815128179",
+        "16565496060575845657",
+        "6235668078579430265",
+        "283276246513352814",
+        "11471448768032915452",
+        "17996514995398699586",
+        "5646120977912611198",
+        "9427082364266152894"
       ]
     },
     "saturated_representable": {

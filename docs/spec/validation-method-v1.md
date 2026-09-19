@@ -975,6 +975,29 @@ rules to fire on the twin's own values, and it is the exposure the
 GATE side has always carried, because the file's own description was
 never pinned.
 
+**Amended 2026-09-18 (plan P4-D6.4): the description's own verdict is
+handed over, per column, and the rule is not asked again.** The owner's
+ruling of 2026-09-15 has the twin write a judged stand-in's or
+placeholder's cells as the source wrote them, where they were written
+blank. The paragraph above then stops being enough, because it needs
+the outlier and share rules to fire on the twin's own values, and they
+need not: 400 whole numbers whose fence stood a few units inside
+`-999`, beside twelve `-999` cells, gave five twins in eight whose
+twelve cells the producer read as VALUES, and each missed obligations
+while the real table passed. So the producer is handed, for each column
+of the checked file, the candidates that column's `sentinel_verdicts`
+publish as `read_as_missing` (a candidate the floor withheld by name is
+not handed over), and reads each as missing in that column before any
+arithmetic, a `--keep-value` still winning (C6-117). This IS a second
+reading of `sentinel_verdicts`, and it moves no verdict on the file the
+description was written from, because that file fires the rule on the
+same cells. It moves one thing on any other file: a cell wearing a
+candidate a column's description judged missing is counted absent in
+that column whatever the file's own values would say, which is how a
+spelling the description publishes as a hole is already read (V2.4-A4
+clause 2). `missing_by_source` is then held on every key, a judged
+key included.
+
 **V2.4-A9 The head count's second over-fire is closed at the producer,
 and one of the two over-fires A6 and A7 recorded is gone. THIS RAISES
 what is checked on a class of description that was being routed away; it

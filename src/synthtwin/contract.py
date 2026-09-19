@@ -441,33 +441,12 @@ SENTINEL_KEYS = (
 VERDICT_MISSING = "read_as_missing"
 
 
-def _judged_cells(column: "ColumnBlock") -> int:
-    """How many absent cells a judged pass took, which the twin writes empty.
-
-    FD7's count of a sort column's empty cells (the integration of
-    landings 2b.6 to 2b.10, 2026-09-16): the cells of every published
-    hole spelling a `read_as_missing` verdict names (C6-116, V5).
-    """
-    named: list[str] = []
-    for verdict in column.sentinel_verdicts:
-        if verdict.verdict != VERDICT_MISSING:
-            continue
-        for spelling in verdict.spellings:
-            if spelling not in named:
-                named += [spelling]
-    total = 0
-    for spelling in named:
-        if spelling in column.missing_by_source:
-            total = total + column.missing_by_source[spelling]
-    return total
-
-
 def _written_empty(column: "ColumnBlock") -> int:
     """How many of a column's absent cells the twin writes EMPTY (plan P4-D173).
 
-    The generator's rule (contract C6-115, C6-116) read from the other
-    side: every absent cell is written empty except a `missing_by_source`
-    spelling a judged pass did not put there. So this is the column's
+    The generator's rule (contract C6-115) read from the other side:
+    every absent cell is written empty except a `missing_by_source`
+    spelling, which is written at its count. So this is the column's
     absent cells less the spellings reproduced -- and NOT the blank and
     pooled counts added up, which is what FD7 counted until a review
     measured the gap: a free-text column publishes no spelling of the
@@ -475,11 +454,15 @@ def _written_empty(column: "ColumnBlock") -> int:
     `n_missing` alone, and the twin wrote all twenty empty while the
     order was published. The real file validated and the twin missed
     `rows.order`.
+
+    A JUDGED PASS'S SPELLINGS ARE REPRODUCED TOO, since plan P4-D6.4 (the
+    owner's ruling of 2026-09-15). Until then the cells a `read_as_missing`
+    verdict named were written empty and were added back here; the twin
+    now writes them as the source wrote them, so nothing is added back.
     """
     reproduced = 0
     for spelling in sorted(column.missing_by_source):
         reproduced = reproduced + column.missing_by_source[spelling]
-    reproduced = reproduced - _judged_cells(column)
     left = column.n_missing - reproduced
     return left if left > 0 else 0
 

@@ -4740,7 +4740,7 @@ def _missing_counted(
 
 
 def _sentinel_verdicts(
-    cells: _Cells, n_present: int
+    cells: _Cells, n_present: int, judged: "tuple[str, ...]" = ()
 ) -> "dict[float, tuple[bool, str, int]]":
     """Decide, for each numeric sentinel present, whether it means "missing".
 
@@ -4782,6 +4782,19 @@ def _sentinel_verdicts(
     has already survived every declaration. That is why only the kept
     side is asked about here.
 
+    ``judged`` is handed over by the validator alone (plan P4-D6.4,
+    validation method V2.4-A8): the candidates the description it
+    checks against published as `read_as_missing` in THIS column. Such a
+    candidate is read as missing without the arithmetic being asked
+    again, because the description already settled it for this column
+    and the twin writes its cells as the source wrote them -- and a
+    twin's own values need not fire the outlier rule a second time.
+    Measured before this: 400 whole numbers whose fence stood a few units
+    inside `-999`, twelve `-999` cells, eight seeds -- five twins read the
+    twelve as values and missed obligations while the real table passed.
+    A `--keep-value` still wins, as it does everywhere (C6-117).
+    `synthtwin profile` never passes it.
+
     Returns candidate -> (is missing, reason code, occurrences).
     """
     settings = cells.settings
@@ -4817,6 +4830,13 @@ def _sentinel_verdicts(
         if _declared_number(exact_of_number(candidate), kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
             continue
+        if _judged_by_the_description(candidate, judged):
+            verdicts[candidate] = (
+                True,
+                REASON_OUTLIER_AND_FREQUENT,
+                occurrences,
+            )
+            continue
         if len(others) < 4:
             verdicts[candidate] = (
                 False,
@@ -4846,6 +4866,23 @@ def _sentinel_verdicts(
     return verdicts
 
 
+def _judged_by_the_description(
+    candidate: float, judged: "tuple[str, ...]"
+) -> bool:
+    """Whether a checked description judged this stand-in number missing.
+
+    Compared as the EXACT number both denote, which is the identity the
+    candidate was counted by, so a description publishing `-999` names
+    the candidate a file writes `-999.0`. A published name that is no
+    number names nothing here. Raises nothing; no I/O.
+    """
+    exact = exact_of_number(candidate)
+    for named in judged:
+        if exact_of_spelling(named) == exact:
+            return True
+    return False
+
+
 # -- calendar placeholders --------------------------------------------
 
 
@@ -4855,6 +4892,7 @@ def _placeholder_verdicts(
     settings: Settings,
     decimal_comma: bool = False,
     kept_days: "tuple[str, ...]" = (),
+    judged_days: "tuple[str, ...]" = (),
 ) -> "dict[str, tuple[bool, str, int]]":
     """Decide, for each placeholder day present, whether it means "missing".
 
@@ -4890,6 +4928,14 @@ def _placeholder_verdicts(
     values to 470 and missed 14 obligations. It is asked of this column
     and no other, which is exactly how far the person's spelling reached.
     `synthtwin profile` never passes it.
+
+    AND A DAY THIS COLUMN'S OWN DESCRIPTION JUDGED MISSING is missing
+    (plan P4-D6.4), the other side of the same hand-over: `judged_days`
+    are the placeholder days the checked description published as
+    `read_as_missing` in this column. The twin writes those cells as the
+    source wrote them, and a twin's generated dates need not fire the
+    interquartile rule a second time, so the description's own verdict
+    answers. A kept day still wins. `synthtwin profile` never passes it.
 
     Returns placeholder -> (is missing, reason code, occurrences).
     """
@@ -4929,6 +4975,13 @@ def _placeholder_verdicts(
             continue
         if _kept_by_spelling(present, format_name, candidate, kept):
             verdicts[candidate] = (False, REASON_KEPT_BY_USER, occurrences)
+            continue
+        if candidate in judged_days:
+            verdicts[candidate] = (
+                True,
+                REASON_OUTLIER_AND_FREQUENT,
+                occurrences,
+            )
             continue
         if len(others) < 4:
             verdicts[candidate] = (
@@ -12383,6 +12436,7 @@ def _cores_judged(
     verdicts: "dict[float, tuple[bool, str, int]]",
     judged_spellings: "dict[str, dict[str, int]]",
     forced_measurement: bool = False,
+    judged: "tuple[str, ...]" = (),
 ) -> "tuple[list[_Cell], list[tuple[str, str]], dict[float, tuple[bool, str, int]]]":
     """Judge this column's stand-ins over its CORES, and remove them.
 
@@ -12446,9 +12500,9 @@ def _cores_judged(
         settings.minimum_parse_rate, len(cores.present)
     ):
         return classified, missing, verdicts
-    judged = _sentinel_verdicts(cores, len(cores.present))
+    decided = _sentinel_verdicts(cores, len(cores.present), judged)
     withheld = sorted(
-        candidate for candidate in judged if judged[candidate][0]
+        candidate for candidate in decided if decided[candidate][0]
     )
     if not withheld:
         # NOTHING IS REMOVED, AND THE VERDICTS ARE STILL THE PASS'S
@@ -12457,7 +12511,7 @@ def _cores_judged(
         # whose owner protected its stand-in was described as though
         # nobody had asked, and the one line that would have told them
         # their instruction was honoured never appeared.
-        return classified, missing, judged
+        return classified, missing, decided
     removed = [exact_of_number(candidate) for candidate in withheld]
     kept: "list[_Cell]" = []
     for cell in classified:
@@ -12478,7 +12532,7 @@ def _cores_judged(
             )
         else:
             kept += [cell]
-    return kept, missing, judged
+    return kept, missing, decided
 
 
 def _cores_settings(cells: _Cells, reading: "_Affixed") -> Settings:
@@ -14392,6 +14446,7 @@ def profile_column(
     forced_decimal_comma: bool = False,
     described_as_pair: bool = False,
     kept_placeholder_days: "tuple[str, ...]" = (),
+    judged_candidates: "tuple[str, ...]" = (),
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -14425,6 +14480,14 @@ def profile_column(
       sets it: the validator hands over the placeholder days the checked
       description published as `kept_by_you` in this column, so the file
       keeps them exactly as the description did (plan P4-D136).
+    - ``judged_candidates`` is the other side of the same hand-over, and
+      no person sets it either: the candidates -- stand-in numbers and
+      placeholder days alike -- the checked description published as
+      `read_as_missing` in this column. Each is read as missing here
+      without its outlier and share rules being asked again (plan
+      P4-D6.4, validation method V2.4-A8), because the twin writes those
+      cells as the source wrote them and its own values need not fire
+      the rules a second time. `synthtwin profile` never passes it.
     - Errors raised: TypeError if a value is not text (an internal
       invariant: both readers produce text), and ValueError when the
       settings name one value BOTH as data and as "no value" -- there
@@ -14497,7 +14560,9 @@ def profile_column(
     if _numeric_looking(cells) >= _needed(
         settings.minimum_parse_rate, len(present)
     ):
-        verdicts = _sentinel_verdicts(cells, len(present))
+        verdicts = _sentinel_verdicts(
+            cells, len(present), judged_candidates
+        )
         withheld = sorted(
             candidate for candidate in verdicts if verdicts[candidate][0]
         )
@@ -14582,6 +14647,7 @@ def profile_column(
                     settings,
                     forced_decimal_comma,
                     kept_placeholder_days,
+                    judged_candidates,
                 )
                 withheld_days = sorted(
                     candidate
@@ -14645,6 +14711,7 @@ def profile_column(
                 verdicts,
                 judged_spellings,
                 forced_measurement,
+                judged_candidates,
             )
             cells = _tally(
                 classified, n_rows, settings, forced_decimal_comma

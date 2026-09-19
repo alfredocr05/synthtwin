@@ -1135,18 +1135,19 @@ def test_which_declared_values_the_refusal_reaches() -> None:
         assert parsing.reads_as_two_numbers(ambiguous), ambiguous
 
 
-def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
+def test_a_judged_hole_of_a_declared_column_is_written_and_read_back() -> None:
     """THE CONTRACT'S WRITE RULE, under the column's own grammar (F3).
 
     Forty outlier cells spelled `-999,0` on a declared column are read
     as minus nine hundred and ninety-nine and publish a verdict naming
-    that number. Asked with the ORDINARY parser, `-999,0` is no number
-    at all, so the spelling matched no candidate and `_absent_cells`
-    reproduced `-999,0` where the rule asks for empty cells -- which
-    makes a later stand-in judgement contingent on the twin's own
-    distribution, the very thing the rule exists to prevent.
-
-    Goes red if `_is_the_same_candidate` stops taking the reading.
+    that number. Until plan P4-D6.4 the rule wrote such a judged key
+    EMPTY, and this test pinned that the comma spelling was matched to
+    the candidate so that it was. The owner's ruling of 2026-09-15 has
+    the twin write it as the table wrote it, so all forty come back as
+    `-999,0` -- and the validator, handed the description's own verdict,
+    reads them as absent under the column's grammar, so the twin misses
+    nothing. Goes red if the twin drops the spelling, or if the
+    validator reads `-999,0` as a value on this column.
     """
     generator = random.Random(3)
     values = [
@@ -1154,7 +1155,7 @@ def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
         for _each in range(160)
     ] + ["-999,0"] * 40
     generator.shuffle(values)
-    document, loaded, _folder, _table = _described(
+    document, loaded, folder, _table = _described(
         values, ["amount"], "amount"
     )
     column = document["columns"][0]
@@ -1163,11 +1164,15 @@ def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
     )
     twin = generation.generate(loaded, 3)
     cells = list(twin.columns[0])
-    assert not [cell for cell in cells if cell == "-999,0"], (
-        "a judged hole was reproduced by its spelling; the rule is that "
-        "it is written empty, because the judgement may not re-fire"
-    )
-    assert len([cell for cell in cells if not cell]) == 40
+    assert len([cell for cell in cells if cell == "-999,0"]) == 40
+    assert not [cell for cell in cells if not cell]
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(loaded, f"{written}")
+    assert not [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
 
 
 def test_one_identity_decides_whether_a_cell_wears_a_hole() -> None:

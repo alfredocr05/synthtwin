@@ -793,8 +793,8 @@ holding nothing, in three or more rows (the order is read over the
 records that hold something, and the twin sorts those around its
 records of nothing). The cells the twin writes empty are counted the way
 the generator decides them: the column's absent cells less the
-`missing_by_source` spellings it reproduces, a spelling a judged pass
-put there not being reproduced (C6-115, C6-116). They were counted as the
+`missing_by_source` spellings it reproduces, which is every one of them,
+a spelling a judged pass put there included (C6-115, C6-116). They were counted as the
 blank and pooled cells with the judged ones added, which missed every
 absent cell no field names -- a free-text column's `--missing-value`
 cells -- and a twin then missed `rows.order` (plan P4-D173); FD8 written header cells stand
@@ -954,7 +954,7 @@ counts the class of every cell of that column, over the closed set
 `absent`, `blank`, `empty`, `text`, `number`, `boolean`, `error`, `date`
 (`workbook.CELL_CLASSES`), counting a cell holding a value whose spelling
 the column reads as absent and does not reproduce -- a spelling under the
-floor, or one a judged pass reads as missing -- as `absent`, the class
+floor -- as `absent`, the class
 its twin writes it as (plan P4-D174); `date` is a cell the file stores as ISO date
 text (`t="d"`), which every reader hands back as a date and which used to
 be counted a number and written back as text (plan P4-D168); the twin
@@ -3233,8 +3233,8 @@ guess is what fails silently.
 | `n_present` | integer ≥ 0 | ≤ `n_rows` | how many cells hold a value | EXACT-OBSERVABLE |
 | `n_missing` | integer ≥ 0 | ≤ `n_rows` | how many cells hold no value | EXACT-OBSERVABLE |
 | `missing_by_class` | object | exactly six keys, section 5.4 | absent cells by the reason each was counted absent | REPORT-ONLY |
-| `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, except a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder), which the twin writes empty |
-| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the stand-in-sourced cells, because a per-field equality would be false by construction |
+| `missing_by_source` | object | section 5.4 | absent cells by the exact spelling that made them absent, under the floor | EXACT-OBSERVABLE — recounted per spelling from the written twin, every key alike, a key a judged pass put there (a spelling reading as a stand-in number, or as a calendar placeholder) included |
+| `n_missing_blank` | integer ≥ 0 | — | how many absent cells of this column held the EMPTY spelling — nothing at all, not even space (C6-125); a cell that held only space wore a spelling and is a key of `missing_by_source` — written when at least `small_cell_floor` cells did, and `0` otherwise, those cells being counted in `n_missing_withheld` instead | REPORT-ONLY, bound by the sum identity the twin's reproduction rule states: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld`, because a per-field equality would be false by construction |
 | `n_missing_withheld` | integer ≥ 0 | — | how many absent cells of this column wore a spelling — or a blankness — that fewer than `small_cell_floor` cells of the column shared, pooled together and unnamed | REPORT-ONLY, bound by the same sum identity |
 | `n_distinct` | integer ≥ 0 | ≤ `n_present` | how many different RAW present spellings the column holds — except on the four roles that publish a level list, and on a compound column's label half, where it counts the spellings the block SPEAKS OF (plan P4-D276) | set per role group, section 9 |
 | `n_distinct_folded` | integer ≥ 0 | ≤ `n_distinct` | how many different FOLDED identities it holds | set per role group, section 9 |
@@ -5335,9 +5335,9 @@ the calendar pass and the built-in vocabulary alike.
 Cells this pass reads as absent are counted under the
 `(date-sentinel)` key of `missing_by_class` (section 5.4), which is
 nonzero only on a column the pass entered. A `missing_by_source`
-spelling this pass put there stays blank in the twin, under the named
-exception the hole-spelling reproduction rule states (C6-115, with its
-reason at C6-116).
+spelling this pass put there is written in the twin at its count, as
+the hole-spelling reproduction rule states for every key (C6-115, with
+the reading of such a cell at C6-116).
 
 **The order of `sentinel_verdicts` entries is invariant V4**, stated
 in full at 5.5. It is total over all three kinds of candidate this
@@ -10120,34 +10120,38 @@ construction whatever role the column took.
 
 **C6-115 (the write rule).** A version 6 twin writes, per column:
 
-1. each `missing_by_source` spelling at exactly its published count —
-   EXCEPT a spelling a JUDGED PASS put there, which stays blank;
-2. every other absent cell empty: the blank count, the withheld
-   remainder, and every judged-pass-sourced cell;
+1. each `missing_by_source` spelling at exactly its published count,
+   character for character — a spelling a JUDGED PASS put there
+   included;
+2. every other absent cell empty: the blank count and the withheld
+   remainder;
 3. all of them placed by the same single permutation that places
    everything else, with spellings assigned to absent slots in a fixed
    sorted order before the permutation runs.
 
 A judged pass is either of the two this version has: the stand-in
-number pass, and the calendar placeholder pass of 6.6.4.
+number pass (over whole cells and over an affixed column's cores), and the
+calendar placeholder pass of 6.6.4.
 
-**C6-116 (why judged-pass cells stay blank).** A reproduced TEXT
-spelling is read back as absence by a fixed rule of the description
-alone — it is a member of the published vocabulary (5.4.1), or a value
-the person named with `--missing-value`, and either way the reading
-does not depend on the twin's own values. A stand-in NUMBER is that
-rule's named exclusion, and a CALENDAR PLACEHOLDER is excluded for
-exactly the same reason: the absence reading of both runs through the
-producer's outlier-and-share judgement over the measured file's own
-values, which a twin's generated distribution is not guaranteed to
-re-fire.
-
-Reproducing those cells would make the twin's own measurement
-contingent on a re-judgement; leaving them blank keeps every
-reproduced cell's reading deterministic. **Nothing the description
-records is lost by it**: the twin's report names, per column, the
-stand-in cells, the placeholder cells and the below-floor spellings
-that were not reproduced.
+**C6-116 (why a judged pass's cells are written as the table wrote
+them).** A reproduced TEXT spelling is read back as absence by a fixed
+rule of the description alone — it is a member of the published
+vocabulary (5.4.1), or a value the person named with `--missing-value`.
+A stand-in NUMBER and a CALENDAR PLACEHOLDER are judged instead, by the
+producer's outlier-and-share rule over the measured file's own values,
+and a twin's generated distribution is not guaranteed to fire that
+rule a second time. So the reading of a judged spelling is fixed by the
+description as well: a checked file is read with every candidate a
+column's `sentinel_verdicts` names as `read_as_missing` counted absent
+in THAT column, without the rule being asked again (validation method
+V2.4-A8). The file the description was written from reaches the same
+reading either way. A twin's cells then read back as absence
+by a fixed rule, and they are written the way the table wrote them,
+so code that tests a column against its own stand-in — `== -999`, an
+integer conversion, a filter on `9999-12-31` — does on the twin what it
+does on the table. A judged spelling below the floor is not a key of
+`missing_by_source`; its cells are counted in `n_missing_withheld` and
+are written empty with that pool.
 
 **C6-117 (declaration wins, on every pass).** Where a person named a
 value with `--keep-value`, that value is data and no judged pass may
@@ -10170,15 +10174,15 @@ rule a generator may break and then report is not a rule, and this one
 holds by construction or the method is wrong.
 
 **The SUM identity this creates.** Because the construction writes
-several pools of absent cells as empty fields, no per-field equality
+two pools of absent cells as empty fields, no per-field equality
 holds between the twin's blank cells and any single published count.
 What holds is a sum: the twin's recounted blank absent cells equal
-`n_missing_blank` plus `n_missing_withheld` plus the judged-pass-
-sourced count, over BOTH judged passes. An identity naming only the
-stand-in pass would be false by construction on any column carrying
-judged calendar placeholders, and a validator checking it would report
-a failure against a correct twin — which is worse than no check,
-because it teaches its reader to stop believing the report.
+`n_missing_blank` plus `n_missing_withheld`. The cells a judged pass
+put there are not in it, because the twin writes them under their
+published spellings; an identity adding them would be false by
+construction, and a validator checking it would report a failure
+against a correct twin — which is worse than no check, because it
+teaches its reader to stop believing the report.
 
 ---
 
@@ -10724,32 +10728,31 @@ These cover all twenty-two universal keys.
 | `n_present`, `n_missing` | EXACT-OBSERVABLE |
 | `name` | EXACT-OBSERVABLE when a header is written, else EXACT-CONTROL |
 | `position`, `role`, `statistical_type`, `quality_state`, `structural_role` | EXACT-CONTROL |
-| `missing_by_source` | EXACT-OBSERVABLE, recounted per spelling from the written twin — EXCEPT a key a JUDGED PASS put there, which the twin writes empty and which is REPORT-ONLY for that key, the achieved zero named beside the published count |
+| `missing_by_source` | EXACT-OBSERVABLE, recounted per spelling from the written twin — every key, a key a JUDGED PASS put there included |
 | `missing_by_class` | REPORT-ONLY, all six classes — the classes are not recoverable from bytes |
-| `n_missing_blank`, `n_missing_withheld` | REPORT-ONLY, bound by the sum identity: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld` plus the judged-pass-sourced cells. A per-field equality would be false by construction, because the twin writes all three pools blank |
+| `n_missing_blank`, `n_missing_withheld` | REPORT-ONLY, bound by the sum identity: the twin's recounted blank absent cells equal `n_missing_blank` plus `n_missing_withheld`. A per-field equality would be false by construction, because the twin writes both pools blank |
 | `n_numeric`, `n_not_numeric`, `n_out_of_range`, `n_contradictory` | EXACT-OBSERVABLE by class-preserving construction, over the CELLS on every role |
 | `n_sentinel_candidates_unpublished`, `sentinel_verdicts`, `detection_evidence`, `remarks` | REPORT-ONLY |
 
-**The judged-pass exception is stated at the reproduction rule's own
-width, and a narrower reading is a defect.** The rule the twin obeys
-excepts a spelling a judged pass put there — one reading as a stand-in
-NUMBER, *or* as a CALENDAR PLACEHOLDER — and both stay blank for one
-reason: the absence reading of both runs through the producer's
-outlier-and-share judgement over the measured file's own values, which
-a twin's generated distribution is not guaranteed to re-fire.
-Reproducing either would make the green battery contingent on a
-re-judgement. A row excepting only the stand-in numbers would oblige a
-producer to reproduce a published placeholder spelling, which the
-reproduction rule forbids, and the sum identity above names the
-judged-pass-sourced cells for the same reason: both pools are written
-blank, so an identity naming only one of them is false by the same
-construction it rests on.
+**A judged pass's key is held at the reproduction rule's own width,
+and a narrower reading is a defect.** The rule the twin obeys writes a
+spelling a judged pass put there — one reading as a stand-in NUMBER,
+*or* as a CALENDAR PLACEHOLDER — at its published count like every
+other key, and both read back as absence for one reason: a checked
+file is read with the candidates each column's own verdicts name as
+`read_as_missing` counted absent in that column (C6-116), so the
+reading does not wait on the outlier-and-share rule firing again over
+the twin's generated values. A row holding only the stand-in numbers
+would let a producer leave a published placeholder spelling out, and
+code testing a date column against its own `9999-12-31` would then
+select rows of the table and none of the twin.
 
 `sentinel_verdicts` is REPORT-ONLY for calendar-placeholder entries
 exactly as for stand-in numbers: a placeholder entry publishes the
 placeholder's canonical ISO day spelling as its `candidate`, with its
-occurrence count, verdict and reason, and the twin holds none of those
-cells.
+occurrence count, verdict and reason. The twin holds the cells of a
+`read_as_missing` entry under the spellings `missing_by_source`
+publishes for them, and holds no cell of a spelling below the floor.
 
 `n_distinct` and `n_distinct_folded` are universal keys whose
 disposition is set per role group, in 9.3 to 9.7.
@@ -11957,11 +11960,10 @@ a marked row.
       text, or a calendar placeholder's ISO day spelling — where such a
       column published only `(withheld)`.
     And `missing_by_source` is EXACT-OBSERVABLE, so under C6-115 the
-    twin WRITES those spellings at their published counts — **with
-    C6-115's own named exception**: a spelling a JUDGED PASS put there,
-    one reading as a stand-in number or as a calendar placeholder,
-    stays blank in the twin (C6-116), and section 9's row carries the
-    same exception in its own words. This is the class of fact row 12's
+    twin WRITES those spellings at their published counts — **a
+    spelling a JUDGED PASS put there included**, one reading as a
+    stand-in number or as a calendar placeholder (C6-116), and section
+    9's row says the same in its own words. This is the class of fact row 12's
     second bullet prices for the error-literal mechanism; it is priced
     here for the five mechanisms row 12 does not reach. Row 1 prices a
     long-tail column's floor-cleared LEVEL spellings and not this,

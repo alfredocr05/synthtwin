@@ -7972,10 +7972,23 @@ with the join and de-duplication consequence in the person's own words.
 
 Exactly `n_missing` cells per column, placed by the arrangement of
 G4.2. Each published `missing_by_source` spelling is written at exactly
-its published count, character for character, and every other absent
-cell — the blank count, the withheld remainder and the cells a judged
-pass put there — is written as the EMPTY text (contract C6-115 and
-C6-116, plan P4-D6.1). `missing_by_class` is REPORT-ONLY.
+its published count, character for character — a spelling a judged
+pass put there included — and every other absent cell — the blank
+count and the withheld remainder — is written as the EMPTY text
+(contract C6-115 and C6-116, plans P4-D6.1 and P4-D6.4).
+`missing_by_class` is REPORT-ONLY.
+
+**A JUDGED PASS'S KEY WAS WRITTEN EMPTY UNTIL PLAN P4-D6.4.** The
+stand-in number and calendar placeholder passes decide absence by an
+outlier-and-share rule over the real column's values, and this
+paragraph kept their cells blank so that a twin's own values would not
+have to fire that rule again. The owner's ruling of 2026-09-15 has the
+twin write everything as the source wrote it, and a blank where the
+table wrote `-999` turned pandas' reading of a whole-number column from
+`int64` to `float64`. The validator now reads a candidate the
+description judged missing as absent in that column without asking the
+rule again, so the cells are written back and read back the
+same way on every run.
 
 **THIS PARAGRAPH SAID THE OPPOSITE UNTIL LANDING 2b.8, AND THE CODE
 HAD BEEN RIGHT FOR A VERSION.** It read "each written as the EMPTY
@@ -10153,7 +10166,13 @@ seventh file; merged, that file stood at 276235 bytes against the
 250000-byte cap, so all seven moved into
 `tests/reference/generation-branch-vectors-6.json` together.
 
-**All ninety-five are required.** The count is taken off the committed
+**Plan P4-D6.4 adds one, to the eighth file**, where plan P4-D295 says
+the next case goes: `judged_stand_in_written`, G10.1's write rule with
+a judged stand-in among a column's absent cells. No case before it
+published a `missing_by_source` key at all, so the whole of G10.1 could
+have been withdrawn with every committed byte where it was.
+
+**All ninety-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10169,7 +10188,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds seven (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds eight (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10192,6 +10211,7 @@ case passed, which is the failure the count exists to prevent:
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
+| `judged_stand_in_written` | G10.1's write rule with a judged stand-in among the absent cells (plan P4-D6.4): `numeric_integer`'s twenty values beside twenty-two absent cells, eleven of which held `-999`, which the column's own stand-in pass judged to mean "no value", and eleven of which held nothing. The twin writes `-999` in eleven cells and leaves eleven empty, placed by G4.2's one arrangement. Its mutant is the rule this replaced, which wrote a judged pass's cells empty, and the eleven `-999` cells move |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |

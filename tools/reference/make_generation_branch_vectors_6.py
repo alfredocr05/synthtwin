@@ -5,7 +5,10 @@ asks `make_generation_reference_vectors.py` for the seven cases the extra
 review round of 2026-09-18 added to method section G14.3 -- the five of
 its date pass (plans P4-D254 to P4-D258) and the two of its number pass,
 G6.5a's last resort on the representable grid (plan P4-D269) and G6.5's
-visiting order for the distinct-spelling repair (plan P4-D265).
+visiting order for the distinct-spelling repair (plan P4-D265) -- and
+for the eighth, `judged_stand_in_written`, G10.1's write rule with a
+judged stand-in among a column's absent cells (plan P4-D6.4), which went
+here because the paragraph below says the next case does.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file

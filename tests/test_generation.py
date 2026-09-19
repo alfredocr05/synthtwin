@@ -173,9 +173,20 @@ def _cells(twin_built: generation.Twin, name: str) -> tuple[str, ...]:
     raise AssertionError(f"the twin has no column named {name}")
 
 
-def _present(cells: "tuple[str, ...]") -> list[str]:
-    """The cells that hold a value."""
-    return [cell for cell in cells if cell != ""]
+def _present(
+    cells: "tuple[str, ...]",
+    column: "contract.ColumnBlock | None" = None,
+) -> list[str]:
+    """The cells that hold a value.
+
+    Not blank, and -- where the column's block is handed over -- not a
+    spelling that column publishes among its absent cells: since plan
+    P4-D6.4 the twin writes a judged stand-in such as the every-role
+    `reading` column's thirteen `-999` cells as the table wrote them,
+    and they are no value of the column (contract C6-115).
+    """
+    holes = {} if column is None else column.missing_by_source
+    return [cell for cell in cells if cell != "" and cell not in holes]
 
 
 def _block(
@@ -244,7 +255,7 @@ def test_n_present_and_n_missing_are_recounted_exactly(
 ) -> None:
     for column in every_role.columns:
         cells = _cells(twin, column.name)
-        present = _present(cells)
+        present = _present(cells, column)
         assert len(present) == column.n_present, column.name
         assert len(cells) - len(present) == column.n_missing, column.name
 
@@ -272,7 +283,7 @@ def test_the_four_class_counts_are_recounted_exactly(
             parsing.NUMBER_CONTRADICTORY: 0,
             parsing.NOT_A_NUMBER: 0,
         }
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             counted[parsing.classify_number(cell)] += 1
         assert counted[parsing.NUMBER] == column.n_numeric, column.name
         assert (
@@ -295,7 +306,7 @@ def test_the_zero_and_negative_counts_are_recounted_exactly(
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         zeros = len([value for value in values if value == 0.0])
@@ -317,7 +328,7 @@ def test_integer_valued_is_recounted_from_the_written_values(
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         whole = all(
@@ -336,7 +347,7 @@ def test_the_two_ends_of_a_ladder_are_exact(
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         held = [value for value in values if value is not None]
@@ -357,7 +368,7 @@ def test_every_value_lies_between_the_two_published_ends(
         low = facts.percentiles.minimum
         high = facts.percentiles.maximum
         assert low is not None and high is not None
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             if parsing.classify_number(cell) != parsing.NUMBER:
                 continue
             value = parsing.parse_number(cell)
@@ -433,7 +444,7 @@ def test_the_interior_rungs_sit_inside_the_two_sided_window(
             value
             for value in (
                 parsing.parse_number(cell)
-                for cell in _present(_cells(twin, column.name))
+                for cell in _present(_cells(twin, column.name), column)
                 if parsing.classify_number(cell) == parsing.NUMBER
             )
             if value is not None
@@ -713,13 +724,13 @@ def test_label_counts_and_variants_are_recounted_exactly(
         if not isinstance(facts, contract.LabelFacts):
             continue
         counted: dict[str, int] = {}
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             identity = parsing.folded(cell)
             counted[identity] = counted.get(identity, 0) + 1
         for entry in facts.levels:
             assert counted.get(entry.label) == entry.count, entry.label
             spellings: dict[str, int] = {}
-            for cell in _present(_cells(twin, column.name)):
+            for cell in _present(_cells(twin, column.name), column):
                 if parsing.folded(cell) == entry.label:
                     spellings[cell] = spellings.get(cell, 0) + 1
             for spelling in entry.variants:
@@ -746,7 +757,7 @@ def test_datetime_cells_carry_the_published_precision(
         if not isinstance(facts, contract.DatetimeFacts):
             continue
         parsed = 0
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             found = None
             for name in parsing.DATE_FORMATS:
                 found = parsing.parse_datetime(cell, name)
@@ -778,7 +789,7 @@ def test_the_two_ends_of_a_date_ladder_are_exact(
         if not isinstance(facts, contract.DatetimeFacts):
             continue
         instants = []
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             found = parsing.parse_datetime(cell, _format_for(facts.resolution))
             if found is not None:
                 instants.append(found[0])
@@ -919,7 +930,7 @@ def test_a_column_of_all_different_values_stays_all_different(
             # test is about the generator, and the generator misses.
             continue
         checked += 1
-        present = _present(_cells(twin, column.name))
+        present = _present(_cells(twin, column.name), column)
         assert len(set(present)) == len(present), column.name
     assert checked >= 2, (
         "the every-role description must carry at least two columns whose "
@@ -1107,7 +1118,7 @@ def test_the_outcome_counts_are_the_twins_own(
 ) -> None:
     for index, outcome in enumerate(twin.outcomes):
         cells = twin.columns[index]
-        present = _present(cells)
+        present = _present(cells, every_role.columns[index])
         assert outcome.n_present == len(present)
         assert outcome.n_missing == len(cells) - len(present)
         assert outcome.n_distinct == len(set(present))
