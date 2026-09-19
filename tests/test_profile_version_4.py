@@ -236,7 +236,8 @@ def test_a_published_label_carries_the_spellings_that_cleared_the_floor() -> Non
     key `1` -- so they are counted into the level's commonest spelling
     and the entry publishes 25 rather than 22 beside an empty withheld
     map. The witness below keeps the closing sum, which is the point of
-    this example, and the case where the map still speaks is beside it.
+    this example; the one beside it carries the same treatment to
+    spellings two rows wrote (P4-D275).
     """
     values = (
         ["North"] * 22 + ["north"] * 15 + ["NORTH", " north", "North "]
@@ -256,12 +257,21 @@ def test_a_published_label_carries_the_spellings_that_cleared_the_floor() -> Non
     assert named + withheld == entry["count"]
 
 
-def test_the_withheld_map_still_speaks_above_one_row() -> None:
+def test_the_withheld_map_is_empty_above_one_row_too() -> None:
     """The contract's second worked example, beside the first.
 
-    P4-D240 empties `variants_withheld` only of the key `1`. Three
-    further spellings written by TWO rows each are still held back, and
-    the map says so without naming one of them.
+    REWRITTEN AS A WITNESS OF PLAN P4-D275 (it was
+    `test_the_withheld_map_still_speaks_above_one_row`). P4-D240 emptied
+    `variants_withheld` only of the key `1`, and this example pinned the
+    map still speaking for three spellings written by TWO rows each.
+    P4-D275 carries ruling 6 of 2026-09-17 to EVERY spelling below the
+    floor: two rows is a group below the line as surely as one row is,
+    so the three are counted into the level's commonest spelling. The
+    arithmetic, from the rule: `North` (22) and `north` (12) both clear
+    the floor of eleven; `NORTH`, ` north` and `North ` wrote two rows
+    each, so 3 x 2 = 6 rows go to the commonest, `North`, which then
+    carries 22 + 6 = 28; the withheld map is empty, and 28 + 12 closes
+    the level's 40.
     """
     values = (
         ["North"] * 22 + ["north"] * 12
@@ -270,8 +280,37 @@ def test_the_withheld_map_still_speaks_above_one_row() -> None:
     described = describe(values)
     entry = described.details["levels"][0]
     assert entry["count"] == 40
-    assert entry["variants"] == {"North": 22, "north": 12}
-    assert entry["variants_withheld"] == {"2": 3}
+    assert entry["variants"] == {"North": 22 + 3 * 2, "north": 12}
+    assert entry["variants_withheld"] == {}
+
+
+def test_where_no_spelling_clears_the_floor_the_commonest_takes_them() -> None:
+    """P4-D275's absorption where no spelling of a level clears the floor.
+
+    THE REPRODUCTION. The rule counts every spelling below the floor into
+    the level's COMMONEST spelling, ties to the first in sorted order.
+    Where some spelling clears the floor it is the commonest; where none
+    does, the commonest is still one of them -- `parsing.absorbed_census`
+    states it so for every number census (P4-D242). The label version
+    took the first spelling in sorted order whatever the counts, which is
+    the commonest only while every spelling is written once: 2 `A` and 9
+    `a` at a floor of eleven published `{"A": 11}`, and the twin wrote
+    the spelling two rows wore in all eleven cells. From the rule: `a`
+    (9) is the commonest, so it takes 9 + 2 = 11.
+    """
+    values = ["A"] * 2 + ["a"] * 9 + ["x"] * 30 + ["y"] * 30
+    described = describe(values)
+    entries = {
+        entry["label"]: entry for entry in described.details["levels"]
+    }
+    assert entries["a"]["count"] == 11
+    assert entries["a"]["variants"] == {"a": 9 + 2}
+    assert entries["a"]["variants_withheld"] == {}
+    # ...and a tie still goes to the first in sorted order: 6 `B` and 6
+    # `b` are each below the floor and tie, and `B` sorts before `b`.
+    tied = describe(["B"] * 6 + ["b"] * 6 + ["x"] * 30 + ["y"] * 30)
+    entries = {entry["label"]: entry for entry in tied.details["levels"]}
+    assert entries["b"]["variants"] == {"B": 6 + 6}
 
 
 def test_a_spelling_below_the_floor_is_never_named() -> None:

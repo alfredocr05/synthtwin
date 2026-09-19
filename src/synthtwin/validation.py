@@ -5750,6 +5750,21 @@ def _byte_checks(
             "bytes.short-rows",
             "bytes.header-rows",
         }
+        # AND, AT A RAISED FLOOR, NO BLANK PLACE THE RULE CAN PUBLISH
+        # (plan P4-D290; V3.4). A blank place is published only where a
+        # file holds `census_floor` of them, and a one-column file holds
+        # at most ONE: the reader refuses a blank line between its
+        # records -- such a line could be a record whose one value is
+        # missing -- a line before the table is its preamble, and the
+        # lines after the last record are one place. So both sides of
+        # this comparison say "no blank lines" whatever the file holds.
+        # **Measured** at a floor of eleven on a one-column description
+        # of 300 rows: one trailing blank line and eleven of them were
+        # each HELD, eleven leading lines missed only `bytes.preamble`,
+        # and interior blank lines were refused -- while at a floor of
+        # one the trailing line MISSED, and the rule stays filed there.
+        if description.settings.small_cell_floor > 1:
+            unfiled = unfiled | {"bytes.blank-lines"}
     if not form.header_rows:
         # NO ROWS OF COLUMN DESCRIPTIONS ARE PUBLISHED, SO NONE CAN BE
         # MEASURED (plan P4-D81, and V3.4's own condition). A checked
