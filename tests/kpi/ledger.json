@@ -1002,7 +1002,7 @@
    "phase_stage": "Phase 2 (P2-D11)",
    "category": "PRIVACY",
    "headline": true,
-   "name": "No twin row is a real row: whole real rows, and rows equal to a real row but for the made-up identifier, on the golden table and the realistic shapes",
+   "name": "No twin row is a real row: whole real rows, and rows equal to a real row but for the made-up identifier, on the golden table and the realistic shapes with no declared identifier (the two with one: K-2B-45)",
    "status": "GREEN",
    "rule": "golden table at floors 1 and 11: 0 whole real rows AND 0 rows equal to a real row on the 13 other columns; the realistic shapes with no identifier (B dates, C numbers, CSV) at floors 1 and 11: 0 whole real rows. The copies on the two shapes WITH a made-up identifier come from its room and are K-2B-45 (ACCEPTED_LIMIT)",
    "rule_kind": "exact",
@@ -1624,7 +1624,7 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "STRONG",
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
-   "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19. g-spread (merged 2026-09-19): the cause is G5.3's straight outer ladder segment to the exact published extreme, and G12.3's std window is drawn from the same line, so both move together; normal-shaped twins are 1.4 to 3.7 per cent too wide from 5,000 rows up. The pinned node holds 2.2 per cent either way at 5,000 rows",
+   "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19. g-spread (merged 2026-09-19): the cause is G5.3's straight outer ladder segment to the exact published extreme, and G12.3's std window is drawn from the same line, so both move together; normal-shaped twins are 1.4 to 3.7 per cent too wide from 5,000 rows up on g-spread's clinical columns, and the driver's twenty gauss(50, 10) columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000. The pinned node holds 2.2 per cent either way on its four normal columns at 5,000 rows (3.1 on two at 20,000, 3.3 on a one-figure lab column at 5,000)",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -2333,7 +2333,8 @@
    "key_kinds": {
     "pinned_nodes_failing": "exact"
    },
-   "nodes_min_collected": 1
+   "nodes_min_collected": 1,
+   "status_note": "CEILING MOVED BY MEASUREMENT, NOT YET ACCEPTED: agreements outside rose from 597 to 609 (and missed fell from 7 to 3) because the carried-f-numbers push (G6.5a) trades 12 agreements for 4 above-counts; the pin's ceilings were re-based inside merge 604fdce. The orchestrator is to accept that trade explicitly or revert the push. Not an owner ruling."
   },
   {
    "id": "K-P4-07",
@@ -2569,13 +2570,15 @@
    "nodes": [
     "tests/test_p4d61_holes_reproduced.py::test_a_recorded_spelling_is_written_at_its_count",
     "tests/test_p4d61_holes_reproduced.py::test_two_spellings_are_each_written_at_their_own_count",
-    "tests/test_p4d61_holes_reproduced.py::test_the_twin_redescribes_to_the_same_counts"
+    "tests/test_p4d61_holes_reproduced.py::test_the_twin_redescribes_to_the_same_counts",
+    "tests/test_p4d61_holes_reproduced.py::test_a_stand_in_number_is_written_as_the_source_wrote_it",
+    "tests/test_p4d61_holes_reproduced.py::test_a_calendar_placeholder_is_written_as_the_source_wrote_it"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "test_p4d61 single columns, 20 holes each",
-   "evidence": "NA 20 written 20; 'Not recorded' 20/20; NA + #N/A 20+20; twin re-describes to the same counts (before: every hole blank). Judged stand-ins written blank are taken out of this entry's green value (critic correction): on the every-role table they make pandas read 'reading' as float64 on the twin and int64 on the table. Since P4-D6.4 the judged stand-ins are written too, and the pinned nodes pass on the integrated tree",
+   "measured_on": "test_p4d61 single columns, 20 holes each (NA, 'Not recorded', NA + #N/A, -999, 9999-12-31)",
+   "evidence": "NA 20 written 20; 'Not recorded' 20/20; NA + #N/A 20+20; twin re-describes to the same counts (before: every hole blank). Judged stand-ins written blank are taken out of this entry's green value (critic correction): on the every-role table they make pandas read 'reading' as float64 on the twin and int64 on the table. Since P4-D6.4 the judged stand-ins are written too, and the pinned nodes pass on the integrated tree. The two nodes that write the judged stand-ins (-999 and 9999-12-31, 20 each) joined the pin on 2026-09-19: with P4-D6.4's write reverted (the judged-pass skip put back in generation._absent_cells) the first three nodes stayed green and these two failed",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -2584,7 +2587,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 3
+   "nodes_min_collected": 5
   },
   {
    "id": "K-P4-14",
@@ -3268,7 +3271,7 @@
    "phase_stage": "Stage 1 (target of landing 4)",
    "category": "SPEED",
    "headline": true,
-   "name": "Largest tables end to end: 100k x 20, 1M x 20, 2M x 50",
+   "name": "Largest tables end to end: 100k x 20 measured; 1M x 20 and 2M x 50 are the target, not yet measured",
    "status": "OPEN",
    "rule": "machine-free: describing and generating 100k x 20 takes < 8x the time of 25k x 20 (median of 3 at each size, the sizes in turn); AND 100k x 20 end to end under 15 min on the quiet reference machine; target (landing-4 gate): 2M x 50 under 1 hour on the quiet reference machine, measured with --rows 2000000 --cols 50, never projected",
    "rule_kind": "ratio_below",
@@ -5134,12 +5137,12 @@
   },
   {
    "id": "K-2B-45",
-   "phase_stage": "Stage 2b (the twin definition, clause 2; owner-accepted identifier room)",
+   "phase_stage": "Stage 2b (the twin definition, clause 2); the orchestrator's reading of the identifier-room decision, not an owner ruling",
    "category": "PRIVACY",
    "headline": false,
-   "name": "ACCEPTED LIMIT: whole real rows through a made-up identifier that coincides with a real one",
-   "status": "ACCEPTED_LIMIT",
-   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11): made-up identifiers equal to a real one must not rise (16 of 400 at every seed); whole real rows must not rise past the chance ceiling of those 16 rows also matching their real row on the other columns (Binomial(16, p), P(exceed) < 1e-4: A p = 1/4 x 1/9, ceiling 5; D p = 0.454 x 1/3, ceiling 9); rows equal to a real row but for the identifier are held at D floor 11's 394, and are 400 of 400 (every row) for A and for D at floor 1, where the bound is the row count. Every whole-row copy here has a made-up identifier equal to a real one -- the identifier room the owner accepted (K-2B-18)",
+   "name": "Whole real rows through a made-up identifier that coincides with a real one (not put to the owner)",
+   "status": "OPEN",
+   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11): made-up identifiers equal to a real one must not rise (16 of 400 at every seed); whole real rows must not rise past the chance ceiling of those 16 rows also matching their real row on the other columns (Binomial(16, p), P(exceed) < 1e-4: A p = 1/4 x 1/9, ceiling 5; D p = 0.454 x 1/3, ceiling 9); rows equal to a real row but for the identifier are held at D floor 11's 394, and are 400 of 400 (every row) for A and for D at floor 1, where the bound is the row count.. Every whole-row copy here has a made-up identifier equal to a real one. The owner accepted real record numbers reaching the twin (K-2B-18); whole real rows were not put to the owner; target 0 whole real rows",
    "rule_kind": "at_most",
    "expected": {
     "A_csv_f1_coincident_ids": 16,
@@ -5162,7 +5165,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "the eight realistic shapes, seed 4",
-   "evidence": "critic: A_csv 1 of 400 and D_csv 1 of 400 whole real rows; non-identifier copies A 400, D 394. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-2b45.txt): coincident identifiers 16 at every seed and floor; A whole 0-3 (mean 0.60), D whole 0-7 (mean 2.53); D floor 1 ignoring the identifier 394-400, floor 11 394 at every seed, A 400 at every seed. The first ceilings (A 1, D 1, D floor 1 ignoring 398) were seed 4's draw and read ACCEPTED-WORSE at 9 of 12 seeds (skeptic). The chance rate: the 16 coincident rows match their real row's other columns with p = P(site) x P(note) = 1/4 x 1/9 = 0.028 (A; observed 0.60/16 = 0.038) and p = sum of squared arm shares 0.454 x P(outcome) 1/3 = 0.151 (D; observed 2.53/16 = 0.158); at the observed p, P(X > 5) = 1.6e-5 for A and P(X > 9) = 3.0e-5 for D",
+   "evidence": "critic: A_csv 1 of 400 and D_csv 1 of 400 whole real rows; non-identifier copies A 400, D 394. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-2b45.txt): coincident identifiers 16 at every seed and floor; A whole 0-3 (mean 0.60), D whole 0-7 (mean 2.53); D floor 1 ignoring the identifier 394-400, floor 11 394 at every seed, A 400 at every seed. The first ceilings (A 1, D 1, D floor 1 ignoring 398) were seed 4's draw and read ACCEPTED-WORSE at 9 of 12 seeds (skeptic). The chance rate: the 16 coincident rows match their real row's other columns with p = P(site) x P(note) = 1/4 x 1/9 = 0.028 (A; observed 0.60/16 = 0.038) and p = sum of squared arm shares 0.454 x P(outcome) 1/3 = 0.151 (D; observed 2.53/16 = 0.158); at the observed p, P(X > 5) = 1.6e-5 for A and P(X > 9) = 3.0e-5 for D. Not the little-spare-room case the owner accepted: A writes A-1000 to A-1399 and D SUBJ0000 to SUBJ0399, each in a four-figure layout with about 25 times the ids in use; the 16 coincident ids are chance collisions at that room (400 x 400 / 10,000 = 16). Filed ACCEPTED_LIMIT under the identifier-room quote in caf3079 and put back to OPEN on 2026-09-19 (skeptic): the owner's words cover record numbers, not whole rows",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -5182,7 +5185,14 @@
      "D_csv_f1_whole": 1
     }
    },
-   "status_note": "ACCEPTED under the owner's identifier-room decision of 2026-09-18: \"Identifier room: no worries. Fine\" (plan P4-D270); a made-up record number that coincides with a real one is that room's collision."
+   "status_note": "OPEN: the orchestrator's reading of the identifier-room decision; whole real rows were not put to the owner; the owner may accept or reverse. Held at its must-not-get-worse bound until then.",
+   "target": {
+    "A_csv_f1_whole": 0,
+    "A_csv_f11_whole": 0,
+    "D_csv_f1_whole": 0,
+    "D_csv_f11_whole": 0
+   },
+   "target_stage": "none set: the owner's answer to one question -- may a made-up identifier that coincides with a real one carry that real row whole? A no needs a generation rule that re-draws such a row"
   },
   {
    "id": "K-2B-46",
@@ -5320,7 +5330,7 @@
    "headline": false,
    "name": "The orchestrator's calls of 2026-09-18, held still until the owner says otherwise",
    "status": "OPEN",
-   "rule": "must not get worse: the point-free grid trade (style and width MISSED verdicts, and distinct-count MISSED verdicts, over 24 grids x 3 seeds), the subsecond digits written as nought (real cells with a fraction less the twin's), a record number's class counts showing that one record below the line exists (1 while they do), and W5 accepting a hand-written withheld map at a raised floor (its two re-armed guards pass); target 0 on each count",
+   "rule": "must not get worse: the point-free grid trade (style and width MISSED verdicts, and distinct-count MISSED verdicts, over 24 grids x 3 seeds), the subsecond digits written as nought (real cells with a fraction less the twin's), a record number's class counts showing that one record below the line exists (1 while they do), and W5 accepting a hand-written withheld map at a raised floor (its two re-armed guards pass); target 0 on each count; subsecond_fractions_lost is held at 400 of 400 only to report it: every real fraction is lost today, so that key cannot turn red, and what moves it is its target of 0",
    "rule_kind": "at_most",
    "expected": {
     "point_free_style_missed_checks": 30,

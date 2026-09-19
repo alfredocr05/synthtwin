@@ -894,7 +894,7 @@ def test_k_2b_40(record_property, eight: "list[dict]") -> None:
 
 
 def test_k_2b_45(record_property, eight: "list[dict]") -> None:
-    """ACCEPTED LIMIT: whole real rows through a made-up identifier that meets a real one."""
+    """Whole real rows through a made-up identifier that meets a real one (OPEN: not put to the owner)."""
     value = {}
     for run in eight:
         identifier = run["family_spec"]["identifier"]

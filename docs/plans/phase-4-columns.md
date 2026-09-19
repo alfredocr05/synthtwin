@@ -18309,7 +18309,7 @@ own reading, so a repair of G5.3 alone, or of G12.3 alone, turns it
 red. No verdict count is pinned, because it moves with G12.3; the
 ledger's 19 of 1,021 is re-derived by the driver.
 
-**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread within 2.2 per cent on both sides. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread on both sides: within 2.2 per cent on its four normal columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab column at 5,000. The ledger's twenty `gauss(50, 10)` columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000, held at those widths by K-P3-03. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
 
 ## Owner decisions of 2026-09-18
 
@@ -18331,13 +18331,29 @@ code and on results, and to spend no time where there is none.
 | W5 accepts hand-written withheld maps at a raised floor (no producer writes them) | Orchestrator's call under the owner's rule | P4-D275 |
 | A declared record number's class counts show that one record below the line exists, never its value | Orchestrator's call under the owner's rule | P4-D298 |
 | The column-wide fill's trade on point-free grids | Orchestrator's call under the owner's rule | P4-D274 |
-| Spread 1.4-3.7 per cent too wide on normal-shaped columns | DEFERRED to stage 3 by the orchestrator, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3") | K-P3-03 |
+| Spread too wide on normal-shaped columns: 1.4-3.7 per cent on the clinical columns above, +1.07 to +3.11 at 5,000 rows and +1.74 to +3.83 at 20,000 on the ledger's twenty | DEFERRED to stage 3 by the orchestrator, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3") | K-P3-03 |
 
-**Open, and needing no ruling:** the three- and four-number readings
-(ledger K-P4-06). The recorded target is 550 outside and 0 missed. The
-integrated tree of 2026-09-19 measures 609 and 3, where e53d5f4 measured
-597 and 7; G6.5a's push made the move, and the pairing walk is the open
-cause. Also open are the carried width, band and layout defects:
+**Not put to the owner:** whole real rows through a made-up
+identifier that coincides with a real one (ledger K-2B-45: 1 whole real
+row of 400 on each of the two realistic shapes with a declared
+identifier, at seed 4 and floors 1 and 11, against a chance ceiling of 5
+and 9). The owner accepted real record numbers reaching the twin; these
+two shapes have about 25 times the ids in use, and their 16 coincident
+ids are chance collisions at that room, so whether such an id may carry
+its real row whole is a question of its own. The entry is OPEN at its
+must-not-get-worse bound until the owner answers.
+
+**Awaiting the orchestrator's acceptance:** the three- and four-number
+readings (ledger K-P4-06). The recorded target is 550 outside and 0
+missed. The integrated tree of 2026-09-19 measures 609 and 3, where
+e53d5f4 measured 597 and 7. G6.5a's push made the move, trading twelve
+agreements for four above-counts, and the pin's ceiling on agreements
+outside was raised from 597 to 609 inside merge 604fdce. The orchestrator
+is to accept that trade or revert the push.
+
+**Open, and needing no ruling:** the pairing walk of G6B.4, the open
+cause of the readings' distance from 550 and 0. Also open are the
+carried width, band and layout defects:
 P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
 G5.2 band split, `build_document`'s read floor (documented, not
 enforced) and the unmirrored G6.6 and G6.7. The KPI ledger carries each

@@ -24,8 +24,11 @@ from the published spread, keeps every published rung and meets the
 spread exactly (the second test below) -- but the G12.3 window is drawn
 from the SAME straight reading (the third test), so mending G5.3 alone
 would turn a faithful twin into a miss on 20 columns of 20. Any repair
-is G5.3 and G12.3 together, it moves the bytes of every numeric twin,
-and it is put to the owner as a question in the plan entry K-P3-03.
+is G5.3 and G12.3 together, and it moves the bytes of every numeric
+twin. The orchestrator deferred it to stage 3 on 2026-09-18, under the
+owner's principle of 2026-09-17 ("build after the machinery of stage
+3"); the owner may reverse that (the plan's owner decisions of
+2026-09-18, and the ledger's K-P3-03).
 
 WHAT IS PINNED, so that a correct repair stays green and a worse twin
 turns red: the twin's spread against the published one, on BOTH sides;
