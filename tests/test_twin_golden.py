@@ -1493,7 +1493,18 @@ GOLDEN_TWIN_SHA256 = (
     # `record_code`'s 240 cells opens with the published `R`, `Z09235`
     # becoming `R55235` (plan P4-D202, owner ruling of 2026-09-17 item 1).
     # No other column moved from either side's recording.
-    "d7c9051a6b73c078ca152672527672ccc2c7a6e3e187bf02ecaf4840c0633f2c"
+    #
+    # RE-RECORDED AT THE REPAIR OF LEDGER K-P4-06 (2026-09-18): inside a
+    # joined position a saturated grid is walked first and only the points
+    # the walk leaves empty are filled (method G6.5a), where the fill in
+    # order had moved the whole run of strata between a doubled point and
+    # an empty one. `pressure`'s systolic position -- 120 different values
+    # between 100 and 219 -- still holds all 120 and its diastolic all
+    # 100. Diffed cell by cell against e53d5f4 at this seed: 20 cells of
+    # `pressure` differ and every other column is byte-identical; the
+    # column still holds 240 different cells and 202 rows with the first
+    # number above the second; the description digest held.
+    "a7820a0dfea682bf5b4de54666235712e05199d5a8b77e1a27e39b55da69a98d"
 )
 
 
@@ -2005,7 +2016,14 @@ GOLDEN_REPORT_SHA256 = (
     # keeps the old wording, because there the count is still of raw
     # present spellings. The twin's own digest above did NOT move, so
     # not one cell of the twin changed with it.
-    "415ded5df4f0bb4ae841cc65ace7f62e2025f86841dc5701a21b2041aaf2f04a"
+    #
+    # RE-RECORDED AT THE REPAIR OF LEDGER K-P4-06 (2026-09-18), read line
+    # by line against e53d5f4, for the twin's one moved column above: only
+    # the achieved moments printed for `pressure`'s two positions moved --
+    # each position's mean, spread, skew and tail weight -- and every one
+    # still sits inside its window. No sentence, no deviation and no
+    # other column moved.
+    "cfcaf12046f3f3f40b13786e39d4a6169963ce2ca99e6e988df15f12af020503"
 )
 
 
@@ -2691,7 +2709,13 @@ GOLDEN_QUALITY_SHA256 = (
     # that the report beside it says so when it does not. Read against
     # the previous report line by line, those two lines are the only ones
     # that differ.
-    "aed2e30afaf5abc0c87d4b9ad24a9a0a5a8184c6f6efe96cf96abdec0d2706cc"
+    #
+    # RE-RECORDED AT THE REPAIR OF LEDGER K-P4-06 (2026-09-18), read line
+    # by line against e53d5f4: only the values found for `pressure`'s two
+    # positions' moments moved, eight lines. Not one verdict moved: the
+    # census is the same 532 obligations, 466 HELD and 66 within a
+    # window, nothing missed.
+    "13c55446ed74d544200b2d52cee4415ceb1d7be1cfd5f284d3a0fbff9f3ecf93"
 )
 
 

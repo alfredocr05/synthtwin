@@ -2967,6 +2967,40 @@ walked landed on a point another stratum still needed, and the twin wrote
 400 different spellings of 395, 392 and 391 numbers at seeds 4, 1 and 7
 while the real table held 400.
 
+**INSIDE ONE POSITION OF A JOINED COLUMN THE GRID IS WALKED FIRST, AND
+ONLY ITS LEFTOVER POINTS ARE FILLED** (ledger K-P4-06). A position is
+handed to these rules as a column of its own (G6B.2). Where it is a
+saturated grid -- the case above, on the integers or on any written grid
+-- the fill in order is not taken: the published levels below and then
+the walk place the strata as they would on a grid with room, and every
+grid point they leave empty is filled afterwards. While a point is
+empty, one stratum moves onto one: only a stratum whose text another
+stratum also holds, never the first or last stratum, never the zero
+stratum, and only onto a point its sign band holds; of those moves the
+one taken has the smallest product of the stratum's size and the
+distance moved, then the smaller distance, then the earlier stratum,
+then the lower point. A stratum that has moved holds its point alone.
+The position then holds every number it publishes, as the fill in order
+would have it.
+
+The reason is the pairing. The fill in order gives stratum `k` the
+`k`-th point whatever point the ladder put it at, so the whole run of
+strata between a doubled point and an empty one moves one point off the
+ladder together, and inside a position that moves which rows stand
+above another position's numbers -- `part_above`, an exact fact of every
+pair (G6B.4a). Measured on the twelve-column battery of three and four
+positions at forty seeds, 2,160 pairs: with the fill in order, 7
+above-counts are missed and 597 agreements lie outside G12.9's window;
+with the walk and its leftover points, 1 and 604. Every assignment that
+meets a saturated position's count moves that position off the ladder
+somewhere, and the battery's column `first/second/third/100 - first`
+shows the cost: the walk alone leaves 56 agreements of that column's
+240 outside the window where the fill in order leaves 110 and the
+leftover fill 115 -- but at seed 2 the walk alone holds 50 of the 51
+numbers each of that column's first and fourth positions publishes, and
+over the battery it leaves 185 more position runs of 1,680 short of
+their count, which is an exact fact of each position.
+
 **AND ON EVERY WRITTEN GRID, NOT ONLY THE INTEGERS** (plan P4-D176, the
 final skeptic of the merged repairs). Where the grid is `f > 0` figures,
 both published ends are points of it — each end's grid text at `f`
@@ -9829,7 +9863,9 @@ sixth file then stood within a few kilobytes of the cap -- and
 extra review round of 2026-09-18 added, the five of its date pass (plans
 P4-D254 to P4-D258) and the two of its number pass, G6.5a's last resort
 on the REPRESENTABLE grid (plan P4-D269) and G6.5's visiting order for
-the distinct-spelling repair (plan P4-D265), through the entry point
+the distinct-spelling repair (plan P4-D265), and after that round the
+saturated grid walked first inside a joined position and only its
+leftover points filled (ledger K-P4-06), through the entry point
 `tools/reference/make_generation_branch_vectors_6.py`. **That eighth file
 is where the round's two branches MET.** Each built its own cases into
 the seventh, and merged they took it to 276235 bytes against the cap, so
@@ -10153,7 +10189,11 @@ seventh file; merged, that file stood at 276235 bytes against the
 250000-byte cap, so all seven moved into
 `tests/reference/generation-branch-vectors-6.json` together.
 
-**All ninety-five are required.** The count is taken off the committed
+**The repair of ledger K-P4-06 adds one to the eighth file:**
+`joined_saturated_position`, G6.5a's saturated grid walked first inside
+a joined position and only its leftover points filled.
+
+**All ninety-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10169,7 +10209,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds seven (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds eight (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10192,6 +10232,7 @@ case passed, which is the failure the count exists to prevent:
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
+| `joined_saturated_position` | G6.5a's saturated grid inside a joined position (ledger K-P4-06): thirty-three cells of two numbers, each position `saturated_integers`'s own column, twenty-two different whole numbers between the ends one and twenty-two. Each position is walked as on a grid with room, which leaves one point empty and one doubled, and the empty point is taken by the doubled stratum moving the fewest rows the least distance, so each position holds all twenty-two. Its mutant takes the fill in order inside the positions as on a plain column and eighteen cells move; with the leftover step withdrawn instead, each position holds twenty-one numbers and twenty-four cells move |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |

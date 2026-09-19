@@ -771,13 +771,13 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
 
     TWO COLUMNS, ONE FOR EACH HALF, both five positions and 150 rows:
 
-    - `_tight_column(0)` at seed 2 goes red under `tries % 2` -- pair
-      (0, 1) misses its published above-count (at seed 0, before the
-      seeds moved, it held 49 rows against a published 64), and
-      position 1 is that pair's only mover;
-    - `_tight_column(5)` at seed 1 goes red under `(tries + 1) % 2`,
+    - `_tight_column(0)` at seed 0 goes red under `tries % 2` -- pair
+      (0, 1) misses its published above-count, 60 rows against a
+      published 64, and position 1 is that pair's only mover;
+    - `_tight_column(5)` at seed 0 goes red under `(tries + 1) % 2`,
       the phase flip, which starves the other half -- pair (0, 4)
-      misses, and position 4 is that pair's only mover.
+      misses, 67 rows against 73, and position 4 is that pair's only
+      mover.
 
     Either mutant alone leaves the other column green, which is why
     both are here: a test built on one of them would bless the gate
@@ -801,8 +801,21 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
     at seed 2 misses pair (0, 1) under `tries % 2` alone, and
     `_tight_column(5)` at seed 1 misses pair (0, 4) under the phase flip
     alone.
+
+    AND THE SEEDS CAME BACK TO NOUGHT (ledger K-P4-06). The repair of
+    that ledger item walks a saturated grid inside a joined position
+    first and fills only the points the walk leaves empty, and the
+    tight columns' arrangements moved again: 6 runs of 80 miss an
+    above-count under the shipped gate, and at the moved seeds the
+    witnesses had stopped biting -- `_tight_column(0)` at seed 2 meets
+    every count under `tries % 2`, so the test passed with that mutant
+    written in. Measured on the repaired tree with each mutant written
+    in, seed 0 is again the first seed where the shipped gate meets
+    every count on both columns and each mutant misses the pair only its
+    starved half moves, and each mutant alone leaves the other column
+    green there.
     """
-    for which, seed in ((0, 2), (5, 1)):
+    for which, seed in ((0, 0), (5, 0)):
         _document, loaded, _folder, _table = _described(_tight_column(which))
         column = loaded.columns[0]
         facts = column.facts

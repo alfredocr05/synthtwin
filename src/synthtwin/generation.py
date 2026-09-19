@@ -11083,8 +11083,116 @@ def _apart_enough(
     # A GRID WITH NO SPARE POINT IS FILLED IN ORDER, not walked (plan
     # P4-D147): see `_saturated_integers`.
     saturated = _saturated_integers(layout, rungs, values, figures, facts)
-    if saturated is not None:
+    if saturated is None:
+        return _apart_unfilled(
+            column, facts, layout, rungs, values, figures, keep_whole
+        )
+    if not _inside_a_joined_position(column):
         return saturated
+    # INSIDE ONE POSITION OF A JOINED COLUMN THE GRID IS WALKED FIRST AND
+    # ONLY ITS LEFTOVER POINTS ARE FILLED (ledger K-P4-06). The fill hands
+    # stratum k the k-th point whatever point the ladder put it at, so the
+    # whole run of strata between a collision and a gap moves one point
+    # off the ladder together, and inside a position that moves which
+    # rows stand above another position's numbers -- `part_above`, an
+    # exact pair fact. Measured over twelve columns of three and four
+    # positions at forty seeds, 2,160 pairs: with the fill in order, 7
+    # above-counts missed and 597 agreements outside G12.9's window; with
+    # the walk and then the leftover points, 1 and 604, and every
+    # position still holds every number it publishes. Withdrawing the
+    # fill from positions altogether reaches 546 and 1 only by leaving
+    # 185 more position runs of 1,680 short of their published count,
+    # which is an exact fact the plan holds a position to.
+    walked = _apart_unfilled(
+        column, facts, layout, rungs, values, figures, keep_whole
+    )
+    return _onto_leftover_points(layout, walked, saturated, figures)
+
+
+def _onto_leftover_points(
+    layout: "_NumericLayout",
+    walked: "list[float]",
+    points: "list[float]",
+    figures: int,
+) -> "list[float]":
+    """The grid points a walk left empty, each taken by a doubled stratum.
+
+    Ledger K-P4-06, method G6.5a. `points` is every point of a saturated
+    grid, one per stratum; `walked` is where the separation walk left the
+    strata, some of them still sharing a point. While a point is empty,
+    the stratum that moves onto one is chosen among the strata sharing
+    their point with another -- never the first or last stratum, whose
+    values are the published ends, never the zero stratum, and only onto
+    a point its sign band holds -- as the one moving the fewest rows the
+    least distance: the smallest product of its size and the distance,
+    then the smaller distance, then the earlier stratum, then the lower
+    point. A stratum that has moved holds its point alone and is not
+    moved again.
+
+    Guarantees: accepts the layout, the walked values, the saturated
+    grid's points and its figures; returns values of the same length.
+    Determinism: a fixed function of the inputs. Raises nothing. No I/O
+    of any kind.
+    """
+    moved = [value for value in walked]
+    total = len(moved)
+    held: "dict[str, int]" = {}
+    for value in moved:
+        text = _grid_text(value, figures)
+        held[text] = (held[text] + 1) if text in held else 1
+    empty: "list[float]" = []
+    for point in points:
+        if _grid_text(point, figures) not in held:
+            empty += [point]
+    while empty:
+        best: "tuple[float, float, int, int] | None" = None
+        for index in range(1, total - 1):
+            if layout.bands[index] == _BAND_ZERO:
+                continue
+            if held[_grid_text(moved[index], figures)] < 2:
+                continue
+            for place in range(len(empty)):
+                point = empty[place]
+                band = layout.bands[index]
+                if band == _BAND_NEGATIVE and point >= 0.0:
+                    continue
+                if band == _BAND_POSITIVE and point <= 0.0:
+                    continue
+                distance = abs(point - moved[index])
+                key = (
+                    float(layout.sizes[index]) * distance,
+                    distance,
+                    index,
+                    place,
+                )
+                if best is None or key < best:
+                    best = key
+        if best is None:
+            break
+        index = best[2]
+        place = best[3]
+        held[_grid_text(moved[index], figures)] -= 1
+        moved[index] = empty[place]
+        held[_grid_text(moved[index], figures)] = 1
+        empty = empty[:place] + empty[place + 1:]
+    return moved
+
+
+def _apart_unfilled(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+    figures: int,
+    keep_whole: bool,
+) -> "list[float]":
+    """G6.5a where no saturated grid's fill answers: levels, then the walk.
+
+    The tail of `_apart_enough`, split out so a joined position can walk
+    a saturated grid before its leftover points are filled (ledger
+    K-P4-06). Guarantees, determinism and raising are `_apart_enough`'s.
+    """
     # AND A COLUMN WHOSE PUBLISHED VALUES ARE EXACTLY ITS STRATA TAKES
     # THEM (plan P4-D178): see `_saturated_levels`.
     levels = _saturated_levels(layout, rungs, values, figures, facts)
@@ -11168,6 +11276,20 @@ def _apart_enough(
         if len(held) == before_round:
             break
     return moved
+
+
+def _inside_a_joined_position(column: contract.ColumnBlock) -> bool:
+    """Whether this block is one position of a joined column (G6.5a, G6B.2).
+
+    `_part_view` hands each position over as a numeric column of its own
+    and keeps the joined role on it, so the role is what says the
+    numbers built here will be paired with another position's.
+
+    Guarantees: accepts a column block; answers True exactly where its
+    role is the joined role. Determinism: a fixed function of the role.
+    Raises nothing. No I/O of any kind.
+    """
+    return column.role == contract.ROLE_JOINED
 
 
 def _saturated_integers(
