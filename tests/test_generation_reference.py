@@ -3446,8 +3446,10 @@ def _no_unit_past_the_neighbours(*arguments, **named):
 
     The traded merge asks the same search with ``flip`` set, and keeps
     it: only the offer of a held unit of the run's OWN kind is withdrawn.
+    ``flip`` is the thirteenth positional argument since the search took
+    its sorted ``order`` after ``spot`` (K-2B-14).
     """
-    flip = arguments[11] if len(arguments) > 11 else named.get("flip", False)
+    flip = arguments[12] if len(arguments) > 12 else named.get("flip", False)
     if flip:
         return _GENERATOR_NEAREST_HELD_UNIT(*arguments, **named)
     return None

@@ -18776,6 +18776,7 @@ def _distinct_reached(
         spot: "dict[int, int]" = {}
         for rank in range(parsed):
             spot[moved[rank] // unit] = moved[rank]
+        order = _held_order(facts, spot, day, step, widths, word)
         first = 0
         while first < parsed:
             last = first
@@ -18820,7 +18821,7 @@ def _distinct_reached(
                 # run stayed where it was however many rounds ran.
                 other_unit = _nearest_held_unit(
                     facts, moved[first], lows[first], highs[first], day, step,
-                    unit, held, spot, widths, word,
+                    unit, held, spot, order, widths, word,
                 )
                 if other_unit is not None and other_unit not in reached:
                     options += [
@@ -18871,20 +18872,24 @@ def _distinct_reached(
     splits: "list[tuple[int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
     # it is searched once: a column of moments to the minute over months
-    # would otherwise search every shared rank's whole gap again.
-    full: "dict[tuple[int, int], bool]" = {}
+    # would otherwise search every shared rank's whole gap again. A split
+    # leaves its own unit held and holds one more, so the units held only
+    # grow in this pass and a gap found full stays full for the rest of
+    # it; `_full_gap` names what the answer None depends on.
+    full: "dict[tuple[int, int, bool], bool]" = {}
     for rank in range(parsed):
         if pinned[rank] or held[moved[rank] // unit] < 2:
             continue
-        if (lows[rank], highs[rank]) in full:
+        gap = _full_gap(facts, moved[rank], lows[rank], highs[rank], day, widths, word)
+        if gap is not None and gap in full:
             continue
         found = _nearest_free_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit, held,
             widths, word,
         )
         if found is None:
-            if not widths and day == 1:
-                full[(lows[rank], highs[rank])] = True
+            if gap is not None:
+                full[gap] = True
             continue
         splits += [(abs(found - moved[rank]), rank, found)]
     for split in sorted(splits):
@@ -18898,10 +18903,15 @@ def _distinct_reached(
         if split[2] // unit in held and held[split[2] // unit] > 0:
             # TAKEN BY AN EARLIER SPLIT: the rank is offered the nearest
             # unit still free when its turn comes.
-            found_now = _nearest_free_unit(
-                facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-                held, widths, word,
-            )
+            found_now = None
+            gap = _full_gap(facts, moved[rank], lows[rank], highs[rank], day, widths, word)
+            if gap is None or gap not in full:
+                found_now = _nearest_free_unit(
+                    facts, moved[rank], lows[rank], highs[rank], day, step, unit,
+                    held, widths, word,
+                )
+                if found_now is None and gap is not None:
+                    full[gap] = True
         if found_now is None:
             continue
         held[own] = held[own] - 1
@@ -18965,6 +18975,7 @@ def _traded_merges(
         spot: "dict[int, int]" = {}
         for rank in range(parsed):
             spot[moved[rank] // unit] = moved[rank]
+        order = _held_order(facts, spot, day, step, True, word)
         best: "tuple[int, int, int, int] | None" = None
         first = 0
         while first < parsed:
@@ -18981,7 +18992,7 @@ def _traded_merges(
             if loose:
                 target = _nearest_held_unit(
                     facts, moved[first], lows[first], highs[first], day, step,
-                    unit, held, spot, widths, word, True,
+                    unit, held, spot, order, widths, word, True,
                 )
                 if target is not None and held[moved[first] // unit] == (
                     last - first + 1
@@ -19004,7 +19015,7 @@ def _traded_merges(
         gaining = _counts_into_width(facts, target // day, word)
         paid = _repaid_standings(
             facts, moved, pinned, lows, highs, day, step, unit, held, spot,
-            word, size, not gaining, own, target // unit,
+            order, word, size, not gaining, own, target // unit,
         )
         if len(paid) < size:
             for rank in sorted(paid):
@@ -19045,6 +19056,7 @@ def _repaid_standings(
     unit: int,
     held: "dict[int, int]",
     spot: "dict[int, int]",
+    order: "dict[tuple[int, int], list[int]]",
     word: str,
     wanted: int,
     gaining: bool,
@@ -19078,7 +19090,7 @@ def _repaid_standings(
             continue
         target = _nearest_held_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-            held, spot, True, word, True, skip,
+            held, spot, order, True, word, True, skip,
         )
         if target is None:
             continue
@@ -19256,6 +19268,63 @@ def _same_standing(
     return True
 
 
+def _held_order(
+    facts: contract.DatetimeFacts,
+    spot: "dict[int, int]",
+    day: int,
+    step: int,
+    widths: bool,
+    word: str = "",
+) -> "dict[tuple[int, int], list[int]]":
+    """The units ranks hold, in order, filed by the standing each stands at.
+
+    WHAT `_nearest_held_unit` SEARCHES, BUILT ONCE PER `spot` (ledger
+    K-2B-14). The search walked outward from a run's own unit one unit at
+    a time, and on a column counted in seconds a unit is a SECOND: the
+    nearest held unit of a moment's own standing lies hours or days away,
+    so each search stepped tens of thousands of empty seconds: on
+    `_partly(2000, 0.7, 2)` at seed 4 its 1,222 searches asked the table
+    of held units 190,524,866 questions, where these ask 2,444
+    (`tests/test_held_unit_search.py` counts both).
+    Every candidate the walk can accept is a key of `spot`, and whether
+    it keeps the standing is a fact about the instant `spot` names for it
+    alone -- the width kind of its day (`_counts_into_width`) and, on a
+    column counted in seconds, whether it is written at midnight -- so
+    the keys are sorted once and filed under each standing a search can
+    ask for, and a search visits only keys of the standing it wants.
+
+    The file is keyed by two selectors: the first is 0 or 1 for a width
+    kind the unit's day does not or does count into, 2 for either; the
+    second is 0 or 1 for an instant not or written at midnight, 2 for
+    either. Every key of `spot` stands in four lists: its own kind under
+    each selector, and 2. The width kind is read only where ``widths``
+    asks for it; elsewhere every key is filed as kind 0, and no search
+    that did not ask for a width kind reads any selector but 2.
+
+    Guarantees: accepts the facts, the held units' instants by unit, the
+    day and precision steps, whether width kinds are read, and the
+    census word; returns nine lists of units, each in increasing order.
+    Determinism: a fixed function of its arguments. Raises nothing. No
+    I/O of any kind.
+    """
+    order: "dict[tuple[int, int], list[int]]" = {}
+    for kind in (0, 1, 2):
+        for clock in (0, 1, 2):
+            order[(kind, clock)] = []
+    for key in sorted(spot):
+        found = spot[key]
+        kind = 0
+        if widths and _counts_into_width(facts, found // day, word):
+            kind = 1
+        clock = 0
+        if day == 86400 and _written_at_midnight(found, 0, step):
+            clock = 1
+        for filed_kind in (kind, 2):
+            for filed_clock in (clock, 2):
+                order[(filed_kind, filed_clock)] += [key]
+    return order
+
+
 def _nearest_held_unit(
     facts: contract.DatetimeFacts,
     value: int,
@@ -19266,6 +19335,7 @@ def _nearest_held_unit(
     unit: int,
     held: "dict[int, int]",
     spot: "dict[int, int]",
+    order: "dict[tuple[int, int], list[int]]",
     widths: bool,
     word: str = "",
     flip: bool = False,
@@ -19279,48 +19349,129 @@ def _nearest_held_unit(
     at one distance, of the same width kind and midnight standing as the
     run's own. None where there is none.
 
+    THE RULE IS A WALK OUTWARD ONE UNIT AT A TIME, AND THIS DOES NOT TAKE
+    IT (ledger K-2B-14). A unit `away` units off the run's own is a
+    candidate when its instant `value - away * unit` (earlier) or `value
+    + away * unit` (later) lies inside the bounds; the first candidate,
+    by distance and then earlier before later, that ranks hold, whose
+    held instant lies inside the bounds, that is not ``skip`` and that
+    keeps the standing is the answer. Only keys of `spot` can pass, and
+    `_held_order` has filed them by standing, so the search walks the
+    sorted keys of the one standing it wants outward from the run's own
+    unit -- a binary search places it, and two cursors take the nearer
+    key next, the earlier on a tie -- and stops where both sides have
+    left the bounds. It visits the keys the walk would have accepted but
+    for their held count, bounds or ``skip``, in the walk's own order, so
+    its answer is the walk's answer, and it no longer steps across the
+    empty seconds between them.
+
     Guarantees: accepts the facts, the run's instant and bounds, the day
     and precision steps, the unit, the units ranks hold with one instant
-    each, and the standing to keep; returns an instant a rank holds or
-    None. Determinism: a fixed function of its arguments. Raises nothing.
-    No I/O of any kind.
+    each, those units filed by `_held_order` from the same ``spot`` (with
+    width kinds read wherever ``widths`` or ``flip`` is set), and the
+    standing to keep; returns an instant a rank holds or None.
+    Determinism: a fixed function of its arguments. Raises nothing. No
+    I/O of any kind.
     """
-    away = 1
+    kind = 2
+    if flip:
+        # THE OTHER WIDTH STANDING, THE SAME MIDNIGHT ONE (plan P4-D258):
+        # this is the half of a trade, and a trade gives the width count
+        # back with its other half.
+        kind = 0 if _counts_into_width(facts, value // day, word) else 1
+    elif widths:
+        kind = 1 if _counts_into_width(facts, value // day, word) else 0
+    clock = 2
+    if day == 86400:
+        clock = 1 if _written_at_midnight(value, 0, step) else 0
+    keys = order[(kind, clock)]
+    origin = value // unit
+    # The first key at or after the run's own unit, by halving.
+    low = 0
+    high = len(keys)
+    while low < high:
+        middle = (low + high) // 2
+        if keys[middle] < origin:
+            low = middle + 1
+        else:
+            high = middle
+    below = low - 1
+    above = low
+    if above < len(keys) and keys[above] == origin:
+        above = above + 1
+    # The farthest distance, in units, whose earlier and later instants
+    # stay inside the bounds.
+    reach_down = (value - lowest) // unit
+    reach_up = (highest - value) // unit
     while True:
-        earlier = value - away * unit
-        later = value + away * unit
-        if earlier < lowest and later > highest:
+        down = reach_down + 1
+        if below >= 0:
+            down = origin - keys[below]
+        up = reach_up + 1
+        if above < len(keys):
+            up = keys[above] - origin
+        if down > reach_down and up > reach_up:
             return None
-        for candidate in (earlier, later):
-            if candidate < lowest or candidate > highest:
-                continue
-            key = candidate // unit
-            if key not in held or held[key] <= 0:
-                continue
-            if key not in spot:
-                continue
-            found = spot[key]
-            if found < lowest or found > highest:
-                continue
-            if key == skip:
-                continue
-            if flip:
-                # THE OTHER WIDTH STANDING, THE SAME MIDNIGHT ONE (plan
-                # P4-D258): this is the half of a trade, and a trade
-                # gives the width count back with its other half.
-                if _counts_into_width(facts, found // day, word) == _counts_into_width(
-                    facts, value // day, word
-                ):
-                    continue
-                if day == 86400 and _written_at_midnight(
-                    found, 0, step
-                ) != _written_at_midnight(value, 0, step):
-                    continue
-                return found
-            if not _same_standing(facts, value, found, day, step, widths, word):
-                continue
-            return found
-        away = away + 1
+        if down <= reach_down and (up > reach_up or down <= up):
+            key = keys[below]
+            below = below - 1
+        else:
+            key = keys[above]
+            above = above + 1
+        if key not in held or held[key] <= 0:
+            continue
+        found = spot[key]
+        if found < lowest or found > highest:
+            continue
+        if key == skip:
+            continue
+        return found
+
+
+def _full_gap(
+    facts: contract.DatetimeFacts,
+    value: int,
+    lowest: int,
+    highest: int,
+    day: int,
+    widths: bool,
+    word: str = "",
+) -> "tuple[int, int, bool] | None":
+    """What a free search's None depends on, where that is the gap and the kind.
+
+    A GAP FULL FOR ONE RANK IS FULL FOR EVERY RANK OF ITS KIND (ledger
+    K-2B-14, the skeptic's leftover). On a column counted in whole days
+    the unit is a day, so `_nearest_free_unit` walks every day of the
+    bounds but the run's own, which is held; the walk finds nothing
+    exactly when no day of the bounds is free and keeps the standing, and
+    on such a column the standing is the width kind of the day alone
+    (`_same_standing`) -- nothing else about the run's own day. So two
+    ranks with the same bounds and the same kind get the same None from
+    the same held units, and from any held units that include them. The
+    memo was kept only where ``widths`` was off, and never for a rank
+    searched again because an earlier split took its day, so a column
+    with a width census searched every shared rank's gap again: 20,000
+    dates written m/d/Y over 2,000 days, every day held, searched 19,989
+    times and asked the table of held units 13,445,643 questions to
+    learn nine answers; keyed by gap and kind, 3,008 and 973,675.
+
+    On a column counted in seconds the candidates are the run's own
+    instant moved by whole units and the standing reads the clock too,
+    so the answer is not a fact about the bounds; there this names
+    nothing and every rank is searched, as before.
+
+    Guarantees: accepts the facts, the run's instant and bounds, the day
+    step, whether the width kind is kept, and the census word; returns
+    the bounds with the kind (false where ``widths`` is off) where the
+    day step is one, else None. Determinism: a fixed function of its
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    if day != 1:
+        return None
+    kind = False
+    if widths:
+        kind = _counts_into_width(facts, value // day, word)
+    return (lowest, highest, kind)
 
 
 def _nearest_free_unit(
@@ -19335,11 +19486,47 @@ def _nearest_free_unit(
     widths: bool,
     word: str = "",
 ) -> "int | None":
-    """The nearest instant on a unit no rank holds, keeping its standing."""
+    """The nearest instant on a unit no rank holds, keeping its standing.
+
+    The rule is a walk outward one unit at a time, earlier before later at
+    one distance: the first candidate `value - away * unit` or `value +
+    away * unit` inside the bounds, on a unit no rank holds, that keeps
+    the run's standing (`_same_standing`). None where there is none.
+
+    A MIDNIGHT IS SOUGHT A DAY AT A TIME (ledger K-2B-14). On a column
+    counted in seconds or minutes a unit is one precision step, and a run
+    at midnight keeps its standing only on another midnight: where the
+    unit is that step and the step divides a day (both hold on every
+    column that reaches here, and the jump is taken only where they do),
+    and the run's own unit starts a day, the candidates that start a day
+    are exactly those a whole number of days away, and every other
+    candidate fails `_same_standing`. Walking the steps
+    between them stepped across 86,400 seconds a day to find a free
+    midnight days off -- 763 searches of one 1,000-row column asked the
+    table of held units 256,954,962 questions, where these ask 4,330
+    (`tests/test_held_unit_search.py` counts both). So such a run walks
+    whole days instead, in the same order and under the same tests, and
+    meets the same answer first.
+
+    Guarantees: accepts the facts, the run's instant and bounds, the day
+    and precision steps, the unit (the step where a day is 86,400), the
+    units ranks hold, whether the width kind is kept, and the census
+    word; returns a free instant keeping the standing, or None.
+    Determinism: a fixed function of its arguments. Raises nothing. No
+    I/O of any kind.
+    """
+    by = unit
+    if (
+        day == 86400
+        and unit == step
+        and 86400 % step == 0
+        and _written_at_midnight(value, 0, step)
+    ):
+        by = 86400
     away = 1
     while True:
-        earlier = value - away * unit
-        later = value + away * unit
+        earlier = value - away * by
+        later = value + away * by
         if earlier < lowest and later > highest:
             return None
         for candidate in (earlier, later):
