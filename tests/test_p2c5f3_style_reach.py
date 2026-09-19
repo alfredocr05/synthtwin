@@ -227,7 +227,12 @@ def test_every_named_style_count_comes_out_exactly(
                 given_up += [(name, seed)]
     # Measured at the stage-2b integration: eleven runs of 1,920, on three
     # columns (mixed-22 at seven seeds, mixed-58 and mixed-100 at two).
-    assert len(given_up) <= 11, given_up
+    # Re-measured on e53d5f4 for the KPI ledger (K-P2-11): eight runs, all
+    # of them on mixed-22, so the bound falls to eight and names the
+    # column -- a short run on any NEW column is a regression the old
+    # bound of eleven would have let through.
+    assert len(given_up) <= 8, given_up
+    assert {name for name, _seed in given_up} <= {"mixed-22"}, given_up
 
 
 def test_the_map_is_not_bought_with_another_exact_count(
