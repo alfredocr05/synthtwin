@@ -1,8 +1,8 @@
 {
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
- "base_commit": "e53d5f4",
- "measurement_note": "Every value_at was measured on the product of e53d5f4 on the reference machine, 2026-09-18/19, while other agents' suites held its load average between 9 and 26: the seconds recorded are inflated about two to three times against a quiet machine, and the counts and ratios are not. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression.",
+ "base_commit": "caf3079",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -43,8 +43,9 @@
    "measured_on": "src/synthtwin of the frozen commit",
    "evidence": "20 of 20 source files, 0 violations",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -77,8 +78,9 @@
    "measured_on": "synthetic modules written by each test",
    "evidence": "79 red-mutation tests, all red (import, importlib, EntryPoint, subprocess, os.spawnv, ctypes, getattr, sys.path, unlisted pandas attribute, callable in read_csv slot, numpy import)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -109,8 +111,9 @@
    "measured_on": "URL_INPUTS, UNC_INPUTS, DEVICE_INPUTS in tests/test_paths.py",
    "evidence": "18 of 18 forms refused with 0 filesystem calls",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -142,8 +145,9 @@
    "measured_on": "tests/conftest.py guard",
    "evidence": "socket() and create_connection() both raise from collection time on",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -176,14 +180,15 @@
    "measured_on": "the worktree of this commit",
    "evidence": "418 files scanned, 0 matches (2,065-entry manifest). The existing test passes when 0 files are walked: on a copy under a 'build' folder, check.py printed 'clean' after scanning 0 files",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "tests and the SLOW driver",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "exit": 0,
-     "files_listed": 436,
-     "files_scanned": 436,
-     "matches": 0
+     "files_listed": 446,
+     "files_scanned": 446,
+     "matches": 0,
+     "pinned_nodes_failing": 0
     }
    },
    "key_kinds": {
@@ -216,8 +221,9 @@
    "measured_on": "synthetic trees with the canary 'zqvortex'",
    "evidence": "72 of 72 pass (content forms, filenames, 5 BOM encodings, fullwidth spellings, 22 magic signatures, tampered or wrong-key attestations)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -247,8 +253,9 @@
    "measured_on": "tools/decontamination/attestation.json and .sig",
    "evidence": "verified: signature, v2 shape, scanner tree, manifest, counts (entry_count 2065)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "exit": 0,
      "pinned_nodes_failing": 0
@@ -280,8 +287,9 @@
    "measured_on": "tools/provenance/fixture-manifest.json",
    "evidence": "9 of 9 fixtures byte-identical; 0 unlisted data files; largest 249,482 of 250,000 bytes",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -314,8 +322,9 @@
    "measured_on": "pyproject.toml and the lock files",
    "evidence": "{pandas, numpy}; lock carries --only-binary :all:; allowlists name all 20 modules",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -347,8 +356,9 @@
    "measured_on": "fixtures.every_role_table(seed 20260807, 240 rows); _random_table seeds 0-5",
    "evidence": "0 leaks: 0 of 20 codes and 0 of 20 notes on the 240x13 demo; 0 of 15 each on 6 random tables",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -380,8 +390,9 @@
    "measured_on": "one hand-built column per role; fixtures.prose(60) plus 'withheld-token-417'",
    "evidence": "3 of 3 nothing-publishing roles hold only named counts or '(withheld)'; a declared --missing-value token appears 0 times",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -412,8 +423,9 @@
    "measured_on": "every_role_table 240x13 at floor 11",
    "evidence": "'outlying' (about 7 of 240 rows) absent from JSON, summary and screen; suppressed_levels 1",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -448,8 +460,9 @@
    "measured_on": "tests/reference/numeric-reference-vectors.json (16 cases incl. cancelling extremes, 1e15 integers)",
    "evidence": "222 of 222 published numbers exactly correctly rounded (0 floats apart) over 16 cases; permuted cases identical",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "beyond_one_step": 0,
      "exact": 222,
@@ -494,8 +507,9 @@
    "measured_on": "every_role_table(seed 20260807) at floor 11",
    "evidence": "sha256 1eb70ad1...a005c; two runs identical; no path, time or host written",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -527,8 +541,9 @@
    "measured_on": "300 files from random.Random(20260808)",
    "evidence": "0 false refusals on 300 seeded well-formed files; the reviewer's disagreeing bytes and short rows are refused with the row named",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -560,8 +575,9 @@
    "measured_on": "_random_table seeds 0-11, 20-300 rows x 7 columns",
    "evidence": "84 of 84 columns over 12 random tables: present + missing == rows; percentile rungs non-decreasing",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -592,8 +608,9 @@
    "measured_on": "random.Random(20260808), 400 columns; ALL_SHAPES",
    "evidence": "0 of 400 random undeclared columns and 0 of 18 hand shapes reach the identifier role",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -625,8 +642,9 @@
    "measured_on": "synthetic columns of 95, 100, 20,000 values",
    "evidence": "99 of 100 parsing is numeric; categorical ceiling max(2, min(1000, rows/10)): 10 labels in 100 rows categorical, 11 not",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -659,8 +677,9 @@
    "measured_on": "synthetic single columns",
    "evidence": "15 x -999 among 1..199 read as missing (min 1.0); the same in -5000..5000 kept; 15 kept near-neighbours stay present",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -691,8 +710,9 @@
    "measured_on": "one small table profiled fresh and over an earlier profile",
    "evidence": "983 injected stops, 0 violations (guard 68/80 boundaries, module 539)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -724,8 +744,9 @@
    "measured_on": "src/synthtwin/errors.py",
    "evidence": "101 of 101 catalog messages covered, jargon-free",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -756,8 +777,9 @@
    "measured_on": "_HEADED and _HEADERLESS in tests/test_reading_agreement.py",
    "evidence": "8 of 8 headed shapes take names from the file; 5 of 5 headerless shapes named column_1..N",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -789,8 +811,9 @@
    "measured_on": "every_role_table as clinic.csv",
    "evidence": "writes <stem>-profile.json and .txt; demo reads back 240x13; 'not anonymous' printed every run",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -820,8 +843,9 @@
    "measured_on": "taxonomy.profile_column on str(0..N-1)",
    "evidence": "80k/20k time ratio 4.04-4.19 (quadratic would be about 16)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -856,12 +880,13 @@
    "measured_on": "8 committed tests/reference/generation-*.json files",
    "evidence": "95 of 95 (86 column cases, 2,804 cells, plus 9 whole-document cases); the method states 95",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "cases": 95,
-     "column_cases": 86,
-     "column_cells": 2804,
+     "cases": 107,
+     "column_cases": 98,
+     "column_cells": 3377,
      "pinned_nodes_failing": 0
     }
    },
@@ -895,8 +920,9 @@
    "measured_on": "CASE_MUTANTS and DOCUMENT_MUTANTS against tools/reference oracle",
    "evidence": "86 of 86 column cases (71 move cells, 15 stop the oracle); 9 document cases carry 20 mutants",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -928,8 +954,9 @@
    "measured_on": "tools/reference/make_generation_*.py",
    "evidence": "8 of 8 oracle scripts import none of synthtwin, numpy, pandas; 8 of 8 vector files rebuild identical; 4,896 numbers proved",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -961,8 +988,9 @@
    "measured_on": "every_role_and_joined_table 240x14, floor 11, seed 20260811",
    "evidence": "description e387beaf..., twin d7c9051a..., report 415ded5d..., quality report aed2e30a...; 4,873 random words drawn",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -997,8 +1025,9 @@
    "measured_on": "golden every-role table (seed 20260811) and the eight realistic shapes (seed 4)",
    "evidence": "chosen ledger: 0 of 240 golden twin rows equal a real row -- which cannot fail, because the made-up record_code is never real (critic correction). Re-framed: the golden table's 13 other columns reproduce no real row at floors 1 and 11, and the realistic shapes with no identifier reproduce no whole real row; the identifier shapes' copies are K-2B-45",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "B_csv_f11_whole": 0,
      "B_csv_f1_whole": 0,
@@ -1035,8 +1064,9 @@
    "measured_on": "every-role table 240x15 at seed 20260811; golden 240x14",
    "evidence": "golden 116 of 116 inside; every-role twin 89 of 89 inside",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1065,9 +1095,9 @@
    "measured_on": "every-role plus joined description, seeds 0-19",
    "evidence": "2,320 of 2,320 inside; validator missed 0 across seeds 0-19",
    "value_at": {
-    "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "commit": "caf3079",
+    "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "facts": 2320,
      "missed": 0,
@@ -1102,8 +1132,9 @@
    "measured_on": "every-role twin 240 rows, seed 7",
    "evidence": "90 of 90 presence and class recounts equal; every numeric and date column hits both published ends, nothing outside",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1135,8 +1166,9 @@
    "measured_on": "squares of 1..200, seed 7",
    "evidence": "3 of 3 rung mutants refused (ends only, shifted, swapped); shifted mean, squeezed SD refused; faithful layout accepted",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1167,8 +1199,9 @@
    "measured_on": "_styles_text 120 rows seed 3; 60-row label column seed 5",
    "evidence": "120 of 120 cells at their style counts; {yes:15, YES:15, no:15, NO:15} exact",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1199,8 +1232,9 @@
    "measured_on": "240 producer columns x 8 seeds",
    "evidence": "1,912 of 1,920 runs meet every named style count; 8 short (all mixed-22). Tightened on this commit from <= 11 to <= 8 in the pinned test, with the column named",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1234,8 +1268,9 @@
    "measured_on": "every-role twin seed 7",
    "evidence": "record_code 240/240, comment 80/80, undeclared key 60/60 (joined column 240/240 measured, excluded by the test)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1267,8 +1302,9 @@
    "measured_on": "every-role description; 40-row constant column",
    "evidence": "a determined profile is identical at seeds 0 and 2^64-1; seeds outside the ASCII 0..2^64-1 grammar refused before writing",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1298,8 +1334,9 @@
    "measured_on": "narrow every-role table, seed 20260811",
    "evidence": "407- and 416-obligation baselines digest-equal",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1331,8 +1368,9 @@
    "measured_on": "11 descriptions x 3 seeds; CLI plain table",
    "evidence": "33 of 33 runs produce a twin; a second run without --replace changes 0 bytes; every role survives profile-then-generate",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1363,10 +1401,11 @@
    "measured_on": "200 producer identifier columns x seeds 0,1,17,63",
    "evidence": "RED on the frozen copy: class counts exact 800/800, but 24 of 800 runs name another missed fact (pin: 0); layout-short 200. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 2
+     "pinned_nodes_failing": 0
     }
    },
    "nodes_min_collected": 2
@@ -1395,10 +1434,11 @@
    "measured_on": "3-value combinations of POOL x PATTERNS, seed 0",
    "evidence": "RED on the frozen copy: 158 of 3,186 producer columns fall back and miss a count (pin: 0). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 2
+     "pinned_nodes_failing": 0
     }
    },
    "nodes_min_collected": 2
@@ -1428,10 +1468,11 @@
    "measured_on": "every-role twin seed 7; src tree",
    "evidence": "0 deviations when all facts are met; golden run names 3; generator import closure excludes reader and pandas. RED: the plain-words check flags 'str' inside 'stretches' (a false positive). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 1
+     "pinned_nodes_failing": 0
     }
    },
    "nodes_min_collected": 3
@@ -1464,8 +1505,9 @@
    "measured_on": "pinned nodes on e53d5f4",
    "evidence": "completeness critic (headline balance): Phase 2 criteria 3 and 5 had no KPI. Pinned in the repair pass to the existing tests that implement them; 7 cases, all passing on e53d5f4. Criterion 3's recount of every EXACT-OBSERVABLE field is K-P2-08 and its bounds are K-P2-06",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1496,8 +1538,9 @@
    "measured_on": "golden demonstration 240x14, floor 11, seed 20260811",
    "evidence": "532 obligations: 466 held, 66 within window, 0 missed, 0 withheld, 164 not checkable (was 300 at A-P3-40)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1535,14 +1578,15 @@
    "measured_on": "shapes above via the CLI at default options",
    "evidence": "every-role 240 rows: 532/532 held at floor 11, 1,447/1,447 at floor 1; dated 131/131; n/a holes 99/99; fixed two decimals 130/130; exit 0 on all. RED: ap326 [nothing-named] (60 numbers + 12 blanks via build_document) misses bytes.blank-lines. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "held_f1": 1447,
-     "held_f11": 532,
+     "held_f1": 1448,
+     "held_f11": 533,
      "missed_f1": 0,
      "missed_f11": 0,
-     "pinned_nodes_failing": 1,
+     "pinned_nodes_failing": 0,
      "withheld_f1": 0,
      "withheld_f11": 0
     }
@@ -1582,12 +1626,17 @@
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
    "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19. g-spread (merged 2026-09-19): the cause is G5.3's straight outer ladder segment to the exact published extreme, and G12.3's std window is drawn from the same line, so both move together; normal-shaped twins are 1.4 to 3.7 per cent too wide from 5,000 rows up. The pinned node holds 2.2 per cent either way at 5,000 rows",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "missed_20k": 10,
-     "missed_5k": 0
+     "missed_5k": 0,
+     "pinned_nodes_failing": 0,
+     "spread_narrowest_pct_20k": 1.74,
+     "spread_narrowest_pct_5k": 1.07,
+     "spread_widest_pct_20k": 3.83,
+     "spread_widest_pct_5k": 3.11
     }
    },
    "target_stage": "stage 3: deferred by the orchestrator on 2026-09-18 under the owner's principle of 2026-09-17 ('build after the machinery of stage 3'); the owner may reverse",
@@ -1627,8 +1676,9 @@
    "measured_on": "5,000 lognormal(6,1.4) amounts with one outlier, seed 1",
    "evidence": "twin mean +39%, SD +129%: both MISSED, exit 3; the real table exits 0",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1659,8 +1709,9 @@
    "measured_on": "_dated_table 240 rows",
    "evidence": "every date rung of a file moved one year is MISSED; the source misses 0",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1693,8 +1744,9 @@
    "measured_on": "clinic table and perturbed twins",
    "evidence": "0 ran clean; 3 ran and missed (report still written); 1 could not run; 2 bad command line",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1726,8 +1778,9 @@
    "measured_on": "every-role table and clinic table, marker 'zzmarkerzz'",
    "evidence": "0 leaks of the marker across every field and 7 hostile files",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1760,10 +1813,11 @@
    "measured_on": "11 entry-table fixtures, floor 11, seed 20260813",
    "evidence": "RED on the frozen copy: 1,408 red cases over 1,318 sites, 43 sites uncovered, 1 dead case (was 670 over 666, all covered). Vacuity floor >= 3 classes per disposition holds; 11 of 11 fixtures green before perturbation. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 2
+     "pinned_nodes_failing": 0
     }
    }
   },
@@ -1791,8 +1845,9 @@
    "measured_on": "fixtures.zero_rows",
    "evidence": "headed and headerless conforming forms miss 0; 32 registered edits each make their site miss",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1824,8 +1879,9 @@
    "measured_on": "clinic table through the CLI",
    "evidence": "0 generator imports, 0 random draws, inputs byte-unchanged; same report bytes wherever files sit; wrong description gives >= 1 MISSED",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1858,8 +1914,9 @@
    "measured_on": "repository tree; every-role and clinic runs",
    "evidence": "7 claim families, 0 banned sentences; census identity exact; 0 MISSED lines without a value or named reason; a full run leaves exactly 6 files",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1888,12 +1945,12 @@
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
    "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "validate_ratio_4x_rows": 4.06,
-     "validate_seconds_20k": 116.7
+     "validate_ratio_4x_rows": 3.97,
+     "validate_seconds_20k": 70.2
     }
    },
    "key_kinds": {
@@ -1925,8 +1982,9 @@
    "measured_on": "label,number with n/a holes; 280 R-ids + 10 NA + 10 N/A at floor 20",
    "evidence": "60 numbers + 12 'n/a': 99/99 held (was 28 missed); pooled n/a + N/A at floor 11: exit 0 (was exit 3); over-spelled file still exit 3",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1957,8 +2015,9 @@
    "measured_on": "30-row column; floor-1 descriptions",
    "evidence": "producer writes 6, loader reads 6, version 4 refused (split from the floor-1 position set, now K-P3-15)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1988,10 +2047,11 @@
    "measured_on": "pinned node on e53d5f4",
    "evidence": "RED on the frozen copy and on e53d5f4: 6 positions moved by the floor against 4 pinned ((columns,3,field_widths), (columns,3,sentinel_verdicts), (columns,5,date_percentiles), (columns,5,utc_offsets), (columns,6,levels), (columns,6,n_distinct)); in the repair set of the carried-f clusters. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 1
+     "pinned_nodes_failing": 0
     }
    },
    "nodes_min_collected": 1
@@ -2023,8 +2083,9 @@
    "measured_on": "pinned nodes on e53d5f4",
    "evidence": "completeness critic (headline balance): Phase 3 criterion 3 had no KPI. Pinned in the repair pass to the existing tests that implement it; 5 cases, all passing on e53d5f4 (the last node is in a slow file). Its zero-MISSED half is K-P3-01, K-P4-01 and K-P3-09",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2058,8 +2119,9 @@
    "measured_on": "every_role_and_joined_table 240 rows; seeds 20260807,1,2,3,20260813,20260814; headerless FIRST_ROW_DATA at 2 seeds",
    "evidence": "0 missed, 0 withheld at 6 of 6 seeds headed (1,388-1,391 held) and 2 of 2 headerless; 1,447 obligations at floor 1. The test still tolerates 1 miss (R-P4-154) that no longer occurs. The fast test runs 4 of those runs; the pinned test_validation nodes keep their R-P4-154 carve-out",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "missed": 0,
      "pinned_nodes_failing": 0,
@@ -2095,8 +2157,9 @@
    "measured_on": "synthtwin.taxonomy.ROLES",
    "evidence": "15 roles (CHANGELOG says 14; the 15th is the compound role)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2130,8 +2193,9 @@
    "measured_on": "300 rows f'{day:02d}.{month:02d}.24'",
    "evidence": "300 of 300 twin cells parse as dd.mm.yy; 0 missed at seeds 1, 3, 7 (was 151 of 300 not dates)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "cells": 900,
      "missed": 0,
@@ -2168,8 +2232,9 @@
    "measured_on": "240 consecutive days '%d %b %Y', seeds 1,3,5,7,11",
    "evidence": "RED on the frozen copy: 223-238 of 240 at 5 of 5 seeds (n_distinct MISSED); also the B shapes of K-2B-40",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2207,8 +2272,9 @@
    "measured_on": "r_p4_40_pressure 400 rows, seeds 0-39; 400 correlated readings seed 7",
    "evidence": "13 first numbers, 9 second numbers, 110 readings at 40 of 40 seeds, nothing missed; rank agreement 0.8342 vs 0.8343; 400 of 400 rows systolic > diastolic",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "missed": 0,
      "pinned_nodes_failing": 0,
@@ -2249,12 +2315,12 @@
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
    "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "tests and the SLOW driver",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "above_counts_missed": 7,
-     "agreements_outside": 597,
+     "above_counts_missed": 3,
+     "agreements_outside": 609,
      "pairs": 2160,
      "pinned_nodes_failing": 0
     }
@@ -2293,8 +2359,9 @@
    "measured_on": "tight, uneven, closer witnesses, 300 rows",
    "evidence": "0 of 12,000 cells inside the source's gap on 3 two-cluster columns x 40 seeds, floors 1 and 11",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2325,9 +2392,9 @@
    "measured_on": "four plain numeric columns x 40 seeds (r_p4_40 driver)",
    "evidence": "160 of 160 runs exact (was 21 of 40)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "tests and the SLOW driver",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "n_distinct_values_short_runs": 0,
      "pinned_nodes_failing": 0,
@@ -2363,8 +2430,9 @@
    "measured_on": "f'{n:05d}' 240 rows; _dental_rows, _vaccine_rows seeds 1-40; 800 postal codes",
    "evidence": "240/240 cells at width 5; 5+7 mix {5:120, 7:120}; dental and vaccine codes 0 of 40 seeds off-width; no postal code wider than 5",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "dental_seeds_off_width": 0,
      "pinned_nodes_failing": 0,
@@ -2397,8 +2465,9 @@
    "measured_on": "140-code 'NNNN-N' pool, seed 5",
    "evidence": "twin multiset == real multiset; 4 of 4 rollups identical (demo: 228/228 lab codes, was 0)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2433,8 +2502,9 @@
    "measured_on": "_SYSTEMS 240 rows each, seed 3",
    "evidence": "18 of 18 (NDC, CVX, UB-04, NPI, CMS-HCC, HGVS, ClinVar...); before, CVX and UB-04 lost leading zeros",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0,
      "rows_kept": 18,
@@ -2473,10 +2543,11 @@
    "measured_on": "10 schemes x 2 shapes 240 rows seed 7; test_p4r34 code column at floor 11",
    "evidence": "19 of 20 twins fully scheme-shaped (scheme09 tail 227/230, allowed 8 off); dx column 0 group-N cells. RED: form census per level misses 209 vs 206 and 209 vs 204 (8 tests in test_p4r34 + 3 in test_p4d18). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "pinned_nodes_failing": 1
+     "pinned_nodes_failing": 0
     }
    },
    "nodes_min_collected": 2
@@ -2506,8 +2577,9 @@
    "measured_on": "test_p4d61 single columns, 20 holes each",
    "evidence": "NA 20 written 20; 'Not recorded' 20/20; NA + #N/A 20+20; twin re-describes to the same counts (before: every hole blank). Judged stand-ins written blank are taken out of this entry's green value (critic correction): on the every-role table they make pandas read 'reading' as float64 on the twin and int64 on the table",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2538,8 +2610,9 @@
    "measured_on": "every_class fixture 240 rows, floor 11",
    "evidence": "5 of 5 made-up columns carry one sentence, 0 of 2 others; foot and screen counts agree. RED: 3 tests on the all-spellings-below-floor route ({'KINd': 22} at floor 11)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2571,8 +2644,9 @@
    "measured_on": "4-column 300-row clinic table",
    "evidence": "0 table cells of 3+ characters in any question; written every run; same bytes every run",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2604,8 +2678,9 @@
    "measured_on": "120 '{k}e400' cells; 6,220 values; two-column 1e400 table",
    "evidence": "1e400 column widths exactly [5, 6], 0 missed; 6,220 wide values generate; '1e400' declared missing: 0 twin cells",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2639,8 +2714,9 @@
    "measured_on": "295 uniform readings + 5 'NOT DETECTED', seeds 0-7",
    "evidence": "295 readings in 0.1-40.0, 5 markers, 206/206 distinct, 0 missed at 8 of 8 seeds",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "missed": 0,
      "pinned_nodes_failing": 0,
@@ -2677,8 +2753,9 @@
    "measured_on": "the four test fixtures",
    "evidence": "'common' 40/40 plus counted tail; 200/200 comma cells; 114 readings + 6 #N/A stay numeric; clock columns 0 missed at 4 seeds",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2708,8 +2785,9 @@
    "measured_on": "profile_column on ISO dates",
    "evidence": "40k/10k ratio 3.90-4.09 (was 14.4)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2741,8 +2819,9 @@
    "measured_on": "synthtwin defaults",
    "evidence": "1 (was 11)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "contract_default": 1,
      "pinned_nodes_failing": 0,
@@ -2775,8 +2854,9 @@
    "measured_on": "cli parser vs errors.profile_version_is_older",
    "evidence": "named options == parser options minus excused; message == contract clause",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -2809,8 +2889,9 @@
    "measured_on": "every_role_and_joined_table, record_code declared, pressure a measurement, twin at seed 20260811",
    "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "ends_held_by_one_row_f1": 4,
      "ends_held_by_one_row_f11": 4,
@@ -2848,11 +2929,12 @@
    "measured_on": "CASE_MUTANTS and DOCUMENT_MUTANTS of tests/test_generation_reference.py",
    "evidence": "the closure's criterion-8 row names the width pass and the empty-bin pass, and since the extra round of 2026-09-18 the mode's stratum and the anchors and dressing too; the critic counted the first two. Integrated tree of 2026-09-19: 2 uncovered, the width pass and the empty-bin pass (G6.6 and G6.7 unmirrored); the carried numbers pass froze mode_held, held_back_dressed and held_back_anchored with their mutants",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "mutants": 106,
-     "uncovered": 4
+     "mutants": 118,
+     "uncovered": 2
     }
    },
    "target_stage": "the carried reference vectors (R-P4-18, R-P4-115)",
@@ -2943,8 +3025,9 @@
    "measured_on": "tests/fixtures.py tables on e53d5f4",
    "evidence": "criterion 4 was marked MET at the Phase 4 closure with no test implementing it (Phase 4 miner)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "decision_7/binary_to_constant/literals_as_holes": "constant",
      "decision_7/binary_to_constant/literals_kept_as_data": "binary",
@@ -3033,13 +3116,13 @@
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
    "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "generate_ratio_4x_rows": 3.2,
-     "generate_seconds_20k": 34.5,
-     "profile_seconds_20k": 42.2
+     "generate_ratio_4x_rows": 3.47,
+     "generate_seconds_20k": 23.3,
+     "profile_seconds_20k": 26.7
     }
    },
    "key_kinds": {
@@ -3069,8 +3152,9 @@
    "measured_on": "AST of all modules",
    "evidence": "0 sites (was 669)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3099,8 +3183,9 @@
    "measured_on": "sorted Gaussian runs of length 1, 30 strata, cap 0",
    "evidence": "138x at 8,000 runs (0.075 s vs 10.33 s); heap growth 4.26x for 4x runs. With the old merge restored, all 59 related tests stay green (wall-clock, reference machine); re-expressed as an operation count",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "heap_growth_4x_runs": 4.03,
      "heap_key_calls_2000": 5932,
@@ -3136,8 +3221,9 @@
    "measured_on": "random.Random(29) cases",
    "evidence": "600 of 600 random cases agree (4,200 adversarial cases at landing, not in the suite)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3165,12 +3251,12 @@
    "measured_on": "5 sites and 3 grades uniform, seed 20260913",
    "evidence": "23.3 s (10 s at landing; 390 s before); 50k-to-200k ratio 3.47. Repair pass, median of three at both sizes: 21.3 s at 200,000, ratio 3.83",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "profile_ratio_4x_rows": 3.83,
-     "profile_seconds_200k": 21.3
+     "profile_ratio_4x_rows": 3.84,
+     "profile_seconds_200k": 14.1
     }
    },
    "key_kinds": {
@@ -3199,14 +3285,14 @@
    "measured_on": "Gaussian columns at 2 dp, 25,000 and 100,000 rows x 20, three times each",
    "evidence": "100k x 20: 392 s at landing (describe 240.6 + generate 151.7); 946.5 s once under load on e53d5f4, one sample. Repair pass, median of 3 at 25k and at 100k, the sizes in turn, load average 6-9: 100k x 20 375.9 s, ratio 3.96. A mutant with quadratic generation (30 x rows^2 steps) reads ratio 11.06 at 2k/8k x 2 against 3.66 unmutated. 1M x 20 and 2M x 50 never measured on the repaired tree; linear projection about 65 min and 5.4 h",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "microseconds_per_cell": 187.9,
-     "ratio_4x_rows": 3.96,
+     "microseconds_per_cell": 131.3,
+     "ratio_4x_rows": 4.23,
      "repeats": 3,
-     "seconds_100k_x20": 375.9
+     "seconds_100k_x20": 262.6
     }
    },
    "target_stage": "stage 4 (landing 4: the largest tables)",
@@ -3240,14 +3326,15 @@
    "measured_on": "4 Gaussian columns at 2 dp, generation.generate in process",
    "evidence": "no test timed generation growth (stage-1 miner, gap 2); mutant M2 left the numeric growth test green",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "large_seconds": 5.86,
+     "large_seconds": 3.71,
      "ratio_4x_rows": 3.48,
      "small_rows": 4000,
-     "small_seconds": 1.68,
-     "small_seconds_probe": 1.72
+     "small_seconds": 1.06,
+     "small_seconds_probe": 1.06
     }
    },
    "key_kinds": {
@@ -3278,8 +3365,9 @@
    "measured_on": "240 rows per shape, seed 4",
    "evidence": "19 of 19 shapes, every fact returned, twin and real exit 0 (grouped whole numbers were bare on 400 of 400)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0,
      "shapes": 19
@@ -3313,8 +3401,9 @@
    "measured_on": "600 charges from test_stage2_spellings_survive._charges (Random(21)), seed 4",
    "evidence": "naive float() parse of comma-grouped charges: mean 454.97 on the twin vs 455.64 on the real table (true mean 963.9); before stage 2 the twin hid the bug",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "naive_gap_share": 0.0015,
      "naive_real_share_of_true": 0.4727,
@@ -3346,8 +3435,9 @@
    "measured_on": "400 comma-grouped whole numbers Random(1); 600 charges Random(21); seed 4",
    "evidence": "400 of 400 grouped (was 0); charges 181 of 181 cells >= 1,000 grouped",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "cells_over_a_thousand": 181,
      "pinned_nodes_failing": 0,
@@ -3381,8 +3471,9 @@
    "measured_on": "400-row columns Random(22-24), seed 4",
    "evidence": "400/400 spaces kept; 400/400 at 00:00:00 (was 2 of 800); mixed marks 300/50/50 exact",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3414,8 +3505,9 @@
    "measured_on": "Random(20260914), Random(39), Random(40)",
    "evidence": "5,000 spellings, 6,000 censuses, 9,000 cells: 0 mismatches",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3446,14 +3538,14 @@
    "measured_on": "midnight moments over 29 days via generation._rebalanced_marks",
    "evidence": "0.61 s at 40,000 cells, 1.27 s at 80,000 (was 18.9 s end to end at 80k)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "tests and the SLOW driver",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0,
-     "ratio_4x_cells": 4.87,
-     "seconds_320k": 7.85,
-     "seconds_80k": 1.61
+     "ratio_4x_cells": 4.71,
+     "seconds_320k": 3.24,
+     "seconds_80k": 0.69
     }
    },
    "key_kinds": {
@@ -3485,8 +3577,9 @@
    "measured_on": "26 SHAPES x seeds 1, 7, 23 (78 round trips)",
    "evidence": "creatinine 4,000 rows: twin max 62 vs mode_count 62; p25 0.79 = 0.79 (was one number 760 times, p25 0.64)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3516,8 +3609,9 @@
    "measured_on": "one_figure_gaussian and 7 spreadsheet shapes x 3 seeds",
    "evidence": "tenths 2,000 rows: 517/517 distinct, 0 overlong cells (was 227), 0 invented leading zeros; 21 pinned spreadsheet/zero-inflated twins exact (one named exception)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3546,8 +3640,9 @@
    "measured_on": "uniform_three_figures 2,500 and whole_hundreds 1,000, floor 11",
    "evidence": "max 10 on 30 twins (was 45 and 27)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3577,8 +3672,9 @@
    "measured_on": "7 gate shapes at 500/2,000/4,000 rows, seeds 1,7,23",
    "evidence": "0 of 822 windows differ; 0 of 63 gate twins accused (was 6 of 8 seeds); 7 of 7 shapes catch a 3% and 5% scale",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3605,9 +3701,9 @@
    "measured_on": "44 columns of 15 shapes at 500/2,000/4,000 rows, seeds 3 and 11",
    "evidence": "4 of 1,128 verdicts flip (Pareto charges, 2,000 rows, mean and std; the landing said 0)",
    "value_at": {
-    "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "commit": "caf3079",
+    "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "flips": 4,
      "verdicts": 1128,
@@ -3644,8 +3740,9 @@
    "measured_on": "600-900-row charge and ledger shapes, seeds 4, 11, 23; 800 EUR prices",
    "evidence": "14 of 14 shapes x 3 seeds (space, apostrophe, U+00A0/U+202F/U+2009 grouping were free text in 24 of 24 runs); plus written as often as the source; '92.959,11 EUR' written back as money",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3675,8 +3772,9 @@
    "measured_on": "900 lognormal counts, seeds 3, 8, 19",
    "evidence": "question asked 6 of 6 runs (was 0); answered mean == true mean",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3709,8 +3807,9 @@
    "measured_on": "_partly shapes; 2,000/1,900 bare mix; 900 CET days",
    "evidence": "361/361 and 1,429/1,429 at midnight (was 2 and 1); 1,900/2,000 bare dates written bare (was 0); CET export all at 00:00 with exact ladder; three offsets 120/120",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3741,8 +3840,9 @@
    "measured_on": "240 rows per shape, seeds 4 and 11",
    "evidence": "17 export shapes x 2 seeds: every twin cell parses under the source's format ('%m/%d/%Y' parsed 0 twin cells before); the ISO reader fails on the twin exactly as on the table",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3773,8 +3873,9 @@
    "measured_on": "admissions, seasonal, uniform at 400 and 1,500 rows, seeds 4 and 7",
    "evidence": "per-day variance ratio 0.611-1.117 over 24 runs (was 0.057-0.514); interior rungs exact 24 of 24; one-day-early twin missed at all 9 rungs",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3807,8 +3908,9 @@
    "measured_on": "800-row export shapes, seeds 1 and 7; 600 charges",
    "evidence": "all pass (14 of 14 export runs failed before); 480 minus + 120 brackets come back 480/120; '44.0' columns stay whole",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3840,8 +3942,9 @@
    "measured_on": "the tests' own shapes",
    "evidence": "bare copy of a grouped twin, spaces rewritten to T, midnight moved, dates reverted to ISO: each now misses its named check (all used to exit 0)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3873,8 +3976,9 @@
    "measured_on": "the tests' reproductions",
    "evidence": "published mode -0.6 held exactly 210 times, median -0.6 (was absent); 4 ISO dates come back 4 (was 7); 3 textual dates 3; 120 subnormals 120 distinct (was 95)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3904,14 +4008,16 @@
    "measured_on": "_partly(2000, 0.7) seed 4; test_workbook_dates _extract(2000, 9) as delimited text; each counted twin checked byte for byte against an uncounted run",
    "evidence": "REGRESSION: 2,000 partly-midnight rows 28.5 s (was 0.16 s); 400 rows 26.4 s (was 0.04); 20,000 stamps 9.15 s (was 1.75); 2,000-row CSV date extract 13.4 s (was 1.4). 98% of time in _nearest_held_unit stepping one second at a time. REPAIRED by g-speed (merged 2026-09-19): the searches sort the held units once; on _partly(2000, 0.7) the walk asked 190,524,866 questions over 1,222 calls and the search asks 2,444, the distance answered unchanged at 95,809,050 units; 22 of 22 driver shapes write byte-identical twins against bbcb4a6; seconds 61.44 under load before, 0.14 at a load average near 2 after. The extract's remaining seconds are its numeric column, not its dates",
    "value_at": {
-    "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "commit": "caf3079",
+    "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "calls_extract_2000": 1268,
      "calls_partly_2000": 1222,
-     "seconds_extract_2000": 39.93,
-     "seconds_partly_2000": 61.44,
+     "questions_extract_2000": 2536,
+     "questions_partly_2000": 2444,
+     "seconds_extract_2000": 5.22,
+     "seconds_partly_2000": 0.13,
      "steps_extract_2000": 52582475,
      "steps_partly_2000": 95809050
     }
@@ -3943,8 +4049,9 @@
    "measured_on": "_extract(2000, 9)",
    "evidence": "13.6 s vs 13.4 s (ratio 1.0; was 75.0 vs 1.4)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3976,8 +4083,9 @@
    "measured_on": "800 rows per shape, source seed 5",
    "evidence": "^REC\\d{7}$ 800/800 (was 0), ^P\\d{5}$ 800 (was 30), ^ABC-\\d{4}$ 800 (was 0); two systems REC/E 800 (was 9); hex DE- 800 (was 0)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4009,8 +4117,9 @@
    "measured_on": "1,000 REC+3 ids at floor 11, seed 4; 796 P + 4 Q ids",
    "evidence": "REC000-REC999: 0 of 1,000 real ids in the twin (was 1,000 of 1,000 whole real rows); prefix withheld where 4 rows are written otherwise",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4042,8 +4151,9 @@
    "measured_on": "1,000 ids REC+d figures (d 4-7) beside a constant column; 989 ids '000'-'988'",
    "evidence": "REC+4 figures: 100 of 1,000 real ids (all whole real rows); REC+5: 10; REC+6: 1; REC+7: 0; unprefixed 000-988: 978 of 989",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "bare_989": 978,
      "rec_4_figures": 100,
@@ -4077,8 +4187,9 @@
    "measured_on": "140-row alpha/+10/+11/+12 column, seed 4; 30 randomised held-back shapes",
    "evidence": "+11 x10 and +12 x10 rebuilt exactly at floor 11; reviewer's sweep 85 of 469 held-back cells reproduced (7 before), 2 of 30 columns rebuilt. The reviewer's 30-shape sweep was not kept, so test_k_2b_19 commits a fresh sweep of the same family (the pinned column plus 30 seeded columns; the 19 that hold a label back are measured); the pinned node asserts the leak EXISTS and is therefore not mapped to this KPI (critic correction)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "columns_measured": 19,
      "columns_rebuilt_exactly": 1,
@@ -4116,8 +4227,9 @@
    "measured_on": "shapes at floor 11, seeds 4 and 11",
    "evidence": "F480/M519/U1: n_missing 1, twin 1 blank (was an invented label); 3 one-patient sites among 2,000: 3 blanks, 0 single labels; 120 and 700 lone sites: pool 0",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4150,8 +4262,9 @@
    "measured_on": "test shapes at floor 11",
    "evidence": "south 15/15 and W04 14/14 written; 780 unique codes keep their pool (0 blanks); pooled levels publish only a total (388 levels / 785 rows). Stated limit: north 200/south 150/west 5 publishes pool (1, 5)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4184,8 +4297,9 @@
    "measured_on": "'subject id' title over 240 CASE-ZEBRA records; P4-D241 record shapes; R001 CSV and workbook, floor 11",
    "evidence": "titled headerless table: names column_1..3, 240 of 240 rows (was the record as names, 239 rows); 0 of its words in any of six files; 4 furniture shapes; ordinary headers still read.. The no-title case is K-2B-22b",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4219,8 +4333,9 @@
    "measured_on": "the merge skeptic's bare-records table at floor 11",
    "evidence": "frozen copy 84266b1e: names ['R001','North Unit','<0.10'], 239 of 240 rows; repaired on e53d5f4 by P4-D292",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0,
      "record_cells_published_as_names": 0,
@@ -4256,8 +4371,9 @@
    "measured_on": "test shapes at floors 1 and 11",
    "evidence": "one 't' among 400 stamps: {'upper_t': 400} (was a count of 1); one +01:00 among 400 Z: {'Z': 400}; 0042/1.5e3/12.345 among 1,200 prices: no count of 1; lone 'f' among F/M absorbed, n_distinct 2",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4289,8 +4405,9 @@
    "measured_on": "test shapes at floors 1 and 11",
    "evidence": "5,000 space stamps + 1 T: twin all spaces (was 4,998 T); one Z among offsets: 1,000/1,000 zoned; 7-wide codes + '4521': every twin cell 7 wide",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4323,8 +4440,9 @@
    "measured_on": "parsing.census_floor / census_nameable; src/synthtwin",
    "evidence": "census_floor(1) == 2, census_floor(11) == 11; truth table holds; inline 'max(floor, 2)' copies in src: 0 (was 4)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "census_floor_1": 2,
      "census_floor_11": 11,
@@ -4362,8 +4480,9 @@
    "measured_on": "the tests' reproductions, floors 1 and 11",
    "evidence": "class totals never leave 1 held-back row; one odd id among 800: layout_forms {}; 900 ids 100-999 no longer publish '%%%': 900; 400 figures + 399 codes + 1 word: shape_forms {}; {'iso-date': 396} not 395 + 1; declared identifier reading counts 0 or n_present",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4396,8 +4515,9 @@
    "measured_on": "the tests' shapes",
    "evidence": "moving one of 400 values to midnight changes nothing; a lone CRLF, empty record or blank line at floor 11 leaves no position; a tab written 3 times is pooled, twin writes 0 tabs",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4428,8 +4548,9 @@
    "measured_on": "999 notes + '42'; 1,977 NORTH/11 SOUTH/1 SITE_X; floor 11, seed 4",
    "evidence": "free text: n_numeric 1 of 1,000 (one note is '42'); pooled labels 1,977/11/1: n_missing 1. None changes how code runs or any statistic; each is a count a reader could also get by subtraction. Split on 2026-09-19: the date shape's n_unparsed, which the owner accepted, is K-2B-48; these two are not owner-accepted limits, so the entry is OPEN",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "free_text_named_count": 1,
      "free_text_other_ones": 1,
@@ -4469,8 +4590,9 @@
    "measured_on": "workbook with a title, canary row and 120 records, floor 5",
    "evidence": "with autoFilter: names PERSON_CANARY/PRIVATE_CANARY, 120 of 121 rows; without it: column_1/2, 121 rows; a frozen pane does not publish it",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0,
      "with_autofilter_canaries_published": 2,
@@ -4508,8 +4630,9 @@
    "measured_on": "SUBJ-10000..11999 declared identifier beside an age column",
    "evidence": "40 of 2,000 twin subject ids are real (2%) at seeds 4 and 11; whole real rows 2 at seed 4 on a 60-value age column",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "coincident_ids_seed11": 40,
      "coincident_ids_seed4": 40,
@@ -4549,8 +4672,9 @@
    "measured_on": "seeded 120x5 files, seed 4",
    "evidence": "38 of 38 exporter shapes (Excel CSV, sep=; cp1252, UTF-16 Unicode Text, old Mac CR, R row names, SAS Latin-1, REDCap, Qualtrics...); before: CRLF, Latin-1 and BOM files came back as LF UTF-8, semicolon files as one column",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4581,8 +4705,9 @@
    "measured_on": "_people(30) variants against the plain comma file",
    "evidence": "22 of 22 rules reported MISSED on a file differing in exactly that respect",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4614,8 +4739,9 @@
    "measured_on": "study_book(200, 0) excel/pandas/writexl; titled_book; hidden_first_book",
    "evidence": "3 of 3 study shapes: identical columns, dtypes, shape and sheet titles; text codes with leading zeros stay str; title rows and other sheets read the same shape",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4648,9 +4774,9 @@
    "measured_on": "study_book at 200/1,200/3,000 rows; hidden_first, withheld_name, macro books",
    "evidence": "3 of 3 study books at 200 rows exit 0/0 with identical workbook facts; 9 of 9 at 1,200 and 3,000 rows exit 0 (the test asserts real only); 3 of 3 out-of-family books validate",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "tests and the SLOW driver",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "books": 9,
      "nonzero_exits": 0,
@@ -4683,8 +4809,9 @@
    "measured_on": "120-row workbook with 118 t='d' cells",
    "evidence": "118 of 118 date cells open as datetime.date in openpyxl, 0 impossible days (before: openpyxl could not open the twin, cells like 2006-06-32)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4716,8 +4843,9 @@
    "measured_on": "wide_number_book(300); noisy_number_book(400); semicolon export",
    "evidence": "17-figure wholes and noisy stored values meet their description (was exit 3); row_order ascending decimal_comma published and HELD",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4750,8 +4878,9 @@
    "measured_on": "study_book(200, 0); 18- and 120-row preamble files",
    "evidence": "0 formulas, links, macro or external parts; empty creator fields; preamble 'Extract for unit 7' appears 0 times at floors 1 and 11; withheld sheet name absent",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4785,13 +4914,14 @@
    "measured_on": "tests/workbooks.py fixtures; 5.2 MB / 1,048,576-cell bomb",
    "evidence": "6 of 6 hostile workbooks refused by their own cap; 3 of 3 misnamed files placed by bytes; 160,000-letter cell reference refused in 0.00001 s; million-cell zip bomb refused in 3.66 s at 326 MB",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "peak_mb": 538,
+     "peak_mb": 539,
      "pinned_nodes_failing": 0,
      "refused": true,
-     "seconds": 13.93
+     "seconds": 3.37
     }
    },
    "key_kinds": {
@@ -4824,8 +4954,9 @@
    "measured_on": "9 document cases",
    "evidence": "written form, row order, 14-part workbook package, delimiter, cell classes, made-up dates all mirrored (0 before 2b.17)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4856,8 +4987,9 @@
    "measured_on": "400 rows x 3 columns, Random(9), seed 4: files/dialect, dates, numbers with units, labels/identifiers, each as CSV and workbook",
    "evidence": "real tables 8 of 8; twins 6 of 8 (the two month-name date shapes miss n_distinct, CSV and XLSX) (frozen copy, floor 11 only). On e53d5f4 the month-name repair P4-D294 has landed",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "real_pass_f1": 8,
      "real_pass_f11": 8,
@@ -4891,8 +5023,9 @@
    "measured_on": "16-column base description",
    "evidence": "165 of 165 invariants have a refused mutation; 227 battery entries (13 file-dialect, 8 workbook rules)",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4919,14 +5052,14 @@
    "driver": "tools/measurements/kpi_oracle_similarity.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "normalised-AST similarity, oracle vs src",
-   "evidence": "13 of 53 added oracle functions score >= 0.60 AST similarity to a shipped function (17 of 60 before repair; older oracle 6 of 212). The skeptic's script was not kept; tools/measurements/kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions (371 of six statements or more), so its count is not G14.2's 13 of 53",
+   "evidence": "13 of 53 added oracle functions score >= 0.60 AST similarity to a shipped function (17 of 60 before repair; older oracle 6 of 212). The skeptic's script was not kept; tools/measurements/kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions (371 of six statements or more), so its count is not G14.2's 13 of 53. RED on caf3079, the integrated tree of 2026-09-19: 181 of 393 scored against the bound of 176 (e53d5f4: 176 of 371). The five new close functions, all written by the carried passes merged before the gap repairs: absorbed_count~_presence_over_the_split, allowed~_push_allowed, alphabet_readings~_alphabet_readings, anchor_units~_anchor_units, histogram_bin~histogram_bin; none left the list. The bound is not moved: whether each is an independent statement of its rule is a review question, open",
    "value_at": {
-    "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "the SLOW driver",
+    "commit": "caf3079",
+    "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "at_or_above_0_60": 176,
-     "scored": 371
+     "at_or_above_0_60": 181,
+     "scored": 393
     }
    },
    "key_kinds": {
@@ -4957,8 +5090,9 @@
    "measured_on": "docs/plans and docs/spec",
    "evidence": "seal current: 8,902 passages across 8 documents",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4989,8 +5123,9 @@
    "measured_on": "workbooks.two_table_book and three-table variant",
    "evidence": "profile and both --sheet choices exit 1 with the question; a single-sheet copy exits 0",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -5029,8 +5164,9 @@
    "measured_on": "the eight realistic shapes, seed 4",
    "evidence": "critic: A_csv 1 of 400 and D_csv 1 of 400 whole real rows; non-identifier copies A 400, D 394. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-2b45.txt): coincident identifiers 16 at every seed and floor; A whole 0-3 (mean 0.60), D whole 0-7 (mean 2.53); D floor 1 ignoring the identifier 394-400, floor 11 394 at every seed, A 400 at every seed. The first ceilings (A 1, D 1, D floor 1 ignoring 398) were seed 4's draw and read ACCEPTED-WORSE at 9 of 12 seeds (skeptic). The chance rate: the 16 coincident rows match their real row's other columns with p = P(site) x P(note) = 1/4 x 1/9 = 0.028 (A; observed 0.60/16 = 0.038) and p = sum of squared arm shares 0.454 x P(outcome) 1/3 = 0.151 (D; observed 2.53/16 = 0.158); at the observed p, P(X > 5) = 1.6e-5 for A and P(X > 9) = 3.0e-5 for D",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "A_csv_f11_coincident_ids": 16,
      "A_csv_f11_ignoring_identifier": 400,
@@ -5070,11 +5206,12 @@
    "measured_on": "every_role_and_joined_table and the eight realistic shapes",
    "evidence": "critic: 'reading' is int64 on the real file and float64 on the twin, because 13 '-999' cells judged missing are written blank. REPAIRED by g-sentinel (plan P4-D6.4, merged 2026-09-19): 'reading' is int64 with 13 '-999' cells at seeds 20260811, 1, 2 and 3 and floors 1 and 11, and the 16-file judged battery parts no reader's dtype",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "eight_shape_files_mismatched": 0,
-     "every_role_columns_mismatched": 1
+     "every_role_columns_mismatched": 0
     }
    }
   },
@@ -5108,10 +5245,13 @@
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
    "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
-    "measured_by": "the SLOW driver, repair pass",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
+     "band_split_distinct_short": 4,
+     "date_joint_word_missed_checks": 3,
+     "date_remainder_missed_checks": 6,
      "dose_missed_checks": 18,
      "dose_missed_runs": 18,
      "dose_runs": 18,
@@ -5121,6 +5261,8 @@
      "percent_missed_checks": 0,
      "percent_missed_runs": 0,
      "percent_runs": 2,
+     "read_floor_unchecked": 1,
+     "record_layout_missed_checks": 3,
      "temperature_over_mode_runs": 0,
      "temperature_runs": 2
     }
@@ -5161,8 +5303,9 @@
    "measured_on": "118 ISO dates + 1 moment + 1 word; floor 11, seed 4",
    "evidence": "n_unparsed 1 of 120 beside resolution_mix {\"iso-date\": 119}: the three are derivable from one another (120 - 1 = 119), so withholding n_unparsed alone would publish nothing less. Split from K-2B-28 on 2026-09-19",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "dates_named_count": 1,
      "dates_other_ones": 0
@@ -5202,14 +5345,16 @@
    "measured_on": "24 seeded point-free grids of tenths at floor 11; 400 millisecond moments; 40 record numbers + 'ab' at floor 11; the p4d2 guards over hand-written withheld maps",
    "evidence": "point-free grids: 30 style and width MISSED verdicts and 12 distinct-count MISSED verdicts over 72 twins, the real tables at 0 (P4-D274: adding the band fill's carrier refusal to the column-wide fill trades one for the other). Subsecond: the twin writes 0 of 400 fractions, validate at 0 (P4-D296, the DEVIATION is in the twin's report). Record classes: all_whole_numbers false beside n_numeric 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275)",
    "value_at": {
-    "commit": "PENDING",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "point_free_style_missed_checks": 30,
+     "pinned_nodes_failing": 0,
      "point_free_distinct_missed_checks": 12,
-     "subsecond_fractions_lost": 400,
+     "point_free_style_missed_checks": 30,
      "record_class_counts_reveal": 1,
-     "pinned_nodes_failing": 0
+     "subsecond_fractions_lost": 400,
+     "subsecond_real_fractions": 400
     }
    },
    "target_stage": "none set: each is the orchestrator's call of 2026-09-18 under the owner's rule; reopened if the owner reverses it",
@@ -5243,8 +5388,9 @@
    "measured_on": "1,000 rows of age, sbp (built from age), a two-valued group and died (depends on age); default floor; seed 4",
    "evidence": "critic: rank correlation 0.747 real, 0.027 twin; death rate old/young 0.56/0.11 real, 0.25/0.18 twin. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-s601.txt): rank_correlation_gap 0.678-0.822 (mean 0.735, sd 0.032), death_rate_gap_lost 0.385-0.518 (mean 0.455, sd 0.031); the first bound (seed 4's 0.72 and 0.385, its luckiest draw) read OPEN-WORSE at 39 of 40 seeds. The bound is derived, not fitted: the twin carries no association today, so its rank correlation is noise of sd 1/sqrt(1000) = 0.0316 about 0 and its death-rate difference noise of sd sqrt(0.194 x 0.806 x (1/189 + 1/811)) = 0.0319 about 0; the real values are 0.747 and 0.452; a legitimate change to the random stream crosses 4.5 sd about once in 300,000 draws",
    "value_at": {
-    "commit": "e53d5f4",
+    "commit": "caf3079",
     "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "death_rate_gap_lost": 0.385,
      "rank_correlation_gap": 0.72,
