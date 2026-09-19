@@ -6,7 +6,9 @@ and reads their printed totals back as two ledger values:
 
 - K-P4-06: pair agreements outside the 0.02 window, and rows-above
   counts missed, over every pair of the battery (OPEN: 597 and 7 on
-  e53d5f4 against a target of 550 and 0);
+  e53d5f4, 609 and 3 on the integrated tree of 2026-09-19, where
+  G6.5a's push traded twelve agreements for four above-counts, against
+  a target of 550 and 0);
 - K-P4-08: runs whose count of different numbers is not met exactly.
 
 Nothing is re-implemented here, so the ledger's number and the L7

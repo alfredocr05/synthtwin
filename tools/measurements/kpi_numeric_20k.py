@@ -7,7 +7,11 @@ command took and the obligations the twin's quality report MISSED.
 
 - K-P3-03 (OPEN): MISSED obligations at 20,000 rows, read from the
   validator's census (19 on the frozen copy, the spread too wide; 10 on
-  e53d5f4, moments.std on 10 of 20 columns), 0 at 5,000.
+  e53d5f4, moments.std on 10 of 20 columns), 0 at 5,000; and the twin's
+  spread against the published one, per cent either way, the widest and
+  the narrowest of the twenty columns at each size (`taxonomy.spread_of`
+  of the twin's cells over the description's `std`), which the outer
+  tail's straight segment (method G5.3) holds too wide.
 - K-P3-12: validate seconds at 20,000 (reference machine only) and the
   5k-to-20k ratio, which is machine-free.
 - K-S1-01: generate seconds at 20,000 (reference machine only) and the
@@ -35,7 +39,9 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
-from synthtwin import contract, validation  # noqa: E402
+import csv  # noqa: E402
+
+from synthtwin import contract, taxonomy, validation  # noqa: E402
 
 kpi_rules.guard_this_tree()
 
@@ -53,6 +59,20 @@ def timed(argv):
     started = time.perf_counter()
     code = kpi_shapes.quiet_cli(argv)
     return code, time.perf_counter() - started
+
+
+def spread_excess(description, twin):
+    """Per column, the twin's spread over the published one, less one, in per cent."""
+    loaded = contract.load_profile(str(description))
+    with open(twin, encoding="utf-8", newline="") as handle:
+        rows = list(csv.reader(handle))
+    excess = []
+    for index, column in enumerate(loaded.columns):
+        published = getattr(column.facts, "std", None)
+        spread = taxonomy.spread_of([float(row[index]) for row in rows[1:] if row[index]])
+        if published and spread is not None:
+            excess += [(spread / published - 1) * 100]
+    return round(max(excess), 2), round(min(excess), 2)
 
 
 def missed_in(description, twin):
@@ -85,13 +105,18 @@ with tempfile.TemporaryDirectory() as folder:
             validate_s += [seconds]
             exits += [code]
             missed = missed_in(description, here / "numeric20-twin.csv")
+        widest, narrowest = spread_excess(description, here / "numeric20-twin.csv")
         found[rows] = dict(profile=profile_s, generate=statistics.median(generate_s),
-                           validate=statistics.median(validate_s), missed=missed, exits=exits)
+                           validate=statistics.median(validate_s), missed=missed, exits=exits,
+                           widest=widest, narrowest=narrowest)
         print(rows, {k: (round(v, 2) if isinstance(v, float) else v) for k, v in found[rows].items()},
               flush=True)
 
 small, large = found[5000], found[20000]
-kpi_rules.emit("K-P3-03", {"missed_5k": small["missed"], "missed_20k": large["missed"]})
+kpi_rules.emit("K-P3-03", {
+    "missed_5k": small["missed"], "missed_20k": large["missed"],
+    "spread_widest_pct_5k": small["widest"], "spread_narrowest_pct_5k": small["narrowest"],
+    "spread_widest_pct_20k": large["widest"], "spread_narrowest_pct_20k": large["narrowest"]})
 kpi_rules.emit("K-P3-12", {
     "validate_seconds_20k": round(large["validate"], 1),
     "validate_ratio_4x_rows": round(large["validate"] / small["validate"], 2)})

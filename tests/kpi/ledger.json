@@ -16,7 +16,9 @@
   "tests/test_stage2_timestamp_spellings.py",
   "tests/test_window_agreement.py"
  ],
- "slow_nodes": [],
+ "slow_nodes": [
+  "tests/test_joined_battery_readings.py::test_the_battery_of_three_and_four_positions_keeps_its_figures"
+ ],
  "entries": [
   {
    "id": "K-P0-01",
@@ -1359,7 +1361,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "200 producer identifier columns x seeds 0,1,17,63",
-   "evidence": "RED on the frozen copy: class counts exact 800/800, but 24 of 800 runs name another missed fact (pin: 0); layout-short 200",
+   "evidence": "RED on the frozen copy: class counts exact 800/800, but 24 of 800 runs name another missed fact (pin: 0); layout-short 200. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1391,7 +1393,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "3-value combinations of POOL x PATTERNS, seed 0",
-   "evidence": "RED on the frozen copy: 158 of 3,186 producer columns fall back and miss a count (pin: 0)",
+   "evidence": "RED on the frozen copy: 158 of 3,186 producer columns fall back and miss a count (pin: 0). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1424,7 +1426,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "every-role twin seed 7; src tree",
-   "evidence": "0 deviations when all facts are met; golden run names 3; generator import closure excludes reader and pandas. RED: the plain-words check flags 'str' inside 'stretches' (a false positive)",
+   "evidence": "0 deviations when all facts are met; golden run names 3; generator import closure excludes reader and pandas. RED: the plain-words check flags 'str' inside 'stretches' (a false positive). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1531,7 +1533,7 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "shapes above via the CLI at default options",
-   "evidence": "every-role 240 rows: 532/532 held at floor 11, 1,447/1,447 at floor 1; dated 131/131; n/a holes 99/99; fixed two decimals 130/130; exit 0 on all. RED: ap326 [nothing-named] (60 numbers + 12 blanks via build_document) misses bytes.blank-lines",
+   "evidence": "every-role 240 rows: 532/532 held at floor 11, 1,447/1,447 at floor 1; dated 131/131; n/a holes 99/99; fixed two decimals 130/130; exit 0 on all. RED: ap326 [nothing-named] (60 numbers + 12 blanks via build_document) misses bytes.blank-lines. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1553,25 +1555,32 @@
   },
   {
    "id": "K-P3-03",
-   "phase_stage": "Phase 3 validator + 2b generator (V6.1-A2)",
+   "phase_stage": "Phase 3 validator + 2b generator (V6.1-A2); re-filed by g-spread as a G5.3 and G12.3 method defect",
    "category": "STATS",
    "headline": true,
    "name": "A plain numeric twin at 20,000 rows passes its own check",
    "status": "OPEN",
-   "rule": "target 0 missed at any row count; until repaired, missed_20k <= 10 and missed_5k 0 (must not get worse)",
+   "rule": "must not get worse: the twin's spread within 2.2 per cent of the published one either way on four normal columns at 5,000 rows (the pinned node, tests/test_k_p3_03_outer_tail_spread.py); on the driver's twenty columns the widest spread no wider than measured and none more than 2.2 per cent narrower, missed_5k 0 and missed_20k no more than measured; target at stage 3: 0 missed at any row count",
    "rule_kind": "at_most",
    "expected": {
     "missed_20k": 10,
-    "missed_5k": 0
+    "missed_5k": 0,
+    "spread_widest_pct_5k": 3.11,
+    "spread_narrowest_pct_5k": -2.2,
+    "spread_widest_pct_20k": 3.83,
+    "spread_narrowest_pct_20k": -2.2,
+    "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
    "source": "driver",
-   "nodes": [],
+   "nodes": [
+    "tests/test_k_p3_03_outer_tail_spread.py::test_a_normal_twin_at_five_thousand_rows_stands_within_its_band"
+   ],
    "test": null,
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
-   "pin_strength": "NONE",
+   "pin_strength": "STRONG",
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
-   "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19",
+   "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19. g-spread (merged 2026-09-19): the cause is G5.3's straight outer ladder segment to the exact published extreme, and G12.3's std window is drawn from the same line, so both move together; normal-shaped twins are 1.4 to 3.7 per cent too wide from 5,000 rows up. The pinned node holds 2.2 per cent either way at 5,000 rows",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1581,11 +1590,18 @@
      "missed_5k": 0
     }
    },
-   "target_stage": "stage 3 (the heavy-tail mean and spread, deferred by the owner)",
+   "target_stage": "stage 3: deferred by the orchestrator on 2026-09-18 under the owner's principle of 2026-09-17 ('build after the machinery of stage 3'); the owner may reverse",
    "target": {
     "missed_20k": 0,
     "missed_5k": 0
-   }
+   },
+   "nodes_min_collected": 1,
+   "key_kinds": {
+    "spread_narrowest_pct_5k": "at_least",
+    "spread_narrowest_pct_20k": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "status_note": "DEFERRED by the orchestrator, 2026-09-18, to stage 3 under the owner's principle of 2026-09-17 (\"build after the machinery of stage 3\"): stage 3 replaces the straight outer segment. Not an owner ruling; the owner may reverse it."
   },
   {
    "id": "K-P3-04",
@@ -1742,7 +1758,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "11 entry-table fixtures, floor 11, seed 20260813",
-   "evidence": "RED on the frozen copy: 1,408 red cases over 1,318 sites, 43 sites uncovered, 1 dead case (was 670 over 666, all covered). Vacuity floor >= 3 classes per disposition holds; 11 of 11 fixtures green before perturbation",
+   "evidence": "RED on the frozen copy: 1,408 red cases over 1,318 sites, 43 sites uncovered, 1 dead case (was 670 over 666, all covered). Vacuity floor >= 3 classes per disposition holds; 11 of 11 fixtures green before perturbation. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -1970,7 +1986,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "pinned node on e53d5f4",
-   "evidence": "RED on the frozen copy and on e53d5f4: 6 positions moved by the floor against 4 pinned ((columns,3,field_widths), (columns,3,sentinel_verdicts), (columns,5,date_percentiles), (columns,5,utc_offsets), (columns,6,levels), (columns,6,n_distinct)); in the repair set of the carried-f clusters",
+   "evidence": "RED on the frozen copy and on e53d5f4: 6 positions moved by the floor against 4 pinned ((columns,3,field_widths), (columns,3,sentinel_verdicts), (columns,5,date_percentiles), (columns,5,utc_offsets), (columns,6,levels), (columns,6,n_distinct)); in the repair set of the carried-f clusters. RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -2214,23 +2230,24 @@
    "headline": false,
    "name": "Three- and four-number cells: pair agreements and rows-above counts",
    "status": "OPEN",
-   "rule": "no worse than 597 outside and 7 missed; target <= 550 and 0",
+   "rule": "no worse than 609 outside and 3 missed (measured on the integrated tree of 2026-09-19); target <= 550 and 0",
    "rule_kind": "at_most",
    "expected": {
-    "agreements_outside": 597,
-    "above_counts_missed": 7,
+    "agreements_outside": 609,
+    "above_counts_missed": 3,
     "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
    "source": "driver",
    "nodes": [
-    "tests/test_p4g3r1_joined_review.py::test_neither_parity_of_positions_is_starved_of_the_proposal"
+    "tests/test_p4g3r1_joined_review.py::test_neither_parity_of_positions_is_starved_of_the_proposal",
+    "tests/test_joined_battery_readings.py::test_the_battery_of_three_and_four_positions_keeps_its_figures"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_joined_battery.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
-   "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0)",
+   "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -2242,7 +2259,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "target_stage": "the g-readings repair (stage 2b carried item)",
+   "target_stage": "the pairing walk of G6B.4 (open, needs no ruling; no stage set)",
    "target": {
     "agreements_outside": 550,
     "above_counts_missed": 0
@@ -2454,7 +2471,7 @@
    "driver": null,
    "pin_strength": "THRESHOLD",
    "measured_on": "10 schemes x 2 shapes 240 rows seed 7; test_p4r34 code column at floor 11",
-   "evidence": "19 of 20 twins fully scheme-shaped (scheme09 tail 227/230, allowed 8 off); dx column 0 group-N cells. RED: form census per level misses 209 vs 206 and 209 vs 204 (8 tests in test_p4r34 + 3 in test_p4d18)",
+   "evidence": "19 of 20 twins fully scheme-shaped (scheme09 tail 227/230, allowed 8 off); dx column 0 group-N cells. RED: form census per level misses 209 vs 206 and 209 vs 204 (8 tests in test_p4r34 + 3 in test_p4d18). RED on e53d5f4 only through the 56 tests the extra round turned red; the carried-f clusters repaired them, and it is GREEN on measurement on the integrated tree of 2026-09-19",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -2817,10 +2834,10 @@
    "headline": false,
    "name": "Phase 4 criterion 8 (UNMET): generation branches with no frozen case and registered mutant",
    "status": "OPEN",
-   "rule": "branches the Phase 4 closure names as carried under criterion 8 (the width pass P4-D30, the empty-bin pass P4-D32, the mode's own stratum P4-D267, the anchors and dressing P4-D268) that no registered oracle mutant names must not rise; target 0",
+   "rule": "branches the Phase 4 closure names as carried under criterion 8 that no registered oracle mutant names must not rise: the width pass (P4-D30, method G6.6) and the empty-bin pass (P4-D32, G6.7); the mode's own stratum (P4-D267) and the anchors and dressing (P4-D268) are mirrored since the carried numbers pass; target 0",
    "rule_kind": "at_most",
    "expected": {
-    "uncovered": 4
+    "uncovered": 2
    },
    "tier": "FAST",
    "source": "pytest",
@@ -2829,7 +2846,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "CASE_MUTANTS and DOCUMENT_MUTANTS of tests/test_generation_reference.py",
-   "evidence": "the closure's criterion-8 row names the width pass and the empty-bin pass, and since the extra round of 2026-09-18 the mode's stratum and the anchors and dressing too; the critic counted the first two",
+   "evidence": "the closure's criterion-8 row names the width pass and the empty-bin pass, and since the extra round of 2026-09-18 the mode's stratum and the anchors and dressing too; the critic counted the first two. Integrated tree of 2026-09-19: 2 uncovered, the width pass and the empty-bin pass (G6.6 and G6.7 unmirrored); the carried numbers pass froze mode_held, held_back_dressed and held_back_anchored with their mutants",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -3866,16 +3883,17 @@
   },
   {
    "id": "K-2B-14",
-   "phase_stage": "Extra round dates item 4 (P4-D258)",
+   "phase_stage": "Extra round dates item 4 (P4-D258); repaired by g-speed (K-2B-14), merged 2026-09-19",
    "category": "SPEED",
    "headline": true,
    "name": "Generating second-precision date-time columns",
-   "status": "OPEN",
-   "rule": "machine-free: the one-second steps _nearest_held_unit walks on _partly(2000, 0.7) must not rise; target: that column generates in under 2 s on the reference machine",
+   "status": "GREEN",
+   "rule": "machine-free: the questions the two date-time searches (_nearest_held_unit, _nearest_free_unit) ask of the held-unit table must not rise past the fixed search's count on _partly(2000, 0.7) seed 4 and on the 2,000-row extract; and _partly(2000, 0.7) generates in under 2 s on the quiet reference machine",
    "rule_kind": "at_most",
    "expected": {
-    "steps_partly_2000": 95809050,
-    "steps_extract_2000": 52582475
+    "questions_partly_2000": 2444,
+    "questions_extract_2000": 2536,
+    "seconds_partly_2000": 2.0
    },
    "tier": "SLOW",
    "source": "driver",
@@ -3883,8 +3901,8 @@
    "test": null,
    "driver": "tools/measurements/kpi_datetime_speed.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "_partly(2000, 0.7) seed 4; _moments(2000); test_workbook_dates _extract(2000, 9)",
-   "evidence": "REGRESSION: 2,000 partly-midnight rows 28.5 s (was 0.16 s); 400 rows 26.4 s (was 0.04); 20,000 stamps 9.15 s (was 1.75); 2,000-row CSV date extract 13.4 s (was 1.4). 98% of time in _nearest_held_unit stepping one second at a time",
+   "measured_on": "_partly(2000, 0.7) seed 4; test_workbook_dates _extract(2000, 9) as delimited text; each counted twin checked byte for byte against an uncounted run",
+   "evidence": "REGRESSION: 2,000 partly-midnight rows 28.5 s (was 0.16 s); 400 rows 26.4 s (was 0.04); 20,000 stamps 9.15 s (was 1.75); 2,000-row CSV date extract 13.4 s (was 1.4). 98% of time in _nearest_held_unit stepping one second at a time. REPAIRED by g-speed (merged 2026-09-19): the searches sort the held units once; on _partly(2000, 0.7) the walk asked 190,524,866 questions over 1,222 calls and the search asks 2,444, the distance answered unchanged at 95,809,050 units; 22 of 22 driver shapes write byte-identical twins against bbcb4a6; seconds 61.44 under load before, 0.14 at a load average near 2 after. The extract's remaining seconds are its numeric column, not its dates",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-18",
@@ -3898,12 +3916,8 @@
      "steps_partly_2000": 95809050
     }
    },
-   "target_stage": "the g-speed repair (stage 2b regression)",
    "key_kinds": {
     "seconds_partly_2000": "seconds_below"
-   },
-   "target": {
-    "seconds_partly_2000": 2.0
    }
   },
   {
@@ -4037,7 +4051,8 @@
      "rec_6_figures": 1,
      "rec_7_figures": 0
     }
-   }
+   },
+   "status_note": "ACCEPTED by the owner, 2026-09-18: \"Identifier room: no worries. Fine\" (plan P4-D270). At no spare room at all (100-999 declared) all 900 reach the twin."
   },
   {
    "id": "K-2B-19",
@@ -4073,7 +4088,8 @@
    },
    "key_kinds": {
     "columns_measured": "at_least"
-   }
+   },
+   "status_note": "ACCEPTED by the owner, 2026-09-18: \"Rare values: ok. Fine\" (plan P4-D268)."
   },
   {
    "id": "K-2B-20",
@@ -4390,20 +4406,18 @@
   },
   {
    "id": "K-2B-28",
-   "phase_stage": "Stage 2b, owner items 2026-09-18 (P4-D277, P4-D271, x-dates finding 3)",
+   "phase_stage": "Stage 2b, owner items 2026-09-18 (P4-D277, P4-D271)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Remaining counts of one: exactly three known, none new",
-   "status": "ACCEPTED_LIMIT",
-   "rule": "on each of the three shapes the named count (n_numeric, n_missing, n_unparsed) is <= 1, and no other key of the block carries a 1 beyond today's (free text: words/min, the shortest note's one word; its position is structural and not counted)",
+   "name": "Two counts of one LEFT AS IS: free text's n_numeric and a pooled label's n_missing, none new",
+   "status": "OPEN",
+   "rule": "on each of the two shapes the named count (n_numeric, n_missing) is <= 1, and no other key of the block carries a 1 beyond today's (free text: words/min, the shortest note's one word; its position is structural and not counted); target 0",
    "rule_kind": "at_most",
    "expected": {
     "free_text_named_count": 1,
     "pooled_labels_named_count": 1,
-    "dates_named_count": 1,
     "free_text_other_ones": 1,
-    "pooled_labels_other_ones": 0,
-    "dates_other_ones": 0
+    "pooled_labels_other_ones": 0
    },
    "tier": "FAST",
    "source": "pytest",
@@ -4411,20 +4425,24 @@
    "test": "tests/test_kpi_ledger.py::test_k_2b_28",
    "driver": null,
    "pin_strength": "NONE",
-   "measured_on": "999 notes + '42'; 1,977 NORTH/11 SOUTH/1 SITE_X; 118 ISO dates + 1 moment + 1 word; floor 11, seed 4",
-   "evidence": "free text: n_numeric 1 of 1,000 (one note is '42'); pooled labels 1,977/11/1: n_missing 1; dates: n_unparsed 1 of 120. None changes how code runs or any statistic; each is a count a reader could also get by subtraction",
+   "measured_on": "999 notes + '42'; 1,977 NORTH/11 SOUTH/1 SITE_X; floor 11, seed 4",
+   "evidence": "free text: n_numeric 1 of 1,000 (one note is '42'); pooled labels 1,977/11/1: n_missing 1. None changes how code runs or any statistic; each is a count a reader could also get by subtraction. Split on 2026-09-19: the date shape's n_unparsed, which the owner accepted, is K-2B-48; these two are not owner-accepted limits, so the entry is OPEN",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
     "value": {
-     "dates_named_count": 1,
-     "dates_other_ones": 0,
      "free_text_named_count": 1,
      "free_text_other_ones": 1,
      "pooled_labels_named_count": 1,
      "pooled_labels_other_ones": 0
     }
-   }
+   },
+   "target": {
+    "free_text_named_count": 0,
+    "pooled_labels_named_count": 0
+   },
+   "target_stage": "none set: LEFT AS IS on 2026-09-18 after the owner's questions were answered; reopened only by the owner",
+   "status_note": "LEFT AS IS, 2026-09-18. Free text's n_numeric of one: the owner asked how it affects code and statistics; the answer given was neither, and that closing it would move every numeric column's description (plan P4-D277). A pooled label's n_missing of one: answered that closing it would withhold missing counts on every column (plan P4-D271). Neither is an owner acceptance."
   },
   {
    "id": "K-2B-29",
@@ -4462,7 +4480,8 @@
    "key_kinds": {
     "pinned_nodes_failing": "exact"
    },
-   "nodes_min_collected": 2
+   "nodes_min_collected": 2,
+   "status_note": "ACCEPTED by the owner, 2026-09-18: \"sounds minimal issue. I wouldn't care\" (plan P4-D281)."
   },
   {
    "id": "K-2B-30",
@@ -5026,7 +5045,8 @@
      "D_csv_f1_ignoring_identifier": 398,
      "D_csv_f1_whole": 1
     }
-   }
+   },
+   "status_note": "ACCEPTED under the owner's identifier-room decision of 2026-09-18: \"Identifier room: no worries. Fine\" (plan P4-D270); a made-up record number that coincides with a real one is that room's collision."
   },
   {
    "id": "K-2B-46",
@@ -5034,11 +5054,11 @@
    "category": "CODE",
    "headline": true,
    "name": "Code runs unchanged: pandas gives every twin column the dtype it gives the real column",
-   "status": "OPEN",
-   "rule": "columns whose pandas dtype differs between the real file and its twin must not rise (every-role CSV at floors 1 and 11, three seeds (the golden seed, 1 and 2); the eight realistic shapes, CSV and workbook); target 0",
-   "rule_kind": "at_most",
+   "status": "GREEN",
+   "rule": "no column's pandas dtype differs between the real file and its twin (every-role CSV at floors 1 and 11, three seeds (the golden seed, 1 and 2); the eight realistic shapes, CSV and workbook)",
+   "rule_kind": "exact",
    "expected": {
-    "every_role_columns_mismatched": 1,
+    "every_role_columns_mismatched": 0,
     "eight_shape_files_mismatched": 0
    },
    "tier": "FAST",
@@ -5048,7 +5068,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "every_role_and_joined_table and the eight realistic shapes",
-   "evidence": "critic: 'reading' is int64 on the real file and float64 on the twin, because 13 '-999' cells judged missing are written blank",
+   "evidence": "critic: 'reading' is int64 on the real file and float64 on the twin, because 13 '-999' cells judged missing are written blank. REPAIRED by g-sentinel (plan P4-D6.4, merged 2026-09-19): 'reading' is int64 with 13 '-999' cells at seeds 20260811, 1, 2 and 3 and floors 1 and 11, and the 16-file judged battery parts no reader's dtype",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -5056,28 +5076,28 @@
      "eight_shape_files_mismatched": 0,
      "every_role_columns_mismatched": 1
     }
-   },
-   "target_stage": "the g-sentinel repair",
-   "target": {
-    "every_role_columns_mismatched": 0,
-    "eight_shape_files_mismatched": 0
    }
   },
   {
    "id": "K-2B-47",
-   "phase_stage": "Stage 2b (carried items of 2b.1 and 2b.7)",
+   "phase_stage": "Stage 2b (carried items of 2b.1 and 2b.7; the residue of the integration of 2026-09-19)",
    "category": "STATS",
    "headline": false,
-   "name": "Carried fidelity misses: the known-miss battery",
+   "name": "Carried fidelity misses and the carried residue: the known-miss battery",
    "status": "OPEN",
-   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); target 0",
+   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the unchecked read floor as 1 while build_document accepts a table read at a lower floor; target 0",
    "rule_kind": "at_most",
    "expected": {
     "dose_missed_checks": 18,
     "heavy_tail_missed_checks": 2,
     "percent_missed_checks": 0,
     "percent_missed_runs": 0,
-    "temperature_over_mode_runs": 0
+    "temperature_over_mode_runs": 0,
+    "date_joint_word_missed_checks": 3,
+    "date_remainder_missed_checks": 6,
+    "record_layout_missed_checks": 3,
+    "band_split_distinct_short": 4,
+    "read_floor_unchecked": 1
    },
    "tier": "SLOW",
    "source": "driver",
@@ -5085,8 +5105,8 @@
    "test": null,
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "four carried shapes, rebuilt from their plan statements with committed seeds",
-   "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect",
+   "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
+   "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
@@ -5105,14 +5125,101 @@
      "temperature_runs": 2
     }
    },
-   "target_stage": "stage 3 (the carried fidelity items)",
+   "target_stage": "stage 3 (the carried fidelity items); the residue of 2026-09-19 needs no ruling and has no stage set",
    "target": {
     "dose_missed_checks": 0,
     "heavy_tail_missed_checks": 0,
     "percent_missed_checks": 0,
     "percent_missed_runs": 0,
-    "temperature_over_mode_runs": 0
+    "temperature_over_mode_runs": 0,
+    "date_joint_word_missed_checks": 0,
+    "date_remainder_missed_checks": 0,
+    "record_layout_missed_checks": 0,
+    "band_split_distinct_short": 0,
+    "read_floor_unchecked": 0
    }
+  },
+  {
+   "id": "K-2B-48",
+   "phase_stage": "Stage 2b, x-dates finding 3 (P4-D250), accepted by the owner 2026-09-18",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "ACCEPTED LIMIT: a date column's n_unparsed of one beside a one-form census, none new",
+   "status": "ACCEPTED_LIMIT",
+   "rule": "the date shape's n_unparsed is <= 1 and no other key of its block carries a 1",
+   "rule_kind": "at_most",
+   "expected": {
+    "dates_named_count": 1,
+    "dates_other_ones": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_2b_48",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "118 ISO dates + 1 moment + 1 word; floor 11, seed 4",
+   "evidence": "n_unparsed 1 of 120 beside resolution_mix {\"iso-date\": 119}: the three are derivable from one another (120 - 1 = 119), so withholding n_unparsed alone would publish nothing less. Split from K-2B-28 on 2026-09-19",
+   "value_at": {
+    "commit": "e53d5f4",
+    "date": "2026-09-19",
+    "value": {
+     "dates_named_count": 1,
+     "dates_other_ones": 0
+    }
+   },
+   "status_note": "ACCEPTED by the owner, 2026-09-18: \"If makes no difference, don't loose your time\" (plan P4-D250); it makes none."
+  },
+  {
+   "id": "K-2B-49",
+   "phase_stage": "Stage 2b, the orchestrator's calls of 2026-09-18 (P4-D274, P4-D275, P4-D296, P4-D298)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The orchestrator's calls of 2026-09-18, held still until the owner says otherwise",
+   "status": "OPEN",
+   "rule": "must not get worse: the point-free grid trade (style and width MISSED verdicts, and distinct-count MISSED verdicts, over 24 grids x 3 seeds), the subsecond digits written as nought (real cells with a fraction less the twin's), a record number's class counts showing that one record below the line exists (1 while they do), and W5 accepting a hand-written withheld map at a raised floor (its two re-armed guards pass); target 0 on each count",
+   "rule_kind": "at_most",
+   "expected": {
+    "point_free_style_missed_checks": 30,
+    "point_free_distinct_missed_checks": 12,
+    "subsecond_fractions_lost": 400,
+    "record_class_counts_reveal": 1,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_p4d2_loud_decline.py::test_a_label_whose_every_spelling_is_below_the_floor_is_all_invented",
+    "tests/test_p4d2_loud_decline.py::test_the_producers_page_and_the_twins_page_agree_on_what_is_invented"
+   ],
+   "nodes_min_collected": 2,
+   "test": null,
+   "driver": "tools/measurements/kpi_known_misses.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "24 seeded point-free grids of tenths at floor 11; 400 millisecond moments; 40 record numbers + 'ab' at floor 11; the p4d2 guards over hand-written withheld maps",
+   "evidence": "point-free grids: 30 style and width MISSED verdicts and 12 distinct-count MISSED verdicts over 72 twins, the real tables at 0 (P4-D274: adding the band fill's carrier refusal to the column-wide fill trades one for the other). Subsecond: the twin writes 0 of 400 fractions, validate at 0 (P4-D296, the DEVIATION is in the twin's report). Record classes: all_whole_numbers false beside n_numeric 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275)",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-09-19",
+    "value": {
+     "point_free_style_missed_checks": 30,
+     "point_free_distinct_missed_checks": 12,
+     "subsecond_fractions_lost": 400,
+     "record_class_counts_reveal": 1,
+     "pinned_nodes_failing": 0
+    }
+   },
+   "target_stage": "none set: each is the orchestrator's call of 2026-09-18 under the owner's rule; reopened if the owner reverses it",
+   "target": {
+    "point_free_style_missed_checks": 0,
+    "point_free_distinct_missed_checks": 0,
+    "subsecond_fractions_lost": 0,
+    "record_class_counts_reveal": 0
+   },
+   "status_note": "ORCHESTRATOR'S CALLS, 2026-09-18, under the owner's own rule (judge by effect on code and results; where there is none, spend no time): subsecond digits as nought (P4-D296), W5 at a raised floor (P4-D275), a record number's class counts (P4-D298), the column-wide fill's trade on point-free grids (P4-D274). Not owner rulings; the owner may reverse any of them."
   },
   {
    "id": "K-S6-01",

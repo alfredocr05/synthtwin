@@ -447,7 +447,7 @@ def subject_rows() -> "list[list[str]]":
 
 
 def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str], str, str]]":
-    """The three shapes whose one named count of one is an accepted limit.
+    """The three shapes whose one named count of one stands (ledger K-2B-28 and K-2B-48).
 
     name -> (header, rows, flags, column, the key allowed to hold 1).
     """

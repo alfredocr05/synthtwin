@@ -1,23 +1,34 @@
 """K-2B-14: generating second-precision date-time columns, counted and timed.
 
-The stage-2b regression: `generation._nearest_held_unit` walks outward
-from an instant ONE UNIT AT A TIME, so a second-precision column spends time
-for every second between an instant and the nearest one a rank holds.
-Its cost follows the data, not the row count (1,000 rows 10.5 s, 4,000
-rows 1.4 s on the same machine), so seconds alone flap. This counts
-the WORK instead, which is machine-free: every call of the walk and the
-units it stepped (the distance from the instant to the one it returned,
-or to the far bound when it returned nothing), summed over one run.
+The stage-2b regression: `generation._nearest_held_unit` walked outward
+from an instant ONE UNIT AT A TIME, so a second-precision column spent
+time for every second between an instant and the nearest one a rank
+holds (190,524,866 questions of the held-unit table on `_partly(2000,
+0.7)`, about a minute). The g-speed repair (plan K-2B-14, merged
+2026-09-19) sorts the held units once and searches them, so the same
+column asks 2,444. Seconds alone flap with the machine's load; this
+counts the WORK instead, which is machine-free: every call of the two
+searches, `_nearest_held_unit` and `_nearest_free_unit`, and every
+question each asks of the held-unit table (positional argument 7,
+wrapped in a counting dict for the call), summed over one run.
+
+The distance walked -- units between an instant and the one returned,
+or the far bound where none was -- is printed beside it as context: it
+is the ANSWER's distance, the same before and after the repair, and it
+is what the first version of this driver counted.
 
 Two shapes: `_partly(2000, 0.7, 2)` of tests/test_stage2_timestamp_spellings.py
 at seed 4, and the 2,000-row extract of tests/test_workbook_dates.py
-written as delimited text. The ledger holds the steps as the entry's
-must-not-get-worse bound and its target as seconds under 2 on the
-reference machine. About a minute before the repair.
+written as delimited text. The twin each counted run writes is checked
+byte for byte against an uncounted run, so the counting cannot move a
+twin unseen. The ledger holds the questions as the entry's
+must-not-get-worse bound and the seconds of the first shape under 2 on
+the quiet reference machine. A few seconds.
 
     .venv/bin/python tools/measurements/kpi_datetime_speed.py --kpi
 """
 
+import hashlib
 import io
 import pathlib
 import sys
@@ -30,34 +41,63 @@ sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT))
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
-from synthtwin import generation  # noqa: E402
+from synthtwin import generation, rendering  # noqa: E402
 
 kpi_rules.guard_this_tree()
 import test_stage2_timestamp_spellings as spellings  # noqa: E402
 import test_workbook_dates as dates  # noqa: E402
 
-walked = {"calls": 0, "steps": 0}
-original = generation._nearest_held_unit
+tally = {"calls": 0, "questions": 0, "steps": 0}
 
 
-def counted(facts, value, lowest, highest, day, step, unit, *rest, **named):
-    found = original(facts, value, lowest, highest, day, step, unit, *rest, **named)
-    walked["calls"] += 1
-    if found is None:
-        walked["steps"] += max(value - lowest, highest - value) // unit + 1
-    else:
-        walked["steps"] += abs(found // unit - value // unit)
-    return found
+class Counting(dict):
+    """The held-unit table, counting every question asked of it."""
+
+    def __contains__(self, key):
+        tally["questions"] += 1
+        return dict.__contains__(self, key)
+
+    def __getitem__(self, key):
+        tally["questions"] += 1
+        return dict.__getitem__(self, key)
 
 
-generation._nearest_held_unit = counted
+def counted(search):
+    def wrapped(facts, value, lowest, highest, day, step, unit, held, *rest, **named):
+        tally["calls"] += 1
+        found = search(facts, value, lowest, highest, day, step, unit, Counting(held),
+                       *rest, **named)
+        if found is None:
+            tally["steps"] += max(value - lowest, highest - value) // unit + 1
+        else:
+            tally["steps"] += abs(found // unit - value // unit)
+        return found
+    return wrapped
+
+
+ORIGINALS = {name: getattr(generation, name)
+             for name in ("_nearest_held_unit", "_nearest_free_unit")}
 
 
 def run(described):
-    walked.update(calls=0, steps=0)
+    for name, search in ORIGINALS.items():
+        setattr(generation, name, search)
+    plain = hashlib.sha256(rendering.twin_csv(
+        generation.generate(described.loaded, 4)).encode("utf-8")).hexdigest()
     started = time.perf_counter()
     generation.generate(described.loaded, 4)
-    return dict(walked), time.perf_counter() - started
+    seconds = time.perf_counter() - started
+    for name, search in ORIGINALS.items():
+        setattr(generation, name, counted(search))
+    tally.update(calls=0, questions=0, steps=0)
+    twin = generation.generate(described.loaded, 4)
+    for name, search in ORIGINALS.items():
+        setattr(generation, name, search)
+    counted_twin = hashlib.sha256(rendering.twin_csv(twin).encode("utf-8")).hexdigest()
+    if counted_twin != plain:
+        print("REFUSING: the counted run wrote a different twin", flush=True)
+        raise SystemExit(kpi_rules.REFUSED_EXIT)
+    return dict(tally), seconds
 
 
 def extract_text(rows):
@@ -77,12 +117,12 @@ with tempfile.TemporaryDirectory() as folder:
         home / "partly", "stamps", "stamp\n" + "\n".join(spellings._partly(2000, 0.7, 2)) + "\n"
     )
     work, seconds = run(partly)
-    print("partly 2000:", work, f"{seconds:.1f} s", flush=True)
-    value.update(steps_partly_2000=work["steps"], calls_partly_2000=work["calls"],
-                 seconds_partly_2000=round(seconds, 2))
+    print("partly 2000:", work, f"{seconds:.2f} s", flush=True)
+    value.update(questions_partly_2000=work["questions"], calls_partly_2000=work["calls"],
+                 steps_partly_2000=work["steps"], seconds_partly_2000=round(seconds, 2))
     extract = kpi_shapes.describe(home / "extract", "extract", extract_text(2000))
     work, seconds = run(extract)
-    print("extract 2000:", work, f"{seconds:.1f} s", flush=True)
-    value.update(steps_extract_2000=work["steps"], calls_extract_2000=work["calls"],
-                 seconds_extract_2000=round(seconds, 2))
+    print("extract 2000:", work, f"{seconds:.2f} s", flush=True)
+    value.update(questions_extract_2000=work["questions"], calls_extract_2000=work["calls"],
+                 steps_extract_2000=work["steps"], seconds_extract_2000=round(seconds, 2))
 kpi_rules.emit("K-2B-14", value)

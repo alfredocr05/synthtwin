@@ -757,10 +757,12 @@ def test_k_2b_25(record_property) -> None:
           "census_floor_11": parsing.census_floor(11)}, ", ".join(copies))
 
 
-def test_k_2b_28(record_property, tmp_path: pathlib.Path) -> None:
-    """Remaining counts of one: exactly the three the owner accepted, none new."""
+def _lone_counts(tmp_path: pathlib.Path, names: "tuple[str, ...]") -> "dict":
+    """The named count of one, and any other count of one, on each named shape."""
     value = {}
     for name, (header, rows, flags, column, key) in S.lone_count_shapes().items():
+        if name not in names:
+            continue
         document, _twin, _exits = S.privacy_trip(
             tmp_path / name, header, rows, flags, generate=False, validate=False
         )
@@ -771,7 +773,22 @@ def test_k_2b_28(record_property, tmp_path: pathlib.Path) -> None:
         )
         value[f"{name}_named_count"] = block.get(key)
         value[f"{name}_other_ones"] = len([p for p in ones if p not in mirrors])
-    _kpi(record_property, "K-2B-28", value)
+    return value
+
+
+def test_k_2b_28(record_property, tmp_path: pathlib.Path) -> None:
+    """Two counts of one LEFT AS IS on 2026-09-18, and none new beside them.
+
+    Free text's `n_numeric` and a pooled label's `n_missing`: the owner
+    asked, the answers were given, and neither was closed. They are not
+    owner-accepted limits, so the entry is OPEN with its note.
+    """
+    _kpi(record_property, "K-2B-28", _lone_counts(tmp_path, ("free_text", "pooled_labels")))
+
+
+def test_k_2b_48(record_property, tmp_path: pathlib.Path) -> None:
+    """ACCEPTED LIMIT: a date column's `n_unparsed` of one, and none new beside it."""
+    _kpi(record_property, "K-2B-48", _lone_counts(tmp_path, ("dates",)))
 
 
 def test_k_2b_29(record_property, tmp_path: pathlib.Path) -> None:

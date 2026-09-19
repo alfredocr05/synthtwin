@@ -306,11 +306,15 @@ def test_a_shrinking_parametrize_list_is_an_integrity_fault() -> None:
 
 
 def test_a_kpi_test_that_fails_before_recording_is_a_drop() -> None:
-    """A product exception or an assertion before the value is recorded: FAIL (exit 1), not INTEGRITY."""
-    entry = ENTRIES["K-2B-46"]
+    """A product exception or an assertion before the value is recorded: FAIL (exit 1), not INTEGRITY.
+
+    K-2B-28 stands in as an OPEN entry its own KPI test measures (K-2B-46,
+    which stood here, turned GREEN with the g-sentinel repair).
+    """
+    entry = ENTRIES["K-2B-28"]
     row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": None}]})
     assert row["verdict"] == kpi_rules.FAIL and not row["pass"], row
-    recorded = {"id": "K-2B-46", "value": entry["value_at"]["value"], "detail": ""}
+    recorded = {"id": "K-2B-28", "value": entry["value_at"]["value"], "detail": ""}
     row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": recorded}]})
     assert row["verdict"] == kpi_rules.FAIL, row
     row = _row(entry, {entry["test"]: [{"outcome": "passed", "kpi": recorded}]})
