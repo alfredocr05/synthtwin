@@ -9,9 +9,13 @@ visiting order for the distinct-spelling repair (plan P4-D265) -- and for
 the two the carried date items of the same day added when plan P4-D294
 left P4-D258's two merges unreached: `date_two_kinds_traded` and
 `date_two_kinds_nonadjacent`, each a one-field width census whose unnamed
-remainder stands on days of the other kind.  They came here as the
-paragraph below says the next cases go, and the file then stood at
-143752 bytes.
+remainder stands on days of the other kind -- and for the one the repair
+pass of that day added, `date_both_fields_disagree`, which pins the joint
+word a rank showing both fields takes under a census naming one-field
+words alone (plan P4-D294, amended).  The repair pass also rebuilt the two
+before it from the descriptions the producer writes of their tables.
+They came here as the paragraph below says the next cases go, and the
+file then stood at 150714 bytes.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file

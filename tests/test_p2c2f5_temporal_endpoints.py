@@ -772,9 +772,12 @@ CONTRACT_PASSAGES = {
     "no seconds field to carry anything else": (
         "D10 itself: the two pairs are refused, not reported"
     ),
-    "| `earliest`, `latest` | exact-observable": (
-        "the disposition matrix, which states the exact class"
-    ),
+    # The disposition matrix's `earliest`, `latest` row was decided here
+    # while a table was ONE passage. It is read row by row now, and no row
+    # of the matrix speaks of an end and a deviation in one breath, so the
+    # key is withdrawn: kept, it would have exempted the one row of the
+    # contract an excuse for an end would most likely be written into (the
+    # merge skeptic of the carried date items of 2026-09-18).
     "**withheld offsets.**": (
         "the owner-authorized corner, which touches the two OFFSET "
         "fields and says the ends themselves come back exactly"
@@ -844,26 +847,13 @@ METHOD_PASSAGES = {
         "is the whole-number corner G12 refuses; no end of a date column "
         "is in it"
     ),
-    "| `date_only` | g7.5's date form; endpoints exact;": (
-        "G14.3's table of frozen cases, which names each case's pins: "
-        "'earliest_utc_offset' is a published key, 'endpoints exact' and "
-        "'endpoint pins' say the ends ARE exact, and 'recount' is the "
-        "layout census's own reader"
-    ),
-    # THE SECOND HALF OF THAT TABLE, which stands after a blank line and
-    # is therefore a passage of its own. It reached this vocabulary when
-    # plan P4-D255 froze `date_endpoint_ties` in it (measured on the
-    # merge of 2026-09-18): 'latest' and 'endpoint' are that row's own
-    # account of the ranks tied at an end being HELD to the end's offset,
-    # which raises what the twin holds, and 'recount' is
-    # `numbers_carry_the_average`'s length recount refusing its mutant.
-    # No end of a date column is excused anywhere in it.
-    "| `written_form_lines` | g2's written form end to end": (
-        "G14.3's table of frozen cases, its second half: "
-        "'latest' and 'endpoint' are date_endpoint_ties holding the ranks "
-        "tied at an end (P4-D255), and 'recount' is a free-text length "
-        "recount (P4-D190)"
-    ),
+    # G14.3's table of frozen cases was decided here in two halves, one
+    # key each, while a table was ONE passage: its END words ('endpoint',
+    # 'earliest', 'latest') and its EXCUSE words ('recount') stood in
+    # different rows, and a key exempting the whole table exempted any row
+    # written into it. Read row by row, no row of either half speaks of an
+    # end and a deviation together -- measured on the repair pass of the
+    # carried date items of 2026-09-18 -- so both keys are withdrawn.
 }
 
 # Exceptions of the kind that have twice been written into these
@@ -899,11 +889,55 @@ ADDED_EXCEPTIONS = (
 )
 
 
-def _passages(body: str) -> "list[str]":
-    """One document's blank-line separated passages, lower-cased.
+def _normal(lines: "list[str]") -> str:
+    """Lines joined, lower-cased, with every run of whitespace one space."""
+    return " ".join(" ".join(lines).lower().split())
 
-    A markdown table has no blank line inside it, so a table is one
-    passage and a row cannot be read apart from the rule above it.
+
+def _is_separator(line: str) -> bool:
+    """A markdown table's rule line, `|---|:---:|`."""
+    body = line.strip()
+    return (
+        body.startswith("|")
+        and "---" in body
+        and not body.replace("|", "").replace("-", "").replace(":", "").strip()
+    )
+
+
+def _segments(block: "list[str]") -> "list[str]":
+    """One blank-line separated block, as the statements it makes.
+
+    A paragraph is ONE statement. A markdown table is one statement PER
+    ROW, each read with the rule above it -- the lines before the table
+    in the same block and its header row -- so a row is never read apart
+    from what introduces it, and a decided row exempts itself and no row
+    beside it (the merge skeptic of the carried date items of 2026-09-18,
+    its second MINOR). Until then a table was one passage, and the key
+    that decided one row of G14.3's case table exempted every row of it:
+    an excuse written into that table as a row of its own was caught by
+    nothing.
+    """
+    table = [index for index in range(len(block)) if block[index].lstrip().startswith("|")]
+    if not table:
+        return [_normal(block)]
+    first = table[0]
+    rule = block[:first]
+    rows = block[first:]
+    separators = [index for index in range(len(rows)) if _is_separator(rows[index])]
+    if separators:
+        rule = rule + rows[: separators[0]]
+        rows = rows[separators[0] + 1 :]
+    found: "list[str]" = []
+    for row in rows:
+        found = found + [_normal(rule + [row])]
+    return found
+
+
+def _passages(body: str) -> "list[str]":
+    """One document's statements: every paragraph, and every table row.
+
+    Blocks are separated by blank lines; `_segments` cuts each into what
+    it states.
     """
     found: list[str] = []
     block: list[str] = []
@@ -911,10 +945,10 @@ def _passages(body: str) -> "list[str]":
         if line.strip():
             block = block + [line]
         elif block:
-            found = found + [" ".join(" ".join(block).lower().split())]
+            found = found + _segments(block)
             block = []
     if block:
-        found = found + [" ".join(" ".join(block).lower().split())]
+        found = found + _segments(block)
     return found
 
 
@@ -973,6 +1007,41 @@ def test_every_decided_passage_is_still_where_it_was_decided() -> None:
         for key, why in decided.items():
             holders = [one for one in found if key in one]
             assert len(holders) == 1, f"{path.name}: {key} ({why})"
+
+
+# A row of the kind the round-1 repair wrote into the disposition matrix,
+# put INTO each table this guard once exempted whole, among its rows.
+TABLE_ROWS = (
+    (CONTRACT, CONTRACT_PASSAGES, "| `date_percentiles` interior rungs |"),
+    (METHOD, METHOD_PASSAGES, "| `quarter` | g7.5's quarter form"),
+    (METHOD, METHOD_PASSAGES, "| `written_form_classes` |"),
+)
+ADDED_ROW = (
+    "| `latest` | met as far as the ordinal space allows: the end is "
+    "APPROXIMATED and the report names it |"
+)
+
+
+def test_an_exception_written_into_a_table_is_caught() -> None:
+    """The row-level half of the mutation above (the merge skeptic, MINOR 2).
+
+    A table used to be ONE passage, and the key that decided one row of
+    G14.3's case table exempted every row of it, so an excuse written into
+    that table as a row of its own came back as nobody's decision --
+    nothing. Each table this guard once exempted whole now takes such a row
+    among its own, and every one of them comes back undecided.
+    """
+    for path, decided, anchor in TABLE_ROWS:
+        lines = path.read_text(encoding="utf-8").split("\n")
+        places = [
+            index for index in range(len(lines))
+            if lines[index].lower().startswith(anchor)
+        ]
+        assert len(places) == 1, (path.name, anchor)
+        mutated = "\n".join(
+            lines[: places[0]] + [ADDED_ROW] + lines[places[0] :]
+        )
+        assert _undecided(mutated, decided), f"{path.name} before {anchor}"
 
 
 def test_an_exception_added_anywhere_is_caught() -> None:

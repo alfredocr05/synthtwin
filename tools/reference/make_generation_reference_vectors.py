@@ -4026,6 +4026,18 @@ def joint_width_of(census):
             (False, True): "second-padded", (False, False): "unpadded"}[pads]
 
 
+def both_fields_width_of(census):
+    """The joint word a rank showing both fields takes where the census
+    names no joint word (method G7.5 step 1; plan P4-D294, amended): per
+    field, the convention the commonest named one-field word of that field
+    does NOT wear, and padded where the census names no word for it."""
+    first = commonest_of(census_weights(census, FIELD_WIDTH_FIRST), "")
+    second = commonest_of(census_weights(census, FIELD_WIDTH_SECOND), "")
+    pads = (first != "first-field-padded", second != "second-field-padded")
+    return {(True, True): "padded", (True, False): "first-padded",
+            (False, True): "second-padded", (False, False): "unpadded"}[pads]
+
+
 def field_weights(census, which):
     """A one-field class's weights: its own two words where the census counts
     them, else the joint words' padding of that field, summed (P4-D132)."""
@@ -4083,8 +4095,9 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
     written as ``padded`` or ``unpadded``; one whose second alone is, a
     second-field word likewise -- first and second in the member's own
     field order.  A textual member's day is its one field.  A class with no
-    count of its own takes ``field_weights``; a rank showing nothing takes
-    ``joint_width_of``.  NAMES (P4-D133): a rank of May takes the census's
+    count of its own takes ``field_weights``; a rank showing both fields
+    where the census names no joint word takes ``both_fields_width_of``;
+    a rank showing nothing takes ``joint_width_of``.  NAMES (P4-D133): a rank of May takes the census's
     ``either`` words and every other rank its words naming a length; a
     class with none takes the other's words, an ``either`` word at the
     abbreviated length or a named length as ``either``.  Every class is
@@ -4120,7 +4133,7 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
             for rank, form in zip(first, reserved(weights, len(first), floor)):
                 widths[rank] = form
         else:
-            weights = census_weights(widths_census, FIELD_WIDTH_BOTH) or {width_fallback: 1}
+            weights = census_weights(widths_census, FIELD_WIDTH_BOTH) or {both_fields_width_of(widths_census): 1}
             for rank, form in zip(both, reserved(weights, len(both), floor)):
                 widths[rank] = form
             for which, ranks in ((1, first), (2, second)):
@@ -20176,30 +20189,31 @@ def _nonadjacent_merge_restoration():
 def _two_kinds_traded_merge():
     """The trade of G7.3's merges, on a column carrying two width kinds.
 
-    Thirty-six month-first dates on three days -- the third and the
-    nineteenth of March and the tenth of April -- publishing three
-    different values and a census naming `first-field-padded` on
-    twenty-two of them. A date counts into that one-field word where its
-    day is ten or more: it shows the padded month alone, or shows no
-    width at all and is absorbed (plan P4-D278). The third of March shows
-    its day's width, so it is of the OTHER kind, and its fourteen cells
-    are the census's unnamed remainder -- in a table, fourteen cells
-    written by two joint words that each fall below the line and agree
-    with no named word, so nothing folds and nothing names them. That is
-    what gives this column two width kinds, which no joint word can
-    (plan P4-D294). A rank drawn onto the ninth of April sits in a gap
-    holding no held unit of its own kind, so the only merge that brings
-    the column back to three values is onto the tenth, paid for by a
-    rank moved from the nineteenth of March onto the third.
+    The description the producer writes, at a floor of eleven, of
+    thirty-six month-first dates on three days: eleven `03/19/2020`,
+    eleven `04/10/2020`, seven `3/3/2020` and seven `3/03/2020`. It
+    publishes FOUR different values -- the third of March is written two
+    ways -- and a census naming `first-field-padded` on twenty-two cells.
+    A date counts into that one-field word where its day is ten or more:
+    it shows the padded month alone, or shows no width at all and is
+    absorbed (plan P4-D278). The third of March shows its day's width, so
+    it is of the OTHER kind, and its fourteen cells are the census's
+    unnamed remainder: two joint words of seven cells each, below the line
+    and agreeing with no named word, so nothing folds and nothing names
+    them. That is what gives this column two width kinds, which no joint
+    word can (plan P4-D294). The carried date items of 2026-09-18 froze
+    this case at three different values and at ladder rungs no table of
+    these cells can publish; the repair pass of the same day rebuilt it
+    from the producer's own description, and the trade is still reached.
     """
     rungs = [
         "2020-03-03", "2020-03-03", "2020-03-03", "2020-03-03", "2020-03-03",
-        "2020-03-19", "2020-03-19", "2020-03-19", "2020-04-10", "2020-04-10",
+        "2020-03-19", "2020-04-10", "2020-04-10", "2020-04-10", "2020-04-10",
         "2020-04-10",
     ]
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=36, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_present=36, n_missing=0, n_distinct=4, n_distinct_folded=4,
         n_numeric=0, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
         format="month-first-date", resolution="date", time_precision="date",
         subsecond_digits=0, datetimes_read_at="local",
@@ -20217,7 +20231,8 @@ def _two_kinds_traded_merge():
         "and as many ranks elsewhere move between held units the other "
         "way, so the width census is left where it stood. This case's "
         "mutant withdraws the trade, so that merge is never made and the "
-        "twin holds a different value more than the description publishes.",
+        "twin's cells move: its fourth date falls on another day and the "
+        "three published days hold other numbers of cells.",
         "column": column,
         "rows": 36,
         "identifier_declared": False,
@@ -20227,27 +20242,29 @@ def _two_kinds_traded_merge():
 def _two_kinds_nonadjacent_merge():
     """A merge onto a unit that is no rank neighbour, on two width kinds.
 
-    Thirty-six month-first dates on three days -- the fifteenth and the
-    twenty-second of August and the fifth of October -- publishing three
-    different values and a census naming `first-field-padded` on
-    twenty-three of them. The fifth of October shows its day's width and
-    not its month's, so it is of the other kind: thirteen cells, the
-    census's unnamed remainder, written in a table by the two one-field
-    words of the second field, each below the line. Ranks drawn into
-    September land on both kinds, so a run's rank NEIGHBOURS are of the
-    wrong kind while a held unit further off inside the same gap is of
-    the right one: the sixteenth of September merges onto the
-    twenty-second of August over the ninth, and the ninth onto the fifth
-    of October over the sixteenth.
+    The description the producer writes, at a floor of eleven, of
+    thirty-six month-first dates on three days: ten `08/15/2020`,
+    thirteen `08/22/2020`, seven `10/05/2020` and six `10/5/2020`. It
+    publishes FOUR different values -- the fifth of October is written
+    two ways -- and a census naming `first-field-padded` on twenty-three
+    cells. The fifth of October shows its day's width and not its
+    month's, so it is of the other kind: thirteen cells, the census's
+    unnamed remainder, written by the two one-field words of the second
+    field, each below the line. Ranks drawn into September land on both
+    kinds, so a run's rank NEIGHBOURS can be of the wrong kind while a
+    held unit further off inside the same gap is of the right one. Frozen
+    at three different values and at ladder rungs no table of these cells
+    can publish by the carried date items of 2026-09-18, and rebuilt from
+    the producer's own description by the repair pass of the same day.
     """
     rungs = [
-        "2020-08-15", "2020-08-15", "2020-08-15", "2020-08-22", "2020-08-22",
+        "2020-08-15", "2020-08-15", "2020-08-15", "2020-08-15", "2020-08-15",
         "2020-08-22", "2020-10-05", "2020-10-05", "2020-10-05", "2020-10-05",
         "2020-10-05",
     ]
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=36, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_present=36, n_missing=0, n_distinct=4, n_distinct_folded=4,
         n_numeric=0, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
         format="month-first-date", resolution="date", time_precision="date",
         subsecond_digits=0, datetimes_read_at="local",
@@ -20263,9 +20280,59 @@ def _two_kinds_nonadjacent_merge():
         "whole onto the nearest held unit of its own width kind inside its "
         "gap, which the rank just below it and the rank just above it need "
         "not be. This case's mutant offers the neighbours alone, and the "
-        "runs whose neighbours are of the other kind stay where they were, "
-        "so the twin holds more different values than the description "
+        "run whose neighbours are of the other kind stays where it was, so "
+        "the twin holds more different values than the description "
         "publishes.",
+        "column": column,
+        "rows": 36,
+        "identifier_declared": False,
+    }
+
+
+def _both_fields_disagree():
+    """The joint word of a rank showing both fields under a one-field census.
+
+    The description the producer writes, at a floor of eleven, of
+    thirty-six DAY-first dates: eleven `19/03/2020`, eleven `10/04/2020`,
+    seven `3/3/2020` and seven `03/3/2020`. The census names the one-field
+    word `second-field-padded` -- the second field is the MONTH on this
+    member -- on twenty-two cells, and no joint word: the fourteen cells of
+    the third of March, whose two fields both show, are the unnamed
+    remainder, and neither of their words pads the month. Had one done so,
+    the fold (`folded_width_tally`) would have joined the twenty-two to it
+    and the census would name that joint word instead. So a rank of the
+    twin showing both fields writes the month UNPADDED and the day in the
+    padded default, `03/3/2020` (G7.5 step 1; plan P4-D294, amended by the
+    repair pass of the carried date items of 2026-09-18). Written in the
+    joint word that AGREES with the census, `03/03/2020`, the twin folded
+    all twenty-two into `padded` and validated at exit 3.
+    """
+    rungs = [
+        "2020-03-03", "2020-03-03", "2020-03-03", "2020-03-03", "2020-03-03",
+        "2020-03-19", "2020-04-10", "2020-04-10", "2020-04-10", "2020-04-10",
+        "2020-04-10",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=36, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=0, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
+        format="day-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 36},
+        date_field_widths={"second-field-padded": 22},
+    )
+    return {
+        "why": "the joint word a rank showing both fields takes where the "
+        "census names a one-field word and no joint word (method G7.5 step "
+        "1; plan P4-D294, amended): per field, the convention no named "
+        "one-field word wears, because a cell of the table that wore it "
+        "would have folded the named count into its own joint word. This "
+        "case's mutant writes the joint word that agrees with the census, "
+        "and the twin's cells of the third of March are written with the "
+        "month padded.",
         "column": column,
         "rows": 36,
         "identifier_declared": False,
@@ -20304,6 +20371,10 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     # merges exist for, a one-field census with an unnamed remainder.
     "date_two_kinds_nonadjacent": _two_kinds_nonadjacent_merge,
     "date_two_kinds_traded": _two_kinds_traded_merge,
+    # The joint word of a rank showing both fields under a census naming
+    # one-field words alone (the repair pass of the carried date items of
+    # 2026-09-18, plan P4-D294 amended).
+    "date_both_fields_disagree": _both_fields_disagree,
     # The representable grid, where no decimal grid exists (P4-D269).
     "saturated_representable": _saturated_representable,
     # The distinct-spelling repair's visiting order (plan P4-D265).
@@ -20544,6 +20615,31 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "date_both_fields_disagree": (
+        5096034806614510811, 9127885328592248719, 16304617541838727871,
+        10614954204615546728, 14963909110165282232, 8845507511527769126,
+        15528960938406286653, 5275935929665585901, 12223491003683051927,
+        18424306941903359721, 9040206639804498584, 10813137443944621719,
+        11103886149936075328, 9912174573063088932, 1165615398698573907,
+        6253441343499245969, 14584598550181159, 13377711235312647151,
+        2237516081840342045, 9760884472539892163, 6165267188704144164,
+        1247821239484094773, 8358226907869580002, 8935705391660689568,
+        9914925938048088169, 8622900820666789101, 17232009305461657845,
+        2606181358604470195, 3524283011245296158, 894302093847134428,
+        11409816955044898622, 2366383981396151801, 14964750862603328079,
+        13367463225791847279, 16573511683502108955, 16750684993226932748,
+        12596705489443840001, 5975748967522999555, 8179857556253001300,
+        12344870860023625869, 1597545825799291522, 5141373976140080193,
+        4149613714794390811, 17403239971618392915, 6332016292126589778,
+        5535291995783770308, 17685296604419117023, 14184574080023461516,
+        14157445884312410362, 4161665235709213732, 1129664291363293887,
+        5713049874581721119, 10899892321547441452, 4160110975092525454,
+        10312655140069860720, 5062287257856636427, 11497476019952508497,
+        13075359459115315865, 18018613593129374273, 4104423894202178749,
+        6998265576522427826, 4001331161405125105, 15424731862947144607,
+        18251116642127168522, 17103569614290861868, 3469200429126354739,
+        6773636937017755013, 6088866139289102171, 14283284846303789426,
+    ),
     "date_two_kinds_nonadjacent": (
         15901266957108695067, 7165400256243440419, 18392868520155406958,
         5937130741687460391, 16443829891689753475, 1972420053770293001,

@@ -123,3 +123,80 @@ def test_the_real_table_s_own_census_of_two_widths_is_held_count_for_count(
         f"widths.{key}": (validation.HELD, f"{count}")
         for key, count in published.items()
     }
+
+
+# -- a one-field census whose remainder shows both fields ------------------
+#
+# The merge skeptic of the carried date items of 2026-09-18, its MAJOR: a
+# census naming a ONE-FIELD word and no joint word, beside an unnamed
+# remainder standing on a day whose two fields both show. The twin wrote
+# that day in the joint word AGREEING with the named one -- `03/03/2020`
+# under `first-field-padded` -- and `parsing.folded_width_tally` then joined
+# the named count to it: described again as `{"padded": 36}`, validated at
+# exit 3 with the named width and `widths.unnamed` MISSED, at seeds 4, 0
+# and 1 (plan P4-D294, amended). A census naming a one-field word says no
+# cell of its table showing both fields padded that field that way, or the
+# fold would have joined them; so a twin's rank showing both fields writes
+# each named field the OTHER way, and a field the census names no word for
+# padded (method G7.5 step 1).
+
+_BOTH_FIELDS_REMAINDER = {
+    # Month first: the named word pads the MONTH, so the third of March
+    # is written with the month unpadded and the day in the padded
+    # default.
+    "month-first": (
+        (("03/19/2020", 11), ("04/10/2020", 11), ("3/3/2020", 7), ("3/03/2020", 7)),
+        "first-field-padded",
+        "3/03/2020",
+    ),
+    # Day first: the second field is the MONTH, the named word pads it,
+    # and the day -- the first field, named by no word -- stays padded.
+    "day-first": (
+        (("19/03/2020", 11), ("10/04/2020", 11), ("3/3/2020", 7), ("03/3/2020", 7)),
+        "second-field-padded",
+        "03/3/2020",
+    ),
+}
+
+
+def _written(cells: "tuple[tuple[str, int], ...]") -> bytes:
+    lines = ["seen"]
+    for cell, count in cells:
+        lines += [cell] * count
+    return ("\r\n".join(lines) + "\r\n").encode("utf-8")
+
+
+@pytest.mark.parametrize("seed", [4, 0, 1])
+@pytest.mark.parametrize("member", sorted(_BOTH_FIELDS_REMAINDER))
+def test_a_one_field_census_with_its_remainder_on_both_fields_validates(
+    tmp_path: pathlib.Path, member: str, seed: int
+) -> None:
+    """The reproduction, as a round trip at exit 0 on both sides.
+
+    Mutation: `generation._both_fields_width_of` put back to
+    `_joint_width_of` writes the third of March `03/03/2020`, the twin
+    describes again as `{"padded": 36}`, and the twin's exit is 3.
+    """
+    cells, named, third_of_march = _BOTH_FIELDS_REMAINDER[member]
+    result = _trip(
+        tmp_path, "remainder", _written(cells),
+        flags=("--smallest-group", "11"), suffix=".csv", seed=seed,
+    )
+    _held(result)
+    # Twenty-two cells show the named word; the fourteen of the third of
+    # March are the unnamed remainder, two words of seven, each below the
+    # line of eleven.
+    assert result["document"]["columns"][0]["date_field_widths"] == {named: 22}
+    again = result["again"]["columns"][0]["date_field_widths"]
+    assert again[named] == 22
+    # Every cell the twin writes on the third of March -- its day and its
+    # month are both three, in either field order -- is written the one
+    # way the rule gives.
+    march = [
+        cell
+        for cell in result["twin"].read_text(encoding="utf-8").splitlines()[1:]
+        if cell.count("/") == 2 and cell.split("/")[0].isdigit()
+        and cell.split("/")[1].isdigit()
+        and (int(cell.split("/")[0]), int(cell.split("/")[1])) == (3, 3)
+    ]
+    assert march and set(march) == {third_of_march}, sorted(set(march))

@@ -4924,9 +4924,19 @@ counts and nothing else.
    field order, and on a textual member the day is its one field. A
    class the census counts no word for takes the joint words' padding of
    that field, summed (`padded` and `first-padded` pad the first field),
-   and one with none of those either takes that field padded. A rank that
-   shows no width takes the commonest joint word, or the joint word the
-   commonest first-field and second-field words make.
+   and one with none of those either takes that field padded. A rank
+   whose two fields both show, where the census counts no joint word,
+   takes the joint word built field by field from the convention the
+   commonest named one-field word of that field does NOT wear, a field
+   the census names no one-field word for being padded: a census naming a
+   one-field word says that no cell of its table showing both fields
+   wore that word's convention in that field, because
+   `folded_width_tally` would have joined the named count to such a
+   cell's joint word and the census would name the joint word instead
+   (plan P4-D294, amended by the repair pass of the carried date items of
+   2026-09-18). A rank that shows no width takes the commonest joint
+   word, or the joint word the commonest first-field and second-field
+   words make.
 2. NAMES. A rank whose month is May takes the census's `either` words; a
    rank of any other month the words that name a length. A class the
    census counts no word for takes the other class's words with the
@@ -10155,9 +10165,13 @@ seventh file; merged, that file stood at 276235 bytes against the
 carried date items of 2026-09-18 add two more to the eighth file**,
 `date_two_kinds_traded` and `date_two_kinds_nonadjacent`, which reach
 G7.3's two merges again after plan P4-D294 left them unreached (see
-below the table).
+below the table). **Its repair pass adds one more**,
+`date_both_fields_disagree`, which pins G7.5 step 1's joint word for a
+rank whose two fields both show under a census naming one-field words
+alone, and rebuilds the two before it from the descriptions the producer
+writes of their tables.
 
-**All ninety-seven are required.** The count is taken off the committed
+**All ninety-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10173,7 +10187,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds nine (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds ten (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10271,8 +10285,9 @@ case passed, which is the failure the count exists to prevent:
 | `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
 | `date_traded_merge` | The day's width KIND (plan P4-D294): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three. Its mutant asks the narrower question -- does the day SHOW the width -- in place of the census's own membership, and the twin's dates move. It was frozen for G7.3's traded merge (plan P4-D258) and no longer reaches it: under a joint word every day counts into the census, so a column of one kind has no gap without a unit of its own kind. See the note below this table |
 | `date_nonadjacent_merge` | The same three days at other words, pinning the same corrected kind question (plan P4-D294); its mutant is the same narrowing and it moves these cells too. It was frozen for G7.3's merge onto a unit that is no rank neighbour (plan P4-D258) and no longer reaches it, for the reason the row above gives |
-| `date_two_kinds_nonadjacent` | G7.3's merge onto a held unit that is no rank neighbour (plan P4-D258), on a column carrying two width kinds: thirty-six month-first dates on the fifteenth and the twenty-second of August and the fifth of October, publishing three different values and `first-field-padded` on twenty-three cells, the thirteen left standing on the fifth of October, which is of the other kind. Its mutant offers the rank neighbours alone, and the twin holds five different dates |
-| `date_two_kinds_traded` | G7.3's traded merge (plan P4-D258), on a column carrying two width kinds: thirty-six month-first dates on the third and the nineteenth of March and the tenth of April, publishing three different values and `first-field-padded` on twenty-two cells, the fourteen left standing on the third of March. A rank drawn onto the ninth of April has no unit of its own kind in its gap, so it moves onto the tenth and a rank of the nineteenth of March moves onto the third to pay for it. Its mutant makes no trade, and the twin holds four different dates |
+| `date_two_kinds_nonadjacent` | G7.3's merge onto a held unit that is no rank neighbour (plan P4-D258), on a column carrying two width kinds: the description the producer writes of ten `08/15/2020`, thirteen `08/22/2020`, seven `10/05/2020` and six `10/5/2020`, publishing four different values and `first-field-padded` on twenty-three cells, the thirteen left standing on the fifth of October, which is of the other kind. A run drawn onto the seventeenth of September, of the named kind, has rank neighbours of the other kind on either side -- the ninth of September, whose two fields both show, and the fifth of October -- and merges onto the twenty-second of August past them. Its mutant offers the rank neighbours alone, the run stays, and the twin holds five different dates against four. Rebuilt by the repair pass of the carried date items of 2026-09-18: first frozen at three different values, which no table of these cells can publish |
+| `date_two_kinds_traded` | G7.3's traded merge (plan P4-D258), on a column carrying two width kinds: the description the producer writes of eleven `03/19/2020`, eleven `04/10/2020`, seven `3/3/2020` and seven `3/03/2020`, publishing four different values and `first-field-padded` on twenty-two cells, the fourteen left standing on the third of March. A run of five ranks drawn onto the sixth of April, whose two fields both show, has no unit of its own kind in its gap, so it moves onto the tenth of April and three ranks of the eleventh and the nineteenth of March move onto a day of the other kind to pay for it. Its mutant makes no trade, and the twin's fourth date is the sixth of April on five cells in place of the eleventh of March. Rebuilt by the repair pass of the carried date items of 2026-09-18: first frozen at three different values, which no table of these cells can publish, and with the third of March written `03/03/2020`, the spelling that folded its own census away; G7.5 step 1 now writes it `3/03/2020` |
+| `date_both_fields_disagree` | G7.5 step 1's joint word for a rank whose two fields both show, where the census names one-field words alone (plan P4-D294, amended by the repair pass of the carried date items of 2026-09-18): the description the producer writes of thirty-six DAY-first dates, eleven `19/03/2020`, eleven `10/04/2020`, seven `3/3/2020` and seven `03/3/2020`, publishing `second-field-padded` -- the month, on this member -- on twenty-two cells. The twin writes the third of March and the second of April with the month unpadded and the day padded, `03/3/2020` and `02/4/2020`, so no cell of it joins the named count to a joint word. Its mutant writes the joint word that agrees with the census, `03/03/2020`, and the twenty-two named cells fold into `padded` |
 | `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `second-field-padded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass. The word was `unpadded` until plan P4-D294: a JOINT word absorbs every day, so a column of eighty cells can publish only eighty under it and the pass had nothing left to reach |
 | `midnight_withheld_kept` | G7.3's rule for a withheld count at midnight (plan P4-D191): sixty moments to the minute whose pins stand a minute either side of midnight in turn, so about half the ranks between a `23:59` and the next `00:01` land at midnight; the published instants stand off it, so fewer than the line of eleven may, and the ranks at midnight step a minute later. Its mutant leaves them there |
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
