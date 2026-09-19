@@ -23302,6 +23302,245 @@ def _identifier_cells(
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a declared column of record numbers (G9.6).
 
+    THE COLUMN IS BUILT AGAINST THE COUNTS AS PUBLISHED, and against
+    another reading of them only where those cells miss what the block
+    publishes (plan P4-D298). A declared record number publishes its four
+    class counts under invariant X2 and its two alphabet counts through
+    `parsing.absorbed_total`, so a part or a side below the census line
+    is counted into the larger one before it is published. A twin owes
+    those counts as its own description would publish them -- which is
+    how the validator reads them -- and not as a measured count the
+    table itself does not hold. **Measured** at e53d5f4 on the battery of
+    review item P2-C5-F2: 15 copies of `-463`, 8 of `-4`, one `bLMQsN`
+    and one `5e999` publish `n_numeric 25` and `all_whole_numbers:
+    false`; the published reading wrote twenty-five whole numbers and
+    named `all_whole_numbers`, and `(-6)` ten times beside four numerals
+    out of range and one `8xEa` publishes a code-alphabet cell the
+    eleven published contradictory cells cannot be, so the twin named
+    `n_code_alphabet` on every seed. Each column's own values meet its
+    description; the counts they read as were simply not the published
+    numbers.
+
+    So `_identifier_cells_as_read` is asked of the published reading
+    first, and a column whose cells hold every count it publishes -- as
+    recounted by `_reading_missed` -- is answered by it exactly as before,
+    byte for byte. Otherwise the readings `_identifier_readings` offers
+    are tried in order, each only where some packing of whole groups
+    meets it (`_identifier_packings`), and the first whose cells hold
+    every count as published, file no more deviations, miss no other
+    count the published reading held and leave no more named layouts
+    short is the answer -- a reading may not trade the layout census for
+    a class count, since both are exact. Where none does, the published
+    reading's cells stand and every miss is named, as before.
+    """
+    first = _identifier_cells_as_read(column, groups, holes, floor)
+    if not _reading_missed(column, first[0], holes, floor):
+        return first
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        raise _wrong_facts(column.name)
+    total = len(groups)
+    folded = min(column.n_distinct_folded, total)
+    partners = total - folded
+    held = _beside_the_reading(
+        _identifier_shortfall(column, _templated_facts(facts), first[0])
+    )
+    laid_short = len(_layout_notes(column, first[0], floor))
+    builds = 0
+    for view in _identifier_readings(column, facts, floor):
+        if builds >= _ABSORBED_BUILDS:
+            break
+        read = view.facts
+        if not isinstance(read, contract.IdentifierFacts):
+            raise _wrong_facts(column.name)
+        if not _identifier_packings(
+            view, _templated_facts(read), groups, folded, partners, 1
+        ):
+            continue
+        builds = builds + 1
+        built = _identifier_cells_as_read(view, groups, holes, floor)
+        if _reading_missed(column, built[0], holes, floor):
+            continue
+        if len(built[1]) > len(first[1]):
+            continue
+        if not _beside_the_reading(
+            _identifier_shortfall(view, _templated_facts(read), built[0])
+        ) <= held:
+            continue
+        if len(_layout_notes(column, built[0], floor)) > laid_short:
+            continue
+        return built
+    return first
+
+
+# HOW MANY OTHER READINGS OF A RECORD NUMBER'S COUNTS ARE BUILT (plan
+# P4-D298). A reading is built only where a packing of whole groups meets
+# it, and building one is a whole walk of the column, so the number built
+# is stated; the readings are offered in ascending order of the cells
+# they move, and a producer description is answered by the reading its
+# own values make.
+_ABSORBED_BUILDS = 8
+
+# The counts a reading of the absorbed counts moves, which the fold
+# repair's own recount therefore reads against the reading and not
+# against the published description (plan P4-D298).
+_READ_COUNTS = frozenset((
+    "n_numeric",
+    "n_out_of_range",
+    "n_contradictory",
+    "n_not_numeric",
+    "n_all_digits",
+    "n_code_alphabet",
+))
+
+
+def _beside_the_reading(missed: "frozenset[str]") -> "frozenset[str]":
+    """A shortfall with the counts a reading moves set aside (P4-D298)."""
+    return frozenset(name for name in missed if name not in _READ_COUNTS)
+
+
+def _reading_missed(
+    column: contract.ColumnBlock,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    floor: int,
+) -> bool:
+    """Whether a record number's cells miss a count as the block publishes it.
+
+    THE RECOUNT THE TWIN'S OWN DESCRIPTION WOULD MAKE (plan P4-D298): the
+    four classes through `parsing.parts_as_published`, the two alphabets
+    through `parsing.count_as_published`, and the whole-number fact as it
+    stands -- the three facts a reading of the absorbed counts can move.
+    Guarantees: reads only its arguments; no randomness and no I/O.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        return False
+    present = [
+        parsing.trimmed(cell) for cell in _present_of(cells, holes)
+    ]
+    counted = {name: 0 for name in _CLASSES}
+    whole = len(present) > 0
+    digits = 0
+    coded = 0
+    for cell in present:
+        found = parsing.classify_number(cell)
+        counted[found] = counted[found] + 1
+        if parsing.numeric_whole(cell) != parsing.WHOLE_YES:
+            whole = False
+        if parsing.is_digit_text(cell):
+            digits = digits + 1
+        if parsing.is_code_text(cell):
+            coded = coded + 1
+    published = [
+        column.n_numeric,
+        column.n_out_of_range,
+        column.n_contradictory,
+        column.n_not_numeric,
+    ]
+    parts = parsing.parts_as_published(
+        [
+            counted[_CLASS_NUMBER],
+            counted[_CLASS_OUT_OF_RANGE],
+            counted[_CLASS_CONTRADICTORY],
+            counted[_CLASS_TEXT],
+        ],
+        published,
+        floor,
+    )
+    return (
+        parts != published
+        or parsing.count_as_published(
+            digits, len(present), facts.n_all_digits, floor
+        )
+        != facts.n_all_digits
+        or parsing.count_as_published(
+            coded, len(present), facts.n_code_alphabet, floor
+        )
+        != facts.n_code_alphabet
+        or whole != facts.all_whole_numbers
+    )
+
+
+def _identifier_readings(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    floor: int,
+) -> "list[contract.ColumnBlock]":
+    """Every OTHER reading of a record number's absorbed counts, in order.
+
+    Each is the column with its four class counts replaced by a partition
+    `parsing.parts_absorbed_to` offers and its two alphabet counts by a
+    pair `_alphabet_readings` offers -- every one of them published by
+    the producer exactly as this column is (plan P4-D298). They come in
+    ascending order of the six counts' total difference from the
+    published ones, ties by the partition's own order and then the
+    pair's; the published reading itself is not among them, and at most
+    `_ABSORBED_READINGS` are offered.
+
+    Guarantees: reads only the description and the floor; no randomness
+    and no I/O.
+    """
+    published = [
+        column.n_numeric,
+        column.n_out_of_range,
+        column.n_contradictory,
+        column.n_not_numeric,
+    ]
+    partitions = [published]
+    for partition in parsing.parts_absorbed_to(published, floor):
+        if partition != published:
+            partitions += [partition]
+    by_class: dict[int, list[list[int]]] = {}
+    for partition in partitions:
+        moved = 0
+        for place in range(len(published)):
+            moved = moved + abs(partition[place] - published[place])
+        if moved not in by_class:
+            by_class[moved] = []
+        by_class[moved] += [partition]
+    by_pair: dict[int, list[tuple[int, int]]] = {
+        0: [(facts.n_all_digits, facts.n_code_alphabet)]
+    }
+    for figures, code, moved in _alphabet_readings(
+        facts.n_all_digits, facts.n_code_alphabet, column.n_present, floor
+    ):
+        if moved not in by_pair:
+            by_pair[moved] = []
+        by_pair[moved] += [(figures, code)]
+    readings: list[contract.ColumnBlock] = []
+    furthest = max(by_class) + max(by_pair)
+    for moved in range(1, furthest + 1):
+        for part_moved in sorted(by_class):
+            if part_moved > moved or (moved - part_moved) not in by_pair:
+                continue
+            for partition in by_class[part_moved]:
+                for pair in by_pair[moved - part_moved]:
+                    if len(readings) >= _ABSORBED_READINGS:
+                        return readings
+                    readings += [dataclasses.replace(
+                        column,
+                        n_numeric=partition[0],
+                        n_out_of_range=partition[1],
+                        n_contradictory=partition[2],
+                        n_not_numeric=partition[3],
+                        facts=dataclasses.replace(
+                            facts,
+                            n_all_digits=pair[0],
+                            n_code_alphabet=pair[1],
+                        ),
+                    )]
+    return readings
+
+
+def _identifier_cells_as_read(
+    column: contract.ColumnBlock,
+    groups: "tuple[int, ...]",
+    holes: "tuple[str, ...]" = (),
+    floor: int = 1,
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a record number, against ONE reading of its counts.
+
     The values are made up. What this promises:
 
     - the length range, the whole-number fact and the two alphabet
@@ -26749,6 +26988,7 @@ def _text_cells(
     long_tail_line: int = 0,
     holes: "tuple[str, ...]" = (),
     truths: int = 0,
+    floor: int = 1,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
@@ -26784,7 +27024,7 @@ def _text_cells(
     total = len(groups)
     truth: "dict[int, str]" = {}
     lengths, counts, kinds, bands, carriers, notes = _text_plan(
-        column, facts, groups, long_tail_line, truths, truth
+        column, facts, groups, long_tail_line, truths, truth, floor
     )
     shortened = 0
     for index in range(total):
@@ -27176,6 +27416,7 @@ def _text_plan(
     line: int = 0,
     truths: int = 0,
     truth: "dict[int, str] | None" = None,
+    floor: int = 1,
 ) -> "tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]]":
     """The whole shape of a column of free text, settled in ONE allocation.
 
@@ -27225,22 +27466,178 @@ def _text_plan(
     lengths are fixed beside the numbers' and the forms' before the walk
     spends the average; ``truth`` is filled with those groups' spellings.
     Where no shape offers such groups the first packing is kept as before.
+
+    AND THE ALPHABET COUNTS ARE OWED AS THE PRODUCER PUBLISHES THEM (plan
+    P4-D298). `n_all_digits` and `n_code_alphabet` are absorbed counts
+    (`parsing.absorbed_total`): where a side of either census is below
+    the line the block publishes nought or every present cell, and a
+    column whose own count sat one short of that end publishes the same
+    number. The twin meets such a count wherever describing it again
+    publishes it, which is how the validator reads it. So the search
+    above is asked of the PUBLISHED counts first -- a description that
+    packs as published is answered exactly as before, byte for byte --
+    and only where no shape and no reading packs them is it asked again,
+    in the order `_text_readings` states, of each pair of counts the
+    producer would have published the same way. **Measured** at e53d5f4
+    on the battery of review item P2-C4-F2: eleven figures beside one
+    `ab` publish `n_all_digits 12` beside `n_numeric 11`, no whole group
+    meets both, and 158 of 3,186 producer columns fell to the fallback
+    below although their own values answer the description.
     """
     total = len(groups)
+    room: dict[tuple[int, int], int] = {}
+    for classes, alphabets in _text_readings(column, facts, floor):
+        answer, kept = _text_packed(
+            column, facts, groups, line, truths, truth, classes, alphabets,
+            room,
+        )
+        if answer is not None:
+            return answer
+        if kept is not None:
+            return kept
+    carriers = _shape_choices(total)[0]
+    lengths, counts, notes = _text_shape(column, facts, groups, carriers)
+    kinds, bands = _text_families(
+        column, facts, groups, lengths, counts, carriers
+    )
+    bands = _bands_for_number_forms(
+        facts, groups, lengths, counts, kinds, bands, carriers
+    )
+    kinds = _singletons_kept_as_text(
+        groups, lengths, counts, kinds, bands, carriers, line
+    )
+    fixed = _number_lengths(facts, groups, lengths, kinds, bands, carriers)
+    fixed, worded = _held_for_the_census(
+        facts, groups, lengths, counts, kinds, bands, carriers, fixed
+    )
+    if fixed:
+        lengths, counts, notes = _text_shape(
+            column, facts, groups, carriers, fixed, worded
+        )
+        lengths = _numbers_walked(
+            column, facts, groups, lengths, kinds, bands, carriers, fixed
+        )
+    return lengths, counts, kinds, bands, carriers, notes
+
+
+# HOW MANY READINGS OF THE ABSORBED COUNTS ONE COLUMN IS PACKED AGAINST
+# (plan P4-D298). The published reading is the first and answers every
+# description that packs as published; a reading after it is asked only
+# where that one has no packing at all, in ascending order of the cells
+# it moves, and a description a real table produced is answered by the
+# reading its own counts make, which moves the fewest cells the census
+# line allows. At the default floor a free-text column has at most four
+# readings and a record number at most 128; the bound is stated so that
+# a hand-built description no reading answers has a search that ends.
+_ABSORBED_READINGS = 256
+
+
+def _text_readings(
+    column: contract.ColumnBlock, facts: contract.TextFacts, floor: int
+) -> "list[tuple[list[int], list[int]]]":
+    """The class and alphabet counts a column of free text is packed against.
+
+    THE PUBLISHED COUNTS FIRST, then every other pair of alphabet counts
+    the producer publishes the same way (plan P4-D298,
+    `parsing.counts_absorbed_to`), in ascending order of the cells they
+    move, ties by the figures count and then by the code-alphabet count,
+    each the smaller first. A pair holding more cells in the figures than
+    in the code alphabet is not a reading, since the figures are inside
+    it. The four class counts are free text's own and are not absorbed
+    (contract, "the four are protected on a declared record number and
+    nowhere else"), so every reading carries them as published.
+
+    Guarantees: reads only the description and the floor; returns at
+    most `_ABSORBED_READINGS` readings, each the four class counts and
+    the three band counts, the published reading first. Determinism: a
+    fixed function of its arguments. Raises nothing. No I/O.
+    """
     classes = [
         column.n_numeric,
         column.n_out_of_range,
         column.n_contradictory,
         column.n_not_numeric,
     ]
-    alphabets = [
-        facts.n_all_digits,
-        facts.n_code_alphabet - facts.n_all_digits,
-        column.n_present - facts.n_code_alphabet,
-    ]
+    present = column.n_present
+    readings: list[tuple[list[int], list[int]]] = [(
+        classes,
+        [
+            facts.n_all_digits,
+            facts.n_code_alphabet - facts.n_all_digits,
+            present - facts.n_code_alphabet,
+        ],
+    )]
+    for pair in _alphabet_readings(
+        facts.n_all_digits, facts.n_code_alphabet, present, floor
+    ):
+        if len(readings) >= _ABSORBED_READINGS:
+            break
+        readings += [(
+            classes, [pair[0], pair[1] - pair[0], present - pair[1]]
+        )]
+    return readings
+
+
+def _alphabet_readings(
+    digits: int, coded: int, present: int, floor: int
+) -> "list[tuple[int, int, int]]":
+    """Every OTHER pair of alphabet counts published as ``digits`` and ``coded``.
+
+    Each is `(figures, code alphabet, cells moved)`, in ascending order of
+    the cells moved, ties by the figures count and then the code count,
+    the smaller first; the published pair itself is left out, and so is
+    a pair with more figures than code-alphabet cells (plan P4-D298).
+    """
+    ranked: list[tuple[int, int, int]] = []
+    for figures in _counts_meeting(digits, present, floor):
+        for code in _counts_meeting(coded, present, floor):
+            if figures > code:
+                continue
+            if figures == digits and code == coded:
+                continue
+            ranked += [(
+                abs(figures - digits) + abs(code - coded), figures, code
+            )]
+    return [(entry[1], entry[2], entry[0]) for entry in sorted(ranked)]
+
+
+def _counts_meeting(published: int, population: int, floor: int) -> "list[int]":
+    """Every recounted count that meets ``published``, the published first.
+
+    The count itself, and every count `parsing.counts_absorbed_to` says
+    the producer publishes the same way -- exactly the counts
+    `parsing.count_as_published` holds equal to it (plan P4-D298).
+    """
+    found = [published]
+    for count in parsing.counts_absorbed_to(published, population, floor):
+        if count != published:
+            found += [count]
+    return found
+
+
+def _text_packed(
+    column: contract.ColumnBlock,
+    facts: contract.TextFacts,
+    groups: "tuple[int, ...]",
+    line: int,
+    truths: int,
+    truth: "dict[int, str] | None",
+    classes: "list[int]",
+    alphabets: "list[int]",
+    room: "dict[tuple[int, int], int]",
+) -> "tuple[tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]] | None, tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]] | None]":
+    """G9.5's shape search against ONE reading of the counts (plan P4-D298).
+
+    The walk `_text_plan` describes, over both readings of a free
+    group's length and every shape in the order of `_shape_choices`,
+    against the class counts ``classes`` and the band counts
+    ``alphabets``. Returns the answer, or None with the first packing a
+    workbook's truth values could not be spelled in (or None again where
+    no shape packs at all).
+    """
+    total = len(groups)
     width = len(_BANDS)
     kept: "tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]] | None" = None
-    room: dict[tuple[int, int], int] = {}
     spent: dict[tuple[tuple[int, int], ...], int] = {}
     for reach in (False, True):
         sized: dict[tuple[int, int], int] = {}
@@ -27331,32 +27728,8 @@ def _text_plan(
             if truth is not None:
                 for place in sorted(spelled):
                     truth[place] = spelled[place]
-            return lengths, counts, kinds, bands, carriers, notes
-    if kept is not None:
-        return kept
-    carriers = _shape_choices(total)[0]
-    lengths, counts, notes = _text_shape(column, facts, groups, carriers)
-    kinds, bands = _text_families(
-        column, facts, groups, lengths, counts, carriers
-    )
-    bands = _bands_for_number_forms(
-        facts, groups, lengths, counts, kinds, bands, carriers
-    )
-    kinds = _singletons_kept_as_text(
-        groups, lengths, counts, kinds, bands, carriers, line
-    )
-    fixed = _number_lengths(facts, groups, lengths, kinds, bands, carriers)
-    fixed, worded = _held_for_the_census(
-        facts, groups, lengths, counts, kinds, bands, carriers, fixed
-    )
-    if fixed:
-        lengths, counts, notes = _text_shape(
-            column, facts, groups, carriers, fixed, worded
-        )
-        lengths = _numbers_walked(
-            column, facts, groups, lengths, kinds, bands, carriers, fixed
-        )
-    return lengths, counts, kinds, bands, carriers, notes
+            return (lengths, counts, kinds, bands, carriers, notes), None
+    return None, kept
 
 
 def _numbers_walked(
@@ -30633,7 +31006,7 @@ def _plan_column(
     elif isinstance(facts, contract.DatetimeFacts):
         content = max(column.n_present - facts.n_unparsed - 2, 0)
     elif isinstance(facts, contract.IdentifierFacts):
-        _whole_number_room(column, facts)
+        _whole_number_room(column, facts, floor)
         groups = _groups_of(facts.n_distinct_by_occurrences)
         # THE TABLE'S OWN HOLE SPELLINGS REACH THIS ROLE TOO (plan
         # P4-D158), as they reach the unrepresentable role below: a
@@ -30649,7 +31022,7 @@ def _plan_column(
         )
         cells, notes, carriers, remarks = _text_cells(
             column, groups, long_tail_line, _holes_reserved(column, all_holes),
-            truths,
+            truths, floor,
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
@@ -30770,7 +31143,9 @@ def _clock_needs_room(name: str, wanted: int, room: int) -> str:
 
 
 def _whole_number_room(
-    column: contract.ColumnBlock, facts: contract.IdentifierFacts
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    floor: int = 1,
 ) -> None:
     """Refuse record numbers no length range can write outside the figures.
 
@@ -30807,10 +31182,20 @@ def _whole_number_room(
     reach it prove the real column held such values, and refusing would
     deny someone a twin over a character their own table used. The
     cells are written and the report's formula paragraph names them.
+
+    AND THE FIGURES COUNT IS READ AS IT WAS PUBLISHED (plan P4-D298).
+    `n_all_digits` is absorbed, so nought stands for a column whose one
+    cell in figures alone fell below the census line, and every present
+    cell for one whose one cell outside them did. Each pair contradicts
+    itself only where EVERY count the producer publishes that way does;
+    a one-figure `7` beside twenty `-3` publishes `n_all_digits 0` and a
+    shortest length of one, and that column is its own witness that the
+    pair can be written.
     """
     if not facts.all_whole_numbers:
         return
-    outside = column.n_present - facts.n_all_digits
+    readable = _counts_meeting(facts.n_all_digits, column.n_present, floor)
+    outside = column.n_present - max(readable)
     if facts.max_length < 2 and outside > 0:
         raise errors.ProfileError(
             _whole_numbers_need_room(
@@ -30821,7 +31206,7 @@ def _whole_number_room(
                 facts.max_length,
             )
         )
-    if facts.min_length < 2 and facts.n_all_digits < 1 and column.n_present:
+    if facts.min_length < 2 and max(readable) < 1 and column.n_present:
         raise errors.ProfileError(
             _whole_numbers_need_room(
                 column.name,
@@ -31208,8 +31593,13 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             + _half_distinct_notes(column, written, halves)
             + _form_notes(column, written, halves)
             + _level_form_notes(column, written, halves)
-            + _class_notes(view, measured, sum(short) > 0)
-            + _alphabet_notes(column, written)
+            + _class_notes(
+                view, measured, sum(short) > 0,
+                profile.settings.small_cell_floor,
+            )
+            + _alphabet_notes(
+                column, written, profile.settings.small_cell_floor
+            )
             + _extreme_notes(view, measured)
             + _width_notes(column, written)
             + _fraction_notes(view, measured)
@@ -31709,7 +32099,7 @@ def _present_of(
 
 
 def _alphabet_notes(
-    column: contract.ColumnBlock, written: "list[str]"
+    column: contract.ColumnBlock, written: "list[str]", floor: int = 1
 ) -> "list[Deviation]":
     """Name either alphabet count the written column did not reach.
 
@@ -31721,6 +32111,16 @@ def _alphabet_notes(
     description, which is what makes it able to catch a shortfall no
     rule of this module predicted; the roles that publish neither count
     are passed over.
+
+    RECOUNTED AS THE PRODUCER COUNTS IT (plan P4-D298), exactly as the
+    width census is (P4-D278): both counts are published through
+    `parsing.absorbed_total`, so a recount that did not absorb would
+    name a deviation on a twin whose own description publishes exactly
+    the description's number -- and on the table itself, whose eleven
+    figures beside one `ab` publish twelve. `parsing.count_as_published`
+    leaves a count equal to the published one as it stands, so a
+    description printing a count the rule would have absorbed is still
+    held to that count.
     """
     facts = column.facts
     if not isinstance(
@@ -31732,12 +32132,23 @@ def _alphabet_notes(
         parsing.trimmed(cell)
         for cell in _present_of(written, _hole_spellings(column))
     ]
+    # THE COUNT NAMED IS THE ONE THE TWIN HOLDS; whether it misses is
+    # read as the description is (`parsing.count_as_published`), so a
+    # person recounting the twin finds the achieved number in its cells.
     counted = (
         len([cell for cell in trimmed if parsing.is_digit_text(cell)]),
         len([cell for cell in trimmed if parsing.is_code_text(cell)]),
     )
+    read = (
+        parsing.count_as_published(
+            counted[0], len(trimmed), published[0], floor
+        ),
+        parsing.count_as_published(
+            counted[1], len(trimmed), published[1], floor
+        ),
+    )
     notes: list[Deviation] = []
-    if counted[0] != published[0]:
+    if read[0] != published[0]:
         notes += [
             _deviation(
                 column.name,
@@ -31751,7 +32162,7 @@ def _alphabet_notes(
                 "table.",
             )
         ]
-    if counted[1] != published[1]:
+    if read[1] != published[1]:
         notes += [
             _deviation(
                 column.name,
@@ -32524,6 +32935,7 @@ def _class_notes(
     column: contract.ColumnBlock,
     written: "list[str]",
     short_of_supply: bool = False,
+    floor: int = 1,
 ) -> "list[Deviation]":
     """Name any of the four class counts the written column did not reach.
 
@@ -32548,33 +32960,60 @@ def _class_notes(
     inside a group. Naming the partition for a shortfall of eighteen
     cells of eighteen, which is what this said before the class debt
     existed, explained a miss with a cause it did not have.
+
+    ON A DECLARED RECORD NUMBER THE FOUR ARE RECOUNTED AS X2 PUBLISHES
+    THEM (plan P4-D298): a part below the census line is counted into the
+    largest by `parsing.absorbed_parts`, on the twin's cells exactly as
+    on the table's, so a twin whose own description publishes the
+    description's four counts is not named for holding one text cell
+    among twenty-four numbers that the description counts as a number.
     """
     present = _present_of(written, _hole_spellings(column))
     counted = {name: 0 for name in _CLASSES}
     for cell in present:
         found = parsing.classify_number(cell)
         counted[found] = counted[found] + 1
+    # ON A DECLARED RECORD NUMBER A MISS IS READ AS X2 PUBLISHES THE
+    # FOUR, and the count named is still the one the twin holds.
+    read = {name: counted[name] for name in _CLASSES}
+    if column.role == contract.ROLE_IDENTIFIER:
+        parts = parsing.parts_as_published(
+            [
+                counted[_CLASS_NUMBER],
+                counted[_CLASS_OUT_OF_RANGE],
+                counted[_CLASS_CONTRADICTORY],
+                counted[_CLASS_TEXT],
+            ],
+            [
+                column.n_numeric,
+                column.n_out_of_range,
+                column.n_contradictory,
+                column.n_not_numeric,
+            ],
+            floor,
+        )
+        read[_CLASS_NUMBER] = parts[0]
+        read[_CLASS_OUT_OF_RANGE] = parts[1]
+        read[_CLASS_CONTRADICTORY] = parts[2]
+        read[_CLASS_TEXT] = parts[3]
     reason = _CLASS_SPLIT_REASON
     if short_of_supply:
         reason = _CLASS_SUPPLY_REASON
-    return (
-        _named_miss(
-            column, "n_numeric", column.n_numeric,
-            counted[_CLASS_NUMBER], reason,
-        )
-        + _named_miss(
-            column, "n_out_of_range", column.n_out_of_range,
-            counted[_CLASS_OUT_OF_RANGE], reason,
-        )
-        + _named_miss(
-            column, "n_contradictory", column.n_contradictory,
-            counted[_CLASS_CONTRADICTORY], reason,
-        )
-        + _named_miss(
-            column, "n_not_numeric", column.n_not_numeric,
-            counted[_CLASS_TEXT], reason,
-        )
-    )
+    notes: list[Deviation] = []
+    for fact, published, name in (
+        ("n_numeric", column.n_numeric, _CLASS_NUMBER),
+        ("n_out_of_range", column.n_out_of_range, _CLASS_OUT_OF_RANGE),
+        ("n_contradictory", column.n_contradictory, _CLASS_CONTRADICTORY),
+        ("n_not_numeric", column.n_not_numeric, _CLASS_TEXT),
+    ):
+        if read[name] != published:
+            notes += [
+                _deviation(
+                    column.name, fact, f"{published}", f"{counted[name]}",
+                    reason,
+                )
+            ]
+    return notes
 
 
 def _whole_notes(

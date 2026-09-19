@@ -2554,6 +2554,191 @@ def absorbed_total(count: int, population: int, floor: int) -> int:
     return 0
 
 
+def counts_absorbed_to(published: int, population: int, floor: int) -> "list[int]":
+    """Every measured count `absorbed_total` publishes as ``published``.
+
+    A PUBLISHED ABSORBED COUNT NAMES A SET OF TABLES, NOT ONE COUNT (plan
+    P4-D298). Where the pair cannot speak, `absorbed_total` publishes
+    nought or the whole population, and a column whose measured count is
+    one below either end publishes the same number as a column holding
+    it exactly. A twin meets the published count wherever describing it
+    again publishes that number -- which is how the validator reads it,
+    since it describes the twin with this module's own producer -- and
+    the table itself does so only in that sense: 999 figures beside one
+    `ab` publish `n_all_digits 1000`, and the table's own count is 999.
+
+    So this is the reading the generator packs against. **Measured** on
+    the free-text battery of review item P2-C4-F2 at e53d5f4: 158 of
+    3,186 producer columns published an absorbed alphabet count that no
+    assignment of whole groups meets EXACTLY beside the four class
+    counts, the length ends and the word ends the same block publishes --
+    a column of eleven figures and one `ab` publishes `n_all_digits 12`
+    beside `n_numeric 11` -- and every one of them fell to the fallback
+    packing, although its own values meet the published description.
+
+    Guarantees: accepts the published count, the population it was taken
+    from and the settings floor; returns every count from nought to the
+    population that `absorbed_total` publishes as ``published``, the
+    published count first where it is one of them, then in ascending
+    distance from it, ties to the smaller. Empty where no count is. A
+    count the rule can move lies within the census line of an end, so at
+    most `2 * census_floor(floor) + 1` counts are asked. Determinism: a
+    fixed function of the three. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    offered: dict[int, int] = {}
+    if 0 <= published <= population:
+        offered[published] = 1
+    for count in range(0, min(line, population + 1)):
+        offered[count] = 1
+    for count in range(max(population - line + 1, 0), population + 1):
+        offered[count] = 1
+    ranked = sorted(
+        [(abs(count - published), count) for count in sorted(offered)]
+    )
+    found: list[int] = []
+    for pair in ranked:
+        if absorbed_total(pair[1], population, floor) == published:
+            found += [pair[1]]
+    return found
+
+
+def count_as_published(
+    count: int, population: int, published: int, floor: int
+) -> int:
+    """A recounted count as the description it is held to would print it.
+
+    THE ONE READING A RECOUNT OF AN ABSORBED COUNT MAKES (plan P4-D298).
+    A count equal to the published one is met as it stands; any other is
+    read through `absorbed_total`, which is what describing the cells
+    again would publish. The first clause is what keeps a description
+    written before plan P4-D277 -- or by hand -- held to the count it
+    prints: its twin holds that count exactly and is never named for it.
+
+    Guarantees: accepts the recounted count, the population it was taken
+    from, the published count and the settings floor; returns the count
+    itself or its absorbed reading. Determinism: a fixed function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    if count == published:
+        return count
+    return absorbed_total(count, population, floor)
+
+
+def parts_as_published(
+    parts: "list[int]", published: "list[int]", floor: int
+) -> "list[int]":
+    """A recounted partition as the description it is held to would print it.
+
+    `count_as_published` for the four-way partition of invariant X2 (plan
+    P4-D298): a partition equal to the published one stands, and any
+    other is read through `absorbed_parts`. Guarantees: returns four
+    counts. Determinism: a fixed function of the three. Raises nothing.
+    No I/O of any kind.
+    """
+    if parts == published:
+        return [part for part in parts]
+    return absorbed_parts(parts, floor)
+
+
+def absorbed_parts(parts: "list[int]", floor: int) -> "list[int]":
+    """A declared record number's four-way partition, as X2 publishes it.
+
+    THE RULE OF CONTRACT INVARIANT X2 (plan P4-D277), stated once so the
+    producer that publishes the four counts and the generator that owes
+    them read one partition the same way (plan P4-D298). ``parts`` is
+    what the cells read as -- numbers, numerals out of range, numerals
+    contradicting themselves, text -- in the contract's own order. A part
+    below `census_floor(floor)` is counted into the LARGEST part, ties to
+    the first of the four, which is ruling 6 of 2026-09-17 again; the
+    sum is unchanged.
+
+    Guarantees: accepts the four measured counts and the settings floor;
+    returns the four published counts, summing to the same total.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    line = census_floor(floor)
+    largest = 0
+    place = 0
+    for part in parts:
+        if part > parts[largest]:
+            largest = place
+        place = place + 1
+    taken = 0
+    kept = [0 for _each in parts]
+    place = 0
+    for part in parts:
+        if place != largest and 0 < part < line:
+            taken = taken + part
+        else:
+            kept[place] = part
+        place = place + 1
+    kept[largest] = kept[largest] + taken
+    return kept
+
+
+def parts_absorbed_to(
+    published: "list[int]", floor: int
+) -> "list[list[int]]":
+    """Every measured partition `absorbed_parts` publishes as ``published``.
+
+    The partition's reading of `counts_absorbed_to` (plan P4-D298): a
+    declared record number publishing `n_numeric 25` and nothing else
+    describes a column of 25 numbers, and equally one of 23 numbers, one
+    cell of text and one numeral out of range, since both are published
+    alike. The published largest part is the measured largest part --
+    the rule only adds to it -- so every other part published as nought
+    may have measured anything below the census line, and the largest
+    gives up what they take.
+
+    Guarantees: accepts the four published counts and the settings
+    floor; returns every partition of the same total that
+    `absorbed_parts` publishes as ``published``, the published one first
+    where it is one of them, then by the number of cells moved, ties in
+    ascending order of the four counts. At most `census_floor(floor)`
+    cubed partitions are asked. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    largest = 0
+    place = 0
+    for part in published:
+        if part > published[largest]:
+            largest = place
+        place = place + 1
+    free: list[int] = []
+    place = 0
+    for part in published:
+        if place != largest and part == 0:
+            free += [place]
+        place = place + 1
+    ranked: list[tuple[int, tuple[int, ...]]] = []
+    wheel = [0 for _each in free]
+    while True:
+        moved = 0
+        for value in wheel:
+            moved = moved + value
+        measured = [part for part in published]
+        for step in range(len(free)):
+            measured[free[step]] = wheel[step]
+        measured[largest] = published[largest] - moved
+        if measured[largest] >= 0 and absorbed_parts(measured, floor) == (
+            published
+        ):
+            ranked += [(moved, tuple(measured))]
+        turned = len(free) - 1
+        while turned >= 0 and wheel[turned] == line - 1:
+            wheel[turned] = 0
+            turned = turned - 1
+        if turned < 0:
+            break
+        wheel[turned] = wheel[turned] + 1
+    found: list[list[int]] = []
+    for pair in sorted(ranked):
+        found += [[part for part in pair[1]]]
+    return found
+
+
 def prefix_room(layout: str, prefix: str, convention: str) -> int:
     """How many different cells a layout still spells once a prefix is fixed.
 

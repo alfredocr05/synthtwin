@@ -17687,3 +17687,110 @@ need not find the rows the file gives it. The tie itself reaches the
 questions file and not the description, so the twin's report cannot say
 it without a new published field, which is a contract change and not a
 minor edit.
+
+### P4-D298 An absorbed count is owed as the producer publishes it
+
+The carried f-text-ids cluster of 2026-09-18: nine tests green at
+c5d09d5 went red when the extra round's disclosure fixes landed, because
+plan P4-D277 changed what three kinds of published count MEAN and no
+consumer of them was told. The two alphabet counts of free text and of a
+declared record number, and the four class counts of a record number,
+are published through the disclosure rule, so a count a side of which
+is below the census line is printed as nought or as every present cell
+-- a count the table itself does not hold. The generator went on packing
+those numbers as measured counts.
+
+**Measured** at e53d5f4, the fallback packing forbidden: 158 of the
+3,186 producer columns of review item P2-C4-F2's battery had no packing
+(eleven figures beside one `ab` publish `n_all_digits 12` beside
+`n_numeric 11`); six of the 200 record-number columns of P2-C5-F2's
+missed a class count, an alphabet count or `all_whole_numbers` on every
+seed (fifteen `-463`, eight `-4`, one `bLMQsN` and one `5e999` publish
+`n_numeric 25` beside `all_whole_numbers: false`; ten `(-6)`, four
+`7e999` and one `8xEa` publish a code-alphabet cell among eleven
+contradictory ones); one of the fold battery's 120 named `n_all_digits`
+on its one lone figure; and `generation-whole-numbers-need-room` refused
+`7` beside twenty `-3`, a column that is its own witness. Every one of
+those descriptions is answered by its own table's values; the method's
+premise that "a description a real table produced always has a
+packing" was true of the counts the table held and false of the counts
+it now publishes.
+
+**The decision.** A published absorbed count is met by every count the
+rule publishes as it -- which is how `synthtwin validate` holds a twin,
+by describing it again -- and by the count itself, which keeps a
+description written before P4-D277 held to what it prints
+(`parsing.counts_absorbed_to`, `parsing.parts_absorbed_to`,
+`parsing.count_as_published`, `parsing.parts_as_published`, and X2's
+rule moved to `parsing.absorbed_parts` so the producer and the
+generator read one statement of it). The generator packs the PUBLISHED
+counts first and answers every description that packs as published
+byte for byte as before; free text asks its shape search of the other
+readings in a stated order where none packs (`_text_readings`), and a
+record number builds the other readings where the published build's
+cells miss a count as published (`_identifier_readings`), taking the
+first that holds every count as published, files no more deviations,
+misses nothing the published build held and leaves no more named
+layouts short. The alphabet and class recounts of the twin's report,
+and the whole-number refusal on both sides, read the counts the same
+way. Method G9.5, G9.6 and G12 state it; two frozen cases and their
+mutants hold it (`free_text_absorbed_figures`,
+`identifier_absorbed_figure`).
+
+**What the nine tests became**, each derived from the rule rather than
+read off the tool: the two-character-number test publishes
+`n_all_digits 0` (one figure-only cell of twelve is below
+`census_floor(1) = 2` and `2 * 1 < 12`), and its twin writes all seven
+numbers outside the figures; the free-text, record-number and fold
+batteries compare each recount through the same function the producer
+applies, as equalities; and the round-2 joint-packing witness `7 7 42
+ab x!` publishes five code-alphabet cells of five
+(`absorbed_total(4, 5, 1) = 5`) -- and, measured, it had stopped being
+a witness before that: at c5d09d5 the family-after-family fallback
+already met its four. It was re-armed with `7 7 ab x! x! no!!`, whose
+four counts are all published as measured and which the separate walks
+miss at c5d09d5 and now -- a mutant test beside it proves both halves.
+The pre-assignment guard of P2-C4-F2 lost 84 columns of its slice at
+e53d5f4, 73 of them columns publishing an absorbed alphabet count
+(P4-D277) and 8 lost without the mutant; it loses 19 once those are
+answered by a reading, and none without the mutant, so its slice takes
+the battery's three orders (192 lost, none of them without the mutant)
+and its assertion is unchanged.
+
+**WHAT IS NOT CLOSED, measured rather than left to be found.** P4-D277's
+disclosure intent is not finished on a declared record number: where
+the absorbed part is the only cell that is not a whole number, the block
+still publishes `all_whole_numbers: false` beside a partition that says
+every cell is a number, and where the absorbed cell is the only
+code-alphabet one among contradictory cells, `n_code_alphabet` still
+counts it -- in both cases a reader can tell that a record below the line
+exists. That is the published block's question and not the generator's,
+and it is put to the owner. Separately, a record number of ten `(-6)`,
+four `(-71)` and one `8xEa` validates at exit 3 on its `(-%)` layout
+whichever reading is built, which is a layout census question this
+landing measured and did not touch.
+
+**THE READING CAPS, AND WHY THE ORACLE DOES NOT WRITE THEM** (the
+skeptic's pass over this landing). The generator offers a column of
+free text at most 256 readings (G9.5) and a record number the first 256
+of its order, building at most eight (G9.6; the 256 on a record number
+was applied by the code and unstated until this pass, and G9.6 now says
+it). The oracle writes neither cap, and a mirror is owed only of a rule
+some frozen case can reach -- a cap is reached where it moves a cell.
+Free text, by arithmetic: a count strictly between nought and the
+population is met by itself alone, nought and every cell by at most `L`
+counts each, so a column has at most `L * L` readings, 121 at the case
+floor of eleven and never 256; the cap binds from a floor of seventeen
+(289), and `test_the_free_text_reading_bound_binds_only_above_the_case_floor`
+derives both. A record number, measured: 3,000 producer columns made
+by the P2-C5-F2 battery's own column maker (seeds 0 to 2999) built at
+most five readings at the default floor, so neither cap was reached; of
+1,653 hand-built descriptions the loader accepted at the case floor, 88
+different ones built eight, and every one of the 88 wrote the same cells
+with the build cap lifted (up to eighty-six built, inside the first 256
+readings); 31 of them were also built with both caps lifted before this
+pass closed -- up to 496 built out of up to 91,233 offered -- and wrote
+the same cells as well. The caps end a search that finds nothing. No
+case is frozen for them, and a description a cap answers differently
+would need the caps written in the oracle before its case could be
+added.

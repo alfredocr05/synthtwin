@@ -7138,6 +7138,41 @@ real table produced does not reach, because that table's own values are
 one such shape — the description's own first two groups carry the ends
 and the fallback below applies.
 
+**AN ABSORBED ALPHABET COUNT IS PACKED AS THE PRODUCER PUBLISHES IT**
+(plan P4-D298). `n_all_digits` and `n_code_alphabet` are published
+through the disclosure rule (profile contract, "the two alphabet counts
+ask the disclosure rule"): where a side of either census is below
+max(2, `small_cell_floor`) the smaller is counted into the larger, so
+the block publishes nought or every present cell where the table's own
+count sat just short of that end. A twin meets such a count wherever
+describing it again publishes the same number — which is how
+`synthtwin validate` holds a twin to it — and the table itself meets it
+in exactly that sense: eleven figures beside one `ab` publish
+`n_all_digits 12` beside `n_numeric 11`, twelve cells in figures alone
+are twelve numbers, and no assignment of whole groups meets both. So the
+margins are READ, in this order, and the whole search above — every
+pair, both readings of a free group's length — is asked of each reading
+until one packs:
+
+1. the published counts;
+2. every other pair of a figures count and a code-alphabet count, each
+   either equal to its published count or a count the rule publishes as
+   it, the figures never more than the code alphabet, in ascending
+   order of the two differences summed, ties by the figures count and
+   then the code count, each the smaller first.
+
+A description that packs as published is answered exactly as before,
+byte for byte; the four class counts are free text's own and are not
+read (the contract protects them on a declared record number alone). A
+reading is a statement about the published description and never about
+the table: every count it packs is published the same way. At most 256
+readings are asked, and the fallback below applies where none packs.
+**Measured** at e53d5f4 on the battery of review item P2-C4-F2: 158 of
+3,186 producer columns reached the fallback, and none reaches it with
+this rule. Every recount of the two counts reads a count equal to the
+published one as it stands and any other through the same rule, so a
+twin holding the table's own eleven figures is not named for them.
+
 **A grid may carry more than two margins, and where the description
 publishes more than two families over the same cells it MUST**
 (P2-C3-F1). Two margins is this step's shape, not the rule's: an
@@ -7889,6 +7924,35 @@ not take it, and the generation report says the same thing to the
 person holding the twin. An independent implementer is bound by the
 counts, not by this shortfall: writing fewer such cells while meeting
 every published count conforms.
+
+**A RECORD NUMBER IS BUILT AGAINST A READING OF ITS ABSORBED COUNTS
+WHERE THE PUBLISHED ONES HAVE NO ANSWER** (plan P4-D298). On a declared
+record number the four class counts are published under invariant X2 —
+a part below max(2, `small_cell_floor`) counted into the largest — and
+the two alphabet counts as G9.5 says, so fifteen `-463`, eight `-4`, one
+`bLMQsN` and one `5e999` publish `n_numeric 25` and nothing else beside
+`all_whole_numbers: false`, which twenty-five whole numbers cannot hold.
+So the column is built first against the published counts, and where
+those cells miss a count as published — the four classes read through
+X2, the two alphabets through the disclosure rule, and
+`all_whole_numbers` — the readings are built in order, each only where a
+packing of whole groups meets it, at most eight of them:
+
+1. every partition of `n_present` that X2 publishes as the published
+   one (the published largest part gives up what the others take, each
+   of which may measure anything below the line), with
+2. every pair of alphabet counts G9.5's reading offers,
+
+in ascending order of the six counts' differences summed, ties by the
+partition's own difference, then the partition, then the pair, each
+ascending; the first 256 readings of that order are offered and no
+more, and of those at most eight are built. The first reading whose cells hold every count as published,
+file no more deviations, miss no other count the published build held
+and leave no more named layouts short is the column; where none does,
+the published build stands and every miss is named. **Measured** at
+e53d5f4 on the battery of review item P2-C5-F2: six of 200 producer
+columns missed a class count, an alphabet count or the whole-number fact
+on every seed, and none does with this rule.
 
 ### G9.6a The literal prefix (owner ruling of 2026-09-17, item 1)
 
@@ -8662,7 +8726,11 @@ generation, and every outcome is fixed (P2-D6):
      whole number IS a figure, so a longest length of one character
      with `n_all_digits` below `n_present`, and a shortest length of one
      character with `n_all_digits` of zero, are both descriptions no
-     table can hold;
+     table can hold — **each asked of every figures count G9.5's reading
+     offers** (plan P4-D298): `n_all_digits` is absorbed, so nought
+     stands for a column whose one figure-only cell fell below the line,
+     and `7` beside twenty `-3` is its own witness that the pair can be
+     written;
    A FIFTH REFUSAL WAS ADDED HERE ON 2026-08-12 AND WITHDRAWN ON
    2026-08-13, both by amendment, and the round trip is recorded rather
    than erased. `generation-whole-numbers-need-code-room` stopped a
@@ -10171,7 +10239,13 @@ rank whose two fields both show under a census naming one-field words
 alone, and rebuilds the two before it from the descriptions the producer
 writes of their tables.
 
-**All ninety-eight are required.** The count is taken off the committed
+**The readings of an absorbed count add two more to the eighth file**
+(plan P4-D298): `free_text_absorbed_figures`, G9.5's packing against a
+reading where the published alphabet counts have none, and
+`identifier_absorbed_figure`, G9.6 built against a reading where the
+published counts have no whole-number spelling at the shortest length.
+
+**All one hundred are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10187,7 +10261,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds ten (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds twelve (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10209,6 +10283,8 @@ case passed, which is the failure the count exists to prevent:
 | `unrepresentable_exponent` | G10.5 revision 5's EXPONENT spelling family, on six cells published at five and six characters — widths no digit string can be written at — and the shape-and-sign walk rule that case forced this section to state |
 | `free_text_joint` | G9.5 steps 3 and 4 as ONE packing, on a column two separate walks cannot both land; since landing 2b.4 its doubled number is also written at step 3a's own length, one figure, and the column it describes publishes the average that length gives |
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
+| `free_text_absorbed_figures` | G9.5's packing against the READINGS of an absorbed count (plan P4-D298): sixteen cells of free text publishing sixteen in figures alone beside fifteen numbers, because the one cell outside the figures is below the floor of eleven and the contract counts it into the larger side. Sixteen figures-only cells are sixteen numbers, so the published counts have no packing; the first reading, fifteen in figures alone, packs, and the single cell is `A`. Its mutant packs the published counts alone and the oracle refuses the column |
+| `identifier_absorbed_figure` | G9.6 built against the READINGS of an absorbed count (plan P4-D298): twenty-one record numbers, every one a whole number, publishing no cell in figures alone beside a shortest length of one, because the one figure-only cell is below the floor. A one-character whole number is a figure, so the published counts have no answer; the first reading that holds every count as published writes `1` once and `0e0` twenty times. Its mutant builds the published counts alone and the oracle refuses the column |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |

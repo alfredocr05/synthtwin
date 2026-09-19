@@ -293,16 +293,29 @@ def test_a_two_character_number_the_code_alphabet_holds(
     """The second mechanism: `-3` is a number, and two characters is enough.
 
     The published counts are the point: twelve cells the code alphabet
-    holds, of which one is written in figures alone and six read as
+    holds, NONE of them counted in figures alone, and seven that read as
     numbers, at a longest published length of two. A construction whose
     numeric code-alphabet family began at three characters could not
-    write those six, and every seed reported the miss.
+    write the numbers outside the figures, and every seed reported the
+    miss.
+
+    THE FIGURES COUNT IS NOUGHT SINCE PLAN P4-D277, and that is derived
+    rather than read off the tool. The source's one `7` is its only cell
+    in figures alone; `n_all_digits` is published through
+    `parsing.absorbed_total`, and at the default floor of one the census
+    line is `census_floor(1) = 2`. A count of one is below it (`1 < 2`),
+    so the pair cannot speak, and one cell is less than half of twelve
+    (`2 * 1 = 2 < 12`), so the smaller side is counted into the larger
+    and the block publishes nought. The mechanism is
+    held harder by it, not softer: all SEVEN numbers the twin owes must
+    now be written outside the figures, where the one `7` let six of
+    them be `-3` before.
     """
     loaded = _described(tmp_path, SHORT_NUMBER_SOURCE)
     block = loaded.columns[0]
     facts = _text_facts(loaded)
     assert facts.n_code_alphabet == 12
-    assert facts.n_all_digits == 1
+    assert facts.n_all_digits == 0
     assert facts.length.maximum == 2
     assert block.n_numeric == 7
 
@@ -311,7 +324,7 @@ def test_a_two_character_number_the_code_alphabet_holds(
             twin = generation.generate(loaded, seed)
         counted = _counted(twin)
         assert counted["n_code_alphabet"] == 12
-        assert counted["n_all_digits"] == 1
+        assert counted["n_all_digits"] == 0
         assert counted["n_numeric"] == 7
         assert _missed(twin) == []
 
@@ -445,6 +458,19 @@ def test_no_producer_free_text_column_loses_an_exact_count(
     mechanism missed it: the shape, the grid or the family table. The
     assertion is on the recounted cells and on the deviation ledger
     together, so neither a silent miss nor a named one passes.
+
+    THE TWO ALPHABET COUNTS ARE RECOUNTED AS THE PRODUCER PUBLISHES THEM
+    (plans P4-D277 and P4-D298). Both are published through
+    `parsing.absorbed_total`, so a column of eleven figures and one `ab`
+    publishes `n_all_digits 12` -- a count its own cells do not hold, and
+    one no packing can meet beside `n_numeric 11`. The claim this battery
+    checks is that the table's own values ARE a packing, and they are one
+    only of the counts as the producer reads them: the source recounted
+    raw fails this equality on 158 of these columns at e53d5f4. So each
+    recount is read through the same function before it is compared,
+    which is what `synthtwin validate` does by describing the twin again,
+    and the comparison stays an equality. `n_numeric` is not absorbed on
+    this role and is compared raw.
     """
     reached = 0
     for step, trio in enumerate(itertools.combinations(POOL, 3)):
@@ -466,13 +492,18 @@ def test_no_producer_free_text_column_loses_an_exact_count(
                 with _NoFallback():
                     twin = generation.generate(loaded, 0)
                 counted = _counted(twin)
+                floor = loaded.settings.small_cell_floor
                 assert _missed(twin) == [], (
                     f"{values}: the twin named an exact fact as missed"
                 )
-                assert counted["n_code_alphabet"] == facts.n_code_alphabet, (
+                assert parsing.absorbed_total(
+                    counted["n_code_alphabet"], counted["n_present"], floor
+                ) == facts.n_code_alphabet, (
                     f"{values}: code-alphabet cells"
                 )
-                assert counted["n_all_digits"] == facts.n_all_digits, (
+                assert parsing.absorbed_total(
+                    counted["n_all_digits"], counted["n_present"], floor
+                ) == facts.n_all_digits, (
                     f"{values}: all-figure cells"
                 )
                 assert counted["n_numeric"] == loaded.columns[0].n_numeric, (
@@ -497,6 +528,19 @@ def test_the_battery_would_have_caught_the_reported_defect(
     nothing. This runs a slice of it with the pre-assignment restored
     and requires columns to lose exact counts, so the assertions above
     are known to be able to fail.
+
+    THE SLICE IS THE REVIEW'S PATTERN IN EACH OF THE BATTERY'S ORDERS
+    (plan P4-D298). It was the first order alone, where the mutant lost
+    39 of 354 columns at c5d09d5. At e53d5f4 it lost 84 there: 73 of
+    them publish an absorbed alphabet count (plan P4-D277), and 8 were
+    lost with the mutant withdrawn, so those 8 proved nothing about it.
+    With the absorbed counts answered by a reading, the mutant loses 19
+    in that order and none is lost without it -- 18 of the 20 columns
+    that stopped losing since c5d09d5 publish absorbed counts since
+    P4-D277, and two are packed by a reading one figure-only cell away.
+    The review's pattern in the battery's other two orders loses 103
+    and 70 more, and none without the mutant, measured, so the slice is
+    the three orders and the assertion is unchanged.
     """
     choices = generation._shape_choices
 
@@ -508,17 +552,20 @@ def test_the_battery_would_have_caught_the_reported_defect(
     generation._shape_choices = only_the_first_pair  # type: ignore[assignment]
     try:
         for step, trio in enumerate(itertools.combinations(POOL, 3)):
-            values: list[str] = []
-            for place in range(3):
-                values = values + [trio[place]] * (1, 5, 6)[place]
-            folder = tmp_path / f"case-{step}"
-            folder.mkdir()
-            loaded = _described(folder, values)
-            if not isinstance(loaded.columns[0].facts, contract.TextFacts):
-                continue
-            reached = reached + 1
-            if _missed(generation.generate(loaded, 0)):
-                lost = lost + 1
+            for order in ORDERS:
+                values: list[str] = []
+                for place in range(3):
+                    values = values + [trio[place]] * (1, 5, 6)[order[place]]
+                folder = tmp_path / f"case-{step}-{order[0]}"
+                folder.mkdir()
+                loaded = _described(folder, values)
+                if not isinstance(
+                    loaded.columns[0].facts, contract.TextFacts
+                ):
+                    continue
+                reached = reached + 1
+                if _missed(generation.generate(loaded, 0)):
+                    lost = lost + 1
     finally:
         generation._shape_choices = choices  # type: ignore[assignment]
     assert lost > 20, (

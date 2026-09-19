@@ -183,23 +183,73 @@ def test_the_packing_says_no_only_when_there_is_no_packing() -> None:
 def test_a_free_text_column_meets_its_class_and_alphabet_counts_together(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Point 2: the five-row column round 2 built.
+    """Point 2: a column two separate walks cannot answer.
 
-    Three singleton groups that read as numbers and one doubled group
-    of ordinary text, with four cells in the code alphabet. Deciding the
-    classes first and the alphabets afterwards wrote five code-alphabet
-    cells against the published four; one walk over the grid of pairs
-    finds the assignment that meets both.
+    Round 2 built `7 7 42 ab x!`, which published four code-alphabet
+    cells of five, and deciding the classes first and the alphabets
+    afterwards wrote five. PLAN P4-D277 MOVED ITS COUNT, and that is what
+    turned this red: the one `x!` outside the code alphabet is below the
+    census line (`census_floor(1) = 2`), four is more than half of five
+    (`2 * 4 = 8 >= 5`), so `parsing.absorbed_total(4, 5, 1)` publishes
+    five. But the column had stopped being a witness before that:
+    measured at c5d09d5, where it still published four, the fallback
+    that decides the two families one after the other packs each of
+    them exactly and meets four too, so the mutant below was green on it
+    then as it is now. Pinning five would keep a test that proves
+    nothing, so the witness is re-armed with a column whose two alphabet
+    counts are both published as measured at the default floor and which
+    the separate walks miss, at c5d09d5 and now.
+
+    `7 7 ab x! x! no!!`: two cells that read as numbers (the doubled `7`)
+    and four of text, three cells in the code alphabet (`7`, `7`, `ab`)
+    beside three outside it, and two in figures alone beside four that
+    are not -- every side at least two, so all four counts are published
+    as measured. Deciding the classes first gives the text groups the
+    code alphabet in the order the fallback fills it and writes four
+    code-alphabet cells against the published three
+    (`test_the_separate_walks_miss_the_re_armed_column`); one walk over
+    the grid of pairs finds the assignment that meets both.
     """
-    loaded = _described(tmp_path, ["7", "7", "42", "ab", "x!"])
+    loaded = _described(tmp_path, ["7", "7", "ab", "x!", "x!", "no!!"])
     block = loaded.columns[0]
     facts = block.facts
     assert isinstance(facts, contract.TextFacts)
-    assert block.n_numeric == 3
-    assert block.n_not_numeric == 2
-    assert facts.n_code_alphabet == 4
+    assert block.n_numeric == 2
+    assert block.n_not_numeric == 4
+    assert facts.n_code_alphabet == 3
+    assert facts.n_all_digits == 2
 
     twin = generation.generate(loaded, 0)
+    assert _missed(twin) == []
+
+
+def test_the_separate_walks_miss_the_re_armed_column(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant that makes the test above mean something.
+
+    With the joint walk answering nothing, `_text_plan` falls to the
+    fallback that decides the class counts and then the alphabet counts
+    one after the other, which is the rule round 2 rejected. On the
+    re-armed column it must miss the code-alphabet count and name the
+    miss; on round 2's own column it misses nothing -- measured at
+    c5d09d5 with the count published as four, and now with it published
+    as five -- which is why that column no longer witnesses anything.
+    """
+    monkeypatch.setattr(
+        generation, "_joint_allocation", lambda *given: None
+    )
+    armed = tmp_path / "armed"
+    armed.mkdir()
+    twin = generation.generate(
+        _described(armed, ["7", "7", "ab", "x!", "x!", "no!!"]), 0
+    )
+    assert ("n_code_alphabet", "3", "4") in _missed(twin)
+    disarmed = tmp_path / "disarmed"
+    disarmed.mkdir()
+    twin = generation.generate(
+        _described(disarmed, ["7", "7", "42", "ab", "x!"]), 0
+    )
     assert _missed(twin) == []
 
 
