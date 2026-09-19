@@ -1862,7 +1862,20 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   lower-case cells apart, on the measured values, and a twin whose 200
   lower-case codes no longer folded onto a capitalised neighbour named
   them `&&%%%` against a published `@@%%%` and was told it held fewer
-  than eleven. A recount under the floor is not printed.
+  than eleven. A recount under the floor is not printed. **On the four
+  label roles the file's cells are first respelled as its own
+  description speaks of them** (plan P4-D275.1,
+  `taxonomy.described_spellings`): a spelling below the floor of a label
+  that reaches it is counted as that label's commonest, which is how the
+  census was made, so a table is not told it missed its own description.
+  A description no producer writes is checked the same way: one still
+  carrying `variants_withheld` at a raised floor loads (W5 refuses a
+  held-back key of 1 and nothing else), and a twin meeting it cell for
+  cell is reported MISSED on exactly the facts the respelling moves --
+  `n_distinct`, the level's `variants`, `variants_withheld` and
+  `shape_form_cells`, and the census key its stand-ins wear. Whether the
+  loader should refuse such a description is left to the owner (plan
+  P4-D275.1).
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells

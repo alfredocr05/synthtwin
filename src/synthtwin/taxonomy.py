@@ -5331,6 +5331,76 @@ def shape_form_cells(spellings: dict[str, int]) -> int:
     return shaped
 
 
+def described_spellings(
+    values: "list[str]", settings: Settings
+) -> "list[str]":
+    """Every cell as the level entries speak of it, in the order given.
+
+    THE ONE STATEMENT OF THE RESPELLING, read by the producer and by the
+    checker so the two cannot part (plan P4-D275.1, the repair of the
+    merge of the extra round's fixes). P4-D275 counts every spelling below
+    the floor into its level's commonest, so the description is the
+    description of the table with those cells written the way most of the
+    level's cells were -- and the level entry's `variants` and
+    `shape_form_cells` say so. The column's `shape_forms` went on counting
+    the cells as the source wrote them. **Measured** at a floor of eleven,
+    on 181 four-figure codes beside a level of twenty `e11.9`, five
+    `E11.9` and three `E11.9` written with trailing spaces: the level
+    published `variants {"e11.9": 28}` and `shape_form_cells 28` beside a
+    column census of `{"@%%.%": 206}`. Those are two tables. The twin
+    writes the first, 209 cells in the form, so `synthtwin validate`
+    MISSED the twin on the census while the table passed its own; and the
+    three cells the census left out were the held-back group of three the
+    absorption exists to hide.
+
+    So a cell of a label whose rows reach the floor is respelled exactly
+    as `_absorb_lone_spellings` counts it: a spelling it keeps stays, and
+    a spelling it counts in is written as the spelling it was counted
+    into. A cell of a label the floor holds back keeps its own spelling,
+    which no key of the block names -- the rule `_published_distinct`
+    states, so the number of different spellings in the answer is that
+    count. A blank cell is handed back as it came. At a floor of one
+    nothing is absorbed and the answer is the cells unchanged.
+
+    THE CHECKER ASKS IT TOO. `synthtwin validate` recounts the census off
+    the file's own cells, and a recount of the raw cells would find the
+    table's twenty `e11.9` where its own description, made by this rule,
+    says twenty-eight -- so the table would miss its own description.
+
+    Guarantees: accepts cells and the settings whose floor governs them;
+    returns one spelling per cell, in the same order, each folding onto
+    that cell's own label. Determinism: a fixed function of the two,
+    walked in sorted order. Raises nothing. No I/O of any kind.
+    """
+    groups: "dict[str, dict[str, int]]" = {}
+    for value in values:
+        label = parsing.folded(value)
+        if label not in groups:
+            groups[label] = {}
+        spellings = groups[label]
+        spellings[value] = (spellings[value] if value in spellings else 0) + 1
+    written_as: "dict[str, dict[str, str]]" = {}
+    for label in sorted(groups):
+        spellings = groups[label]
+        target: "dict[str, str]" = {}
+        rows = 0
+        for spelling in sorted(spellings):
+            target[spelling] = spelling
+            rows = rows + spellings[spelling]
+        if label and rows >= settings.small_cell_floor:
+            absorbed = _absorb_lone_spellings(spellings, settings)
+            into = ""
+            for spelling in sorted(absorbed):
+                if absorbed[spelling] != spellings[spelling]:
+                    into = spelling
+            if into:
+                for spelling in sorted(spellings):
+                    if spelling not in absorbed:
+                        target[spelling] = into
+        written_as[label] = target
+    return [written_as[parsing.folded(value)][value] for value in values]
+
+
 def _published_distinct(cells: _Cells) -> int:
     """How many different spellings a label column's own block says it holds.
 
@@ -6171,7 +6241,17 @@ def _level_details(
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
-        "shape_forms": _shape_forms(cells, False, with_text_total),
+        # ...COUNTED OVER THE SPELLINGS THE LEVEL ENTRIES SPEAK OF (plan
+        # P4-D275.1): a spelling the floor counted into its level's
+        # commonest is counted there by this census too, or the column's
+        # census and the level entries beside it describe two different
+        # tables and no twin can meet both.
+        "shape_forms": _shape_forms(
+            cells,
+            False,
+            with_text_total,
+            described_spellings(cells.present, cells.settings),
+        ),
     }
 
 
@@ -6890,7 +6970,10 @@ def _published_alphabets(cells: _Cells) -> "tuple[int, int]":
 
 
 def _shape_forms(
-    cells: _Cells, with_code_total: bool = False, with_text_total: bool = True
+    cells: _Cells,
+    with_code_total: bool = False,
+    with_text_total: bool = True,
+    spelled: "list[str] | None" = None,
 ) -> dict[str, int]:
     """How many present cells wore each written form, under the floor.
 
@@ -6915,13 +6998,24 @@ def _shape_forms(
     small group. The docstring said the opposite of the code for one
     landing; the code was right and this now says what it does.
 
-    Guarantees: accepts a tally of one column; returns a mapping from
-    forms, plus possibly `(withheld)`, to counts that sum to the cells
-    that HAVE a form -- which is at most the column's present cells,
-    and fewer wherever a cell was too long to have one. Determinism: the answer depends only on the
-    tally, and the keys are built in sorted order. Raises nothing. No
-    I/O of any kind.
+    ``spelled``, WHERE IT IS GIVEN, IS WHAT THE CENSUS COUNTS INSTEAD OF
+    THE RAW CELLS: the present cells as the block's level entries speak
+    of them (`described_spellings`, plan P4-D275.1), one per present
+    cell and in row order. The room rule and the case rule then ask the
+    number of different spellings in it, which is the column's published
+    `n_distinct` on the four label roles (plan P4-D276) and the number
+    C6-31c and C6-31d are stated over.
+
+    Guarantees: accepts a tally of one column and, optionally, its
+    present cells respelled; returns a mapping from forms, plus possibly
+    `(withheld)`, to counts that sum to the cells that HAVE a form --
+    which is at most the column's present cells, and fewer wherever a
+    cell was too long to have one. Determinism: the answer depends only
+    on the tally and the respelling, and the keys are built in sorted
+    order. Raises nothing. No I/O of any kind.
     """
+    values = cells.present if spelled is None else spelled
+    distinct = cells.raw_distinct if spelled is None else len(set(values))
     counts: dict[str, int] = {}
     # HOW MANY CELLS OF EACH FORM WROTE EVERY LETTER LOWER CASE (plan
     # P4-D121, audit LTM-6). Counted beside the form rather than folded
@@ -6929,7 +7023,7 @@ def _shape_forms(
     # into keys the floor then pools: the decision below is taken per
     # form, once the whole count is known.
     lower: dict[str, int] = {}
-    for value in cells.present:
+    for value in values:
         form = parsing.shape_form(value)
         if form and parsing.is_lower_case_text(value):
             lower[form] = (lower[form] if form in lower else 0) + 1
@@ -6997,8 +7091,8 @@ def _shape_forms(
     # `n_distinct` counts the whole column and is therefore at least
     # the values wearing any one form, so the test errs toward
     # refusing -- the safe direction.
-    room_needed = cells.raw_distinct + cells.settings.small_cell_floor
-    census = _form_census(counts, lower, cells, room_needed)
+    room_needed = distinct + cells.settings.small_cell_floor
+    census = _form_census(counts, lower, cells, room_needed, distinct)
     # NO COUNT OF ONE AND NO COMPLEMENT OF ONE, OVER THE WHOLE CENSUS
     # (plan P4-D160), asked of the shared rule the loader asks.
     return _form_disclosure(census, cells, with_code_total, with_text_total)
@@ -7187,11 +7281,14 @@ def _form_census(
     lower: "dict[str, int]",
     cells: _Cells,
     room_needed: int,
+    distinct: int,
 ) -> "dict[str, int]":
     """The form census from its per-form counts, each form split by case.
 
     The body `_shape_forms` always ran, taken out so the disclosure rule
     of the whole census (plan P4-D160) reads as its own step.
+    ``distinct`` is the number of different spellings the census counted
+    over, which the case rule below compares with the folded count.
     """
     floor = cells.settings.small_cell_floor
     withheld = 0
@@ -7212,7 +7309,7 @@ def _form_census(
         # twin's partners came out `A-a` and missed three keys by
         # thirty-three cells, where the case-blind census it had before
         # is met (plan P4-D121).
-        if cells.raw_distinct != len(cells.folded_counts):
+        if distinct != len(cells.folded_counts):
             lowered = 0
         split = _lower_case_split(
             form, counts[form], lowered, floor, room_needed
