@@ -5,7 +5,12 @@ asks `make_generation_reference_vectors.py` for the seven cases the extra
 review round of 2026-09-18 added to method section G14.3 -- the five of
 its date pass (plans P4-D254 to P4-D258) and the two of its number pass,
 G6.5a's last resort on the representable grid (plan P4-D269) and G6.5's
-visiting order for the distinct-spelling repair (plan P4-D265).
+visiting order for the distinct-spelling repair (plan P4-D265) -- and
+the four the carried numbers pass of the same day added here, as the
+paragraph on where the next case goes directs: G6.5a's fill of a sign
+band whose own grid has no spare point, and the mode's own stratum (plan
+P4-D267) and the anchors and the dressing (plan P4-D268), the two
+generator rules the round had left with no mirror at all.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file
@@ -44,7 +49,10 @@ refusing the build, which is the worst moment to be choosing a file.  So
 it is chosen here instead: **the next case goes in this file**, and the
 one after it too, until this file's output passes 200000 bytes -- at
 which point a ninth entry point is written the way this one was, by
-moving cases whole rather than by raising the cap.  The first three files
+moving cases whole rather than by raising the cap.  **THAT POINT HAS
+BEEN REACHED** (the carried numbers pass of 2026-09-18): with its four
+cases this file's output stands at 235440 bytes, past the 200000 above,
+so the NEXT case goes in a ninth entry point and none goes here.  The first three files
 are FULL and take no case; the fifth takes one only where this file
 cannot.
 

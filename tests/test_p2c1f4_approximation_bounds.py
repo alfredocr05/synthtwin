@@ -714,10 +714,28 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     REVIEW ROUND 6 OF LANDING L8, item 3. The walk above uses a column
     whose label half holds ONE identity, so its raw and folded shifts
     are the same number and a mutant using either for both stays
-    green. This column's label half publishes four raw spellings and
-    two folded identities, and the floor holds back the variants that
-    would supply the raw four -- so the twin writes three, and the
-    outer raw count is one short while the folded one is exact.
+    green. This column's label half publishes three spellings and two
+    folded identities, and the floor holds back the level whose own two
+    spellings the three count -- so the twin writes two, and the outer
+    raw count is one short while the folded one is exact.
+
+    THE NUMBERS MOVED WITH PLANS P4-D275 AND P4-D276 AND ARE DERIVED
+    HERE FROM THOSE RULES (the carried numbers pass of 2026-09-18), never
+    read off the tool. At a floor of eleven the level `alpha` covers
+    6 + 6 = 12 rows and is published; both its spellings are below the
+    floor, so P4-D275 counts them into the commonest, the tie going to
+    the first in sorted order: `Alpha`, one spelling. The level `beta`
+    covers 5 + 5 = 10 rows and is held back. P4-D276 counts the
+    spellings the block speaks of -- one for `alpha` and the held-back
+    level's own two -- so the half publishes 1 + 2 = 3 where it
+    published the raw 4. Its folded count is still 2. The twin's supply
+    (`generation._label_supply`, method G8) is one per published variant
+    and one per held-back level: 1 + 1 = 2. So the half runs 2 to 3 and
+    holds 2; the numeric half is 40 exact; the column publishes
+    40 + 3 = 43, owes between 40 + 2 = 42 and 43 and holds 42; and the
+    folded count is 40 + 2 = 42 on every side. The intent -- the raw
+    and folded shifts differ, one against nought -- is the same, and
+    every assertion is still an equality.
     """
     folder = tmp_path_factory.mktemp("f4-compound-windows")
     # THE NUMBERS ARE SPREAD rather than one to forty (amendment
@@ -744,8 +762,12 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     )
     block = document["columns"][0]
     assert block["role"] == "numbers_with_labels"
-    assert block["labels"]["n_distinct"] == 4
+    assert block["labels"]["n_distinct"] == 1 + 2
     assert block["labels"]["n_distinct_folded"] == 2
+    # ...and the column's own count is the two halves added, which the
+    # loader holds it to (contract 7.14), so a raw 44 here is a
+    # description the product's own loader refuses.
+    assert block["n_distinct"] == 40 + (1 + 2)
     written = fixtures.write_profile(folder, "windows-profile.json", document)
     twin = generation.generate(contract.load_profile(str(written)), 7)
     records = {
@@ -753,12 +775,12 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
         for record in twin.outcomes[0].approximations
         if "distinct" in record.fact
     }
-    # The label half cannot supply its fourth spelling, and every
+    # The label half cannot supply its third spelling, and every
     # record says so at the same numbers.
-    assert records["labels -> n_distinct"].achieved == "3"
-    assert records["labels -> n_distinct"].lowest == "3"
-    assert records["n_distinct"].achieved == "43"
-    assert records["n_distinct"].published == "44"
+    assert records["labels -> n_distinct"].achieved == f"{1 + 1}"
+    assert records["labels -> n_distinct"].lowest == f"{1 + 1}"
+    assert records["n_distinct"].achieved == f"{40 + 1 + 1}"
+    assert records["n_distinct"].published == f"{40 + 1 + 2}"
     assert records["n_distinct"].inside
     # ...while the FOLDED side is exact on both halves, which is what a
     # raw-for-folded mutant would break. The label half's folded count
@@ -770,10 +792,10 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     assert records["n_distinct_folded"].lowest == "42"
     assert records["n_distinct_folded"].highest == "42"
     # AND THE OUTER RAW ENDS ARE THE NUMBERS THEMSELVES (round 7, item
-    # 5): the numeric half is exact at 40 and the label half runs 3 to
-    # 4, so the column owes between 43 and 44 and holds 43.
-    assert records["n_distinct"].lowest == "43"
-    assert records["n_distinct"].highest == "44"
+    # 5): the numeric half is exact at 40 and the label half runs 2 to
+    # 3, so the column owes between 42 and 43 and holds 42.
+    assert records["n_distinct"].lowest == f"{40 + 2}"
+    assert records["n_distinct"].highest == f"{40 + 3}"
     # AND THE VALIDATOR SAYS THE SAME THING ABOUT THE SAME FILE (review
     # round 7 of landing L8, item 4). This walk measured generation
     # alone, so taking the compound branch out of `_distinctness_checks`
@@ -793,8 +815,9 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     ]
     assert len(outer) == 1, outer
     assert outer[0].verdict == validation.AUTHORIZED_DEVIATION, outer[0]
-    assert outer[0].achieved == "43", outer[0]
-    assert "43" in outer[0].published and "44" in outer[0].published
+    assert outer[0].achieved == f"{40 + 2}", outer[0]
+    assert f"{40 + 2}" in outer[0].published, outer[0]
+    assert f"{40 + 3}" in outer[0].published, outer[0]
     # ...and the citation names the half that widened the window, which
     # is the LABEL half here: the numeric half is exact at forty.
     assert outer[0].citation == validation.CORNER_CITATIONS[

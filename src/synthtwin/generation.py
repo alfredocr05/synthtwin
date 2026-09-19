@@ -9556,7 +9556,18 @@ def _mode_held(
 def _mode_note(
     column: contract.ColumnBlock, facts: contract.NumericFacts
 ) -> "list[Deviation]":
-    """The sentence for a published mode the twin could not hold (P4-D267)."""
+    """The sentence for a published mode the twin could not hold (P4-D267).
+
+    WORDED WITHOUT THE LETTERS OF A TYPE NAME (the carried numbers pass
+    of 2026-09-18). It said "the stretches your table leaves empty", and
+    the plain-language guard every deviation note answers to --
+    `tests/test_generation.py::test_every_deviation_names_a_published_fact_and_speaks_plainly`
+    -- reads `str` inside "stretches" exactly as it reads it in a leaked
+    type name, so the one note this round added turned that guard red.
+    The guard is kept at its full strength and the sentence says "the
+    gaps in your table's range" instead, which names the same published
+    fact.
+    """
     return [
         _deviation(
             column.name,
@@ -9565,10 +9576,9 @@ def _mode_note(
             "a number of its own",
             "This column's commonest number, and how many cells held "
             "it, are both published, and the twin holds that many cells "
-            "of one number -- but the ladder, the widths and the "
-            "stretches your table leaves empty left no room to write "
-            "that number itself, so the twin's commonest number is a "
-            "different one.",
+            "of one number -- but the ladder, the widths and the gaps "
+            "in your table's range left no room to write that number "
+            "itself, so the twin's commonest number is a different one.",
         )
     ]
 
@@ -11090,7 +11100,11 @@ def _apart_enough(
     levels = _saturated_levels(layout, rungs, values, figures, facts)
     if levels is not None:
         return levels
-    moved = [value for value in values]
+    # AND A SIGN BAND WHOSE OWN GRID HAS NO SPARE POINT IS FILLED IN
+    # ORDER BEFORE ANYTHING WALKS (the carried numbers pass of
+    # 2026-09-18, amending plan P4-D147): see `_saturated_bands`. The
+    # walk below then separates whatever the other bands still hold.
+    moved = _saturated_bands(column, facts, layout, rungs, values, figures)
     # EVERY TEXT THE WHOLE COLUMN WOULD WRITE, COUNTED BEFORE ANYTHING
     # MOVES (review item P4-R56-R2-F2). This counted only the texts the
     # walk had reached so far -- the two ends, the zero stratum, and
@@ -11250,6 +11264,156 @@ def _saturated_integers(
             return None
         given += [value]
     return given
+
+
+def _band_points(
+    start: int,
+    end: int,
+    figures: int,
+    gaps: "tuple[tuple[float, float], ...]",
+    wanted: int,
+) -> "list[float] | None":
+    """The grid points of one band, outside every published empty pair.
+
+    Walks the grid units from ``start`` to ``end`` upward and leaves out
+    every point strictly inside a published `empty_edges` pair, stepping
+    over such a pair in one move to the first unit at or past its upper
+    edge -- so the walk is bounded by the points it collects and not by
+    the width of the range. Returns the points in ascending order where
+    there are exactly ``wanted`` of them, and None where there are more,
+    fewer, or a point no double holds.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    points: "list[float]" = []
+    unit = start
+    while unit <= end:
+        text = _grid_at(unit, figures)
+        try:
+            point = float(text)
+        except ValueError:
+            return None
+        if not math.isfinite(point) or _grid_text(point, figures) != text:
+            return None
+        inside = False
+        beyond = unit + 1
+        for edges in gaps:
+            if edges[0] < point < edges[1]:
+                inside = True
+                upper = _grid_units(_grid_text(edges[1], figures), figures)
+                if upper is None:
+                    return None
+                if float(_grid_at(upper, figures)) < edges[1]:
+                    upper = upper + 1
+                if upper > beyond:
+                    beyond = upper
+        if not inside:
+            if len(points) >= wanted:
+                return None
+            points += [point]
+        unit = beyond
+    if len(points) != wanted:
+        return None
+    return points
+
+
+def _saturated_bands(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+    figures: int,
+) -> "list[float]":
+    """A sign band whose grid has no spare point takes its points in order.
+
+    THE FILL OF PLAN P4-D147 ASKED THE WHOLE COLUMN, AND A BAND CAN BE FULL
+    WHERE THE COLUMN IS NOT (the carried numbers pass of 2026-09-18, the
+    merge skeptic's MAJOR finding 5). **Measured:** 388 positive amounts
+    `100.00` to `103.87` beside eleven in accounting brackets and one
+    `-12.25`, at a floor of eleven. Ruling 6 counts the lone minus into the
+    brackets, the census says `{"brackets": 12}`, and the description
+    publishes 400 different numbers and the empty pair `(-1.25, 100.00)`.
+    The ladder's third percentile falls between the twelfth and thirteenth
+    values, inside that pair, so the ladder puts three positive strata at
+    97.73, 98.50 and 99.27 -- and the positive grid from 100.00 to 103.87
+    has exactly 388 points for 388 positive strata, so with three of them
+    outside it two of the rest landed on `101.88`. No free point lay within
+    the walk's reach of it; G6.5 then spelled the second one `0101.88`, and
+    the twin held 400 spellings of 399 numbers at seeds 4, 1, 2 and 3.
+    `validate` exited 3 on the twin and 0 on the real table.
+
+    THE RULE, asked after the column-wide fills and before the walk, on a
+    column written on ONE grid (`_pinned_fraction`) that has exactly as
+    many strata as the different numbers it publishes. For each of the
+    two signed bands, the band's points are the points of that grid from
+    the published `min` to the published `max`, of the band's own sign,
+    outside every published `empty_edges` pair -- a point on a pair's edge
+    is outside it. Where those points number exactly the band's strata,
+    the band's strata take them in ascending order, each once: it is the
+    only assignment giving every stratum a number of its own that stands
+    in no stretch the description calls empty. A band with a spare point
+    is left to the walk. The zero stratum never moves. The rule stands
+    aside for the whole column where either end is not a point of the
+    grid, and, on a column whose styles map asks for a point-free cell,
+    where any stratum would change whether its value has a point-free
+    spelling, because G6.4's carrier walk has already placed that count.
+    A band's first and last points are the pinned ends wherever the band
+    holds them, because the walk starts at `min` and ends at `max`.
+
+    Guarantees: accepts the column, its numeric block, the layout, the
+    published rungs, the stratum values and the grid's figures; returns
+    the values with every saturated band filled, unchanged where no band
+    is. Determinism: a fixed function of the inputs. Raises nothing. No
+    I/O of any kind.
+    """
+    wanted = facts.n_distinct_values
+    total = len(values)
+    if rungs is None or wanted is None or total < 3 or total != wanted:
+        return values
+    if figures < 0 or _pinned_fraction(column, facts) != figures:
+        return values
+    low = rungs[0]
+    high = rungs[-1]
+    if _on_the_grid(low, figures) != low or _on_the_grid(high, figures) != high:
+        return values
+    bottom = _grid_units(_grid_text(low, figures), figures)
+    top = _grid_units(_grid_text(high, figures), figures)
+    if bottom is None or top is None or top < bottom:
+        return values
+    gaps: "tuple[tuple[float, float], ...]" = tuple(
+        (edges[0], edges[1]) for edges in facts.empty_edges
+    )
+    point_free = _whole_demand(facts) > 0
+    moved = [value for value in values]
+    for band in (_BAND_NEGATIVE, _BAND_POSITIVE):
+        places = [
+            place for place in range(total) if layout.bands[place] == band
+        ]
+        if not places:
+            continue
+        if places[-1] - places[0] + 1 != len(places):
+            continue
+        start = bottom
+        end = top
+        if band == _BAND_NEGATIVE and end > -1:
+            end = -1
+        if band == _BAND_POSITIVE and start < 1:
+            start = 1
+        if end < start:
+            continue
+        points = _band_points(start, end, figures, gaps, len(places))
+        if points is None:
+            continue
+        for index in range(len(places)):
+            place = places[index]
+            if point_free and (
+                _carries_plainly(points[index], facts.integer_valued)
+                != _carries_plainly(values[place], facts.integer_valued)
+            ):
+                return values
+            moved[place] = points[index]
+    return moved
 
 
 def _saturated_levels(

@@ -2018,6 +2018,8 @@ exactly one of six **styles**, and in no other form:
 
 **AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS** (plan P4-D185). A cell carries a mark between thousands exactly where its number reaches a thousand, and the ladder places the strata near a thousand by interpolation, a rank or two either side: 2,000 lognormal amounts written `1.234,56` published `{".": 418}` and the twin wrote 416 at every seed, and over twelve such columns sixteen twins of twenty-four wrote one or two fewer and two wrote one more, the surplus named nowhere. So, as the last of the value passes of G6.5a and G6.6, on a column whose every numeric cell is on ONE grid (G6.5a's first two clauses), naming no field width and no form but `decimal` and `plain`: let `C` be the census's cells, named and pooled, and `K` the cells whose values reach a thousand in size, of either sign. Where `K < C`, the run of strata just below a thousand, from the highest down while their cells do not pass `C - K`, takes the lowest free grid points of a thousand or more, in order, the last below the value of the stratum above the run. Where `C < K < C + max(2, small_cell_floor)` -- a surplus the table cannot have held as bare cells, since the census is published only beside a bare remainder of nought or at least that floor -- the run from a thousand up, from the lowest while their cells do not pass `K - C`, takes the highest free grid points below a thousand, in order, the first above the value of the stratum below it. A free grid point is one whose text no stratum holds and whose text survives being read and written again, looked for at most sixty-four units past the run's own length. A stratum moves only where its text is its own and never the first or last stratum; the run moves whole or not at all, so the count of different values, the sign counts and the order of the strata stay where they were. Only strata in the positive band are in a run. **AND ON THE NEGATIVE SIDE** (plan P4-D194, the final skeptic of stage 2's close): the rule first stood aside on any column holding a negative value, and 1,500 amounts one in ten negated published `{",": 396}` while the twin wrote 397 at seeds 4 and 11 with nothing named -- over forty such columns, 36 twins of 80 missed by one to three. So on a column holding a negative value, once the run above has moved or not, `K` is counted again and the same rule is taken among the strata of the negative band read by size: "a thousand or more" is "minus a thousand or less", the run below a thousand is the run of negative strata just above minus a thousand, from the lowest up, taking the highest free grid points of minus a thousand or less, each above the value of the stratum below the run, and the run from a thousand up is the run from minus a thousand down, taking the lowest free grid points above minus a thousand. **A SURPLUS UNDER THE LINE IS NAMED**: where the cells the census's marks leave over number more than nought and fewer than the census line, and so wear the published mark, the twin's report names `thousands_marks` with the census's count and the count the twin holds.
 
+**THE PUBLISHED MODE IS A NUMBER THE TWIN HOLDS** (plan P4-D267, the extra review round of 2026-09-18; stated here and mirrored in the oracle by the carried numbers pass of the same day). After the census of marks, as the LAST of the value passes, where the column publishes a `mode` and a `mode_count` of one or more and has at least three strata: where some stratum already holds the `mode`, nothing moves. Otherwise the stratum taken is the one, among all but the first and the last, whose size is exactly `mode_count`, standing nearest the `mode` by absolute difference, the earliest on a tie; where none is that size nothing moves. It takes the `mode` as its value only where every guarantee the passes before it established survives the move: the `mode` lies strictly between the values of the strata on either side of it; the stratum's sign band holds it (the zero band nought alone, and no other band nought); on a column whose styles map asks for a point-free cell, whether the stratum's value has a point-free spelling does not change; on a column written on ONE grid (G6.5a's first two clauses) the `mode` is a point of it -- a whole number on the integer grid, and on a grid of `f > 0` figures a value whose grid text reads back as itself; and, where the column publishes `empty_bins`, the `mode`'s bin under contract C6-31f's division of the published `min` to `max` is not one of them. Where the move is not made, the twin's report names `mode` with the published number beside "a number of its own". Measured before the rule, on eleven one-place values from -1.7 to 6.9 at a floor of eleven: the published mode -0.6 over 210 rows was written nowhere, and the twin's median moved from -0.6 to -0.2 with nothing named.
+
 **Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
 **Which decision governs which question** (P2-C1-F8). Decision 8 fixed
@@ -2996,6 +2998,33 @@ on 2,000 quantities of eleven levels and 1,423 discounts of six: six
 twins of eight wrote a whole level at a number the source never held —
 `7.4` 225 times, `1.3` 199 times — and lost a published rung, with
 validation at exit 0.
+
+**A SIGN BAND WHOSE OWN GRID HAS NO SPARE POINT IS FILLED IN ORDER**
+(the carried numbers pass of 2026-09-18, amending plan P4-D147), where
+neither fill above answers, and before the walk. It is asked only on a
+column written on ONE grid — `integer_valued`, or one fraction width
+covering every numeric cell — that has exactly as many strata as the
+different numbers it publishes, and whose published `min` and `max` are
+both points of that grid. For each of the two signed bands in turn,
+negative and then positive, the band's POINTS are the points of the grid
+from `min` to `max`, of the band's own sign, that lie strictly inside no
+published `empty_edges` pair (a point on a pair's edge is outside it).
+Where those points number exactly the band's strata, the band's strata
+take them in ascending order, each once; a band with a spare point is
+left as it is. The zero stratum never moves. On a column whose styles
+map asks for any point-free cell, the whole rule stands aside where any
+stratum it would fill would change whether its value has a point-free
+spelling. The walk below then runs over the result as it would have run
+over the strata. It is the only assignment that gives every stratum of
+the band a number of its own standing in no stretch the description
+calls empty, and a band can be full where the column is not: measured
+before this clause on 388 positive amounts `100.00` to `103.87` beside
+eleven accounting brackets and one `-12.25` at a floor of eleven, the
+ladder's third percentile fell inside the published pair
+`(-1.25, 100.00)`, three positive strata stood below 100, two of the
+rest shared `101.88` with no free point within the walk's reach, G6.5
+spelled the second one `0101.88`, and the twin held 400 spellings of 399
+numbers at every seed tried while the real table held 400.
 
 **IN WHAT ORDER.** The strata are visited in ascending index, ONCE
 each in a walk, and a stratum a walk could not move is not returned to in
@@ -10153,7 +10182,26 @@ seventh file; merged, that file stood at 276235 bytes against the
 250000-byte cap, so all seven moved into
 `tests/reference/generation-branch-vectors-6.json` together.
 
-**All ninety-five are required.** The count is taken off the committed
+**The carried numbers pass of 2026-09-18 adds four more to the eighth
+file**, where plan P4-D295 routes the next case: `saturated_band`,
+G6.5a's fill of a sign band whose own grid has no spare point, which
+this pass added; and the two generator rules the extra round landed with
+no mirror at all -- `mode_held`, the published mode on the stratum its
+count sizes (plan P4-D267), and `held_back_dressed` and
+`held_back_anchored`, G8.3a's dressing of a ladder number into its
+published form and the anchors every published spelling gives the ladder
+(plan P4-D268), one case for each half so either half withdrawn moves
+cells. With them the eighth file's output stands at 235440 bytes: it has
+passed the 200000 bytes P4-D295 set, so the NEXT case goes in a ninth
+entry point, written the way the eighth was. The band fill is the
+column-wide fill of plans P4-D147 and P4-D176 stated band by band, and on
+a column of one sign the two are the same fill, so the registered
+mutants of `saturated_integers` and `saturated_tenths` withdraw the fill
+in both its statements -- withdrawing the column-wide one alone left the
+band fill writing the same cells, and those two cases stopped holding the
+fill up.
+
+**All ninety-nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10169,7 +10217,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds seven (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds eleven (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10193,6 +10241,10 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
+| `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
+| `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |
+| `held_back_dressed` | G8.3a's dressing (plan P4-D268): thirty `alpha` beside eleven `+15` and two held-back signed numbers over eleven rows, whose census names `+%%` twenty-two times. The ladder's plainly spelled steps are written through the form and kept where they wear it and hold the same value, `+14` and `+16`. Its mutant withdraws the dressing and the held-back rows are bare numbers |
+| `held_back_anchored` | G8.3a's anchors (plan P4-D268): thirty `alpha` beside eleven `+25` and two held-back signed numbers over eleven rows. The only published number carries a plus, which the plain reading refuses; read a second way it anchors the ladder at twenty-five, so the held-back rows take `+24` and `+26`. Its mutant reads the plain spelling alone and the ladder counts up from nought |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
 | `level_shape_stand_ins` | G8.3b's shape and trade: a long tail publishing one level `a-` whose shape no census key names, beside a census owing `@@@@-@@` thirty-four cells over forty-five held-back labels pooled on sixty rows, whose sizes G8.3 reads off the pool and its debts as thirty-seven single rows, four of two, two of three, one of four and one of five (plan P4-D201). The stand-ins owed no form wear `&-` with the case kept, and the group of five paying `@@@@-@@` trades with five single rows so the shape's supply covers every place owed no form. Its mutant withdraws the trade, a place past the supply takes `group-N`, and the oracle refuses the figure that spelling carries |

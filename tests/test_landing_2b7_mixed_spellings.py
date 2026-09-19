@@ -315,13 +315,25 @@ def test_a_lone_convention_is_not_published_at_the_default_floor(
     floors agree and this rule cannot be told from the settings; these
     two columns are described at the DEFAULT floor, where only the
     census floor stands between the reader and the one odd cell.
+
+    SINCE PLAN P4-D274 THE ODD CELL IS COUNTED IN, NOT SILENCED (ruling 6
+    of 2026-09-17: a spelling below the floor is counted into the
+    column's commonest spelling). The expected census is derived from
+    that rule, not read off the tool: the census floor here is
+    `parsing.census_floor(1)` = max(2, 1) = 2; `minus` is worn by 299
+    cells, which clears it and is named; the one bracketed cell is below
+    it and is counted into the commonest named convention, `minus`; so
+    the census names `minus` at 299 + 1 = 300, which is every negative
+    cell, and the complement a reader can subtract it from is nought.
+    The intent is unchanged -- the lone convention is NOT published --
+    and the assertion is still an equality.
     """
     charges = [f"-{n}.25" for n in range(1000, 1300)]
     charges[11] = "(1011.25)"
     first, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "one_bracket", charges, flags=(), header="charge"
     )
-    assert first["negative_notations"] == {"(unavailable)": 0}
+    assert first["negative_notations"] == {"minus": 299 + 1}
     # The majority key still says what it always said, so nothing about
     # the column's ordinary convention is lost with the singleton.
     assert first["negative_form"] == "minus"
@@ -341,15 +353,25 @@ def test_a_lone_convention_is_not_published_at_the_default_floor(
 def test_a_census_holds_nothing_back_at_a_floor_of_one(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Two odd cells are unavailable, never a pooled remainder.
+    """Two odd cells are counted into the commonest, never a pooled remainder.
 
     Invariant C5-S13: a description written at a floor of one holds
     nothing back, because there is no group below that size to hold.
     These censuses read a floor of two all the same, so they have a
     range below their own floor exactly where the document says there
-    is none -- and the answer is the unavailable state, which holds
-    back no COUNT, rather than a `(withheld)` remainder the loader
-    would refuse.
+    is none -- and the answer must hold back no COUNT, rather than a
+    `(withheld)` remainder the loader would refuse.
+
+    REWRITTEN AS A WITNESS OF RULING 6 (plan P4-D274, the extra review
+    round of 2026-09-18). It asserted the unavailable state, which was
+    the answer while a convention below the line was pooled; ruling 6 of
+    2026-09-17 counts it into the commonest named convention instead, so
+    nothing is pooled and nothing is silenced. Derived from the rule:
+    the census floor is `parsing.census_floor(1)` = 2; `minus` is worn by
+    300 - 2 = 298 cells and is named; the bracketed cell and the cell
+    written with the typographic minus are one cell each, both below 2,
+    and both are counted into `minus`; so the census is `minus` at
+    298 + 1 + 1 = 300 and carries no `(withheld)` key. Still an equality.
     """
     charges = [f"-{n}.25" for n in range(1000, 1300)]
     charges[11] = "(1011.25)"
@@ -357,7 +379,7 @@ def test_a_census_holds_nothing_back_at_a_floor_of_one(
     first, _written, twin_exit, real_exit = _round_trip(
         tmp_path / "two_odd", charges, flags=(), header="charge"
     )
-    assert first["negative_notations"] == {"(unavailable)": 0}
+    assert first["negative_notations"] == {"minus": 298 + 1 + 1}
     assert twin_exit == 0
     assert real_exit == 0
 

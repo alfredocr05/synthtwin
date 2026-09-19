@@ -473,6 +473,10 @@ SIXTH_BRANCH_CASES = (
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
+    "held_back_anchored",
+    "held_back_dressed",
+    "mode_held",
+    "saturated_band",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -574,6 +578,12 @@ SEEDS = {
     "date_second_field_class": 202,
     "date_traded_merge": 203,
     "date_nonadjacent_merge": 204,
+    # The carried numbers pass of 2026-09-18 takes 260 onward, clear of
+    # the blocks above and of the other carried passes.
+    "saturated_band": 260,
+    "mode_held": 261,
+    "held_back_dressed": 262,
+    "held_back_anchored": 263,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -1143,8 +1153,8 @@ FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
 FIFTH_BRANCH_PUBLISHED_NUMBERS = 623
 FIFTH_BRANCH_NAMED_COUNTS = 254
-SIXTH_BRANCH_PUBLISHED_NUMBERS = 318
-SIXTH_BRANCH_NAMED_COUNTS = 234
+SIXTH_BRANCH_PUBLISHED_NUMBERS = 737
+SIXTH_BRANCH_NAMED_COUNTS = 449
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1535,12 +1545,23 @@ def _marks_on_the_positive_side_alone(column, *arguments):
 
 
 class Mutant(typing.NamedTuple):
-    """One case's own branch, put back the way the method rules out."""
+    """One case's own branch, put back the way the method rules out.
+
+    ``also`` names further attributes the SAME rule is stated in, each
+    with its replacement, withdrawn together with ``attribute``. It is
+    empty for every case but two: G6.5a's fill of a grid with no spare
+    point is stated column-wide (plans P4-D147 and P4-D176) and, since the
+    carried numbers pass of 2026-09-18, band by band as well -- on a
+    column of one sign the band fill IS the column fill, so withdrawing
+    the column-wide statement alone left the band fill writing the same
+    cells, and the two cases that pin the fill stopped holding it up.
+    """
 
     branch: str
     attribute: str
     replacement: object
     outcome: str
+    also: tuple = ()
 
 
 def _either_field_below_ten(column, day_number, word=""):
@@ -2261,6 +2282,7 @@ gen_mark_places = gen.mark_places
 gen_pad_places = gen.pad_places
 gen_apart_values = gen.apart_values
 gen_saturated_grid = gen.saturated_grid
+gen_saturated_bands = gen.saturated_bands
 gen_plus_cells_by_value = gen.plus_cells_by_value
 
 
@@ -2343,6 +2365,18 @@ def _no_tenths_fill(wanted, figures, total, bands, ladder):
     return gen_saturated_grid(wanted, figures, total, bands, ladder)
 
 
+def _no_band_fill(wanted, figures, values, *_rest):
+    """The band fill of the carried numbers pass withdrawn: values as given."""
+    return values
+
+
+def _no_tenths_band_fill(wanted, figures, values, *rest):
+    """The band fill withdrawn on a written grid, the integers' kept."""
+    if figures > 0:
+        return values
+    return gen_saturated_bands(wanted, figures, values, *rest)
+
+
 def _no_levels_fill(*_arguments, **_keywords):
     """Plan P4-D178's fill withdrawn: no column's levels are its strata."""
     return None
@@ -2369,6 +2403,39 @@ def _no_layout_packing(*_arguments, **_keywords):
 
 
 CASE_MUTANTS = {
+    "saturated_band": Mutant(
+        branch="G6.5a's fill of a sign band whose own grid has no spare point "
+        "(the carried numbers pass of 2026-09-18, amending plan P4-D147); the "
+        "mutant withdraws it, and a positive stratum the ladder put inside "
+        "the published empty pair stays there",
+        attribute="saturated_bands",
+        replacement=lambda wanted, figures, values, *rest: values,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "mode_held": Mutant(
+        branch="plan P4-D267's last value pass, which puts the published mode "
+        "on the stratum its count sizes; the mutant withdraws it and the "
+        "mode is written nowhere",
+        attribute="mode_held",
+        replacement=lambda values, *rest: values,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "held_back_dressed": Mutant(
+        branch="plan P4-D268's dressing, which writes a ladder number through "
+        "the published form its group owes; the mutant withdraws it and the "
+        "held-back rows are written as bare numbers",
+        attribute="dressed_in_form",
+        replacement=lambda *arguments: "",
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "held_back_anchored": Mutant(
+        branch="plan P4-D268's anchors, which read a published number spelled "
+        "with a plus a second way so it anchors the ladder; the mutant reads "
+        "the plain spelling alone and the ladder counts up from nought",
+        attribute="anchor_units",
+        replacement=lambda text, value: gen.plain_units(text),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "unmarked_duplicates_first": Mutant(
         branch="plan P4-D265's visiting order for the distinct-spelling "
         "repair of G6.5; the mutant visits the duplicates in index order, "
@@ -2407,10 +2474,12 @@ CASE_MUTANTS = {
     "saturated_tenths": Mutant(
         branch="plan P4-D176's fill of a saturated grid of tenths; the mutant "
         "keeps the fill on the integers alone, and the walk places the "
-        "strata elsewhere",
+        "strata elsewhere. The band fill of the carried numbers pass states "
+        "the same fill band by band, so it is withdrawn on a written grid too",
         attribute="saturated_grid",
         replacement=_no_tenths_fill,
         outcome=CHANGES_THE_CELLS,
+        also=(("saturated_bands", _no_tenths_band_fill),),
     ),
     "pooled_level_sizes": Mutant(
         branch="plan P4-D201's sizes read off a pooled total; the mutant "
@@ -2614,10 +2683,14 @@ CASE_MUTANTS = {
     "saturated_integers": Mutant(
         branch="plan P4-D147's fill of a saturated integer grid; the mutant "
         "withdraws the fill and the walk alone, which lands strata on points "
-        "other strata still need, writes twenty-one numbers",
+        "other strata still need, writes twenty-one numbers. The band fill "
+        "of the carried numbers pass states the same fill band by band, and "
+        "on this column of one sign it is the same fill, so it is withdrawn "
+        "with it",
         attribute="saturated_grid",
         replacement=_apart_without_the_fill,
         outcome=CHANGES_THE_CELLS,
+        also=(("saturated_bands", _no_band_fill),),
     ),
     "signed_pads": Mutant(
         branch="plan P4-D145's padded sign exchange; the mutant leaves every "
@@ -3173,6 +3246,8 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
     before, _claims = gen.build_case(name)
     assert before["cells"], f"{name} builds no cells unmutated"
     monkeypatch.setattr(gen, mutant.attribute, mutant.replacement)
+    for attribute, replacement in mutant.also:
+        monkeypatch.setattr(gen, attribute, replacement)
     # THE ORACLE'S OWN DISTINCT RECOUNT IS NOT ASKED OF A MUTATED BUILD
     # (plan P4-D237). It proves that a case's cells hold the counts the
     # case publishes; a mutant that moves those counts would stop the

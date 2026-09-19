@@ -2667,6 +2667,91 @@ def commonest_width_grid(fraction_widths, numeric, point_free):
     return best
 
 
+HISTOGRAM_BINS = 32
+
+
+def histogram_bin(value, lowest, highest):
+    """Which of the thirty-two bins one value falls in -- contract C6-31f.
+
+    Equal widths between the published ``min`` and ``max``, each bin
+    half-open at the top so a value on a shared edge belongs to the bin
+    that STARTS there, and the last closed so the maximum has a bin.  A
+    value at or below ``min`` is in the first bin and one at or above
+    ``max`` in the last; a scale with no width puts everything in the first.
+    """
+    if not (math.isfinite(value) and math.isfinite(lowest) and math.isfinite(highest)):
+        return 0
+    if not highest > lowest:
+        return 0
+    reach = highest - lowest
+    if not math.isfinite(reach) or not reach > 0.0:
+        return 0
+    if value <= lowest:
+        return 0
+    if value >= highest:
+        return HISTOGRAM_BINS - 1
+    share = (value - lowest) / reach
+    if not math.isfinite(share) or share <= 0.0:
+        return 0
+    if share >= 1.0:
+        return HISTOGRAM_BINS - 1
+    return min(int(share * HISTOGRAM_BINS), HISTOGRAM_BINS - 1)
+
+
+def mode_held(values, sizes, bands, column, integer_valued, numeric, demand, ladder):
+    """The published mode is a number the twin holds -- G6.1, plan P4-D267.
+
+    Read from the method: the last of the value passes.  Where the column
+    publishes a ``mode`` and a ``mode_count`` of one or more over three
+    strata or more and no stratum holds the mode already, the stratum taken
+    is the one among all but the two ends whose size is ``mode_count``,
+    nearest the mode, the earliest on a tie.  It takes the mode only where
+    the mode lies strictly between its neighbours' values, its sign band
+    holds it, a point-free carrier does not change on a column asking for
+    point-free cells, the mode is a point of the column's one grid where it
+    has one, and the mode's bin is not a published empty one.  Otherwise
+    nothing moves and the twin's report names the pair.
+    """
+    mode = column.get("mode")
+    if isinstance(mode, dict):
+        mode = mode[FLOAT64]
+    if mode is None or column.get("mode_count", 0) < 1:
+        return values
+    total = len(values)
+    if total < 3 or any(value == mode for value in values):
+        return values
+    chosen = -1
+    for place in range(1, total - 1):
+        if sizes[place] != column["mode_count"]:
+            continue
+        if chosen < 0 or abs(values[place] - mode) < abs(values[chosen] - mode):
+            chosen = place
+    if chosen < 0:
+        return values
+    if not values[chosen - 1] < mode < values[chosen + 1]:
+        return values
+    band = bands[chosen]
+    if not _band_holds(band, mode) or (band != "zero" and mode == 0):
+        return values
+    if demand > 0 and (
+        (point_free_spelling(mode, integer_valued) is None)
+        != (point_free_spelling(values[chosen], integer_valued) is None)
+    ):
+        return values
+    figures = grid_of(column.get("fraction_widths", {}), integer_valued, numeric)
+    if figures == 0 and not float(mode).is_integer():
+        return values
+    if figures > 0 and not _on_grid(mode, figures):
+        return values
+    empty = column.get("empty_bins", [])
+    if empty and ladder is not None:
+        if histogram_bin(mode, ladder[0], ladder[-1]) in empty:
+            return values
+    moved = list(values)
+    moved[chosen] = mode
+    return moved
+
+
 def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor):
     """As many cells at a thousand or more as the marks census counts -- G6.1.
 
@@ -3382,9 +3467,71 @@ def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric,
     return merged
 
 
+def saturated_bands(
+    wanted, figures, values, bands, ladder, gaps, pinned, point_free,
+    integer_valued,
+):
+    """Each sign band whose own grid has no spare point, filled -- G6.5a.
+
+    Read from the method (the carried numbers pass of 2026-09-18, amending
+    plan P4-D147): on a column written on ONE grid, with exactly as many
+    strata as the different numbers it publishes and both published ends
+    points of that grid, each of the two signed bands in turn -- negative,
+    then positive -- has as its POINTS the grid points from ``min`` to
+    ``max`` of the band's own sign lying strictly inside no published
+    ``empty_edges`` pair.  Where they number exactly the band's strata, the
+    band's strata take them in ascending order, each once; a band with a
+    spare point is left.  The zero stratum never moves.  On a column whose
+    styles ask for a point-free cell the whole rule stands aside where any
+    stratum it fills would change whether its value has a point-free
+    spelling.  Every point is counted in exact grid units, so no step
+    drifts.
+    """
+    total = len(values)
+    if ladder is None or wanted is None or total < 3 or total != wanted:
+        return values
+    if figures < 0 or not pinned:
+        return values
+    if not _on_grid(ladder[0], figures) or not _on_grid(ladder[-1], figures):
+        return values
+    unit = fractions.Fraction(1, 10 ** figures)
+    low = _snapped_fraction(_exact_decimal(ladder[0]), figures)
+    high = _snapped_fraction(_exact_decimal(ladder[-1]), figures)
+    moved = list(values)
+    for band in ("negative", "positive"):
+        places = [place for place in range(total) if bands[place] == band]
+        if not places or places != list(range(places[0], places[-1] + 1)):
+            continue
+        points = []
+        exact = low
+        whole = True
+        while exact <= high and len(points) <= len(places):
+            number = float(_fraction_text(exact, figures))
+            exact = exact + unit
+            if not _band_holds(band, number) or number == 0:
+                continue
+            if any(pair[0] < number < pair[1] for pair in gaps):
+                continue
+            if not _on_grid(number, figures):
+                whole = False
+                break
+            points.append(number)
+        if not whole or len(points) != len(places):
+            continue
+        for index, place in enumerate(places):
+            if point_free and (
+                (point_free_spelling(points[index], integer_valued) is None)
+                != (point_free_spelling(values[place], integer_valued) is None)
+            ):
+                return values
+            moved[place] = points[index]
+    return moved
+
+
 def apart_values(
     wanted, figures, values, sizes, starts, bands, ladder, numeric,
     mode=None, point_free=False, integer_valued=False, keep_whole=False,
+    gaps=(), pinned=False,
 ):
     """Two strata are two cells, so they are written two ways -- G6.5a.
 
@@ -3419,7 +3566,13 @@ def apart_values(
     )
     if filled is not None:
         return filled
-    moved = list(values)
+    # AND EACH SIGN BAND WHOSE OWN GRID HAS NO SPARE POINT TAKES ITS POINTS
+    # IN ORDER before anything walks (the carried numbers pass of
+    # 2026-09-18), and the walk runs over what it gives.
+    moved = saturated_bands(
+        wanted, figures, values, bands, ladder, gaps, pinned, point_free,
+        integer_valued,
+    )
     texts = [grid_text(value, figures) for value in moved]
     held = {}
     for text in texts:
@@ -5024,22 +5177,44 @@ def exponent_filling(form):
     return built
 
 
-def usable_of_class(candidate, reads):
+def usable_of_class(candidate, reads, wearing=""):
     """The neutrality tests of G8.3a, for a stand-in of a numeric class.
 
     It must read as its class; the three sentinel numbers are refused;
     so are a spelling meaning "no value", a quote, a comma and a leading
     `=`, `+` or `@` -- a minus is how a negative number is written.
+
+    ``wearing`` is a form the column itself PUBLISHED, which a ladder
+    number was dressed into (plan P4-D268): the two refusals that are
+    about a CHARACTER -- a comma and a leading plus -- are then asked of
+    the form, so a candidate may carry exactly the characters the form
+    holds and no other.  Every other refusal is unchanged.
     """
     if not candidate or folded(candidate) in NO_VALUE_SPELLINGS:
         return False
     reading = notation_reading(candidate)[0]
     if reading != reads:
         return False
+    if reads == NOTATION_NUMBER and decimal_to_fraction(candidate) in NUMERIC_SENTINELS:
+        return False
+    # THE REFUSALS THAT ARE ABOUT A CHARACTER COME BEFORE THE CHECK OF WHAT
+    # THIS FILE CAN STATE (the carried numbers pass of 2026-09-18): a
+    # candidate they refuse is refused, whatever its shape, so the check
+    # below is asked only of a spelling that can reach a frozen cell.
+    if '"' in candidate or ("," in candidate and "," not in wearing):
+        return False
+    plus_worn = candidate[:1] == "+" and wearing[:1] == "+"
+    if candidate[0] in "=+@" and not plus_worn:
+        return False
     if reads == NOTATION_NUMBER:
-        if decimal_to_fraction(candidate) in NUMERIC_SENTINELS:
-            return False
         body = candidate[1:] if candidate[:1] == "-" else candidate
+        # A DRESSED CANDIDATE carries its form's own plus in front; this
+        # file's frozen cells are plain decimals apart from that, and the
+        # product's own reader is asked of every committed cell by the
+        # read-back test, so the date rule this file does not state is
+        # still asked of it there.
+        if plus_worn:
+            body = body[1:]
         if len(candidate) > LONGEST_FROZEN_NUMBER or body.count(".") > 1 or not all(
             character.isdigit() or character == "." for character in body
         ):
@@ -5048,9 +5223,7 @@ def usable_of_class(candidate, reads):
                 f"{LONGEST_FROZEN_NUMBER} characters, so the date rule could "
                 "reach it, and this file states no reading of that rule"
             )
-    if '"' in candidate or "," in candidate:
-        return False
-    return candidate[0] not in "=+@"
+    return True
 
 
 def classes_owed(column, written):
@@ -5082,6 +5255,51 @@ def plain_units(text):
     return (-value if negative else value), len(fraction)
 
 
+# The marks a number may carry between its thousands (contract GS1): a
+# comma, a space, an apostrophe, a right single quotation mark, a no-break
+# space, a narrow no-break space and a thin space.
+GROUP_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
+
+
+def anchor_units(text, value):
+    """One accepted numeric spelling as whole last places -- G8.3a, P4-D268.
+
+    Read from the method: the ladder is anchored by EVERY published
+    number, not only by the plain ones.  A spelling ``plain_units`` refuses
+    is read a second way -- a leading plus dropped, accounting brackets and
+    a trailing minus read as the leading minus they mean, every thousands
+    mark taken out -- and what is left is read plainly.  A spelling no such
+    rewriting reaches, an exponent above all, is read from its VALUE: at no
+    places where the value is whole and below two to the fifty-third, and
+    otherwise at the places its own shortest spelling writes.
+    """
+    units = plain_units(text)
+    if units is not None:
+        return units
+    body = text.strip()
+    negative = False
+    if len(body) > 1 and body[:1] == "(" and body[-1:] == ")":
+        negative = True
+        body = body[1:-1]
+    if body[:1] == "+":
+        body = body[1:]
+    elif body[:1] == "-":
+        negative = True
+        body = body[1:]
+    elif len(body) > 1 and body[-1:] == "-":
+        negative = True
+        body = body[:-1]
+    bare = "".join(character for character in body if character not in GROUP_MARKS)
+    units = plain_units(("-" if negative else "") + bare)
+    if units is not None:
+        return units
+    if value is None or not math.isfinite(value):
+        return None
+    if float(value).is_integer() and abs(value) < 2 ** 53:
+        return int(value), 0
+    return plain_units(repr(value))
+
+
 def form_places(form):
     """Figures a form writes after its point; nought where it has none."""
     if "." not in form:
@@ -5101,7 +5319,9 @@ def number_ladder(written, forms):
         if notation_reading(cell)[0] != NOTATION_NUMBER:
             continue
         span.append(float(decimal_to_fraction(cell.strip())))
-        units = plain_units(cell)
+        # EVERY ACCEPTED SPELLING ANCHORS THE LADDER (plan P4-D268), read
+        # a second way where the plain reading refuses it.
+        units = anchor_units(cell, span[-1])
         if units is not None:
             parsed.append(units)
     ends = {"least": min(span) if span else 0.0,
@@ -5214,6 +5434,53 @@ def units_spelled(units, places):
     return f"{lead}{whole}.{part:0{places}d}"
 
 
+def dressed_in_form(candidate, form, named):
+    """The same number written into one published form, or "" -- G8.3a, P4-D268.
+
+    Read from the method: the form's figure places take the candidate's
+    own figures in order, a figure place it has no figure for takes a
+    nought, a letter place takes ``e`` under a lower-case key and ``E``
+    otherwise, and every other character of the form stands as itself.
+    The noughts go at the end -- and, where the form carries a letter
+    place, at the front as the second try.  A form with fewer figure places
+    than the candidate has figures, or with two letter places, is refused.
+    The result stands only where it is not the candidate itself, wears
+    exactly ``form`` under the published census, reads as a number, and
+    holds the candidate's own value; the first placement that does is the
+    answer.
+    """
+    figures = "".join(character for character in candidate if character.isdigit())
+    places = form.count(SHAPE_DIGIT)
+    letters = form.count(SHAPE_LETTER) + form.count(SHAPE_LOWER)
+    if places < len(figures) or not figures or letters > 1:
+        return ""
+    spare = "0" * (places - len(figures))
+    fittings = [figures + spare]
+    if letters == 1 and spare:
+        fittings.append(spare + figures)
+    for fitting in fittings:
+        built = ""
+        step = 0
+        for character in form:
+            if character == SHAPE_DIGIT:
+                built += fitting[step]
+                step += 1
+            elif character == SHAPE_LOWER:
+                built += "e"
+            elif character == SHAPE_LETTER:
+                built += "E"
+            else:
+                built += character
+        if built == candidate or census_form(built, named) != form:
+            continue
+        if notation_reading(built)[0] != NOTATION_NUMBER:
+            continue
+        if decimal_to_fraction(built) != decimal_to_fraction(candidate):
+            continue
+        return built
+    return ""
+
+
 def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None,
                    bounded=False):
     """The next made-up number one debt may take, or "" -- G8.3a.
@@ -5257,6 +5524,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
             if state == "skip":
                 continue
             candidate = units_spelled(units, places)
+            wearing = ""
             form = census_form(candidate, named)
             if name == OWED_NUMBER:
                 if form in named:
@@ -5270,15 +5538,22 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                         cursor[low] = 1
                     continue
             elif form != name:
-                wider = whole_figures(units, places) > reach
-                if side == "high" and units > 0 and wider:
-                    cursor[high] = 1
-                if side == "low" and units < 0 and wider:
-                    cursor[low] = 1
-                continue
+                # THE SAME NUMBER, WRITTEN THROUGH THE FORM THE CENSUS ASKS
+                # FOR (plan P4-D268): a form that is a plain decimal with a
+                # decoration was worn by no step of the ladder.
+                dressed = dressed_in_form(candidate, name, named)
+                if not dressed:
+                    wider = whole_figures(units, places) > reach
+                    if side == "high" and units > 0 and wider:
+                        cursor[high] = 1
+                    if side == "low" and units < 0 and wider:
+                        cursor[low] = 1
+                    continue
+                candidate = dressed
+                wearing = name
             if candidate in seen or folded(candidate) in folds:
                 continue
-            if not usable_of_class(candidate, NOTATION_NUMBER):
+            if not usable_of_class(candidate, NOTATION_NUMBER, wearing):
                 continue
             return candidate
     return ""
@@ -11269,6 +11544,7 @@ def _numeric_content(column):
     if isinstance(mode, dict):
         mode = mode[FLOAT64]
     separated_on = grid_of(widths, integer_valued, numeric)
+    pinned = separated_on >= 0
     if separated_on < 0:
         separated_on = finest_grid(widths)
     values = apart_values(
@@ -11284,6 +11560,16 @@ def _numeric_content(column):
         demand > 0,
         integer_valued,
         sum(widths.values()) < numeric,
+        # A PUBLISHED EDGE IS A PROVED FIELD in a case's column, like the
+        # mode above, and the band fill reads the number it holds.
+        tuple(
+            tuple(
+                edge[FLOAT64] if isinstance(edge, dict) else edge
+                for edge in pair
+            )
+            for pair in column.get("empty_edges", [])
+        ),
+        pinned,
     )
     # AND A WHOLE NUMBER WRITTEN TWO WAYS IS HELD BY TWO STRATA (plan
     # P4-D193), straight after the walk.
@@ -11295,6 +11581,11 @@ def _numeric_content(column):
     values = grouped_enough(
         column, values, sizes, bands, integer_valued, numeric,
         CASE_SMALL_CELL_FLOOR,
+    )
+    # AND THE PUBLISHED MODE IS A NUMBER THE TWIN HOLDS (plan P4-D267), the
+    # last of the value passes.
+    values = mode_held(
+        values, sizes, bands, column, integer_valued, numeric, demand, ladder
     )
     cell_values = []
     for index, size in enumerate(sizes):
@@ -16127,6 +16418,193 @@ def _saturated_representable():
     }
 
 
+def _saturated_band():
+    """A sign band whose own grid has no spare point (G6.5a, carried pass).
+
+    Twelve negative readings at one place, -10.0 to -0.1 nine tenths
+    apart, beside fifteen positive ones, 50.0 to 51.4 a tenth apart, with
+    the published empty pair (-0.1, 50.0) between them.  The positive band
+    has fifteen strata and its grid, outside the pair, exactly fifteen
+    points; the negative band has twelve strata on a hundred points.  The
+    whole column is not saturated, so neither fill before this one answers.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-10", "p01": "-9.766", "p05": "-8.83",
+        "p10": "-7.659999999999999", "p25": "-4.15", "p50": "50.1",
+        "p75": "50.75", "p90": "51.14", "p95": "51.269999999999996",
+        "p99": "51.373999999999995", "max": "51.4",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "25.92222222222222"),
+                       ("std", "28.31080703321251"),
+                       ("skew", "-0.23993064576314213"),
+                       ("kurtosis", "1.0802947436180073"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    edges = []
+    for place, text in enumerate(("-0.1", "50")):
+        field, claim = nearest_field(text)
+        edges.append(field)
+        claims[("column", "empty_edges", 0, place)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=27, n_missing=0, n_distinct=27, n_distinct_folded=27,
+        n_distinct_values=27,
+        n_numeric=27, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=0, n_negative=12, n_negative_unrepresentable=0,
+        n_used_in_statistics=27, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=27, numeric_styles={"decimal": 27},
+        mode=None, mode_count=0, fraction_widths={"1": 27}, field_widths={},
+        negative_notations={"minus": 12},
+        empty_bins=list(range(6, 31)), empty_edges=[edges],
+        **moments,
+    )
+    return {
+        "why": "G6.5a's fill of a sign band whose own grid has no spare point "
+        "(the carried numbers pass of 2026-09-18, amending plan P4-D147). "
+        "Twelve negative readings at one place and fifteen positive ones, "
+        "with the published empty pair (-0.1, 50.0) between them. The "
+        "ladder's finer rungs fall inside that pair, so the ladder puts a "
+        "positive stratum at a number no cell of the column stands at; the "
+        "positive band's points outside the pair are 50.0 to 51.4, exactly "
+        "its fifteen strata, so they take them in order, while the negative "
+        "band, twelve strata on a hundred points, is left to the walk. The "
+        "whole column is not saturated, so neither fill before this one "
+        "answers. The mutant withdraws the band fill and a positive stratum "
+        "stays inside the empty pair.",
+        "column": column,
+        "rows": 27,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _mode_held_case():
+    """The published mode on the stratum its count sizes (plan P4-D267).
+
+    Eleven one-place readings from -1.7 to 6.9 at counts between eleven
+    and twenty-one, the same values the review measured at a tenth of its
+    row count.  The commonest, -0.6 over twenty-one rows, is published with
+    its count, and the ladder gives the stratum that count sizes another
+    number unless the last value pass puts the mode on it.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-1.7", "p01": "-1.7", "p05": "-1.7", "p10": "-1.4",
+        "p25": "-1.3", "p50": "1.1", "p75": "5.5", "p90": "6.1",
+        "p95": "6.9", "p99": "6.9", "max": "6.9",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1.768553459119497"),
+                       ("std", "3.1479778191677488"),
+                       ("skew", "0.3895190297748465"),
+                       ("kurtosis", "1.5151356419900541"),
+                       ("numeric_share", "1"), ("mode", "-0.6")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=159, n_missing=0, n_distinct=11, n_distinct_folded=11,
+        n_distinct_values=11,
+        n_numeric=159, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=0, n_negative=79, n_negative_unrepresentable=0,
+        n_used_in_statistics=159, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=159, numeric_styles={"decimal": 159},
+        mode_count=21, fraction_widths={"1": 159}, field_widths={},
+        negative_notations={"minus": 79},
+        **moments,
+    )
+    return {
+        "why": "G6.1's last value pass, the published mode held (plan "
+        "P4-D267, Codex item 4 of the extra round of 2026-09-18, mirrored by "
+        "the carried numbers pass): eleven one-place readings from -1.7 to "
+        "6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one "
+        "stratum at twenty-one cells and gives it another number; the pass "
+        "puts -0.6 on it, because it lies between its neighbours, in its sign "
+        "band and on the grid of tenths. The mutant withdraws the pass and "
+        "the mode is written nowhere.",
+        "column": column,
+        "rows": 159,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _plus_held_back(published, count):
+    """A label column whose held-back numbers owe the form `+%%` (P4-D268).
+
+    Thirty `alpha`, eleven of one published signed number and eleven more
+    over two held-back signed numbers, at a floor of eleven: the census
+    names `+%%` on twenty-two cells, so the held-back rows owe it eleven.
+    """
+    return _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        n_present=52, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=22, n_not_numeric=30, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            {
+                "label": "alpha", "count": 30,
+                "variants": {"alpha": 30}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+            {
+                "label": published, "count": count,
+                "variants": {published: count}, "variants_withheld": {},
+                "shape_form_cells": count,
+            },
+        ],
+        suppressed_levels=2, suppressed_rows=11, level_ceiling=5,
+        shape_forms={"+%%": 22},
+    )
+
+
+def _held_back_dressed():
+    """A ladder number written through its published form (plan P4-D268)."""
+    return {
+        "why": "G8.3a's dressing (plan P4-D268, Codex item 5 of the extra "
+        "round of 2026-09-18, mirrored by the carried numbers pass): thirty "
+        "`alpha` beside eleven `+15` and two held-back signed numbers over "
+        "eleven rows, whose census names `+%%` twenty-two times. The ladder "
+        "spells its steps plainly, so no step wears `+%%`; the rule writes "
+        "the same number through the form -- figures into its places, the "
+        "plus standing as itself -- and keeps it only where it wears the "
+        "form and holds the same value, so the held-back rows take `+14` "
+        "and `+16`. The mutant withdraws the dressing and the held-back "
+        "rows are written as bare numbers.",
+        "column": _plus_held_back("+15", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
+def _held_back_anchored():
+    """A ladder anchored by a number spelled with a plus (plan P4-D268)."""
+    return {
+        "why": "G8.3a's anchors (plan P4-D268, Codex item 5 of the extra "
+        "round of 2026-09-18, mirrored by the carried numbers pass): thirty "
+        "`alpha` beside eleven `+25` and two held-back signed numbers over "
+        "eleven rows. The only published number is spelled with a plus, "
+        "which the plain reading refuses; read a second way, with the plus "
+        "dropped, it anchors the ladder at twenty-five, so the held-back "
+        "rows take `+24` and `+26`. The mutant reads the plain spelling "
+        "alone, the ladder has no anchor and counts up from nought, and the "
+        "held-back rows move.",
+        "column": _plus_held_back("+25", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
 def _spread_conventions():
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "-1021", "p01": "-1020.79", "p05": "-1019.95",
@@ -20203,6 +20681,14 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "saturated_representable": _saturated_representable,
     # The distinct-spelling repair's visiting order (plan P4-D265).
     "unmarked_duplicates_first": _unmarked_duplicates_first,
+    # The four of the carried numbers pass of 2026-09-18: the band fill of
+    # G6.5a, and the two generator rules the round left unmirrored, the
+    # mode's own stratum (plan P4-D267) and the anchors and the dressing
+    # (plan P4-D268).
+    "saturated_band": _saturated_band,
+    "mode_held": _mode_held_case,
+    "held_back_dressed": _held_back_dressed,
+    "held_back_anchored": _held_back_anchored,
 }
 
 CASE_SETS = {
@@ -20393,7 +20879,12 @@ _SIXTH_BRANCH_ACCOUNT = (
     "-- G6.5a's last resort on the REPRESENTABLE grid, where the census "
     "names no fraction width at all (plan P4-D269), and G6.5's visiting "
     "order for the distinct-spelling repair, unmarked duplicates first "
-    "(plan P4-D265). They are computed by the same oracle "
+    "(plan P4-D265) -- and the four of the carried numbers pass of the "
+    "same day: G6.5a's fill of a sign band whose own grid has no spare "
+    "point, the published mode on the stratum its count sizes (plan "
+    "P4-D267), and G8.3a's dressing of a ladder number into its published "
+    "form and the anchors every published spelling gives the ladder (plan "
+    "P4-D268). They are computed by the same oracle "
     "and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -20439,6 +20930,125 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # The band fill of G6.5a (the carried numbers pass), at seed 260.
+    "saturated_band": (
+        17183946967455645045, 12768414373790192657, 12937878170933797929,
+        1640423648909064192, 9839080387937253766, 1308240153506820173,
+        9285717112960860482, 10462877510512939284, 930519435570542333,
+        7279129595791956860, 9090325210764323790, 12015326546485006074,
+        8614114808110810562, 4417900818724579294, 13637639254016813828,
+        12887526327451613025, 9306393615583595506, 15284955867259756956,
+        15166911829072957090, 9747880719290808600, 2639286641650993920,
+        5060862416066031986, 5736599024571689633, 3964546853659238138,
+        8629018294804316360, 17117991197016888991, 10246213397588032833,
+        14450011940007114164, 16494364380213246146, 2396668186586066432,
+        6325727000442682985, 11862056923028362806, 13088456611075710402,
+        9599569175745013696, 16969944757129503023, 16627662947394698932,
+        17717731075847281091, 12059739012759201062, 1137326238803936409,
+        4516064285799384225, 17639620618289551859, 2889340907424142337,
+        6503299593592271701, 18354288426961928660, 12264391140925799224,
+        3492336004901843591, 15609449321640805403, 15417298839181697927,
+        4588953848052420380, 12797073851030028605, 6386228694762992774,
+    ),
+    # The mode's own stratum (plan P4-D267), at seed 261.
+    "mode_held": (
+        6336703525473569157, 10490272995142442210, 16332642180160035449,
+        3345258420758367059, 13931368070384710833, 14137889783702159923,
+        6209898152588711936, 13155449578901656378, 16126837452095329213,
+        2614374434571722325, 16052209038418136686, 10320433334164768615,
+        14695373410111770887, 16895006088102294702, 7165907034253977470,
+        9992257155371433658, 11793894874941408639, 10137124264984206744,
+        1309514795906254806, 8663445188587689805, 13468967556745646820,
+        2082160144560034803, 7182535335596656056, 12840809483170108271,
+        5748115935745223664, 14842990392809155237, 16702195503710189035,
+        12936605307194016724, 549288404374882263, 7183364304285938910,
+        11279167582622108852, 7376700665785854273, 18110978566586211928,
+        3116204124404202718, 39602459783412766, 2670260083355919580,
+        4597747825699969032, 15482505097867814980, 18395205282511663184,
+        5884281208920722154, 1320327978533577341, 5816752106260429918,
+        5513301669306429519, 8312968224686931390, 14554632827176756328,
+        7774478284990389578, 7760093060427499400, 13929739106131709773,
+        6105860454911407638, 10204722628724199049, 15895876864390297286,
+        13618280569679560474, 8743372479037887792, 16840538055957501749,
+        15090070043516182489, 253836583929119756, 1284110566379431636,
+        11936703965871645743, 15131414915500092529, 9051628052327470034,
+        6105919791189408832, 11746983394459741942, 13760078462030659607,
+        2730410401868231375, 4902616606511759501, 11669214281467786500,
+        9088594896344304673, 2847875828101443616, 11655151276232668099,
+        12485198738628289058, 14014697247235031751, 2315426587464379153,
+        3387852344685028349, 2681182781197199105, 14209084968535657552,
+        92233576812291309, 4354233290657430797, 17351210725990245221,
+        730742463320051669, 17372612279151709971, 5344550546549011422,
+        8704955923428174365, 15751066586857315400, 7071036127723151680,
+        458980786126382474, 8455314523393151292, 682872385706957149,
+        18351648570648144245, 12646659033386765156, 12903147044666301880,
+        6889310829645159141, 2837269625810541914, 3634664490351583,
+        11347620917347059469, 15522213306090556727, 5603607862496195355,
+        5283080835832948524, 2654331125827289172, 9939509623523394695,
+        14256577785406793335, 16680071919065167690, 6544512298784863430,
+        14807276842510189809, 13285565351851393478, 14173779472489707283,
+        17319018534220871963, 18103664803487802153, 12332828790000268015,
+        13272822358990015796, 13472484404735242834, 16320482775190803379,
+        5045065310446114759, 7770493980844590890, 4209414217066534607,
+        4730197987910661157, 2765075106839659642, 17166389586985483053,
+        14296483891799205375, 9566216379586232242, 3252314392231653618,
+        17415458511373828307, 16206550174101657123, 2017593088071483667,
+        12918949332964313835, 10596241622921196744, 10977526164978580428,
+        11604247740714544920, 2457482411164158887, 8689947228034648130,
+        1837321951372282882, 3919562940415384779, 10785380690392777034,
+        9793495385680796321, 8935486034232876284, 16127296512238999729,
+        789479665263774469, 16045850253254866736, 9774619129359569460,
+        2471161429037344974, 3717788876151478402, 12555310082381397577,
+        14171684293485381217, 16573637302272789601, 9777637614735757571,
+        15353581223225763185, 3920783114084726103, 6623387211170204650,
+        15967950155675058310, 10269755392889797069, 9302160109740000902,
+        10471840001766975217, 15075632788709647303, 13672198520954188546,
+        7672349947403100934, 4305447217584271620, 12054543058155900441,
+        16045972437219334381, 6244147014282275669, 12878513451741981583,
+        11835575095277818778, 4459956375301429751, 6624546239920578784,
+        11473886899194795889, 18271979777160516431, 16193420774754283522,
+        7779205126179397445, 14073202596404556182,
+    ),
+    # The dressing of G8.3a (plan P4-D268), at seed 262.
+    "held_back_dressed": (
+        15505547723835334226, 10884499470718545975, 16373180933499524142,
+        14676350325938844122, 16223889191068288129, 813082140071564388,
+        6178847175909881056, 10975092968661775776, 8132707819876260508,
+        910660085746657375, 9693463526786430695, 14807317467820821268,
+        8974911380620456183, 12165148580590138348, 16631625364536135252,
+        15106319675630521468, 7987291019603353934, 3628775084710803294,
+        17180399869299637417, 8674216103719848433, 18107059723484551049,
+        9693945381399673978, 13899741696462945117, 9001212717603462881,
+        3911505844335304407, 8315986286990489508, 6248260293832022549,
+        6191212282403769471, 8576788353948198650, 8078711094434713894,
+        10619666623911655506, 4173471560564474305, 69021161229417595,
+        15465037786596767801, 16715821349911753978, 198406335851662444,
+        13557409498661320454, 1504026003645107524, 12223653055898072457,
+        2313494337277060306, 9462232668970719755, 16542275588042411825,
+        11255793416175712346, 12742032220947407774, 5161610223221028878,
+        4094793642521202139, 5509980110326509669, 17315493486097871506,
+        4343062651752331653, 11182336826858513734, 883299745169429914,
+    ),
+    # The anchors of G8.3a (plan P4-D268), at seed 263.
+    "held_back_anchored": (
+        6221660826544405418, 2182210890100648647, 1399139104457492040,
+        10888490418392922158, 5952405265134896653, 2894372947632087115,
+        7467328064533151797, 7689577802530669622, 16763537274622849439,
+        6644524531737081349, 2562376753087195515, 4910191302052038030,
+        10573824497707574088, 15972151823245696171, 16258660566726530374,
+        5236770973057531417, 7492738349526251658, 828848745457773618,
+        7580557977998926793, 5912483872548932433, 2419019974192549502,
+        8306777730409517093, 6407288025917705000, 16655250366821343588,
+        12058221429850454425, 14920481151669512979, 15834348526223972838,
+        16983547626284677779, 669300379156784832, 12227768503112692166,
+        16614833666134677785, 14627337668803074164, 17791593493581021438,
+        837144195763878474, 16380918348240239083, 13502957227694474200,
+        17958668699020942139, 13271588876991423204, 12289967061526864548,
+        13146562209445320972, 537282317416048397, 9252700727154559312,
+        3625424476905281101, 17414449451258587939, 6504443456119566908,
+        15689329491163425006, 16977872225274560, 8248278238959629697,
+        9264166198757370632, 9652878316495009628, 17372315215093513727,
+    ),
     "date_endpoint_ties": (
         18275811836973565638, 9899137660592151493, 9008307879817683416,
         10920000133462893375, 12618927426165946623, 9586850028823316644,

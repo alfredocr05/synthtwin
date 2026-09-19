@@ -174,10 +174,21 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
     those and it holds all of them too. A second far value leaves the
     rungs one number short of the count, and its twin holds 100 numbers
     of 102 at this seed.
+
+    AND THE FAR VALUES MOVED IN AGAIN, TO 103 AND 105 (the carried
+    numbers pass of 2026-09-18). 150 and 151 left the published empty
+    pair (100, 150), so the positive band's grid outside it held exactly
+    1 to 100, 150 and 151 -- 102 points for 102 strata -- and G6.5a's band
+    fill now gives every stratum one of them: that twin holds all 102 and
+    names no shortfall, so it stopped being a witness of one. 103 and 105
+    sit in the last two bins beside 100, so the description publishes no
+    empty pair, the grid from 1 to 105 has 105 points for 102 strata, no
+    fill applies, and the walk leaves the twin at 100 numbers of 102 at
+    this seed -- the unwindowed shortfall this test is about.
     """
     _loaded, twin = _twin(
         tmp_path,
-        [f"{number}" for number in range(2, 101)] + ["1", "150", "151"],
+        [f"{number}" for number in range(2, 101)] + ["1", "103", "105"],
     )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named

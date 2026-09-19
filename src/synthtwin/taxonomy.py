@@ -5368,6 +5368,53 @@ def _published_distinct(cells: _Cells) -> int:
     return counted
 
 
+def _column_distinct(
+    cells: _Cells, role: str, details: "dict[str, object]"
+) -> int:
+    """The column's own `n_distinct`, counted the way its block speaks.
+
+    ON THE FOUR LEVEL ROLES it is `_published_distinct` (plan P4-D276).
+    ON A COMPOUND COLUMN IT IS THE TWO HALVES ADDED, and it was the raw
+    count (the carried numbers pass of 2026-09-18, amending P4-D276).
+    P4-D276 moved the LABEL HALF's own `n_distinct` to the spellings that
+    half speaks of and left the column's count raw, so wherever the
+    absorption took a spelling away the two disagreed -- and the loader
+    holds them to `n_numeric_distinct + labels.n_distinct == n_distinct`
+    (contract 7.14), so the producer wrote a description its own loader
+    refused. **Measured** at a floor of eleven on forty exponents `2e0`
+    to `80e0` beside `alpha` 6, `Alpha` 6, `beta` 5 and `Beta` 5: the
+    label half published 3 (the level `alpha` absorbed into `Alpha`,
+    and the held-back level's two spellings), the numeric half 40, and
+    the column 44; `contract.load_profile` refused it. A raw 44 beside a
+    published 40 and 3 is also the residual P4-D276 closed on the label
+    roles -- the difference counts the spellings the absorption took
+    away -- so the column's count is the halves' sum and not the raw one.
+
+    Every other role keeps the raw count of different present cells.
+
+    Guarantees: accepts the column's tally, its role and its published
+    details; returns a whole number between the column's folded count
+    and its raw count. Determinism: a fixed function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    if role in _LEVEL_ROLES:
+        return _published_distinct(cells)
+    if role != ROLE_COMPOUND:
+        return cells.raw_distinct
+    if "n_numeric_distinct" not in details or "labels" not in details:
+        return cells.raw_distinct
+    numbers = details["n_numeric_distinct"]
+    labels = details["labels"]
+    if not isinstance(numbers, int) or not isinstance(labels, dict):
+        return cells.raw_distinct
+    if "n_distinct" not in labels:
+        return cells.raw_distinct
+    spoken = labels["n_distinct"]
+    if not isinstance(spoken, int):
+        return cells.raw_distinct
+    return numbers + spoken
+
+
 def _levels(
     counts: dict[str, int],
     spellings_by_folded: dict[str, dict[str, int]],
@@ -14847,11 +14894,7 @@ def profile_column(
         n_out_of_range=out_of_range,
         n_contradictory=contradictory,
         n_not_numeric=not_numeric,
-        n_distinct=(
-            _published_distinct(cells)
-            if verdict.role in _LEVEL_ROLES
-            else cells.raw_distinct
-        ),
+        n_distinct=_column_distinct(cells, verdict.role, details),
         n_distinct_folded=len(cells.folded_counts),
         sentinel_verdicts=entries,
         n_sentinel_candidates_unpublished=unpublished,

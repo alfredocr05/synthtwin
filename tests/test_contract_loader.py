@@ -972,6 +972,24 @@ def battery() -> list[Mutation]:
             "W8", "rows written in a form their label does not have",
             edit_level("region", 0, shape_form_cells=1),
         ),
+        Mutation(
+            # W9, THE SPELLINGS THE BLOCK SPEAKS OF (plan P4-D276; the
+            # carried numbers pass of 2026-09-18). `region` names four
+            # spellings and holds one label back over seven rows, so it
+            # holds between 4 + 1 = 5 and 4 + 7 = 11 different
+            # spellings: twelve is one more than a held-back label per
+            # row allows, and every other rule on the count still holds.
+            "W9", "more spellings than the labels and the held-back rows allow",
+            edit("region", n_distinct=12),
+        ),
+        Mutation(
+            # ...and with NOTHING held back the two ends meet: `answer`
+            # names `no` and `yes` and holds no label back, so it holds
+            # exactly two spellings. Three is the floor-eleven graft
+            # `tests/test_p3v5f1_floor_one.py` found accepted.
+            "W9", "a spelling no published label names, with nothing held back",
+            edit("answer", n_distinct=3),
+        ),
         # -- the datetime column --------------------------------------
         Mutation(
             "D1", "dates published in a form the reading does not give",

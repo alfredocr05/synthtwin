@@ -12098,6 +12098,24 @@ that the report says so when it does not, and the check waits on a
 landing that gives the mode's own stratum its published size.
 
 
+**MIRRORED IN THE ORACLE at the carried numbers pass of 2026-09-18, with
+a frozen case and a registered mutant** (`mode_held` in
+`tests/reference/generation-branch-vectors-6.json`; the rule is
+`mode_held` in `tools/reference/make_generation_reference_vectors.py`,
+written from the statement now in method G6.1). The case is eleven
+one-place readings from -1.7 to 6.9 whose commonest, -0.6, covers
+twenty-one rows -- the review's own values at a tenth of its row count --
+and its mutant withdraws the pass, so the mode is written nowhere and the
+cells move; withdrawn from the generator, the same case's cells move too.
+**And the note this decision added is worded again.** It said "the
+stretches your table leaves empty", and the plain-language guard every
+deviation note answers to
+(`tests/test_generation.py::test_every_deviation_names_a_published_fact_and_speaks_plainly`)
+reads `str` inside "stretches" as it would read a leaked type name, so the
+every-role twin, which carries this note, turned that guard red on the
+merged tree. The guard keeps its full strength; the note says "the gaps
+in your table's range".
+
 ### P4-D268 A held-back number keeps its magnitude and its spelling
 
 **Measured (item 5).** `alpha`×100, `"+10"`×20, `"+11"`×10, `"+12"`×10 at
@@ -12190,6 +12208,29 @@ fidelity item 5 buys? The measurement is pinned by
 so a later change to it is measured and not silent.
 
 
+**MIRRORED IN THE ORACLE at the carried numbers pass of 2026-09-18, one
+frozen case for each half** (`held_back_dressed` and `held_back_anchored`
+in `tests/reference/generation-branch-vectors-6.json`; the rules are
+`dressed_in_form` and `anchor_units` in
+`tools/reference/make_generation_reference_vectors.py`, beside the
+relaxation of `usable_of_class` to the characters a worn form holds). Both
+cases are thirty `alpha` beside eleven of one signed number and two
+held-back signed numbers over eleven rows, whose census names `+%%`
+twenty-two times. In the first, `+15` published, the dressing writes the
+ladder's `14` and `16` through the form; its mutant withdraws the dressing
+and the held-back rows are bare numbers. In the second, `+25` published,
+the only published number carries a plus, which the plain reading
+refuses; read a second way it anchors the ladder at twenty-five, and its
+mutant reads the plain spelling alone, so the ladder counts up from
+nought. Each mutant moves its case's cells in the oracle, and the same
+withdrawal in the generator moves them there too. The oracle's reader
+states no rule for a thousands mark, so the `1,100` column of the review
+is pinned by `tests/test_extra_round_numbers.py` and not by a frozen
+case, and the oracle's order of refusals was changed so a candidate a
+character rule refuses is refused before the check of what the file can
+state is asked of it -- `+00`, which no form was worn by, used to stop the
+oracle rather than be refused.
+
 ### P4-D269 A saturated representable grid is filled in order
 
 **Measured (item 10, MINOR).** `[str(i*5e-324) for i in range(1,121)]` at a
@@ -12231,11 +12272,13 @@ mutant withdraws the fill and the cells move. Every other numeric case in
 the seven files publishes a width, so the branch could have been
 withdrawn whole with every committed byte unchanged.
 
-**What is STILL NOT mirrored, and is named rather than left to be
-found.** Two of the four generator rules the round added — the mode's own
-stratum (P4-D267) and the anchors and the dressing (P4-D268) — are NOT
-mirrored in `tools/reference/make_generation_reference_vectors.py`, and
-no frozen case with a registered mutant pins either. Each is pinned by a
+**What was STILL NOT mirrored, and is named rather than left to be
+found — CLOSED at the carried numbers pass of 2026-09-18, which mirrored
+both (see P4-D267 and P4-D268 above).** Two of the four generator rules
+the round added — the mode's own stratum (P4-D267) and the anchors and
+the dressing (P4-D268) — were NOT mirrored in
+`tools/reference/make_generation_reference_vectors.py`, and no frozen
+case with a registered mutant pinned either. Each is pinned by a
 test built from the review's own reproduction, with a mutation check
 recorded beside it, which is the same footing criterion 8 of this phase
 records as UNMET for the width pass and the empty-bin pass. The other two
@@ -12256,7 +12299,7 @@ two branches are pinned by tests rather than by a frozen case.
 | 5 | the taxonomy total and ordered after P4-D3 | **MET.** Fourteen roles through every closed enumeration, completeness tests green, every threshold a recorded setting. |
 | 6 | producer → generator → validator at the new version, zero MISSED and zero WITHHELD on the every-role fixture in both header modes | **MET.** |
 | 7 | the reproduction rule exactly as stated | **MET, and its report sentence was FALSE until landing L19** (R-P4-70): the twin reproduced each published spelling at its count, and the twin's own report told the reader it had not. The rule held; the page describing it did not. Both hold now. |
-| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. **Widened and then narrowed by the extra round of 2026-09-18:** its four new generator rules landed with no mirror at all, and the repair pass of the same round mirrored two of them with frozen cases and registered mutants — `unmarked_duplicates_first` (P4-D265) and `saturated_representable` (P4-D269), both in `tests/reference/generation-branch-vectors-5.json`. The mode's own stratum (P4-D267) and the anchors and the dressing (P4-D268) stand where the width pass and the empty-bin pass stand, and are named in their own plan entries. |
+| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. **Widened and then narrowed by the extra round of 2026-09-18:** its four new generator rules landed with no mirror at all, and the repair pass of the same round mirrored two of them with frozen cases and registered mutants — `unmarked_duplicates_first` (P4-D265) and `saturated_representable` (P4-D269), both in `tests/reference/generation-branch-vectors-5.json`. The mode's own stratum (P4-D267) and the anchors and the dressing (P4-D268) stood where the width pass and the empty-bin pass stand until the carried numbers pass of the same day mirrored both, with the frozen cases `mode_held`, `held_back_dressed` and `held_back_anchored` and a registered mutant each; the band fill that pass added to G6.5a was mirrored in the same commit (`saturated_band`). The width pass and the empty-bin pass remain the two named gaps. |
 | 9 | the version-refusal messages exact-shape tested, naming and pricing every publication-changing option | **MET**, and widened twice during the close: `--code` at landing L16, `--answers` at L17b. Contract R11's clause and the shipped message are held equal word for word by two tests. |
 | 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET.** Every scanner, the seal and the suite are clean on this machine at every landing of the close, and **CI is green on every cell of the matrix at the closing commit — Windows included.** The first writing of this row said CI had not run, which was FALSE and is corrected here rather than quietly: CI had run on pull request 5 throughout the close and was FAILING on every Windows cell of the three runs before this one. See the note below. |
 
@@ -16947,6 +16990,34 @@ convention reaches the line at all. The census then says
 the table passes its own description, and the same repair reaches
 `thousands_marks`, which is the identical shape.
 
+**AMENDED at the carried numbers pass of 2026-09-18: the census it made
+exact left the twin one NUMBER short, and the repair is G6.5a's band
+fill.** The merge skeptic's MAJOR finding 5, on this decision's own
+column: 388 positive amounts `100.00` to `103.87`, eleven accounting
+brackets and one `-12.25` at a floor of eleven. The census says
+`{"brackets": 12}` as decided above, and the description publishes 400
+different numbers beside the empty pair `(-1.25, 100.00)`. The ladder's
+third percentile falls inside that pair, so three positive strata stood
+at 97.73, 98.50 and 99.27, and the positive grid from 100.00 to 103.87
+holds exactly 388 points for 388 positive strata -- so two of the rest
+shared `101.88`, no free point lay within the walk's reach, G6.5 spelled
+the second `0101.88`, and the twin held 400 spellings of 399 numbers at
+seeds 4, 1, 2 and 3; `validate` exited 3 on the twin and 0 on the table.
+**The decision** (`generation._saturated_bands`, method G6.5a, amending
+P4-D147): on a column written on one grid with exactly as many strata as
+different numbers, each signed band whose points -- the grid from `min` to
+`max`, of the band's sign, outside every published empty pair -- number
+exactly its strata takes them in order before the walk. **Re-measured:**
+400 different numbers and exit 0 on twin and table at seeds 4, 1, 2, 3, 7
+and 11; pinned by `tests/test_carried_numbers.py` and mirrored in the
+oracle by the frozen case `saturated_band`. On a column of one sign the
+band fill is P4-D147's fill, so the registered mutants of
+`saturated_integers` and `saturated_tenths` now withdraw both statements.
+**And the two witnesses of the old silence are rewritten as witnesses of
+ruling 6** (`tests/test_landing_2b7_mixed_spellings.py`): at the default
+floor the census line is two, so a lone bracket beside 299 minuses is
+counted in and the census is `{"minus": 300}`, not `(unavailable)`.
+
 ### P4-D275 EVERY spelling below the floor is counted into the level's commonest
 
 The extra review round of 2026-09-18, item 5. P4-D240 wrote the rule for
@@ -16979,6 +17050,24 @@ the label half of a compound column, the count is taken over the
 spellings that survive the absorption for a published level and over the
 raw spellings of a level the floor holds back — which no key of the
 block names and which no reader can subtract a published census from.
+
+**AMENDED at the carried numbers pass of 2026-09-18, twice.** FIRST, a
+compound column's OWN count is the halves added
+(`taxonomy._column_distinct`). This decision moved the label half's
+`n_distinct` to the spellings it speaks of and left the column's raw, so
+wherever the absorption took a spelling away the column published one
+more than `n_numeric_distinct + labels.n_distinct`, which contract 7.14
+refuses: **measured** on forty exponents beside `alpha` 6, `Alpha` 6,
+`beta` 5 and `Beta` 5 at a floor of eleven, the producer wrote 40, 3 and
+44 and its own loader refused the description. The raw 44 was also this
+decision's own residual one level up. SECOND, the count is a RULE of the
+loader now, contract invariant W9: with `S` the spellings the published
+levels name, `S + suppressed_levels <= n_distinct <= S + suppressed_rows`,
+equal to `S` wherever nothing is held back. Without it the floor-eleven
+`n_distinct` and `levels` of a label column grafted into the floor-one
+description of the same table were both accepted
+(`tests/test_p3v5f1_floor_one.py`), each a description whose count
+contradicts its own levels.
 
 ### P4-D277 A declared record number's scalar partitions ask the disclosure rule
 
