@@ -122,11 +122,19 @@ def on_reference_machine(ledger: "dict") -> bool:
 
 
 def load_average() -> float:
-    """The one-minute load average, or 0.0 where the platform does not report one."""
-    try:
-        return float(os.getloadavg()[0])
-    except (AttributeError, OSError):
-        return 0.0
+    """The one-minute load average, or 0.0 where the platform does not report one.
+
+    WINDOWS HAS NO LOAD AVERAGE, and CI governs Windows. The platform is
+    asked in the same expression rather than caught afterwards, because a
+    test that reads this file for unguarded calls cannot see a `try`
+    (`tests/test_p3v4f10_windows_reach.py`).
+    """
+    if os.name == "posix" and hasattr(os, "getloadavg"):
+        try:
+            return float(os.getloadavg()[0])
+        except OSError:
+            return 0.0
+    return 0.0
 
 
 def seconds_judged_here(ledger: "dict") -> "tuple[bool, str]":
