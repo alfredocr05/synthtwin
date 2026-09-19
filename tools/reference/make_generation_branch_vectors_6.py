@@ -54,7 +54,10 @@ BEEN REACHED** (the carried numbers pass of 2026-09-18): with its four
 cases this file's output stands at 235440 bytes, past the 200000 above,
 so the NEXT case goes in a ninth entry point and none goes here.  The first three files
 are FULL and take no case; the fifth takes one only where this file
-cannot.
+cannot.  **THE NINTH ENTRY POINT EXISTS** (the carried numbers repair pass
+of 2026-09-19): `make_generation_branch_vectors_7.py`, writing
+`tests/reference/generation-branch-vectors-7.json`, and the next case goes
+there.
 
 Usage:  python3 make_generation_branch_vectors_6.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

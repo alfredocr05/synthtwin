@@ -273,9 +273,22 @@ def test_the_tenths_are_filled_by_the_grid_rule(
     band fill wrote all 120 numbers and this mutant stopped biting. So it
     withdraws the fill on a written grid in both statements, which is
     what the rule it pins means.
+
+    AND SINCE THE REPAIR PASS OF 2026-09-19 THE PUSH OF G6.5a ENDS AT THE
+    SAME ASSIGNMENT: on a grid with no spare point the one collision the
+    walks leave is pushed to the one free tenth, and the strata take the
+    120 tenths in order -- measured, the same 120 cells as the fill. So
+    the push is withdrawn on a written grid as well. Each of the three
+    statements is held up ALONE elsewhere, by a test whose mutant
+    withdraws it and nothing else:
+    `tests/test_carried_numbers.py::test_the_column_wide_fill_is_what_holds_it`,
+    `test_the_push_is_what_holds_the_nearly_full_band` beside it, and the
+    frozen cases `saturated_grid_alone`, `saturated_band` and
+    `pushed_along_band`.
     """
     shipped = generation._saturated_integers
     shipped_bands = generation._saturated_bands
+    shipped_push = generation._pushed_apart
 
     def integers_only(layout, rungs, values, figures, facts):  # type: ignore[no-untyped-def]
         if figures > 0:
@@ -287,8 +300,14 @@ def test_the_tenths_are_filled_by_the_grid_rule(
             return values
         return shipped_bands(column, facts, layout, rungs, values, figures)
 
+    def push_on_integers_only(facts, layout, rungs, moved, texts, held, figures, keep_whole):  # type: ignore[no-untyped-def]
+        if figures > 0:
+            return (moved, texts, held)
+        return shipped_push(facts, layout, rungs, moved, texts, held, figures, keep_whole)
+
     monkeypatch.setattr(generation, "_saturated_integers", integers_only)
     monkeypatch.setattr(generation, "_saturated_bands", bands_on_integers_only)
+    monkeypatch.setattr(generation, "_pushed_apart", push_on_integers_only)
     draw = random.Random(41)
     _document, loaded = _described(
         tmp_path,
@@ -452,6 +471,45 @@ def test_the_rare_level_is_kept_by_the_edge_rule(
     assert _foreign_numbers(loaded, cells, (1, 4, 7)) == {}
     monkeypatch.setattr(generation, "_cleared_value", as_if_point_free)
     assert _foreign_numbers(loaded, cells, (1, 4, 7)) != {}
+
+
+def test_the_edge_rule_keeps_a_rare_level_with_nothing_patched_off(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The edge rule of P4-D177 acting unaided, on the shipped path.
+
+    The repair skeptic's MINOR finding of 2026-09-19: the test above bites
+    only with the band fill patched off, because its column is band
+    saturated and the band fill reaches it first. This column is not:
+    six discounts from 2.5 to 15.0 beside a rare level 11.0 written twice.
+    Nothing is withdrawn for the first assertion -- the band fill is
+    watched and does not act -- and the twin writes no number the source
+    never held; with the edge rule mutated, it writes one at every seed.
+    """
+    acted: "list[int]" = []
+    shipped_bands = generation._saturated_bands
+
+    def watched(column, facts, layout, rungs, values, figures):  # type: ignore[no-untyped-def]
+        given = shipped_bands(column, facts, layout, rungs, values, figures)
+        if given != values:
+            acted.append(1)
+        return given
+
+    monkeypatch.setattr(generation, "_saturated_bands", watched)
+    draw = random.Random(1)
+    levels = ["2.5", "3.0", "5.0", "7.5", "10.0", "15.0"]
+    cells = [draw.choice(levels) for _row in range(1500)] + ["11.0", "11.0"]
+    _document, loaded = _described(tmp_path, {"value": cells})
+    assert _foreign_numbers(loaded, cells, (1, 4, 7)) == {}
+    assert acted == []
+    shipped = generation._cleared_value
+
+    def as_if_point_free(*arguments):  # type: ignore[no-untyped-def]
+        return shipped(*arguments[:13], True)
+
+    monkeypatch.setattr(generation, "_cleared_value", as_if_point_free)
+    moved = _foreign_numbers(loaded, cells, (1, 4, 7))
+    assert sorted(moved) == [1, 4, 7]
 
 
 # -------------- P4-D179, the widths a shortest-round-trip export writes

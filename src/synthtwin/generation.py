@@ -11181,7 +11181,319 @@ def _apart_enough(
             break
         if len(held) == before_round:
             break
+    # AND A COLLISION THE WALKS LEAVE IS PUSHED ALONG ITS BAND TO THE
+    # NEAREST FREE POINT (the carried numbers repair pass of 2026-09-19):
+    # see `_pushed_apart`.
+    moved, texts, held = _pushed_apart(
+        facts, layout, rungs, moved, texts, held, figures, keep_whole
+    )
     return moved
+
+
+def _band_step(
+    units: int,
+    step: int,
+    lowest: int,
+    highest: int,
+    figures: int,
+    gaps: "tuple[tuple[float, float], ...]",
+    whole: "bool | None" = None,
+) -> "int | None":
+    """The next point of one band's grid from ``units``, one way.
+
+    ``step`` is +1 upward or -1 downward. The points are the grid points
+    from ``lowest`` to ``highest`` grid units that lie strictly inside no
+    published `empty_edges` pair; a pair is stepped over in one move, to
+    the first unit past its far edge, so the walk is bounded by the
+    points and not by the width of the pair. Where ``whole`` is True only
+    whole points count, and where it is False only points that are not
+    whole; None counts both. None past the band's end, or at a point no
+    double holds (its grid text does not read back as itself), where the
+    push stands aside rather than record one text and write another.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    every = 1
+    for _each in range(figures):
+        every = every * 10
+    unit = units + step
+    while lowest <= unit <= highest:
+        text = _grid_at(unit, figures)
+        try:
+            point = float(text)
+        except ValueError:
+            return None
+        if not math.isfinite(point) or _grid_text(point, figures) != text:
+            return None
+        beyond = unit
+        for edges in gaps:
+            if not edges[0] < point < edges[1]:
+                continue
+            far = edges[1] if step > 0 else edges[0]
+            edge = _grid_units(_grid_text(far, figures), figures)
+            if edge is None:
+                return None
+            if step > 0 and float(_grid_at(edge, figures)) < far:
+                edge = edge + 1
+            if step < 0 and float(_grid_at(edge, figures)) > far:
+                edge = edge - 1
+            if (edge - beyond) * step > 0:
+                beyond = edge
+        if beyond != unit:
+            unit = beyond
+            continue
+        on_whole = unit % every == 0
+        if whole is None or on_whole == whole:
+            return unit
+        if whole:
+            # The next whole unit that way, in one move.
+            unit = (unit // every + (1 if step > 0 else 0)) * every
+        else:
+            unit = unit + step
+    return None
+
+
+def _pushed_apart(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    moved: "list[float]",
+    texts: "list[str]",
+    held: "dict[str, int]",
+    figures: int,
+    keep_whole: bool,
+) -> "tuple[list[float], list[str], dict[str, int]]":
+    """A collision the walks leave, pushed along its band to a free point.
+
+    THE BAND FILL CLOSED THE BAND THAT IS EXACTLY FULL, AND THE SAME
+    DEFECT STOOD WHERE A BAND IS NEARLY FULL (the carried numbers repair
+    pass of 2026-09-19, the repair skeptic's first MAJOR finding).
+    **Measured:** 300 negative amounts `-5.00` to `-7.99` beside 120
+    positive amounts drawn between 10 and 900, at a floor of eleven. The
+    description publishes 420 different numbers and no empty pair. The
+    ladder puts the negative band's last stratum just under nought, at
+    `-0.01`, so the 300 hundredths from `-7.99` to `-5.00` hold 299
+    strata and two of them shared `-5.90`. The two free points, `-5.01`
+    and `-5.00`, lie eighty-nine steps from it, past the walk's reach of
+    sixty-four, and the twin held 420 spellings of 419 numbers at every
+    one of ten seeds while the real table held 420; `validate` exited 3
+    on the twin and 0 on the real table.
+
+    THE RULE, asked after the walks, on a column with a grid (G6.5a's
+    WHICH GRID) and a published ladder, with exactly as many strata as
+    the different numbers it publishes, while the strata's texts are
+    fewer than that. A band's POINTS are the grid points from the
+    published `min` to the published `max`, of the band's own sign,
+    strictly inside no published `empty_edges` pair. Take the LOWEST
+    grid text held by two strata or more, in a signed band, not yet
+    found immovable. Its holders outside the zero band, other than the
+    first and last stratum, are the candidate MOVERS: for a push
+    downward the one of lowest position is asked first, for a push upward
+    the one of highest position. For a mover, walk the band's points from
+    the collision that way to the first point no stratum holds -- on a
+    column that writes some cells with no point, only the points of the
+    mover's own kind, whole where its value is whole and not whole where
+    it is not. Every stratum on a point passed on the way moves one point
+    of that kind toward the free one, and the mover takes the first point
+    after the collision. The push is refused for that mover where the
+    walk leaves the band first or reaches a point no double holds, or
+    where a stratum it would move is the first or last stratum, or would
+    change whether its value is whole (on a column that writes some cells
+    with no point) or has a point-free spelling (on a column whose styles
+    map asks for a point-free cell); the next mover is then asked. Of
+    the two ways, each with its first mover not refused, the one moving
+    fewer strata is taken, the downward one on a tie. A collision with no
+    way is found immovable and the next is taken. Each push gives the
+    column one more different number and moves every stratum it touches
+    by exactly one point, so the sign counts, the pinned ends and every
+    published empty stretch stay as they were.
+
+    Guarantees: accepts the numeric block, the layout, the published
+    rungs, the values, their grid texts and the count of each text, the
+    grid's figures and whether whole values are kept whole; returns the
+    three, pushed. Determinism: a fixed function of the inputs. Raises
+    nothing. No I/O of any kind.
+    """
+    wanted = facts.n_distinct_values
+    total = len(moved)
+    if wanted is None or rungs is None or figures < 0 or total != wanted:
+        return (moved, texts, held)
+    if len(held) >= wanted:
+        return (moved, texts, held)
+    bottom = _grid_units(_grid_text(rungs[0], figures), figures)
+    top = _grid_units(_grid_text(rungs[-1], figures), figures)
+    if bottom is None or top is None or top <= bottom:
+        return (moved, texts, held)
+    gaps: "tuple[tuple[float, float], ...]" = tuple(
+        (edges[0], edges[1]) for edges in facts.empty_edges
+    )
+    point_free = _whole_demand(facts) > 0
+    immovable: "dict[str, int]" = {}
+    while len(held) < wanted:
+        target = -1
+        target_units = 0
+        for place in range(total):
+            text = texts[place]
+            if held[text] < 2 or text in immovable:
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            units = _grid_units(text, figures)
+            if units is None:
+                continue
+            if target < 0 or units < target_units:
+                target = place
+                target_units = units
+        if target < 0:
+            break
+        collision = texts[target]
+        band = layout.bands[target]
+        lowest = bottom
+        highest = top
+        if band == _BAND_NEGATIVE and highest > -1:
+            highest = -1
+        if band == _BAND_POSITIVE and lowest < 1:
+            lowest = 1
+        holders: "list[int]" = []
+        for place in range(total):
+            if texts[place] != collision:
+                continue
+            if layout.bands[place] == _BAND_ZERO:
+                continue
+            if place == 0 or place == total - 1:
+                continue
+            holders += [place]
+        ways: "list[tuple[int, int, list[tuple[int, int]]]]" = []
+        for step in (-1, 1):
+            order = range(len(holders))
+            if step > 0:
+                order = range(len(holders) - 1, -1, -1)
+            for index in order:
+                mover = holders[index]
+                kind: "bool | None" = None
+                if keep_whole:
+                    kind = _whole_valued(moved[mover]) == moved[mover]
+                plan = _push_plan(
+                    texts, held, collision, target_units, step, lowest,
+                    highest, figures, gaps, kind,
+                )
+                if plan is None:
+                    continue
+                pairs = plan[0] + [(mover, plan[1])]
+                refused = False
+                for pair in pairs:
+                    if not _push_allowed(
+                        facts, moved, pair[0], pair[1], figures, keep_whole,
+                        point_free,
+                    ):
+                        refused = True
+                        break
+                if refused:
+                    continue
+                ways += [(len(pairs), step, pairs)]
+                break
+        if not ways:
+            immovable[collision] = 1
+            continue
+        chosen = ways[0]
+        for way in ways:
+            if way[0] < chosen[0]:
+                chosen = way
+        for pair in chosen[2]:
+            place = pair[0]
+            fresh_text = _grid_at(pair[1], figures)
+            fresh = float(fresh_text)
+            old = texts[place]
+            held[old] = held[old] - 1
+            if held[old] == 0:
+                del held[old]
+            seen = 0
+            if fresh_text in held:
+                seen = held[fresh_text]
+            held[fresh_text] = seen + 1
+            texts[place] = fresh_text
+            moved[place] = fresh
+    return (moved, texts, held)
+
+
+def _push_allowed(
+    facts: contract.NumericFacts,
+    moved: "list[float]",
+    place: int,
+    units: int,
+    figures: int,
+    keep_whole: bool,
+    point_free: bool,
+) -> bool:
+    """Whether one stratum may take one grid point in a push.
+
+    Never the first or last stratum, whose values are the published ends.
+    On a column that writes some cells with no point, never where the
+    stratum would change whether its value is whole; on a column whose
+    styles map asks for a point-free cell, never where it would change
+    whether its value has a point-free spelling.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    if place == 0 or place == len(moved) - 1:
+        return False
+    fresh = float(_grid_at(units, figures))
+    value = moved[place]
+    if keep_whole and (
+        (_whole_valued(fresh) == fresh) != (_whole_valued(value) == value)
+    ):
+        return False
+    if point_free and (
+        _carries_plainly(fresh, facts.integer_valued)
+        != _carries_plainly(value, facts.integer_valued)
+    ):
+        return False
+    return True
+
+
+def _push_plan(
+    texts: "list[str]",
+    held: "dict[str, int]",
+    collision: str,
+    start: int,
+    step: int,
+    lowest: int,
+    highest: int,
+    figures: int,
+    gaps: "tuple[tuple[float, float], ...]",
+    whole: "bool | None",
+) -> "tuple[list[tuple[int, int]], int] | None":
+    """Which strata one push passes, and to which grid unit, or None.
+
+    Walks the band's points of the kind ``whole`` names from ``start``
+    one way to the first point no stratum holds. Answers every stratum
+    on a point passed on the way with the next point toward the free
+    one, and the point the mover takes. None where the walk leaves the
+    band first. No stratum of the zero band is ever passed: nought is no
+    band's point.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    passed: "dict[int, int]" = {}
+    unit = start
+    while True:
+        after = _band_step(unit, step, lowest, highest, figures, gaps, whole)
+        if after is None:
+            return None
+        passed[unit] = after
+        if _grid_at(after, figures) not in held:
+            break
+        unit = after
+    run: "list[tuple[int, int]]" = []
+    for place in range(len(texts)):
+        text = texts[place]
+        if text == collision:
+            continue
+        units = _grid_units(text, figures)
+        if units is None or units not in passed:
+            continue
+        run += [(place, passed[units])]
+    return (run, passed[start])
 
 
 def _saturated_integers(

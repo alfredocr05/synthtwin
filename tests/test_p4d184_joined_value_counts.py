@@ -18,17 +18,37 @@ The mutation is `_joined_value_count_notes` answering nothing.
 import pathlib
 import tempfile
 
+import pytest
+
 from synthtwin import generation, parsing
 from tests.test_p4g3r1_joined_review import _battery_column, _described
 from tests.test_stage2_round_trip import _exit_of
 
 
-def test_every_position_short_of_its_numbers_is_named() -> None:
+def test_every_position_short_of_its_numbers_is_named(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Named where the recount differs, and nowhere else.
 
     Mutation: with `_joined_value_count_notes` returning [], every short
     position is silent and the first assertion fails.
+
+    THE PUSH IS WITHDRAWN FOR THE WITNESS (the carried numbers repair
+    pass of 2026-09-19). G6.5a's push now moves a collision the walks
+    leave along its band to a free point, and on these three battery
+    columns at these four seeds it brings every position to its count --
+    measured, and asserted by the test below -- so the battery held no
+    short position and the vacuity floor went red. The report's naming
+    is what this test pins, so the push is taken away to give it the
+    shortfalls it names.
     """
+    monkeypatch.setattr(
+        generation,
+        "_pushed_apart",
+        lambda facts, layout, rungs, moved, texts, held, figures, keep_whole: (
+            moved, texts, held,
+        ),
+    )
     short = 0
     for which in (7, 8, 11):
         _document, loaded, _folder, _table = _described(_battery_column(which))
@@ -58,6 +78,29 @@ def test_every_position_short_of_its_numbers_is_named() -> None:
                 assert note.note.startswith(f"Number {place + 1} of each cell: ")
     # THE VACUITY FLOOR: the battery really holds short positions.
     assert short >= 10, short
+
+
+def test_the_push_brings_every_battery_position_to_its_count() -> None:
+    """The other side: with the push shipped, no position is short.
+
+    Measured at the repair pass of 2026-09-19 on the three battery
+    columns and four seeds of the test above, which held at least ten
+    short positions before the push.
+    """
+    for which in (7, 8, 11):
+        _document, loaded, _folder, _table = _described(_battery_column(which))
+        facts = loaded.columns[0].facts
+        for seed in (0, 1, 2, 3):
+            twin = generation.generate(loaded, seed)
+            present = [cell for cell in twin.columns[0] if cell]
+            for place in range(facts.n_parts):
+                numbers = generation._joined_position_numbers(
+                    present, facts, place
+                )
+                held = len({parsing.exact_of_spelling(one) for one in numbers})
+                assert held == facts.parts[place].n_distinct_values, (
+                    which, seed, place,
+                )
 
 
 def test_the_real_table_still_meets_its_own_description() -> None:

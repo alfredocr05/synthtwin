@@ -3118,7 +3118,60 @@ sign band.
 **WHEN IT STOPS.** As soon as the count of different texts reaches the
 published `n_distinct_values`, and otherwise at the end of the rounds
 above. A stratum for which every candidate was refused keeps
-its value; the shortfall is then G13's to name.
+its value, and the push below is asked; what it leaves is G13's to name.
+
+**A COLLISION THE WALKS LEAVE IS PUSHED ALONG ITS BAND TO THE NEAREST FREE
+POINT** (the carried numbers repair pass of 2026-09-19, the repair
+skeptic's first MAJOR finding). The walks move one stratum at a time and
+at most as far as its share reaches, so a band with a free point is not
+yet a band whose strata find it: where the band's strata stand on every
+point of a long run but one, and two share a point far from the free
+one, no single move reaches it. Measured before this clause on 300
+negative amounts `-5.00` to `-7.99` beside 120 positive amounts drawn
+between 10 and 900, at a floor of eleven: the description publishes 420
+different numbers and no empty pair, the ladder puts the negative band's
+last stratum at `-0.01`, and two of the rest shared `-5.90` eighty-nine
+points from the free `-5.01` and `-5.00`. G6.5 then spelled the second
+one `-05.90`, and the twin held 420 spellings of 419 numbers at every one
+of ten seeds while the real table held 420; `validate` exited 3 on the
+twin and 0 on the real table. Over 312 twins of 52 dense and skewed
+columns, at two floors and three seeds each, 88 held fewer numbers than
+published before this clause and 30 were MISSED by `validate`; with it,
+none.
+
+So, after the walks, on a column with a grid (WHICH GRID above) and a
+published ladder, with exactly as many strata as the different numbers it
+publishes, while the strata hold fewer different texts than that: a
+band's POINTS are the grid points from the published `min` to the
+published `max`, of the band's own sign, lying strictly inside no
+published `empty_edges` pair, and a pair is stepped over to the first
+point past its far edge. Take the LOWEST grid text two strata or more
+hold, in a signed band, not yet found immovable. Its holders outside the
+zero band, other than the first and last stratum, are the candidate
+MOVERS, asked in turn: for a push downward the one of lowest position
+first, for a push upward the one of highest position first. For a mover,
+walk the band's points from the collision that way to the first point no
+stratum holds -- on a column that writes some cells with no point, only
+the points of the mover's own KIND, whole where its value is whole and
+not whole where it is not, so that a free whole point is no destination
+for a value that is not whole. Every stratum on a point passed on the
+way moves one point of that kind toward the free one, and the mover
+takes the first point past the collision. The push is refused for that
+mover where the walk leaves the band first or reaches a point no double
+holds, or where a stratum it would move is the first or last stratum, or
+would change whether its value is whole (on a column that writes some
+cells with no point) or has a point-free spelling (on a column whose
+styles map asks for a point-free cell); the next mover is then asked. Of
+the two ways, each with its first mover not refused, the one moving
+fewer strata is taken, the DOWNWARD one on a tie. A collision with no way
+is found immovable and the next is taken; the push ends when the count is
+reached or no collision is left to take. Each push gives the column one
+more different number and moves every stratum it touches by exactly one
+point of its kind, so the sign counts, the pinned ends and every
+published empty stretch stay as they were. What it cannot mend is a band
+given more strata than it has points -- G5.2 divides the strata between
+the bands by their cells, not by their different numbers, which the
+description does not publish per band -- and that shortfall is named.
 
 **A WHOLE NUMBER THE COLUMN WRITES TWO WAYS IS HELD BY TWO STRATA** (plan
 P4-D193, the final pass over the close of stage 2). A column whose numeric
@@ -9859,7 +9912,14 @@ extra review round of 2026-09-18 added, the five of its date pass (plans
 P4-D254 to P4-D258) and the two of its number pass, G6.5a's last resort
 on the REPRESENTABLE grid (plan P4-D269) and G6.5's visiting order for
 the distinct-spelling repair (plan P4-D265), through the entry point
-`tools/reference/make_generation_branch_vectors_6.py`. **That eighth file
+`tools/reference/make_generation_branch_vectors_6.py` -- and
+`tests/reference/generation-branch-vectors-7.json` carries the two the
+carried numbers repair pass of 2026-09-19 added, G6.5a's push of a
+collision the walks leave and its column-wide fill on a column where the
+band fill and the push both stand aside, through the entry point
+`tools/reference/make_generation_branch_vectors_7.py`, because the eighth
+file's output had passed the 200000 bytes plan P4-D295 sets for opening
+the next entry point. **That eighth file
 is where the round's two branches MET.** Each built its own cases into
 the seventh, and merged they took it to 276235 bytes against the cap, so
 the seven moved together into a file of their own and the seventh kept
@@ -9867,15 +9927,16 @@ the six it held before the round, every cell of them unmoved. No case was
 dropped, no proof was shortened and the cap was not raised. This sentence carried the
 count `six` while the file held seven, which is the same drift G14.3's
 own warning is about, and it is written here as a growth list so the
-next case has an obvious place to be recorded. All eight are written by
+next case has an obvious place to be recorded. All nine are written by
 `tools/reference/make_generation_reference_vectors.py` — the second
 through the entry point `tools/reference/make_generation_branch_vectors.py`,
 the third through `tools/reference/make_generation_branch_vectors_2.py`,
 the fourth through `tools/reference/make_generation_document_vectors.py`,
 the fifth through `tools/reference/make_generation_branch_vectors_3.py`,
 the sixth through `tools/reference/make_generation_branch_vectors_4.py`,
-the seventh through `tools/reference/make_generation_branch_vectors_5.py`
-and the eighth through `tools/reference/make_generation_branch_vectors_6.py`,
+the seventh through `tools/reference/make_generation_branch_vectors_5.py`,
+the eighth through `tools/reference/make_generation_branch_vectors_6.py`
+and the ninth through `tools/reference/make_generation_branch_vectors_7.py`,
 each of which runs that oracle and asks it for its own case set — so there
 is one transform, one proof layer and one set of rules behind every file.
 Each is registered in `tools/provenance/fixture-manifest.json` with its
@@ -10201,7 +10262,23 @@ in both its statements -- withdrawing the column-wide one alone left the
 band fill writing the same cells, and those two cases stopped holding the
 fill up.
 
-**All ninety-nine are required.** The count is taken off the committed
+**The carried numbers repair pass of 2026-09-19 adds two, and they are the
+NINTH file**, `tests/reference/generation-branch-vectors-7.json`, the
+entry point the paragraph above called for: `pushed_along_band`, G6.5a's
+push of a collision the walks leave along its band to the nearest free
+point, which this pass added; and `saturated_grid_alone`, the column-wide
+fill of plans P4-D147 and P4-D176 on a column where the band fill and the
+push both stand aside. After the band fill the column-wide fill could be
+withdrawn with every committed byte unchanged, because every case that
+reached it was a column the band fill filled the same way; the second
+case holds it up alone, and its mutant withdraws it and nothing else. The
+push reaches the same assignment on a grid of tenths with no spare point,
+so the mutant of `saturated_tenths` withdraws it on a written grid too;
+each of the three statements of the fill is held up by a case of its own
+whose mutant withdraws that statement alone -- `saturated_grid_alone`,
+`saturated_band` and `pushed_along_band`.
+
+**All one hundred and one are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10216,9 +10293,10 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds eleven (G14.2),
-and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+holds six; the eighth,
+`tests/reference/generation-branch-vectors-6.json`, holds eleven; and the
+ninth, `tests/reference/generation-branch-vectors-7.json`, holds two
+(G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed
@@ -10241,6 +10319,8 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_edge_spacing` | G9.3's partner family where case flips supply nothing at all, so every partner is edge spacing |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
+| `pushed_along_band` | G6.5a's push of a collision the walks leave along its band to the nearest free point (the carried numbers repair pass of 2026-09-19): fourteen one-place readings from 2.6 to 3.9 beside four far ones, 53.6, 67.1, 134.8 and 135.7, eighteen different numbers each written once and no empty stretch published. Once the walks are done the run's fourteen strata stand on thirteen of its tenths, two of them on 3.4, and the free tenth 3.9 lies past the walk's reach; the push moves the second 3.4 and every stratum above it one tenth up. Its mutant withdraws the push, and the twin writes 3.4 a second way, `03.4`, holding seventeen numbers against eighteen |
+| `saturated_grid_alone` | G6.5a's column-wide fill of a grid with no spare point (plans P4-D147 and P4-D176) where it alone answers: seventy-eight one-place readings from -2.4 to 0.1, the whole numbers written bare, publishing twenty-six different numbers between ends holding exactly twenty-six tenths and twelve point-free cells, no empty stretch published. The band fill stands aside because a stratum it would fill changes whether its value has a point-free spelling, and the push keeps a whole value on the whole points: the two strata the walks leave on -2.0 find every whole point of their band taken, and the one free tenth, -0.1, is not whole. Its mutant withdraws the column-wide fill and nothing else, and the twin writes -1.9 a second way, `-01.9`, holding twenty-five numbers against twenty-six |
 | `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
 | `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |
 | `held_back_dressed` | G8.3a's dressing (plan P4-D268): thirty `alpha` beside eleven `+15` and two held-back signed numbers over eleven rows, whose census names `+%%` twenty-two times. The ladder's plainly spelled steps are written through the form and kept where they wear it and hold the same value, `+14` and `+16`. Its mutant withdraws the dressing and the held-back rows are bare numbers |
@@ -10283,7 +10363,7 @@ case passed, which is the failure the count exists to prevent:
 | `truth_values_written` | G9.5's truth values of a workbook column (plan P4-D198): thirty-two cells of free text, twenty-one one-letter codes and eleven truth values its workbook census counts as `boolean 11`. The group of eleven the packing puts in the code alphabet as text is spelled `TRUE` at its own four characters. Its mutant spells no truth value, and the cells move |
 | `twice_written_filled` | G6.5a's whole number written two ways, the fill (plan P4-D193): ninety readings at one place between 3.5 and 4.3, fourteen whole ones written bare, publishing ten spellings of nine numbers; the grid holds exactly nine tenths, so the ten strata take them in order with 4.0 taken twice. Its mutant withdraws the rule, and the walk leaves two strata on a tenth that is not whole |
 | `twice_written_merged` | G6.5a's whole number written two ways, the merge (plan P4-D193): a hundred and twenty readings at one place between 3.3 and 4.5, twenty-one whole ones written bare, publishing thirteen spellings of twelve numbers; the walk leaves a number on every stratum, so the stratum beside 4.0 nearest to it takes 4.0. Its mutant withdraws the rule |
-| `saturated_tenths` | G6.5a's fill of a saturated written grid (plan P4-D176): thirty-three readings at one place publishing twenty-two different numbers between the ends 0.1 and 2.2, which hold exactly twenty-two tenths, so the strata take those tenths in order, each once. Its mutant keeps the fill on the integers alone, and the cells move |
+| `saturated_tenths` | G6.5a's fill of a saturated written grid (plan P4-D176): thirty-three readings at one place publishing twenty-two different numbers between the ends 0.1 and 2.2, which hold exactly twenty-two tenths, so the strata take those tenths in order, each once. Its mutant keeps the fill on the integers alone -- in the column-wide statement, the band fill and the push, all three of which reach this assignment on a grid with no spare point -- and the cells move |
 | `saturated_levels` | G6.5a's fill of a column whose published levels are its strata (plan P4-D178): thirty-three readings at one place of the four levels 2.0, 3.2, 6.5 and 15.0, each named by two rungs or more, the mode 6.5, four different values published; the rungs name more than four numbers, so the levels are the numbers two rungs or more name with the ends and the mode, and the strata take them in order. Its mutant withdraws the fill and the walk writes `4.6` |
 | `separated_in_order` | G6.5a's walks taken reach by reach (plan P4-D183): `signed_pads` publishing eleven different values and twenty-two spellings, twenty-two strata over 100 to 110; every stratum is walked inside its own share first, so the thirteenth takes 105 inside its share. Its mutant takes the three reaches stratum by stratum, the tenth stratum walks out of its share onto 105, and the cells move |
 | `identifier_column_prefix` | G9.6a's TEMPLATE for the whole column (plan P4-D202, owner ruling of 2026-09-17): a declared identifier publishing `{"@@@%%%%": 24}` and `{"(column)": "REC"}` over twelve identities written once and six twice; every cell is `REC` and four figures filled from the step, `REC1816`, `REC2632`, and the eighteen stay different. Its mutant reads the census as published, the letters are filled from the step, and the recount of 7.12a stops the oracle |

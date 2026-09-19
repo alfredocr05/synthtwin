@@ -263,7 +263,24 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     answer cannot inflate it. This test proves the CALLER holds that
     even when the walk is broken, which is what the helper's own tests
     cannot show.
+
+    THE PUSH IS WITHDRAWN HERE (the carried numbers repair pass of
+    2026-09-19). G6.5a's push runs after the walks and moves a collision
+    they leave along its band to a free point, so on this column it
+    reaches the published count however the walk answered -- measured,
+    74 of 74 under both broken walks -- and the last two assertions
+    stopped testing the walk's count at all. What they pin is the WALK:
+    that a walk moving nothing leaves the count where it was. So the
+    push, a separate statement with its own tests, is taken away and the
+    walk is asked alone.
     """
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation,
+        "_pushed_apart",
+        lambda facts, layout, rungs, moved, texts, held, figures, keep_whole: (
+            moved, texts, held,
+        ),
+    )
     generator = random.Random(31337)
     rows = [str(generator.randint(40, 120)) for _each in range(200)]
     _document, loaded = _described(tmp_path, rows, "crowded")

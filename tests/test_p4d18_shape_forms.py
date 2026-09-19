@@ -1345,8 +1345,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     # column of 240 values drawn between 40 and 160 still cannot reach
     # its count, because its strata are crowded and their shares hold
     # no free grid point.
-    generator = random.Random(20260902)
-    values = [str(generator.randint(40, 160)) for _each in range(240)]
+    #
+    # AND THE WITNESS MOVED AGAIN at the carried numbers repair pass of
+    # 2026-09-19: G6.5a's push now brings those 240 values to their count,
+    # so a shortfall no repair of G6.5a can mend stands here instead --
+    # twelve negatives written once, a zero, and the whole numbers one to
+    # ten forty times each, where G5.2's division of the strata by cells
+    # gives the positive band eleven strata for ten integers.
+    values = (
+        [str(-number) for number in range(1, 13)]
+        + ["0"]
+        + [str(number) for number in range(1, 11) for _copy in range(40)]
+    )
     values = values + ["-999"] * 20
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(

@@ -198,7 +198,16 @@ SHAPES = [
 # spelling count back with one leading zero, `035.3`. The chain is
 # a generator rule the oracle has never carried, so it is not changed here.
 # The assertion below turns red the moment the count comes back.
-CARRIED_SHORT = {("spreadsheet_narrow", 2000, "23"): 2}
+#
+# AND IT CAME BACK (the carried numbers repair pass of 2026-09-19). After
+# the walks the 34 strata held 32 texts: `36.0` twice (a whole stratum and
+# one holding 36.0017) and `37.9` twice. G6.5a's push takes each in turn:
+# at `36.0` the mover not whole walks the points not whole upward to the
+# free `36.3`, three strata; at `37.9` the free `38.0` is whole and the
+# mover is not, so it walks the points not whole to the free `38.5`,
+# five strata, the downward way being refused by the whole `37.0`. 32 + 2
+# = 34, the published count, so nothing is carried.
+CARRIED_SHORT: "dict[tuple[str, int, str], int]" = {}
 
 # ONE CASE COMES BACK ONE NUMBER OVER, AND IT IS CARRIED BY NAME
 # (integration repair). The 4,000-row column of changes writes nought as
