@@ -17519,65 +17519,122 @@ questions file and not the description, so the twin's report cannot say
 it without a new published field, which is a contract change and not a
 minor edit.
 
-### K-P3-03 The spread a large numeric twin misses is the straight outer tail, and stage 3 owns it
+### K-P3-03 A numeric twin's spread is too wide because G5.3 draws the outer tail straight, and the G12.3 window is drawn from the same line
 
-**The miss.** Twenty columns of `gauss(50, 10)` at two figures, 20,000
-rows, seed 0: 19 of 1,021 obligations MISSED, every one `moments.std`,
-the twin's spread 2.16 to 3.42 per cent wider than the published one on
-every column, and `synthtwin validate` exits 3. At 5,000 rows the same
-table misses 0 of 1,021.
+**The defect.** Method G5.3 reads the hundred-and-one-rung ladder as a
+straight line between neighbours, the two OUTER segments included: from
+`p01` down to the exact published minimum and from `p99` up to the exact
+published maximum. The real column reaches those extremes only with its
+last few cells, so the straight line puts the outer one per cent at each
+end too far out. Every bell-shaped numeric twin measured, lab-like
+columns included, has a standard deviation 1.4 to 3.7 per cent wider
+than the published one from 5,000 rows up, WHATEVER THE VERDICT SAYS; a
+triangular or clipped column 0.2 to 0.8 per cent, a uniform one none. Twenty `gauss(50, 10)`
+columns at two figures and 20,000 rows, seed 0, miss 19 of 1,021
+obligations, every one `moments.std`, twin spread +2.16 to +3.42 per
+cent, exit 3. The same table at 5,000 rows is +1.36 to +2.74 per cent
+on all twenty columns and misses 0 of 1,021; coarsely rounded columns
+carry the same excess at 0 missed at any size, because the half unit
+G12.2 grants makes their window close to empty of meaning.
 
-**Measured** (`tools/measurements/k_p3_03_spread.py`, four columns per
-row of the table, each figure a mean over them in per cent of the
-published spread). `ladder` is the spread of G5.3's own construction,
-worked out exactly from the hundred and one rungs with no draw;
-`real tails` is the same with only the two outer segments, minimum to
-`p01` and `p99` to maximum, given the real cells' own moments; `half` is
-half the width of the G12.3 window the quality report holds a twin to.
+**Measured** (`tools/measurements/k_p3_03_spread.py`; four columns per
+row, each figure a mean over them in per cent of the published spread).
+`ladder` is the spread of G5.3's straight reading, worked out exactly
+from the rungs with no draw; `real tails` the same with only the two
+outer segments given the real cells' own moments; `window low` the low
+end of the G12.3 `moments.std` window; `bend` the power defined below.
 
-| shape | rows | ladder | real tails | twin | half | spreads missed |
-|---|---|---|---|---|---|---|
-| normal | 5,000 | +1.95 | +0.06 | +1.65 | 3.71 | 0 of 4 |
-| normal | 10,000 | +2.53 | +0.08 | +2.46 | 2.98 | 0 of 4 |
-| normal | 20,000 | +3.09 | +0.11 | +3.10 | 2.43 | 4 of 4 |
-| normal | 40,000 | +3.55 | +0.11 | +3.55 | 2.15 | 4 of 4 |
-| uniform | 5,000 to 40,000 | -0.04 to -0.00 | the same | -0.03 to -0.00 | 0.54 to 0.21 | 0 of 4 at each |
-| skewed | 5,000 | +8.52 | +0.20 | +6.66 | 12.32 | 0 of 4 |
-| skewed | 20,000 | +12.58 | +0.21 | +12.16 | 7.04 | 4 of 4 |
-| skewed | 40,000 | +17.22 | +0.21 | +16.40 | 6.63 | 4 of 4 |
+| shape | rows | ladder | real tails | twin | window low | bend | spreads missed | means missed |
+|---|---|---|---|---|---|---|---|---|
+| normal | 5,000 | +1.95 | +0.06 | +1.65 | -1.63 | 3.42 | 0 of 4 | 0 of 4 |
+| normal | 10,000 | +2.53 | +0.08 | +2.46 | -0.38 | 4.15 | 0 of 4 | 0 of 4 |
+| normal | 20,000 | +3.09 | +0.11 | +3.10 | +0.70 | 4.83 | 4 of 4 | 0 of 4 |
+| normal | 40,000 | +3.55 | +0.11 | +3.55 | +1.42 | 5.22 | 4 of 4 | 0 of 4 |
+| uniform | 5,000 to 40,000 | -0.04 to -0.00 | the same | -0.03 to -0.00 | -0.55 to -0.21 | none needed | 0 of 4 at each | 0 of 4 at each |
+| skewed | 5,000 | +8.52 | +0.20 | +6.66 | -3.44 | 4.22 | 0 of 4 | 0 of 4 |
+| skewed | 10,000 | +12.56 | +0.21 | +9.31 | +2.79 | 6.17 | 2 of 4 | 2 of 4 |
+| skewed | 20,000 | +12.58 | +0.21 | +12.16 | +5.64 | 6.27 | 4 of 4 | 4 of 4 |
+| skewed | 40,000 | +17.22 | +0.21 | +16.40 | +10.66 | 7.95 | 4 of 4 | 4 of 4 |
 
-**What it says, one candidate at a time.** The strata, their sizes and
-the draw inside each are not it: on no normal column measured is the
-twin wider than its own ladder by more than five hundredths of a per
-cent, on a few it is narrower, on the skewed shape it stands within one
-per cent of a ladder 8 to 17 per cent wide, and a mutant that pushes every inner value to the end of its segment
-moves the spread by about a hundredth of a per cent. The inner ladder is
-not it: with the real outer segments put back the excess is a tenth of a
-per cent at every size. The validator is not wrong: its window is drawn
-around the ladder's own spread, which really is that far from the
-column's, and V6.1-A2 is right to call a spread 3 per cent off the
-published one a miss where the window does not reach it. What makes 95
-to 100 per cent of the excess on every column of the ledger table is the
-two OUTER segments: a straight line from `p01` to the exact published
-minimum spreads the outer one per cent evenly over a stretch the real
-column reaches only with its last few cells. It GROWS with the rows,
-because the extremes of a larger column lie farther out, while the
-window narrows more slowly than one over the root of the rows; the
-window's low end passes the published value near 20,000 rows. A uniform
-column, whose outer one per cent really is even, misses nothing at any
-size; a skewed one misses its mean as well, on two columns of four at
-10,000 rows and on all four from 20,000.
+**Where the verdict does not see it** (one line per column, 5,000 and
+20,000 rows; `window` is the `moments.std` window).
 
-**Who owns it.** The exact extremes and the straight tail beside them
-are what stage 3 replaces with a published shape for the tail; this is
-the heavy-tail mean and spread the owner deferred to it, reached on a
-light tail by a large column. Mending it here would mean making up a
-tail shape the description does not publish and moving the bytes of
-every numeric twin, which is stage 3's landing and not this one. So it
-is pinned instead: `tests/test_k_p3_03_spread_ceiling.py` holds the
-ledger table at no more than 19 spreads missed, no mean missed, no
-column more than 3.5 per cent wide and none narrower; holds the
-5,000-row table and the real one at nothing missed, with the twin no
-wider than its ladder and the outer segments making nine tenths of the
-excess; and holds a uniform column at 20,000 rows at nothing missed.
-The ceiling's target is nought, and stage 3 is what brings it there.
+| column | rows | twin | ladder | real tails | bend | window | spread missed |
+|---|---|---|---|---|---|---|---|
+| potassium, one figure | 5,000 / 20,000 | +3.67 / +3.54 | +3.20 / +3.45 | +0.12 / -0.13 | 5.25 / 5.32 | -100 to +113 | no / no |
+| sodium, whole | 5,000 / 20,000 | +1.97 / +3.65 | +1.81 / +3.48 | -0.42 / +0.75 | 2.85 / 10.11 | -100 to +150 | no / no |
+| systolic pressure, whole | 5,000 / 20,000 | +2.67 / +2.54 | +2.28 / +2.52 | +0.14 / +0.30 | 3.84 / 4.41 | -41 to +46 | no / no |
+| haemoglobin, one figure, 6% blank | 5,000 / 20,000 | +2.03 / +2.45 | +2.10 / +2.41 | +0.33 / +0.09 | 3.71 / 3.43 | -44 to +48 | no / no |
+| body mass, one figure, 10% blank | 5,000 / 20,000 | +2.30 / +2.96 | +2.66 / +3.09 | +0.10 / +0.08 | 3.97 / 4.61 | -22 to +28 | no / no |
+| saturation, whole, clipped at 80 and 100 | 5,000 / 20,000 | +2.52 / +2.75 | +1.98 / +2.58 | +0.16 / +0.10 | 3.32 / 8.28 | -100 to +157 | no / no |
+| age, whole, triangular | 5,000 / 20,000 | +0.23 / +0.41 | +0.21 / +0.40 | +0.05 / +0.19 | 1.94 / 3.61 | -21 to +21 | no / no |
+| score, one figure, clipped at 0 and 100 | 5,000 / 20,000 | +0.76 / +0.84 | +0.69 / +0.82 | +0.05 / +0.03 | 2.15 / 2.61 | -56 to +57 | no / no |
+
+**What makes it, one candidate at a time.** The strata, their sizes and
+the draw inside each are not it: on no normal column is the twin wider
+than its own ladder by more than five hundredths of a per cent, and a
+mutant pushing every inner value to the end of its segment moves the
+spread by about a hundredth of one. The inner ladder is not it: with the
+real outer segments put back the excess is about a tenth of a per cent
+at every size. The two OUTER segments make 95 to 100 per cent of the
+excess on every column of the ledger table. It grows with the rows,
+because the extremes of a larger column lie farther out. A uniform
+column, whose outer one per cent really is even, is right at every
+size; a skewed one misses its mean as well from 10,000 rows, and that
+heavy tail is the part the owner deferred to stage 3.
+
+**The validator is drawn from the same line.** The G12.3 `moments.std`
+window is CENTRED on the spread of G5.3's straight reading -- measured,
+its midpoint and that spread agree beyond the sixth figure -- so the
+window widens around the wrong value. At 20,000 rows its low end stands
+above the published spread on 19 of the ledger's 20 columns, which
+means a twin whose spread IS the published one is MISSED there: a
+mutant that bends G5.3's outer segments with a fixed power of 4.5
+brings the twin to -0.20 to +0.14 per cent of the published spread on
+all 20 columns and is MISSED on 20 of 20, while the same mutant with
+the same bend also put into G12.3's reading of the ladder writes the
+same twin and misses 0 of 20. The real table passes only because a
+value equal to the published one is held by rule. So the
+verdict count is not evidence the twin is right where it is 0, nor
+that it is wrong in proportion where it is 19, and a repair of G5.3
+alone cannot bring it to nought.
+
+**It can be mended from published facts alone.** Bend each outer
+segment by one power `a`: a share `s` of the lower one reads
+`p01 - (p01 - min) (1 - s) ** a`, the upper one its mirror, so the
+published minimum, `p01`, `p99` and maximum stay the segments' ends. The
+spread falls as `a` rises, so there is one `a` per column whose ladder
+has exactly the published spread; measured, it is 2.49 to 4.65 on
+the ledger's columns at 5,000 rows and 3.81 to 5.20 at 20,000, the mean moves NEARER the published one than the
+straight reading stands, and a uniform column needs no bend at all. The
+straight line is itself a shape the description does not publish; the
+published spread is what fixes the bend. Such a repair changes G5.3 AND
+G12.3 together, needs its oracle mirror, and moves the bytes of every
+numeric twin.
+
+**Whose it is.** This is a within-column method defect of stage 2's
+generation and validation methods, G5.3 and G12.3, and not the
+heavy-tail mean and spread the owner deferred to stage 3: these columns
+are light-tailed. It is not repaired here, because the repair moves
+every numeric twin's bytes and rewrites two sealed method sections while
+five sibling landings are open against the same twins. **The question
+for the owner is one sentence:** should G5.3 and G12.3 be changed now,
+in stage 2, to bend each outer segment of a numeric ladder by the power
+that makes the ladder's spread equal the published one, moving the bytes
+of every numeric twin -- or should the stage-3 deferral of the heavy
+tail be extended to cover the light-tailed spread as well?
+
+**Pinned, so a repair stays green and a worse twin turns red**
+(`tests/test_k_p3_03_outer_tail_spread.py`). The twin's spread against
+the published one on BOTH sides: within 2.2 per cent on four normal
+columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab
+column at 5,000, each the measured largest rounded up to the next tenth,
+with twin and real table at nothing missed where the whole report is
+run. The diagnosis from published facts: the straight reading is wider
+than the column and the real outer segments make nine tenths of the
+excess. The repair's existence: a bend found from the published spread
+meets it to a millionth with every published rung kept. The coupling:
+the `moments.std` window's midpoint is the spread of the generator's
+own reading, so a repair of G5.3 alone, or of G12.3 alone, turns it
+red. No verdict count is pinned, because it moves with G12.3; the
+ledger's 19 of 1,021 is re-derived by the driver.
