@@ -1370,7 +1370,42 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         assert fabricated not in named, (fabricated, sorted(named))
 
     # ...and the shortfall that IS real is still named.
-    assert "n_distinct" in named, sorted(named)
+    #
+    # IT IS NAMED AS WHAT IT IS, and the page no longer names it twice
+    # over under a window the validator does not use (plan P4-D6.4). The
+    # twin holds 104 different values against a published 106, and
+    # `n_distinct_values` says so as a deviation, on this tree and on
+    # e53d5f4 alike. `n_distinct` and `n_distinct_folded` are
+    # APPROXIMATED facts (G12.8): each is named as a deviation only when
+    # the count lands outside the window [min(supply, published),
+    # max(supply, published)], where the supply is how many different
+    # spellings the twin's own PRESENT cells can carry. Every present
+    # cell here is a plain whole number, one spelling per value, so the
+    # supply is 104 and the window [min(104, 106), max(104, 106)] =
+    # [104, 106] holds the 104. This assertion used to read
+    # `"n_distinct" in named`, and it held only because the supply was
+    # counted over every non-blank cell: the twenty `-999` holes gave a
+    # 105th spelling, the window became [105, 106], and 104 fell
+    # outside it. A hole is no value (`_present_of`), and the validator
+    # has read this same twin as AUTHORIZED-DEVIATION at 104 against
+    # 106 on both trees; the report's window now agrees with it.
+    assert "n_distinct_values" in named, sorted(named)
+    column = described.columns[0]
+    real = len({value for value in values if value != "-999"})
+    held = len({cell for cell in twin.columns[0] if cell not in ("", "-999")})
+    assert (column.n_distinct, column.n_distinct_folded) == (real, real)
+    assert held < real, (held, real)
+    windows = {
+        record.fact: record
+        for record in twin.approximations
+        if record.column == column.name
+    }
+    for fact in ("n_distinct", "n_distinct_folded"):
+        window = windows[fact]
+        assert (window.published, window.achieved) == (f"{real}", f"{held}")
+        assert (window.lowest, window.highest) == (f"{held}", f"{real}")
+        assert window.inside, fact
+        assert fact not in named, (fact, sorted(named))
     twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{twin_file}")
     assert [
@@ -1378,6 +1413,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+    verdicts = {
+        check.subcheck: check
+        for check in outcome.checks
+        if check.column == column.name
+    }
+    for subcheck in (
+        "distinct.n_distinct",
+        "distinct.n_distinct_folded",
+        "distinct.n_distinct_values",
+    ):
+        assert verdicts[subcheck].verdict == validation.AUTHORIZED_DEVIATION
+        assert verdicts[subcheck].achieved == f"{held}", subcheck
 
 
 def test_a_census_key_is_never_withheld_on_account_of_another_cell() -> None:

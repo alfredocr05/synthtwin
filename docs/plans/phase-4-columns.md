@@ -1799,9 +1799,19 @@ published as `read_as_missing` there, and the producer reads them as
 missing in that column (validation method V2.4-A8, amended). The file
 the description was written from reaches the same verdict either way,
 so the real table is unmoved; a twin no longer depends on a
-re-judgement. After it: every one of the eight near-fence twins and
-every file of the battery validates at nought, and describing the twin
-again gives back `missing_by_source` exactly.
+re-judgement. After it, every one of the eight near-fence twins and
+every file of the battery validates at nought. Describing the twin
+again gives back `missing_by_source` exactly on every file of the
+battery, and NOT on every near-fence twin, which is the limit this
+repair keeps: `synthtwin profile` run on a twin is a new description
+and judges the twin's own values afresh, and only the validator reads
+the description's verdict. Measured on the near-fence columns at twin
+seeds 1 to 8, a plain re-description gave the key back on three twins
+of eight for the whole numbers and for the affixed `-999 mg`, and on
+four of eight for the placeholder `1900-01-01`; on the others the
+twin's own spread moved the judgement past the stand-in, which was
+then kept as a number. The validator reads all of them as the
+description does, and each passes.
 
 **Consequences, moved together.** The generation method's G10.1 and
 contract C6-115 lose the exception and C6-116 is rewritten as the
@@ -1812,7 +1822,18 @@ SUM identity loses its judged-pass term (the twin's blank absent cells
 are the blank count plus the withheld remainder); the loader's FD7 and
 the producer's row-order rule and workbook cell-class census count a
 judged key's cells as written, not empty; the twin's report says the
-twin writes the spelling. **What it does not reach:** a judged
+twin writes the spelling, and its count line for a column calls the
+absent cells cells "with no value" rather than cells it "leaves
+empty", since a written spelling is not an empty cell. The report's
+supply for the window of a column's numeric distinctness counts
+PRESENT cells only: a hole spelling is no value and lends the window
+no spelling, so the report draws the window the validator draws. On a
+declared `-999` column of 104 twin values against a published 106,
+every present cell a plain whole number, the window was [105, 106]
+with the hole counted as a 105th spelling and is [min(104, 106),
+max(104, 106)] = [104, 106] now; the validator reads the same twin as
+AUTHORIZED-DEVIATION at 104, and the shortfall is still named, as
+`n_distinct_values`. **What it does not reach:** a judged
 spelling below the floor is not a key, is pooled into
 `n_missing_withheld` and is written with that pool, exactly like any
 other absent spelling below the floor; the owner's rulings of

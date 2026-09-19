@@ -2407,7 +2407,7 @@ CASE_MUTANTS = {
         branch="G10.1's write rule with a judged stand-in among the absent "
         "cells (plan P4-D6.4, the owner's ruling of 2026-09-15); the mutant "
         "is the rule it replaced, which wrote a judged pass's cells blank, "
-        "and the two -999 cells come back empty",
+        "and the eleven -999 cells come back empty",
         attribute="absent_cells",
         replacement=_judged_keys_written_blank,
         outcome=CHANGES_THE_CELLS,

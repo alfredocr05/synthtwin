@@ -42,6 +42,7 @@ import pytest
 from synthtwin import (
     contract,
     generation,
+    parsing,
     profile,
     reading,
     rendering,
@@ -131,13 +132,29 @@ def _delimited(
     path.write_bytes(data)
 
 
+def _serial(day: str) -> str:
+    """The spreadsheet's serial number for one ISO day."""
+    count = (
+        datetime.date.fromisoformat(day) - datetime.date(1899, 12, 30)
+    ).days
+    if day < "1900-03-01":
+        count = count - 1
+    return f"{count}"
+
+
 def _book(
     path: pathlib.Path,
     names: "list[str]",
     rows: "list[list[str]]",
     numeric: "tuple[int, ...]" = (),
+    dated: "tuple[int, ...]" = (),
 ) -> None:
-    """One sheet: text as inline strings, the named columns as numbers."""
+    """One sheet: text as inline strings, the named columns as numbers.
+
+    A column in `dated` holds ISO days written as date cells: the day's
+    serial number under the sheet's `yyyy-mm-dd` style, counted the way
+    the spreadsheet counts it, fictitious 29 February 1900 included.
+    """
     body = [
         (
             1,
@@ -156,7 +173,9 @@ def _book(
             if value == "":
                 continue
             where = f"{workbooks._column(index + 1)}{number}"
-            if index in numeric:
+            if index in dated:
+                cells += [workbooks.cell(where, _serial(value), style=1)]
+            elif index in numeric:
                 cells += [workbooks.cell(where, value)]
             else:
                 cells += [workbooks.cell(where, value, kind="inlineStr")]
@@ -529,6 +548,140 @@ def test_a_twin_that_would_not_fire_the_judgement_again_still_validates(
     )
 
 
+def _near_fence_cells(kind: str) -> "list[str]":
+    """The near-fence recipe of `_near_fence_column`, for three passes.
+
+    `number` is that column; `affixed` is the same cells with ` mg`
+    after each, so the stand-in is `-999 mg` and the judgement runs over
+    the cores; `date` draws 400 days from the band [P + 1.75w, P + 2.75w]
+    after P = 1900-01-01, with w = 15000 days, beside twelve cells of the
+    placeholder P itself, so the calendar placeholder pass is the one
+    that judges them.
+    """
+    draw = random.Random(124)
+    if kind in ("number", "affixed"):
+        width = 200.0
+        low = -999 + 1.75 * width * (1 + draw.uniform(-0.01, 0.01))
+        values = [str(round(low + draw.random() * width)) for _each in range(400)]
+        cells = values + ["-999"] * 12
+        if kind == "affixed":
+            cells = [f"{cell} mg" for cell in cells]
+    else:
+        span = 15000.0
+        origin = datetime.date(1900, 1, 1).toordinal()
+        low = origin + 1.75 * span * (1 + draw.uniform(-0.01, 0.01))
+        values = [
+            datetime.date.fromordinal(int(low + draw.random() * span)).isoformat()
+            for _each in range(400)
+        ]
+        cells = values + ["1900-01-01"] * 12
+    draw.shuffle(cells)
+    return cells
+
+
+# Each pass, the file it is written as, the spelling it judges, and the
+# twin seeds whose own values move the judgement past that spelling.
+# Measured with the validator's hand-over withdrawn (every candidate
+# passed as unjudged): each listed twin exited 3 while the real table
+# exited 0, and every twin exits 0 with the hand-over in place.
+_UNFIRED_ELSEWHERE = (
+    ("number", ".xlsx", "-999", (3, 4, 5, 6, 8)),
+    ("affixed", ".csv", "-999 mg", (3, 4, 5, 6, 8)),
+    ("date", ".csv", "1900-01-01", (2, 3, 5, 7)),
+    ("date", ".xlsx", "1900-01-01", (2, 3, 5, 7)),
+)
+
+
+@pytest.mark.parametrize(
+    "kind,suffix,spelling,seeds",
+    _UNFIRED_ELSEWHERE,
+    ids=[f"{one[0]}{one[1]}" for one in _UNFIRED_ELSEWHERE],
+)
+def test_every_judged_pass_is_handed_over_end_to_end(
+    tmp_path: pathlib.Path,
+    kind: str,
+    suffix: str,
+    spelling: str,
+    seeds: "tuple[int, ...]",
+) -> None:
+    """The hand-over of V2.4-A8 reaches the core and placeholder passes too.
+
+    The stand-in number pass is pinned above on delimited text. The pass
+    over an affixed column's cores and the calendar placeholder pass are
+    reached the same way, and so is a workbook's number and date cell:
+    the real column judges its twelve cells missing, and at each listed
+    seed describing the twin again with a plain `synthtwin profile` does
+    NOT, because the twin's own values move the judgement past the
+    spelling. That is the reach: the producer's rule asked of the twin
+    reads those cells as values. The validator reads them as the
+    description's verdict says, so the twin validates at nought, and so
+    does the table.
+    """
+    rows = [
+        [cell, random.Random(124 + place).choice(["a", "b"])]
+        for place, cell in enumerate(_near_fence_cells(kind))
+    ]
+    table = tmp_path / f"real{suffix}"
+    if suffix == ".csv":
+        _delimited(table, ["value", "site"], rows)
+    elif kind == "date":
+        _book(table, ["value", "site"], rows, dated=(0,))
+    else:
+        _book(table, ["value", "site"], rows, numeric=(0,))
+    assert _quietly(
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace"]
+    ) == 0
+    described = json.loads(
+        (tmp_path / "real-profile.json").read_text(encoding="utf-8")
+    )
+    judged = described["columns"][0]
+    assert judged["missing_by_source"] == {spelling: 12}, judged["name"]
+    assert [
+        one["verdict"] for one in judged["sentinel_verdicts"]
+    ] == [contract.VERDICT_MISSING]
+    real_check = tmp_path / "check-real"
+    real_check.mkdir()
+    assert _quietly(
+        [
+            "validate", str(tmp_path / "real-profile.json"), "--twin",
+            str(table), "--out-dir", str(real_check), "--replace",
+        ]
+    ) == 0
+    for seed in seeds:
+        folder = tmp_path / f"seed-{seed}"
+        folder.mkdir()
+        assert _quietly(
+            [
+                "generate", str(tmp_path / "real-profile.json"), "--out-dir",
+                str(folder), "--seed", f"{seed}", "--replace",
+            ]
+        ) == 0
+        twin = folder / f"real-twin{suffix}"
+        again = folder / "again"
+        again.mkdir()
+        copied = again / f"twin{suffix}"
+        copied.write_bytes(twin.read_bytes())
+        assert _quietly(
+            ["profile", str(copied), "--out-dir", str(again), "--replace"]
+        ) == 0
+        redescribed = json.loads(
+            (again / "twin-profile.json").read_text(encoding="utf-8")
+        )
+        assert spelling not in redescribed["columns"][0]["missing_by_source"], (
+            "the case must still reach the hand-over: the twin's own "
+            "values keep this spelling as a value",
+            seed,
+        )
+        checked = folder / "check-twin"
+        checked.mkdir()
+        assert _quietly(
+            [
+                "validate", str(tmp_path / "real-profile.json"), "--twin",
+                str(twin), "--out-dir", str(checked), "--replace",
+            ]
+        ) == 0, seed
+
+
 # ------------------------------------------------------ a table sorted by it
 
 
@@ -710,3 +863,46 @@ def test_the_report_s_window_counts_no_stand_in_as_a_spelling(
     assert windows == [(f"{column.n_distinct}", f"{column.n_distinct}")] * 2, (
         windows
     )
+
+
+def test_the_report_s_count_line_counts_cells_with_no_value(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The column block's first count names what the twin's cells are.
+
+    It said the twin "leaves 13 cell(s) empty" for `reading`, whose twin
+    column holds thirteen `-999` cells and no blank, while the same block
+    said a few lines later that the twin writes every one of them the
+    way the table did. The count is every absent cell of the twin, blank
+    or wearing a published hole spelling, and the line now calls them
+    cells with no value; for every column of the every-role twin it is
+    recounted here from the written file.
+    """
+    table = fixtures.write(
+        tmp_path, "t.csv", fixtures.every_role_and_joined_table()
+    )
+    document = profile.build_document(
+        reading.read_table(str(table)),
+        taxonomy.Settings(small_cell_floor=11),
+        ["record_code"],
+        [],
+        [fixtures.JOINED_COLUMN],
+    )
+    loaded = contract.load_profile(
+        str(fixtures.write_profile(tmp_path, "p.json", document))
+    )
+    twin = generation.generate(loaded, 20260811)
+    text = parsing.visible_lines(rendering.report(loaded, twin))
+    for place in range(len(loaded.columns)):
+        column = loaded.columns[place]
+        holes = set(column.missing_by_source)
+        cells = twin.columns[place]
+        absent = len([cell for cell in cells if cell == "" or cell in holes])
+        assert (
+            f"The twin holds {len(cells) - absent} value(s) and {absent} "
+            f"cell(s) with no value"
+        ) in text, column.name
+    block = [one for one in loaded.columns if one.name == "reading"][0]
+    written = twin.columns[loaded.columns.index(block)]
+    assert written.count("") == 0 and written.count("-999") == 13
+    assert "cell(s) empty, counted" not in text

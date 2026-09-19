@@ -705,8 +705,8 @@ def test_the_reports_column_counts_are_counted_from_the_written_twin(
         present = len([cell for cell in cells if cell != ""])
         empty = len(cells) - present
         assert (
-            f"The twin holds {present} value(s) and leaves {empty} cell(s) "
-            f"empty" in told
+            f"The twin holds {present} value(s) and {empty} cell(s) "
+            f"with no value" in told
         ), read.column_names[place]
 
 

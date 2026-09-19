@@ -2052,7 +2052,14 @@ GOLDEN_REPORT_SHA256 = (
     # printed, because a spelling now travels; and the spreadsheet note
     # names the thirteen cells that begin with a minus. No other line
     # moved.
-    "9db362b1eedbf9cc0023343b3b9b34be4d4ad3f57262a09a1fc7e11bfc92e1d4"
+    # RE-RECORDED AT THE REPAIR PASS OF P4-D6.4, read line by line
+    # against c9fa026: FOURTEEN LINES MOVED, one per column and all the
+    # same line, the first count of each column block. "leaves N cell(s)
+    # empty" became "N cell(s) with no value", every N unchanged (0,
+    # 11, 13, 160 and 240). `reading`'s said it left 13 cells empty while
+    # the twin holds thirteen `-999` cells and no blank. The twin's and
+    # the quality report's digests did not move. No other line moved.
+    "213a25cbbbe147ce31e99010e35f5705133e6c7a9715d926921c306b64e33eee"
 )
 
 

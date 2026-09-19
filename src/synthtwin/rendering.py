@@ -1647,11 +1647,19 @@ def _column_lines(
     words = column.statistical_type
     if words in _TYPE_WORDS:
         words = _TYPE_WORDS[words]
+    # "WITH NO VALUE", NOT "EMPTY" (plan P4-D6.4). The count is every
+    # absent cell of the twin, and a twin writes a published hole
+    # spelling -- `NA`, `-9.99`, and since P4-D6.4 a judged `-999` --
+    # into its cells rather than leaving them empty. The sentence said
+    # the twin "leaves 13 cell(s) empty" over a `reading` column holding
+    # thirteen `-999` cells and no blank, while the block below it said
+    # the twin writes every one of them as the table did. Which absent
+    # cells carry a spelling is `_missing_lines`' to say, per spelling.
     lines = [
         f"'{_shown(column.name)}' -- {words}",
         (
-            f"  The twin holds {outcome.n_present} value(s) and leaves "
-            f"{outcome.n_missing} cell(s) empty, counted from its own"
+            f"  The twin holds {outcome.n_present} value(s) and "
+            f"{outcome.n_missing} cell(s) with no value, counted from its own"
         ),
         (
             f"  cells; the description records {column.n_present} and "
