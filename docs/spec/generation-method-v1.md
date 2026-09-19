@@ -7935,7 +7935,8 @@ packing of whole groups meets it, at most eight of them:
 
 in ascending order of the six counts' differences summed, ties by the
 partition's own difference, then the partition, then the pair, each
-ascending. The first reading whose cells hold every count as published,
+ascending; the first 256 readings of that order are offered and no
+more, and of those at most eight are built. The first reading whose cells hold every count as published,
 file no more deviations, miss no other count the published build held
 and leave no more named layouts short is the column; where none does,
 the published build stands and every miss is named. **Measured** at

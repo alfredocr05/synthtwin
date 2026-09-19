@@ -531,16 +531,16 @@ def test_the_battery_would_have_caught_the_reported_defect(
 
     THE SLICE IS THE REVIEW'S PATTERN IN EACH OF THE BATTERY'S ORDERS
     (plan P4-D298). It was the first order alone, where the mutant lost
-    39 of 354 columns at c5d09d5. At e53d5f4 it lost 84 there, and 73 of
-    those were columns whose absorbed alphabet counts (plan P4-D277) had
-    no packing under ANY shape, so they were lost whether or not the
-    mutant ran and proved nothing about it; with those answered by a
-    reading of the counts, the mutant loses 19 in that order -- 18 of
-    the 20 columns that stopped losing publish absorbed counts since
+    39 of 354 columns at c5d09d5. At e53d5f4 it lost 84 there: 73 of
+    them publish an absorbed alphabet count (plan P4-D277), and 8 were
+    lost with the mutant withdrawn, so those 8 proved nothing about it.
+    With the absorbed counts answered by a reading, the mutant loses 19
+    in that order and none is lost without it -- 18 of the 20 columns
+    that stopped losing since c5d09d5 publish absorbed counts since
     P4-D277, and two are packed by a reading one figure-only cell away.
     The review's pattern in the battery's other two orders loses 103
-    and 70 more, measured, so the slice is the three orders and the
-    assertion is unchanged.
+    and 70 more, and none without the mutant, measured, so the slice is
+    the three orders and the assertion is unchanged.
     """
     choices = generation._shape_choices
 

@@ -151,6 +151,49 @@ def test_every_partition_x2_publishes_alike_is_a_reading(floor: int) -> None:
         assert moved == sorted(moved), key
 
 
+@pytest.mark.parametrize(("floor", "most"), ((11, 121), (17, 289)))
+def test_the_free_text_reading_bound_binds_only_above_the_case_floor(
+    floor: int, most: int
+) -> None:
+    """How many readings a column of free text can have, from the rule.
+
+    Method G9.5 caps the readings at 256 (`_ABSORBED_READINGS`), and the
+    reference oracle states no cap (plan P4-D298): this is why that is a
+    statement about reach and not a gap. Only a count published as
+    nought or as every present cell has another count behind it -- one
+    strictly between is printed only where both sides reach the census
+    line `L = census_floor(floor)`, so it is met by itself alone. Nought
+    is met by the `L` counts `0 .. L-1` and every cell by the `L` counts
+    `P-L+1 .. P` once the population `P` is at least `2L`, and every
+    such figures count is below every such code count, so the most
+    readings any column has is `L * L`, the published pair among them:
+    121 at the frozen cases' floor of eleven, which never reaches 256,
+    and 289 at seventeen, where the cap does bind. Every pair a
+    population up to `2L + 6` can publish is asked, and the largest
+    number of readings must be exactly that product.
+    """
+    line = parsing.census_floor(floor)
+    assert line * line == most
+    largest = 0
+    for present in range(2 * line + 7):
+        publishable = sorted({
+            parsing.absorbed_total(count, present, floor)
+            for count in range(present + 1)
+        })
+        for digits in publishable:
+            for coded in publishable:
+                if digits > coded:
+                    continue
+                readings = 1 + len(
+                    generation._alphabet_readings(
+                        digits, coded, present, floor
+                    )
+                )
+                largest = max(largest, readings)
+    assert largest == most
+    assert (most > generation._ABSORBED_READINGS) == (floor > 11)
+
+
 # --------------------------------------------------------- free text
 
 

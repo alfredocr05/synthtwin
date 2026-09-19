@@ -10929,6 +10929,16 @@ def alphabet_readings(column):
     each meeting its published count, the figures never more than the
     code alphabet, in ascending order of the two differences summed, ties
     by the figures count and then the code count, the smaller first.
+
+    **G9.5'S CAP OF 256 READINGS IS NOT WRITTEN HERE, and that is a
+    statement about reach.**  A count strictly between nought and the
+    population is published only where both sides reach the census line
+    `L`, so it is met by itself alone; nought is met by at most `L`
+    counts and every cell by at most `L`, so a column has at most `L * L`
+    readings -- 121 at the floor of eleven every case here is described
+    under (`CASE_SMALL_CELL_FLOOR`), which never reaches 256.  The cap
+    binds from a floor of seventeen, where no case is frozen;
+    tests/test_p4d298_absorbed_readings.py derives both products.
     """
     present = column["n_present"]
     digits = column["n_all_digits"]
@@ -10974,6 +10984,19 @@ def identifier_readings(column):
     from `alphabet_readings`, in ascending order of the six counts'
     differences summed, ties by the partition's own difference, then the
     partition itself, then the pair, each ascending.
+
+    **G9.6'S TWO CAPS -- THE FIRST 256 READINGS OFFERED, AT MOST EIGHT OF
+    THEM BUILT -- ARE NOT WRITTEN HERE, and that is a statement about
+    reach, measured rather than assumed (plan P4-D298).**  A cap is
+    reached only where it moves a cell: where a reading past it would
+    answer a description no reading inside it answers.  On 3,000
+    producer record numbers the most readings any column built was five;
+    the 88 hand-built descriptions at this file's floor that did build
+    eight wrote the same cells with the build cap lifted, and so did the
+    31 of them built with both caps lifted -- the caps only end a search
+    that finds nothing.  So no case this file could freeze
+    reaches either cap, and a description that did would need the caps
+    written here before its case was added.
     """
     classes = [column[name] for name in IDENTIFIER_CLASS_FIELDS]
     present = column["n_present"]
@@ -14090,8 +14113,8 @@ def _free_text_absorbed_figures():
         "alphabet counts (plan P4-D298). The column publishes sixteen cells "
         "in figures alone beside fifteen that read as numbers, because its "
         "one cell outside the figures is below the floor and the contract "
-        "counts it into the larger side; twelve figures-only cells are "
-        "twelve numbers, so the published counts have no packing at all. "
+        "counts it into the larger side; sixteen figures-only cells are "
+        "sixteen numbers, so the published counts have no packing at all. "
         "The method asks every shape of the published pair first and then "
         "the pairs the rule publishes the same way, in order, and the "
         "first of those -- fifteen in figures alone -- packs: the single "

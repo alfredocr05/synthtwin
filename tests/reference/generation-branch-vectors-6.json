@@ -1625,7 +1625,7 @@
       ],
       "csv_bytes": "0\n0\n10\n10\n0\n10\n0\n0\n0\n10\n0\nA\n0\n10\n0\n0\n",
       "float64": [],
-      "why": "G9.5's packing against a READING of the two absorbed alphabet counts (plan P4-D298). The column publishes sixteen cells in figures alone beside fifteen that read as numbers, because its one cell outside the figures is below the floor and the contract counts it into the larger side; twelve figures-only cells are twelve numbers, so the published counts have no packing at all. The method asks every shape of the published pair first and then the pairs the rule publishes the same way, in order, and the first of those -- fifteen in figures alone -- packs: the single cell is text in the code alphabet and the two groups are numbers in figures. Its mutant packs the published pair alone and no assignment of whole groups meets it.",
+      "why": "G9.5's packing against a READING of the two absorbed alphabet counts (plan P4-D298). The column publishes sixteen cells in figures alone beside fifteen that read as numbers, because its one cell outside the figures is below the floor and the contract counts it into the larger side; sixteen figures-only cells are sixteen numbers, so the published counts have no packing at all. The method asks every shape of the published pair first and then the pairs the rule publishes the same way, in order, and the first of those -- fifteen in figures alone -- packs: the single cell is text in the code alphabet and the two groups are numbers in figures. Its mutant packs the published pair alone and no assignment of whole groups meets it.",
       "word_budget": {
         "content": 0,
         "placement": 15

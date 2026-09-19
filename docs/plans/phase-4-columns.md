@@ -17582,9 +17582,11 @@ already met its four. It was re-armed with `7 7 ab x! x! no!!`, whose
 four counts are all published as measured and which the separate walks
 miss at c5d09d5 and now -- a mutant test beside it proves both halves.
 The pre-assignment guard of P2-C4-F2 lost 84 columns of its slice at
-e53d5f4, 73 of them columns no shape could pack at all, and 19 once
-those are answered by a reading, so its slice takes the battery's three
-orders (192 lost) and its assertion is unchanged.
+e53d5f4, 73 of them columns publishing an absorbed alphabet count
+(P4-D277) and 8 lost without the mutant; it loses 19 once those are
+answered by a reading, and none without the mutant, so its slice takes
+the battery's three orders (192 lost, none of them without the mutant)
+and its assertion is unchanged.
 
 **WHAT IS NOT CLOSED, measured rather than left to be found.** P4-D277's
 disclosure intent is not finished on a declared record number: where
@@ -17598,3 +17600,28 @@ and it is put to the owner. Separately, a record number of ten `(-6)`,
 four `(-71)` and one `8xEa` validates at exit 3 on its `(-%)` layout
 whichever reading is built, which is a layout census question this
 landing measured and did not touch.
+
+**THE READING CAPS, AND WHY THE ORACLE DOES NOT WRITE THEM** (the
+skeptic's pass over this landing). The generator offers a column of
+free text at most 256 readings (G9.5) and a record number the first 256
+of its order, building at most eight (G9.6; the 256 on a record number
+was applied by the code and unstated until this pass, and G9.6 now says
+it). The oracle writes neither cap, and a mirror is owed only of a rule
+some frozen case can reach -- a cap is reached where it moves a cell.
+Free text, by arithmetic: a count strictly between nought and the
+population is met by itself alone, nought and every cell by at most `L`
+counts each, so a column has at most `L * L` readings, 121 at the case
+floor of eleven and never 256; the cap binds from a floor of seventeen
+(289), and `test_the_free_text_reading_bound_binds_only_above_the_case_floor`
+derives both. A record number, measured: 3,000 producer columns made
+by the P2-C5-F2 battery's own column maker (seeds 0 to 2999) built at
+most five readings at the default floor, so neither cap was reached; of
+1,653 hand-built descriptions the loader accepted at the case floor, 88
+different ones built eight, and every one of the 88 wrote the same cells
+with the build cap lifted (up to eighty-six built, inside the first 256
+readings); 31 of them were also built with both caps lifted before this
+pass closed -- up to 496 built out of up to 91,233 offered -- and wrote
+the same cells as well. The caps end a search that finds nothing. No
+case is frozen for them, and a description a cap answers differently
+would need the caps written in the oracle before its case could be
+added.
