@@ -15,6 +15,7 @@ generator's recount limited to one convention again, and the validator's
 verdict printed HELD whatever the count.
 """
 
+import json
 import pathlib
 import random
 from datetime import date, timedelta
@@ -78,3 +79,47 @@ def test_a_census_of_two_widths_is_named_and_not_held(
         assert f"{published[key]} values written {key}" in report
         assert f"{held} values written {key}" in report
     assert differing >= 1, (published, again)
+
+
+def test_the_real_table_s_own_census_of_two_widths_is_held_count_for_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The checker counts a census of several widths as the producer does.
+
+    THE REPRODUCTION (the carried date items of 2026-09-18). Plan P4-D278
+    counts every date showing no width into the column's commonest width,
+    and the producer does it on a census of several widths too: the
+    900 visits above publish `{"padded": 369, "unpadded": 531}`, which is
+    381 cells showing `unpadded` and 150 whose two fields are both ten or
+    more. The checker absorbed only where the census named ONE width, so
+    it compared the published 531 with the file's bare 381 and printed
+    the real table's own count WITHIN-BOUND of the census it had just
+    been described with. Counted the producer's way, the file holds what
+    its description says, and the number printed is that count.
+
+    Mutation: the absorption asked only of a one-width census again turns
+    `widths.unpadded` WITHIN-BOUND and prints 381.
+    """
+    from synthtwin import contract, validation
+    from tests.test_files_review_repairs import _exit_of
+
+    source = tmp_path / "visits.csv"
+    source.write_bytes(_two_widths(900, 5))
+    code, said = _exit_of(["profile", str(source), "--out-dir", str(tmp_path)])
+    assert code == 0, said[-600:]
+    described = contract.load_profile(str(tmp_path / "visits-profile.json"))
+    published = json.loads(
+        (tmp_path / "visits-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]["date_field_widths"]
+    assert published == {"padded": 369, "unpadded": 381 + 150}
+    outcome = validation.measure(described, str(source))
+    found = {
+        check.subcheck: (check.verdict, check.achieved)
+        for check in outcome.checks
+        if check.fact == "datetime.date_field_widths"
+        and check.subcheck != "widths.unnamed"
+    }
+    assert found == {
+        f"widths.{key}": (validation.HELD, f"{count}")
+        for key, count in published.items()
+    }

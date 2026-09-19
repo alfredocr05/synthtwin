@@ -15056,7 +15056,7 @@ def _written_form_checks(
                 continue
             met = _written_form_met(key, named, raw, tally, floor)
             tallied = tally[named] if named in tally else 0
-            if counted_exactly:
+            if key == "date_field_widths":
                 # COUNTED AS THE PRODUCER COUNTS IT (plan P4-D278): a
                 # cell of this file that could show no width is counted
                 # into the file's own commonest width, exactly as the
@@ -15064,10 +15064,17 @@ def _written_form_checks(
                 # is between two numbers built the same way. The recount
                 # ITSELF moves to the absorbed figure, so the number the
                 # next paragraph prints stays the number that decided
-                # the verdict.
+                # the verdict. ON A CENSUS OF SEVERAL WIDTHS TOO: the
+                # producer absorbs there as well, and comparing its
+                # absorbed count with this file's bare one printed the
+                # real table's own commonest width WITHIN-BOUND of the
+                # census it had just been described with. A census of
+                # several widths is still MET at its floor, on the cells
+                # that show the convention.
                 absorbed = taxonomy.absorbed_width_tally(tally, population)
                 tallied = absorbed[named] if named in absorbed else 0
-                met = tallied == census[named]
+                if counted_exactly:
+                    met = tallied == census[named]
             # WHAT IS PRINTED IS WHAT DECIDED THE VERDICT (plan P4-D253,
             # the extra review of c5d09d5, item 6). The census of the
             # file's own description stood here while the verdict was

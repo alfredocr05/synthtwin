@@ -850,6 +850,20 @@ METHOD_PASSAGES = {
         "'endpoint pins' say the ends ARE exact, and 'recount' is the "
         "layout census's own reader"
     ),
+    # THE SECOND HALF OF THAT TABLE, which stands after a blank line and
+    # is therefore a passage of its own. It reached this vocabulary when
+    # plan P4-D255 froze `date_endpoint_ties` in it (measured on the
+    # merge of 2026-09-18): 'latest' and 'endpoint' are that row's own
+    # account of the ranks tied at an end being HELD to the end's offset,
+    # which raises what the twin holds, and 'recount' is
+    # `numbers_carry_the_average`'s length recount refusing its mutant.
+    # No end of a date column is excused anywhere in it.
+    "| `written_form_lines` | g2's written form end to end": (
+        "G14.3's table of frozen cases, its second half: "
+        "'latest' and 'endpoint' are date_endpoint_ties holding the ranks "
+        "tied at an end (P4-D255), and 'recount' is a free-text length "
+        "recount (P4-D190)"
+    ),
 }
 
 # Exceptions of the kind that have twice been written into these

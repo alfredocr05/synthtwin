@@ -10151,9 +10151,13 @@ G6.5's visiting order for the distinct-spelling repair (plan P4-D265).
 The two passes were built separately and each put its own cases in the
 seventh file; merged, that file stood at 276235 bytes against the
 250000-byte cap, so all seven moved into
-`tests/reference/generation-branch-vectors-6.json` together.
+`tests/reference/generation-branch-vectors-6.json` together. **The
+carried date items of 2026-09-18 add two more to the eighth file**,
+`date_two_kinds_traded` and `date_two_kinds_nonadjacent`, which reach
+G7.3's two merges again after plan P4-D294 left them unreached (see
+below the table).
 
-**All ninety-five are required.** The count is taken off the committed
+**All ninety-seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10169,7 +10173,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; and the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds seven (G14.2),
+`tests/reference/generation-branch-vectors-6.json`, holds nine (G14.2),
 and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
@@ -10267,6 +10271,8 @@ case passed, which is the failure the count exists to prevent:
 | `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
 | `date_traded_merge` | The day's width KIND (plan P4-D294): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three. Its mutant asks the narrower question -- does the day SHOW the width -- in place of the census's own membership, and the twin's dates move. It was frozen for G7.3's traded merge (plan P4-D258) and no longer reaches it: under a joint word every day counts into the census, so a column of one kind has no gap without a unit of its own kind. See the note below this table |
 | `date_nonadjacent_merge` | The same three days at other words, pinning the same corrected kind question (plan P4-D294); its mutant is the same narrowing and it moves these cells too. It was frozen for G7.3's merge onto a unit that is no rank neighbour (plan P4-D258) and no longer reaches it, for the reason the row above gives |
+| `date_two_kinds_nonadjacent` | G7.3's merge onto a held unit that is no rank neighbour (plan P4-D258), on a column carrying two width kinds: thirty-six month-first dates on the fifteenth and the twenty-second of August and the fifth of October, publishing three different values and `first-field-padded` on twenty-three cells, the thirteen left standing on the fifth of October, which is of the other kind. Its mutant offers the rank neighbours alone, and the twin holds five different dates |
+| `date_two_kinds_traded` | G7.3's traded merge (plan P4-D258), on a column carrying two width kinds: thirty-six month-first dates on the third and the nineteenth of March and the tenth of April, publishing three different values and `first-field-padded` on twenty-two cells, the fourteen left standing on the third of March. A rank drawn onto the ninth of April has no unit of its own kind in its gap, so it moves onto the tenth and a rank of the nineteenth of March moves onto the third to pay for it. Its mutant makes no trade, and the twin holds four different dates |
 | `date_widths_reached` | G7.3's widths pass (plan P4-D192): eighty month-first dates leaning into the last quarter, whose census names `second-field-padded` alone on forty-four cells, reached by ranks moving whole days to the nearest day of the other kind. Its mutant withdraws the pass. The word was `unpadded` until plan P4-D294: a JOINT word absorbs every day, so a column of eighty cells can publish only eighty under it and the pass had nothing left to reach |
 | `midnight_withheld_kept` | G7.3's rule for a withheld count at midnight (plan P4-D191): sixty moments to the minute whose pins stand a minute either side of midnight in turn, so about half the ranks between a `23:59` and the next `00:01` land at midnight; the published instants stand off it, so fewer than the line of eleven may, and the ranks at midnight step a minute later. Its mutant leaves them there |
 | `numbers_carry_the_average` | G9.5 step 5's walk of the numbers' own lengths (plan P4-D190): ten cells of free text, eight numbers and two words, the words carrying both published length ends so the ordinary walk has no group to move; the numbers at their shortest average six fifths against a published two, and four of them are walked to three figures. Its mutant leaves the numbers at their shortest and the recount refuses the case |
@@ -10278,22 +10284,26 @@ case passed, which is the failure the count exists to prevent:
 Each case is small enough to read by hand — at most a few dozen cells —
 because a vector nobody can check by hand is a vector nobody checks.
 
-**WHAT PLAN P4-D294 COST THIS TABLE, STATED RATHER THAN LEFT TO BE
-FOUND.** Correcting a day's width KIND to the census's own membership
-question made the two branches of plan P4-D258 — the traded merge and
-the merge onto a unit that is no rank neighbour — unreachable by the two
-cases frozen for them. Both are textual columns under a JOINT word, and
-a joint word absorbs every day that shows no width at all, so such a
+**WHAT PLAN P4-D294 COST THIS TABLE, AND HOW IT WAS PAID BACK.**
+Correcting a day's width KIND to the census's own membership question
+made the two branches of plan P4-D258 — the traded merge and the merge
+onto a unit that is no rank neighbour — unreachable by the two cases
+frozen for them. Both are textual columns under a JOINT word, and a
+joint word absorbs every day that shows no width at all, so such a
 column carries ONE kind and no gap of it can be without a unit of its
-own kind. Both branches remain in the generator and in this oracle, for
-the column that carries two kinds — a ONE-FIELD word, where a day is
-counted out when its other field shows the other convention — and 500
-candidate columns measured on the merge-close of 2026-09-18 reached
-neither of them, so neither is pinned by a committed byte today. The two
-cases were re-registered against the rule they DO pin, which is P4-D294
-itself: asking the narrower question moves their committed cells. This
-is a loss of coverage and it is recorded as one; a case that reaches
-either branch is owed to G14.3.
+own kind. The two cases were re-registered against the rule they DO
+pin, which is P4-D294 itself: asking the narrower question moves their
+committed cells. The merge-close of 2026-09-18 measured 500 candidate
+columns for a replacement and found none. A census naming one word over
+EVERY parsed cell leaves the twin nothing of the other kind to hold,
+whatever the word; what reaches both branches is a census naming one
+word over FEWER cells than that: a ONE-FIELD word whose
+unnamed remainder, at least the line and written by words that each
+fall below it and fold into no named one, stands on days of the other
+kind. Such a column carries two kinds, and both branches are reached on
+it. `date_two_kinds_traded` and `date_two_kinds_nonadjacent` are two
+such columns, and each mutant withdraws exactly its own merge (the
+carried date items of 2026-09-18).
 
 **Every case must also FAIL when the branch it exists for is removed or
 reverted**, and that mutant is committed beside it. A case a withdrawn

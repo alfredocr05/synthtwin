@@ -473,6 +473,10 @@ SIXTH_BRANCH_CASES = (
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
+    # P4-D258's two merges reached again, on a column carrying two width
+    # kinds (the carried date items of 2026-09-18).
+    "date_two_kinds_nonadjacent",
+    "date_two_kinds_traded",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -574,6 +578,9 @@ SEEDS = {
     "date_second_field_class": 202,
     "date_traded_merge": 203,
     "date_nonadjacent_merge": 204,
+    # The carried date items of 2026-09-18 take the next two.
+    "date_two_kinds_traded": 205,
+    "date_two_kinds_nonadjacent": 206,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -2486,6 +2493,30 @@ CASE_MUTANTS = {
         replacement=_shows_it,
         outcome=CHANGES_THE_CELLS,
     ),
+    # P4-D258's TWO MERGES, REACHED AGAIN (the carried date items of
+    # 2026-09-18). A one-field census whose unnamed remainder stands on
+    # days of the other kind is a column carrying two width kinds, which
+    # is the situation both merges exist for and which the two cases
+    # above no longer describe. Each mutant withdraws exactly its own
+    # merge, and each twin then holds more different dates than the
+    # description publishes.
+    "date_two_kinds_traded": Mutant(
+        branch="plan P4-D258's traded merge; the mutant makes no trade, "
+        "the run on a day of the other kind has nowhere to go, and the "
+        "twin holds four different dates against three",
+        attribute="traded_merges",
+        replacement=lambda *arguments: 0,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_two_kinds_nonadjacent": Mutant(
+        branch="plan P4-D258's merge onto a held unit that is no rank "
+        "neighbour; the mutant offers the neighbours alone, and the two "
+        "runs whose neighbours are both of the other kind stay where they "
+        "were drawn, five different dates against three",
+        attribute="nearest_held_unit",
+        replacement=lambda *arguments: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "date_widths_reached": Mutant(
         branch="plan P4-D192's widths pass; the mutant leaves the ranks where "
         "they were drawn, and a different number of dates show a width than "
@@ -3191,6 +3222,54 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
             f"{name}: the mutant of {mutant.branch} stopped the oracle for "
             "some other reason than its own"
         )
+
+
+_GENERATOR_NEAREST_HELD_UNIT = generation._nearest_held_unit
+
+
+def _no_unit_past_the_neighbours(*arguments, **named):
+    """The generator's plain merge offered its rank neighbours alone.
+
+    The traded merge asks the same search with ``flip`` set, and keeps
+    it: only the offer of a held unit of the run's OWN kind is withdrawn.
+    """
+    flip = arguments[11] if len(arguments) > 11 else named.get("flip", False)
+    if flip:
+        return _GENERATOR_NEAREST_HELD_UNIT(*arguments, **named)
+    return None
+
+
+@pytest.mark.parametrize(
+    ("name", "attribute", "replacement"),
+    [
+        ("date_two_kinds_traded", "_traded_merges", lambda *arguments: 0),
+        (
+            "date_two_kinds_nonadjacent",
+            "_nearest_held_unit",
+            _no_unit_past_the_neighbours,
+        ),
+    ],
+)
+def test_the_generator_s_own_merge_writes_the_two_kinds_cases(
+    name: str, attribute: str, replacement, tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """P4-D258's two merges, withdrawn from the IMPLEMENTATION this time.
+
+    The mutant table above withdraws each merge from the oracle. This is
+    the same question asked of `synthtwin.generation`: its own traded
+    merge, and its own offer of a held unit past the rank neighbours,
+    are what write these two committed columns, so either withdrawn
+    writes different cells -- which is what makes the pair a pin on the
+    generator and not only on the oracle beside it.
+    """
+    case = _case(name)
+    profile = _load(case, name, tmp_path)
+    assert [row[0] for row in generation.generate(profile, SEEDS[name]).rows] == (
+        case["cells"]
+    )
+    monkeypatch.setattr(generation, attribute, replacement)
+    withdrawn = [row[0] for row in generation.generate(profile, SEEDS[name]).rows]
+    assert withdrawn != case["cells"], name
 
 
 def test_the_style_case_writes_each_published_form_as_itself() -> None:

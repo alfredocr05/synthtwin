@@ -48,6 +48,26 @@ def _clinic(rows: int, seed: int) -> bytes:
     return ("\r\n".join(lines) + "\r\n").encode("utf-8")
 
 
+def _clinic_reviewed(rows: int, seed: int) -> bytes:
+    """The clinical export with a third column: a November review date.
+
+    Every review falls in November, written `11/5/2021`, so a date whose
+    day is below ten shows the SECOND field's width alone and the census
+    names the one-field word `second-field-unpadded`. The first two
+    columns are `_clinic`'s own cells, byte for byte; the third is drawn
+    from a stream of its own so that nothing of theirs moves.
+    """
+    draw = random.Random(seed + 1)
+    lines = _clinic(rows, seed).decode("utf-8").split("\r\n")
+    joined = [lines[0] + ",review_date"]
+    for line in lines[1:]:
+        if not line:
+            continue
+        reviewed = date(2019 + draw.randrange(4), 11, 1 + draw.randrange(30))
+        joined += [f"{line},{reviewed.month}/{reviewed.day}/{reviewed.year}"]
+    return ("\r\n".join(joined) + "\r\n").encode("utf-8")
+
+
 def _column(document: "dict[str, object]", name: str) -> "dict[str, object]":
     for column in document["columns"]:
         if column["name"] == name:
@@ -78,8 +98,19 @@ def test_a_withdrawn_pass_is_named_and_missed(
 
     A discharge column whose drawn times land at midnight is forced by
     pinning every moment's minute to nought, so the withheld count is
-    broken on purpose; the two counts of the admission column miss on
-    their own once the ranks are left where they were drawn.
+    broken on purpose; the count of different admission dates misses on
+    its own once the ranks are left where they were drawn.
+
+    RE-ARMED FOR THE WIDTHS (plan P4-D278). The admission column's census
+    is a JOINT word, and since P4-D278 a joint word's count is every
+    parsed cell -- a date showing no width is counted into it -- so
+    leaving its ranks where they were drawn can no longer miss it, and
+    this test's widths half stopped biting. The widths half of the pass
+    still decides a ONE-FIELD census, so the table carries a column of
+    one: November review dates publishing `second-field-unpadded`, whose
+    twin misses that word as soon as a rank is left on a day of another
+    month. The admission column's widths not being named is asserted
+    too, as the witness of the ruling that moved them.
     """
     monkeypatch.setattr(
         generation, "_units_settled",
@@ -96,14 +127,20 @@ def test_a_withdrawn_pass_is_named_and_missed(
         return sorted(moved)
 
     monkeypatch.setattr(generation, "_kept_off_midnight", onto_midnight)
-    result = _trip_allowing_misses(tmp_path, _clinic(900, 20260917))
+    result = _trip_allowing_misses(tmp_path, _clinic_reviewed(900, 20260917))
     report = (tmp_path / "clinic-twin-report.txt").read_text(encoding="utf-8")
+    described = (tmp_path / "clinic-profile.json").read_text(encoding="utf-8")
+    assert '"second-field-unpadded": 900' in described
     missed = result
     assert any("distinct.n_distinct [datetime.n_distinct]" in line for line in missed), missed
-    assert any("widths.unpadded [datetime.date_field_widths]" in line for line in missed), missed
+    assert any(
+        "widths.second-field-unpadded [datetime.date_field_widths]" in line
+        for line in missed
+    ), missed
     assert any("midnight.withheld [datetime.n_at_midnight]" in line for line in missed), missed
     assert "'admission_date' -- n_distinct\n" in report
-    assert "'admission_date' -- date_field_widths\n" in report
+    assert "'review_date' -- date_field_widths\n" in report
+    assert "'admission_date' -- date_field_widths\n" not in report
     assert "'discharge_time' -- n_at_midnight\n" in report
     assert "a count too small on one side to publish" in report
 
