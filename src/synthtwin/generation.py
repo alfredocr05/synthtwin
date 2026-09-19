@@ -33475,21 +33475,50 @@ def _class_notes(
     reason = _CLASS_SPLIT_REASON
     if short_of_supply:
         reason = _CLASS_SUPPLY_REASON
-    notes: list[Deviation] = []
-    for fact, published, name in (
-        ("n_numeric", column.n_numeric, _CLASS_NUMBER),
-        ("n_out_of_range", column.n_out_of_range, _CLASS_OUT_OF_RANGE),
-        ("n_contradictory", column.n_contradictory, _CLASS_CONTRADICTORY),
-        ("n_not_numeric", column.n_not_numeric, _CLASS_TEXT),
-    ):
-        if read[name] != published:
-            notes += [
-                _deviation(
-                    column.name, fact, f"{published}", f"{counted[name]}",
-                    reason,
-                )
-            ]
-    return notes
+    # EACH KEY IS WRITTEN WHERE IT IS FILED, as a literal, so the method's
+    # key index can be held to this module by reading it (the integration
+    # of the carried passes, 2026-09-19): passed through a loop variable,
+    # three of the four keys were invisible to that check.
+    return (
+        _class_miss(
+            column, "n_numeric", column.n_numeric,
+            read[_CLASS_NUMBER], counted[_CLASS_NUMBER], reason,
+        )
+        + _class_miss(
+            column, "n_out_of_range", column.n_out_of_range,
+            read[_CLASS_OUT_OF_RANGE], counted[_CLASS_OUT_OF_RANGE], reason,
+        )
+        + _class_miss(
+            column, "n_contradictory", column.n_contradictory,
+            read[_CLASS_CONTRADICTORY], counted[_CLASS_CONTRADICTORY],
+            reason,
+        )
+        + _class_miss(
+            column, "n_not_numeric", column.n_not_numeric,
+            read[_CLASS_TEXT], counted[_CLASS_TEXT], reason,
+        )
+    )
+
+
+def _class_miss(
+    column: contract.ColumnBlock,
+    fact: str,
+    published: int,
+    read: int,
+    held: int,
+    note: str,
+) -> "list[Deviation]":
+    """One deviation, or none, for a class count read as it is published.
+
+    `read` is the twin's count as the producer would publish it (plan
+    P4-D298) and decides the miss; `held` is the count the twin holds and
+    is what the report prints, as `_named_miss` prints its recount.
+    """
+    if published == read:
+        return []
+    return [
+        _deviation(column.name, fact, f"{published}", f"{held}", note)
+    ]
 
 
 def _whole_notes(
