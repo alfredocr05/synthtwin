@@ -1,5 +1,5 @@
 {
-  "case_set": "The 7 cases method section G14.3 adds with the extra review round of 2026-09-18, its date pass and its number pass together: the feasible spend of an offset where the column is moved onto midnight (plan P4-D254), the offsets a rank standing on an end's own instant may wear (plan P4-D255), the census key carried into the width pass (plan P4-D256), G7.3's two merges -- onto a unit that is no rank neighbour, and paid for by ranks moved the other way (plan P4-D258) -- G6.5a's last resort on the REPRESENTABLE grid, where the census names no fraction width at all (plan P4-D269), and G6.5's visiting order for the distinct-spelling repair, unmarked duplicates first (plan P4-D265). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json and tests/reference/generation-document-vectors.json, and live in an eighth file only because the seventh, rebuilt to hold them, stood at 276235 bytes against the provenance manifest's 250000-byte cap. No case was dropped, no proof was shortened and the cap was not raised.",
+  "case_set": "The 9 cases method section G14.3 adds with the extra review round of 2026-09-18, its date pass and its number pass together: the feasible spend of an offset where the column is moved onto midnight (plan P4-D254), the offsets a rank standing on an end's own instant may wear (plan P4-D255), the census key carried into the width pass (plan P4-D256), G7.3's two merges -- onto a unit that is no rank neighbour, and paid for by ranks moved the other way (plan P4-D258) -- G6.5a's last resort on the REPRESENTABLE grid, where the census names no fraction width at all (plan P4-D269), and G6.5's visiting order for the distinct-spelling repair, unmarked duplicates first (plan P4-D265) -- and, beside those seven, the two cases of the readings of an absorbed count (plan P4-D298): a column of free text whose published figures count has no packing, answered by the reading one cell short of it, and a declared record number whose published counts have no whole-number spelling at its shortest length, answered the same way. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json and tests/reference/generation-document-vectors.json, and live in an eighth file only because the seventh, rebuilt to hold them, stood at 276235 bytes against the provenance manifest's 250000-byte cap. No case was dropped, no proof was shortened and the cap was not raised.",
   "cases": {
     "date_endpoint_ties": {
       "cells": [
@@ -1517,6 +1517,254 @@
         "91691173470257007",
         "13740769129415587871",
         "14043504349668044876"
+      ]
+    },
+    "free_text_absorbed_figures": {
+      "cells": [
+        "0",
+        "0",
+        "10",
+        "10",
+        "0",
+        "10",
+        "0",
+        "0",
+        "0",
+        "10",
+        "0",
+        "A",
+        "0",
+        "10",
+        "0",
+        "0"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "length": {
+          "max": 2,
+          "mean": {
+            "decimal": "1.3125",
+            "exact": "21/16",
+            "float64": 1.3125,
+            "proof": "nearest"
+          },
+          "min": 1,
+          "p50": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          }
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 16,
+        "n_code_alphabet": 16,
+        "n_contradictory": 0,
+        "n_distinct": 3,
+        "n_distinct_by_occurrences": {
+          "01": 1,
+          "05": 1,
+          "10": 1
+        },
+        "n_distinct_folded": 3,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 1,
+        "n_numeric": 15,
+        "n_out_of_range": 0,
+        "n_present": 16,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "free_text",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "(withheld)": 16
+        },
+        "statistical_type": "text",
+        "structural_role": "data",
+        "words": {
+          "max": 1,
+          "mean": {
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
+            "proof": "nearest"
+          },
+          "min": 1
+        }
+      },
+      "content": [
+        "A",
+        "10",
+        "10",
+        "10",
+        "10",
+        "10",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "csv_bytes": "0\n0\n10\n10\n0\n10\n0\n0\n0\n10\n0\nA\n0\n10\n0\n0\n",
+      "float64": [],
+      "why": "G9.5's packing against a READING of the two absorbed alphabet counts (plan P4-D298). The column publishes sixteen cells in figures alone beside fifteen that read as numbers, because its one cell outside the figures is below the floor and the contract counts it into the larger side; twelve figures-only cells are twelve numbers, so the published counts have no packing at all. The method asks every shape of the published pair first and then the pairs the rule publishes the same way, in order, and the first of those -- fifteen in figures alone -- packs: the single cell is text in the code alphabet and the two groups are numbers in figures. Its mutant packs the published pair alone and no assignment of whole groups meets it.",
+      "word_budget": {
+        "content": 0,
+        "placement": 15
+      },
+      "words": [
+        "13316318172785330528",
+        "12612768051273649992",
+        "7654855424629311647",
+        "11377133002239263856",
+        "286928627445438427",
+        "10444083081516265560",
+        "7591583866571052041",
+        "8510104961955015365",
+        "14936753289887636254",
+        "11510899732911205932",
+        "5599454075072145761",
+        "17302526093071363572",
+        "17003801509682623626",
+        "16066797410987928910",
+        "13016704170208589345"
+      ]
+    },
+    "identifier_absorbed_figure": {
+      "cells": [
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "1",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {},
+        "layout_prefixes": {},
+        "max_length": 3,
+        "min_length": 1,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 21,
+        "n_contradictory": 0,
+        "n_distinct": 2,
+        "n_distinct_by_occurrences": {
+          "01": 1,
+          "20": 1
+        },
+        "n_distinct_folded": 2,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 21,
+        "n_out_of_range": 0,
+        "n_present": 21,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "1",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0",
+        "0e0"
+      ],
+      "csv_bytes": "0e0\n0e0\n0e0\n0e0\n0e0\n1\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n0e0\n",
+      "float64": [],
+      "why": "a declared identifier built against a READING of its absorbed counts (plan P4-D298). One record number is a single figure and twenty are three-character whole numbers in the code alphabet, so at the case floor of eleven the one cell in figures alone is below the line and the contract publishes nought beside a shortest length of one -- and every value a whole number. A one-character whole number is a figure, so the published counts have no whole-number spelling at that length: the method builds the published reading, finds that, and builds the readings the rule publishes the same way in order. The first, one cell in figures alone, answers every count as published: the single group is the figure `1` at one character and the group of twenty is the code band's `<digits>e0` at three. Its mutant builds the published reading alone and the oracle refuses the column.",
+      "word_budget": {
+        "content": 0,
+        "placement": 20
+      },
+      "words": [
+        "8240360817844785611",
+        "6965855634901750618",
+        "3868509980596075400",
+        "11859100947156359913",
+        "5986087207675986486",
+        "18358326899417112486",
+        "17147604379438059201",
+        "10410101861854571204",
+        "1951612982207171057",
+        "11688285107737754557",
+        "12509334502501721130",
+        "2893351777080231982",
+        "9699436697250180411",
+        "12356725084726905797",
+        "8059960734431469839",
+        "2447757669338619803",
+        "14127372366720044035",
+        "17640086711476709467",
+        "18309652639907103419",
+        "17910510631513114654"
       ]
     },
     "saturated_representable": {

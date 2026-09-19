@@ -445,6 +445,38 @@ def _recount(cells: "tuple[str, ...]") -> "dict[str, int]":
     }
 
 
+def _as_published(got: "dict[str, int]", floor: int) -> "dict[str, int]":
+    """A recount with its six absorbed counts read as the producer reads them.
+
+    A declared record number publishes its four classes under invariant
+    X2 and its two alphabets through `parsing.absorbed_total` (plans
+    P4-D277 and P4-D298), so the count a twin owes is the one describing
+    it again publishes -- the reading `synthtwin validate` makes -- and
+    not the raw recount. Every other count is left as recounted.
+    """
+    read = dict(got)
+    parts = parsing.absorbed_parts(
+        [
+            got["n_numeric"],
+            got["n_out_of_range"],
+            got["n_contradictory"],
+            got["n_not_numeric"],
+        ],
+        floor,
+    )
+    read["n_numeric"] = parts[0]
+    read["n_out_of_range"] = parts[1]
+    read["n_contradictory"] = parts[2]
+    read["n_not_numeric"] = parts[3]
+    read["n_all_digits"] = parsing.absorbed_total(
+        got["n_all_digits"], got["n_present"], floor
+    )
+    read["n_code_alphabet"] = parsing.absorbed_total(
+        got["n_code_alphabet"], got["n_present"], floor
+    )
+    return read
+
+
 def _published(column: contract.ColumnBlock) -> "dict[str, int]":
     """The same counts, as the description publishes them."""
     facts = column.facts
@@ -613,6 +645,15 @@ def test_the_battery_holds_its_folded_count_on_every_run(
     The battery asserts the folded count AND an empty deviation list,
     which is what makes a layout change that quietly gave one up visible
     to this suite at all.
+
+    THE SIX ABSORBED COUNTS ARE COMPARED AS PUBLISHED (plans P4-D277 and
+    P4-D298): case 88's one `6` is its only cell in figures alone, and at
+    the default floor `absorbed_total(1, 52, 1)` is nought -- `1 < 2`
+    and `2 * 1 < 52` -- so the block publishes `n_all_digits 0` while its
+    one-character number can only be written in figures. Its own values
+    are the conforming assignment the assertion below names, and they
+    hold one figure-only cell; `_as_published` reads a recount the way
+    the description was made, and each comparison stays an equality.
     """
     battery = _battery(tmp_path_factory)
     assert len(battery) >= 60, (
@@ -631,7 +672,9 @@ def test_the_battery_holds_its_folded_count_on_every_run(
         # is the design A-P3-12 clause 1 exists not to be -- and while
         # this walk read the folded count alone, such a trade was
         # invisible here.
-        got = _recount(twin.columns[0])
+        got = _as_published(
+            _recount(twin.columns[0]), described.settings.small_cell_floor
+        )
         want = _published(column)
         for field in sorted(want):
             if want[field] != got[field]:

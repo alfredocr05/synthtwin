@@ -6838,23 +6838,11 @@ def _published_reading_split(
     ]
     if role != ROLE_IDENTIFIER:
         return (parts[0], parts[1], parts[2], parts[3])
-    line = parsing.census_floor(cells.settings.small_cell_floor)
-    largest = 0
-    place = 0
-    for part in parts:
-        if part > parts[largest]:
-            largest = place
-        place = place + 1
-    taken = 0
-    kept = [0, 0, 0, 0]
-    place = 0
-    for part in parts:
-        if place != largest and 0 < part < line:
-            taken = taken + part
-        else:
-            kept[place] = part
-        place = place + 1
-    kept[largest] = kept[largest] + taken
+    # THE RULE IS STATED ONCE, in `parsing.absorbed_parts`, because the
+    # generator owes the partition as this publishes it and reads the
+    # same function to know which measured partitions it stands for
+    # (plan P4-D298).
+    kept = parsing.absorbed_parts(parts, cells.settings.small_cell_floor)
     return (kept[0], kept[1], kept[2], kept[3])
 
 

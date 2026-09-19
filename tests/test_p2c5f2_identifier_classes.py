@@ -503,15 +503,34 @@ def test_every_class_and_alphabet_count_is_written_exactly(
     names a layout it did not hold are counted and held to at most
     `LAYOUT_SHORT_RUNS`: a change that makes more of them short turns this
     red, and one that makes fewer asks for the number to be lowered.
+
+    THE SIX ARE RECOUNTED AS THE PRODUCER PUBLISHES THEM (plans P4-D277
+    and P4-D298). On a declared record number the four classes are
+    published under invariant X2 -- a part below the census line counted
+    into the largest -- and the two alphabets through
+    `parsing.absorbed_total`, so `case-16`'s fifteen `-463`, eight `-4`,
+    one `bLMQsN` and one `5e999` publish `n_numeric 25` and nothing else,
+    a partition its own cells do not hold. Each recount is therefore read
+    through the same two functions before it is compared -- the reading
+    `synthtwin validate` makes by describing the twin again -- and every
+    comparison stays an equality.
     """
     layout_short = 0
     for name, document, loaded in _battery(tmp_path_factory):
         column = document["columns"][0]
+        floor = loaded.settings.small_cell_floor
         for seed in SEEDS:
             twin = generation.generate(loaded, seed)
             counted = _classes(twin)
-            for field, reading_back in CLASS_FACTS:
-                assert counted.get(reading_back, 0) == column[field], (
+            read = parsing.absorbed_parts(
+                [
+                    counted.get(reading_back, 0)
+                    for _field, reading_back in CLASS_FACTS
+                ],
+                floor,
+            )
+            for place, (field, _reading_back) in enumerate(CLASS_FACTS):
+                assert read[place] == column[field], (
                     name, seed, field, column[field], counted
                 )
             present = [
@@ -525,8 +544,12 @@ def test_every_class_and_alphabet_count_is_written_exactly(
             code = len(
                 [one for one in present if one and parsing.is_code_text(one)]
             )
-            assert digits == column["n_all_digits"], (name, seed)
-            assert code == column["n_code_alphabet"], (name, seed)
+            assert parsing.absorbed_total(
+                digits, len(present), floor
+            ) == column["n_all_digits"], (name, seed)
+            assert parsing.absorbed_total(
+                code, len(present), floor
+            ) == column["n_code_alphabet"], (name, seed)
             # AND THE TWO THINGS THIS BATTERY DID NOT WATCH. It asserted
             # eleven published facts and neither the folded count nor
             # the report, so a change that met every count it named

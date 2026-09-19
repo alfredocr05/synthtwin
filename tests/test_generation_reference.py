@@ -192,6 +192,8 @@ gen_filled_form = gen.filled_form
 gen_numeric_content = gen._numeric_content
 gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
+gen_alphabet_readings = gen.alphabet_readings
+gen_identifier_readings = gen.identifier_readings
 
 
 
@@ -473,6 +475,11 @@ SIXTH_BRANCH_CASES = (
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
+    # THE READINGS OF AN ABSORBED COUNT (plan P4-D298): a published count
+    # the disclosure rule absorbed has no packing, and the method answers
+    # it with a reading the rule publishes the same way.
+    "free_text_absorbed_figures",
+    "identifier_absorbed_figure",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -563,6 +570,10 @@ SEEDS = {
     # The extra round's repair pass takes the next seeds after 192.
     "saturated_representable": 193,
     "unmarked_duplicates_first": 194,
+    # The readings of an absorbed count (plan P4-D298) take 210 onward,
+    # clear of every block in use.
+    "free_text_absorbed_figures": 210,
+    "identifier_absorbed_figure": 211,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -621,6 +632,7 @@ DECLARED_IDENTIFIERS = frozenset(
         "identifier_unnamed_partners",
         "identifier_column_prefix",
         "identifier_layout_prefixes",
+        "identifier_absorbed_figure",
     }
 )
 
@@ -2369,6 +2381,23 @@ def _no_layout_packing(*_arguments, **_keywords):
 
 
 CASE_MUTANTS = {
+    "free_text_absorbed_figures": Mutant(
+        branch="G9.5's packing against the READINGS of an absorbed count "
+        "(plan P4-D298); the mutant packs the published alphabet counts "
+        "alone, sixteen cells in figures beside fifteen numbers, and no "
+        "assignment of whole groups meets them",
+        attribute="alphabet_readings",
+        replacement=lambda column: gen_alphabet_readings(column)[:1],
+        outcome="no assignment of whole groups meets every quota",
+    ),
+    "identifier_absorbed_figure": Mutant(
+        branch="G9.6 built against the READINGS of an absorbed count (plan "
+        "P4-D298); the mutant builds the published counts alone, and a "
+        "one-character whole number outside the figures does not exist",
+        attribute="identifier_readings",
+        replacement=lambda column: gen_identifier_readings(column)[:1],
+        outcome="no assignment of whole groups meets every quota",
+    ),
     "unmarked_duplicates_first": Mutant(
         branch="plan P4-D265's visiting order for the distinct-spelling "
         "repair of G6.5; the mutant visits the duplicates in index order, "

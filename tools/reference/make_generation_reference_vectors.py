@@ -9001,8 +9001,25 @@ def _identifier_recount(column, content):
     measured["n_distinct_by_occurrences"] = {
         str(key).rjust(width, "0"): occurrences[key] for key in sorted(occurrences)
     }
+    # THE COUNTS X2 AND THE ALPHABET RULE ABSORB ARE MET AS PUBLISHED
+    # (plan P4-D298): by the measured count itself, or by what the rule
+    # prints for it.
+    read = dict(measured)
+    parts = [measured[name] for name in IDENTIFIER_CLASS_FIELDS]
+    published = [column[name] for name in IDENTIFIER_CLASS_FIELDS]
+    if parts != published:
+        for name, count in zip(
+            IDENTIFIER_CLASS_FIELDS,
+            absorbed_partition(parts, SMALL_CELL_FLOOR),
+        ):
+            read[name] = count
+    for name in ("n_all_digits", "n_code_alphabet"):
+        if measured[name] != column[name]:
+            read[name] = absorbed_count(
+                measured[name], measured["n_present"], SMALL_CELL_FLOOR
+            )
     for name, value in sorted(measured.items()):
-        if column[name] != value:
+        if column[name] != value and column[name] != read[name]:
             raise AssertionError(
                 f"the cells this oracle built recount {name} as {value!r} and "
                 f"the case publishes {column[name]!r}. The method requires the "
@@ -9128,6 +9145,39 @@ def opened_with_prefix(
 
 
 def _identifier_content(column):
+    """The content list of an identifier column, read as published (P4-D298).
+
+    Method G9.6: the column is built against its published counts
+    first, by `_identifier_content_as_read`.  Where that build says the
+    published counts have no answer -- no packing, no whole-number
+    spelling at a published length, or cells that recount one of the
+    counts a reading moves -- the readings `identifier_readings` offers
+    after it are built in order, and the first whose cells hold every
+    count AS THE DESCRIPTION PUBLISHES IT is the content.  Where none
+    does, the published build's own refusal stands.
+    """
+    try:
+        return _identifier_content_as_read(column)
+    except AssertionError as refusal:
+        if not any(said in str(refusal) for said in READING_REFUSALS):
+            raise
+        first = refusal
+    for classes, figures, code in identifier_readings(column)[1:]:
+        read = dict(column)
+        for name, count in zip(IDENTIFIER_CLASS_FIELDS, classes):
+            read[name] = count
+        read["n_all_digits"] = figures
+        read["n_code_alphabet"] = code
+        try:
+            content = _identifier_content_as_read(read)
+        except AssertionError:
+            continue
+        _identifier_recount(column, content)
+        return content
+    raise first
+
+
+def _identifier_content_as_read(column):
     """The content list of an identifier column -- method sections G9.2, G9.3, G9.6.
 
     The multiplicity map fixes the groups; the two published alphabet
@@ -10768,7 +10818,14 @@ def _free_text_recount(column, content):
         str(key).rjust(width, "0"): occurrences[key] for key in sorted(occurrences)
     }
     for name, value in sorted(measured.items()):
-        if column[name] != value:
+        if column[name] != value and not (
+            # AN ABSORBED COUNT IS MET AS THE BLOCK PUBLISHES IT (plan
+            # P4-D298): by every count the rule prints as the published
+            # one.
+            name in ("n_all_digits", "n_code_alphabet")
+            and absorbed_count(value, len(content), SMALL_CELL_FLOOR)
+            == column[name]
+        ):
             raise AssertionError(
                 f"the cells this oracle built recount {name} as {value!r} and "
                 f"the case publishes {column[name]!r}. The method requires the "
@@ -10811,6 +10868,171 @@ def _quantile(sorted_values, share):
     return F(sorted_values[below]) + (place - below) * (
         F(sorted_values[above]) - F(sorted_values[below])
     )
+
+
+# ------------------------------------ the readings of an absorbed count
+#
+# Plan P4-D298, written from the profile contract's own sentence on the
+# two alphabet counts ("where either side is below max(2,
+# `small_cell_floor`) the smaller is counted into the larger and the
+# count is published as nought or as every present cell") and from
+# invariant X2's on a declared record number's four classes ("a part
+# below max(2, `small_cell_floor`) is counted into the LARGEST part ...
+# ties to the first of the four").  A published count of either kind is
+# met by every count the rule publishes as it, since describing the twin
+# again is how a twin is held to it; the method packs the published
+# counts first and reaches another reading only where they have none.
+
+
+def census_line(floor):
+    """The smallest count a census prints: two, or the floor."""
+    return max(2, floor)
+
+
+def absorbed_count(count, population, floor):
+    """One alphabet count as the block publishes it (contract 6.9, P4-D277).
+
+    Printed as it is where it and what it leaves of the population each
+    reach the line or are nought; otherwise the smaller side is counted
+    into the larger, ties to the population.
+    """
+    line = census_line(floor)
+    rest = population - count
+    if count >= line and (rest == 0 or rest >= line):
+        return count
+    return population if 2 * count >= population else 0
+
+
+def counts_meeting(published, population, floor):
+    """Every count a twin may hold for one published count (P4-D298).
+
+    The published count itself first, then every other count from nought
+    to the population that `absorbed_count` publishes as it, in ascending
+    distance from it, ties to the smaller.
+    """
+    others = [
+        count
+        for count in range(population + 1)
+        if count != published
+        and absorbed_count(count, population, floor) == published
+    ]
+    return [published] + sorted(
+        others, key=lambda count: (abs(count - published), count)
+    )
+
+
+def alphabet_readings(column):
+    """The pairs of alphabet counts a column is packed against, in order.
+
+    Method G9.5 step 4 and G9.6, plan P4-D298: the published pair first;
+    then every other pair of a figures count and a code-alphabet count
+    each meeting its published count, the figures never more than the
+    code alphabet, in ascending order of the two differences summed, ties
+    by the figures count and then the code count, the smaller first.
+    """
+    present = column["n_present"]
+    digits = column["n_all_digits"]
+    coded = column["n_code_alphabet"]
+    others = []
+    for figures in counts_meeting(digits, present, SMALL_CELL_FLOOR):
+        for code in counts_meeting(coded, present, SMALL_CELL_FLOOR):
+            if figures > code or (figures, code) == (digits, coded):
+                continue
+            others.append(
+                (abs(figures - digits) + abs(code - coded), figures, code)
+            )
+    return [(digits, coded)] + [
+        (figures, code) for _moved, figures, code in sorted(others)
+    ]
+
+
+def absorbed_partition(parts, floor):
+    """A record number's four classes as invariant X2 publishes them.
+
+    A part below the line is counted into the largest part, ties to the
+    first of the four (contract X2, plan P4-D277).
+    """
+    line = census_line(floor)
+    largest = 0
+    for place, part in enumerate(parts):
+        if part > parts[largest]:
+            largest = place
+    kept = [
+        part if place == largest or not 0 < part < line else 0
+        for place, part in enumerate(parts)
+    ]
+    kept[largest] += sum(parts) - sum(kept)
+    return kept
+
+
+def identifier_readings(column):
+    """The class and alphabet counts a record number is built against (P4-D298).
+
+    Method G9.6: the published counts first; then every other pairing of
+    a partition X2 publishes as the published one (by brute force over
+    every partition of the present cells) with a pair of alphabet counts
+    from `alphabet_readings`, in ascending order of the six counts'
+    differences summed, ties by the partition's own difference, then the
+    partition itself, then the pair, each ascending.
+    """
+    classes = [column[name] for name in IDENTIFIER_CLASS_FIELDS]
+    present = column["n_present"]
+    partitions = []
+    for numbers in range(present + 1):
+        for large in range(present - numbers + 1):
+            for contradictory in range(present - numbers - large + 1):
+                parts = [
+                    numbers,
+                    large,
+                    contradictory,
+                    present - numbers - large - contradictory,
+                ]
+                if parts == classes or (
+                    absorbed_partition(parts, SMALL_CELL_FLOOR) == classes
+                ):
+                    partitions.append(parts)
+    pairs = alphabet_readings(column)
+    ranked = []
+    for parts in partitions:
+        moved = sum(abs(parts[place] - classes[place]) for place in range(4))
+        for figures, code in pairs:
+            if parts == classes and (figures, code) == pairs[0]:
+                continue
+            total = (
+                moved
+                + abs(figures - column["n_all_digits"])
+                + abs(code - column["n_code_alphabet"])
+            )
+            ranked.append((total, moved, tuple(parts), figures, code))
+    readings = [(tuple(classes), pairs[0][0], pairs[0][1])]
+    for _total, _moved, parts, figures, code in sorted(ranked):
+        readings.append((parts, figures, code))
+    return readings
+
+
+# The four class fields of a record number, in the contract's order.
+IDENTIFIER_CLASS_FIELDS = (
+    "n_numeric",
+    "n_out_of_range",
+    "n_contradictory",
+    "n_not_numeric",
+)
+
+# What a published reading's build says where another reading may answer
+# the description (plan P4-D298): no packing of the published counts, no
+# whole-number spelling at a published length, or cells recounting one of
+# the counts a reading moves.
+READING_REFUSALS = (
+    "no assignment of whole groups meets every quota",
+    "holds no whole-number spelling",
+    "recount n_numeric ",
+    "recount n_out_of_range ",
+    "recount n_contradictory ",
+    "recount n_not_numeric ",
+    "recount n_all_digits ",
+    "recount n_code_alphabet ",
+    "recount all_whole_numbers ",
+)
 
 
 def _free_text_content(column):
@@ -10864,11 +11086,65 @@ def _free_text_content(column):
         tuple((name, column[name]) for name in NOTATION_ORDER),
         tuple((band, quotas[band]) for band in IDENTIFIER_BANDS),
     )
+    published_margins = margins
     longest = column["length"]["max"]
     # THE TRUTH VALUES A WORKBOOK CENSUS COUNTS (plan P4-D198), handed to
     # this column under a private key by the case, which carries the
     # census in its own workbook block.
     truths = column.get("_truths", 0)
+    settled = None
+    first_packed = None
+    # THE PUBLISHED ALPHABET COUNTS FIRST, AND ANOTHER READING OF THEM
+    # ONLY WHERE NO SHAPE PACKS THOSE (plan P4-D298): the whole shape
+    # search below is asked of each reading in `alphabet_readings`'
+    # order, and the first reading any shape packs is the one taken.
+    for figures, code in alphabet_readings(column):
+        read = dict(column)
+        read["n_all_digits"] = figures
+        read["n_code_alphabet"] = code
+        quotas = _band_quotas(read)
+        margins = (
+            tuple((name, column[name]) for name in NOTATION_ORDER),
+            tuple((band, quotas[band]) for band in IDENTIFIER_BANDS),
+        )
+        settled, first_packed = _free_text_shaped(
+            column, groups, margins, longest, truths
+        )
+        if settled is not None or first_packed is not None:
+            break
+    if settled is None and first_packed is not None:
+        settled = first_packed
+    if settled is None:
+        # Every reading and every shape has been asked and none packs, so
+        # the refusal is a statement about the description. The first
+        # shape raises it, against the published counts.
+        carriers = _free_text_shapes(len(groups))[0]
+        lengths = _free_text_lengths(column, groups, carriers)
+        _free_text_words(column, groups, lengths, carriers)
+        _packed_grid(
+            [
+                (
+                    size,
+                    frozenset(
+                        (notation, band)
+                        for notation in NOTATION_ORDER
+                        for band in IDENTIFIER_BANDS
+                        if _free_text_permits(notation, band, length)
+                    ),
+                )
+                for size, length in zip(groups, lengths)
+            ],
+            published_margins,
+        )
+    return _free_text_written(column, groups, truths, settled)
+
+
+def _free_text_shaped(column, groups, margins, longest, truths):
+    """G9.5's shape search against ONE reading of the counts (P4-D298).
+
+    Returns the shape settled, and the first shape packed where a
+    workbook's truth values could not be spelled in any.
+    """
     settled = None
     first_packed = None
     for reach in (False, True):
@@ -10929,29 +11205,11 @@ def _free_text_content(column):
             break
         if settled is not None:
             break
-    if settled is None and first_packed is not None:
-        settled = first_packed
-    if settled is None:
-        # Every shape has been asked and none packs, so the refusal is a
-        # statement about the description. The first shape raises it.
-        carriers = _free_text_shapes(len(groups))[0]
-        lengths = _free_text_lengths(column, groups, carriers)
-        counts = _free_text_words(column, groups, lengths, carriers)
-        _packed_grid(
-            [
-                (
-                    size,
-                    frozenset(
-                        (notation, band)
-                        for notation in NOTATION_ORDER
-                        for band in IDENTIFIER_BANDS
-                        if _free_text_permits(notation, band, length)
-                    ),
-                )
-                for size, length in zip(groups, lengths)
-            ],
-            margins,
-        )
+    return settled, first_packed
+
+
+def _free_text_written(column, groups, truths, settled):
+    """The content list of a free-text column, from its settled shape."""
     carriers, lengths, counts, packed = settled
     # G9.5 STEP 3b's exchange out of the code band, then step 3c's
     # values written once kept as text (landing 2b.4, repair).
@@ -13794,6 +14052,89 @@ def _free_text_joint():
         "rows": 4,
         "identifier_declared": False,
         "claims": {**length_claims, **words_claims},
+    }
+
+
+def _free_text_absorbed_figures():
+    """G9.5's packing against a reading of the absorbed counts (P4-D298)."""
+    length, length_claims = {}, {}
+    # THE COLUMN THIS CASE DESCRIBES IS ITS OWN TWIN: `A`, five `10` and
+    # ten `0`.  At the case floor of eleven its fifteen figures-only cells
+    # stand one short of the sixteen present, so the contract's rule
+    # publishes sixteen; its sixteen code-alphabet cells are published as
+    # they are, and its fifteen numbers are free text's own count.
+    # Average 21/16, middle 1.
+    for name, text in (("mean", "1.3125"), ("p50", "1")):
+        field, claim = nearest_field(text)
+        length[name] = field
+        length_claims[("column", "length", name)] = claim
+    length["min"] = 1
+    length["max"] = 2
+    words, words_claims = {"min": 1, "max": 1}, {}
+    field, claim = nearest_field("1")
+    words["mean"] = field
+    words_claims[("column", "words", "mean")] = claim
+    column = _universal(
+        "column_1", "free_text", "text", "data", "ok",
+        n_present=16, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_numeric=15, n_not_numeric=1, n_out_of_range=0, n_contradictory=0,
+        length=length, words=words,
+        n_all_digits=16, n_code_alphabet=16,
+        n_distinct_by_occurrences={"01": 1, "05": 1, "10": 1},
+        # Three forms of one, five and ten cells, each below the floor of
+        # eleven, so the whole census is the pooled remainder.
+        shape_forms={"(withheld)": 16},
+    )
+    return {
+        "why": "G9.5's packing against a READING of the two absorbed "
+        "alphabet counts (plan P4-D298). The column publishes sixteen cells "
+        "in figures alone beside fifteen that read as numbers, because its "
+        "one cell outside the figures is below the floor and the contract "
+        "counts it into the larger side; twelve figures-only cells are "
+        "twelve numbers, so the published counts have no packing at all. "
+        "The method asks every shape of the published pair first and then "
+        "the pairs the rule publishes the same way, in order, and the "
+        "first of those -- fifteen in figures alone -- packs: the single "
+        "cell is text in the code alphabet and the two groups are numbers "
+        "in figures. Its mutant packs the published pair alone and no "
+        "assignment of whole groups meets it.",
+        "column": column,
+        "rows": 16,
+        "identifier_declared": False,
+        "claims": {**length_claims, **words_claims},
+    }
+
+
+def _identifier_absorbed_figure():
+    """G9.6 built against a reading of the absorbed counts (P4-D298)."""
+    column = _universal(
+        "column_1", "identifier", "code", "identifier", "ok",
+        n_present=21, n_missing=0, n_distinct=2, n_distinct_folded=2,
+        n_numeric=21, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        min_length=1, max_length=3, all_whole_numbers=True,
+        n_all_digits=0, n_code_alphabet=21,
+        n_distinct_by_occurrences={"01": 1, "20": 1},
+    )
+    return {
+        "why": "a declared identifier built against a READING of its "
+        "absorbed counts (plan P4-D298). One record number is a single "
+        "figure and twenty are three-character whole numbers in the code "
+        "alphabet, so at the case floor of "
+        "eleven the one cell in figures alone is below the line and the "
+        "contract publishes nought beside a shortest length of one -- and "
+        "every value a whole number. A one-character whole number is a "
+        "figure, so the published counts have no whole-number spelling at "
+        "that length: the method builds the published reading, finds that, "
+        "and builds the readings the rule publishes the same way in order. "
+        "The first, one cell in figures alone, answers every count as "
+        "published: the single group is the figure `1` at one character "
+        "and the group of twenty is the code band's `<digits>e0` at three. "
+        "Its mutant "
+        "builds the published reading alone and the oracle refuses the "
+        "column.",
+        "column": column,
+        "rows": 21,
+        "identifier_declared": True,
     }
 
 
@@ -20203,6 +20544,9 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "saturated_representable": _saturated_representable,
     # The distinct-spelling repair's visiting order (plan P4-D265).
     "unmarked_duplicates_first": _unmarked_duplicates_first,
+    # The readings of an absorbed count (plan P4-D298).
+    "free_text_absorbed_figures": _free_text_absorbed_figures,
+    "identifier_absorbed_figure": _identifier_absorbed_figure,
 }
 
 CASE_SETS = {
@@ -20393,7 +20737,12 @@ _SIXTH_BRANCH_ACCOUNT = (
     "-- G6.5a's last resort on the REPRESENTABLE grid, where the census "
     "names no fraction width at all (plan P4-D269), and G6.5's visiting "
     "order for the distinct-spelling repair, unmarked duplicates first "
-    "(plan P4-D265). They are computed by the same oracle "
+    "(plan P4-D265) -- and, beside those seven, the two cases of the "
+    "readings of an absorbed count (plan P4-D298): a column of free text "
+    "whose published figures count has no packing, answered by the "
+    "reading one cell short of it, and a declared record number whose "
+    "published counts have no whole-number spelling at its shortest "
+    "length, answered the same way. They are computed by the same oracle "
     "and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -20627,6 +20976,24 @@ GIVEN_WORDS = {
         160521001491911533, 10702506125747700096, 4814554069630885143,
         15150372085088450294, 6521254566465853015, 16807375705772830742,
         91691173470257007, 13740769129415587871, 14043504349668044876,
+    ),
+    # The readings of an absorbed count (plan P4-D298), at seeds 210 and
+    # 211, clear of every block in use.
+    "free_text_absorbed_figures": (
+        13316318172785330528, 12612768051273649992, 7654855424629311647,
+        11377133002239263856, 286928627445438427, 10444083081516265560,
+        7591583866571052041, 8510104961955015365, 14936753289887636254,
+        11510899732911205932, 5599454075072145761, 17302526093071363572,
+        17003801509682623626, 16066797410987928910, 13016704170208589345,
+    ),
+    "identifier_absorbed_figure": (
+        8240360817844785611, 6965855634901750618, 3868509980596075400,
+        11859100947156359913, 5986087207675986486, 18358326899417112486,
+        17147604379438059201, 10410101861854571204, 1951612982207171057,
+        11688285107737754557, 12509334502501721130, 2893351777080231982,
+        9699436697250180411, 12356725084726905797, 8059960734431469839,
+        2447757669338619803, 14127372366720044035, 17640086711476709467,
+        18309652639907103419, 17910510631513114654,
     ),
     # The visiting order of plan P4-D265, at seed 194.
     "unmarked_duplicates_first": (

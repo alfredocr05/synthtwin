@@ -3048,9 +3048,23 @@ def refusal_of(description: contract.Profile) -> str:
         if isinstance(facts, contract.IdentifierFacts) and (
             facts.all_whole_numbers
         ):
-            if facts.max_length == 1 and facts.n_all_digits < column.n_present:
+            # THE FIGURES COUNT IS READ AS IT WAS PUBLISHED (plan
+            # P4-D298): `n_all_digits` is absorbed, so the pair
+            # contradicts itself only where every count the producer
+            # publishes the same way does. `7` beside twenty `-3`
+            # publishes nought figures-only cells at a shortest length of
+            # one, and the table is its own witness.
+            readable = parsing.counts_absorbed_to(
+                facts.n_all_digits,
+                column.n_present,
+                description.settings.small_cell_floor,
+            )
+            most = facts.n_all_digits
+            for count in readable:
+                most = max(most, count)
+            if facts.max_length == 1 and most < column.n_present:
                 return REFUSAL_WHOLE_NUMBERS_NEED_ROOM
-            if facts.min_length == 1 and facts.n_all_digits == 0:
+            if facts.min_length == 1 and most == 0:
                 return REFUSAL_WHOLE_NUMBERS_NEED_ROOM
     return ""
 
