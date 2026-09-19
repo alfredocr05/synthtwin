@@ -11525,6 +11525,8 @@ naming ONE form is exempt, because its count IS `n_present -
 n_unparsed`, which the block prints two fields away -- thirteen moments
 at a floor of twenty are thirteen moments, and the document says so.
 
+**Decided by the owner, 2026-09-18:** "If makes no difference, don't loose your time" -- ACCEPTED. It makes none: `n_unparsed`, `n_present` and a one-form census are derivable from one another, so withholding `n_unparsed` alone would publish nothing less. RM3's one-form exemption stands (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### P4-D251 The placeholder pass reads a slashed pair the way the classifier reads it
 
 **The defect** (item 2). `taxonomy._remainder_reading` walked the format
@@ -12324,6 +12326,8 @@ case, and the oracle's order of refusals was changed so a candidate a
 character rule refuses is refused before the check of what the file can
 state is asked of it -- `+00`, which no form was worn by, used to stop the
 oracle rather than be refused.
+
+**Decided by the owner, 2026-09-18:** "Rare values: ok. Fine" -- ACCEPTED. The held-back ladder may rebuild held-back rare values the published facts pin, and item 5's form fidelity is kept (the owner decisions of 2026-09-18 at the end of this plan).
 
 ### P4-D269 A saturated representable grid is filled in order
 
@@ -16584,6 +16588,8 @@ furniture is the header — because answering that wrongly costs a row's
 PLACE and never its publication. **After:** 121 records and placeholder
 names with the pane and without it alike.
 
+**Decided by the owner, 2026-09-18,** on the autofilter left as the one door to a published header ("What was NOT changed, and why", item 1, below): "sounds minimal issue. I wouldn't care" -- ACCEPTED, and clause 5a of P4-D232 stands (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### P4-D282 A competing delimiter need not agree about the width (BLOCKER)
 
 `dialect.delimiter_reading`. P4-D110 recorded a competing candidate only
@@ -16908,6 +16914,8 @@ from ordinary identifier columns whose figures are only as wide as the
 count needs — a fidelity decision and a bearing on ruling 1, not a
 defect this pass may settle. Put to the owner with the four rows above.
 
+**Decided by the owner, 2026-09-18:** "Identifier room: no worries. Fine" -- ACCEPTED. The threshold stays `n_distinct + floor`, so real record numbers can reach the twin where a declared identifier's layout has little spare room, and where it has none (for example `100`-`999` declared) all 900 reach it (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### P4-D271 The pool's exception is measured against the PUBLISHED ROWS
 
 The extra review round of 2026-09-18, blocking item 3. P4-D239 bounded
@@ -16993,6 +17001,8 @@ those numbers: should the presence split clear `census_floor` like the
 other censuses? If yes it is one call to `parsing.census_nameable` at
 the split; if no, the exception belongs in the contract, which is where
 the repair pass wrote it.
+
+**Left as is, 2026-09-18.** The question was answered for the owner: making the presence split clear `census_floor` would withhold the missing counts of every column. The exception stays where the contract writes it (the owner decisions of 2026-09-18 at the end of this plan).
 
 ### P4-D272 A value carrying a FIGURE is no evidence that the first row is names
 
@@ -17202,6 +17212,8 @@ it measured 186 misses in 72 twins down to 65, with four columns newly
 missing their count, so it is a trade between two published obligations
 and is left to the owner.
 
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule** (judge by effect on code and results; where there is none, spend no time): the column-wide fill's trade on point-free grids stays as measured above. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### P4-D275 EVERY spelling below the floor is counted into the level's commonest
 
 The extra review round of 2026-09-18, item 5. P4-D240 wrote the rule for
@@ -17266,6 +17278,8 @@ floor, as W5b refuses the key `1` and as P5, P6 and P6c refuse a pool
 beside a named count (P4-D222)? If so, those guards lose their route
 and must be re-armed at the loader's refusal; if not, it is an accepted
 limit and wants a test witnessing the MISSED.
+
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** W5 keeps accepting a hand-written withheld map at a raised floor, which no producer writes. The guards keep their route. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
 
 ### P4-D275.1 The form census counts the spellings the level entries speak of
 
@@ -17376,6 +17390,8 @@ a column of measurements publishes its `n_not_numeric` beside a form
 census checked against it — so moving them there is a change to what
 those roles mean rather than a disclosure repair. It is put to the
 owner.
+
+**Left as is, 2026-09-18.** The owner asked how free text's `n_numeric` of one affects code and statistics. The answer given was that it affects neither, and that closing it would move every numeric column's description (the owner decisions of 2026-09-18 at the end of this plan).
 
 ### P4-D278 A date's width census is held against the PARSED cells
 
@@ -17690,6 +17706,8 @@ else wrote can, and the validator would still describe it as holding
 dates. Whether the reader should refuse a date cell that names no day —
 which is a change to what synthtwin ACCEPTS, not to what it writes — is
 a decision and not a repair, so it is left here rather than taken.
+
+**Decided by the owner, 2026-09-18,** on the reader accepting a date cell that names no day: "wouldn't be worried about" -- ACCEPTED, and the reader is unchanged (the owner decisions of 2026-09-18 at the end of this plan).
 
 ### P4-D292 A headerless table with nothing above it stops publishing its first record
 
@@ -18032,6 +18050,8 @@ costs a landing with an oracle mirror and a frozen case, and the twin is
 correct at every published fact today — it simply holds no spread of
 fractions where the real table has one.
 
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** a subsecond column keeps its digits written as nought, with the DEVIATION in the twin's report. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### P4-D297 What the delimiter answer costs is said in the answer
 
 The merge skeptic's second MINOR, and the half of it that can be paid
@@ -18167,6 +18187,8 @@ case is frozen for them, and a description a cap answers differently
 would need the caps written in the oracle before its case could be
 added.
 
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** a declared record number's class counts may show that one record below the line exists, never its value, and stay as they are. This is not an owner ruling, and the owner may reverse it. The `(-%)` layout miss above stays OPEN (the owner decisions of 2026-09-18 at the end of this plan).
+
 ### K-P3-03 A numeric twin's spread is too wide because G5.3 draws the outer tail straight, and the G12.3 window is drawn from the same line
 
 **The defect.** Method G5.3 reads the hundred-and-one-rung ladder as a
@@ -18286,3 +18308,37 @@ the `moments.std` window's midpoint is the spread of the generator's
 own reading, so a repair of G5.3 alone, or of G12.3 alone, turns it
 red. No verdict count is pinned, because it moves with G12.3; the
 ledger's 19 of 1,021 is re-derived by the driver.
+
+**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread within 2.2 per cent on both sides. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
+## Owner decisions of 2026-09-18
+
+The owner's own words are quoted where the owner gave them. Calls the
+orchestrator made under the owner's rule are marked as such, and the
+owner may reverse any of them. That rule is to judge by the effect on
+code and on results, and to spend no time where there is none.
+
+| Item | Status | Entry |
+|---|---|---|
+| Identifier room: real record numbers reach the twin where a declared identifier has little spare room, and all of them where it has none (`100`-`999` declared: all 900) | ACCEPTED by the owner: "Identifier room: no worries. Fine" | P4-D270 |
+| Held-back rare values the twin can rebuild | ACCEPTED by the owner: "Rare values: ok. Fine" | P4-D268 |
+| Free text's `n_numeric` of one | LEFT AS IS. The owner asked how it affects code and statistics; the answer was neither, and closing it would move every numeric column's description | P4-D277 |
+| An autofilter alone publishes a header | ACCEPTED by the owner: "sounds minimal issue. I wouldn't care" | P4-D281 |
+| `n_unparsed` beside a one-form census | ACCEPTED by the owner: "If makes no difference, don't loose your time" (it makes none) | P4-D250 |
+| A pooled label's `n_missing` of one | LEFT AS IS. Answered: closing it would withhold missing counts on every column | P4-D271 |
+| A date cell naming no day is read as it comes | ACCEPTED by the owner: "wouldn't be worried about" | P4-D291 |
+| Subsecond digits written as nought | Orchestrator's call under the owner's rule | P4-D296 |
+| W5 accepts hand-written withheld maps at a raised floor (no producer writes them) | Orchestrator's call under the owner's rule | P4-D275 |
+| A declared record number's class counts show that one record below the line exists, never its value | Orchestrator's call under the owner's rule | P4-D298 |
+| The column-wide fill's trade on point-free grids | Orchestrator's call under the owner's rule | P4-D274 |
+| Spread 1.4-3.7 per cent too wide on normal-shaped columns | DEFERRED to stage 3 by the orchestrator, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3") | K-P3-03 |
+
+**Open, and needing no ruling:** the three- and four-number readings
+(ledger K-P4-06). The recorded target is 550 outside and 0 missed. The
+integrated tree of 2026-09-19 measures 609 and 3, where e53d5f4 measured
+597 and 7; G6.5a's push made the move, and the pairing walk is the open
+cause. Also open are the carried width, band and layout defects:
+P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
+G5.2 band split, `build_document`'s read floor (documented, not
+enforced) and the unmirrored G6.6 and G6.7. The KPI ledger carries each
+of them with a must-not-get-worse ceiling.
