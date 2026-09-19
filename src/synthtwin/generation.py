@@ -8965,36 +8965,41 @@ def _absent_cells(
     handed to a reader -- did something on the real table and nothing
     at all on the twin.
 
-    Three parts, and the exception is the whole of the second:
+    Two parts:
 
     1. each `missing_by_source` spelling at exactly its published
-       count, EXCEPT a spelling a judged pass put there;
-    2. every other absent cell empty -- the blank count, the withheld
-       remainder, and every judged-pass-sourced cell;
-    3. in a fixed sorted order, so the permutation that places
-       everything else places these too and the bytes stay a pure
-       function of the description and the seed.
+       count, a spelling a judged pass put there included;
+    2. every other absent cell empty -- the blank count and the
+       withheld remainder -- in a fixed sorted order, so the
+       permutation that places everything else places these too and
+       the bytes stay a pure function of the description and the seed.
 
-    WHY A JUDGED PASS'S CELLS STAY BLANK (C6-116). A reproduced TEXT
-    spelling reads back as absence by a fixed rule of the description
-    alone -- it is a member of the published vocabulary, or a value the
-    person named -- and that reading does not depend on the twin's own
-    values. A stand-in NUMBER and a calendar PLACEHOLDER are that
-    rule's named exclusions: the absence reading of both runs through
-    the producer's outlier-and-share judgement over the measured file's
-    own values, which a twin's generated distribution is not
-    guaranteed to re-fire. Reproducing them would make the twin's own
-    measurement contingent on a re-judgement. Nothing is lost by it:
-    the twin's report names those cells, per column.
+    A JUDGED PASS'S CELLS ARE WRITTEN AS THE SOURCE WROTE THEM (the
+    owner's ruling of 2026-09-15, plan P4-D6.4, which supersedes
+    P4-D6.1's exception). They were written blank, for the reason C6-116
+    used to give: the absence reading of a stand-in number or a calendar
+    placeholder runs through the producer's outlier-and-share judgement,
+    which a twin's own values need not fire again. What that cost was
+    measured on the shared every-role table: its `reading` column holds
+    thirteen `-999` cells and no blank, the twin held thirteen blanks, and
+    pandas read the real column as `int64` and the twin's as `float64`
+    at four seeds and at floors of one and eleven -- so
+    `df.reading.astype(int)` and `df.reading == -999` behaved differently
+    on the twin and on the table. The judgement is no longer the twin's
+    to fire: the validator reads a spelling the description's own
+    verdict names as absent in that column (validation method
+    V2.4-A8, amended by P4-D6.4), so the cells come back as the source
+    wrote them at no cost to the twin's measurement. A judged spelling
+    below the floor is not a key of `missing_by_source` and is written
+    with the withheld remainder, exactly like any other.
 
     Guarantees: accepts one loaded column block; returns exactly
     `n_missing` cells. Determinism: a fixed function of the block.
-    Raises nothing. No I/O of any kind.
+    Raises nothing. No I/O of any kind. ``decimal_comma`` is no longer
+    consulted, and is kept because every caller has it in hand.
     """
     written: list[str] = []
     for spelling in sorted(column.missing_by_source):
-        if _a_judged_pass_put_it_there(column, spelling, decimal_comma):
-            continue
         for _each in range(column.missing_by_source[spelling]):
             written += [spelling]
     while len(written) < column.n_missing:
@@ -9004,18 +9009,24 @@ def _absent_cells(
 
 def spellings_the_twin_reproduces(
     column: contract.ColumnBlock, profile: contract.Profile
-) -> "tuple[tuple[str, ...], tuple[str, ...]]":
-    """Which absent spellings the twin WRITES, and which it leaves blank.
+) -> "tuple[str, ...]":
+    """Which absent spellings the twin WRITES.
 
     THE SPLIT THE TWIN'S OWN REPORT NEEDS (residual R-P4-70). Version 5
     wrote every absent cell empty, and the report said so in one
     sentence. Version 6 writes each published `missing_by_source`
-    spelling at its count and keeps only the judged passes' cells blank
-    (C6-115, C6-116) -- and that sentence was not moved with the rule,
-    so the report told a researcher their own `NA`, `-9.99` or
-    `Not recorded` had stayed behind in the description while the twin
-    they were about to move held it, character for character, at its
-    published count.
+    spelling at its count (C6-115) -- and that sentence was not moved
+    with the rule, so the report told a researcher their own `NA`,
+    `-9.99` or `Not recorded` had stayed behind in the description while
+    the twin they were about to move held it, character for character,
+    at its published count.
+
+    EVERY KEY, SINCE PLAN P4-D6.4. Until then a key a judged pass put
+    there was left blank and this returned it in a second tuple; the
+    owner's ruling of 2026-09-15 has the twin write it as the source
+    wrote it, so no key is left out and there is no second tuple to
+    return. The blank cells a column still has -- its blank count and
+    its withheld remainder -- have no spelling and are not keys.
 
     It is published here rather than recomputed in the renderer because
     it is the WRITE rule: `_absent_cells` decides what the twin holds,
@@ -9025,25 +9036,17 @@ def spellings_the_twin_reproduces(
     Guarantees:
 
     - Inputs: one loaded column block and the description it came from.
-    - Determinism: a fixed function of the two, both tuples sorted, so
-      the report's bytes stay a pure function of the description.
+    - Determinism: a fixed function of the two, sorted, so the report's
+      bytes stay a pure function of the description.
     - Errors raised: none.
     - Boundary: reads the description only. No table, no file, no
       clock, no random source.
-
-    Returns the reproduced spellings first and the ones left blank
-    second. A spelling in neither tuple does not exist: every key of
-    `missing_by_source` is in exactly one of them.
     """
-    comma = _declared_a_decimal_comma(column, profile)
     reproduced: list[str] = []
-    left_blank: list[str] = []
     for spelling in sorted(column.missing_by_source):
-        if _a_judged_pass_put_it_there(column, spelling, comma):
-            left_blank += [spelling]
-        else:
+        if column.missing_by_source[spelling] > 0:
             reproduced += [spelling]
-    return tuple(reproduced), tuple(left_blank)
+    return tuple(reproduced)
 
 
 def _a_judged_pass_put_it_there(
@@ -34670,6 +34673,14 @@ def _numeric_supply(
     what was written: a twin that wrote one spelling where its own cells
     could have carried two leaves the bound, which is what makes the
     bound able to fail.
+
+    ``written`` is the column's PRESENT cells, `_present_of` asked by the
+    caller: a cell wearing a published hole spelling is no value and
+    supplies no spelling. It was every non-blank cell, which is the
+    question `_present_of` exists to stop a recount asking, and it
+    showed once plan P4-D6.4 wrote a judged `-999` back: the report's
+    window for the demonstration's `reading` read 178 to 179 while the
+    validator's, over the same twin, read 178 to 178.
     """
     present = [cell for cell in written if cell != ""]
     named: dict[int, int] = {}
@@ -34739,7 +34750,9 @@ def _numeric_cardinalities(
         return []
     facts = _quantitative_facts(column)
     supply = _numeric_supply(
-        layout, written, facts.pad_widths if facts is not None else {}
+        layout,
+        _present_of(written, _hole_spellings(column)),
+        facts.pad_widths if facts is not None else {},
     )
     counted = _recounted(written, _hole_spellings(column))
     found: list[Approximation] = []

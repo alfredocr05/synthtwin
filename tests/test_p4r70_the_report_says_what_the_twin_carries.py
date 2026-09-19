@@ -9,8 +9,9 @@ wrote them is here rather than in the twin", and the section heading
 above it named those spellings among the things "no twin can carry".
 Both were true of contract version 5. **P4-D6.1 closed residual R-P2-2**
 -- version 6 writes each published `missing_by_source` spelling into
-the twin at its count, keeping blank only what a judged pass put there
-(C6-115, C6-116) -- and neither sentence moved with the rule.
+the twin at its count (C6-115) -- and neither sentence moved with the
+rule. It kept blank what a judged pass put there until plan P4-D6.4,
+which writes that too, as the source wrote it.
 
 So a researcher was told their own `NA`, `-9.99` or `Not recorded` had
 stayed behind in the description, while the twin they were about to
@@ -18,9 +19,8 @@ move held it at its published count, character for character. The
 whole five-file handling rule this project states everywhere rests on
 a person knowing which file carries what.
 
-**WHY THE SPLIT IS ASKED OF THE GENERATOR.** Which of the two a
-spelling is, is the WRITE rule -- `missing_by_source` against the
-judged-pass exception -- so the report asks
+**WHY THE SPLIT IS ASKED OF THE GENERATOR.** Which spellings the twin
+holds is the WRITE rule, so the report asks
 `generation.spellings_the_twin_reproduces` rather than working the
 same question out a second way. A report that re-derived it could
 disagree with the file it describes.
@@ -37,11 +37,12 @@ def _built(
     folder: pathlib.Path,
     values: "list[str]",
     declared: "list[str] | None" = None,
+    text: str = "",
 ) -> "tuple[contract.Profile, generation.Twin]":
     table = fixtures.write(
         folder,
         "t.csv",
-        fixtures.single_column_table("reading", values),
+        text or fixtures.single_column_table("reading", values),
     )
     from synthtwin import reading as reading_module
 
@@ -75,6 +76,19 @@ def _judged_column(folder: pathlib.Path) -> "tuple[contract.Profile, generation.
     return _built(folder, values)
 
 
+def _blank_column(folder: pathlib.Path) -> "tuple[contract.Profile, generation.Twin]":
+    """Twenty empty cells and nothing else absent: no spelling to carry.
+
+    Written by hand because a one-column table's empty cell has to be
+    quoted to be a record rather than a blank line.
+    """
+    lines = [
+        '""' if index % 6 == 0 else f"{10 + index % 80}"
+        for index in range(120)
+    ]
+    return _built(folder, [], text="reading\n" + "\n".join(lines) + "\n")
+
+
 def test_a_spelling_the_twin_carries_is_not_called_left_behind(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -96,22 +110,30 @@ def test_a_spelling_the_twin_carries_is_not_called_left_behind(
     assert "-9.99: 20 cell(s) -- the twin writes this spelling in all of them" in said
 
 
-def test_a_spelling_a_judged_pass_put_there_is_still_called_blank(
+def test_a_spelling_a_judged_pass_put_there_is_written_and_said_to_be(
     tmp_path: pathlib.Path,
 ) -> None:
-    """C6-116's case, which the old sentence fitted and still does.
+    """The case the old sentence fitted, until plan P4-D6.4.
 
     This is the half that kept the defect alive: the one shape the
-    reports were usually read on was the one the sentence was true of.
+    reports were usually read on was the one the sentence was true of --
+    a judged `-999` stand-in, which C6-116 wrote blank. The owner's
+    ruling of 2026-09-15 has the twin write it as the table wrote it, so
+    the report says what it says of every other spelling, and the
+    stand-in section's heading no longer says the twin does not
+    reproduce it.
     """
     loaded, twin = _judged_column(tmp_path)
     column = loaded.columns[0]
     assert column.missing_by_source.get("-999") == 20
     cells = rendering.twin_csv(twin)
-    assert "-999" not in cells, "C6-116 keeps a judged stand-in blank"
+    assert cells.split("\n").count("-999") == 20
     said = _report(loaded, twin)
-    assert "The twin writes every one of them as an empty cell" in said
-    assert "-999: 20 cell(s) -- the twin leaves these cells empty" in said
+    assert "The twin writes every one of them as an empty cell" not in said
+    assert "The twin WRITES every one of these cells the way your table" in said
+    assert "-999: 20 cell(s) -- the twin writes this spelling in all of them" in said
+    assert "the twin leaves these cells empty" not in said
+    assert "does not reproduce" not in said
 
 
 def test_the_report_and_the_write_rule_cannot_disagree(
@@ -130,13 +152,11 @@ def test_the_report_and_the_write_rule_cannot_disagree(
         loaded, twin = build(folder)
         column = loaded.columns[0]
         cells = rendering.twin_csv(twin)
-        reproduced, left_blank = generation.spellings_the_twin_reproduces(
-            column, loaded
-        )
+        reproduced = generation.spellings_the_twin_reproduces(column, loaded)
         said = _report(loaded, twin)
         for spelling in reproduced:
             count = column.missing_by_source[spelling]
-            assert cells.count(spelling) >= count, (
+            assert cells.split("\n").count(spelling) == count, (
                 f"the report says the twin writes {spelling!r} and the "
                 f"twin does not hold it {count} times"
             )
@@ -144,15 +164,10 @@ def test_the_report_and_the_write_rule_cannot_disagree(
                 f"{spelling}: {count} cell(s) -- the twin writes this "
                 f"spelling in all of them"
             ) in said
-        for spelling in left_blank:
-            count = column.missing_by_source[spelling]
-            assert (
-                f"{spelling}: {count} cell(s) -- the twin leaves these "
-                f"cells empty"
-            ) in said
-        assert set(reproduced) | set(left_blank) == set(
-            column.missing_by_source
-        ), "every published spelling is in exactly one of the two"
+        assert set(reproduced) == set(column.missing_by_source), (
+            "every published spelling is written, a judged pass's "
+            "included (plan P4-D6.4)"
+        )
 
 
 def test_the_section_heading_no_longer_calls_them_uncarried(
@@ -178,12 +193,16 @@ def test_the_heading_says_it_only_where_it_is_true(
     """One page may not give two answers to one question.
 
     Printed flatly, the carried-spellings paragraph would tell the
-    reader of a table whose holes are all judged stand-ins that their
-    twin carries spellings, while every column block under it said the
-    opposite. It is printed only where some column of THIS description
-    has a spelling the twin writes.
+    reader of a table whose holes are all blank that their twin carries
+    spellings, while every column block under it said the opposite. It
+    is printed only where some column of THIS description has a
+    spelling the twin writes. (This was witnessed on a column of judged
+    stand-ins until plan P4-D6.4 made the twin write those; a column of
+    empty cells is the shape it is still true of.)
     """
-    loaded, twin = _judged_column(tmp_path)
+    loaded, twin = _blank_column(tmp_path)
+    assert loaded.columns[0].n_missing == 20
+    assert not loaded.columns[0].missing_by_source
     said = _report(loaded, twin)
     assert "CARRIES some of those spellings" not in said, (
         "nothing travels out of this description, so the page may not "

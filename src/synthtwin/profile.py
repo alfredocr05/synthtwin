@@ -2703,8 +2703,8 @@ def _published_form(
         block = columns[order - 1]
         # EVERY ABSENT CELL THE TWIN WRITES EMPTY, counted the way the
         # generator decides it (plan P4-D173): the column's absent cells
-        # less the spellings it reproduces, where a judged pass's
-        # spellings are not reproduced (contract C6-116). It used to be
+        # less the spellings it reproduces -- every one of them, a judged
+        # pass's included since plan P4-D6.4. It used to be
         # the blank and pooled counts with the judged cells added, which
         # left out every absent cell no field names -- measured: a sorted
         # free-text column with twenty `--missing-value ZZZ` cells
@@ -2720,7 +2720,6 @@ def _published_form(
                 held = spellings[spelling]
                 if isinstance(held, int):
                     reproduced = reproduced + held
-        reproduced = reproduced - _judged_cells(block)
         written_empty = -1
         if isinstance(absent_cells, int):
             written_empty = absent_cells - reproduced
@@ -2738,58 +2737,6 @@ def _published_form(
     return form
 
 
-def _judged_spellings(block: "dict[str, object]") -> "list[str]":
-    """The `missing_by_source` spellings a `read_as_missing` verdict names."""
-    verdicts = block["sentinel_verdicts"] if "sentinel_verdicts" in block else []
-    if not isinstance(verdicts, list):
-        return []
-    named: list[str] = []
-    for verdict in verdicts:
-        if not isinstance(verdict, dict) or "verdict" not in verdict:
-            continue
-        if verdict["verdict"] != taxonomy.VERDICT_MISSING:
-            continue
-        found = verdict["spellings"] if "spellings" in verdict else []
-        if not isinstance(found, list):
-            continue
-        for spelling in found:
-            if isinstance(spelling, str) and spelling not in named:
-                named += [spelling]
-    return named
-
-
-def _judged_cells(block: "dict[str, object]") -> int:
-    """How many absent cells of a column block a judged pass took.
-
-    The cells of every `missing_by_source` spelling a `read_as_missing`
-    verdict names, which are the cells the generator writes empty
-    (contract C6-116). Read off the block as published, so the rule that
-    drops a row order and the loader's FD7 count the same cells.
-    """
-    spellings = block["missing_by_source"] if "missing_by_source" in block else {}
-    verdicts = block["sentinel_verdicts"] if "sentinel_verdicts" in block else []
-    if not isinstance(spellings, dict) or not isinstance(verdicts, list):
-        return 0
-    named: list[str] = []
-    for verdict in verdicts:
-        if not isinstance(verdict, dict) or "verdict" not in verdict:
-            continue
-        if verdict["verdict"] != taxonomy.VERDICT_MISSING:
-            continue
-        found = verdict["spellings"] if "spellings" in verdict else []
-        if not isinstance(found, list):
-            continue
-        for spelling in found:
-            if isinstance(spelling, str) and spelling not in named:
-                named += [spelling]
-    total = 0
-    for spelling in named:
-        count = spellings[spelling] if spelling in spellings else 0
-        if isinstance(count, int):
-            total = total + count
-    return total
-
-
 def _published_workbook(
     table: Table,
     floor: int,
@@ -2800,7 +2747,8 @@ def _published_workbook(
 
     EACH COLUMN'S CENSUS COUNTS WHAT ITS TWIN WRITES (plan P4-D174). The
     twin writes an absent cell empty unless its spelling is one the
-    column publishes and reproduces (contract C6-115, C6-116), so a
+    column publishes, and it reproduces every one of those (contract
+    C6-115; a judged pass's too since plan P4-D6.4), so a
     workbook cell holding three spaces, `NA` or a declared missing value
     whose spelling the floor held back comes back from the twin as a cell
     holding nothing. The census counted it as the text it was, the twin
@@ -2808,8 +2756,8 @@ def _published_workbook(
     `workbook.cell-classes` while the source passed -- measured on a
     column of a hundred labels, one of them three spaces, at a floor of
     five. So the spellings the twin writes empty are handed over, read
-    off the column blocks as published by the rule `_judged_cells` and
-    FD7 share, and such a cell is counted absent on both files alike.
+    off the column blocks as published by the rule FD7 shares, and such
+    a cell is counted absent on both files alike.
     """
     if table.book is None or table.sheet is None:
         return None
@@ -2824,9 +2772,6 @@ def _published_workbook(
             for spelling in sorted(spellings):
                 if isinstance(spelling, str):
                     reproduced[spelling] = True
-        for spelling in _judged_spellings(block):
-            if spelling in reproduced:
-                del reproduced[spelling]
         held = absent_spellings[index] if index < len(absent_spellings) else ()
         written_empty: "list[str]" = []
         for spelling in held:
@@ -2938,6 +2883,7 @@ def build_document(
     forced_metadata_rows: int = 0,
     forced_delimiter: str = "",
     kept_placeholder_days: "dict[str, tuple[str, ...]] | None" = None,
+    judged_candidates: "dict[str, tuple[str, ...]] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -2987,6 +2933,13 @@ def build_document(
       nothing, so this is how the checked file keeps what the description
       kept, column by column and no wider. `synthtwin profile` never
       passes it.
+    - ``judged_candidates`` is the validator's too, and the other side
+      of the same hand-over: per column, the stand-in numbers and
+      placeholder days the description it checks against published as
+      `read_as_missing` there (plan P4-D6.4). The twin writes those
+      cells as the source wrote them, and this is how the checked file
+      reads them as the description did without its own values having
+      to fire the judgement again. `synthtwin profile` never passes it.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
@@ -3002,6 +2955,9 @@ def build_document(
     read_as_pairs = [] if described_pairs is None else described_pairs
     kept_days: "dict[str, tuple[str, ...]]" = (
         {} if kept_placeholder_days is None else kept_placeholder_days
+    )
+    judged_here: "dict[str, tuple[str, ...]]" = (
+        {} if judged_candidates is None else judged_candidates
     )
     # REFUSED AT THE PRODUCER, so that every path is covered and not
     # only the command line (R-P4-54; review item P4-G3-R8-F2). A
@@ -3048,6 +3004,7 @@ def build_document(
             name in declared_commas,
             name in read_as_pairs,
             kept_days[name] if name in kept_days else (),
+            judged_here[name] if name in judged_here else (),
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]

@@ -592,11 +592,6 @@ _BEYOND_STEPS_SAID = (
     "anything after the point"
 )
 
-_JUDGED_PASS_SAID = (
-    "**A spelling a JUDGED PASS put there** (P4-D6.1, contract C6-116) "
-    "is REPORT-ONLY for that key"
-)
-
 REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
 # `missing_by_source` STOPPED BEING REPORT-ONLY at version 6 (plan
 # P4-D6.1, contract C6-115 and its 9.2 row). Version 5 wrote every
@@ -604,12 +599,12 @@ REGISTRY += _facts("universal", REPORT_ONLY, "missing_by_class")
 # twin writes each spelling at its published count and the field is
 # recounted from the written cells like any other exact fact.
 #
-# The exception is the judged passes'. A key a stand-in number or a
-# calendar placeholder put there stays blank in the twin, for the
-# reason C6-116 gives -- reproducing it would make the twin's own
-# measurement contingent on a re-judgement -- and for THAT key the
-# field is report-only, with the achieved zero named beside the
-# published count.
+# The judged passes' exception is WITHDRAWN (plan P4-D6.4, the owner's
+# ruling of 2026-09-15). A key a stand-in number or a calendar
+# placeholder put there was written blank and was report-only for that
+# key; the twin now writes it as the source wrote it, the validator
+# reads it as absent by the description's own verdict, and every key is
+# recounted like any other. So the fact carries no authorization.
 REGISTRY += [
     Fact(
         "universal",
@@ -618,9 +613,6 @@ REGISTRY += [
         plan_region="holes",
         plan_words="each `missing_by_source` spelling at exactly its "
         "count",
-        authorized=(
-            ("judged", _JUDGED_PASS_SAID),
-        ),
     )
 ]
 # The two counts contract version 5 moved out of `missing_by_source`
@@ -1768,11 +1760,6 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
         "raw-versus-folded",
         APPROXIMATED,
     ),
-    # The one authorization the version 6 write rule carries: a
-    # spelling a JUDGED PASS put there stays blank in the twin, so for
-    # THAT key the field is report-only with the achieved zero named
-    # beside the published count (plan P4-D6.1, contract C6-116).
-    ("universal", "missing_by_source", "judged"): ("holes", REPORT_ONLY),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.

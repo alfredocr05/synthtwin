@@ -17,7 +17,10 @@ before it from the descriptions the producer writes of their tables.
 They came here as the paragraph below says the next cases go, and the
 file then stood at 150714 bytes -- and for the two the readings of an
 absorbed count added (plan P4-D298), `free_text_absorbed_figures` and
-`identifier_absorbed_figure`, which bring it to twelve cases.
+`identifier_absorbed_figure` -- and for `judged_stand_in_written`, G10.1's
+write rule with a judged stand-in among a column's absent cells (plan
+P4-D6.4), built on a branch of its own that went here for the same
+reason, which bring it to thirteen cases.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file

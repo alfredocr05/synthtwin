@@ -1218,9 +1218,10 @@ def _missing_lines(
     of the twin is written empty, so the spellings live here and
     nowhere else, citing residual R-P2-2. That was true of version 5.
     **P4-D6.1 closed R-P2-2**: version 6 writes each published
-    `missing_by_source` spelling into the twin at its count, keeping
-    blank only the cells a judged pass put there (C6-115, C6-116) --
-    and this sentence stayed behind.
+    `missing_by_source` spelling into the twin at its count (C6-115) --
+    and this sentence stayed behind. (Until plan P4-D6.4 it kept blank
+    the cells a judged pass put there; since the owner's ruling of
+    2026-09-15 those are written as the source wrote them too.)
 
     IT IS A DISCLOSURE SENTENCE, WHICH IS WHY IT MATTERED. Measured on
     four twins at seed 7: a declared `-9.99` column came out with 0
@@ -1230,8 +1231,9 @@ def _missing_lines(
     spelling had stayed behind in the description, while the twin they
     were about to move held it twenty times over, character for
     character. The one case that survived the measurement was a judged
-    `-999` stand-in, which C6-116 does write blank -- the one case the
-    sentence still fitted.
+    `-999` stand-in, which C6-116 then wrote blank; plan P4-D6.4 writes
+    it back as well, so the sentence now fits only a column whose absent
+    cells are all blank or all pooled below the floor.
 
     So the split is asked of `generation.spellings_the_twin_reproduces`,
     which is the WRITE rule itself rather than a second reading of it,
@@ -1277,9 +1279,7 @@ def _missing_lines(
     # WHICH OF THESE CELLS THE TWIN ACTUALLY HOLDS (residual R-P4-70).
     # The rule is the generator's and is asked of the generator, so the
     # report cannot disagree with the file it describes.
-    reproduced, _blank = generation.spellings_the_twin_reproduces(
-        column, profile
-    )
+    reproduced = generation.spellings_the_twin_reproduces(column, profile)
     carried = 0
     for spelling in reproduced:
         carried = carried + column.missing_by_source[spelling]
@@ -1348,21 +1348,18 @@ def _by_spelling_lines(
         ]
     # MARKED ONE BY ONE, because the split is per spelling and a reader
     # deciding what their twin carries needs it against the spelling
-    # rather than as a total (residual R-P4-70). A spelling a judged
-    # pass put here stays blank in the twin by contract C6-116; every
-    # other published spelling is written at its count.
-    reproduced, _blank = generation.spellings_the_twin_reproduces(
-        column, profile
-    )
+    # rather than as a total (residual R-P4-70). Every published
+    # spelling is written at its count, a judged pass's included since
+    # plan P4-D6.4, and the line is still asked of the write rule so the
+    # page and the file cannot part.
+    reproduced = generation.spellings_the_twin_reproduces(column, profile)
     for spelling in sorted(column.missing_by_source):
         count = column.missing_by_source[spelling]
         if spelling in reproduced:
-            carries = "the twin writes this spelling in all of them"
-        else:
-            carries = "the twin leaves these cells empty"
-        lines += [
-            f"    {_shown(spelling)}: {count} cell(s) -- {carries}"
-        ]
+            lines += [
+                f"    {_shown(spelling)}: {count} cell(s) -- the twin "
+                f"writes this spelling in all of them"
+            ]
     if pooled:
         lines += [
             f"    {pooled} cell(s) whose spelling is not named here:",
@@ -1436,6 +1433,13 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
     kept as a number" names a spelling no table wrote. The line now
     says the number is not named here, which is what the description
     holds.
+
+    THE HEADING NO LONGER SAYS THE TWIN DOES NOT REPRODUCE THEM (plan
+    P4-D6.4). It did while C6-116 wrote a judged pass's cells blank. The
+    owner's ruling of 2026-09-15 has the twin write them as the table
+    wrote them, and the absent-cell block above this one says so per
+    spelling, so a heading still saying the opposite would have been
+    the two blocks of one column disagreeing.
     """
     if not column.sentinel_verdicts:
         return []
@@ -1457,19 +1461,17 @@ def _sentinel_lines(column: contract.ColumnBlock) -> "list[str]":
         )
         lines = [
             opening,
-            "  dates both -- and what synthtwin decided about each. The",
-            "  twin does not reproduce them:",
+            "  dates both -- and what synthtwin decided about each:",
         ]
     elif days:
         lines = [
             "  Dates this column used as stand-ins for 'no value', and what",
-            "  synthtwin decided about each. The twin does not reproduce",
-            "  them:",
+            "  synthtwin decided about each:",
         ]
     else:
         lines = [
             "  Numbers this column used as stand-ins for 'no value', and what",
-            "  synthtwin decided about each. The twin does not reproduce them:",
+            "  synthtwin decided about each:",
         ]
     for verdict in column.sentinel_verdicts:
         decision = verdict.verdict
@@ -1616,10 +1618,7 @@ def _any_spelling_travels(profile: contract.Profile) -> bool:
     every column block under it (residual R-P4-70).
     """
     for column in profile.columns:
-        reproduced, _blank = generation.spellings_the_twin_reproduces(
-            column, profile
-        )
-        if reproduced:
+        if generation.spellings_the_twin_reproduces(column, profile):
             return True
     return False
 
@@ -1648,11 +1647,19 @@ def _column_lines(
     words = column.statistical_type
     if words in _TYPE_WORDS:
         words = _TYPE_WORDS[words]
+    # "WITH NO VALUE", NOT "EMPTY" (plan P4-D6.4). The count is every
+    # absent cell of the twin, and a twin writes a published hole
+    # spelling -- `NA`, `-9.99`, and since P4-D6.4 a judged `-999` --
+    # into its cells rather than leaving them empty. The sentence said
+    # the twin "leaves 13 cell(s) empty" over a `reading` column holding
+    # thirteen `-999` cells and no blank, while the block below it said
+    # the twin writes every one of them as the table did. Which absent
+    # cells carry a spelling is `_missing_lines`' to say, per spelling.
     lines = [
         f"'{_shown(column.name)}' -- {words}",
         (
-            f"  The twin holds {outcome.n_present} value(s) and leaves "
-            f"{outcome.n_missing} cell(s) empty, counted from its own"
+            f"  The twin holds {outcome.n_present} value(s) and "
+            f"{outcome.n_missing} cell(s) with no value, counted from its own"
         ),
         (
             f"  cells; the description records {column.n_present} and "

@@ -1290,12 +1290,17 @@ def test_a_cell_of_spaces_under_the_floor_is_counted_as_its_twin_writes_it(
 
 
 def test_a_judged_sentinel_is_counted_as_its_twin_writes_it(tmp_path: pathlib.Path) -> None:
-    """The cells a judged pass reads as missing are written empty, and counted so.
+    """The cells a judged pass reads as missing are counted as the twin writes them.
 
     Two hundred and forty ages, every twelfth `-999`: the judged pass
-    reads the twenty as missing and the twin writes them empty, while the
-    census counted `number 240` and the twin missed
-    `workbook.cell-classes` (plan P4-D174).
+    reads the twenty as missing. When the twin wrote them empty the
+    census had to count them `absent` -- it counted `number 240` and the
+    twin missed `workbook.cell-classes` (plan P4-D174) -- and it did,
+    `absent 20` beside `number 220`. Since plan P4-D6.4 (the owner's
+    ruling of 2026-09-15) the twin writes them as the sheet held them,
+    numbers, so the census counts what it writes again: the twenty move
+    from `absent` to `number`, 220 + 20 = 240 and 20 - 20 = 0, and both
+    files still hold every obligation.
     """
     rnd = random.Random(5)
     grid = {1: [_cell("A1", "0", "s")]}
@@ -1307,7 +1312,8 @@ def test_a_judged_sentinel_is_counted_as_its_twin_writes_it(tmp_path: pathlib.Pa
                    ("--smallest-group", "5"))
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
-    assert census["absent"] == 20 and census["number"] == 220, census
+    assert census["absent"] == 0 and census["number"] == 240, census
+    assert result["again"]["source"]["workbook"]["columns"][0]["cell_classes"] == census
 
 
 def test_a_stored_number_is_read_without_its_writers_noise(tmp_path: pathlib.Path) -> None:

@@ -1614,6 +1614,15 @@ Phase 5; this plan neither fills nor reads that slot.
 
 ### P4-D6.1 The twin reproduces recorded hole spellings (decision 2)
 
+**ITS EXCEPTION IS SUPERSEDED by the owner's ruling of 2026-09-15 that
+the twin writes everything as the source wrote it (plan P4-D6.4).** The
+paragraphs below that keep a JUDGED pass's cells blank -- the exception
+in the write rule, "Why stand-in-sourced cells stay blank", the one
+authorization and the judged-pass term of the SUM identity -- record
+the rule as it stood until then and no longer bind: the twin writes
+those cells in the source's own spelling at the published count, and
+the key is recounted like every other.
+
 Contract version 5 already records, per column: the exact hole
 spellings at or above the floor (`missing_by_source`), the blank count
 (`n_missing_blank`), and the pooled remainder (`n_missing_withheld`).
@@ -1752,6 +1761,86 @@ date stand-ins join the judged candidates and the class map gains
 their key, by owner ruling — the amendment carries the rule in
 full)**. Each is either Phase 5's or priced in
 P4-D13.
+
+### P4-D6.4 A judged pass's cells are written as the source wrote them (supersedes P4-D6.1's exception)
+
+**The ruling.** The owner ruled on 2026-09-15 that the twin writes
+everything exactly as the source wrote it. P4-D6.1's one exception --
+a `missing_by_source` key a JUDGED pass put there, a stand-in number or
+a calendar placeholder, written blank -- predates that ruling and is
+superseded by it; a declared spelling already came back at its count
+(`NA` 20 written 20), and a judged one now does too.
+
+**What the exception cost, measured** (the KPI critic's reproduction,
+re-run on e53d5f4). The shared every-role table's `reading` column
+holds thirteen `-999` cells and no blank. Its twin held thirteen
+blanks, so `pandas.read_csv` gave the real column `int64` and the
+twin's `float64` at seeds 20260811, 1, 2 and 3 and floors 1 and 11:
+`df.reading.astype(int)` raises on the twin and not on the table, and
+`df.reading == -999` selects thirteen rows of the table and none of
+the twin. Code developed on the twin did not run unchanged, which is
+the first mandatory goal. A battery of five further shapes -- whole
+numbers, a placeholder day, an affixed `-999 mg`, a declared decimal
+comma `-999,0`, and a judged column beside one keeping `-999` as data
+-- as delimited text and workbooks at floors 1 and 11 found the same
+`int64`/`float64` split on nine of sixteen files, and describing the
+twin again recovered the published `missing_by_source` on none.
+
+**Why C6-116's reason no longer holds, and what replaces it.** The
+exception existed because a twin's generated values need not fire the
+producer's outlier-and-share rule a second time. That was measured
+before this repair: 400 whole numbers whose fence stood a few units
+inside `-999`, with twelve `-999` cells, gave five twins in eight that
+the validator read with the twelve as VALUES, missing obligations
+while the real table passed. So the validator no longer asks the
+arithmetic again for a candidate the description already settled: it
+hands the producer, per column, the candidates the description
+published as `read_as_missing` there, and the producer reads them as
+missing in that column (validation method V2.4-A8, amended). The file
+the description was written from reaches the same verdict either way,
+so the real table is unmoved; a twin no longer depends on a
+re-judgement. After it, every one of the eight near-fence twins and
+every file of the battery validates at nought. Describing the twin
+again gives back `missing_by_source` exactly on every file of the
+battery, and NOT on every near-fence twin, which is the limit this
+repair keeps: `synthtwin profile` run on a twin is a new description
+and judges the twin's own values afresh, and only the validator reads
+the description's verdict. Measured on the near-fence columns at twin
+seeds 1 to 8, a plain re-description gave the key back on three twins
+of eight for the whole numbers and for the affixed `-999 mg`, and on
+four of eight for the placeholder `1900-01-01`; on the others the
+twin's own spread moved the judgement past the stand-in, which was
+then kept as a number. The validator reads all of them as the
+description does, and each passes.
+
+**Consequences, moved together.** The generation method's G10.1 and
+contract C6-115 lose the exception and C6-116 is rewritten as the
+reason it no longer holds; `missing_by_source` is EXACT-OBSERVABLE on
+every key, so the disposition registry's one authorization for it is
+withdrawn and the validator checks a judged key like any other; the
+SUM identity loses its judged-pass term (the twin's blank absent cells
+are the blank count plus the withheld remainder); the loader's FD7 and
+the producer's row-order rule and workbook cell-class census count a
+judged key's cells as written, not empty; the twin's report says the
+twin writes the spelling, and its count line for a column calls the
+absent cells cells "with no value" rather than cells it "leaves
+empty", since a written spelling is not an empty cell. The report's
+supply for the window of a column's numeric distinctness counts
+PRESENT cells only: a hole spelling is no value and lends the window
+no spelling, so the report draws the window the validator draws. On a
+declared `-999` column of 104 twin values against a published 106,
+every present cell a plain whole number, the window was [105, 106]
+with the hole counted as a 105th spelling and is [min(104, 106),
+max(104, 106)] = [104, 106] now; the validator reads the same twin as
+AUTHORIZED-DEVIATION at 104, and the shortfall is still named, as
+`n_distinct_values`. **What it does not reach:** a judged
+spelling below the floor is not a key, is pooled into
+`n_missing_withheld` and is written with that pool, exactly like any
+other absent spelling below the floor; the owner's rulings of
+2026-09-17 on spellings below the floor govern it, and nothing here
+changes them. On such a column the twin still holds blanks where the
+real table held the stand-in, which is the floor's price and not this
+rule's.
 
 ## P4-D7. Profile contract version 6
 
@@ -2672,7 +2761,8 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   fact — hole spellings, sentinel candidates, long-tail levels — stays
   unwritten in the twin and unnamed everywhere, by the floor's own
   rule; stand-in-sourced absent cells stay blank in the twin by
-  P4-D6.1's stated exception.
+  P4-D6.1's stated exception (**superseded by P4-D6.4**: a published
+  stand-in or placeholder spelling is written at its count).
 - **R-P4-11.** Free text that remains is invention, labeled; making it
   linguistically plausible is out of scope and gated by the charter's
   privacy line on source language.

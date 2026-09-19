@@ -294,8 +294,6 @@ CORNER_IDENTIFIER_INFEASIBLE = "identifier-infeasible"
 CORNER_DATETIME_OFFSETS_WITHHELD = "datetime-offsets-withheld"
 CORNER_LABEL_VARIANTS_SHORT = "label-variants-short"
 CORNER_NUMERIC_SPELLINGS_SHORT = "numeric-spellings-short"
-# THE ONE KEY OF `missing_by_source` A TWIN MAY NOT WRITE (R-P4-60).
-CORNER_JUDGED_HOLE = "judged-hole"
 
 CORNERS = (
     CORNER_IDENTIFIER_INFEASIBLE,
@@ -328,13 +326,6 @@ CORNER_CITATIONS = {
         "two-sided envelope only where the published variants and the "
         "withheld-variant multiset do not supply enough spellings "
         "(docs/spec/generation-method-v1.md G12.7)"
-    ),
-    CORNER_JUDGED_HOLE: (
-        "phase-4 plan P4-D6.1 and contract C6-116, as the disposition "
-        "registry cites it: a spelling a JUDGED PASS put there is "
-        "REPORT-ONLY for that key, because the twin writes it blank -- "
-        "reproducing it would make the twin's own measurement depend "
-        "on a re-judgement of the same number"
     ),
     CORNER_NUMERIC_SPELLINGS_SHORT: (
         "phase-2 plan P2-D6: falling back to the two-sided envelope "
@@ -730,14 +721,6 @@ _NOT_CHECKABLE_NO_LADDER = (
     "the published ladder is null at every rung, so the description "
     "carries no shape for these values and there is no window to "
     "measure against"
-)
-_NOT_CHECKABLE_JUDGED_HOLE = (
-    "this spelling is one synthtwin JUDGED to be a stand-in for 'no "
-    "value' rather than one your description names outright, so the "
-    "twin writes those cells empty: reproducing the number would make "
-    "the twin's own reading of it depend on judging it the same way a "
-    "second time. Every other spelling of an absent cell is written at "
-    "exactly its published count and is checked"
 )
 _NOT_CHECKABLE_NO_WINDOW = (
     "the published ladder for this column reaches so far across the "
@@ -1560,8 +1543,20 @@ def settings_over_the_split(
     sentinel rule under the settings the description was written with
     (`settings_for`). So the split description reaches the verdict the
     description publishes because it is the same rule over the same
-    cells, and no second reading of `sentinel_verdicts` is implemented
-    here -- V2.1 is met exactly as it is for every other measurement.
+    cells.
+
+    AND SINCE PLAN P4-D6.4 THE VERDICT ITSELF IS HANDED OVER, PER
+    COLUMN. The owner's ruling of 2026-09-15 has the twin write a judged
+    stand-in's cells as the source wrote them, and a twin's generated
+    values need not fire the outlier rule a second time: 400 whole
+    numbers whose fence stood a few units inside `-999`, with twelve
+    `-999` cells, gave five twins in eight that read the twelve as values
+    and missed obligations while the real table passed. So
+    `_judged_candidates_here` hands the producer the candidates this
+    description published as `read_as_missing` in each column, and the
+    producer reads them as missing there without asking the arithmetic
+    again -- the file the description came from reaches the same verdict
+    either way, which is why the real table is unmoved.
 
     WHY THE ANSWER IS TAKEN PER DOCUMENT WHEN THE VERDICT IS PER COLUMN.
     `taxonomy.Settings` names kept values for the whole table, so the pin
@@ -4627,6 +4622,7 @@ def measure(
         declared_commas = _declared_commas_here(description, table)
         described_pairs = _described_pairs_here(description, table)
         kept_days = _kept_placeholders_here(description, table)
+        judged_here = _judged_candidates_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -4656,6 +4652,7 @@ def measure(
             True,
             described_pairs,
             kept_placeholder_days=kept_days,
+            judged_candidates=judged_here,
         )
         over_the_split = profile.build_document(
             table,
@@ -4667,6 +4664,7 @@ def measure(
             True,
             described_pairs,
             kept_placeholder_days=kept_days,
+            judged_candidates=judged_here,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5053,6 +5051,52 @@ def _kept_placeholders_here(
                 days[day] = 1
         if days:
             found[column.name] = tuple(sorted(days))
+    return found
+
+
+def _judged_candidates_here(
+    description: contract.Profile, table: reading.Table
+) -> "dict[str, tuple[str, ...]]":
+    """The candidates each column's description judged to mean "no value".
+
+    PER COLUMN, AND READ OFF THE PUBLISHED VERDICTS (plan P4-D6.4,
+    validation method V2.4-A8 as amended). A stand-in number or a
+    calendar placeholder is judged column by column, so a `-999` one
+    column reads as a hole and another reads as data stays exactly that
+    here. Every `read_as_missing` verdict names its candidate -- the
+    number as text, or the placeholder's ISO day -- and the producer
+    reads that candidate as missing in that column without asking its
+    outlier and share rules again. A candidate the floor withheld by
+    name is `(withheld)`, names nothing, and is left to the producer's
+    own rule as before.
+
+    WHY THE VERDICT AND NOT THE ARITHMETIC. The owner's ruling of
+    2026-09-15 has the twin write those cells as the source wrote them,
+    so a twin's `-999` cells stand beside values the generator worked
+    out -- and those values need not put the fence where the real
+    column did. Measured: five twins in eight of a column whose fence
+    stood a few units inside `-999` read its twelve `-999` cells as
+    values and missed obligations, while the real table passed. The
+    file the description came from reaches the same verdict either way.
+
+    A column the checked file does not carry is dropped, for the reason
+    `_declared_here` gives. Guarantees: a function of the description
+    and the file's column names alone; no cell is read; sorted; raises
+    nothing; no I/O.
+    """
+    found: "dict[str, tuple[str, ...]]" = {}
+    for column in description.columns:
+        if column.name not in table.column_names:
+            continue
+        named: "dict[str, int]" = {}
+        for verdict in column.sentinel_verdicts:
+            if verdict.verdict != taxonomy.VERDICT_MISSING:
+                continue
+            if verdict.candidate == contract.WITHHELD:
+                continue
+            named[verdict.candidate] = 1
+        if named:
+            found[column.name] = tuple(sorted(named))
     return found
 
 
@@ -8165,35 +8209,6 @@ def _cells_of(
     return table.columns[position - 1]
 
 
-def _judged_hole_spellings(
-    column: contract.ColumnBlock, description: contract.Profile
-) -> "tuple[str, ...]":
-    """The `missing_by_source` keys a judged pass put there (R-P4-60).
-
-    Where the profiler judged a number to be a stand-in for "no value"
-    -- a `-999` among readings -- the twin writes those cells BLANK,
-    because reproducing the number would make the twin's own
-    measurement depend on a re-judgement of it (contract C6-116). Every
-    other key is written at its published count and is checked.
-    """
-    # THE COLUMN'S OWN DECLARATION, and not the ROLES a declaration
-    # would be honoured on. `a_decimal_comma_reaches` answers the
-    # second question and returns true for every plain numeric column,
-    # declared or not; reading an ordinary `-999.0` under a comma
-    # grammar makes it no number at all, so the value test failed and
-    # the text test it replaced was reinstated by accident. The
-    # generator asks `forced_decimal_commas` and so does this.
-    comma = False
-    for named in description.settings.forced_decimal_commas:
-        if named == column.name:
-            comma = True
-    found: list[str] = []
-    for spelling in sorted(column.missing_by_source):
-        if _one_judged_candidate(column, spelling, comma):
-            found += [spelling]
-    return tuple(found)
-
-
 def _one_judged_candidate(
     column: contract.ColumnBlock, spelling: str, comma: bool
 ) -> bool:
@@ -8205,7 +8220,7 @@ def _one_judged_candidate(
     whether they are the same NUMBER -- which is how the producer
     counted the candidate's rows in the first place. A column whose
     twelve outlier cells are spelled `-999.0` publishes that spelling
-    and a candidate of `-999`: the generator writes twelve blanks, the
+    and a candidate of `-999`: the generator then wrote twelve blanks, the
     text test did not match, and a check was built that reported a
     CORRECT twin MISSED, twelve published against nothing written.
     Calendar placeholders part the same way, an alternate date form
@@ -8277,14 +8292,15 @@ def _hole_spelling_checks(
     analysis branches on, and a twin that quietly drops it teaches that
     analysis the wrong shape.
 
-    THE ONE KEY THAT IS NOT CHECKED, and the registry names it: a
-    spelling a JUDGED PASS put there. Where the profiler judged a
-    number to be a stand-in for "no value" -- a `-999` among readings --
-    the twin writes those cells BLANK, because reproducing the number
-    would make the twin's own measurement depend on a re-judgement of
-    it (contract C6-116). That key is an AUTHORIZED-DEVIATION with the
-    achieved zero named beside the published count, which is what the
-    registry authorizes and no more.
+    EVERY KEY IS CHECKED, a judged pass's included (plan P4-D6.4).
+    Until then a spelling a judged pass put there -- a `-999` among
+    readings -- was the one key left out, because the twin wrote those
+    cells blank; the owner's ruling of 2026-09-15 has the twin write them
+    as the source wrote them, and the count is of cells WEARING the
+    spelling, which no judgement enters, so the key is held like any
+    other. The real table holds it at its count by construction: every
+    cell a verdict took out is a cell wearing one of the spellings the
+    verdict names.
 
     Guarantees:
 
@@ -8293,7 +8309,6 @@ def _hole_spelling_checks(
       order.
     - Errors raised: none. No I/O.
     """
-    judged = set(_judged_hole_spellings(column, description))
     checks: list[Check] = []
     for spelling in sorted(column.missing_by_source):
         published = column.missing_by_source[spelling]
@@ -8310,15 +8325,6 @@ def _hole_spelling_checks(
         # down: `quality.py` prints every subcheck through `_shown`,
         # which crosses the display boundary once, where it belongs.
         subcheck = f"holes.by_source.{spelling}"
-        if spelling in judged:
-            # A JUDGED KEY IS REPORT-ONLY, WHICH IS A CENSUS LINE AND
-            # NOT A CHECK. The registry's own word for it is
-            # "REPORT-ONLY for that key", and a check that can only
-            # ever come back AUTHORIZED-DEVIATION is a check nothing
-            # can make miss -- which the entry table's red battery
-            # refuses by name, and rightly. `_judged_hole_listings`
-            # files it where a fact no file can evidence belongs.
-            continue
         checks += [
             _exact(
                 column.name,
@@ -17052,19 +17058,6 @@ def _listings(
         ]
     corners = corners_of(description)
     for column in description.columns:
-        # AND THE KEYS A JUDGED PASS PUT THERE, one line each. The
-        # field as a whole is an obligation now; these single keys are
-        # not, and naming them here is what keeps the census's own
-        # claim true -- that every fact no file can evidence is on it.
-        for spelling in _judged_hole_spellings(column, description):
-            listings += [
-                Listing(
-                    column.name,
-                    "universal.missing_by_source",
-                    f"holes.by_source.{spelling}",
-                    _NOT_CHECKABLE_JUDGED_HOLE,
-                )
-            ]
         # `missing_by_source` IS NOT ON THIS LIST ANY MORE (R-P4-60).
         # It stopped being report-only at contract version 6, which
         # writes each spelling at its published count; the disposition

@@ -1119,7 +1119,7 @@ def _reshaped(
         if index >= len(rows[row]):
             continue
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         rows[row][index] = f"{cell}1"
     return _rebuilt(rows)
@@ -1163,6 +1163,24 @@ def _renamed_header(text: str, was: str, becomes: str) -> str:
     return _rebuilt(rows)
 
 
+def _holds_a_value(
+    described: contract.Profile, index: int, cell: str
+) -> bool:
+    """Whether one written cell of one column is a VALUE of that column.
+
+    Not blank, and not a spelling the column publishes among its ABSENT
+    cells. The second half arrived with plan P4-D6.4: the every-role
+    `reading` column's thirteen judged `-999` cells were written blank
+    and are written as the table wrote them now, so a battery that asked
+    "is it blank" found no absent cell there to fill and picked a `-999`
+    as the first value to blank or reword -- and eight covering cases of
+    that column lost the file they are measured on. Asked this way, each
+    perturbation edits the same row it edited before, and on every other
+    fixture, none of which publishes a hole spelling, nothing moves.
+    """
+    return bool(cell) and cell not in described.columns[index].missing_by_source
+
+
 def _changed(
     described: contract.Profile,
     text: str,
@@ -1170,17 +1188,18 @@ def _changed(
     find_blank: bool,
     value: str,
 ) -> str:
-    """The first cell of one column that is (or is not) blank, changed.
+    """The first cell of one column that is (or is not) absent, changed.
 
-    "" where the column holds no such cell -- a column with no blank in
-    it cannot have one filled -- and the caller leaves that perturbation
-    out rather than building a file identical to the twin, which would
-    be a red case that can never go red.
+    "" where the column holds no such cell -- a column with no absent
+    cell in it cannot have one filled -- and the caller leaves that
+    perturbation out rather than building a file identical to the twin,
+    which would be a red case that can never go red. Absent is blank or
+    a published hole spelling (`_holds_a_value`).
     """
     rows = _rows_of(text)
     left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
-        if bool(rows[row][index]) != find_blank:
+        if _holds_a_value(described, index, rows[row][index]) != find_blank:
             rows[row][index] = value
             left = left - 1
             if not left:
@@ -1234,7 +1253,7 @@ def _mapped(
     """Every non-blank cell of one column put through one rule."""
     rows = _rows_of(text)
     for row in range(_first_record(described), len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = rule(rows[row][index])
     return _rebuilt(rows)
 
@@ -1255,6 +1274,8 @@ def _numbered(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     numbers: list[float] = []
     for row in range(first, len(rows)):
+        if not _holds_a_value(described, index, rows[row][index]):
+            continue
         found = parsing.parse_number(rows[row][index])
         if found is not None:
             numbers = numbers + [found]
@@ -1264,7 +1285,7 @@ def _numbered(described: contract.Profile, text: str, index: int) -> str:
     high = max(numbers)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         share = step / (len(numbers) - 1)
         rows[row][index] = f"{low + (high - low) * share}"
@@ -1570,7 +1591,7 @@ def _classed(
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             if step % every == 0:
                 rows[row][index] = value
             step = step + 1
@@ -1601,7 +1622,7 @@ def _one_cell(
     rows = _rows_of(text)
     left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = value
             left = left - 1
             if not left:
@@ -1631,7 +1652,7 @@ def _floor_cells(
     for row in range(_first_record(described), len(rows)):
         if written >= wanted:
             break
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         rows[row][index] = value
         written = written + 1
@@ -1681,7 +1702,7 @@ def _floor_signed_cells(
             if written >= wanted:
                 break
             cell = rows[row][index]
-            if not cell or cell == value:
+            if not _holds_a_value(described, index, cell) or cell == value:
                 continue
             if ("." in cell) != pointed:
                 continue
@@ -1700,7 +1721,7 @@ def _restyled(
     first = _first_record(described)
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         found = parsing.parse_number(cell)
         if found is None:
@@ -1786,7 +1807,7 @@ def _wider_numerals(
     first = _first_record(described)
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         sign = ""
         figures = cell
@@ -1811,7 +1832,7 @@ def _huge_spread(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         sign = 1.0 if step % 2 else -1.0
         rows[row][index] = repr(sign * biggest * (1 - step * 1e-15))
@@ -1841,7 +1862,7 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     touched = 0
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         seen = changed.get(cell, 0)
         if seen < 2:
@@ -1870,7 +1891,7 @@ def _text_shape(
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         # Distinct values, because a column whose cells are all the same
         # is a constant column and the gate closes over its whole role.
@@ -1902,7 +1923,7 @@ def _digit_codes(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = f"{700000 + step}"
             step = step + 1
     return _rebuilt(rows)
@@ -1920,6 +1941,8 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     numbers: list[float] = []
     for row in range(first, len(rows)):
+        if not _holds_a_value(described, index, rows[row][index]):
+            continue
         found = parsing.parse_number(rows[row][index])
         if found is not None:
             numbers = numbers + [found]
@@ -1929,7 +1952,7 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
     high = max(numbers)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         share = step / (len(numbers) - 1)
         rows[row][index] = f"{low + (high - low) * share * share * share}"
@@ -1944,6 +1967,8 @@ def _raised_end(described: contract.Profile, text: str, index: int) -> str:
     highest = None
     where = 0
     for row in range(first, len(rows)):
+        if not _holds_a_value(described, index, rows[row][index]):
+            continue
         found = parsing.parse_number(rows[row][index])
         if found is None:
             continue
@@ -4320,6 +4345,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("raised-reading", "moments.std"),
             ("renamed-reading", "position.at"),
             ("filled-overflowed-reading", "presence.n_missing"),
+            # The judged key plan P4-D6.4 made a check: filling one of
+            # the thirteen `-999` cells with a value leaves twelve.
+            ("filled-reading", "holes.by_source.-999"),
             ("filled-overflowed-reading", "presence.n_present"),
             # One plussed cell no longer moves the plain floor on
             # this column: the finer ladder writes a different set
@@ -6065,13 +6093,13 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "moments.skew"): "numeric.skew",
     ("numeric", "moments.kurtosis"): "numeric.kurtosis",
     ("numeric", "moments.std"): "numeric.std",
-    # THE ONE `missing_by_source` KEY THAT IS NOT CHECKED (R-P4-60).
+    # THE `missing_by_source` KEY A JUDGED PASS PUT THERE (R-P4-60).
     # The field is EXACT-OBSERVABLE since contract version 6 and every
-    # other spelling is written at its published count and checked as
+    # spelling is written at its published count and checked as
     # `holes.by_source.<spelling>`. A spelling a JUDGED PASS put there
-    # is written blank instead -- reproducing it would make the twin's
-    # own reading depend on judging the same number twice (C6-116) --
-    # so that key alone is a census line, and this row is what binds it.
+    # was written blank and was a census line until plan P4-D6.4 (the
+    # owner's ruling of 2026-09-15); it is written and checked now like
+    # every other key, and this row is what binds it.
     # The two widths of the unrepresentable role, which the contract's
     # matrix disposes EXACT-OBSERVABLE and nothing measured until
     # residual R-P4-59.

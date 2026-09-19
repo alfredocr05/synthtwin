@@ -6109,14 +6109,34 @@ def csv_field(text, one_column, absent):
     return text
 
 
-def place(content, missing, rows, words):
+def absent_cells(column):
+    """Every absent cell of one column, as written -- method section G10.1.
+
+    Each published ``missing_by_source`` spelling at exactly its count,
+    in sorted order of the spellings, a spelling a judged pass put there
+    included (plan P4-D6.4); every other absent cell -- the blank count
+    and the withheld remainder -- is the EMPTY text.  Exactly
+    ``n_missing`` cells.
+    """
+    holes = column.get("missing_by_source") or {}
+    written = []
+    for spelling in sorted(holes):
+        written.extend([spelling] * holes[spelling])
+    while len(written) < column["n_missing"]:
+        written.append("")
+    return written[: column["n_missing"]]
+
+
+def place(content, absent, rows, words):
     """Extend with the absent cells, then arrange -- method section G4.2.
 
     The absent cells are placed by the same arrangement that places
     everything else, which is what makes their positions seeded-random
     without a second mechanism and without a second draw budget.
+    ``absent`` is what G10.1 writes in them, ``absent_cells`` of the
+    column.
     """
-    extended = list(content) + [""] * missing
+    extended = list(content) + list(absent)
     if len(extended) != rows:
         raise AssertionError(
             f"the column holds {len(extended)} cells and the table has {rows} "
@@ -16901,6 +16921,60 @@ def _unmarked_duplicates_first():
     }
 
 
+def _judged_stand_in_written():
+    """A judged stand-in's cells written as the table wrote them (G10.1).
+
+    Plan P4-D6.4, the owner's ruling of 2026-09-15.  No frozen case
+    published a ``missing_by_source`` key before it, so the whole of
+    G10.1's write rule could be withdrawn with every committed byte
+    unchanged.  This is ``numeric_integer``'s twenty values with
+    twenty-two absent cells beside them: eleven held the stand-in
+    ``-999``, which the column's own stand-in pass judged to mean "no
+    value", and eleven held nothing -- eleven each, because the vectors'
+    smallest group size is eleven and a count below it is pooled.
+    """
+    case = _numeric_integer()
+    column = dict(case["column"])
+    column.update(
+        n_missing=22,
+        n_rows=42,
+        missing_by_source={"-999": 11},
+        n_missing_blank=11,
+        n_missing_withheld=0,
+        sentinel_verdicts=[
+            {
+                "candidate": "-999",
+                "n_occurrences": 11,
+                "reason": "outlier_and_frequent",
+                "spellings": ["-999"],
+                "verdict": "read_as_missing",
+            }
+        ],
+    )
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(blank)"] = 11
+    column["missing_by_class"]["(numeric-sentinel)"] = 11
+    column["missing_by_class"]["(withheld)"] = 0
+    return {
+        "why": "G10.1's write rule with a judged stand-in among the absent "
+        "cells (plan P4-D6.4, the owner's ruling of 2026-09-15 that the "
+        "twin writes everything as the source wrote it).  Eleven of the "
+        "twenty-two absent cells held -999, which the column's own "
+        "stand-in pass judged to mean 'no value', and eleven held nothing; "
+        "the twin writes -999 in eleven cells and leaves eleven empty, "
+        "placed by the same single arrangement as every value.  Its mutant "
+        "is the rule this replaced, which wrote a judged pass's cells "
+        "blank: the eleven -999 cells then come back empty, and a reader "
+        "of the twin takes the column for decimals where the table's is "
+        "whole numbers.",
+        "column": column,
+        "rows": 42,
+        "identifier_declared": False,
+        "rungs": case["rungs"],
+        "claims": case["claims"],
+    }
+
+
 def _saturated_representable():
     """The binary64 grid with no spare point (plan P4-D269, G6.5a).
 
@@ -21529,6 +21603,8 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     # The readings of an absorbed count (plan P4-D298).
     "free_text_absorbed_figures": _free_text_absorbed_figures,
     "identifier_absorbed_figure": _identifier_absorbed_figure,
+    # G10.1's write rule, a judged stand-in's key included (plan P4-D6.4).
+    "judged_stand_in_written": _judged_stand_in_written,
 }
 
 SEVENTH_BRANCH_CASE_BUILDERS = {
@@ -21749,7 +21825,9 @@ _SIXTH_BRANCH_ACCOUNT = (
     "whose published figures count has no packing, answered by the "
     "reading one cell short of it, and a declared record number whose "
     "published counts have no whole-number spelling at its shortest "
-    "length, answered the same way. They are computed by the same oracle "
+    "length, answered the same way -- and G10.1's write rule with a "
+    "judged stand-in among a column's absent cells, written as the table "
+    "wrote it (plan P4-D6.4). They are computed by the same oracle "
     "and the same proof layer as "
     "tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -22297,6 +22375,27 @@ GIVEN_WORDS = {
         10164565904230123816, 4420225975753013384, 14360071080554720299,
         5684573465110795118, 1439559132375741639, 9393007774451326948,
         4222821510639412640, 16420704850908043950, 7918683666435300808,
+    ),
+    # G10.1's write rule with a judged stand-in (plan P4-D6.4), at the
+    # next seed after the highest in use (204).
+    "judged_stand_in_written": (
+        16753067613118181217, 4206969878013758167, 15183236063515065596,
+        3512088490783040569, 7725610893990452298, 2494333057669011223,
+        8533281968869854761, 1737086052085467765, 7101881046494449767,
+        17847366998111331008, 16564834437627974812, 11210015810459439155,
+        8307737580329409017, 15798750171846463714, 16598408470897088910,
+        17345061366051683496, 8111427045086381449, 4584279234199797975,
+        11874096871536886657, 15808901984533200843, 3307606362816493519,
+        7033059853087329512, 8841608128506827616, 5540637724523648198,
+        13864833439530146341, 18379436573089841627, 8602246322466314637,
+        17438706838672563547, 6976404982193339737, 339626846689194753,
+        6048325271769779232, 667295759908664269, 13720017675106288473,
+        17020170578420173678, 13079020210315421790, 12693996482168092443,
+        8184439931291787126, 11898737543103007182, 1649323465032450776,
+        8801677747796875780, 18047053460541097455, 1218777032769744567,
+        1178006417815128179, 16565496060575845657, 6235668078579430265,
+        283276246513352814, 11471448768032915452, 17996514995398699586,
+        5646120977912611198, 9427082364266152894,
     ),
     # The representable grid of plan P4-D269, at the next seed after the
     # highest in use (193).
@@ -24023,7 +24122,7 @@ def build_case(name):
             column.get("affix_prefix", ""),
             column.get("affix_suffix", ""),
         )
-    cells = place(content, column["n_missing"], rows, words[content_words:])
+    cells = place(content, absent_cells(column), rows, words[content_words:])
     one_column = True
     csv_bytes = "".join(
         csv_field(cell, one_column, cell == "") + "\n" for cell in cells

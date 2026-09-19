@@ -8128,10 +8128,23 @@ with the join and de-duplication consequence in the person's own words.
 
 Exactly `n_missing` cells per column, placed by the arrangement of
 G4.2. Each published `missing_by_source` spelling is written at exactly
-its published count, character for character, and every other absent
-cell — the blank count, the withheld remainder and the cells a judged
-pass put there — is written as the EMPTY text (contract C6-115 and
-C6-116, plan P4-D6.1). `missing_by_class` is REPORT-ONLY.
+its published count, character for character — a spelling a judged
+pass put there included — and every other absent cell — the blank
+count and the withheld remainder — is written as the EMPTY text
+(contract C6-115 and C6-116, plans P4-D6.1 and P4-D6.4).
+`missing_by_class` is REPORT-ONLY.
+
+**A JUDGED PASS'S KEY WAS WRITTEN EMPTY UNTIL PLAN P4-D6.4.** The
+stand-in number and calendar placeholder passes decide absence by an
+outlier-and-share rule over the real column's values, and this
+paragraph kept their cells blank so that a twin's own values would not
+have to fire that rule again. The owner's ruling of 2026-09-15 has the
+twin write everything as the source wrote it, and a blank where the
+table wrote `-999` turned pandas' reading of a whole-number column from
+`int64` to `float64`. The validator now reads a candidate the
+description judged missing as absent in that column without asking the
+rule again, so the cells are written back and read back the
+same way on every run.
 
 **THIS PARAGRAPH SAID THE OPPOSITE UNTIL LANDING 2b.8, AND THE CODE
 HAD BEEN RIGHT FOR A VERSION.** It read "each written as the EMPTY
@@ -10384,7 +10397,16 @@ twelve cases under 200000 bytes and takes the next case again, and the
 ninth holds six. No case was dropped, no cell of any case moved, no proof
 was shortened and the cap was not raised.
 
-**All one hundred and six are required.** The count is taken off the committed
+**Plan P4-D6.4 adds one, to the eighth file**, where plan P4-D295 says
+the next case goes while that file stands under 200000 bytes:
+`judged_stand_in_written`, G10.1's write rule with a judged stand-in
+among a column's absent cells. No case before it published a
+`missing_by_source` key at all, so the whole of G10.1 could have been
+withdrawn with every committed byte where it was. Built on a branch of
+its own and merged at the integration of the gap passes (2026-09-19), it
+takes the eighth file to thirteen cases and 191318 bytes.
+
+**All one hundred and seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10400,7 +10422,7 @@ fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds six; the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds twelve; and the
+`tests/reference/generation-branch-vectors-6.json`, holds thirteen; and the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six
 (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
@@ -10426,6 +10448,7 @@ case passed, which is the failure the count exists to prevent:
 | `free_text_absorbed_figures` | G9.5's packing against the READINGS of an absorbed count (plan P4-D298): sixteen cells of free text publishing sixteen in figures alone beside fifteen numbers, because the one cell outside the figures is below the floor of eleven and the contract counts it into the larger side. Sixteen figures-only cells are sixteen numbers, so the published counts have no packing; the first reading, fifteen in figures alone, packs, and the single cell is `A`. Its mutant packs the published counts alone and the oracle refuses the column |
 | `identifier_absorbed_figure` | G9.6 built against the READINGS of an absorbed count (plan P4-D298): twenty-one record numbers, every one a whole number, publishing no cell in figures alone beside a shortest length of one, because the one figure-only cell is below the floor. A one-character whole number is a figure, so the published counts have no answer; the first reading that holds every count as published writes `1` once and `0e0` twenty times. Its mutant builds the published counts alone and the oracle refuses the column |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
+| `judged_stand_in_written` | G10.1's write rule with a judged stand-in among the absent cells (plan P4-D6.4): `numeric_integer`'s twenty values beside twenty-two absent cells, eleven of which held `-999`, which the column's own stand-in pass judged to mean "no value", and eleven of which held nothing. The twin writes `-999` in eleven cells and leaves eleven empty, placed by G4.2's one arrangement. Its mutant is the rule this replaced, which wrote a judged pass's cells empty, and the eleven `-999` cells move |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `pushed_along_band` | G6.5a's push of a collision the walks leave along its band to the nearest free point (the carried numbers repair pass of 2026-09-19): fourteen one-place readings from 2.6 to 3.9 beside four far ones, 53.6, 67.1, 134.8 and 135.7, eighteen different numbers each written once and no empty stretch published. Once the walks are done the run's fourteen strata stand on thirteen of its tenths, two of them on 3.4, and the free tenth 3.9 lies past the walk's reach; the push moves the second 3.4 and every stratum above it one tenth up. Its mutant withdraws the push, and the twin writes 3.4 a second way, `03.4`, holding seventeen numbers against eighteen |
 | `saturated_grid_alone` | G6.5a's column-wide fill of a grid with no spare point (plans P4-D147 and P4-D176) where it alone answers: seventy-eight one-place readings from -2.4 to 0.1, the whole numbers written bare, publishing twenty-six different numbers between ends holding exactly twenty-six tenths and twelve point-free cells, no empty stretch published. The band fill stands aside because a stratum it would fill changes whether its value has a point-free spelling, and the push keeps a whole value on the whole points: the two strata the walks leave on -2.0 find every whole point of their band taken, and the one free tenth, -0.1, is not whole. Its mutant withdraws the column-wide fill and nothing else, and the twin writes -1.9 a second way, `-01.9`, holding twenty-five numbers against twenty-six |

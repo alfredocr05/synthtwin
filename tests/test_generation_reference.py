@@ -504,6 +504,7 @@ SIXTH_BRANCH_CASES = (
     # it with a reading the rule publishes the same way.
     "free_text_absorbed_figures",
     "identifier_absorbed_figure",
+    "judged_stand_in_written",
     "saturated_representable",
     "unmarked_duplicates_first",
 )
@@ -640,6 +641,11 @@ SEEDS = {
     "held_back_anchored": 263,
     "pushed_along_band": 264,
     "saturated_grid_alone": 265,
+    # G10.1's write rule with a judged stand-in (plan P4-D6.4) took the
+    # next seed after the highest in use on its own branch; it shares 205
+    # with date_two_kinds_traded, as the merged blocks below share theirs,
+    # because its committed words are the opening words of that stream.
+    "judged_stand_in_written": 205,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -1150,6 +1156,12 @@ def test_every_committed_cell_reads_back_as_the_class_it_was_built_for(
     the shipped classifier. That is a property of the cells the method
     requires, so it is asserted over the committed vectors rather than
     over whatever the implementation happened to write.
+
+    Asked of the CONTENT list -- the present cells, before the absent ones
+    join them -- because since plan P4-D6.4 an absent cell can hold a
+    judged stand-in such as `-999`, which reads as a number and is counted
+    in no class of the column. The content and the absent cells are held
+    to the written column by the arrangement test above.
     """
     case = _case(name)
     column = _unwrap(case["column"])
@@ -1162,7 +1174,7 @@ def test_every_committed_cell_reads_back_as_the_class_it_was_built_for(
         ),
         0,
     )
-    for cell in case["cells"]:
+    for cell in case["content"]:
         if cell == "":
             continue
         # A declared column's cells read in its own grammar, as the
@@ -1183,14 +1195,19 @@ def test_the_committed_cells_are_the_content_list_arranged(name: str) -> None:
     The written column is the content list plus the absent cells, placed
     by one arrangement. That makes the two lists the same multiset, which
     is a property no seed can change and the one thing a wrong
-    arrangement cannot fake.
+    arrangement cannot fake. The absent cells are G10.1's: each published
+    `missing_by_source` spelling at its count, a judged pass's included
+    (plan P4-D6.4), and every other one empty.
     """
     case = _case(name)
     column = _unwrap(case["column"])
     assert len(case["content"]) == column["n_present"]
-    assert sorted(case["cells"]) == sorted(
-        list(case["content"]) + [""] * column["n_missing"]
-    )
+    absent: list = []
+    holes = column.get("missing_by_source") or {}
+    for spelling in sorted(holes):
+        absent += [spelling] * holes[spelling]
+    absent += [""] * (column["n_missing"] - len(absent))
+    assert sorted(case["cells"]) == sorted(list(case["content"]) + absent)
     # A CELL HOLDING A COMMA IS QUOTED, which no committed cell did until
     # landing 2b.2 froze a column grouped with one: the rule is G2's, and
     # a quote inside a cell would be doubled, which no case writes.
@@ -2490,6 +2507,25 @@ def _no_layout_packing(*_arguments, **_keywords):
     return None
 
 
+def _judged_keys_written_blank(column: dict) -> list:
+    """G10.1 as it stood before plan P4-D6.4: a judged pass's key written empty.
+
+    Written out in full rather than calling the oracle's own rule, which
+    the battery replaces by this.
+    """
+    judged: set = set()
+    for verdict in column.get("sentinel_verdicts") or []:
+        if verdict["verdict"] == "read_as_missing":
+            judged |= set(verdict["spellings"])
+    holes = column.get("missing_by_source") or {}
+    written: list = []
+    for spelling in sorted(holes):
+        if spelling not in judged:
+            written += [spelling] * holes[spelling]
+    written += [""] * (column["n_missing"] - len(written))
+    return written[: column["n_missing"]]
+
+
 CASE_MUTANTS = {
     "free_text_absorbed_figures": Mutant(
         branch="G9.5's packing against the READINGS of an absorbed count "
@@ -2558,6 +2594,15 @@ CASE_MUTANTS = {
         "the plain spelling alone and the ladder counts up from nought",
         attribute="anchor_units",
         replacement=lambda text, value: gen.plain_units(text),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "judged_stand_in_written": Mutant(
+        branch="G10.1's write rule with a judged stand-in among the absent "
+        "cells (plan P4-D6.4, the owner's ruling of 2026-09-15); the mutant "
+        "is the rule it replaced, which wrote a judged pass's cells blank, "
+        "and the eleven -999 cells come back empty",
+        attribute="absent_cells",
+        replacement=_judged_keys_written_blank,
         outcome=CHANGES_THE_CELLS,
     ),
     "unmarked_duplicates_first": Mutant(
