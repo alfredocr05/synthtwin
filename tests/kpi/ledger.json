@@ -5055,13 +5055,13 @@
    "driver": "tools/measurements/kpi_oracle_similarity.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "normalised-AST similarity, oracle vs src",
-   "evidence": "13 of 53 added oracle functions score >= 0.60 AST similarity to a shipped function (17 of 60 before repair; older oracle 6 of 212). The skeptic's script was not kept; tools/measurements/kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions (371 of six statements or more), so its count is not G14.2's 13 of 53. RED on caf3079, the integrated tree of 2026-09-19: 181 of 393 scored against the bound of 176 (e53d5f4: 176 of 371). The five new close functions, all written by the carried passes merged before the gap repairs: absorbed_count~_presence_over_the_split, allowed~_push_allowed, alphabet_readings~_alphabet_readings, anchor_units~_anchor_units, histogram_bin~histogram_bin; none left the list. The bound is not moved: whether each is an independent statement of its rule is a review question, open",
+   "evidence": "13 of 53 added oracle functions score >= 0.60 AST similarity to a shipped function (17 of 60 before repair; older oracle 6 of 212). The skeptic's script was not kept; tools/measurements/kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions (371 of six statements or more), so its count is not G14.2's 13 of 53. RED on caf3079, the integrated tree of 2026-09-19: 181 of 393 scored against the bound of 176 (e53d5f4: 176 of 371), the five new close functions all written by the carried passes merged before the gap repairs: absorbed_count~_presence_over_the_split, allowed~_push_allowed, alphabet_readings~_alphabet_readings, anchor_units~_anchor_units, histogram_bin~histogram_bin. Repaired at 40cadbc by rewriting each from its rule's statement (method G6.7.2, G6.5a, G8.3a step 3 and G9.5; the division's arithmetic, P4-D268's three readings and the absorption's arithmetic were stated in full first), every vectors file rebuilding byte-identical through the guard runner: the five score 0.53, 0.48, 0.39, 0.57 and 0.48 against their closest shipped function, no other oracle function rose, and the count is 176 of 393. The bound is not moved",
    "value_at": {
-    "commit": "caf3079",
+    "commit": "40cadbc",
     "date": "2026-09-19",
     "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
-     "at_or_above_0_60": 181,
+     "at_or_above_0_60": 176,
      "scored": 393
     }
    },
