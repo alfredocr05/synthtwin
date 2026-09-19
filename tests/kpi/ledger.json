@@ -2,11 +2,12 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "e53d5f4",
- "measurement_note": "Every value_at was measured on the product of e53d5f4 on the reference machine, 2026-09-18/19, while other agents' suites held its load average near 26: the seconds recorded are inflated about two to three times against a quiet machine, and the counts and ratios are not. Seconds are judged only by kpi_run.py on a quiet reference machine; re-measure them there before reading one as a regression.",
+ "measurement_note": "Every value_at was measured on the product of e53d5f4 on the reference machine, 2026-09-18/19, while other agents' suites held its load average between 9 and 26: the seconds recorded are inflated about two to three times against a quiet machine, and the counts and ratios are not. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
-  "cores": 10
+  "cores": 10,
+  "quiet_load_average_below": 3.0
  },
  "slow_pytest_files": [
   "tests/test_p3v1f2_entry_table.py",
@@ -45,7 +46,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P0-02",
@@ -78,7 +80,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P0-03",
@@ -109,7 +112,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P0-04",
@@ -141,7 +145,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P0-05",
@@ -278,7 +283,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P0-09",
@@ -311,7 +317,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P1-01",
@@ -343,7 +350,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-02",
@@ -375,7 +383,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 5
   },
   {
    "id": "K-P1-03",
@@ -406,7 +415,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P1-04",
@@ -454,7 +464,8 @@
     "expected": {
      "exact": 222
     }
-   }
+   },
+   "nodes_min_collected": 33
   },
   {
    "id": "K-P1-05",
@@ -486,7 +497,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-06",
@@ -518,7 +530,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-07",
@@ -550,7 +563,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-08",
@@ -581,7 +595,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 19
   },
   {
    "id": "K-P1-09",
@@ -613,7 +628,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-10",
@@ -646,7 +662,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 9
   },
   {
    "id": "K-P1-11",
@@ -677,7 +694,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 7
   },
   {
    "id": "K-P1-12",
@@ -709,7 +727,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 203
   },
   {
    "id": "K-P1-13",
@@ -740,7 +759,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 13
   },
   {
    "id": "K-P1-14",
@@ -772,7 +792,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P1-15",
@@ -802,7 +823,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P2-01",
@@ -843,7 +865,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 88
   },
   {
    "id": "K-P2-02",
@@ -875,7 +898,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 96
   },
   {
    "id": "K-P2-03",
@@ -907,7 +931,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 24
   },
   {
    "id": "K-P2-04",
@@ -939,7 +964,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P2-05",
@@ -1012,7 +1038,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-07",
@@ -1078,7 +1105,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P2-09",
@@ -1110,7 +1138,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P2-10",
@@ -1141,7 +1170,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-11",
@@ -1175,7 +1205,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-12",
@@ -1206,7 +1237,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-13",
@@ -1238,7 +1270,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 14
   },
   {
    "id": "K-P2-14",
@@ -1268,7 +1301,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P2-15",
@@ -1300,7 +1334,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P2-16",
@@ -1331,7 +1366,8 @@
     "value": {
      "pinned_nodes_failing": 2
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-17",
@@ -1362,7 +1398,8 @@
     "value": {
      "pinned_nodes_failing": 2
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P2-18",
@@ -1394,7 +1431,44 @@
     "value": {
      "pinned_nodes_failing": 1
     }
-   }
+   },
+   "nodes_min_collected": 3
+  },
+  {
+   "id": "K-P2-19",
+   "phase_stage": "Phase 2 (acceptance criteria 3 and 5)",
+   "category": "TRUST",
+   "headline": false,
+   "name": "Phase 2 criteria 3 and 5: the matrix completeness assertion, and the U+FEFF name round trip",
+   "status": "GREEN",
+   "rule": "every pinned node passes: the contract matrix equals the disposition registry in both directions, the approximation inventory is read out of the matrix and misses no clause, and the completeness assertion refuses a key nobody disposed (criterion 3); a first name carrying U+FEFF is published and comes back byte for byte with no leading marker, and a default run leaves an unrelated file at either output name untouched (criterion 5)",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_p2c4f1_disposition_registry.py::test_the_contract_matrix_is_exactly_the_registry",
+    "tests/test_p2c1f4_approximation_bounds.py::test_the_inventory_is_read_out_of_the_matrix_and_misses_no_clause",
+    "tests/test_p2c1f4_approximation_bounds.py::test_the_completeness_assertion_refuses_a_key_nobody_disposed",
+    "tests/test_cli_generate.py::test_the_producer_really_publishes_the_marked_name",
+    "tests/test_cli_generate.py::test_a_marked_first_name_is_quoted_and_survives_the_round_trip",
+    "tests/test_cli_generate.py::test_an_unrelated_file_at_either_name_is_left_untouched"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "pinned nodes on e53d5f4",
+   "evidence": "completeness critic (headline balance): Phase 2 criteria 3 and 5 had no KPI. Pinned in the repair pass to the existing tests that implement them; 7 cases, all passing on e53d5f4. Criterion 3's recount of every EXACT-OBSERVABLE field is K-P2-08 and its bounds are K-P2-06",
+   "value_at": {
+    "commit": "e53d5f4",
+    "date": "2026-09-19",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   },
+   "nodes_min_collected": 7
   },
   {
    "id": "K-P3-01",
@@ -1425,7 +1499,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P3-02",
@@ -1473,7 +1548,8 @@
    "key_kinds": {
     "held_f1": "at_least",
     "held_f11": "at_least"
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P3-03",
@@ -1482,7 +1558,7 @@
    "headline": true,
    "name": "A plain numeric twin at 20,000 rows passes its own check",
    "status": "OPEN",
-   "rule": "target 0 missed at any row count; until repaired, missed <= 19 (must not get worse)",
+   "rule": "target 0 missed at any row count; until repaired, missed_20k <= 10 and missed_5k 0 (must not get worse)",
    "rule_kind": "at_most",
    "expected": {
     "missed_20k": 10,
@@ -1498,8 +1574,8 @@
    "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
      "missed_20k": 10,
      "missed_5k": 0
@@ -1540,7 +1616,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P3-05",
@@ -1571,7 +1648,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P3-06",
@@ -1604,7 +1682,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P3-07",
@@ -1636,7 +1715,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P3-08",
@@ -1733,7 +1813,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P3-11",
@@ -1766,7 +1847,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P3-12",
@@ -1788,14 +1870,14 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
-   "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows)",
+   "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
-     "validate_ratio_4x_rows": 3.49,
-     "validate_seconds_20k": 162.5
+     "validate_ratio_4x_rows": 4.06,
+     "validate_seconds_20k": 116.7
     }
    },
    "key_kinds": {
@@ -1832,7 +1914,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P3-14",
@@ -1863,7 +1946,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P3-15",
@@ -1893,7 +1977,43 @@
     "value": {
      "pinned_nodes_failing": 1
     }
-   }
+   },
+   "nodes_min_collected": 1
+  },
+  {
+   "id": "K-P3-16",
+   "phase_stage": "Phase 3 (acceptance criterion 3)",
+   "category": "TRUST",
+   "headline": false,
+   "name": "Phase 3 criterion 3: an impossible description is refused, never given a verdict, and a lowering names its grant",
+   "status": "GREEN",
+   "rule": "every pinned node passes: a description the domain cannot hold is refused by validate rather than given a verdict (25 values validate, 26 refuse), generation refuses a column whose counts leave no room and a domain too small before any cell is built, and every AUTHORIZED-DEVIATION verdict arrives with the passage that grants it",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_validation.py::test_a_description_the_domain_cannot_hold_refuses_rather_than_verdicts",
+    "tests/test_generation.py::test_a_column_whose_counts_leave_no_room_refuses_generation",
+    "tests/test_generation.py::test_a_domain_too_small_refuses_generation_before_anything_is_built",
+    "tests/test_generation.py::test_the_refusals_run_before_any_cell_is_built",
+    "tests/test_p3v1f2_entry_table.py::test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "pinned nodes on e53d5f4",
+   "evidence": "completeness critic (headline balance): Phase 3 criterion 3 had no KPI. Pinned in the repair pass to the existing tests that implement it; 5 cases, all passing on e53d5f4 (the last node is in a slow file). Its zero-MISSED half is K-P3-01, K-P4-01 and K-P3-09",
+   "value_at": {
+    "commit": "e53d5f4",
+    "date": "2026-09-19",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P4-01",
@@ -1933,7 +2053,8 @@
    },
    "key_kinds": {
     "runs": "at_least"
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-02",
@@ -1963,7 +2084,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-03",
@@ -2004,7 +2126,8 @@
    },
    "key_kinds": {
     "cells": "at_least"
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-04",
@@ -2034,7 +2157,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-05",
@@ -2080,7 +2204,8 @@
      "seeds": 8,
      "seeds_exact": 8
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-06",
@@ -2124,7 +2249,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-07",
@@ -2155,7 +2281,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-08",
@@ -2189,7 +2316,8 @@
      "pinned_nodes_failing": 0,
      "runs": 160
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-09",
@@ -2225,7 +2353,8 @@
      "pinned_nodes_failing": 0,
      "vaccine_seeds_off_width": 0
     }
-   }
+   },
+   "nodes_min_collected": 9
   },
   {
    "id": "K-P4-10",
@@ -2256,7 +2385,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 5
   },
   {
    "id": "K-P4-11",
@@ -2265,14 +2395,15 @@
    "headline": true,
    "name": "Eighteen clinical coding systems: profiled, generated and validated, each twin in its own shapes",
    "status": "GREEN",
-   "rule": "per system: twin shapes are a subset of the real column's shapes, the twin keeps all 240 rows, and validate misses nothing; shapes_equal (every real shape written) is recorded beside it",
+   "rule": "per system: twin shapes EQUAL the real column's shapes (every real shape written, none invented; the subset count is kept beside it), the twin keeps all 240 rows, and validate misses nothing",
    "rule_kind": "at_least",
    "expected": {
     "systems": 18,
     "shapes_a_subset": 18,
     "validate_clean": 18,
     "rows_kept": 18,
-    "pinned_nodes_failing": 0
+    "pinned_nodes_failing": 0,
+    "shapes_equal": 18
    },
    "tier": "FAST",
    "source": "pytest",
@@ -2298,7 +2429,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 18
   },
   {
    "id": "K-P4-12",
@@ -2329,7 +2461,8 @@
     "value": {
      "pinned_nodes_failing": 1
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-13",
@@ -2361,7 +2494,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P4-14",
@@ -2392,7 +2526,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-15",
@@ -2424,7 +2559,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-P4-16",
@@ -2456,7 +2592,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-17",
@@ -2494,7 +2631,8 @@
      "seeds": 8,
      "seeds_exact": 8
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-18",
@@ -2527,7 +2665,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-P4-19",
@@ -2557,7 +2696,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-20",
@@ -2591,7 +2731,8 @@
      "pinned_nodes_failing": 0,
      "settings_default": 1
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-P4-21",
@@ -2622,7 +2763,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-P4-22",
@@ -2708,9 +2850,13 @@
    "headline": false,
    "name": "Phase 4 criterion 4: every fixture column keeps its committed role (the no-regression battery)",
    "status": "GREEN",
-   "rule": "for every column of the every-role, numbers-with-labels, joined-numbers and every-withholding fixture tables at floors 1 and 11, the role equals the committed map in this entry's expected value; a change edits this entry in the same commit and names K-P4-24 in the CHANGELOG. The numeric-recovered direction of decision 7 is pinned by the node",
+   "rule": "for every column of the every-role, numbers-with-labels, joined-numbers and every-withholding fixture tables at floors 1 and 11, the role equals the committed map in this entry's expected value; and BOTH directions of decision 7's re-reading happen exactly: a yes/#N/A column is binary with the literals kept as data (--keep-value) and constant with them read as holes, and a numeric column holding six error literals is free text kept as data and count read as holes. A change edits this entry in the same commit and names K-P4-24 in the CHANGELOG. The numeric-recovered direction's round trip is pinned by the node",
    "rule_kind": "exact",
    "expected": {
+    "decision_7/binary_to_constant/literals_as_holes": "constant",
+    "decision_7/binary_to_constant/literals_kept_as_data": "binary",
+    "decision_7/numeric_recovered/literals_as_holes": "count",
+    "decision_7/numeric_recovered/literals_kept_as_data": "free_text",
     "every_role_and_joined/f1/amount": "continuous",
     "every_role_and_joined/f1/answer": "binary",
     "every_role_and_joined/f1/batch": "constant",
@@ -2783,6 +2929,10 @@
     "commit": "e53d5f4",
     "date": "2026-09-19",
     "value": {
+     "decision_7/binary_to_constant/literals_as_holes": "constant",
+     "decision_7/binary_to_constant/literals_kept_as_data": "binary",
+     "decision_7/numeric_recovered/literals_as_holes": "count",
+     "decision_7/numeric_recovered/literals_kept_as_data": "free_text",
      "every_role_and_joined/f1/amount": "continuous",
      "every_role_and_joined/f1/answer": "binary",
      "every_role_and_joined/f1/batch": "constant",
@@ -2841,7 +2991,8 @@
      "numbers_with_labels/f11/reading": "numbers_with_labels",
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-S1-01",
@@ -2863,15 +3014,15 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
-   "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge",
+   "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
-     "generate_ratio_4x_rows": 2.9,
-     "generate_seconds_20k": 61.8,
-     "profile_seconds_20k": 67.8
+     "generate_ratio_4x_rows": 3.2,
+     "generate_seconds_20k": 34.5,
+     "profile_seconds_20k": 42.2
     }
    },
    "key_kinds": {
@@ -2906,7 +3057,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-S1-03",
@@ -2981,7 +3133,7 @@
    "headline": false,
    "name": "Describing 200,000 rows x 2 label columns",
    "status": "GREEN",
-   "rule": "under 60 s on the reference machine AND ratio < 8",
+   "rule": "under 60 s on the quiet reference machine AND ratio < 8 (median of 3 at 50k and 200k)",
    "rule_kind": "ratio_below",
    "expected": {
     "profile_ratio_4x_rows": 8,
@@ -2994,14 +3146,14 @@
    "driver": "tools/measurements/kpi_scale.py labels2 --kpi",
    "pin_strength": "NONE",
    "measured_on": "5 sites and 3 grades uniform, seed 20260913",
-   "evidence": "23.3 s (10 s at landing; 390 s before); 50k-to-200k ratio 3.47",
+   "evidence": "23.3 s (10 s at landing; 390 s before); 50k-to-200k ratio 3.47. Repair pass, median of three at both sizes: 21.3 s at 200,000, ratio 3.83",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
-     "profile_ratio_4x_rows": 4.26,
-     "profile_seconds_200k": 57.6
+     "profile_ratio_4x_rows": 3.83,
+     "profile_seconds_200k": 21.3
     }
    },
    "key_kinds": {
@@ -3015,9 +3167,10 @@
    "headline": true,
    "name": "Largest tables end to end: 100k x 20, 1M x 20, 2M x 50",
    "status": "OPEN",
-   "rule": "100k x 20 end to end under 15 min on the reference machine; target (landing-4 gate): 2M x 50 under 1 hour, measured with --rows 2000000 --cols 50, never projected",
-   "rule_kind": "seconds_below",
+   "rule": "machine-free: describing and generating 100k x 20 takes < 8x the time of 25k x 20 (median of 3 at each size, the sizes in turn); AND 100k x 20 end to end under 15 min on the quiet reference machine; target (landing-4 gate): 2M x 50 under 1 hour on the quiet reference machine, measured with --rows 2000000 --cols 50, never projected",
+   "rule_kind": "ratio_below",
    "expected": {
+    "ratio_4x_rows": 8,
     "seconds_100k_x20": 900
    },
    "tier": "SLOW",
@@ -3026,20 +3179,26 @@
    "test": null,
    "driver": "tools/measurements/kpi_scale.py numeric --kpi",
    "pin_strength": "NONE",
-   "measured_on": "Gaussian columns at 2 dp",
-   "evidence": "100k x 20: 392 s (describe 240.6 + generate 151.7). 1M x 20 and 2M x 50 never measured on the repaired tree; linear projection about 65 min and 5.4 h",
+   "measured_on": "Gaussian columns at 2 dp, 25,000 and 100,000 rows x 20, three times each",
+   "evidence": "100k x 20: 392 s at landing (describe 240.6 + generate 151.7); 946.5 s once under load on e53d5f4, one sample. Repair pass, median of 3 at 25k and at 100k, the sizes in turn, load average 6-9: 100k x 20 375.9 s, ratio 3.96. A mutant with quadratic generation (30 x rows^2 steps) reads ratio 11.06 at 2k/8k x 2 against 3.66 unmutated. 1M x 20 and 2M x 50 never measured on the repaired tree; linear projection about 65 min and 5.4 h",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
-     "microseconds_per_cell": 473.3,
-     "seconds_100k_x20": 946.5
+     "microseconds_per_cell": 187.9,
+     "ratio_4x_rows": 3.96,
+     "repeats": 3,
+     "seconds_100k_x20": 375.9
     }
    },
    "target_stage": "stage 4 (landing 4: the largest tables)",
    "target": {
     "seconds_2m_x50": 3600
+   },
+   "key_kinds": {
+    "seconds_100k_x20": "seconds_below",
+    "seconds_2m_x50": "seconds_below"
    }
   },
   {
@@ -3049,10 +3208,11 @@
    "headline": false,
    "name": "Generation grows linearly (fast tier)",
    "status": "GREEN",
-   "rule": "machine-free: generating 8,000 rows x 4 Gaussian columns takes < 8x the time of 2,000 rows (median of 3; the small size takes about a second on the reference machine and more on a slower one)",
+   "rule": "machine-free: generating 4N rows x 4 Gaussian columns takes < 8x the time of N rows (median of 3), where N starts at 2,000 and doubles until one generation of N rows takes at least a second -- the probe that chose N is held to that second, so the ratio is never of two noise-sized times",
    "rule_kind": "ratio_below",
    "expected": {
-    "ratio_4x_rows": 8
+    "ratio_4x_rows": 8,
+    "small_seconds_probe": 1.0
    },
    "tier": "FAST",
    "source": "pytest",
@@ -3066,10 +3226,15 @@
     "commit": "e53d5f4",
     "date": "2026-09-19",
     "value": {
-     "large_seconds": 7.24,
-     "ratio_4x_rows": 3.58,
-     "small_seconds": 2.02
+     "large_seconds": 5.86,
+     "ratio_4x_rows": 3.48,
+     "small_rows": 4000,
+     "small_seconds": 1.68,
+     "small_seconds_probe": 1.72
     }
+   },
+   "key_kinds": {
+    "small_seconds_probe": "at_least"
    }
   },
   {
@@ -3171,7 +3336,8 @@
      "pinned_nodes_failing": 0,
      "ungrouped_cells_over_a_thousand": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-S2-04",
@@ -3203,7 +3369,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-S2-05",
@@ -3235,7 +3402,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-S2-06",
@@ -3273,7 +3441,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-2B-01",
@@ -3463,7 +3632,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 47
   },
   {
    "id": "K-2B-07",
@@ -3493,7 +3663,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-2B-08",
@@ -3526,7 +3697,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-2B-09",
@@ -3557,7 +3729,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 50
   },
   {
    "id": "K-2B-10",
@@ -3588,7 +3761,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 25
   },
   {
    "id": "K-2B-11",
@@ -3621,7 +3795,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 9
   },
   {
    "id": "K-2B-12",
@@ -3653,7 +3828,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 5
   },
   {
    "id": "K-2B-13",
@@ -3685,7 +3861,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-2B-14",
@@ -3757,7 +3934,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-2B-16",
@@ -3789,7 +3967,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 9
   },
   {
    "id": "K-2B-17",
@@ -3821,7 +4000,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-2B-18",
@@ -3925,7 +4105,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-21",
@@ -3958,7 +4139,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-22",
@@ -3991,7 +4173,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 7
   },
   {
    "id": "K-2B-22b",
@@ -4028,7 +4211,8 @@
      "record_text_in_published_files": 0,
      "rows_counted": 240
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-2B-23",
@@ -4061,7 +4245,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 6
   },
   {
    "id": "K-2B-24",
@@ -4093,7 +4278,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 7
   },
   {
    "id": "K-2B-25",
@@ -4129,7 +4315,8 @@
      "inline_copies": 0,
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-2B-26",
@@ -4164,7 +4351,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 8
   },
   {
    "id": "K-2B-27",
@@ -4197,7 +4385,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-28",
@@ -4272,7 +4461,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-2B-30",
@@ -4311,7 +4501,8 @@
    },
    "key_kinds": {
     "pinned_nodes_failing": "exact"
-   }
+   },
+   "nodes_min_collected": 1
   },
   {
    "id": "K-2B-31",
@@ -4344,7 +4535,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-32",
@@ -4375,7 +4567,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-2B-33",
@@ -4407,7 +4600,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 5
   },
   {
    "id": "K-2B-34",
@@ -4443,7 +4637,8 @@
      "nonzero_exits": 0,
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 10
   },
   {
    "id": "K-2B-35",
@@ -4474,7 +4669,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-2B-36",
@@ -4506,7 +4702,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-37",
@@ -4539,7 +4736,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 4
   },
   {
    "id": "K-2B-38",
@@ -4579,7 +4777,8 @@
    },
    "key_kinds": {
     "peak_mb": "at_most"
-   }
+   },
+   "nodes_min_collected": 8
   },
   {
    "id": "K-2B-39",
@@ -4611,7 +4810,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 3
   },
   {
    "id": "K-2B-40",
@@ -4677,7 +4877,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 229
   },
   {
    "id": "K-2B-42",
@@ -4742,7 +4943,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-2B-44",
@@ -4773,7 +4975,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "nodes_min_collected": 2
   },
   {
    "id": "K-2B-45",
@@ -4782,16 +4985,20 @@
    "headline": false,
    "name": "ACCEPTED LIMIT: whole real rows through a made-up identifier that coincides with a real one",
    "status": "ACCEPTED_LIMIT",
-   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11), whole real rows and rows equal to a real row but for the identifier must not rise. Every whole-row copy here has a made-up identifier equal to a real one -- the identifier room the owner accepted (K-2B-18)",
+   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11): made-up identifiers equal to a real one must not rise (16 of 400 at every seed); whole real rows must not rise past the chance ceiling of those 16 rows also matching their real row on the other columns (Binomial(16, p), P(exceed) < 1e-4: A p = 1/4 x 1/9, ceiling 5; D p = 0.454 x 1/3, ceiling 9); rows equal to a real row but for the identifier are held at D floor 11's 394, and are 400 of 400 (every row) for A and for D at floor 1, where the bound is the row count. Every whole-row copy here has a made-up identifier equal to a real one -- the identifier room the owner accepted (K-2B-18)",
    "rule_kind": "at_most",
    "expected": {
-    "A_csv_f1_whole": 1,
-    "A_csv_f11_whole": 1,
-    "D_csv_f1_whole": 1,
-    "D_csv_f11_whole": 1,
+    "A_csv_f1_coincident_ids": 16,
+    "A_csv_f11_coincident_ids": 16,
+    "D_csv_f1_coincident_ids": 16,
+    "D_csv_f11_coincident_ids": 16,
+    "A_csv_f1_whole": 5,
+    "A_csv_f11_whole": 5,
+    "D_csv_f1_whole": 9,
+    "D_csv_f11_whole": 9,
     "A_csv_f1_ignoring_identifier": 400,
     "A_csv_f11_ignoring_identifier": 400,
-    "D_csv_f1_ignoring_identifier": 398,
+    "D_csv_f1_ignoring_identifier": 400,
     "D_csv_f11_ignoring_identifier": 394
    },
    "tier": "FAST",
@@ -4801,17 +5008,21 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "the eight realistic shapes, seed 4",
-   "evidence": "critic: A_csv 1 of 400 and D_csv 1 of 400 whole real rows; non-identifier copies A 400, D 394",
+   "evidence": "critic: A_csv 1 of 400 and D_csv 1 of 400 whole real rows; non-identifier copies A 400, D 394. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-2b45.txt): coincident identifiers 16 at every seed and floor; A whole 0-3 (mean 0.60), D whole 0-7 (mean 2.53); D floor 1 ignoring the identifier 394-400, floor 11 394 at every seed, A 400 at every seed. The first ceilings (A 1, D 1, D floor 1 ignoring 398) were seed 4's draw and read ACCEPTED-WORSE at 9 of 12 seeds (skeptic). The chance rate: the 16 coincident rows match their real row's other columns with p = P(site) x P(note) = 1/4 x 1/9 = 0.028 (A; observed 0.60/16 = 0.038) and p = sum of squared arm shares 0.454 x P(outcome) 1/3 = 0.151 (D; observed 2.53/16 = 0.158); at the observed p, P(X > 5) = 1.6e-5 for A and P(X > 9) = 3.0e-5 for D",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",
     "value": {
+     "A_csv_f11_coincident_ids": 16,
      "A_csv_f11_ignoring_identifier": 400,
      "A_csv_f11_whole": 1,
+     "A_csv_f1_coincident_ids": 16,
      "A_csv_f1_ignoring_identifier": 400,
      "A_csv_f1_whole": 1,
+     "D_csv_f11_coincident_ids": 16,
      "D_csv_f11_ignoring_identifier": 394,
      "D_csv_f11_whole": 1,
+     "D_csv_f1_coincident_ids": 16,
      "D_csv_f1_ignoring_identifier": 398,
      "D_csv_f1_whole": 1
     }
@@ -4824,7 +5035,7 @@
    "headline": true,
    "name": "Code runs unchanged: pandas gives every twin column the dtype it gives the real column",
    "status": "OPEN",
-   "rule": "columns whose pandas dtype differs between the real file and its twin must not rise (every-role CSV at floors 1 and 11, two seeds; the eight realistic shapes, CSV and workbook); target 0",
+   "rule": "columns whose pandas dtype differs between the real file and its twin must not rise (every-role CSV at floors 1 and 11, three seeds (the golden seed, 1 and 2); the eight realistic shapes, CSV and workbook); target 0",
    "rule_kind": "at_most",
    "expected": {
     "every_role_columns_mismatched": 1,
@@ -4859,11 +5070,12 @@
    "headline": false,
    "name": "Carried fidelity misses: the known-miss battery",
    "status": "OPEN",
-   "rule": "per carried shape, twin runs with a MISSED verdict must not rise; target 0",
+   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); target 0",
    "rule_kind": "at_most",
    "expected": {
-    "dose_missed_runs": 18,
-    "heavy_tail_missed_runs": 2,
+    "dose_missed_checks": 18,
+    "heavy_tail_missed_checks": 2,
+    "percent_missed_checks": 0,
     "percent_missed_runs": 0,
     "temperature_over_mode_runs": 0
    },
@@ -4877,13 +5089,16 @@
    "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect",
    "value_at": {
     "commit": "e53d5f4",
-    "date": "2026-09-18",
-    "measured_by": "tests and the SLOW driver",
+    "date": "2026-09-19",
+    "measured_by": "the SLOW driver, repair pass",
     "value": {
+     "dose_missed_checks": 18,
      "dose_missed_runs": 18,
      "dose_runs": 18,
+     "heavy_tail_missed_checks": 2,
      "heavy_tail_missed_runs": 2,
      "heavy_tail_runs": 2,
+     "percent_missed_checks": 0,
      "percent_missed_runs": 0,
      "percent_runs": 2,
      "temperature_over_mode_runs": 0,
@@ -4892,8 +5107,9 @@
    },
    "target_stage": "stage 3 (the carried fidelity items)",
    "target": {
-    "dose_missed_runs": 0,
-    "heavy_tail_missed_runs": 0,
+    "dose_missed_checks": 0,
+    "heavy_tail_missed_checks": 0,
+    "percent_missed_checks": 0,
     "percent_missed_runs": 0,
     "temperature_over_mode_runs": 0
    }
@@ -4905,11 +5121,11 @@
    "headline": true,
    "name": "Statistics across columns: the association the twin loses today",
    "status": "OPEN",
-   "rule": "the gap between the twin's and the real table's rank correlation (age, sbp), and the old-young death-rate difference the twin loses, must not rise; target: both under 0.05",
+   "rule": "the gap between the twin's and the real table's rank correlation (age, sbp), and the old-young death-rate difference the twin loses, must not rise past what a twin with NO association gives at 4.5 standard deviations: rank gap <= 0.747 + 4.5/sqrt(1000) = 0.89, death-rate gap <= 0.452 + 4.5 x 0.0319 = 0.60 (a twin that turns the association around fails); target: both under 0.05",
    "rule_kind": "at_most",
    "expected": {
-    "rank_correlation_gap": 0.72,
-    "death_rate_gap_lost": 0.385
+    "rank_correlation_gap": 0.89,
+    "death_rate_gap_lost": 0.6
    },
    "tier": "FAST",
    "source": "pytest",
@@ -4918,7 +5134,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "1,000 rows of age, sbp (built from age), a two-valued group and died (depends on age); default floor; seed 4",
-   "evidence": "critic: rank correlation 0.747 real, 0.027 twin; death rate old/young 0.56/0.11 real, 0.25/0.18 twin",
+   "evidence": "critic: rank correlation 0.747 real, 0.027 twin; death rate old/young 0.56/0.11 real, 0.25/0.18 twin. Seed spread on e53d5f4, generate seeds 1-40 (repair pass, build/kpi-ledger/repair/spread-s601.txt): rank_correlation_gap 0.678-0.822 (mean 0.735, sd 0.032), death_rate_gap_lost 0.385-0.518 (mean 0.455, sd 0.031); the first bound (seed 4's 0.72 and 0.385, its luckiest draw) read OPEN-WORSE at 39 of 40 seeds. The bound is derived, not fitted: the twin carries no association today, so its rank correlation is noise of sd 1/sqrt(1000) = 0.0316 about 0 and its death-rate difference noise of sd sqrt(0.194 x 0.806 x (1/189 + 1/811)) = 0.0319 about 0; the real values are 0.747 and 0.452; a legitimate change to the random stream crosses 4.5 sd about once in 300,000 draws",
    "value_at": {
     "commit": "e53d5f4",
     "date": "2026-09-19",

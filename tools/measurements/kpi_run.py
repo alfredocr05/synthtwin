@@ -22,15 +22,22 @@ HOW EACH ENTRY IS MEASURED.
 
 EXIT CODES. 0 when every GREEN entry passes and every OPEN or
 ACCEPTED_LIMIT entry is at or inside its must-not-get-worse bound; 1 on
-any drop; 2 when the ledger fails its own integrity check (a pinned node
-that no longer exists or is not collected, a KPI test with no entry, and
-the rest of `kpi_rules.integrity_problems`) or when synthtwin would not be
-imported from this tree's `src`. An OPEN entry that reaches its target
-prints IMPROVED and asks for its status to be flipped; it never fails.
+any drop, and a KPI test that fails before it records its value is a
+drop (FAIL); 2 when the ledger fails its own integrity check (a pinned
+node that no longer exists or is not collected, fewer pinned cases
+collected than the entry's `nodes_min_collected`, a pinned case that was
+SKIPPED -- a skipped case measures nothing, so it may never read as a
+pass -- unless the entry lists that node in `allowed_skips`, a KPI test
+with no entry, and the rest of `kpi_rules.integrity_problems`) or when
+synthtwin would not be imported from this tree's `src`. An OPEN entry
+that reaches its target prints IMPROVED and asks for its status to be
+flipped; it never fails.
 
 SECONDS. A seconds rule is judged only on the reference machine the
-ledger names (platform machine and core count). Anywhere else it warns
-and the machine-free ratio or count beside it is what can fail.
+ledger names (platform machine and core count), and only while its
+one-minute load average is under the ledger's `quiet_load_average_below`.
+Anywhere else it warns and the machine-free ratio or count beside it is
+what can fail.
 
 WHAT IT NEVER DOES. It never rewrites the ledger. `--print-values`
 prints what it measured in the ledger's own `value_at` form -- value,
@@ -97,11 +104,13 @@ def _refuse_unless_this_tree() -> str:
     child = pathlib.Path(probe.stdout.strip() or "/nonexistent").resolve()
     for place in (here, child):
         if SOURCE.resolve() not in place.parents:
-            sys.exit(
+            print(
                 f"REFUSING: synthtwin resolves to {place}, not under {SOURCE}. "
                 "An installed copy from another checkout would be measured instead "
-                "of this tree. Run from this checkout's own environment."
+                "of this tree. Run from this checkout's own environment.",
+                flush=True,
             )
+            sys.exit(kpi_rules.REFUSED_EXIT)
     return str(here)
 
 
@@ -205,13 +214,29 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
     drivers: "dict[str, list[dict]]" = {}
     if slow:
         drivers = _run_drivers(sorted({e["driver"] for e in entries if e.get("driver")}))
-    seconds_count = kpi_rules.on_reference_machine(ledger)
+    seconds_count, _why = kpi_rules.seconds_judged_here(ledger)
+    return judge_rows(entries, ledger, slow, cases, drivers, seconds_count)
+
+
+def judge_rows(
+    entries: "list[dict]", ledger: "dict", slow: bool,
+    cases: "dict[str, list[dict]]", drivers: "dict[str, list[dict]]", seconds_count: bool,
+) -> "list[dict]":
+    """One result row per entry, from the pytest cases and driver records already gathered.
+
+    ``cases`` maps 'file::function' to its collected cases, each
+    {"outcome": "passed" | "failed" | "skipped", "kpi": recorded or None}.
+    A PROBLEM is an integrity fault (exit 2); a FAILURE is a drop (exit 1).
+    """
     rows = []
     for entry in entries:
         parts: "list[object]" = []
         details: "list[str]" = []
         partial = False
         problem = ""
+        failure = ""
+        failed_after = False
+        test_skipped = False
         test = entry.get("test")
         if test:
             ran = cases.get(test, [])
@@ -221,12 +246,14 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
                 parts += [ran[0]["kpi"]["value"]]
                 if ran[0]["kpi"].get("detail"):
                     details += [ran[0]["kpi"]["detail"]]
+                failed_after = ran[0]["outcome"] == "failed"
             elif ran[0]["outcome"] == "skipped":
-                problem = "skipped"
+                test_skipped = True
             else:
-                problem = f"its test {ran[0]['outcome']} before recording a value"
+                failure = f"its test {ran[0]['outcome']} before recording a value"
         failing = collected = 0
         slow_left = 0
+        allowed = set(entry.get("allowed_skips", []))
         for node in entry.get("nodes", []):
             if not slow and _is_slow_node(ledger, node):
                 slow_left += 1
@@ -234,14 +261,19 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
             ran = cases.get(node, [])
             if not ran:
                 problem = f"pinned node {node} was not collected"
-            collected += len(ran)
+            skipped = sum(1 for case in ran if case["outcome"] == "skipped")
+            if skipped and node not in allowed:
+                problem = (f"{skipped} case(s) of pinned node {node} were SKIPPED: a skipped "
+                           "case measures nothing (list the node in allowed_skips only "
+                           "where a skip is the rule)")
+            collected += len(ran) - skipped
             failing += sum(1 for case in ran if case["outcome"] == "failed")
         if entry.get("nodes") and slow_left < len(entry["nodes"]):
             parts += [{"pinned_nodes_failing": failing}]
-            if collected < entry.get("nodes_min_collected", 0):
-                problem = (f"{collected} pinned cases collected, fewer than the "
+            if not problem and collected < entry.get("nodes_min_collected", 0):
+                problem = (f"{collected} pinned cases collected and run, fewer than the "
                            f"{entry['nodes_min_collected']} the ledger requires")
-        partial = slow_left > 0
+        partial = slow_left > 0 or test_skipped
         if entry.get("driver"):
             if slow:
                 records = drivers.get(entry["id"], [])
@@ -252,11 +284,14 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
                     problem = f"its driver {entry['driver']} printed no value for it"
             else:
                 partial = True
-        if problem and problem != "skipped":
+        if problem:
             word = "INTEGRITY"
             message = problem
             value: object = None
-        elif problem == "skipped" and not parts:
+        elif failure:
+            word, message = kpi_rules.FAIL, failure
+            value = _merge(parts) if parts else None
+        elif test_skipped and not parts:
             word, message, value = kpi_rules.NOT_MEASURED, "its test was skipped here", None
         elif not parts:
             word, message, value = kpi_rules.NOT_RUN, "slow tier: run with --slow", None
@@ -264,6 +299,10 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
             value = _merge(parts)
             verdict = kpi_rules.judge(entry, value, seconds_count, partial)
             word, message = verdict.word, verdict.message
+            if failed_after and word not in kpi_rules.DROPS:
+                # The test judged its value red, or failed on an assertion
+                # of its own after recording it: never a pass.
+                word, message = kpi_rules.FAIL, f"its test failed after recording (runner: {message})"
             if partial and word not in kpi_rules.DROPS:
                 message += " (fast part only: run with --slow for the rest)"
         rows += [{
@@ -296,15 +335,16 @@ def main(argv: "list[str] | None" = None) -> int:
         print("THE LEDGER FAILS ITS OWN INTEGRITY CHECK:")
         for problem in problems:
             print(f"  {problem}")
-        return 2
+        return kpi_rules.REFUSED_EXIT
     entries = kpi_rules.select(ledger["entries"], args.only)
     if not entries:
         print(f"no ledger id matches {args.only}")
-        return 2
+        return kpi_rules.REFUSED_EXIT
     on_reference = kpi_rules.on_reference_machine(ledger)
-    if not on_reference:
-        print(f"WARNING: this is not the reference machine ({ledger['reference_machine']['name']}); "
-              "seconds rules are reported, never failed, and ratios and counts still fail.")
+    seconds_count, why = kpi_rules.seconds_judged_here(ledger)
+    if not seconds_count:
+        print(f"WARNING: {why}; seconds rules are reported, never failed, and ratios "
+              "and counts still fail.")
     with tempfile.TemporaryDirectory(prefix="synthtwin-kpi-") as folder:
         rows = measure(entries, ledger, args.slow, pathlib.Path(folder))
 
@@ -349,7 +389,8 @@ def main(argv: "list[str] | None" = None) -> int:
     report.write_text(json.dumps({
         "commit": commit, "date": datetime.date.today().isoformat(),
         "mode": "slow" if args.slow else "fast", "synthtwin": module,
-        "reference_machine": on_reference, "totals": totals,
+        "reference_machine": on_reference, "seconds_judged": seconds_count,
+        "totals": totals,
         "kpis": [{k: r[k] for k in ("id", "phase_stage", "category", "headline", "name",
                                    "status", "rule", "value_now", "verdict", "pass",
                                    "partial", "tier", "detail")} for r in rows],
@@ -366,7 +407,7 @@ def main(argv: "list[str] | None" = None) -> int:
         print(json.dumps(stamped, indent=1, sort_keys=True))
 
     if any(r["verdict"] == "INTEGRITY" for r in rows):
-        return 2
+        return kpi_rules.REFUSED_EXIT
     return 1 if drops else 0
 
 

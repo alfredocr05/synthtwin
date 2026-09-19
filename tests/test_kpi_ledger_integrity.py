@@ -15,22 +15,48 @@ function `tools/measurements/kpi_run.py` refuses to run without:
 (d) ids are unique and well formed, and every closed field holds one of
     its members;
 (e) every phase or stage and every category has a headline, and the
-    board holds 20 to 30 of them.
+    board holds 20 to 30 of them;
+(f) every entry with pinned nodes in the fast tier names how many of
+    their cases must be collected AND RUN (`nodes_min_collected`), so a
+    parametrize list that shrinks is seen.
 
 Whether a pinned node is COLLECTED, and not merely defined, is what the
-runner checks when it runs: it exits 2 on a node pytest did not collect.
-The mutation tests at the bottom prove each check can fail.
+runner checks when it runs: it exits 2 on a node pytest did not collect,
+on fewer cases run than the entry's floor, and on a pinned case that was
+SKIPPED -- a skip measures nothing, so a headline measured only by
+pinned nodes could otherwise stay green over a regression. The runner's
+judging is a pure function (`kpi_run.judge_rows`), and the tests at the
+bottom feed it made-up pytest outcomes to prove each of those can fail,
+beside the mutation tests of the ledger checks.
 """
 
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
 import pathlib
+
+import pytest
 
 import kpi_rules
 
 LEDGER = kpi_rules.load_ledger()
+ENTRIES = kpi_rules.entries_by_id(LEDGER)
+
+
+def _runner() -> object:
+    """tools/measurements/kpi_run.py loaded as a module (it runs nothing on import)."""
+    spec = importlib.util.spec_from_file_location(
+        "kpi_run_under_test", kpi_rules.MEASUREMENTS / "kpi_run.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+RUNNER = _runner()
 
 
 def test_the_ledger_passes_its_own_integrity_check() -> None:
@@ -61,9 +87,10 @@ def test_every_entry_s_expected_value_is_judged_true_of_itself() -> None:
         value = entry["value_at"]["value"]
         if not isinstance(value, dict):
             continue
-        # Seconds are left out: a recorded value may come from a loaded
-        # machine, and the rule judges seconds only where they are taken.
-        verdict = kpi_rules.judge(entry, value, seconds_count=False, partial=True)
+        # Seconds are judged too: every recorded value was taken on the
+        # reference machine, so one that breaks its seconds rule -- even
+        # under load -- must say RED in its evidence, not pass unseen.
+        verdict = kpi_rules.judge(entry, value, seconds_count=True, partial=True)
         if verdict.is_drop:
             assert "RED" in entry.get("evidence", ""), (
                 f"{entry['id']}: its recorded value {value!r} fails its own rule "
@@ -199,3 +226,147 @@ def test_the_ledger_file_is_canonical_json() -> None:
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
     assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 250_000
+
+
+def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:
+    """(f) can fail: an entry that drops its floor, or allows a skip of a node it does not pin."""
+
+    def drop(ledger: "dict") -> None:
+        for entry in ledger["entries"]:
+            if entry["id"] == "K-P0-01":
+                del entry["nodes_min_collected"]
+
+    assert any("K-P0-01: nodes_min_collected" in p for p in _problems_after(drop))
+
+    def stray(ledger: "dict") -> None:
+        for entry in ledger["entries"]:
+            if entry["id"] == "K-P0-01":
+                entry["allowed_skips"] = ["tests/test_socket_guard.py::test_not_pinned_here"]
+
+    assert any("allowed skip" in p for p in _problems_after(stray))
+
+
+# -- the runner's judging can fail (kpi_run.judge_rows, fed made-up outcomes) --
+
+
+def _cases(entry: "dict", outcome: str, per_node: int = 1) -> "dict[str, list[dict]]":
+    return {node: [{"outcome": outcome, "kpi": None}] * per_node for node in entry["nodes"]}
+
+
+def _row(entry: "dict", cases: "dict[str, list[dict]]") -> "dict":
+    rows = RUNNER.judge_rows(  # type: ignore[attr-defined]
+        [entry], LEDGER, False, cases, {}, False
+    )
+    assert len(rows) == 1
+    return rows[0]
+
+
+def test_a_skipped_pinned_case_never_reads_as_a_pass() -> None:
+    """The skeptic's reproduction: K-P0-01's only pinned test skipped over a real regression.
+
+    K-P0-01 is a headline measured only by pinned nodes. With every case
+    passing it is PASS; with its cases SKIPPED it must be an integrity
+    fault (exit 2), never PASS -- and a skip the entry allows by name is
+    left out of the count, which still has to reach the entry's floor.
+    """
+    entry = ENTRIES["K-P0-01"]
+    floor = entry["nodes_min_collected"]
+    passed = _row(entry, _cases(entry, "passed", floor))
+    assert passed["verdict"] == kpi_rules.PASS and passed["pass"]
+    skipped = _row(entry, _cases(entry, "skipped", floor))
+    assert skipped["verdict"] == "INTEGRITY" and not skipped["pass"], skipped
+    assert "SKIPPED" in skipped["message"]
+    one_skip = _cases(entry, "passed", floor)
+    first = entry["nodes"][0]
+    one_skip[first] = one_skip[first] + [{"outcome": "skipped", "kpi": None}]
+    assert _row(entry, one_skip)["verdict"] == "INTEGRITY"
+    allowed = dict(entry, allowed_skips=[first])
+    assert _row(allowed, one_skip)["verdict"] == kpi_rules.PASS
+    only_skips = {node: [{"outcome": "skipped", "kpi": None}] for node in entry["nodes"]}
+    assert _row(dict(entry, allowed_skips=list(entry["nodes"])), only_skips)["verdict"] == "INTEGRITY"
+
+
+def test_a_shrinking_parametrize_list_is_an_integrity_fault() -> None:
+    """Fewer pinned cases collected and run than the entry's floor: exit 2, never PASS.
+
+    K-S2-01 pins one parametrized node over the stage-2 shapes; the
+    same node with one shape fewer is the shrinking list.
+    """
+    entry = ENTRIES["K-S2-01"]
+    floor = entry["nodes_min_collected"]
+    assert len(entry["nodes"]) == 1 and floor >= 19
+    node = entry["nodes"][0]
+    recorded = {"id": "K-S2-01", "value": {"shapes": 19}, "detail": ""}
+    full = {node: [{"outcome": "passed", "kpi": None}] * floor,
+            entry["test"]: [{"outcome": "passed", "kpi": recorded}]}
+    assert _row(entry, full)["verdict"] == kpi_rules.PASS
+    shrunk = dict(full, **{node: full[node][1:]})
+    row = _row(entry, shrunk)
+    assert row["verdict"] == "INTEGRITY" and "fewer than" in row["message"], row
+
+
+def test_a_kpi_test_that_fails_before_recording_is_a_drop() -> None:
+    """A product exception or an assertion before the value is recorded: FAIL (exit 1), not INTEGRITY."""
+    entry = ENTRIES["K-2B-46"]
+    row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": None}]})
+    assert row["verdict"] == kpi_rules.FAIL and not row["pass"], row
+    recorded = {"id": "K-2B-46", "value": entry["value_at"]["value"], "detail": ""}
+    row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": recorded}]})
+    assert row["verdict"] == kpi_rules.FAIL, row
+    row = _row(entry, {entry["test"]: [{"outcome": "passed", "kpi": recorded}]})
+    assert row["verdict"] == kpi_rules.OPEN_HELD, row
+
+
+def test_an_open_seconds_target_is_never_improved_where_seconds_are_not_judged() -> None:
+    """K-S1-06: its target is in seconds; off the quiet reference machine it can fail, never improve."""
+    entry = ENTRIES["K-S1-06"]
+    met = {"ratio_4x_rows": 4.0, "seconds_100k_x20": 300.0, "seconds_2m_x50": 1000.0}
+    assert kpi_rules.judge(entry, met, seconds_count=False).word == kpi_rules.OPEN_HELD
+    assert kpi_rules.judge(entry, met, seconds_count=True).word == kpi_rules.IMPROVED
+    worse = dict(met, ratio_4x_rows=9.0)
+    assert kpi_rules.judge(entry, worse, seconds_count=False).word == kpi_rules.OPEN_WORSE
+    slow = dict(met, seconds_100k_x20=1000.0)
+    assert kpi_rules.judge(entry, slow, seconds_count=True).word == kpi_rules.OPEN_WORSE
+    assert kpi_rules.judge(entry, slow, seconds_count=False).word == kpi_rules.OPEN_HELD
+
+
+def test_seconds_are_judged_only_on_the_quiet_reference_machine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: True)
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
+    assert kpi_rules.seconds_judged_here(LEDGER) == (True, "")
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 18.0)
+    judged, why = kpi_rules.seconds_judged_here(LEDGER)
+    assert not judged and "loaded" in why
+    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: False)
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
+    judged, why = kpi_rules.seconds_judged_here(LEDGER)
+    assert not judged and "not the reference machine" in why
+
+
+def test_a_kpi_test_judges_every_key_it_measures() -> None:
+    """A key the test stops recording fails in the suite, not only in the runner (K-P4-11)."""
+    entry = kpi_rules.test_part(ENTRIES["K-P4-11"])
+    assert "pinned_nodes_failing" not in entry["expected"]
+    value = {k: v for k, v in ENTRIES["K-P4-11"]["value_at"]["value"].items()
+             if k != "pinned_nodes_failing"}
+    assert kpi_rules.judge(entry, value, partial=False).word == kpi_rules.PASS
+    lost = {k: v for k, v in value.items() if k != "shapes_equal"}
+    verdict = kpi_rules.judge(entry, lost, partial=False)
+    assert verdict.word == kpi_rules.FAIL and "shapes_equal: not measured" in verdict.message
+    assert kpi_rules.judge(entry, dict(value, shapes_equal=17), partial=False).word == kpi_rules.FAIL
+
+
+def test_a_run_against_another_checkout_refuses_with_exit_2(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
+) -> None:
+    """Both guards refuse with the integrity exit code, 2, not the drop code, 1."""
+    monkeypatch.setattr(kpi_rules, "REPO_ROOT", tmp_path)
+    with pytest.raises(SystemExit) as refused:
+        kpi_rules.guard_this_tree()
+    assert refused.value.code == kpi_rules.REFUSED_EXIT == 2
+    monkeypatch.setattr(RUNNER, "SOURCE", tmp_path / "src")
+    with pytest.raises(SystemExit) as refused:
+        RUNNER._refuse_unless_this_tree()  # type: ignore[attr-defined]
+    assert refused.value.code == 2

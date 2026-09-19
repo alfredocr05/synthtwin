@@ -66,8 +66,12 @@ def _kpi(record_property, entry_id: str, value: object, detail: str = "") -> Non
     record_property(
         "kpi", json.dumps({"id": entry_id, "value": value, "detail": detail}, sort_keys=True)
     )
+    # Every key of the rule this test measures must be recorded: a key it
+    # stops recording fails here, not only in the runner. Only an entry
+    # whose driver measures the rest is judged in part.
     verdict = kpi_rules.judge(
-        entry, value, kpi_rules.on_reference_machine(LEDGER), partial=True
+        kpi_rules.test_part(entry), value, kpi_rules.seconds_judged_here(LEDGER)[0],
+        partial=bool(entry.get("driver")),
     )
     assert not verdict.is_drop, (
         f"{entry_id} ({entry['name']}): {verdict.word}: {verdict.message}. "
@@ -96,11 +100,11 @@ def every_role(tmp_path_factory: pytest.TempPathFactory) -> "dict":
 
 @pytest.fixture(scope="module")
 def every_role_twins(every_role: "dict") -> "dict":
-    """The twin text at the golden seed and at seed 1, for both floors."""
+    """The twin text at the golden seed and at seeds 1 and 2, for both floors."""
     return {
         (floor, seed): S.twin_text(every_role[floor], seed)
         for floor in (1, 11)
-        for seed in (S.GOLDEN_SEED, 1)
+        for seed in (S.GOLDEN_SEED, 1, 2)
     }
 
 
@@ -453,9 +457,52 @@ def _roles(described: S.Described, tag: str) -> "dict[str, str]":
     return {f"{tag}/{block['name']}": block["role"] for block in described.document["columns"]}
 
 
-def test_k_p4_24(record_property, every_role: "dict", tmp_path: pathlib.Path) -> None:
-    """Phase 4 criterion 4: every fixture column keeps the role the ledger commits to."""
+# Decision 7's re-reading transitions, both directions (plan P4-D11.2,
+# acceptance criterion 4): the spreadsheet error literals read as holes
+# can move a column between EXISTING roles, and only in the direction
+# re-reading produces. Each column is described twice through the command
+# line -- as shipped, and with the literals kept as data by --keep-value,
+# the route the decision leaves for a table where they are data.
+_ARTIFACTS = ("#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!")
+DECISION_SEVEN = {
+    # a two-valued column half-full of error literals: binary with the
+    # literals as data, constant once they read as holes
+    "binary_to_constant": (["yes", "#N/A"] * 50, ["#N/A"]),
+    # a numeric column the literals polluted past the parse line: free
+    # text with them as data, numeric again once they read as holes
+    # (the case of test_p4d62_machine_artifacts, pinned beside this)
+    "numeric_recovered": (
+        [f"{10 + place % 90}" for place in range(114)] + list(_ARTIFACTS),
+        list(_ARTIFACTS),
+    ),
+}
+
+
+def _decision_seven_roles(home: pathlib.Path) -> "dict[str, str]":
     roles: "dict[str, str]" = {}
+    for name, (cells, kept) in DECISION_SEVEN.items():
+        for reading_of, flags in (
+            ("literals_as_holes", []),
+            ("literals_kept_as_data", [f for one in kept for f in ("--keep-value", one)]),
+        ):
+            folder = home / f"{name}-{reading_of}"
+            folder.mkdir(parents=True)
+            path = folder / "thing.csv"
+            path.write_text(fixtures.single_column_table("thing", cells), encoding="utf-8")
+            run = S.cycle(path, flags, generate=False)
+            key = f"decision_7/{name}/{reading_of}"
+            if run["profile"] != 0:
+                roles[key] = f"profile exit {run['profile']}"
+                continue
+            document = json.loads(run["description"].read_text(encoding="utf-8"))
+            roles[key] = document["columns"][0]["role"]
+    return roles
+
+
+def test_k_p4_24(record_property, every_role: "dict", tmp_path: pathlib.Path) -> None:
+    """Phase 4 criterion 4: every fixture column keeps the role the ledger commits to,
+    and both directions of decision 7's re-reading happen exactly as stated."""
+    roles: "dict[str, str]" = _decision_seven_roles(tmp_path / "decision-7")
     for floor in (1, 11):
         roles.update(_roles(every_role[floor], f"every_role_and_joined/f{floor}"))
         for name, text in (
@@ -527,14 +574,28 @@ def _generate_seconds(described: S.Described) -> float:
 
 
 def test_k_s1_07(record_property, tmp_path: pathlib.Path) -> None:
-    """Generation grows linearly: four times the rows costs well under eight times the time."""
-    small = S.describe(tmp_path, "small", S.gaussian_table(2000))
-    large = S.describe(tmp_path, "large", S.gaussian_table(8000))
+    """Generation grows linearly: four times the rows costs well under eight times the time.
+
+    The small size starts at 2,000 rows and doubles until one generation
+    takes at least a second, so on a fast machine as on a slow one the
+    ratio is of two times long enough that scheduler noise cannot move
+    it past its bound; the ledger holds the probe that chose the size to
+    that second.
+    """
+    rows = 2000
+    small = S.describe(tmp_path / f"small-{rows}", "small", S.gaussian_table(rows))
+    probe = _generate_seconds(small)
+    while probe < 1.0 and rows < 64000:
+        rows *= 2
+        small = S.describe(tmp_path / f"small-{rows}", "small", S.gaussian_table(rows))
+        probe = _generate_seconds(small)
+    large = S.describe(tmp_path / f"large-{rows}", "large", S.gaussian_table(4 * rows))
     pairs = [(_generate_seconds(small), _generate_seconds(large)) for _ in range(3)]
     small_s = statistics.median(a for a, _b in pairs)
     large_s = statistics.median(b for _a, b in pairs)
     _kpi(record_property, "K-S1-07",
-         {"ratio_4x_rows": round(large_s / small_s, 2),
+         {"ratio_4x_rows": round(large_s / small_s, 2), "small_rows": rows,
+          "small_seconds_probe": round(probe, 2),
           "small_seconds": round(small_s, 2), "large_seconds": round(large_s, 2)})
 
 
@@ -822,9 +883,13 @@ def test_k_2b_45(record_property, eight: "list[dict]") -> None:
         identifier = run["family_spec"]["identifier"]
         if run["kind"] == "csv" and identifier:
             real = S.csv_rows(run["path"])
-            whole, near = S.row_copies(real, S.csv_rows(run["twin"]), real[0].index(identifier))
+            twin = S.csv_rows(run["twin"])
+            place = real[0].index(identifier)
+            whole, near = S.row_copies(real, twin, place)
+            ids = {row[place] for row in real[1:]}
             value[f"{_tag(run)}_whole"] = whole
             value[f"{_tag(run)}_ignoring_identifier"] = near
+            value[f"{_tag(run)}_coincident_ids"] = sum(1 for row in twin[1:] if row[place] in ids)
     _kpi(record_property, "K-2B-45", value)
 
 
@@ -837,9 +902,11 @@ def test_k_2b_46(
     mismatched: "set[str]" = set()
     for floor in (1, 11):
         real = pandas.read_csv(every_role[floor].table)
-        for seed in (S.GOLDEN_SEED, 1):
+        for seed in (S.GOLDEN_SEED, 1, 2):
             twin = pandas.read_csv(io.StringIO(every_role_twins[(floor, seed)]))
-            assert list(twin.columns) == list(real.columns)
+            if list(twin.columns) != list(real.columns):
+                mismatched |= {f"columns ({list(real.columns)} vs {list(twin.columns)})"}
+                continue
             mismatched |= {
                 f"{name} ({real[name].dtype} vs {twin[name].dtype})"
                 for name in real.columns

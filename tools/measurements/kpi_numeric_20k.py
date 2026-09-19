@@ -13,9 +13,12 @@ command took and the obligations the twin's quality report MISSED.
 - K-S1-01: generate seconds at 20,000 (reference machine only) and the
   5k-to-20k ratio.
 
-Each ratio is a median of three at each size; the small size takes
-well over a second, so scheduler noise cannot move it past its bound.
-About six minutes on the reference machine.
+Each ratio is the median of three runs at 20,000 rows over the median of
+three at 5,000 (generate and validate each run three times at each
+size, the same seed, so the MISSED count is the same every time); the
+small size takes well over a second, so scheduler noise cannot move it
+past its bound. About fifteen minutes on the reference machine under
+load.
 
     .venv/bin/python tools/measurements/kpi_numeric_20k.py --kpi
 """
@@ -82,8 +85,6 @@ with tempfile.TemporaryDirectory() as folder:
             validate_s += [seconds]
             exits += [code]
             missed = missed_in(description, here / "numeric20-twin.csv")
-            if rows == 20000:
-                break
         found[rows] = dict(profile=profile_s, generate=statistics.median(generate_s),
                            validate=statistics.median(validate_s), missed=missed, exits=exits)
         print(rows, {k: (round(v, 2) if isinstance(v, float) else v) for k, v in found[rows].items()},

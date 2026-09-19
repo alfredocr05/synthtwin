@@ -20,8 +20,11 @@ An OPEN or ACCEPTED_LIMIT entry's `expected` is its MUST-NOT-GET-WORSE
 bound: it is "held" at or inside that bound and "worse" outside it, and
 an OPEN entry whose value also meets its `target` is IMPROVED, which asks
 for the status to be flipped to GREEN and never fails a run. Seconds are
-judged only on the reference machine; anywhere else a seconds rule warns
-and the machine-free ratio or count beside it is what can fail.
+judged only on the reference machine while it is quiet (its one-minute
+load average under the ledger's `quiet_load_average_below`); anywhere
+else a seconds rule warns and the machine-free ratio or count beside it
+is what can fail -- and an OPEN entry whose target is stated in seconds
+is never called IMPROVED where its seconds were not judged.
 
 Standard library only, so the runner can load it before pytest runs.
 """
@@ -74,6 +77,9 @@ ACCEPTED_WORSE = "ACCEPTED-WORSE"
 NOT_RUN = "NOT-RUN(slow)"
 NOT_MEASURED = "NOT-MEASURED"
 DROPS = (FAIL, OPEN_WORSE, ACCEPTED_WORSE)
+# The exit code of a run that refuses to measure: the ledger fails its own
+# integrity check, or synthtwin would come from another checkout.
+REFUSED_EXIT = 2
 
 
 def load_ledger(path: "pathlib.Path | None" = None) -> "dict":
@@ -107,12 +113,64 @@ def group_of(entry_id: str) -> str:
 
 
 def on_reference_machine(ledger: "dict") -> bool:
-    """Whether seconds may fail here: the machine and the core count match."""
+    """Whether this is the reference machine: the machine and the core count match."""
     wanted = ledger["reference_machine"]
     return (
         platform.machine() == wanted["platform_machine"]
         and os.cpu_count() == wanted["cores"]
     )
+
+
+def load_average() -> float:
+    """The one-minute load average, or 0.0 where the platform does not report one."""
+    try:
+        return float(os.getloadavg()[0])
+    except (AttributeError, OSError):
+        return 0.0
+
+
+def seconds_judged_here(ledger: "dict") -> "tuple[bool, str]":
+    """Whether a seconds rule may fail here, and the reason when it may not.
+
+    Only on the reference machine, and only while it is quiet: the
+    ledger's seconds were stated for that machine unloaded, and a
+    machine shared with other suites runs two to three times slower
+    with no regression in the product.
+    """
+    wanted = ledger["reference_machine"]
+    if not on_reference_machine(ledger):
+        return False, f"this is not the reference machine ({wanted['name']})"
+    load = load_average()
+    if load >= wanted["quiet_load_average_below"]:
+        return False, (
+            f"the reference machine is loaded (one-minute load average {load:.1f}, "
+            f"quiet is under {wanted['quiet_load_average_below']})"
+        )
+    return True, ""
+
+
+def seconds_keys(entry: "dict", bounds: object) -> "list[str]":
+    """The keys of ``bounds`` the entry judges in seconds (one empty key for an unkeyed seconds rule)."""
+    kind = entry.get("target_kind", entry["rule_kind"])
+    kinds = entry.get("key_kinds", {})
+    if isinstance(bounds, dict):
+        return sorted(k for k in bounds if kinds.get(k, kind) == "seconds_below")
+    return [""] if kind == "seconds_below" else []
+
+
+def test_part(entry: "dict") -> "dict":
+    """The entry as its own KPI test judges it: the keys that test measures.
+
+    The pinned nodes' count is measured by the runner, not by the test,
+    so `pinned_nodes_failing` is left out; every other key of the rule is
+    one the test must record, and a key it stops recording fails. An
+    entry with a driver as well is judged in part (its driver measures
+    the rest), which the caller says with ``partial``.
+    """
+    expected = entry["expected"]
+    if not isinstance(expected, dict) or not entry.get("nodes"):
+        return entry
+    return dict(entry, expected={k: v for k, v in expected.items() if k != "pinned_nodes_failing"})
 
 
 # -- judging one value --------------------------------------------------
@@ -223,6 +281,14 @@ def judge(
         if target is not None and not _misses(
             entry.get("target_kind", kind), kinds, value, target, seconds_count, False
         ):
+            if not seconds_count and seconds_keys(entry, target):
+                # A target stated in seconds was skipped, not met: an
+                # entry is never called IMPROVED on a part nobody judged.
+                return Verdict(
+                    OPEN_HELD,
+                    "held at or inside its bound; its target is in seconds, "
+                    "judged only on the quiet reference machine",
+                )
             return Verdict(
                 IMPROVED,
                 "meets its target: flip its status to GREEN in the ledger",
@@ -316,6 +382,20 @@ def integrity_problems(ledger: "dict", root: pathlib.Path = REPO_ROOT) -> "list[
         if "value_at" not in entry or "commit" not in entry["value_at"]:
             problems.append(f"{entry_id}: the value is recorded with no commit")
         measured_by = 0
+        fast_nodes = [
+            n for n in entry.get("nodes", [])
+            if split_node(n)[0] not in ledger["slow_pytest_files"] and n not in ledger["slow_nodes"]
+        ]
+        least = entry.get("nodes_min_collected")
+        if fast_nodes and not (isinstance(least, int) and least >= len(fast_nodes)):
+            problems.append(
+                f"{entry_id}: nodes_min_collected must name at least one collected case "
+                f"per fast pinned node ({len(fast_nodes)}), so a shrinking parametrize "
+                f"list is seen; it is {least!r}"
+            )
+        for node in entry.get("allowed_skips", []):
+            if node not in entry.get("nodes", []):
+                problems.append(f"{entry_id}: allowed skip {node} is not one of its pinned nodes")
         for node in entry.get("nodes", []):
             measured_by += 1
             path, name = split_node(node)
@@ -394,7 +474,8 @@ def guard_this_tree() -> str:
     here = pathlib.Path(synthtwin.__file__).resolve()
     print(f"synthtwin imported from {here}", flush=True)
     if (REPO_ROOT / "src").resolve() not in here.parents:
-        raise SystemExit(f"REFUSING: synthtwin resolves to {here}, not under {REPO_ROOT / 'src'}")
+        print(f"REFUSING: synthtwin resolves to {here}, not under {REPO_ROOT / 'src'}", flush=True)
+        raise SystemExit(REFUSED_EXIT)
     return str(here)
 
 
