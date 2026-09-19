@@ -18352,20 +18352,24 @@ def _distinct_reached(
     splits: "list[tuple[int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
     # it is searched once: a column of moments to the minute over months
-    # would otherwise search every shared rank's whole gap again.
-    full: "dict[tuple[int, int], bool]" = {}
+    # would otherwise search every shared rank's whole gap again. A split
+    # leaves its own unit held and holds one more, so the units held only
+    # grow in this pass and a gap found full stays full for the rest of
+    # it; `_full_gap` names what the answer None depends on.
+    full: "dict[tuple[int, int, bool], bool]" = {}
     for rank in range(parsed):
         if pinned[rank] or held[moved[rank] // unit] < 2:
             continue
-        if (lows[rank], highs[rank]) in full:
+        gap = _full_gap(facts, moved[rank], lows[rank], highs[rank], day, widths, word)
+        if gap is not None and gap in full:
             continue
         found = _nearest_free_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit, held,
             widths, word,
         )
         if found is None:
-            if not widths and day == 1:
-                full[(lows[rank], highs[rank])] = True
+            if gap is not None:
+                full[gap] = True
             continue
         splits += [(abs(found - moved[rank]), rank, found)]
     for split in sorted(splits):
@@ -18379,10 +18383,15 @@ def _distinct_reached(
         if split[2] // unit in held and held[split[2] // unit] > 0:
             # TAKEN BY AN EARLIER SPLIT: the rank is offered the nearest
             # unit still free when its turn comes.
-            found_now = _nearest_free_unit(
-                facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-                held, widths, word,
-            )
+            found_now = None
+            gap = _full_gap(facts, moved[rank], lows[rank], highs[rank], day, widths, word)
+            if gap is None or gap not in full:
+                found_now = _nearest_free_unit(
+                    facts, moved[rank], lows[rank], highs[rank], day, step, unit,
+                    held, widths, word,
+                )
+                if found_now is None and gap is not None:
+                    full[gap] = True
         if found_now is None:
             continue
         held[own] = held[own] - 1
@@ -18753,8 +18762,10 @@ def _held_order(
     K-2B-14). The search walked outward from a run's own unit one unit at
     a time, and on a column counted in seconds a unit is a SECOND: the
     nearest held unit of a moment's own standing lies hours or days away,
-    so each search stepped tens of thousands of empty seconds, and a
-    column of 400 moments took 26 s to generate where it had taken 0.04.
+    so each search stepped tens of thousands of empty seconds: on
+    `_partly(2000, 0.7, 2)` at seed 4 its 1,222 searches asked the table
+    of held units 190,524,866 questions, where these ask 2,444
+    (`tests/test_held_unit_search.py` counts both).
     Every candidate the walk can accept is a key of `spot`, and whether
     it keeps the standing is a fact about the instant `spot` names for it
     alone -- the width kind of its day (`_counts_into_width`) and, on a
@@ -18897,6 +18908,52 @@ def _nearest_held_unit(
         return found
 
 
+def _full_gap(
+    facts: contract.DatetimeFacts,
+    value: int,
+    lowest: int,
+    highest: int,
+    day: int,
+    widths: bool,
+    word: str = "",
+) -> "tuple[int, int, bool] | None":
+    """What a free search's None depends on, where that is the gap and the kind.
+
+    A GAP FULL FOR ONE RANK IS FULL FOR EVERY RANK OF ITS KIND (ledger
+    K-2B-14, the skeptic's leftover). On a column counted in whole days
+    the unit is a day, so `_nearest_free_unit` walks every day of the
+    bounds but the run's own, which is held; the walk finds nothing
+    exactly when no day of the bounds is free and keeps the standing, and
+    on such a column the standing is the width kind of the day alone
+    (`_same_standing`) -- nothing else about the run's own day. So two
+    ranks with the same bounds and the same kind get the same None from
+    the same held units, and from any held units that include them. The
+    memo was kept only where ``widths`` was off, and never for a rank
+    searched again because an earlier split took its day, so a column
+    with a width census searched every shared rank's gap again: 20,000
+    dates written m/d/Y over 2,000 days, every day held, searched 19,989
+    times and asked the table of held units 13,445,643 questions to
+    learn nine answers; keyed by gap and kind, 3,008 and 973,675.
+
+    On a column counted in seconds the candidates are the run's own
+    instant moved by whole units and the standing reads the clock too,
+    so the answer is not a fact about the bounds; there this names
+    nothing and every rank is searched, as before.
+
+    Guarantees: accepts the facts, the run's instant and bounds, the day
+    step, whether the width kind is kept, and the census word; returns
+    the bounds with the kind (false where ``widths`` is off) where the
+    day step is one, else None. Determinism: a fixed function of its
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    if day != 1:
+        return None
+    kind = False
+    if widths:
+        kind = _counts_into_width(facts, value // day, word)
+    return (lowest, highest, kind)
+
+
 def _nearest_free_unit(
     facts: contract.DatetimeFacts,
     value: int,
@@ -18925,9 +18982,11 @@ def _nearest_free_unit(
     are exactly those a whole number of days away, and every other
     candidate fails `_same_standing`. Walking the steps
     between them stepped across 86,400 seconds a day to find a free
-    midnight days off -- 763 searches of one 1,000-row column cost 206 s
-    under a profiler. So such a run walks whole days instead, in the same
-    order and under the same tests, and meets the same answer first.
+    midnight days off -- 763 searches of one 1,000-row column asked the
+    table of held units 256,954,962 questions, where these ask 4,330
+    (`tests/test_held_unit_search.py` counts both). So such a run walks
+    whole days instead, in the same order and under the same tests, and
+    meets the same answer first.
 
     Guarantees: accepts the facts, the run's instant and bounds, the day
     and precision steps, the unit (the step where a day is 86,400), the

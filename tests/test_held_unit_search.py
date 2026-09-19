@@ -53,8 +53,11 @@ the walk's order; its answers and its questions are pinned the same two
 ways at the end of this file.
 """
 
+import datetime
+import hashlib
 import pathlib
 import random
+import re
 import typing
 
 import pytest
@@ -486,3 +489,228 @@ def test_the_free_search_on_one_stray_time_among_values_at_midnight_asks_little(
     assert 0 < tally["calls"] <= 1000, tally
     assert _Counting.asked <= 10 * tally["calls"], (_Counting.asked, tally)
     assert _Counting.asked <= 10000, _Counting.asked
+
+
+# ---------------------------------------------------------------------------
+# A gap with no free day, searched once a pass for each width kind.
+
+# The gap's name as the module defines it, taken once.
+_FULL_GAP = generation._full_gap
+
+
+def _gap_case(draw: random.Random) -> "dict[str, typing.Any]":
+    """One seeded restoration pass that must split ranks: gaps, ranks, a want.
+
+    On a column of days each gap is filled but for a few free days, and a
+    gap may leave free only days of one width kind, so it is full for the
+    other kind and not for its own. On a column of minutes each gap holds
+    one midnight, held twice and first in rank order, with free minutes
+    after it: full for a run at midnight, open for every other run.
+    """
+    day, step = draw.choice([(1, 1), (1, 1), (86400, 60)])
+    unit = step if day == 86400 else 1
+    moved: "list[int]" = []
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    start = 730000 + draw.randrange(0, 50) if day == 1 else 86400 * 19000
+    for _gap in range(draw.randrange(1, 5)):
+        if day == 1:
+            low = start
+            high = low + draw.randrange(3, 40)
+            mode = draw.randrange(0, 3)
+            kind = draw.random() < 0.5
+            places: "list[int]" = []
+            for where in range(low, high + 1):
+                open_day = mode == 2 and draw.random() < 0.2
+                if mode == 1 and _arbitrary_width(None, where, "") == kind:
+                    open_day = draw.random() < 0.3
+                if not open_day:
+                    places += [where]
+            if not places:
+                places = [low]
+            ranks = sorted(places + [draw.choice(places) for _ in range(draw.randrange(1, 12))])
+            start = high + 1
+        else:
+            midnight = start + 86400 * draw.randrange(1, 3)
+            low = midnight - 60 * draw.randrange(0, 30)
+            high = midnight + 60 * draw.randrange(2, 200)
+            others = [
+                midnight + 60 * draw.randrange(1, (high - midnight) // 60 + 1)
+                for _ in range(draw.randrange(1, 10))
+            ]
+            ranks = sorted([midnight, midnight] + others + [draw.choice(others)])
+            start = midnight
+        moved += ranks
+        lows += [low for _ in ranks]
+        highs += [high for _ in ranks]
+    pinned = [draw.random() < 0.1 for _ in moved]
+    count = len({value // unit for value in moved})
+    return {
+        "moved": moved, "pinned": pinned, "lows": lows, "highs": highs,
+        "day": day, "step": step, "wanted": count + draw.randrange(1, 6),
+        "widths": draw.random() < 0.7,
+    }
+
+
+def _pass(case: "dict[str, typing.Any]") -> "tuple[bool, list[int]]":
+    """Run one restoration pass on a copy of the case; what it changed and left."""
+    moved = list(case["moved"])
+    changed = generation._distinct_reached(
+        typing.cast(contract.DatetimeFacts, None), moved, list(case["pinned"]),
+        case["lows"], case["highs"], case["day"], case["step"], case["wanted"],
+        case["widths"],
+    )
+    return changed, moved
+
+
+def test_a_full_gap_skipped_leaves_the_pass_as_every_search_would(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every seeded pass ends where it ends when every shared rank is searched.
+
+    The rule is a free search for every shared rank; a gap found full is
+    not searched again only for a rank whose answer is the same None
+    (`generation._full_gap`). The reference names no gap, so it searches
+    every rank. Cases reach a gap full for one standing and open for
+    another -- by width kind on a column of days, by midnight on one of
+    minutes -- where a key that forgot the standing would skip a rank that
+    had somewhere to go.
+    """
+    monkeypatch.setattr(generation, "_counts_into_width", _arbitrary_width)
+    search = generation._nearest_free_unit
+    draw = random.Random(20260920)
+    reached = {"skipped": 0, "standing_decided": 0, "changed": 0}
+    for _ in range(1500):
+        case = _gap_case(draw)
+        answers: "dict[tuple[int, int], dict[tuple[bool, bool], bool]]" = {}
+        tally = {"calls": 0}
+
+        def recording(*args: typing.Any) -> "int | None":
+            tally["calls"] = tally["calls"] + 1
+            found = search(*args)
+            standing = (
+                bool(args[8]) and _arbitrary_width(None, args[1] // args[4], ""),
+                args[4] == 86400 and generation._written_at_midnight(args[1], 0, args[5]),
+            )
+            bounds = (args[2], args[3])
+            if bounds not in answers:
+                answers[bounds] = {}
+            answers[bounds][standing] = found is None
+            return found
+
+        monkeypatch.setattr(generation, "_nearest_free_unit", recording)
+        monkeypatch.setattr(generation, "_full_gap", lambda *_args: None)
+        want = _pass(case)
+        every = tally["calls"]
+        monkeypatch.setattr(generation, "_full_gap", _FULL_GAP)
+        tally["calls"] = 0
+        got = _pass(case)
+        assert got == want, case
+        if tally["calls"] < every:
+            reached["skipped"] = reached["skipped"] + 1
+        for seen in answers.values():
+            if True in seen.values() and False in seen.values():
+                reached["standing_decided"] = reached["standing_decided"] + 1
+                break
+        if want[0]:
+            reached["changed"] = reached["changed"] + 1
+    monkeypatch.setattr(generation, "_nearest_free_unit", search)
+    assert reached["skipped"] >= 300, reached
+    assert reached["standing_decided"] >= 300, reached
+    assert reached["changed"] >= 500, reached
+
+
+
+def _month_first(rows: int, seed: int, days: int) -> "list[str]":
+    """Dates written m/d/Y without padding, drawn over ``days`` days."""
+    draw = random.Random(seed)
+    first = datetime.date(2020, 1, 1)
+    cells: "list[str]" = []
+    for _ in range(rows):
+        when = first + datetime.timedelta(days=draw.randrange(days))
+        cells += [f"{when.month}/{when.day}/{when.year}"]
+    return cells
+
+
+def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """4,000 m/d/Y dates over 800 days, seed 4: round trip, and no None asked twice.
+
+    THE SKEPTIC'S LEFTOVER. The memo of full gaps was kept only where no
+    width census was read, so on a column of days with one every shared
+    rank of a full gap searched the whole gap again: 20,000 such dates
+    over 2,000 days searched 19,989 times and asked the held-unit table
+    13,445,643 questions (the same on e53d5f4); with the gap and its kind
+    as the key, 3,008 times, 9 of them None, asking 973,675. On this
+    column the free search was called 3,979 times, 1,792 of them None,
+    and asked 748,633 questions; now it is called 2,195 times, 8 of them
+    None, asking 299,675. The rule this asserts is exact: within one
+    pass, no gap is found full twice for one width kind -- the days held
+    only grow while ranks split, so a gap found full stays full, and a
+    rank searched again because an earlier split took its day is
+    answered from what was found. Keeping the memo out of that second
+    search leaves 16 None here, 8 of them a gap found full again. The
+    twin is the one e53d5f4 wrote.
+    """
+    search = generation._nearest_free_unit
+    reached = generation._distinct_reached
+    passes = {"now": 0, "none": 0, "again": 0}
+    seen: "dict[tuple[int, int, int, bool], bool]" = {}
+
+    def counting_pass(*args: typing.Any) -> bool:
+        passes["now"] = passes["now"] + 1
+        return reached(*args)
+
+    def counting(*args: typing.Any) -> "int | None":
+        found = search(*args)
+        if found is None:
+            kind = bool(args[8]) and generation._counts_into_width(
+                args[0], args[1] // args[4], args[9]
+            )
+            key = (passes["now"], args[2], args[3], kind)
+            passes["none"] = passes["none"] + 1
+            if key in seen:
+                passes["again"] = passes["again"] + 1
+            seen[key] = True
+        return found
+
+    monkeypatch.setattr(generation, "_distinct_reached", counting_pass)
+    monkeypatch.setattr(generation, "_nearest_free_unit", counting)
+    folder = tmp_path / "month-first"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, _month_first(4000, 7, 800), seed="4"
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    assert len(written) == 4000
+    assert first["n_distinct"] == second["n_distinct"]
+    assert passes["none"] >= 1, passes
+    assert passes["again"] == 0, passes
+    twin = (folder / "real-twin.csv").read_bytes()
+    assert hashlib.sha256(twin).hexdigest() == _MONTH_FIRST_TWIN
+
+
+# sha256 of the twin e53d5f4 writes for `_month_first(4000, 7, 800)` at seed 4.
+_MONTH_FIRST_TWIN = "80fe7e4e2b0e285d4a2cff29689758163401ec8de47ee07e43d819402ceca88d"
+
+
+def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:
+    """Every measured figure a search's docstring cites stands in this file.
+
+    The skeptic found `_held_order` citing a pair of generate times that
+    no run had produced, and `_nearest_free_unit` cited a profiled time
+    no log held. A figure with a thousands comma, a decimal point, or a
+    unit of seconds is a measurement, and each is stated here beside the
+    test that counts it -- so this file must never quote the old pair.
+    """
+    text = pathlib.Path(__file__).read_text(encoding="utf-8")
+    stated = set(re.findall(r"\d{1,3}(?:,\d{3})+|\d+\.\d+|\d+(?= s\b)", text))
+    cited: "list[str]" = []
+    for function in (
+        generation._held_order, generation._nearest_held_unit,
+        generation._nearest_free_unit, generation._full_gap,
+    ):
+        doc = function.__doc__ if function.__doc__ else ""
+        cited += re.findall(r"\d{1,3}(?:,\d{3})+|\d+\.\d+|\d+(?= s\b)", doc)
+    assert len(cited) >= 8, cited
+    assert [figure for figure in cited if figure not in stated] == []
