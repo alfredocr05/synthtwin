@@ -174,10 +174,33 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
     those and it holds all of them too. A second far value leaves the
     rungs one number short of the count, and its twin holds 100 numbers
     of 102 at this seed.
+
+    AND THE FAR VALUES MOVED IN AGAIN, TO 103 AND 105 (the carried
+    numbers pass of 2026-09-18). 150 and 151 left the published empty
+    pair (100, 150), so the positive band's grid outside it held exactly
+    1 to 100, 150 and 151 -- 102 points for 102 strata -- and G6.5a's band
+    fill now gives every stratum one of them: that twin holds all 102 and
+    names no shortfall, so it stopped being a witness of one. 103 and 105
+    sit in the last two bins beside 100, so the description publishes no
+    empty pair, the grid from 1 to 105 has 105 points for 102 strata, no
+    fill applies, and the walk leaves the twin at 100 numbers of 102 at
+    this seed -- the unwindowed shortfall this test is about.
+
+    AND THE WITNESS MOVED A THIRD TIME (the carried numbers repair pass of
+    2026-09-19). G6.5a's push now walks a collision along its band to the
+    nearest free point, and 1 to 100 beside 103 and 105 have three free
+    points in their band, so that twin holds all 102. A shortfall no
+    repair of G6.5a can mend is the witness now: twelve negatives written
+    once, a zero, and the whole numbers one to ten forty times each. G5.2
+    divides the strata between the bands by their CELLS, so the positive
+    band is given eleven strata for its ten integers, and the twin holds
+    22 numbers of 23 at this seed -- a count no window authorizes to move.
     """
     _loaded, twin = _twin(
         tmp_path,
-        [f"{number}" for number in range(2, 101)] + ["1", "150", "151"],
+        [f"{-number}" for number in range(1, 13)]
+        + ["0"]
+        + [f"{number}" for number in range(1, 11) for _copy in range(40)],
     )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named

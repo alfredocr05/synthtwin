@@ -15,7 +15,9 @@ word a rank showing both fields takes under a census naming one-field
 words alone (plan P4-D294, amended).  The repair pass also rebuilt the two
 before it from the descriptions the producer writes of their tables.
 They came here as the paragraph below says the next cases go, and the
-file then stood at 150714 bytes.
+file then stood at 150714 bytes -- and for the two the readings of an
+absorbed count added (plan P4-D298), `free_text_absorbed_figures` and
+`identifier_absorbed_figure`, which bring it to twelve cases.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file
@@ -54,9 +56,19 @@ refusing the build, which is the worst moment to be choosing a file.  So
 it is chosen here instead: **the next case goes in this file**, and the
 one after it too, until this file's output passes 200000 bytes -- at
 which point a ninth entry point is written the way this one was, by
-moving cases whole rather than by raising the cap.  The first three files
-are FULL and take no case; the fifth takes one only where this file
-cannot.
+moving cases whole rather than by raising the cap.  **THAT POINT WAS
+REACHED** on the branch of the carried numbers pass of 2026-09-18, whose
+four cases took this file's output to 235440 bytes; its repair pass of
+2026-09-19 opened the ninth entry point, `make_generation_branch_vectors_7.py`,
+writing `tests/reference/generation-branch-vectors-7.json`.  When the
+carried passes were integrated, this file also held the three cases of the
+carried date items and the two of the readings of an absorbed count, and
+with all nine new cases it would have passed the 250000-byte cap -- so the
+numbers pass's four moved WHOLE into the ninth file, beside the two its
+repair pass put there, and this file holds twelve cases.  The next case
+goes here again, until this file's output passes 200000 bytes.  The first
+three files are FULL and take no case; the fifth takes one only where this
+file cannot.
 
 Usage:  python3 make_generation_branch_vectors_6.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

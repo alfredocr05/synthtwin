@@ -261,7 +261,11 @@ disposed individually, in the disposition matrix.
 spellings — except on the four roles that publish a level list, and on
 a compound column's label half, where it counts the spellings the block
 SPEAKS OF (plan P4-D276), so that the absorption of a spelling below the
-floor leaves no residual to subtract. `n_distinct_folded` counts FOLDED
+floor leaves no residual to subtract; and a compound column's OWN
+`n_distinct` is its two halves' counts added, `n_numeric_distinct +
+labels.n_distinct`, for the same reason (the carried numbers pass of
+2026-09-18: left raw, it published one more than that sum wherever the
+label half absorbed a spelling, and section 7.14 refuses exactly that). `n_distinct_folded` counts FOLDED
 identities. Numeric
 statistics describe PARSED values. Level facts use the FOLDED
 identity. Datetime facts use the parsed instant at the recorded
@@ -8255,6 +8259,20 @@ a form, and at most those plus every row `variants_withheld` accounts
 for; and where the `label` has no written form it is exactly nought.
 Both ends are facts of THIS ENTRY.
 
+**Invariant W9 (the spellings the block speaks of).** Let `S` be the
+spellings the published levels name: the keys of every entry's
+`variants` and the spellings every entry's `variants_withheld` counts.
+Then `S + suppressed_levels <= n_distinct <= S + suppressed_rows`, taken
+over the column's own `n_distinct` on the four label roles and over the
+half's own `n_distinct` on a compound column's `labels`. It is plan
+P4-D276's definition of the count read as a rule: a held-back level
+wrote at least one spelling and at most one per row, and a description
+holding nothing back — every floor-one description — has the two ends
+meet at `n_distinct == S`. Added by the carried numbers pass of
+2026-09-18, because P4-D276 made the count move with the floor while no
+rule tied it to the levels beside it, and a floor-eleven count grafted
+into a floor-one description was accepted either way round.
+
 **AND THERE IS NO SUM RULE AGAINST `shape_forms`, WHICH A READER WILL
 LOOK FOR.** The column census is a fact of its own beside these and not
 their total, for three reasons, each of which breaks the sum on its own
@@ -10354,6 +10372,7 @@ These bind `n_distinct_by_occurrences` and `variants_withheld`.
 | W6 | variant keys are distinct | yes |
 | W7 | `variants` and `variants_withheld` are not both empty on one entry | yes |
 | W8 | `shape_form_cells` is at least the `variants` rows whose spelling has a form and at most those plus the rows `variants_withheld` accounts for; a label with no written form carries nought. There is NO sum against the column's `shape_forms` (7.4.8, R-P4-80) | yes |
+| W9 | with `S` the spellings the published levels name (every `variants` key and every spelling `variants_withheld` counts), `S + suppressed_levels <= n_distinct <= S + suppressed_rows`, on the four label roles and on a compound column's `labels` half — plan P4-D276's count read as a rule | yes |
 
 **The list continues** in the next section: the remaining roles, the
 ladder and stand-in rules, and the producer obligations.

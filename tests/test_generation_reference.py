@@ -163,6 +163,17 @@ SIXTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-6.json"
 )
+# THE NINTH FILE (the carried numbers repair pass of 2026-09-19). The
+# eighth's output had passed 200000 bytes, the line plan P4-D295 draws for
+# opening the next entry point.
+SEVENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_7.py"
+)
+SEVENTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-7.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -224,6 +235,10 @@ def _fifth_branch_document() -> dict:
 
 def _sixth_branch_document() -> dict:
     return json.loads(SIXTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _seventh_branch_document() -> dict:
+    return json.loads(SEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -493,6 +508,23 @@ SIXTH_BRANCH_CASES = (
     "unmarked_duplicates_first",
 )
 
+# The six cases of the carried numbers pass of 2026-09-18 and its repair
+# pass of 2026-09-19: G6.5a's band fill, the mode's own stratum (plan
+# P4-D267), G8.3a's dressing and anchors (plan P4-D268), G6.5a's push of a
+# collision the walks leave, and the column-wide fill on a column where the
+# band fill and the push both stand aside. The first four were built into
+# the eighth file and moved here whole at the integration of the carried
+# passes, where the eighth would have passed the byte cap. Sorted, like the
+# tuples above.
+SEVENTH_BRANCH_CASES = (
+    "held_back_anchored",
+    "held_back_dressed",
+    "mode_held",
+    "pushed_along_band",
+    "saturated_band",
+    "saturated_grid_alone",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -502,6 +534,7 @@ ALL_CASES = tuple(
         + FOURTH_BRANCH_CASES
         + FIFTH_BRANCH_CASES
         + SIXTH_BRANCH_CASES
+        + SEVENTH_BRANCH_CASES
     )
 )
 
@@ -599,6 +632,14 @@ SEEDS = {
     "date_two_kinds_nonadjacent": 206,
     # Its repair pass takes the next.
     "date_both_fields_disagree": 207,
+    # The carried numbers pass of 2026-09-18 takes 260 onward, clear of
+    # the blocks above and of the other carried passes.
+    "saturated_band": 260,
+    "mode_held": 261,
+    "held_back_dressed": 262,
+    "held_back_anchored": 263,
+    "pushed_along_band": 264,
+    "saturated_grid_alone": 265,
     # The owner's rulings of 2026-09-17 take 181 onward.
     "pooled_level_sizes": 181,
     "identifier_column_prefix": 182,
@@ -652,7 +693,9 @@ DECLARED_IDENTIFIERS = frozenset(
 
 def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
-    if name in SIXTH_BRANCH_CASES:
+    if name in SEVENTH_BRANCH_CASES:
+        document = _seventh_branch_document()
+    elif name in SIXTH_BRANCH_CASES:
         document = _sixth_branch_document()
     elif name in FIFTH_BRANCH_CASES:
         document = _fifth_branch_document()
@@ -886,6 +929,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     fourth = _fourth_branch_document()
     fifth = _fifth_branch_document()
     sixth = _sixth_branch_document()
+    seventh = _seventh_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -893,8 +937,9 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(fourth["cases"])) == FOURTH_BRANCH_CASES
     assert tuple(sorted(fifth["cases"])) == FIFTH_BRANCH_CASES
     assert tuple(sorted(sixth["cases"])) == SIXTH_BRANCH_CASES
+    assert tuple(sorted(seventh["cases"])) == SEVENTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, third, fourth, fifth, sixth, papers)
+    every = (named, branch, second, third, fourth, fifth, sixth, seventh, papers)
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -910,6 +955,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (fourth, FOURTH_BRANCH_VECTORS),
         (fifth, FIFTH_BRANCH_VECTORS),
         (sixth, SIXTH_BRANCH_VECTORS),
+        (seventh, SEVENTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -933,6 +979,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         FOURTH_BRANCH_GENERATOR,
         FIFTH_BRANCH_GENERATOR,
         SIXTH_BRANCH_GENERATOR,
+        SEVENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1169,8 +1216,15 @@ FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
 FIFTH_BRANCH_PUBLISHED_NUMBERS = 623
 FIFTH_BRANCH_NAMED_COUNTS = 254
-SIXTH_BRANCH_PUBLISHED_NUMBERS = 318
-SIXTH_BRANCH_NAMED_COUNTS = 234
+# The eighth and ninth floors were measured again at the integration of
+# the carried passes of 2026-09-18 and 2026-09-19, when the numbers pass's
+# four cases moved whole from the eighth file to the ninth: each file's
+# floor is what its own rebuilt proof reports, so the numbers those four
+# publish are held by the ninth file's floor rather than the eighth's.
+SIXTH_BRANCH_PUBLISHED_NUMBERS = 321
+SIXTH_BRANCH_NAMED_COUNTS = 365
+SEVENTH_BRANCH_PUBLISHED_NUMBERS = 866
+SEVENTH_BRANCH_NAMED_COUNTS = 357
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1217,6 +1271,12 @@ COMMITTED_FILES = (
         SIXTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        SEVENTH_BRANCH_VECTORS,
+        gen.SEVENTH_BRANCH_PART,
+        SEVENTH_BRANCH_PUBLISHED_NUMBERS,
+        SEVENTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1230,7 +1290,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1272,7 +1332,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1291,7 +1351,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1561,12 +1621,29 @@ def _marks_on_the_positive_side_alone(column, *arguments):
 
 
 class Mutant(typing.NamedTuple):
-    """One case's own branch, put back the way the method rules out."""
+    """One case's own branch, put back the way the method rules out.
+
+    ``also`` names further attributes the SAME rule is stated in, each
+    with its replacement, withdrawn together with ``attribute``. It is
+    empty for every case but two: G6.5a's fill of a grid with no spare
+    point is stated column-wide (plans P4-D147 and P4-D176) and, since the
+    carried numbers pass of 2026-09-18, band by band as well -- on a
+    column of one sign the band fill IS the column fill, so withdrawing
+    the column-wide statement alone left the band fill writing the same
+    cells, and the two cases that pin the fill stopped holding it up.
+    Since the repair pass of 2026-09-19 the push of G6.5a reaches the
+    same assignment on a grid of tenths with no spare point, so the tenths
+    case withdraws it on a written grid too. EACH STATEMENT IS ALSO HELD UP
+    ALONE, by a case whose mutant withdraws it and nothing else:
+    `saturated_grid_alone` for the column-wide fill, `saturated_band` for
+    the band fill and `pushed_along_band` for the push.
+    """
 
     branch: str
     attribute: str
     replacement: object
     outcome: str
+    also: tuple = ()
 
 
 def _either_field_below_ten(column, day_number, word=""):
@@ -2287,6 +2364,7 @@ gen_mark_places = gen.mark_places
 gen_pad_places = gen.pad_places
 gen_apart_values = gen.apart_values
 gen_saturated_grid = gen.saturated_grid
+gen_saturated_bands = gen.saturated_bands
 gen_plus_cells_by_value = gen.plus_cells_by_value
 
 
@@ -2369,6 +2447,24 @@ def _no_tenths_fill(wanted, figures, total, bands, ladder):
     return gen_saturated_grid(wanted, figures, total, bands, ladder)
 
 
+def _no_band_fill(wanted, figures, values, *_rest):
+    """The band fill of the carried numbers pass withdrawn: values as given."""
+    return values
+
+
+def _no_tenths_band_fill(wanted, figures, values, *rest):
+    """The band fill withdrawn on a written grid, the integers' kept."""
+    if figures > 0:
+        return values
+    return gen_saturated_bands(wanted, figures, values, *rest)
+
+
+def _no_tenths_push(figures):
+    """The push of the repair pass withdrawn on a written grid, the
+    integers' kept."""
+    return figures == 0
+
+
 def _no_levels_fill(*_arguments, **_keywords):
     """Plan P4-D178's fill withdrawn: no column's levels are its strata."""
     return None
@@ -2412,6 +2508,58 @@ CASE_MUTANTS = {
         replacement=lambda column: gen_identifier_readings(column)[:1],
         outcome="no assignment of whole groups meets every quota",
     ),
+    "saturated_band": Mutant(
+        branch="G6.5a's fill of a sign band whose own grid has no spare point "
+        "(the carried numbers pass of 2026-09-18, amending plan P4-D147); the "
+        "mutant withdraws it, and a positive stratum the ladder put inside "
+        "the published empty pair stays there",
+        attribute="saturated_bands",
+        replacement=lambda wanted, figures, values, *rest: values,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "pushed_along_band": Mutant(
+        branch="G6.5a's push of a collision the walks leave along its band "
+        "to the nearest free point (the carried numbers repair pass of "
+        "2026-09-19); the mutant withdraws it, and the twin writes 3.4 a "
+        "second way and holds seventeen numbers against eighteen",
+        attribute="pushing_on",
+        replacement=lambda figures: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "saturated_grid_alone": Mutant(
+        branch="G6.5a's column-wide fill of a grid with no spare point (plans "
+        "P4-D147 and P4-D176) where the band fill and the push both stand "
+        "aside; the mutant withdraws the column-wide fill and nothing else, "
+        "and the twin writes -1.9 a second way and holds twenty-five "
+        "numbers against twenty-six",
+        attribute="saturated_grid",
+        replacement=lambda *arguments: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "mode_held": Mutant(
+        branch="plan P4-D267's last value pass, which puts the published mode "
+        "on the stratum its count sizes; the mutant withdraws it and the "
+        "mode is written nowhere",
+        attribute="mode_held",
+        replacement=lambda values, *rest: values,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "held_back_dressed": Mutant(
+        branch="plan P4-D268's dressing, which writes a ladder number through "
+        "the published form its group owes; the mutant withdraws it and the "
+        "held-back rows are written as bare numbers",
+        attribute="dressed_in_form",
+        replacement=lambda *arguments: "",
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "held_back_anchored": Mutant(
+        branch="plan P4-D268's anchors, which read a published number spelled "
+        "with a plus a second way so it anchors the ladder; the mutant reads "
+        "the plain spelling alone and the ladder counts up from nought",
+        attribute="anchor_units",
+        replacement=lambda text, value: gen.plain_units(text),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "unmarked_duplicates_first": Mutant(
         branch="plan P4-D265's visiting order for the distinct-spelling "
         "repair of G6.5; the mutant visits the duplicates in index order, "
@@ -2450,10 +2598,17 @@ CASE_MUTANTS = {
     "saturated_tenths": Mutant(
         branch="plan P4-D176's fill of a saturated grid of tenths; the mutant "
         "keeps the fill on the integers alone, and the walk places the "
-        "strata elsewhere",
+        "strata elsewhere. The band fill of the carried numbers pass states "
+        "the same fill band by band, and the push of its repair pass ends at "
+        "the same assignment on a grid with no spare point, so both are "
+        "withdrawn on a written grid too",
         attribute="saturated_grid",
         replacement=_no_tenths_fill,
         outcome=CHANGES_THE_CELLS,
+        also=(
+            ("saturated_bands", _no_tenths_band_fill),
+            ("pushing_on", _no_tenths_push),
+        ),
     ),
     "pooled_level_sizes": Mutant(
         branch="plan P4-D201's sizes read off a pooled total; the mutant "
@@ -2698,10 +2853,14 @@ CASE_MUTANTS = {
     "saturated_integers": Mutant(
         branch="plan P4-D147's fill of a saturated integer grid; the mutant "
         "withdraws the fill and the walk alone, which lands strata on points "
-        "other strata still need, writes twenty-one numbers",
+        "other strata still need, writes twenty-one numbers. The band fill "
+        "of the carried numbers pass states the same fill band by band, and "
+        "on this column of one sign it is the same fill, so it is withdrawn "
+        "with it",
         attribute="saturated_grid",
         replacement=_apart_without_the_fill,
         outcome=CHANGES_THE_CELLS,
+        also=(("saturated_bands", _no_band_fill),),
     ),
     "signed_pads": Mutant(
         branch="plan P4-D145's padded sign exchange; the mutant leaves every "
@@ -3257,6 +3416,8 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
     before, _claims = gen.build_case(name)
     assert before["cells"], f"{name} builds no cells unmutated"
     monkeypatch.setattr(gen, mutant.attribute, mutant.replacement)
+    for attribute, replacement in mutant.also:
+        monkeypatch.setattr(gen, attribute, replacement)
     # THE ORACLE'S OWN DISTINCT RECOUNT IS NOT ASKED OF A MUTATED BUILD
     # (plan P4-D237). It proves that a case's cells hold the counts the
     # case publishes; a mutant that moves those counts would stop the
@@ -4085,6 +4246,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (FOURTH_BRANCH_VECTORS, _fourth_branch_document()),
         (FIFTH_BRANCH_VECTORS, _fifth_branch_document()),
         (SIXTH_BRANCH_VECTORS, _sixth_branch_document()),
+        (SEVENTH_BRANCH_VECTORS, _seventh_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

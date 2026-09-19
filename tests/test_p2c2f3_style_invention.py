@@ -27,7 +27,6 @@ WHAT THIS FILE HOLDS THE REPAIR TO:
 """
 
 import pathlib
-import random
 
 import fixtures
 from synthtwin import (
@@ -203,9 +202,21 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
     publish 74 different numbers and the twin holds 70 -- so the
     reporting path is pinned on a column that still cannot reach,
     rather than on one the tool has since learnt to satisfy.
+
+    AND THE WITNESS MOVED AGAIN (the carried numbers repair pass of
+    2026-09-19). G6.5a's push walks a collision the walks leave along its
+    band to a free point, and the 200 crowded values now hold all 74. A
+    shortfall no repair of G6.5a can mend is the witness: twelve
+    negatives written once, a zero, and the whole numbers one to ten forty
+    times each. G5.2 divides the strata between the bands by their CELLS,
+    so the positive band is given eleven strata for its ten integers, and
+    the twin holds 22 numbers of 23.
     """
-    generator = random.Random(31337)
-    values = [str(generator.randint(40, 120)) for _each in range(200)]
+    values = (
+        [str(-number) for number in range(1, 13)]
+        + ["0"]
+        + [str(number) for number in range(1, 11) for _copy in range(40)]
+    )
     document, loaded = _described(tmp_path, values)
 
     twin = generation.generate(loaded, 0)

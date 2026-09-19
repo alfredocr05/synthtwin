@@ -1628,6 +1628,11 @@ INVARIANTS = {
         "plus every row the floor held back, and a label with no "
         "written form was written in none"
     ),
+    "W9": (
+        "the different spellings a column of labels is said to hold are "
+        "the spellings its published labels name, and at least one and "
+        "at most one per row for each label held back"
+    ),
     "P1": (
         "the cells counted by the form they were written in come to the "
         "cells that read as numbers"
@@ -6562,17 +6567,35 @@ def _facts(
         return _unrepresentable_facts(
             mapping, where, n_present, n_distinct
         )
+    # W9 IS ASKED OF ALL FOUR LEVEL ROLES HERE, where `n_distinct` is in
+    # hand, and of a compound column's label half by its own reader.
     if role == ROLE_CONSTANT or role == ROLE_BINARY:
-        return _label_facts(
+        labelled = _label_facts(
             mapping, where, role, frame.floor, n_present, n_folded
         )
+        _spellings_spoken(
+            labelled.levels,
+            labelled.suppressed_levels,
+            labelled.suppressed_rows,
+            n_distinct,
+            where,
+        )
+        return labelled
     if role == ROLE_CATEGORICAL:
-        return _categorical_facts(
+        categories = _categorical_facts(
             mapping, where, frame.floor, n_present, n_folded
         )
+        _spellings_spoken(
+            categories.levels,
+            categories.suppressed_levels,
+            categories.suppressed_rows,
+            n_distinct,
+            where,
+        )
+        return categories
     if role == ROLE_LONG_TAIL:
         named = mapping["name"] if "name" in mapping else None
-        return _long_tail_facts(
+        tail = _long_tail_facts(
             mapping,
             where,
             frame.floor,
@@ -6581,6 +6604,14 @@ def _facts(
             _category_ceiling(frame),
             isinstance(named, str) and named in frame.declared_codes,
         )
+        _spellings_spoken(
+            tail.levels,
+            tail.suppressed_levels,
+            tail.suppressed_rows,
+            n_distinct,
+            where,
+        )
+        return tail
     if role == ROLE_DATETIME:
         return _datetime_facts(mapping, where, frame.floor, n_present)
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
@@ -7196,6 +7227,64 @@ def _variants(
             f"the label covers {count}",
         )
     return named, withheld
+
+
+def _spellings_spoken(
+    levels: "tuple[LevelEntry, ...]",
+    suppressed_levels: int,
+    suppressed_rows: int,
+    n_distinct: int,
+    where: str,
+) -> None:
+    """W9: `n_distinct` is the spellings the block SPEAKS OF (plan P4-D276).
+
+    WHAT MADE IT A RULE (the carried numbers pass of 2026-09-18). Plan
+    P4-D276 made a label column's `n_distinct` count the spellings its
+    block speaks of -- the spellings each published level names, after
+    ruling 6 counts a spelling below the floor into the level's
+    commonest, and the own spellings of every level held back -- so the
+    count moved with the floor, and no rule of the loader tied it to the
+    levels beside it. `tests/test_p3v5f1_floor_one.py` grafts every
+    position the floor moves from a floor-eleven description into the
+    floor-one description of the same table and requires the loader to
+    refuse it; the level `yes` of its witness, written `yes` 67 times
+    and `YES` 3 times, publishes `{"yes": 70}` and `n_distinct 2` at
+    eleven and `{"YES": 3, "yes": 67}` and `n_distinct 3` at one, and
+    both grafts -- `n_distinct 2` beside three named spellings, and one
+    named spelling beside `n_distinct 3` with nothing held back -- were
+    accepted. Each is a description whose count contradicts its own
+    levels, and the twin written from it is held to both.
+
+    THE RULE, derived from P4-D276's own statement. Let `S` be the
+    spellings the published levels name -- the keys of every `variants`
+    and the spellings every `variants_withheld` counts. A held-back
+    level wrote at least one spelling and at most one per row, so
+    `S + suppressed_levels <= n_distinct <= S + suppressed_rows`; with
+    nothing held back, which is every floor-one description, the two
+    ends meet and `n_distinct == S`.
+
+    Raises ProfileError for W9. No I/O of any kind.
+    """
+    named = 0
+    for entry in levels:
+        named = named + len(entry.variants)
+        for size in sorted(entry.variants_withheld):
+            named = named + entry.variants_withheld[size]
+    lowest = named + suppressed_levels
+    highest = named + suppressed_rows
+    if lowest <= n_distinct <= highest:
+        return
+    raise _broken(
+        "W9",
+        where,
+        f"the column is said to hold {n_distinct} different spellings",
+        (
+            f"its published labels name {named}, and the "
+            f"{suppressed_levels} label(s) held back cover "
+            f"{suppressed_rows} row(s), so it holds between {lowest} "
+            f"and {highest}"
+        ),
+    )
 
 
 def _label_facts(
@@ -12140,6 +12229,14 @@ def _compound_facts(
         frame.floor,
         labels,
         folded,
+    )
+    # W9 over the half's own count, which is the one P4-D276 moved here.
+    _spellings_spoken(
+        label_facts.levels,
+        label_facts.suppressed_levels,
+        label_facts.suppressed_rows,
+        label_distinct,
+        f"{where} -> labels",
     )
     # AND EVERY PUBLISHED LABEL IS A CELL THE SPLIT WOULD PUT IN THE
     # LABEL HALF (invariant NL5, review round 8 of this landing, item
