@@ -30,7 +30,6 @@ import random
 import tempfile
 
 import fixtures
-import synthtwin
 from synthtwin import contract, generation, parsing, profile, reading, taxonomy
 
 # The driver's own seed for the battery's cells and its forty twin seeds.
@@ -114,14 +113,22 @@ def pair_scores(
     return scores
 
 
-def one_column(case: int) -> "tuple[int, int, int, str]":
-    """Pairs, agreements outside the window, above-counts missed, and where.
+def one_column(case: int) -> "tuple[int, int, int]":
+    """Pairs, agreements outside the window, and above-counts missed.
 
     One battery column over all forty seeds, built from the recipe here
     rather than received, and about 6.5 s for a three-position column
-    and 9 s for a four-position one on the reference machine. It says
-    which synthtwin it imported, so a caller that resolved some other
-    installation cannot pass for this tree.
+    and 9 s for a four-position one on the reference machine.
+
+    IT USED TO RETURN THE PATH IT IMPORTED SYNTHTWIN FROM as well, so
+    that a worker process which had resolved some other installation
+    could not pass for this tree. With the pool gone this runs in the
+    caller's own interpreter, where the caller reads the same module
+    object and no state of the world can make the two differ -- an
+    assertion no mutation can turn red (finding 5 of this landing's
+    review). The question it was asking is a real one and is asked by
+    `kpi_rules.guard_this_tree()`, which answers it: the caller calls
+    that instead.
     """
     rows = battery_rows()[case]
     pairs = 0
@@ -143,4 +150,4 @@ def one_column(case: int) -> "tuple[int, int, int, str]":
                     outside = outside + 1
                 if above != facts.part_above[seat]:
                     missed = missed + 1
-    return pairs, outside, missed, str(synthtwin.__file__)
+    return pairs, outside, missed

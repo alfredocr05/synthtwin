@@ -23,7 +23,9 @@ for the status to be flipped to GREEN and never fails a run.
 
 NUMBERS THAT BELONG TO THE MACHINE AS MUCH AS TO THE CODE are judged
 only on the reference machine while it is quiet (its one-minute load
-average under the ledger's `quiet_load_average_below`); anywhere else
+average under the ledger's `quiet_load_average_below`) and never on a
+continuous-integration runner, whatever a runner reports about its own
+architecture (`on_a_runner`); anywhere else
 such a rule warns and the machine-free ratio or count beside it is what
 can fail -- and an OPEN entry whose target is stated in one of them is
 never called IMPROVED where it was not judged. There are two kinds of
@@ -128,9 +130,41 @@ def group_of(entry_id: str) -> str:
     return entry_id.split("-")[1]
 
 
+# The environment variables every continuous-integration service this
+# repository can run on sets. A RUNNER IS NEVER THE REFERENCE MACHINE,
+# whatever it reports about itself: what the machine decides -- an
+# absolute time, a peak memory -- was stated for the owner's own quiet
+# machine, and the first CI run measured 703 MB where that machine
+# measures 539 with no change in the code.
+CI_ENVIRONMENT = ("CI", "GITHUB_ACTIONS", "CONTINUOUS_INTEGRATION")
+
+
+def on_a_runner() -> bool:
+    """Whether this is a continuous-integration runner, by its own environment."""
+    for name in CI_ENVIRONMENT:
+        if os.environ.get(name, "") not in ("", "0", "false", "False"):
+            return True
+    return False
+
+
 def on_reference_machine(ledger: "dict") -> bool:
-    """Whether this is the reference machine: the machine and the core count match."""
+    """Whether this is the reference machine: the architecture and the core count match, off CI.
+
+    THE ARCHITECTURE AND THE CORE COUNT ARE NOT ENOUGH BY THEMSELVES
+    (review of this landing, finding 7). They were the whole test while
+    only `seconds_below` hung on it; this landing hangs `peak_memory_below`
+    on it too, so a runner mistaken for the reference machine would fail
+    K-2B-38 on peak memory exactly as the first CI run did -- 703 MB
+    against a bound of 600 -- with no change in the code. No
+    GitHub-hosted image is a ten-core arm64 today (macos-14 and macos-15
+    report 3 cores, Linux arm64 reports `aarch64`), so the hazard is
+    latent rather than live, and it is closed here rather than left to
+    the day one is: a runner says so in its own environment, and a
+    runner is never this machine.
+    """
     wanted = ledger["reference_machine"]
+    if on_a_runner():
+        return False
     return (
         platform.machine() == wanted["platform_machine"]
         and os.cpu_count() == wanted["cores"]
@@ -164,6 +198,11 @@ def seconds_judged_here(ledger: "dict") -> "tuple[bool, str]":
     platform and the Python decide that number as much as the code does.
     """
     wanted = ledger["reference_machine"]
+    if on_a_runner():
+        return False, (
+            "this is a continuous-integration runner, which is never the reference "
+            f"machine ({wanted['name']}) however it reports its own architecture"
+        )
     if not on_reference_machine(ledger):
         return False, f"this is not the reference machine ({wanted['name']})"
     load = load_average()
@@ -525,6 +564,23 @@ def code_differences(installed: pathlib.Path, source: pathlib.Path) -> "list[str
     return differing
 
 
+# The folder names an installed package sits in, on every platform a
+# wheel of this project is installed on.
+INSTALL_FOLDERS = ("site-packages", "dist-packages")
+
+
+def is_an_installed_package(package: pathlib.Path) -> bool:
+    """Whether this package folder is an INSTALL rather than some checkout's source.
+
+    An install cannot be changed by a `git checkout` half way through a
+    run; another checkout's working `src/synthtwin` can, and byte-identity
+    read once at import says nothing about the bytes an hour later. The
+    two are told apart so the guard can say which one it accepted, which
+    is what the review of this landing asked for (finding 4).
+    """
+    return any(part in INSTALL_FOLDERS for part in package.parts)
+
+
 def guard_this_tree() -> str:
     """Print where synthtwin was imported from, and refuse unless it is THIS TREE'S CODE.
 
@@ -546,7 +602,12 @@ def guard_this_tree() -> str:
 
     * the module is under this tree's `src` -- the source arrangement; or
     * every `.py` file of the imported package is byte-identical to this
-      tree's `src/synthtwin` -- the installed-wheel arrangement; or
+      tree's `src/synthtwin` -- the installed-wheel arrangement. The line
+      printed says which of the two it is: an INSTALL (under a
+      `site-packages` or `dist-packages` folder), or another working tree
+      whose bytes happen to match, which a checkout can change under a
+      run and which is therefore named as what it is (finding 4 of this
+      landing's review); or
     * this tree has no `src/synthtwin` at all, so there is nothing it
       could be measured against and the installed package is the only
       code there is.
@@ -571,10 +632,19 @@ def guard_this_tree() -> str:
         )
         return str(here)
     differing = code_differences(package, tree)
-    if not differing:
+    if not differing and is_an_installed_package(package):
         print(
             f"synthtwin is the installed package at {package}, byte-identical to "
             f"{tree}: the same code, installed.",
+            flush=True,
+        )
+        return str(here)
+    if not differing:
+        print(
+            f"synthtwin is at {package}, byte-identical to {tree} as it was read "
+            "just now: the same code, but NOT AN INSTALL -- it is another working "
+            "tree, which a checkout or an edit can change while this run measures. "
+            "Byte-identity is what is accepted here, and it was read once.",
             flush=True,
         )
         return str(here)

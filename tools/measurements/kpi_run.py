@@ -35,11 +35,16 @@ synthtwin would not be imported from this tree's `src`. An OPEN entry
 that reaches its target prints IMPROVED and asks for its status to be
 flipped; it never fails.
 
-SECONDS. A seconds rule is judged only on the reference machine the
-ledger names (platform machine and core count), and only while its
-one-minute load average is under the ledger's `quiet_load_average_below`.
-Anywhere else it warns and the machine-free ratio or count beside it is
-what can fail.
+WHAT THE MACHINE DECIDES. A rule of a MACHINE KIND (`kpi_rules.MACHINE_KINDS`:
+an absolute time, `seconds_below`, and a peak memory, `peak_memory_below`)
+is judged only on the reference machine the ledger names -- its
+architecture and core count, and never a continuous-integration runner --
+and only while its one-minute load average is under the ledger's
+`quiet_load_average_below`. Anywhere else such a rule warns, its number
+is REPORTED and never failed, and the machine-free ratio or count beside
+it is what can fail. Peak memory joined seconds here on 2026-09-20:
+a million-cell workbook refused at 539 MB on the reference machine read
+703 MB on a CI runner, against a bound of 600, with no change in the code.
 
 WHAT IT NEVER DOES. It never rewrites the ledger. `--print-values`
 prints what it measured in the ledger's own `value_at` form -- value,
@@ -383,8 +388,9 @@ def main(argv: "list[str] | None" = None) -> int:
     on_reference = kpi_rules.on_reference_machine(ledger)
     seconds_count, why = kpi_rules.seconds_judged_here(ledger)
     if not seconds_count:
-        print(f"WARNING: {why}; seconds rules are reported, never failed, and ratios "
-              "and counts still fail.")
+        print(f"WARNING: {why}; rules of a machine kind "
+              f"({', '.join(kpi_rules.MACHINE_KINDS)}) are reported, never failed, "
+              "and ratios and counts still fail.")
     with tempfile.TemporaryDirectory(prefix="synthtwin-kpi-") as folder:
         rows = measure(entries, ledger, args.slow, pathlib.Path(folder))
 
@@ -429,7 +435,7 @@ def main(argv: "list[str] | None" = None) -> int:
     report.write_text(json.dumps({
         "commit": commit, "date": datetime.date.today().isoformat(),
         "mode": "slow" if args.slow else "fast", "synthtwin": module,
-        "reference_machine": on_reference, "seconds_judged": seconds_count,
+        "reference_machine": on_reference, "machine_kinds_judged": seconds_count,
         "totals": totals,
         "kpis": [{k: r[k] for k in ("id", "phase_stage", "category", "headline", "name",
                                    "status", "rule", "value_now", "verdict", "pass",

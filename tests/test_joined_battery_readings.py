@@ -75,7 +75,7 @@ import random
 
 import fixtures
 import joined_battery
-import synthtwin
+import kpi_rules
 from synthtwin import contract, generation
 from tests.test_stage2_round_trip import _round_trip
 
@@ -86,13 +86,20 @@ from tests.test_stage2_round_trip import _round_trip
 # on 2026-09-19 (THE CEILING, above) -- the missed count tightened with
 # it. The recorded 550 and 0 are the target and are not met.
 #
-# THE WHOLE BATTERY IS THE DRIVER'S, NOT THIS FILE'S (below). These two
-# numbers are what `tools/measurements/kpi_joined_battery.py` prints and
-# the ledger records; they are stated here because the pin below is
-# derived from them and must be re-derived when they move.
-OUTSIDE_CEILING = 609
-MISSED_CEILING = 3
-PAIRS = 2160
+# THE WHOLE BATTERY IS THE DRIVER'S, NOT THIS FILE'S (below), so these
+# three numbers are READ FROM THE LEDGER and not restated here. They
+# were restated, as three literals no code read, under a comment saying
+# the pin below was derived from them -- a count written in two places
+# with nothing holding the two equal, which is the way this repository
+# has drifted before (finding 6 of this landing's review). The pin is
+# derived from them in
+# `test_the_pin_is_derived_from_the_whole_batterys_ceiling` below, which
+# is what makes a moved ceiling re-derive the pin instead of leaving
+# these stale.
+BATTERY = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-P4-06"]
+OUTSIDE_CEILING = BATTERY["expected"]["agreements_outside"]
+MISSED_CEILING = BATTERY["expected"]["above_counts_missed"]
+PAIRS = BATTERY["value_at"]["value"]["pairs"]
 
 # THE PIN THIS FILE KEEPS, and the three columns it is taken over.
 # Measured on the tree of this commit, one column at a time, forty seeds
@@ -191,9 +198,22 @@ def test_a_saturated_position_holds_every_number_it_publishes(
     alone, which reaches 546 agreements outside on the battery, is not
     taken.
 
-    Mutation: withdrawing the fill (`_saturated_integers` answering
-    nothing, so the walk alone places the strata) holds 50 and 49 of the
-    51 numbers at this seed.
+    MUTATION, RE-MEASURED 2026-09-20 (finding 1 of this landing's
+    review), because the line here was stale: withdrawing the fill does
+    NOT move this any more. `_saturated_integers` answering nothing
+    holds 51 and 51 -- so do `_saturated_levels` (P4-D178) and
+    `_saturated_bands` withdrawn beside it, all three together, and the
+    separation walk itself withdrawn as well. The fill is reached on
+    this column (instrumented: four calls, two of them answering, at
+    this seed) and the count no longer depends on it: the walk of
+    A-P4-55 runs three rounds and reaches 51 on its own, where the tree
+    that recorded "50 and 49" walked once.
+
+    So what this test pins is the COUNT, not the statement that reaches
+    it, and no mutation tried here turns it red. The fill's own guard is
+    `tests/test_carried_numbers.py::test_the_column_wide_fill_holds_a_point_free_grid_alone`
+    (four parametrised seeds red under exactly that mutation) and
+    `test_the_column_wide_fill_is_what_holds_it` beside it.
     """
     loaded, facts = _column_nine(tmp_path)
     twin = generation.generate(loaded, COUNT_SEED)
@@ -229,7 +249,8 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
     WHAT THIS PIN STILL CATCHES, exactly. The three columns hold all
     three of the battery's missed above-counts and 194 of its 609
     agreements outside the window, and two of them are the two the
-    accepted trade moved. A regression in either direction is red here:
+    accepted trade moved. Two mechanisms were measured against it, and
+    only the first of them is this test's to catch:
 
     * MUTATION, measured on this tree: with `_pushed_apart` returning
       its arguments unchanged -- G6.5a's push of a collision along its
@@ -238,23 +259,32 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
       column 11 reads 68 and 0. This test goes red on column 9, and the
       figures are the ones the bisect recorded for the whole battery
       (7 missed against the ceiling of 3);
-    * the fill of P4-D147 is pinned by the three tests around this one,
-      not by the pair counts: with `_saturated_integers` answering
-      nothing, these three columns read 14/1, 117/0 and 63/2 unchanged,
-      while `test_a_saturated_position_holds_every_number_it_publishes`
-      goes red on the same column 9. Two mechanisms, and this is only
-      one of them.
+    * MUTATION, the other mechanism: `_saturated_integers` answering
+      nothing -- the column-wide fill of P4-D147 withdrawn -- leaves
+      these three columns at 14/1, 117/0 and 63/2 UNCHANGED, and so does
+      withdrawing `_saturated_levels` (P4-D178) and `_saturated_bands`
+      beside it. The fill is pinned, and not here: under that same
+      mutation
+      `tests/test_carried_numbers.py::test_the_column_wide_fill_holds_a_point_free_grid_alone`
+      fails on all four of its parametrised seeds, and
+      `test_the_column_wide_fill_is_what_holds_it` beside it withdraws
+      the fill itself and holds 33 numbers against 34. This bullet named
+      `test_a_saturated_position_holds_every_number_it_publishes` above,
+      which does NOT go red: see its own docstring for the measurement,
+      and the review's finding 1 for how it was found.
 
     WHAT IT DOES NOT CATCH: a regression confined to one of the other
-    nine columns' agreement counts. That is the driver's to report, and
-    the ledger's rule for K-P4-06 is measured there.
+    nine columns -- in EITHER of the battery's numbers, its agreements
+    outside the window or its above-counts missed. All three of today's
+    missed above-counts sit in pinned columns, but that is a property of
+    today's measurement and not of the pin: six missed counts appearing
+    in column 3 or column 7 would be green here and green in CI. That is
+    the driver's to report, and the ledger's rule for K-P4-06 is measured
+    there.
     """
-    counts = [joined_battery.one_column(case) for case in PINNED_COLUMNS]
-    imported = {count[3] for count in counts}
-    assert imported == {str(synthtwin.__file__)}, imported
+    kpi_rules.guard_this_tree()
     measured = {
-        case: (count[0], count[1], count[2])
-        for case, count in zip(PINNED_COLUMNS, counts)
+        case: joined_battery.one_column(case) for case in PINNED_COLUMNS
     }
     assert {case: count[0] for case, count in measured.items()} == {
         case: ceiling[0] for case, ceiling in PINNED_CEILINGS.items()
@@ -267,6 +297,36 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
         or measured[case][2] > PINNED_CEILINGS[case][2]
     ]
     assert not worse, "; ".join(worse)
+
+
+def test_the_pin_is_derived_from_the_whole_batterys_ceiling() -> None:
+    """The three pinned columns against K-P4-06's own numbers, arithmetic and all.
+
+    THE CEILINGS WERE THREE LITERALS NO CODE READ, under a comment
+    saying the pin was derived from them (finding 6 of this landing's
+    review): when the driver's ceiling next moved they would have gone
+    stale in silence, and the promised derivation had nothing behind it.
+    They are read from the ledger now, and the derivation is asserted
+    here:
+
+    * every pinned column's pairs, agreements and misses are inside the
+      whole battery's;
+    * the pinned columns hold EVERY above-count the battery misses --
+      which is the reason these three were chosen, and the sentence a
+      moved ceiling must be re-derived against. A ceiling that rises
+      with the new misses in another column turns this red, and the pin
+      must then be re-chosen rather than quietly left behind.
+    """
+    assert sorted(PINNED_CEILINGS) == sorted(PINNED_COLUMNS)
+    assert sum(ceiling[0] for ceiling in PINNED_CEILINGS.values()) <= PAIRS
+    assert sum(ceiling[1] for ceiling in PINNED_CEILINGS.values()) <= OUTSIDE_CEILING
+    assert sum(ceiling[2] for ceiling in PINNED_CEILINGS.values()) == MISSED_CEILING, (
+        "the pin no longer holds every above-count the battery misses: "
+        f"{PINNED_CEILINGS} against K-P4-06's {MISSED_CEILING}"
+    )
+    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 609, 3), (
+        "K-P4-06's ceiling moved; re-derive the pin above, then this line"
+    )
 
 
 def test_a_crowded_saturated_position_keeps_its_spread_and_its_tail(
@@ -284,7 +344,15 @@ def test_a_crowded_saturated_position_keeps_its_spread_and_its_tail(
     crowded low end onto an empty point of the tail -- spread 10.635
     and 11.441, ninetieth percentile 30 at both seeds -- and this test
     goes red, while `synthtwin validate` exits 0 on that twin.
-    Withdrawing the fill (the walk alone) holds 43 of the 45 numbers.
+
+    The line that stood here, "withdrawing the fill (the walk alone)
+    holds 43 of the 45 numbers", was stale and is corrected
+    (finding 1 of this landing's review): re-measured 2026-09-20, with
+    `_saturated_integers` answering nothing this holds 45 of 45 at both
+    seeds, spread 7.320 and tail 17 unchanged, and so it does with
+    `_saturated_levels` and `_saturated_bands` withdrawn beside it and
+    with all three gone at once. The repeated walk of A-P4-55 reaches
+    this grid without them.
     """
     cells = _stay_cells()
     real = [float(cell.split("/")[0]) for cell in cells]
@@ -317,8 +385,18 @@ def test_a_reading_taken_twice_never_stands_above_itself(
 
     Mutation: the withdrawn rule gives 3, 1, 6, 1, 3, 3 and 5 rows above
     at seeds 1, 5, 16, 18, 22, 26 and 32, and so does withdrawing the
-    fill (the walk alone): the break is the walk taking the fill's
-    place, not the leftover points, which it never reached here.
+    fill: the break is the walk taking the fill's place, not the
+    leftover points, which it never reached here.
+
+    WHICH FILL, MEASURED 2026-09-20 (finding 1 of this landing's
+    review). "The fill" was `_saturated_integers` alone when that line
+    was written, and two more statements fill the same grid now
+    (`_saturated_levels`, plan P4-D178, and `_saturated_bands`, the
+    carried numbers pass). Withdrawing `_saturated_integers` by itself
+    leaves 0 rows above at all seven seeds today; withdrawing all three
+    gives exactly 3, 1, 6, 1, 3, 3 and 5, and this test goes RED. So
+    this test does pin the fill, and it takes all three withdrawals to
+    show it.
     """
     loaded = joined_battery.described(_repeated_cells(), tmp_path)
     facts = loaded.columns[0].facts
@@ -348,8 +426,14 @@ def test_a_saturated_pressure_comes_back_whole_through_the_commands(
     twin holds every number of both positions, and the rows with the
     first number above the second are the published count.
 
-    Mutation: withdrawing the fill (the walk alone) leaves the diastolic
-    position 98 numbers of 100 at this seed.
+    Mutation, RE-MEASURED 2026-09-20 (finding 1 of this landing's
+    review): the line here said withdrawing the fill leaves the
+    diastolic position 98 numbers of 100, and it no longer does.
+    `_saturated_integers` answering nothing holds 120 and 100 of 120 and
+    100 at this seed, and so do `_saturated_levels` and
+    `_saturated_bands` withdrawn beside it and all three at once. What
+    this test pins is the round trip through the commands, not the fill;
+    the fill's own guard is in `tests/test_carried_numbers.py`.
     """
     cells = fixtures.joined_column_text(240)
     first, second, written, twin_exit, real_exit = _round_trip(

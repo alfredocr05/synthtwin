@@ -717,6 +717,14 @@ def test_the_guard_accepts_the_installed_package_of_this_tree(
       file -- so the acceptance is not a guard that cannot fail;
     * a tree with no `src/synthtwin` is accepted, because there is
       nothing there to measure the installed package against.
+
+    AND IT SAYS WHICH OF THE TWO IT ACCEPTED (finding 4 of this
+    landing's review). Byte-identity accepts an INSTALL, which no git
+    operation can change under a run, and it also accepts another
+    checkout's live working tree, which one can -- the shared venv's
+    editable install of the main checkout is exactly that. The line
+    printed names it as what it is, and both wordings are asserted here
+    whichever arrangement this suite is running in.
     """
     import synthtwin
 
@@ -727,7 +735,21 @@ def test_the_guard_accepts_the_installed_package_of_this_tree(
     shutil.rmtree(same / "src" / "synthtwin" / "__pycache__", ignore_errors=True)
     monkeypatch.setattr(kpi_rules, "REPO_ROOT", same)
     assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
+    said = capsys.readouterr().out
+    assert "byte-identical" in said, said
+    assert ("the same code, installed" in said) is kpi_rules.is_an_installed_package(
+        package
+    ), (said, str(package))
+
+    # Both wordings, each forced, so neither is a branch no run reaches.
+    monkeypatch.setattr(kpi_rules, "is_an_installed_package", lambda folder: True)
+    assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
     assert "the same code, installed" in capsys.readouterr().out
+    monkeypatch.setattr(kpi_rules, "is_an_installed_package", lambda folder: False)
+    assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
+    assert "NOT AN INSTALL" in capsys.readouterr().out
+    monkeypatch.undo()
+    monkeypatch.setattr(kpi_rules, "REPO_ROOT", same)
 
     changed = same / "src" / "synthtwin" / "taxonomy.py"
     changed.write_bytes(changed.read_bytes() + b"\n# one byte more\n")
@@ -739,6 +761,59 @@ def test_the_guard_accepts_the_installed_package_of_this_tree(
     monkeypatch.setattr(kpi_rules, "REPO_ROOT", tmp_path / "no-source")
     assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
     assert "this tree has no" in capsys.readouterr().out
+
+
+def test_an_install_and_a_checkouts_source_are_told_apart() -> None:
+    """`is_an_installed_package`: the folder an install sits in, on either platform."""
+    assert kpi_rules.is_an_installed_package(
+        pathlib.Path("/x/.venv/lib/python3.13/site-packages/synthtwin")
+    )
+    assert kpi_rules.is_an_installed_package(
+        pathlib.Path("/usr/lib/python3/dist-packages/synthtwin")
+    )
+    assert not kpi_rules.is_an_installed_package(
+        pathlib.Path("/Users/owner/Desktop/synthtwin/src/synthtwin")
+    )
+    assert not kpi_rules.is_an_installed_package(pathlib.Path("/tmp/wt/ci-fixes/src/synthtwin"))
+
+
+def test_a_continuous_integration_runner_is_never_the_reference_machine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A runner says so in its own environment, whatever it reports about itself.
+
+    THE ARCHITECTURE AND THE CORE COUNT WERE THE WHOLE TEST until this
+    landing, and this landing hung `peak_memory_below` on the same test
+    as `seconds_below` (finding 7 of its review). A ten-core arm64
+    runner would have been taken for the reference machine, its load
+    average during a pytest run sits under the ledger's quiet bound, and
+    K-2B-38 would fail on peak memory exactly as the first CI run did --
+    703 MB against 600 -- with no change in the code. No GitHub-hosted
+    image is one today; this closes it before one is.
+
+    The machine is forced to match below, so what this measures is the
+    environment and nothing else.
+    """
+    wanted = LEDGER["reference_machine"]
+    monkeypatch.setattr(kpi_rules.platform, "machine", lambda: wanted["platform_machine"])
+    monkeypatch.setattr(kpi_rules.os, "cpu_count", lambda: wanted["cores"])
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
+    for name in kpi_rules.CI_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+    assert kpi_rules.on_reference_machine(LEDGER)
+    assert kpi_rules.seconds_judged_here(LEDGER) == (True, "")
+    for name in kpi_rules.CI_ENVIRONMENT:
+        monkeypatch.setenv(name, "true")
+        assert kpi_rules.on_a_runner(), name
+        assert not kpi_rules.on_reference_machine(LEDGER), name
+        judged, why = kpi_rules.seconds_judged_here(LEDGER)
+        assert not judged and "continuous-integration runner" in why, (name, why)
+        monkeypatch.delenv(name)
+    # A variable set to nothing, or to a plain false, is not a runner.
+    monkeypatch.setenv("CI", "")
+    assert kpi_rules.on_reference_machine(LEDGER)
+    monkeypatch.setenv("CI", "false")
+    assert kpi_rules.on_reference_machine(LEDGER)
 
 
 # -- a KPI that does not measure what it names (files review 2026-09-18, item 5) --
