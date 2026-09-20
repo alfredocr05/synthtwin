@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression. THE ROUND-2 LEDGER PASS (2026-09-19) re-measured four entries on its own tree, 05e7d89, and all four value_at name that commit and the driver that took them: K-P0-05 (the decontamination scan's reads and surfaces, counted where they happen now, not taken from the listing), K-2B-47 (the read floor's moving facts and the Fortran D exponent), and the two new OPEN entries K-2B-50 and K-2B-51, the fidelity failures still with the owner, which had no ceiling before. K-2B-47 kept caf3079's stamp while carrying six keys that commit's driver could not emit until the repair pass corrected it (finding 2); test_kpi_ledger_integrity.py holds this sentence and the entries off the base commit equal from now on. ONE OTHER value_at predates caf3079 and is not this pass's: K-2B-42 (the document oracle's independence) stands at 40cadbc, the commit its measurement was taken on, because it is RED on caf3079 -- 181 of 393 against a bound of 176 -- and its evidence says so. That sentence used to read 'every other value_at is still caf3079's', which was already untrue when it was written; the guard this repair pass added found it. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression. THE ROUND-2 LEDGER PASS (2026-09-19) re-measured four entries on its own tree, 05e7d89, and all four value_at name that commit and the driver that took them: K-P0-05 (the decontamination scan's reads and surfaces, counted where they happen now, not taken from the listing), K-2B-47 (the read floor's moving facts and the Fortran D exponent), and the two new OPEN entries K-2B-50 and K-2B-51, the fidelity failures still with the owner, which had no ceiling before. K-2B-47 kept caf3079's stamp while carrying six keys that commit's driver could not emit until the repair pass corrected it (finding 2); test_kpi_ledger_integrity.py holds this sentence and the entries off the base commit equal from now on. ONE OTHER value_at predates caf3079 and is not this pass's: K-2B-42 (the document oracle's independence) stands at 40cadbc, the commit its measurement was taken on, because it is RED on caf3079 -- 181 of 393 against a bound of 176 -- and its evidence says so. That sentence used to read 'every other value_at is still caf3079's', which was already untrue when it was written; the guard this repair pass added found it. ONE MORE was re-measured on 2026-09-20, on its own tree 335fec3, and its value_at names that commit and the run that took it: K-2B-38 (the hostile workbook), whose rule gained the key refused_by_the_cell_cap -- the cap's own sentence, which is the property of the CODE the ordinary suite judges now -- while its peak memory became a peak_memory_below number, recorded everywhere and judged only here. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -4943,6 +4943,7 @@
    "rule_kind": "exact",
    "expected": {
     "refused": true,
+    "refused_by_the_cell_cap": true,
     "peak_mb": 600,
     "pinned_nodes_failing": 0
    },
@@ -4959,14 +4960,15 @@
    "measured_on": "tests/workbooks.py fixtures; 5.2 MB / 1,048,576-cell bomb",
    "evidence": "6 of 6 hostile workbooks refused by their own cap; 3 of 3 misnamed files placed by bytes; 160,000-letter cell reference refused in 0.00001 s; million-cell zip bomb refused in 3.66 s at 326 MB",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "335fec3",
+    "date": "2026-09-20",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine (no seconds warning printed), on the tree of 335fec3 -- the commit that made the refusal's own cap the thing the ordinary suite judges and moved peak memory to peak_memory_below. The key refused_by_the_cell_cap did not exist before it, so the value is re-measured rather than carried",
     "value": {
-     "peak_mb": 539,
+     "peak_mb": 540,
      "pinned_nodes_failing": 0,
      "refused": true,
-     "seconds": 3.37
+     "refused_by_the_cell_cap": true,
+     "seconds": 3.42
     }
    },
    "key_kinds": {
