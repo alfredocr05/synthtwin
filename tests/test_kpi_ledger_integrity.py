@@ -668,7 +668,7 @@ def _tree_holding(folder: pathlib.Path, body: str) -> pathlib.Path:
     """A stand-in checkout whose `src/synthtwin/__init__.py` holds ``body``."""
     package = folder / "src" / "synthtwin"
     package.mkdir(parents=True, exist_ok=True)
-    (package / "__init__.py").write_text(body, encoding="utf-8")
+    (package / "__init__.py").write_text(body, encoding="utf-8", newline="\n")
     return folder
 
 
