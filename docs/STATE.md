@@ -48,8 +48,8 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 6,911 collected. The run that closed stage 2 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 147 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 132 green, 11 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| suite | 7,083 collected. The run that closed stage 2 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 150 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 133 green, 13 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu and Windows. **It has not yet seen stages 1, 2 or 2b.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
@@ -146,6 +146,14 @@ cannot get worse unseen.
   sign band given more slots than it has numbers. The known-miss entry
   of the ledger names them.
 - **The largest tables** are measured only to 100,000 rows. Landing 4.
+- **A pooled population of numbers beside labels loses its scale.** On
+  100 `alpha` beside 120 numbers the mean and spread come back 100 and
+  3.03 against 187.08 and 39.03, and BOTH files validate clean, so no
+  miss count sees it (`K-2B-50`). With the owner.
+- **A timestamp column whose absorbed mark leaves a description no file
+  satisfies.** Its twin re-describes as `binary` and misses three checks
+  while the real file misses none (`K-2B-51`). The absorption is ruling
+  6 and is not reopened. With the owner.
 
 ## The rules an assistant breaks first here
 

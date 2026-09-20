@@ -24,12 +24,16 @@ reviewed three times, and closed under the owner's rulings of
 | first review round's fixes, merged and repaired | 6,056 | 3      |
 | stage 2 closed, before the extra round      | 6,397     | 1      |
 | extra round merged and landed               | 6,626     | 57     |
-| stage 2b closed                             | 6,911     | @@FAILED@@ |
+| stage 2b closed                             | 7,083     | 0          |
 
 At every close, one of the failures was the state page's own record of
 the suite size. That page is written separately.
 
-@@FINALPARA@@
+**The closing run.** On the merged tree at `fd93100`: 7,083 collected,
+7,033 passed, 49 skipped, and one failure — this page's companion, the
+state page's own record of the suite size, which moves in the commit
+that carries this entry. Four review rounds reached this point, and the
+last of them is below.
 
 ### Fixed: a twin's numbers stay much closer to the column's own distribution (stage 2b, 2026-09-15 to 2026-09-18)
 
@@ -485,6 +489,47 @@ dead: a census naming one width word over fewer cells than the column
 holds reaches both. Two new frozen cases reach them, each with a mutant
 that moves its cells.
 
+### Fixed: what a fourth review round found, and an oracle that copied the code it checks (2026-09-20)
+
+**A missing value reopened the worst defect of the stage.** One `NA`
+anywhere in a numeric column defeated the rule that stops a headerless
+file publishing its first real record as the column names: 240 records
+described as 239, the record's own text published as the header, and no
+question asked. Two independent passes found it, in delimited text and
+in Excel. The rule now drops recognised spellings of no value from its
+evidence and reads a censored reading as a reading, and both formats are
+pinned by the reviewer's own reproduction.
+
+**The round raised 28 items across five passes, all rejected, all
+closed.** The rest of the disclosure pass: a judged placeholder's
+occurrences, less its named spellings, gave a count of one; label form
+censuses bypassed the ruling that a level recoverable by subtraction is
+missing; a mixed date and timestamp census exposed a singleton; a
+plus-sign census omitted a population you could subtract; formula counts
+revealed a lone literal cell. Numbers and dates: the mode repair
+accepted the wrong frequency; absorbed identifier counts changed a
+column's usable type; exponent spelling stayed broken; the calendar
+repair corrupted published text labels.
+
+**Five of the items were measurements that did not measure.** The
+decontamination driver counted the files it listed rather than the files
+it scanned, so an empty scan read PASS; the KPI runner printed a failed
+driver's exit status and then discarded it, so a broken driver could
+produce a complete PASS; one KPI survived the removal of UTF-16 support
+outright. A measure that cannot fail is worse than none, because it is
+believed.
+
+**And the merge caught what no branch could see.** The oracle exists to
+check the generator without being it, and `K-2B-42` measures that: no
+more than 176 of its functions may score 0.60 or above against their
+closest shipped function. One of the round's new rules was a
+line-by-line transcription of the code it checks — the same three early
+returns in the same order, the same names, the same final expression —
+and the count crossed to 177. It was rewritten from the method's own
+statement of the rule, not by moving the bound. All ten vector files
+rebuild byte-identical, so no frozen cell moved, and 324,576 measured
+pairs disagree nowhere with the transcription it replaced.
+
 ### Added: a ledger of measured outcomes, with a one-command runner (2026-09-19)
 
 **Six thousand tests passing do not tell you that a UUID column still
@@ -599,8 +644,8 @@ reversal:**
 - **Stage 6:** relationships between columns (a rank correlation of
   0.747 comes back as 0.027), and the walk that pairs the numbers of a
   three- or four-number cell.
-- **Also carried, each held at a ceiling by the ledger's known-miss
-  entry:**
+- **Also carried, named one by one in the ledger's known-miss entry and
+  held there at a ceiling:**
   - two date-width allocations;
   - one record-number layout, `(-%)`;
   - a sign band given more slots than it has numbers;
