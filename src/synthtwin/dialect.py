@@ -1864,36 +1864,107 @@ def blank_places_disclosed(
     floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
     floor's own value and unit stay the owner's deferred question.
 
+    AND COUNTING THE PLACES TOGETHER READ ONLY HALF OF WHAT THEY SAY
+    (plan P4-D311, review item 4 of the files review of 2026-09-18). A
+    place publishes a FORM as well as a position -- how many blank lines
+    stood there and what each of them holds -- and a form worn by one
+    place names that place's record as surely as a lone place does.
+    **Measured** at a floor of eleven, on a header and 120 records with
+    `record` declared an identifier: ordinary blank lines after records
+    1 to 11 and ONE blank line holding a single space after record 57
+    published `{after: 57, lines: 1, text: " "}` beside eleven places
+    holding nothing -- the twelve cleared the count, so the rule above
+    never looked at the spelling, and the description named the sole
+    record standing beside that spelling. The description loaded, the
+    twin wrote that spaced line back, and both files validated at exit
+    0. The same shape in the other field: eleven places of one line each
+    beside THREE blank lines after record 57 published `{after: 57,
+    lines: 3, text: ""}`, which names record 57 the same way.
+
+    SO THE LINE IS ASKED OF EACH FORM, AND A FORM BELOW IT COUNTS INTO
+    THE COMMONEST -- ruling 6 of 2026-09-17 read on a file's own blank
+    lines, exactly as `endings_disclosed` above reads it on a file's own
+    endings. The places keep their positions, of which there are at
+    least as many as the line; each place wearing a form fewer places
+    wear than the line is published wearing the commonest form instead,
+    and a tie goes to the form standing earliest in the file. The twin
+    then writes the file with its rare blank line written the way most
+    of them were, describing the file again reads it the same way, and
+    the file passes its own description. What it costs is that one
+    spelling and that one run length in the twin, which is the price of
+    not naming the record they stand beside.
+
+    WHERE THAT MOVES LINES, THEY LEAVE THE ENDING COUNT WITH THEM.
+    Absorbing a run of three into a run of one leaves two lines the
+    description does not keep; `blank_lines_withheld` below is the
+    difference between what the places hold and what they publish, in
+    either direction, and `endings_disclosed` takes it off the count it
+    publishes so invariant FD2 still holds.
+
     Guarantees: accepts the places in file order and the settings floor;
-    returns those places at a floor of one or where they reach the line,
-    and none at all otherwise. Determinism: a fixed function of the two.
-    Raises nothing. No I/O of any kind.
+    returns those places at a floor of one, none at all where they
+    number fewer than the line, and otherwise those places with every
+    form worn by fewer places than the line written as the commonest
+    form. Determinism: a fixed function of the two. Raises nothing. No
+    I/O of any kind.
     """
     if floor <= 1:
         return list(places)
-    if len(places) >= parsing.census_floor(floor):
-        return list(places)
-    return []
+    line = parsing.census_floor(floor)
+    if len(places) < line:
+        return []
+    worn: "dict[tuple[int, str], int]" = {}
+    order: "list[tuple[int, str]]" = []
+    for place in places:
+        form = (place.lines, place.text)
+        if form not in worn:
+            worn[form] = 0
+            order += [form]
+        worn[form] = worn[form] + 1
+    commonest = order[0]
+    for found in order:
+        if worn[found] > worn[commonest]:
+            commonest = found
+    told: "list[BlankPlace]" = []
+    for place in places:
+        form = (place.lines, place.text)
+        if worn[form] >= line:
+            told += [place]
+        else:
+            told += [
+                BlankPlace(
+                    after=place.after,
+                    lines=commonest[0],
+                    text=commonest[1],
+                )
+            ]
+    return told
 
 
 def blank_lines_withheld(places: "list[BlankPlace]", floor: int) -> int:
     """How many blank lines `blank_places_disclosed` holds back (P4-D290).
 
-    Asked of that rule itself, so the two can never part: nought where
-    the places are published, and every one of their lines where they
-    are not. `endings_disclosed` takes it off the line count it
-    publishes, because invariant FD2 has the endings account for every
-    line the description keeps.
+    Asked of that rule itself, so the two can never part: the lines the
+    places hold, less the lines the places it publishes hold. That is
+    nought where every place is published as it stands, every one of
+    their lines where none is, and the difference where a form below the
+    line was written as the commonest one (plan P4-D311) -- which may be
+    a NEGATIVE number, where the form absorbed was shorter than the
+    commonest, and the description then keeps more lines than the file
+    holds because the twin writes them. `endings_disclosed` takes this
+    off the line count it publishes, because invariant FD2 has the
+    endings account for every line the description keeps.
 
     Guarantees: accepts the places in file order and the settings floor;
-    returns nought or the lines those places hold. Determinism: a fixed
-    function of the two. Raises nothing. No I/O of any kind.
+    returns the difference between the lines those places hold and the
+    lines the published places hold. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
     """
-    if blank_places_disclosed(places, floor):
-        return 0
     lines = 0
     for place in places:
         lines = lines + place.lines
+    for place in blank_places_disclosed(places, floor):
+        lines = lines - place.lines
     return lines
 
 

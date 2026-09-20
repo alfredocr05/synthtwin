@@ -125,8 +125,10 @@ Three outcomes, in this order.
      above ``CASE-ALPHA-0101`` is a record made of structured text.
    * **A measurement among numbers** (plan P4-D292, the merge-close of
      2026-09-18). The first row's value does not read as a number but
-     carries a figure AS A VALUE -- it opens on a mark or on a figure,
-     not on a letter or an underscore -- and every value below it in
+     carries a figure AS A VALUE -- past any leading space it opens on
+     a figure or on one of the marks a reading is written with, and not
+     on a letter of any alphabet or an underscore (plan P4-D310) -- and
+     every value below it in
      that column reads as a number. ``<0.10`` above ``2.5``, ``3.5``,
      ``4.5`` is a reading under a limit of detection standing among the
      readings of its own column, and no column name is written that
@@ -633,6 +635,27 @@ SILHOUETTE_FIGURES = "9"
 _SILHOUETTE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _SILHOUETTE_FIGURES = "0123456789"
 
+# THE SPACES A COLUMN NAME MAY BE WRITTEN WITH BEFORE ITS FIRST LETTER.
+# A file written `record, q1, q2` hands this module the name ` q1`, and
+# the space before the letter is the file's spacing and not part of what
+# the value opens with (plan P4-D310). Spelled out for the same reason
+# the alphabet above is.
+_NAME_LEADING_SPACES = " \t"
+
+# EVERY MARK A READING MAY OPEN WITH, and nothing else opens one (plan
+# P4-D310). `_holds_a_figure_as_a_value` asks this rather than asking
+# whether the opening is a LETTER, because the letters of the world are
+# a Unicode table and the marks a measurement is written with are a
+# short list: every ASCII mark except the underscore a column name is
+# written with, and the comparison, sign and currency marks outside
+# ASCII that open a reading. Every character absent from here -- which
+# is every letter of every alphabet -- opens a NAME.
+_READING_OPENINGS = (
+    _SILHOUETTE_FIGURES
+    + "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~"
+    + "\u2264\u2265\u00b1\u2212\u2013\u2014\u2248\u20ac\u00a3\u00a5\u00a2"
+)
+
 
 def _silhouette(text: str) -> str:
     """One value's shape: runs of letters and of figures, marks as they stand.
@@ -793,8 +816,9 @@ def _measurement_among_numbers(name: str, values: list[str]) -> bool:
 
     IT IS THE COMPLEMENT OF `_names_evidence`, NOT A NEW JUDGEMENT.
     P4-D272 taught that function that a first-row value carrying a
-    figure AS A VALUE -- `<0.10`, `2-4`, `5 mg`, which open on a mark or
-    on a figure rather than on a letter or an underscore -- is no
+    figure AS A VALUE -- `<0.10`, `2-4`, `5 mg`, which open on a figure
+    or on one of the marks a reading is written with rather than on a
+    letter of any alphabet or an underscore (plan P4-D310) -- is no
     evidence that the row is NAMES, because that is how a MEASUREMENT is
     written and a column name is not written that way. That left the
     shape with no evidence on either side, and outcome 4 takes a row
@@ -1383,12 +1407,16 @@ def _names_evidence(
     that shows evidence, so one such name was enough to lose the header.
 
     WHAT SEPARATES A MEASUREMENT FROM A NAME IS THE OPENING. `<0.10`,
-    `2-4` and `5 mg` open on a mark or on a figure; `q1`, `week_2` and
-    `glucose1` open on a letter, and a name written with a leading
-    underscore opens on one mark this rule reads the same way. So a
-    figure counts here only in a value that does not open on a letter or
-    an underscore. `record_id`, `age`, `arm`, `site` and `reading` over
-    a title line are untouched as they always were.
+    `2-4` and `5 mg` open on a mark or on a figure; `q1`, `week_2`,
+    `glucose1` and `échelle1` open on a letter, and a name written with
+    a leading underscore opens on one mark this rule reads the same way.
+    So a figure counts here only in a value whose first character past
+    any leading space is a figure or one of the marks a reading is
+    written with -- which is every ASCII mark but the underscore, and
+    the comparison, sign and currency marks outside it -- and never in
+    one that opens on a letter of any alphabet (plan P4-D310).
+    `record_id`, `age`, `arm`, `site` and `reading` over a title line
+    are untouched as they always were.
 
     WHERE RULING 8'S SHAPE IS ACTUALLY HELD UP, AND IT WAS NOT HERE
     (plan P4-D292, the merge-close of 2026-09-18). Until that entry this
@@ -1437,19 +1465,61 @@ def _names_evidence(
 def _holds_a_figure_as_a_value(text: str) -> bool:
     """Whether one value carries a figure the way a VALUE does (P4-D272).
 
-    A figure counts only in a value that does not open on a letter or on
-    an underscore, which is what separates a measurement from a name:
-    `<0.10`, `2-4` and `5 mg` open on a mark or a figure, while `q1`,
-    `week_2` and `glucose1` open on a letter and `_2021` on the one mark a
-    name is written with. The opening character is read, never asked of
-    a method, because this value came out of the user's file.
+    A figure counts only in a value that OPENS THE WAY A READING OPENS,
+    which is what separates a measurement from a name: `<0.10`, `2-4`
+    and `5 mg` open on a mark or on a figure, while `q1`, `week_2` and
+    `glucose1` open on a letter and `_2021` on the one mark a name is
+    written with. The opening character is read, never asked of a
+    method, because this value came out of the user's file.
+
+    THE OPENING IS FOUND PAST THE SPACES A NAME MAY BE WRITTEN WITH, AND
+    A LETTER OUTSIDE ASCII IS A LETTER (plan P4-D310, review item 3 of
+    the files review of 2026-09-18). The first writing of this rule
+    asked whether the opening stood in the ASCII alphabet, so every
+    other character in the world opened a reading -- an accented letter
+    and a leading space among them. **Measured** at a floor of eleven,
+    on a header of two names over 120 records holding the numbers 1 to
+    120 and three repeating groups: `échelle1,group` and ` q1,group`
+    were each read as a RECORD by `_measurement_among_numbers`, so both
+    files published `column_1` and `column_2`, described 121 records
+    where the file holds 120, gave the numeric column a fresh
+    `n_not_numeric 1`, counted the word `group` as one missing cell, and
+    asked about the first row. Both were read correctly before the rule
+    existed. The same as a workbook.
+
+    SO THE OPENING IS ASKED THE OTHER WAY ROUND: the value opens a
+    READING where its first character past any leading space or tab is
+    a figure or one of `_READING_OPENINGS`, and it opens a NAME
+    otherwise -- which is every letter of every alphabet, the ASCII ones
+    and `é`, `ß` and `ω` alike, and the underscore a name is written
+    with. Enumerating the marks rather than the letters is what keeps
+    this readable without a Unicode table: the audit accepts no method
+    call on a value read out of the user's file, and `str.isalpha`
+    answers out of a table that moves between releases.
+
+    WHAT THAT COSTS, MEASURED AND STATED. A reading opening on a mark
+    this enumeration does not hold -- say a full-width `＜` -- is read
+    as a name, so a headerless table whose first record opens that way
+    is published as the schema again, exactly as `R001,North Unit,<0.10`
+    was. The marks a reading is actually written with are enumerated
+    below and a further one is a one-character amendment; the alternative
+    -- every non-ASCII character opening a reading -- is the defect
+    above, which costs an ordinary accented header its own names on
+    every file that carries one.
 
     Guarantees: accepts text; returns whether it carries a figure as a
     value. Determinism: a fixed function of the text. Raises nothing. No
     I/O of any kind.
     """
-    opening = text[0] if text else ""
-    if opening in _SILHOUETTE_ALPHABET or opening == "_":
+    opening = ""
+    for character in text:
+        if character in _NAME_LEADING_SPACES:
+            continue
+        opening = character
+        break
+    if opening == "":
+        return False
+    if opening not in _READING_OPENINGS:
         return False
     for character in text:
         if character in _SILHOUETTE_FIGURES:

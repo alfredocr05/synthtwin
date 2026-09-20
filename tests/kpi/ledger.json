@@ -4666,14 +4666,20 @@
    "nodes": [
     "tests/test_file_dialect_round_trip.py::test_excel_csv_utf8_on_windows",
     "tests/test_file_dialect_round_trip.py::test_european_excel_semicolon_with_a_separator_line",
+    "tests/test_file_dialect_round_trip.py::test_excel_unicode_text",
+    "tests/test_file_dialect_round_trip.py::test_old_macintosh_excel_writes_carriage_returns",
+    "tests/test_file_dialect_round_trip.py::test_r_write_csv_with_row_names",
+    "tests/test_file_dialect_round_trip.py::test_pandas_to_csv_with_its_index",
     "tests/test_file_dialect_round_trip.py::test_sas_padded_latin1_export",
+    "tests/test_file_dialect_round_trip.py::test_redcap_export_sorted_by_record_id",
+    "tests/test_file_dialect_round_trip.py::test_qualtrics_metadata_rows",
     "tests/test_file_dialect_round_trip.py::test_line_endings_that_change_kind_past_the_cap"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "seeded 120x5 files, seed 4",
-   "evidence": "38 of 38 exporter shapes (Excel CSV, sep=; cp1252, UTF-16 Unicode Text, old Mac CR, R row names, SAS Latin-1, REDCap, Qualtrics...); before: CRLF, Latin-1 and BOM files came back as LF UTF-8, semicolon files as one column",
+   "evidence": "38 of 38 exporter shapes measured; the TEN named here are each pinned by a node of its own (Excel CSV, sep=; cp1252, UTF-16 Unicode Text, old Mac CR, R row names, pandas index, SAS Latin-1, REDCap, Qualtrics, endings past the cap), so withdrawing one of those shapes' support turns this entry red -- four nodes stood here until the files review of 2026-09-18 replaced UTF-16 decoding with a refusal and watched all four pass; before: CRLF, Latin-1 and BOM files came back as LF UTF-8, semicolon files as one column",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -4682,7 +4688,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 4
+   "nodes_min_collected": 10
   },
   {
    "id": "K-2B-32",

@@ -1002,3 +1002,312 @@ def test_the_report_says_what_the_distinct_count_means_on_a_label_column(
         in result["report"]
     )
     _both_pass(result)
+
+
+# ================================= THE FILES REVIEW OF 2026-09-18, ROUND 2
+#
+# Item 3 of that review: a LEGITIMATE HEADER became an additional record.
+# P4-D272's opening test asked whether the first character stood in the
+# ASCII alphabet, so every other character in the world opened a reading
+# -- an accented letter and a leading space among them -- and the fifth
+# record rule then read an ordinary header as one of its own records.
+# The red check for the two tests below:
+#
+# * `_holds_a_figure_as_a_value` back at `opening in _SILHOUETTE_ALPHABET
+#   or opening == "_"` on `text[0]` -- `échelle1` and ` q1` open a
+#   reading again, the header becomes record 121, and every assertion
+#   below about the names, the count and the fresh count of one fails.
+
+
+_ROUND_TWO_GROUPS = ("alpha", "beta", "gamma")
+
+
+def _round_two_rows() -> "list[list[str]]":
+    """120 records: the numbers 1 to 120 beside three repeating groups."""
+    return [
+        [f"{number}", _ROUND_TWO_GROUPS[number % 3]]
+        for number in range(1, 121)
+    ]
+
+
+def _headed_file(
+    folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]"
+) -> dict:
+    """One headed delimited file, written byte for byte, then described."""
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    table.write_text(
+        "".join(",".join(row) + "\n" for row in [header] + rows),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace", *FLOOR]
+    ) == 0
+    return json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )
+
+
+def _headed_book(
+    folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]"
+) -> dict:
+    """The same header and records as a workbook, described the same way."""
+    strings = list(header) + list(_ROUND_TWO_GROUPS)
+    body: "list[tuple[int, list[str]]]" = [
+        (
+            1,
+            [
+                workbooks.cell("A1", "0", "s"),
+                workbooks.cell("B1", "1", "s"),
+            ],
+        )
+    ]
+    for place in range(len(rows)):
+        number = place + 2
+        group = strings.index(rows[place][1])
+        body += [
+            (
+                number,
+                [
+                    workbooks.cell(f"A{number}", rows[place][0]),
+                    workbooks.cell(f"B{number}", f"{group}", "s"),
+                ],
+            )
+        ]
+    package = workbooks.package(
+        [
+            (
+                "[Content_Types].xml",
+                workbooks._content_types(1, True, False, False),
+            ),
+            ("_rels/.rels", workbooks._root_rels()),
+            ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, True)),
+            ("xl/styles.xml", workbooks._styles()),
+            ("xl/sharedStrings.xml", workbooks._shared_strings(strings)),
+            ("xl/worksheets/sheet1.xml", workbooks.sheet(body)),
+        ]
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "book.xlsx"
+    path.write_bytes(package)
+    assert _exit_of(
+        ["profile", str(path), "--out-dir", str(folder), "--replace", *FLOOR]
+    ) == 0
+    return json.loads(
+        (folder / "book-profile.json").read_text(encoding="utf-8")
+    )
+
+
+def test_a_header_outside_ascii_still_names_its_own_columns(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`échelle1,group` and ` q1,group` over 120 records, at a floor of eleven.
+
+    Both were read correctly before P4-D272 was written. Afterwards both
+    published `column_1` and `column_2`, described 121 records where the
+    file holds 120, gave the numeric column a fresh `n_not_numeric 1`
+    and counted the word `group` as one missing cell -- a count of one
+    made by the landing that was closing them. The spelling is kept as
+    the file wrote it, the leading space included.
+    """
+    rows = _round_two_rows()
+    for folder, header in (
+        ("accented", ["échelle1", "group"]),
+        ("spaced", [" q1", "group"]),
+    ):
+        document = _headed_file(tmp_path / folder, header, rows)
+        assert [
+            block["name"] for block in document["columns"]
+        ] == header, header
+        assert document["n_rows"] == 120
+        assert document["columns"][0]["n_not_numeric"] == 0
+        assert document["columns"][1]["n_missing"] == 0
+        assert document["columns"][1]["n_present"] == 120
+        asked = json.loads(
+            (tmp_path / folder / "real-questions.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert "first row" not in json.dumps(asked).lower()
+
+
+def test_the_same_header_names_its_columns_in_a_workbook(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The rule is one function, so the workbook is described here too.
+
+    Item 3 of the review measured the shape on both surfaces. A workbook
+    header of `échelle1` and `group` over the same 120 records lost its
+    names exactly as the delimited file did.
+    """
+    rows = _round_two_rows()
+    document = _headed_book(
+        tmp_path / "book", ["échelle1", "group"], rows
+    )
+    assert [block["name"] for block in document["columns"]] == [
+        "échelle1",
+        "group",
+    ]
+    assert document["n_rows"] == 120
+    assert document["columns"][0]["n_not_numeric"] == 0
+
+
+def test_the_opening_of_a_reading_is_a_mark_and_not_merely_non_ascii() -> None:
+    """The rule, stated: a reading opens on a figure or an enumerated mark.
+
+    Everything else opens a NAME, which is every letter of every
+    alphabet and the underscore -- and the opening is found past the
+    spaces a file may write before a name.
+    """
+    from synthtwin import reading
+
+    for value in (
+        "<0.10", "2-4", "5 mg", "0.5", "-3", ".25", "12345",
+        " <0.10", "≤0.10", "±0.5", "€20",
+    ):
+        assert reading._holds_a_figure_as_a_value(value), value
+    for name in (
+        "q1", "week_2", "glucose1", "visit1", "B10", "_2021", "",
+        "échelle1", " q1", "\tq1", "ßand2", "ω1",
+        "größe1", "año2",
+    ):
+        assert not reading._holds_a_figure_as_a_value(name), name
+
+
+# Item 4 of that review: UNRELATED BLANK LINES defeated the suppression
+# of a unique file-layout fact. `blank_places_disclosed` counted the
+# places together, so eleven ordinary blank lines carried a twelfth
+# place of another spelling past the line and published the sole record
+# standing beside it. The red check for the three tests below:
+#
+# * `blank_places_disclosed` back at `len(places) >= line` with no form
+#   loop -- `{after: 57, lines: 1, text: " "}` and `{after: 57, lines: 3,
+#   text: ""}` are published again and the twin writes them back.
+
+
+def _blank_file(
+    folder: pathlib.Path, blanks: "dict[int, tuple[int, str]]"
+) -> "tuple[dict, bytes]":
+    """120 records with blank lines after the named ones: the form and the twin."""
+    folder.mkdir(parents=True, exist_ok=True)
+    written = "record,amount\n"
+    for index in range(len(_RECORDS)):
+        written += _RECORDS[index] + "\n"
+        if index + 1 in blanks:
+            lines, text = blanks[index + 1]
+            for _ in range(lines):
+                written += text + "\n"
+    table = folder / "real.csv"
+    table.write_bytes(written.encode("utf-8"))
+    assert _exit_of(
+        [
+            "profile", str(table), "--out-dir", str(folder), "--replace",
+            "--identifier", "record", *FLOOR,
+        ]
+    ) == 0
+    document = json.loads(
+        (folder / "real-profile.json").read_text(encoding="utf-8")
+    )
+    assert _exit_of(
+        [
+            "generate", str(folder / "real-profile.json"), "--out-dir",
+            str(folder), "--seed", "4", "--replace",
+        ]
+    ) == 0
+    for name, checked in (("real.csv", "check-real"), ("real-twin.csv", "check-twin")):
+        where = folder / checked
+        where.mkdir()
+        assert _exit_of(
+            [
+                "validate", str(folder / "real-profile.json"), "--twin",
+                str(folder / name), "--out-dir", str(where), "--replace",
+            ]
+        ) == 0, name
+    return (
+        document["source"]["dialect"],
+        (folder / "real-twin.csv").read_bytes(),
+    )
+
+
+def test_a_blank_line_spelled_like_no_other_names_no_record(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Blank lines after records 1-11 and ONE holding a space after 57.
+
+    The twelve places cleared the count, so the spelling was never
+    asked: `{after: 57, lines: 1, text: " "}` was published, the twin
+    wrote that spaced line back, and both files validated at exit 0
+    while the description named the one record standing beside it.
+    """
+    blanks: "dict[int, tuple[int, str]]" = {
+        place: (1, "") for place in range(1, 12)
+    }
+    blanks[57] = (1, " ")
+    form, twin = _blank_file(tmp_path, blanks)
+    assert len(form["blank_lines"]) == 12
+    assert [place["text"] for place in form["blank_lines"]] == [""] * 12
+    assert {"after": 57, "lines": 1, "text": " "} not in form["blank_lines"]
+    assert b"\n \n" not in twin
+    # Every line is still accounted for: 122 of the file, 12 blank.
+    assert form["line_endings"] == [{"ending": "lf", "lines": 133}]
+
+
+def test_a_blank_run_longer_than_every_other_names_no_record(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same shape in the other field: THREE blank lines after 57.
+
+    A place publishes a form as well as a position, and a run length
+    worn by one place names that place's record as surely as a spelling
+    does. The two lines the absorbed run does not keep leave the ending
+    count with them, so FD2 still holds.
+    """
+    blanks: "dict[int, tuple[int, str]]" = {
+        place: (1, "") for place in range(1, 12)
+    }
+    blanks[57] = (3, "")
+    form, _ = _blank_file(tmp_path, blanks)
+    assert [place["lines"] for place in form["blank_lines"]] == [1] * 12
+    assert {"after": 57, "lines": 3, "text": ""} not in form["blank_lines"]
+    assert form["line_endings"] == [{"ending": "lf", "lines": 133}]
+
+
+def test_the_blank_line_rule_is_asked_of_each_form() -> None:
+    """The rule, stated: the line per form, and the commonest takes the rest."""
+    from synthtwin import dialect
+
+    ordinary = [
+        dialect.BlankPlace(after=place, lines=1, text="")
+        for place in range(1, 12)
+    ]
+    spaced = ordinary + [dialect.BlankPlace(after=57, lines=1, text=" ")]
+    told = dialect.blank_places_disclosed(spaced, 11)
+    assert told == ordinary + [dialect.BlankPlace(after=57, lines=1, text="")]
+    assert dialect.blank_lines_withheld(spaced, 11) == 0
+    # A longer run is a form of its own and counts into the commonest.
+    longer = ordinary + [dialect.BlankPlace(after=57, lines=3, text="")]
+    assert dialect.blank_places_disclosed(longer, 11) == ordinary + [
+        dialect.BlankPlace(after=57, lines=1, text="")
+    ]
+    assert dialect.blank_lines_withheld(longer, 11) == 2
+    # And the other way round: the absorbed form was the shorter one.
+    threes = [
+        dialect.BlankPlace(after=place, lines=3, text="")
+        for place in range(1, 12)
+    ]
+    shorter = threes + [dialect.BlankPlace(after=57, lines=1, text="")]
+    assert dialect.blank_places_disclosed(shorter, 11) == threes + [
+        dialect.BlankPlace(after=57, lines=3, text="")
+    ]
+    assert dialect.blank_lines_withheld(shorter, 11) == -2
+    # A form every place wears is published exactly as it stands.
+    assert dialect.blank_places_disclosed(ordinary, 11) == ordinary
+    assert dialect.blank_lines_withheld(ordinary, 11) == 0
+    # Fewer places than the line: none at all, as before.
+    assert dialect.blank_places_disclosed(ordinary[:3], 11) == []
+    assert dialect.blank_lines_withheld(ordinary[:3], 11) == 3
+    # At the default floor nothing moves.
+    assert dialect.blank_places_disclosed(spaced, 1) == spaced
+    assert dialect.blank_lines_withheld(spaced, 1) == 0

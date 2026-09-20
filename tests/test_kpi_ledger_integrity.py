@@ -374,3 +374,106 @@ def test_a_run_against_another_checkout_refuses_with_exit_2(
     with pytest.raises(SystemExit) as refused:
         RUNNER._refuse_unless_this_tree()  # type: ignore[attr-defined]
     assert refused.value.code == 2
+
+
+# -- a KPI that does not measure what it names (files review 2026-09-18, item 5) --
+#
+# K-2B-31 says "exit 0/0 on EVERY shape" and its evidence names 38
+# exporter shapes, UTF-16 Unicode Text among them. It pinned four nodes,
+# and none of them read a UTF-16 file: replacing only UTF-16 decoding
+# with a refusal left all four passing, the judging function returning
+# PASS with zero failures, and the board green over a withdrawn shape.
+# Every shape the rule names is pinned now, one node each, and the test
+# below is the measurement -- it withdraws UTF-16 decoding and requires
+# a node this entry pins to go red.
+
+
+_EXPORTER = "tests/test_file_dialect_round_trip.py::"
+_UTF16_NODE = _EXPORTER + "test_excel_unicode_text"
+# The four that stood alone until the review, kept by name because the
+# finding is exactly that they are insensitive to this withdrawal.
+_NODES_BEFORE = (
+    _EXPORTER + "test_excel_csv_utf8_on_windows",
+    _EXPORTER + "test_european_excel_semicolon_with_a_separator_line",
+    _EXPORTER + "test_sas_padded_latin1_export",
+    _EXPORTER + "test_line_endings_that_change_kind_past_the_cap",
+)
+
+
+def _without_utf16(monkeypatch: "pytest.MonkeyPatch") -> None:
+    """Withdraw UTF-16 decoding and nothing else: the file is refused."""
+    from synthtwin import dialect, errors
+
+    reads = dialect.decoded
+
+    def refusing(data: bytes, shown: str) -> "tuple[str, str, bool]":
+        if data[:2] == b"\xff\xfe" or data[:2] == b"\xfe\xff":
+            raise errors.ProfileError(errors.looks_like_utf16(shown))
+        return reads(data, shown)
+
+    monkeypatch.setattr(dialect, "decoded", refusing)
+
+
+def _outcome(node: str, folder: pathlib.Path) -> str:
+    """Run one pinned node in this process and say whether it passed."""
+    import importlib
+
+    where, name = kpi_rules.split_node(node)
+    module = importlib.import_module(
+        where.replace("/", ".").removesuffix(".py")
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        getattr(module, name)(folder)
+    except BaseException:
+        return "failed"
+    return "passed"
+
+
+def test_the_exporter_kpi_goes_red_when_utf16_support_is_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """The KPI measures every shape it names, UTF-16 included.
+
+    Withdrawing UTF-16 decoding must fail a node K-2B-31 pins, and the
+    judging function must then call the entry a drop. The four nodes
+    that stood here before the review are run under the same withdrawal
+    and still pass, which is why the entry was green over it.
+    """
+    entry = ENTRIES["K-2B-31"]
+    assert _UTF16_NODE in entry["nodes"]
+    for node in _NODES_BEFORE:
+        assert node in entry["nodes"]
+    _without_utf16(monkeypatch)
+    assert _outcome(_UTF16_NODE, tmp_path / "utf16") == "failed"
+    for node in _NODES_BEFORE:
+        assert _outcome(node, tmp_path / kpi_rules.split_node(node)[1]) == (
+            "passed"
+        ), node
+    failing = {"pinned_nodes_failing": 1}
+    assert kpi_rules.judge(entry, failing).is_drop
+
+
+def test_every_exporter_shape_the_entry_names_is_pinned() -> None:
+    """One pinned node per shape named in the rule's own evidence.
+
+    Stated as well as measured, so a shape added to the evidence with no
+    node behind it is seen: the entry's collection floor counts one case
+    per pinned node, and the board's claim is the list of shapes.
+    """
+    entry = ENTRIES["K-2B-31"]
+    assert len(entry["nodes"]) == entry["nodes_min_collected"] == 10
+    assert len(set(entry["nodes"])) == 10
+    for shape in (
+        "test_excel_csv_utf8_on_windows",
+        "test_european_excel_semicolon_with_a_separator_line",
+        "test_excel_unicode_text",
+        "test_old_macintosh_excel_writes_carriage_returns",
+        "test_r_write_csv_with_row_names",
+        "test_pandas_to_csv_with_its_index",
+        "test_sas_padded_latin1_export",
+        "test_redcap_export_sorted_by_record_id",
+        "test_qualtrics_metadata_rows",
+        "test_line_endings_that_change_kind_past_the_cap",
+    ):
+        assert _EXPORTER + shape in entry["nodes"], shape
