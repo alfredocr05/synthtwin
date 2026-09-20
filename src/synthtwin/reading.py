@@ -778,6 +778,30 @@ def _shares_the_shape_below(name: str, values: list[str]) -> bool:
     return seen >= 2
 
 
+def _reads_as_a_reading(text: str) -> bool:
+    """True when one value below the first row reads as a READING.
+
+    The evidence population of `_measurement_among_numbers`, one value
+    at a time (round 2 of the review, the disclosure pass, item 1). A
+    number reads as a reading; so does a value written the way a
+    measurement is written and not as a number -- `<0.10`, `2-4`,
+    `5 mg` -- which is the same `_holds_a_figure_as_a_value` question
+    that rule asks of the FIRST ROW, asked of the column instead. A
+    column of readings holds both, and before this was asked one cell
+    of the second kind was enough to defeat the rule and republish a
+    real record as the file's column names.
+
+    Spellings of NO VALUE never reach here: the caller drops them
+    first, because a cell holding no value is evidence of nothing.
+
+    Guarantees: accepts text; returns a bool. Determinism: a fixed
+    function of the text. Raises nothing. No I/O of any kind.
+    """
+    if parsing.classify_number(text) != parsing.NOT_A_NUMBER:
+        return True
+    return _holds_a_figure_as_a_value(text)
+
+
 def _measurement_among_numbers(name: str, values: list[str]) -> bool:
     """True when the first row's value is a MEASUREMENT of a numeric column.
 
@@ -813,6 +837,38 @@ def _measurement_among_numbers(name: str, values: list[str]) -> bool:
     Two values are required below, as in `_names_evidence`: one number
     under a first-row value says nothing about a population.
 
+    WHAT ONE CELL USED TO COST, AND WHY THE POPULATION IS NOW FILTERED
+    (round 2 of the review, the disclosure pass, item 1; this landing).
+    The first writing of this rule demanded that EVERY value below read
+    as a number, and a column of readings almost never does: the reader
+    that this rule exists to protect writes `NA` where nobody was
+    measured and `<0.10` where the instrument saw nothing. **Measured**
+    at a floor of eleven on the rule's own table -- `R001,North
+    Unit,<0.10` over 239 records `R###,East,#.5`, no furniture above it
+    -- with the LAST record's reading changed and nothing else:
+
+    * `240.5`, an ordinary number: `column_1` to `column_3`, 240
+      records, the question asked. This is the shape the rule closed;
+    * an EMPTY cell: the same, because the old population already
+      dropped the empty spelling;
+    * `NA`: the rule answered False and the file published `R001`,
+      `North Unit` and `<0.10` as its three column names over 239
+      records, asking nothing -- ruling 8 broken by one cell;
+    * `#N/A`, a spreadsheet's own artifact: the same three names, 239
+      records;
+    * `<0.05`, a second censored reading of the very kind this rule is
+      named for: the same three names, 239 records.
+
+    So the evidence population is every value below that is not a
+    spelling of NO VALUE, and each of those must read either as a
+    number or as a reading written the way the first row's is -- the
+    same `_holds_a_figure_as_a_value` question, asked of the column
+    instead of the row. TWO of them must be actual numbers, which is
+    what keeps the rule anchored to a column of numbers: a column of
+    nothing but `<0.10` and `2-4` offers no numbers for the first row's
+    value to stand among, and this rule declines it and leaves it to the
+    furniture rule and to convention, as before.
+
     Guarantees: accepts the first row's value in one column and the
     values below it; returns a bool. Determinism: a fixed function of
     the two. Raises nothing. No I/O of any kind.
@@ -822,13 +878,27 @@ def _measurement_among_numbers(name: str, values: list[str]) -> bool:
         return False
     if not _holds_a_figure_as_a_value(text):
         return False
-    present = [f"{value}" for value in values if f"{value}" != ""]
+    # A cell holding NO VALUE is not evidence either way, so it is
+    # dropped rather than counted against the rule, and the vocabulary
+    # of "no value" is asked for through the one operation that owns it
+    # (`parsing.is_missing_text`, plan P4-D6.2) instead of being read a
+    # second time here. The empty spelling is a member of that
+    # vocabulary, which is what the discarded `!= ""` test used to do on
+    # its own.
+    present = [
+        f"{value}"
+        for value in values
+        if not parsing.is_missing_text(f"{value}")
+    ]
     if len(present) < 2:
         return False
+    figures = 0
     for value in present:
-        if parsing.classify_number(value) == parsing.NOT_A_NUMBER:
+        if not _reads_as_a_reading(value):
             return False
-    return True
+        if parsing.classify_number(value) != parsing.NOT_A_NUMBER:
+            figures = figures + 1
+    return figures >= 2
 
 
 def _record_evidence(
@@ -893,9 +963,10 @@ def _record_evidence(
             return (
                 f"in column {index + 1} the value in that row is not a "
                 f"number but is written the way a measurement is written, "
-                f"standing over a column whose every value below it is a "
-                f"number, which is what a reading in that column looks "
-                f"like"
+                f"standing over a column whose values below it are "
+                f"numbers, apart from readings written the same way and "
+                f"cells holding no value, which is what a reading in that "
+                f"column looks like"
             )
     return None
 

@@ -448,17 +448,40 @@ def sheet_census(
     return out
 
 
-def sheet_count(count: int, total: int, floor: int) -> "int | None":
+def sheet_count(
+    count: int, total: int, floor: int, inside: "int | None" = None
+) -> "int | None":
     """One count beside its total, as it may be published.
 
     Published where it is the whole, or where it and its complement both
     reach the line; withheld otherwise, a nought included, so that a
     withheld count never says "some, but few". Guarantees: a fixed
     function of the arguments; raises nothing.
+
+    ``inside`` IS THE SECOND POPULATION THE COUNT LIES IN, where the
+    document publishes one (round 2 of the review, the disclosure pass,
+    item 6). A count of formula cells lies inside the column's ROWS,
+    which is what this was asked of -- and inside its PRESENT cells,
+    which the cell-class census publishes and a reader adds up. The
+    second is very much the smaller on a column of holes. **Measured**
+    at a floor of eleven on a 400-row workbook whose measurement column
+    held twenty formulas, ONE literal number and 379 physically absent
+    cells: the census published `{"number": 21, "absent": 379}` with
+    every other class nought, beside `formulas` 20 -- and 21 less 20 is
+    the one cell somebody typed by hand. Both ends of 20 against 400
+    clear eleven, which is why the row count alone let it through.
+
+    A `None` population is one the document does not publish, and it is
+    not read: an absent total leaves a reader nothing to subtract. A
+    count above that population is not read either, because the two
+    then do not describe one another and the difference is no reading.
     """
     if total > 0 and count == total:
         return count
-    if count > 0 and parsing.census_nameable([count], [total], floor):
+    populations = [total]
+    if inside is not None and 0 <= count <= inside:
+        populations += [inside]
+    if count > 0 and parsing.census_nameable([count], populations, floor):
         return count
     return None
 
@@ -516,12 +539,25 @@ def sheet_census_broken(
     return ""
 
 
-def sheet_count_broken(count: "int | None", total: int, floor: int) -> str:
-    """What a published single count breaks of the rules above, or nothing."""
+def sheet_count_broken(
+    count: "int | None", total: int, floor: int, inside: "int | None" = None
+) -> str:
+    """What a published single count breaks of the rules above, or nothing.
+
+    ``inside`` is the second population of `sheet_count` above, and is
+    passed here so the loader refuses exactly what the producer refuses
+    to write (round 2 of the review, the disclosure pass, item 6).
+    """
     if count is None:
         return ""
-    if sheet_count(count, total, floor) == count:
+    if sheet_count(count, total, floor, inside) == count:
         return ""
+    if inside is not None and 0 <= count <= inside:
+        return (
+            f"a count of {count} of {total} rows is published, and of the "
+            f"{inside} present cell(s) beside it, and the line is "
+            f"{sheet_line(floor)}"
+        )
     return (
         f"a count of {count} of {total} is published, and the line is "
         f"{sheet_line(floor)}"
@@ -1725,8 +1761,94 @@ class BlankPlace:
     text: str
 
 
+def record_endings(
+    runs: "list[EndingRun]", above: int
+) -> "list[EndingRun]":
+    """The ending runs with the lines ABOVE the table taken off the front.
+
+    THE SUBTRACTION A READER MAKES (round 2 of the review, the
+    disclosure pass, item 7). A description publishes how many lines
+    stood above its table -- the preamble's runs carry their line
+    counts, the metadata rows are counted, and a table with a header of
+    its own has one more -- so a reader takes them off the first ending
+    runs and is left with the RECORDS' own endings. The rule that
+    refuses a run shorter than the line was asked of the runs as the
+    file holds them, furniture included, and so never saw that
+    residual.
+
+    **Measured** at a floor of eleven: ten title lines, the header
+    `record,reading` and record 1 written with a bare newline, records
+    2 to 120 with a carriage return and a newline. The description
+    published a preamble of ten lines and the runs `[{lf: 12},
+    {crlf: 119}]`, and 12 less 10 less 1 is one record -- the first --
+    written unlike every other record of the file.
+
+    Guarantees: accepts the runs in file order and how many lines stand
+    above the table; returns the runs of the lines below them, in file
+    order, dropping runs the furniture covers entirely. Determinism: a
+    fixed function of the two. Raises nothing. No I/O of any kind.
+    """
+    left = above
+    kept: "list[EndingRun]" = []
+    for run in runs:
+        if left >= run.lines:
+            left = left - run.lines
+            continue
+        kept += [EndingRun(ending=run.ending, lines=run.lines - left)]
+        left = 0
+    return kept
+
+
+def endings_broken(
+    runs: "tuple[EndingRun, ...]", floor: int, above: int
+) -> str:
+    """What a published set of ending runs breaks of the rule, or nothing.
+
+    The loader's half of `endings_disclosed` below (round 2 of the
+    review, the disclosure pass, item 7; the rule itself is plan
+    P4-D290). A description may be written by hand, so what is checked
+    is the runs as they stand: at a raised floor every ending's total
+    and every run's own length reach the line, and so do the RECORDS'
+    own, once the lines above the table are taken off the front.
+
+    Returns an empty string for runs the rule allows, and at a floor of
+    one, where nothing was asked of synthtwin and nothing moves.
+
+    Guarantees: accepts the published runs, the settings floor and how
+    many lines stand above the table; returns text. Determinism: a
+    fixed function of the three; the endings are read in sorted order.
+    Raises nothing. No I/O of any kind.
+    """
+    if floor <= 1 or len(runs) < 2:
+        return ""
+    line = parsing.census_floor(floor)
+    for shown, listed in (
+        ("", list(runs)),
+        (" of the records", record_endings(list(runs), above)),
+    ):
+        totals: "dict[str, int]" = {}
+        for run in listed:
+            counted = totals[run.ending] if run.ending in totals else 0
+            totals[run.ending] = counted + run.lines
+            if run.lines < line:
+                return (
+                    f"a run{shown} ends {run.lines} line(s) one way, and "
+                    f"the line is {line}"
+                )
+        for ending in sorted(totals):
+            if totals[ending] < line:
+                return (
+                    f"an ending{shown} is written by {totals[ending]} "
+                    f"line(s), and the line is {line}"
+                )
+    return ""
+
+
 def endings_disclosed(
-    runs: "list[EndingRun]", floor: int, withheld_lines: int = 0
+    runs: "list[EndingRun]",
+    floor: int,
+    withheld_lines: int = 0,
+    above: int = 0,
 ) -> "list[EndingRun]":
     """A file's line-ending runs, with no ending naming a group too small.
 
@@ -1818,6 +1940,22 @@ def endings_disclosed(
     # 2026-09-18). See the paragraph above.
     for run in runs:
         if run.lines < line:
+            rare = True
+    # ...AND THE FURNITURE COMES OFF FIRST (round 2 of the review, the
+    # disclosure pass, item 7). `record_endings` above states what a
+    # reader subtracts and what it was measured to give away: the same
+    # two tests, asked of the records' own endings, so ten title lines
+    # and a header can no longer carry a lone record's ending over the
+    # line.
+    records = record_endings(runs, above)
+    record_totals: "dict[str, int]" = {}
+    for run in records:
+        if run.lines < line:
+            rare = True
+        counted = record_totals[run.ending] if run.ending in record_totals else 0
+        record_totals[run.ending] = counted + run.lines
+    for ending in sorted(record_totals):
+        if record_totals[ending] < line:
             rare = True
     if not commonest:
         return list(runs)
@@ -4297,7 +4435,19 @@ def survey(
     # `blanks` itself made that pass step over a line the reader kept,
     # and a spaced blank line then refused the file as read two ways.
     withheld_lines = blank_lines_withheld(blanks, small_cell_floor)
-    told_runs = endings_disclosed(walk.runs, small_cell_floor, withheld_lines)
+    # HOW MANY LINES STAND ABOVE THE TABLE, which the description
+    # publishes and a reader subtracts (round 2 of the review, the
+    # disclosure pass, item 7): the preamble's own lines, the metadata
+    # rows counted beside them, and the header row where the file has
+    # one of its own.
+    lines_above = len(preamble) + len(header_rows)
+    if header:
+        lines_above = lines_above + 1
+    if hinted:
+        lines_above = lines_above + 1
+    told_runs = endings_disclosed(
+        walk.runs, small_cell_floor, withheld_lines, lines_above
+    )
     told_blanks = blank_places_disclosed(blanks, small_cell_floor)
     leading_told = row_count_disclosed(leading, small_cell_floor)
     trailing_told = row_count_disclosed(trailing, small_cell_floor)
