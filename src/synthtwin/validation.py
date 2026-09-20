@@ -5368,6 +5368,31 @@ def _counted_blank_words(counted: "dialect.BlankSpread | None") -> str:
     )
 
 
+# WHAT A RAISED FLOOR TAKES OUT OF THIS COMPARISON, SAID IN THE
+# SENTENCE ITSELF (plan P4-D314, the repair pass of 2026-09-19).
+# P4-D311 publishes a blank place's FORM only where the line's worth of
+# places wear it, and a rarer form is published as the commonest one.
+# The checked file is read by the same rule, so the two sides meet
+# AFTER the absorption and a file differing only in a rare blank line's
+# spelling or run length is reported HELD. **Measured** on a
+# description of 120 records with twelve ordinary blank places at a
+# floor of eleven: at `05e7d89` a candidate whose twelfth place held
+# one space, a tab, or three lines was `bytes.blank-lines` MISSED at
+# exit 3; each is HELD at exit 0 now, while a place that MOVES is still
+# MISSED at exit 3. That is the ruling's price and not a defect -- the
+# obligation cannot see what the description is forbidden to publish --
+# but K-2B-31 claims "twin form == source", so the price is stated here
+# and in the `blank_lines` row of the contract rather than left for a
+# reader to discover. The clause stands on BOTH sides of the
+# comparison, so it moves no verdict.
+_BLANK_FORM_ABSORBED = (
+    " (a blank line's form below your smallest group size -- what its "
+    "lines hold, and how many stood in one place -- is compared as the "
+    "commonest form, so a file differing from this description only in "
+    "a rare blank line's spelling or run length is reported HELD)"
+)
+
+
 def _blank_words(places: "tuple[dialect.BlankPlace, ...]") -> str:
     if not places:
         return "no blank lines"
@@ -5593,6 +5618,11 @@ def _byte_checks(
         ending_found = _census_words(census)
     blank_asked = _blank_words(form.blank_lines)
     blank_found = _blank_words(measured.blank_lines)
+    if description.settings.small_cell_floor > 1 and (
+        form.blank_lines or measured.blank_lines
+    ):
+        blank_asked = f"{blank_asked}{_BLANK_FORM_ABSORBED}"
+        blank_found = f"{blank_found}{_BLANK_FORM_ABSORBED}"
     if form.blank_lines_spread is not None:
         blank_asked = _counted_blank_words(form.blank_lines_spread)
         blank_found = _counted_blank_words(

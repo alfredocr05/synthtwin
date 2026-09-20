@@ -454,16 +454,66 @@ def test_the_exporter_kpi_goes_red_when_utf16_support_is_withdrawn(
     assert kpi_rules.judge(entry, failing).is_drop
 
 
-def test_every_exporter_shape_the_entry_names_is_pinned() -> None:
-    """One pinned node per shape named in the rule's own evidence.
+# -- and the 28 shapes that were named but not pinned (repair pass 2026-09-19) --
+#
+# Pinning ten of the 38 narrowed the hole rather than closing it: the
+# rule still read "exit 0/0 on EVERY shape" while 28 shapes had no pin.
+# **Measured** on the ten-node entry: withdrawing the DOS end-of-file
+# mark -- refusing any file holding 0x1A, one of the 38 shapes, with a
+# node of its own -- failed that node and left `pinned_nodes_failing`
+# at 0 and `judge` at PASS, is_drop False. So the pin set is now the
+# file's own measured set: every node that asks `_held` is pinned, the
+# floor counts them all, and the two tests below hold the list equal to
+# the file and measure the DOS withdrawal that used to pass.
 
-    Stated as well as measured, so a shape added to the evidence with no
-    node behind it is seen: the entry's collection floor counts one case
-    per pinned node, and the board's claim is the list of shapes.
+
+_HELD = "_held("
+
+
+def _shapes_the_file_measures() -> "list[str]":
+    """Every node of the exporter file that asks `_held` of its twin.
+
+    That question -- the twin's form and encoding against the source's,
+    and `validate` at exit 0 on both files -- IS K-2B-31's rule, so the
+    set of nodes asking it is the set of shapes the rule covers. Read
+    out of the file's own source rather than listed here, so a shape
+    added to the file with no pin behind it turns this red.
+    """
+    source = (
+        kpi_rules.REPO_ROOT / "tests" / "test_file_dialect_round_trip.py"
+    ).read_text(encoding="utf-8")
+    found: "list[str]" = []
+    name = ""
+    body = ""
+    for line in source.split("\n") + ["def test_end_of_file("]:
+        if line.startswith("def test_"):
+            if name != "" and _HELD in body:
+                found += [name]
+            name = line[4:].partition("(")[0]
+            body = ""
+        body = body + line + "\n"
+    return found
+
+
+def test_every_exporter_shape_the_file_measures_is_pinned() -> None:
+    """The pin set IS the measured set: 38 shapes, 38 nodes, one each.
+
+    Stated as well as measured, so a shape the file round-trips with no
+    pin behind it is seen -- which is what let the DOS end-of-file mark
+    be withdrawn under a green entry. The entry's collection floor
+    counts one case per pinned node.
     """
     entry = ENTRIES["K-2B-31"]
-    assert len(entry["nodes"]) == entry["nodes_min_collected"] == 10
-    assert len(set(entry["nodes"])) == 10
+    measured = [_EXPORTER + shape for shape in _shapes_the_file_measures()]
+    assert len(measured) == 38, len(measured)
+    assert sorted(entry["nodes"]) == sorted(measured)
+    assert len(set(entry["nodes"])) == len(entry["nodes"]) == 38
+    # 39 cases, not 38: `test_a_double_spaced_export` is parametrized
+    # twice, and the floor counts CASES, so a parametrize list that
+    # shrinks is seen as well as a node that disappears.
+    assert entry["nodes_min_collected"] == 39
+    # The ten the review of 2026-09-18 pinned are still among them, and
+    # so is the shape the repair pass withdrew.
     for shape in (
         "test_excel_csv_utf8_on_windows",
         "test_european_excel_semicolon_with_a_separator_line",
@@ -475,5 +525,44 @@ def test_every_exporter_shape_the_entry_names_is_pinned() -> None:
         "test_redcap_export_sorted_by_record_id",
         "test_qualtrics_metadata_rows",
         "test_line_endings_that_change_kind_past_the_cap",
+        "test_a_dos_end_of_file_mark_and_mixed_endings",
     ):
         assert _EXPORTER + shape in entry["nodes"], shape
+    assert kpi_rules.integrity_problems(LEDGER) == []
+
+
+def test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """A shape that was named but not pinned, measured the same way.
+
+    Refusing every file that holds a DOS end-of-file mark withdraws one
+    of the 38 shapes and nothing else. Its own node fails; under the
+    ten-node pin set the four that stood here before it all passed and
+    the entry stayed green, so the node is pinned now and the judging
+    function calls the entry a drop.
+    """
+    from synthtwin import dialect, errors
+
+    entry = ENTRIES["K-2B-31"]
+    node = _EXPORTER + "test_a_dos_end_of_file_mark_and_mixed_endings"
+    assert node in entry["nodes"]
+    reads = dialect.decoded
+
+    def refusing(data: bytes, shown: str) -> "tuple[str, str, bool]":
+        for byte in data:
+            if byte == 26:
+                raise errors.ProfileError(
+                    errors.unreadable_as_csv(
+                        shown, "a DOS end-of-file mark"
+                    )
+                )
+        return reads(data, shown)
+
+    monkeypatch.setattr(dialect, "decoded", refusing)
+    assert _outcome(node, tmp_path / "dos") == "failed"
+    for older in _NODES_BEFORE:
+        assert _outcome(
+            older, tmp_path / kpi_rules.split_node(older)[1]
+        ) == "passed", older
+    assert kpi_rules.judge(entry, {"pinned_nodes_failing": 1}).is_drop

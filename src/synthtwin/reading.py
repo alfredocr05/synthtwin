@@ -635,26 +635,68 @@ SILHOUETTE_FIGURES = "9"
 _SILHOUETTE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _SILHOUETTE_FIGURES = "0123456789"
 
-# THE SPACES A COLUMN NAME MAY BE WRITTEN WITH BEFORE ITS FIRST LETTER.
-# A file written `record, q1, q2` hands this module the name ` q1`, and
-# the space before the letter is the file's spacing and not part of what
-# the value opens with (plan P4-D310). Spelled out for the same reason
-# the alphabet above is.
-_NAME_LEADING_SPACES = " \t"
+# THE SPACES A VALUE MAY BE WRITTEN WITH BEFORE IT OPENS. A file written
+# `record, q1, q2` hands this module the name ` q1`, and the space
+# before the letter is the file's spacing and not part of what the value
+# opens with (plan P4-D310). The spaces outside ASCII are here by plan
+# P4-D313: a cell copied out of a web page or pasted through a
+# spreadsheet opens on a NO-BREAK SPACE or a byte-order mark often
+# enough that `\u00a0<0.10` -- a censored reading -- was read as a name and
+# published as a column. Skipping one of these never turns a name into
+# a reading on its own: it only lets the character BEHIND it answer.
+# Spelled out rather than asked of a method for the same reason the
+# alphabet above is.
+_NAME_LEADING_SPACES = (
+    " \t"
+    + "\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007"
+    + "\u2008\u2009\u200a\u200b\u202f\u205f\u3000\ufeff"
+)
 
-# EVERY MARK A READING MAY OPEN WITH, and nothing else opens one (plan
-# P4-D310). `_holds_a_figure_as_a_value` asks this rather than asking
-# whether the opening is a LETTER, because the letters of the world are
-# a Unicode table and the marks a measurement is written with are a
-# short list: every ASCII mark except the underscore a column name is
-# written with, and the comparison, sign and currency marks outside
-# ASCII that open a reading. Every character absent from here -- which
-# is every letter of every alphabet -- opens a NAME.
+# EVERY MARK A READING MAY OPEN WITH, and nothing else opens one (plans
+# P4-D310, P4-D313). `_holds_a_figure_as_a_value` asks this rather than
+# asking whether the opening is a LETTER, because the letters of the
+# world are a Unicode table and the marks a measurement is written with
+# are a short list. Every character absent from here -- which is every
+# letter of every alphabet -- opens a NAME, so a mark MISSING from this
+# enumeration hands a headerless table's first record back to the
+# schema, which is ruling 8 of 2026-09-17 reversed. The four pieces are
+# therefore stated separately and each is held by a test of its own:
+#
+# * every ASCII mark except the underscore a column name is written
+#   with;
+# * the comparison, sign, currency and unit marks outside ASCII a
+#   reading opens with;
+# * the FULL-WIDTH figures, which a CJK export writes its numbers with;
+# * the FULL-WIDTH forms of those same ASCII marks, minus the
+#   full-width underscore, which the same exports write `\uff1c0.10` with.
+_ASCII_READING_MARKS = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~"
+_READING_MARKS_OUTSIDE_ASCII = (
+    "\u2264\u2265\u00b1\u2212\u2013\u2014\u2248\u20ac\u00a3\u00a5\u00a2"
+    + "\u00d7\u00f7\u2032\u2033"
+)
+_FULL_WIDTH_FIGURES = (
+    "\uff10\uff11\uff12\uff13\uff14\uff15\uff16\uff17\uff18\uff19"
+)
+_FULL_WIDTH_READING_MARKS = (
+    "\uff01\uff02\uff03\uff04\uff05\uff06\uff07\uff08\uff09\uff0a"
+    + "\uff0b\uff0c\uff0d\uff0e\uff0f\uff1a\uff1b\uff1c\uff1d\uff1e"
+    + "\uff1f\uff20\uff3b\uff3c\uff3d\uff3e\uff40\uff5b\uff5c\uff5d"
+    + "\uff5e"
+)
 _READING_OPENINGS = (
     _SILHOUETTE_FIGURES
-    + "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~"
-    + "\u2264\u2265\u00b1\u2212\u2013\u2014\u2248\u20ac\u00a3\u00a5\u00a2"
+    + _ASCII_READING_MARKS
+    + _READING_MARKS_OUTSIDE_ASCII
+    + _FULL_WIDTH_FIGURES
+    + _FULL_WIDTH_READING_MARKS
 )
+
+# THE FIGURES A READING CARRIES, which is not the silhouette's question
+# (plan P4-D313). A silhouette is an ASCII question by P4-D241 and stays
+# one; but a value that has already OPENED a reading carries its figures
+# in whatever alphabet its file writes them, so `\uff10\uff11\uff10` is a reading
+# and not a word. Used by `_holds_a_figure_as_a_value` alone.
+_READING_FIGURES = _SILHOUETTE_FIGURES + _FULL_WIDTH_FIGURES
 
 
 def _silhouette(text: str) -> str:
@@ -1488,8 +1530,10 @@ def _holds_a_figure_as_a_value(text: str) -> bool:
     existed. The same as a workbook.
 
     SO THE OPENING IS ASKED THE OTHER WAY ROUND: the value opens a
-    READING where its first character past any leading space or tab is
-    a figure or one of `_READING_OPENINGS`, and it opens a NAME
+    READING where its first character past any leading space it may be
+    written with -- `_NAME_LEADING_SPACES`, the ASCII space and tab and
+    the spaces outside ASCII a pasted cell opens with -- is a figure or
+    one of `_READING_OPENINGS`, and it opens a NAME
     otherwise -- which is every letter of every alphabet, the ASCII ones
     and `é`, `ß` and `ω` alike, and the underscore a name is written
     with. Enumerating the marks rather than the letters is what keeps
@@ -1497,15 +1541,35 @@ def _holds_a_figure_as_a_value(text: str) -> bool:
     call on a value read out of the user's file, and `str.isalpha`
     answers out of a table that moves between releases.
 
-    WHAT THAT COSTS, MEASURED AND STATED. A reading opening on a mark
-    this enumeration does not hold -- say a full-width `＜` -- is read
-    as a name, so a headerless table whose first record opens that way
-    is published as the schema again, exactly as `R001,North Unit,<0.10`
-    was. The marks a reading is actually written with are enumerated
-    below and a further one is a one-character amendment; the alternative
-    -- every non-ASCII character opening a reading -- is the defect
-    above, which costs an ordinary accented header its own names on
-    every file that carries one.
+    WHAT A MARK MISSING FROM THE ENUMERATION COSTS -- MEASURED, AND
+    CLOSED FOR THE SHAPES MEASURED (plan P4-D313, the repair pass of
+    2026-09-19). A reading whose opening mark this enumeration does not
+    hold is read as a NAME, so a headerless table whose first record
+    opens that way is published as the schema and written verbatim as
+    the twin's header line -- ruling 8 of 2026-09-17 reversed, by the
+    door P4-D272 was written to shut. **Measured** on 240 headerless
+    records whose only evidence is the fifth rule, `North Unit,<reading>`
+    over 239 records of a site beside a plain number, at a floor of
+    eleven, over nine spellings of that reading: at `05e7d89` all nine
+    published `column_1` and `column_2` over 240 records and asked about
+    the first row; with the enumeration as P4-D310 first wrote it FIVE
+    of the nine instead published `North Unit` and the reading itself as
+    the column names, described 239 records and asked nothing --
+    `＜0.10`, ` <0.10`, `×10`, `０0.10` and `′5`. So the enumeration
+    now holds the full-width figures and the full-width forms of the
+    ASCII marks, `×`, `÷`, `′` and `″`, and the leading spaces hold the
+    spaces outside ASCII a pasted cell opens with. All nine are read as
+    readings again, and the accented and spaced headers of P4-D310 keep
+    their own names.
+
+    THE COST THAT REMAINS, STATED. The enumeration is still an
+    enumeration: a reading opening on a mark absent from all four pieces
+    is read as a name. A further mark is a one-character amendment held
+    by the battery in
+    `tests/test_extra_round_disclosure.py`, and the alternative -- every
+    character outside ASCII opening a reading -- is the defect above,
+    which costs an ordinary accented header its own names on every file
+    that carries one.
 
     Guarantees: accepts text; returns whether it carries a figure as a
     value. Determinism: a fixed function of the text. Raises nothing. No
@@ -1522,7 +1586,7 @@ def _holds_a_figure_as_a_value(text: str) -> bool:
     if opening not in _READING_OPENINGS:
         return False
     for character in text:
-        if character in _SILHOUETTE_FIGURES:
+        if character in _READING_FIGURES:
             return True
     return False
 
