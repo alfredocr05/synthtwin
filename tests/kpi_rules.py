@@ -19,12 +19,22 @@ WHAT A VERDICT MEANS. A GREEN entry passes when its value meets its rule.
 An OPEN or ACCEPTED_LIMIT entry's `expected` is its MUST-NOT-GET-WORSE
 bound: it is "held" at or inside that bound and "worse" outside it, and
 an OPEN entry whose value also meets its `target` is IMPROVED, which asks
-for the status to be flipped to GREEN and never fails a run. Seconds are
-judged only on the reference machine while it is quiet (its one-minute
-load average under the ledger's `quiet_load_average_below`); anywhere
-else a seconds rule warns and the machine-free ratio or count beside it
-is what can fail -- and an OPEN entry whose target is stated in seconds
-is never called IMPROVED where its seconds were not judged.
+for the status to be flipped to GREEN and never fails a run.
+
+NUMBERS THAT BELONG TO THE MACHINE AS MUCH AS TO THE CODE are judged
+only on the reference machine while it is quiet (its one-minute load
+average under the ledger's `quiet_load_average_below`); anywhere else
+such a rule warns and the machine-free ratio or count beside it is what
+can fail -- and an OPEN entry whose target is stated in one of them is
+never called IMPROVED where it was not judged. There are two kinds of
+them, `MACHINE_KINDS`: an absolute TIME (`seconds_below`), and a PEAK
+MEMORY (`peak_memory_below`), which moves with the platform, the Python
+and the allocator exactly as seconds move with the machine's speed --
+measured: a million-cell workbook refused at 539 MB here reached 703 MB
+on a CI runner against a bound of 600, with no change in the code. What
+a rule of either kind leaves for the ordinary suite to judge is the
+property of the CODE beside it: that the file was refused, and by which
+cap.
 
 Standard library only, so the runner can load it before pytest runs.
 """
@@ -56,8 +66,14 @@ RULE_KINDS = (
     "at_least",
     "ratio_below",
     "seconds_below",
+    "peak_memory_below",
     "band",
 )
+# The kinds whose number is a property of the MACHINE as much as of the
+# code, so it is judged only where the ledger judges seconds: the quiet
+# reference machine. Everywhere else it is recorded and reported, never
+# failed. Stated here once; `_misses` and `machine_judged_keys` read it.
+MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # The phases and stages an id may name. P0-P4 are the closed phases,
 # S1 and S2 the stages of reopened Phase 4, 2B stage 2b, and S3-S8 the
 # stages still to come, whose stage checks may be measured early as baselines.
@@ -138,12 +154,14 @@ def load_average() -> float:
 
 
 def seconds_judged_here(ledger: "dict") -> "tuple[bool, str]":
-    """Whether a seconds rule may fail here, and the reason when it may not.
+    """Whether a rule of a MACHINE kind may fail here, and the reason when it may not.
 
     Only on the reference machine, and only while it is quiet: the
     ledger's seconds were stated for that machine unloaded, and a
     machine shared with other suites runs two to three times slower
-    with no regression in the product.
+    with no regression in the product. It governs peak memory the same
+    way and for the same reason (`MACHINE_KINDS`): the allocator, the
+    platform and the Python decide that number as much as the code does.
     """
     wanted = ledger["reference_machine"]
     if not on_reference_machine(ledger):
@@ -157,13 +175,17 @@ def seconds_judged_here(ledger: "dict") -> "tuple[bool, str]":
     return True, ""
 
 
-def seconds_keys(entry: "dict", bounds: object) -> "list[str]":
-    """The keys of ``bounds`` the entry judges in seconds (one empty key for an unkeyed seconds rule)."""
+def machine_judged_keys(entry: "dict", bounds: object) -> "list[str]":
+    """The keys of ``bounds`` this entry judges only on the reference machine.
+
+    One empty key stands for an unkeyed rule of a machine kind. The kinds
+    are `MACHINE_KINDS`: seconds, and peak memory.
+    """
     kind = entry.get("target_kind", entry["rule_kind"])
     kinds = entry.get("key_kinds", {})
     if isinstance(bounds, dict):
-        return sorted(k for k in bounds if kinds.get(k, kind) == "seconds_below")
-    return [""] if kind == "seconds_below" else []
+        return sorted(k for k in bounds if kinds.get(k, kind) in MACHINE_KINDS)
+    return [""] if kind in MACHINE_KINDS else []
 
 
 def test_part(entry: "dict") -> "dict":
@@ -196,7 +218,7 @@ def _meets(kind: str, value: object, bound: object) -> bool:
         return value <= bound  # type: ignore[operator]
     if kind == "at_least":
         return value >= bound  # type: ignore[operator]
-    if kind in ("ratio_below", "seconds_below"):
+    if kind in ("ratio_below", "seconds_below", "peak_memory_below"):
         return value < bound  # type: ignore[operator]
     if kind == "band":
         low, high = bound  # type: ignore[misc]
@@ -215,10 +237,12 @@ def _misses(
     """Every part of ``value`` outside ``bounds``, named.
 
     A dict of bounds judges each named key and leaves the value's other
-    keys as recorded context. A key whose kind is seconds_below is
-    skipped off the reference machine. A key the value does not carry is
-    a miss, unless the measurement is ``partial`` (a slow driver was not
-    run), in which case it is skipped: the runner says which.
+    keys as recorded context. A key whose kind is one of MACHINE_KINDS --
+    seconds, or peak memory -- is skipped off the reference machine,
+    because that number is the machine's as much as the code's. A key the
+    value does not carry is a miss, unless the measurement is ``partial``
+    (a slow driver was not run), in which case it is skipped: the runner
+    says which.
     """
     if isinstance(bounds, dict):
         if not isinstance(value, dict):
@@ -226,7 +250,7 @@ def _misses(
         out = []
         for key in sorted(bounds):
             this_kind = kinds.get(key, kind)
-            if this_kind == "seconds_below" and not seconds_count:
+            if this_kind in MACHINE_KINDS and not seconds_count:
                 continue
             if key not in value:
                 if not partial:
@@ -234,7 +258,7 @@ def _misses(
             elif not _meets(this_kind, value[key], bounds[key]):
                 out.append(f"{key}={value[key]!r} vs {this_kind} {bounds[key]!r}")
         return out
-    if kind == "seconds_below" and not seconds_count:
+    if kind in MACHINE_KINDS and not seconds_count:
         return []
     if not _meets(kind, value, bounds):
         return [f"{value!r} vs {kind} {bounds!r}"]
@@ -289,13 +313,14 @@ def judge(
         if target is not None and not _misses(
             entry.get("target_kind", kind), kinds, value, target, seconds_count, False
         ):
-            if not seconds_count and seconds_keys(entry, target):
-                # A target stated in seconds was skipped, not met: an
-                # entry is never called IMPROVED on a part nobody judged.
+            if not seconds_count and machine_judged_keys(entry, target):
+                # A target stated in seconds or in peak memory was
+                # skipped, not met: an entry is never called IMPROVED on
+                # a part nobody judged.
                 return Verdict(
                     OPEN_HELD,
-                    "held at or inside its bound; its target is in seconds, "
-                    "judged only on the quiet reference machine",
+                    "held at or inside its bound; its target is in seconds or peak "
+                    "memory, judged only on the quiet reference machine",
                 )
             return Verdict(
                 IMPROVED,
@@ -470,21 +495,97 @@ def select(entries: "list[dict]", patterns: "list[str]") -> "list[dict]":
 # -- what a SLOW driver under tools/measurements/ shares -------------------
 
 
+def package_modules(folder: pathlib.Path) -> "dict[str, bytes]":
+    """Every `.py` file of a synthtwin package folder, by its path inside it.
+
+    The bytes are compared, not a digest of them, so a mismatch can name
+    the file. `.gitattributes` pins `* -text`, so a checkout is
+    byte-identical on every platform and a wheel built from one carries
+    those same bytes; nothing here normalises line endings, because
+    nothing may change them.
+    """
+    found: "dict[str, bytes]" = {}
+    for path in sorted(folder.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        found[path.relative_to(folder).as_posix()] = path.read_bytes()
+    return found
+
+
+def code_differences(installed: pathlib.Path, source: pathlib.Path) -> "list[str]":
+    """The `.py` files of the two package folders that differ, named. Empty means the same code.
+
+    An installed package whose every module is byte-identical to this
+    tree's `src/synthtwin` IS this tree's code, wherever it sits on
+    disk; one that differs anywhere is another checkout's.
+    """
+    mine = package_modules(source)
+    theirs = package_modules(installed)
+    differing = [name for name in sorted(set(mine) | set(theirs)) if mine.get(name) != theirs.get(name)]
+    return differing
+
+
 def guard_this_tree() -> str:
-    """Print where synthtwin was imported from, and refuse unless it is this tree's src.
+    """Print where synthtwin was imported from, and refuse unless it is THIS TREE'S CODE.
 
     A driver measured against an installed copy of another checkout
     reports a confident number about the wrong code; that has voided
-    evidence here before.
+    evidence here before, when a worktree with no virtualenv of its own
+    borrowed the shared one and measured the main checkout's editable
+    install. That case still refuses.
+
+    WHAT IS ACCEPTED, AND WHY IT IS TWO CASES AND NOT ONE. The rule used
+    to be "the module's path is under this tree's `src`", which is true
+    of a source checkout and false of the arrangement CI tests on
+    purpose: CI installs the wheel built from this commit and runs the
+    suite against THAT, so `synthtwin` resolves in site-packages while
+    the checkout's `src/synthtwin` sits there unimported, and every
+    driver a test drove exited 2. The property that was always meant is
+    not WHERE the module sits but WHOSE CODE it is, so it is that which
+    is checked:
+
+    * the module is under this tree's `src` -- the source arrangement; or
+    * every `.py` file of the imported package is byte-identical to this
+      tree's `src/synthtwin` -- the installed-wheel arrangement; or
+    * this tree has no `src/synthtwin` at all, so there is nothing it
+      could be measured against and the installed package is the only
+      code there is.
+
+    A `src/synthtwin` that exists and differs from the imported module
+    refuses, which is the case the guard was built for.
     """
     import synthtwin
 
     here = pathlib.Path(synthtwin.__file__).resolve()
     print(f"synthtwin imported from {here}", flush=True)
-    if (REPO_ROOT / "src").resolve() not in here.parents:
-        print(f"REFUSING: synthtwin resolves to {here}, not under {REPO_ROOT / 'src'}", flush=True)
-        raise SystemExit(REFUSED_EXIT)
-    return str(here)
+    source = (REPO_ROOT / "src").resolve()
+    if source in here.parents:
+        return str(here)
+    package = here.parent
+    tree = source / "synthtwin"
+    if not tree.is_dir():
+        print(
+            f"synthtwin is the installed package at {package}; this tree has no "
+            f"{tree} to compare it with, so it is the code under test.",
+            flush=True,
+        )
+        return str(here)
+    differing = code_differences(package, tree)
+    if not differing:
+        print(
+            f"synthtwin is the installed package at {package}, byte-identical to "
+            f"{tree}: the same code, installed.",
+            flush=True,
+        )
+        return str(here)
+    print(
+        f"REFUSING: synthtwin resolves to {here}, which is not this tree's code: "
+        f"{len(differing)} module(s) differ from {tree}, "
+        f"{', '.join(differing[:5])}. An installed copy from another checkout "
+        "would be measured instead of this tree.",
+        flush=True,
+    )
+    raise SystemExit(REFUSED_EXIT)
 
 
 def emit(entry_id: str, value: object, detail: str = "") -> None:

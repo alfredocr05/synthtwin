@@ -94,7 +94,18 @@ def _environment() -> "dict[str, str]":
 
 
 def _refuse_unless_this_tree() -> str:
-    """The synthtwin this run measures must be the one under ./src, here and in pytest."""
+    """The synthtwin this run measures must be the one under ./src, here and in pytest.
+
+    THIS IS A STRICTER RULE THAN `kpi_rules.guard_this_tree`, on purpose,
+    and the difference is the arrangement each one runs in. This command
+    is the source tree's own: it puts `./src` first on its own path and
+    on every child's `PYTHONPATH` above, so the module it wants is
+    always reachable and anything else resolving instead is a fault to
+    stop on. `guard_this_tree` runs inside the drivers, which the suite
+    also drives when CI has installed the wheel built from this commit
+    and is testing THAT -- so it asks whether the imported package IS
+    this tree's code rather than where it sits.
+    """
     import synthtwin
 
     here = pathlib.Path(synthtwin.__file__).resolve()

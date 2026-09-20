@@ -829,9 +829,9 @@ def test_k_2b_30(record_property, tmp_path: pathlib.Path) -> None:
 
 
 _BOMB = r"""
-import json, resource, sys, time
+import json, sys, time
 import workbooks as w
-from synthtwin import errors, reading
+from synthtwin import errors, reading, workbook
 n = 1_048_576
 rows = [(r, [w.cell(f"A{r}", "", "", 1)]) for r in range(1, n + 1)]
 body = w.sheet(rows)
@@ -851,21 +851,73 @@ try:
 except errors.ProfileError as refusal:
     message = str(refusal)
 seconds = time.perf_counter() - started
-peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-peak_mb = peak / 1e6 if sys.platform == "darwin" else peak / 1e3
-print(json.dumps({"refused": bool(message), "seconds": seconds, "peak_mb": peak_mb,
-                  "message": message[:200]}))
+# WHICH CAP REFUSED IT, from the cap's own sentence: the refusal must be
+# the one `workbook.MAXIMUM_CELLS` raises, word for word, with only the
+# path of the file between its two halves. A refusal by some other cap,
+# or a message reworded, is not this measurement.
+mark = "\x00PATH\x00"
+head, tail = errors.workbook_holds_too_many_cells(mark, workbook.MAXIMUM_CELLS).split(mark)
+found = {"refused": bool(message),
+         "refused_by_the_cell_cap": bool(
+             message.startswith(head) and message.endswith(tail)
+             and len(message) > len(head) + len(tail)),
+         "seconds": seconds, "message": message[:200]}
+try:
+    import resource
+except ImportError:
+    # Windows has no resource module, so peak memory is not read there.
+    # It is a number of the reference machine's anyway (kpi_rules.MACHINE_KINDS).
+    pass
+else:
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    found["peak_mb"] = peak / 1e6 if sys.platform == "darwin" else peak / 1e3
+print(json.dumps(found))
 """
 
 
 def test_k_2b_38(record_property, tmp_path: pathlib.Path) -> None:
-    """A million-cell zip bomb is refused by its cap, in bounded memory.
+    """A million-cell zip bomb is refused BY ITS CAP, and its peak memory is recorded.
 
-    The seconds are recorded and not judged: an absolute time belongs to
-    the slow tier on the reference machine, and this runs in the suite.
+    WHAT THE ORDINARY SUITE JUDGES HERE, and what it stopped judging.
+    This test judged `peak_mb` against 600 everywhere, and the first CI
+    run failed every test cell on `peak_mb=703 vs at_most 600` -- 539 MB
+    on the reference machine, 703 on a runner, with no change in the
+    code. Peak memory is the machine's number as much as the code's, as
+    an absolute TIME is: it moves with the platform, the Python and the
+    allocator. This entry's own rule already said so of its seconds and
+    recorded them rather than judging them, and peak memory is now the
+    same kind of number (`kpi_rules.MACHINE_KINDS`, `peak_memory_below`):
+    RECORDED everywhere, and JUDGED only where the ledger judges a
+    seconds rule -- on the quiet reference machine, by this test and by
+    `tools/measurements/kpi_run.py` alike. Off it, a run that needed a
+    gigabyte reads held here; the reference machine is where that is
+    caught, and nowhere else.
+
+    What is judged EVERYWHERE is the property of the CODE: that the
+    hostile workbook is refused, and refused by the cap it reaches,
+    proved with the refusal's own evidence -- the message must be the
+    sentence `errors.workbook_holds_too_many_cells` builds from
+    `workbook.MAXIMUM_CELLS`, word for word, with only the file's path
+    between its halves. Refusing for some other reason, refusing with
+    another cap's words, or reading the whole million cells and refusing
+    afterwards are each red here on every platform, which the bound on
+    memory never told apart anyway.
+
+    MUTATIONS, measured on this tree, each turning `refused_by_the_cell_cap`
+    false while `refused` stays true:
+
+    * `workbook.MAXIMUM_ROWS = 100`, so the ROW cap fires first: refused
+      in 0.01 s with "has a sheet reaching past row 100";
+    * `workbook.MAXIMUM_CELLS = 99_000_000`, the cap withdrawn: the walk
+      reads the whole million cells, peak memory goes from 539 MB to
+      627 -- past the 600 the suite used to judge on this machine and
+      well inside it on a bigger one -- and the file is refused four
+      sentences later, for holding no cells at all.
+
+    Windows lacks the `resource` module, so it records no `peak_mb`; it
+    is never the reference machine, so nothing is lost. The test runs
+    there now instead of skipping, because the refusal is what it judges.
     """
-    if sys.platform == "win32":
-        pytest.skip("peak memory is read through the resource module, which Windows lacks")
     environment = dict(os.environ)
     environment["PYTHONPATH"] = os.pathsep.join(
         [str(REPO / "src"), str(REPO / "tests")] + [environment.get("PYTHONPATH", "")]
@@ -876,9 +928,14 @@ def test_k_2b_38(record_property, tmp_path: pathlib.Path) -> None:
     )
     assert done.returncode == 0, done.stderr[-2000:]
     found = json.loads(done.stdout.strip().splitlines()[-1])
-    _kpi(record_property, "K-2B-38",
-         {"refused": found["refused"], "seconds": round(found["seconds"], 2),
-          "peak_mb": round(found["peak_mb"])}, found["message"])
+    value = {
+        "refused": found["refused"],
+        "refused_by_the_cell_cap": found["refused_by_the_cell_cap"],
+        "seconds": round(found["seconds"], 2),
+    }
+    if "peak_mb" in found:
+        value["peak_mb"] = round(found["peak_mb"])
+    _kpi(record_property, "K-2B-38", value, found["message"])
 
 
 def test_k_2b_40(record_property, eight: "list[dict]") -> None:

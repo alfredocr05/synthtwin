@@ -2318,7 +2318,7 @@
    "driver": "tools/measurements/kpi_joined_battery.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
-   "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node",
+   "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node. WHERE EACH PART IS MEASURED (2026-09-20): the whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses (the pool's machinery takes a socket) and which failed every test cell of the first CI run; it pins THREE columns serially now, 24.6 s of the battery's 94.6 measured one column at a time, chosen because they hold all three of the battery's missed above-counts and are the two columns G6.5a's push moved: column 0 at 14 outside and 1 missed, column 9 at 117 and 0, column 11 at 63 and 2. Withdrawing the push turns that node red on column 9 (110 and 6), which is the whole battery's 7 missed against 3",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -4939,7 +4939,7 @@
    "headline": false,
    "name": "Hostile files are refused quickly by the cap they hit",
    "status": "GREEN",
-   "rule": "each hostile workbook is refused by the cap it reaches (pinned nodes); the million-cell bomb is refused, by its cap, under 600 MB peak memory. Its seconds are recorded, not judged: an absolute time does not belong in the ordinary suite (3.66 s at the frozen copy; 7-14 s under a load average of 26)",
+   "rule": "each hostile workbook is refused by the cap it reaches (pinned nodes); the million-cell bomb is refused, by the cell cap and in that cap's own words, and its peak memory is under 600 MB. The peak memory and the seconds are RECORDED everywhere and JUDGED only on the quiet reference machine (kpi_rules.MACHINE_KINDS): both move with the platform, the Python and the allocator, and 539 MB here read 703 on a CI runner with no change in the code (3.66 s at the frozen copy; 7-14 s under a load average of 26)",
    "rule_kind": "exact",
    "expected": {
     "refused": true,
@@ -4970,7 +4970,7 @@
     }
    },
    "key_kinds": {
-    "peak_mb": "at_most"
+    "peak_mb": "peak_memory_below"
    },
    "nodes_min_collected": 8
   },

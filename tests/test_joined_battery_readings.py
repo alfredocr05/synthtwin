@@ -57,14 +57,19 @@ So the six above-counts are bought only by long moves that break the
 marginals, and the trade -- agreement windows and above-counts against
 the positions' shape -- is the owner's decision, not a repair. The open
 cause is G6B.4's pairing walk, which cannot trade a few order breaks
-for an exact above-count. This file pins the ledger's no-regression
-rule on the battery and the two shapes the withdrawn rule broke.
+for an exact above-count.
+
+WHERE THE BATTERY IS MEASURED, AND WHAT IS PINNED HERE. The whole
+battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW
+driver `tools/measurements/kpi_joined_battery.py`, which the ledger
+names as K-P4-06's source and which reads the L7 driver's own printed
+totals. This file pins THREE of those columns, serially, and the two
+shapes the withdrawn rule broke. The pin's own figures, what it still
+catches and what it does not are stated on the test below.
 """
 
 from __future__ import annotations
 
-import concurrent.futures
-import os
 import pathlib
 import random
 
@@ -80,9 +85,39 @@ from tests.test_stage2_round_trip import _round_trip
 # and 3, moved by G6.5a's push, and the orchestrator accepted that trade
 # on 2026-09-19 (THE CEILING, above) -- the missed count tightened with
 # it. The recorded 550 and 0 are the target and are not met.
+#
+# THE WHOLE BATTERY IS THE DRIVER'S, NOT THIS FILE'S (below). These two
+# numbers are what `tools/measurements/kpi_joined_battery.py` prints and
+# the ledger records; they are stated here because the pin below is
+# derived from them and must be re-derived when they move.
 OUTSIDE_CEILING = 609
 MISSED_CEILING = 3
 PAIRS = 2160
+
+# THE PIN THIS FILE KEEPS, and the three columns it is taken over.
+# Measured on the tree of this commit, one column at a time, forty seeds
+# each (`(pairs, outside, missed)` per column, 94.6 s for all twelve):
+#
+#     0: 120  14  1     4: 120  40  0     8: 120  39  0
+#     1: 240  40  0     5: 240  38  0     9: 240 117  0
+#     2: 120  40  0     6: 120  37  0    10: 120  33  0
+#     3: 240  51  0     7: 240  97  0    11: 240  63  2
+#
+# Columns 0, 9 and 11 are the pin: 0 is a three-position column and 9
+# and 11 are four-position ones, they hold ALL THREE of the battery's
+# missed above-counts (1 in column 0, 2 in column 11), and 9 and 11 are
+# the two columns G6.5a's push moved (9 from 110 and 6 to 117 and 0, 11
+# from 68 and 0 to 63 and 2). Withdrawing that push therefore turns this
+# pin red on the missed count -- 6 in column 9 against its ceiling of 0
+# -- which is the regression the whole battery reports as 7 missed.
+# 24.6 s of the battery's 94.6.
+PINNED_COLUMNS = (0, 9, 11)
+PINNED_CEILINGS = {
+    # column: (pairs, agreements outside the window, above-counts missed)
+    0: (120, 14, 1),
+    9: (240, 117, 0),
+    11: (240, 63, 2),
+}
 
 # Battery column 9 and the seed its witness is taken at.
 FOURTH_COLUMN = 9
@@ -173,42 +208,65 @@ def test_a_saturated_position_holds_every_number_it_publishes(
     )
 
 
-def test_the_battery_of_three_and_four_positions_keeps_its_figures(
-) -> None:
-    """Twelve columns, forty seeds, 2,160 pairs: at most 609 and 3.
+def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
+    """Three battery columns, forty seeds, 600 pairs: each at its own ceiling.
 
-    The KPI of ledger K-P4-06, measured the way the driver measures it.
-    The columns are spread over worker processes because each takes
-    about twenty-five seconds; a worker builds its own column from the
-    recipe, so nothing crosses the process boundary but three counts
-    and the path of the synthtwin it imported.
+    WHY THREE COLUMNS AND NOT TWELVE. This test ran all twelve over a
+    `concurrent.futures.ProcessPoolExecutor`, and the suite is
+    NETWORK-DEAD by design: the pool's own machinery takes a socket, the
+    conftest guard fires on it, and every test cell of the first CI run
+    failed here with `_GuardError`. No test may open a process pool, a
+    thread pool that takes a socket, or any socket at all, so the choice
+    was between running the twelve serially in the suite and keeping a
+    smaller pin here. MEASURED on this tree, one column at a time:
+    94.6 s for all twelve, 24.6 s for these three. The whole battery is
+    already measured, unchanged, by `tools/measurements/kpi_joined_battery.py`
+    -- the SLOW driver the ledger names as K-P4-06's source, which reads
+    the L7 driver's own printed totals -- so running all twelve here
+    bought no measurement the ledger does not already have, at 70 s a
+    suite run on a suite that already costs hours.
 
-    Mutation: on e53d5f4 the withdrawn rule (the walk inside positions,
-    then the leftover points by least size times distance) gave 604
-    outside and 1 missed, red against that tree's 597. On the integrated
-    tree, withdrawing G6.5a's push gives 594 outside and 7 missed, and
-    this test red on the above-counts.
+    WHAT THIS PIN STILL CATCHES, exactly. The three columns hold all
+    three of the battery's missed above-counts and 194 of its 609
+    agreements outside the window, and two of them are the two the
+    accepted trade moved. A regression in either direction is red here:
+
+    * MUTATION, measured on this tree: with `_pushed_apart` returning
+      its arguments unchanged -- G6.5a's push of a collision along its
+      band withdrawn, and nothing else -- column 0 reads 11 and 1,
+      column 9 reads 110 and SIX missed against its ceiling of 0, and
+      column 11 reads 68 and 0. This test goes red on column 9, and the
+      figures are the ones the bisect recorded for the whole battery
+      (7 missed against the ceiling of 3);
+    * the fill of P4-D147 is pinned by the three tests around this one,
+      not by the pair counts: with `_saturated_integers` answering
+      nothing, these three columns read 14/1, 117/0 and 63/2 unchanged,
+      while `test_a_saturated_position_holds_every_number_it_publishes`
+      goes red on the same column 9. Two mechanisms, and this is only
+      one of them.
+
+    WHAT IT DOES NOT CATCH: a regression confined to one of the other
+    nine columns' agreement counts. That is the driver's to report, and
+    the ledger's rule for K-P4-06 is measured there.
     """
-    workers = max(1, min(6, os.cpu_count() or 1))
-    with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as pool:
-        counts = list(
-            pool.map(joined_battery.one_column, range(joined_battery.COLUMNS))
-        )
+    counts = [joined_battery.one_column(case) for case in PINNED_COLUMNS]
     imported = {count[3] for count in counts}
     assert imported == {str(synthtwin.__file__)}, imported
-    pairs = sum(count[0] for count in counts)
-    outside = sum(count[1] for count in counts)
-    missed = sum(count[2] for count in counts)
-    assert pairs == PAIRS, pairs
-    assert outside <= OUTSIDE_CEILING, (
-        f"{outside} of {pairs} agreements outside G12.9's window, against "
-        f"the ceiling {OUTSIDE_CEILING}; by column: "
-        f"{[count[:3] for count in counts]}"
-    )
-    assert missed <= MISSED_CEILING, (
-        f"{missed} of {pairs} above-counts missed, against the ceiling "
-        f"{MISSED_CEILING}; by column: {[count[:3] for count in counts]}"
-    )
+    measured = {
+        case: (count[0], count[1], count[2])
+        for case, count in zip(PINNED_COLUMNS, counts)
+    }
+    assert {case: count[0] for case, count in measured.items()} == {
+        case: ceiling[0] for case, ceiling in PINNED_CEILINGS.items()
+    }, measured
+    worse = [
+        f"column {case}: {measured[case][1]} outside and {measured[case][2]} missed, "
+        f"against the ceiling {PINNED_CEILINGS[case][1]} and {PINNED_CEILINGS[case][2]}"
+        for case in PINNED_COLUMNS
+        if measured[case][1] > PINNED_CEILINGS[case][1]
+        or measured[case][2] > PINNED_CEILINGS[case][2]
+    ]
+    assert not worse, "; ".join(worse)
 
 
 def test_a_crowded_saturated_position_keeps_its_spread_and_its_tail(

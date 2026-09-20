@@ -11,9 +11,16 @@ scored the way the driver scores it: the rank agreement against G12.9's
 window of two hundredths, and the rows holding the earlier number above
 the later against the published `part_above`.
 
-It is a module of its own, beside `fixtures.py`, because the battery test
-spreads its columns over worker processes, and a worker imports the
-function it runs by module name.
+It is a module of its own, beside `fixtures.py`, because two readers
+share it: `tests/test_joined_battery_readings.py`, which pins three of
+the twelve columns, and the whole battery itself. It used to be shared
+with WORKER PROCESSES -- the test spread the columns over a
+`ProcessPoolExecutor`, and a worker imports the function it runs by
+module name -- and that is why `one_column` takes a column number and
+builds its own column rather than receiving a loaded one. The pool is
+gone (the suite is network-dead and the pool's machinery takes a
+socket); the shape it left is the right one anyway, because each column
+is measured independently.
 """
 
 from __future__ import annotations
@@ -110,10 +117,11 @@ def pair_scores(
 def one_column(case: int) -> "tuple[int, int, int, str]":
     """Pairs, agreements outside the window, above-counts missed, and where.
 
-    One battery column over all forty seeds. A worker process runs this,
-    so it builds its own column rather than receiving a loaded one -- and
-    it says which synthtwin it imported, so a worker that resolved some
-    other installation cannot pass for this tree.
+    One battery column over all forty seeds, built from the recipe here
+    rather than received, and about 6.5 s for a three-position column
+    and 9 s for a four-position one on the reference machine. It says
+    which synthtwin it imported, so a caller that resolved some other
+    installation cannot pass for this tree.
     """
     rows = battery_rows()[case]
     pairs = 0

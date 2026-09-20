@@ -36,6 +36,7 @@ import copy
 import importlib.util
 import json
 import pathlib
+import shutil
 
 import pytest
 
@@ -663,11 +664,31 @@ def test_a_kpi_test_judges_every_key_it_measures() -> None:
     assert kpi_rules.judge(entry, dict(value, shapes_equal=17), partial=False).word == kpi_rules.FAIL
 
 
+def _tree_holding(folder: pathlib.Path, body: str) -> pathlib.Path:
+    """A stand-in checkout whose `src/synthtwin/__init__.py` holds ``body``."""
+    package = folder / "src" / "synthtwin"
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "__init__.py").write_text(body, encoding="utf-8")
+    return folder
+
+
 def test_a_run_against_another_checkout_refuses_with_exit_2(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path,
 ) -> None:
-    """Both guards refuse with the integrity exit code, 2, not the drop code, 1."""
-    monkeypatch.setattr(kpi_rules, "REPO_ROOT", tmp_path)
+    """Both guards refuse with the integrity exit code, 2, not the drop code, 1.
+
+    THE CASE THE GUARD IS FOR: a tree that HAS a `src/synthtwin` while
+    the synthtwin that was imported is some other code -- the worktree
+    with no virtualenv of its own, borrowing the shared one and
+    measuring the main checkout's editable install. The stand-in tree
+    below holds one module of its own, which the imported package
+    cannot match however this suite was arranged, so this refuses under
+    the source arrangement and under the installed-wheel arrangement
+    alike. A tmp_path with no `src` at all would not: that is the third
+    accepted case, and `test_the_guard_accepts_the_installed_package_of_this_tree`
+    below is what holds the difference.
+    """
+    monkeypatch.setattr(kpi_rules, "REPO_ROOT", _tree_holding(tmp_path, "# not this code\n"))
     with pytest.raises(SystemExit) as refused:
         kpi_rules.guard_this_tree()
     assert refused.value.code == kpi_rules.REFUSED_EXIT == 2
@@ -675,6 +696,49 @@ def test_a_run_against_another_checkout_refuses_with_exit_2(
     with pytest.raises(SystemExit) as refused:
         RUNNER._refuse_unless_this_tree()  # type: ignore[attr-defined]
     assert refused.value.code == 2
+
+
+def test_the_guard_accepts_the_installed_package_of_this_tree(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The arrangement CI creates: the wheel of THIS commit, installed, is the code under test.
+
+    CI installs the wheel built from this commit and runs the suite
+    against it on purpose, so `synthtwin` resolves in site-packages
+    while the checkout's `src/synthtwin` sits there unimported. Under
+    the old rule -- "the module's path is under this tree's src" --
+    every driver a test drove exited 2 and every test cell of the first
+    CI run went red. What is required instead is that the imported
+    package BE this tree's code:
+
+    * a stand-in tree whose `src/synthtwin` is byte-identical to the
+      imported package is accepted, and says so;
+    * one file of it changed by a single byte is refused, and names the
+      file -- so the acceptance is not a guard that cannot fail;
+    * a tree with no `src/synthtwin` is accepted, because there is
+      nothing there to measure the installed package against.
+    """
+    import synthtwin
+
+    package = pathlib.Path(synthtwin.__file__).resolve().parent
+    same = tmp_path / "same"
+    (same / "src").mkdir(parents=True)
+    shutil.copytree(package, same / "src" / "synthtwin")
+    shutil.rmtree(same / "src" / "synthtwin" / "__pycache__", ignore_errors=True)
+    monkeypatch.setattr(kpi_rules, "REPO_ROOT", same)
+    assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
+    assert "the same code, installed" in capsys.readouterr().out
+
+    changed = same / "src" / "synthtwin" / "taxonomy.py"
+    changed.write_bytes(changed.read_bytes() + b"\n# one byte more\n")
+    with pytest.raises(SystemExit) as refused:
+        kpi_rules.guard_this_tree()
+    assert refused.value.code == 2
+    assert "taxonomy.py" in capsys.readouterr().out
+
+    monkeypatch.setattr(kpi_rules, "REPO_ROOT", tmp_path / "no-source")
+    assert kpi_rules.guard_this_tree() == str(pathlib.Path(synthtwin.__file__).resolve())
+    assert "this tree has no" in capsys.readouterr().out
 
 
 # -- a KPI that does not measure what it names (files review 2026-09-18, item 5) --
