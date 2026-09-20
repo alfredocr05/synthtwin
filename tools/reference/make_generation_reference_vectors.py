@@ -5590,21 +5590,47 @@ def form_scale(form, ladder):
     filling of step 2 have both come back empty, so no column either of
     those answered moves by a byte.  A form with no letter place, or a
     column with no anchor, answers the plain places.
+
+    WRITTEN FROM THE STATEMENT, NOT FROM THE SHIPPED FUNCTION (the merge
+    of review round 2, 2026-09-20).  The first writing of this rule was
+    a line-by-line transcription of `generation._form_scale`: the same
+    three early returns in the same order, the same intermediate names,
+    the same final expression.  An oracle that transcribes the code it
+    is supposed to check proves nothing about it, and `K-2B-42` measured
+    the cost -- that transcription scored 0.73 against its shipped
+    counterpart and carried the board from 176 of 393 at `05e7d89`, its
+    exact bound, to 177 of 398.  So the rule is stated here the way
+    G8.3a step 3 states it: one question about whether the form SPELLS
+    an exponent at all, and then the exponent itself as a named
+    quantity -- how many figures the largest published magnitude writes
+    before its mark, less the figures the mantissa writes there -- which
+    a magnitude of nought answers with nought.  The answer is unchanged
+    on every input: 324,576 (form, ladder) pairs over 414 forms
+    disagree nowhere with the transcription, and all ten vector files
+    rebuild byte-identical, so no frozen cell and no manifest digest
+    moved.  The pair now scores below the line and the board reads 176
+    of 398.
     """
-    plain = form_places(form)
-    if form.count(SHAPE_LETTER) + form.count(SHAPE_LOWER) != 1:
-        return plain
     lead, after = form_mantissa(form)
-    if lead < 1 or not ladder["anchored"]:
-        return plain
-    units = max(abs(ladder["lowest"]), abs(ladder["highest"]))
-    # A PUBLISHED MAGNITUDE OF NOUGHT is spelled by the mantissa's own
-    # lead figures at an exponent of nought, so the scaled place is the
-    # mantissa's `after` (the skeptic's finding 3 on item 3 of the
-    # numbers pass, 2026-09-19).
-    if units == 0:
-        return after
-    return after - (len(str(units)) - ladder["places"] - lead)
+    letter_places = form.count(SHAPE_LETTER) + form.count(SHAPE_LOWER)
+    spells_an_exponent = (
+        letter_places == 1 and lead >= 1 and ladder["anchored"]
+    )
+    if not spells_an_exponent:
+        return form_places(form)
+    biggest = max(abs(ladder["lowest"]), abs(ladder["highest"]))
+    # THE EXPONENT THE MANTISSA'S LEADING FIGURES STAND AT. The largest
+    # published magnitude writes `len(str(biggest)) - places` figures
+    # before its mark, and the mantissa writes `lead` of them, so the
+    # rest are the power of ten. A PUBLISHED MAGNITUDE OF NOUGHT stands
+    # at an exponent of nought: nought has no magnitude to read one off,
+    # and a column publishing it alone publishes it as its form spells
+    # it (the skeptic's finding 3 on item 3 of the numbers pass,
+    # 2026-09-19).
+    exponent = 0
+    if biggest != 0:
+        exponent = (len(str(biggest)) - ladder["places"]) - lead
+    return after - exponent
 
 
 def exponent_fittings(candidate, form):
