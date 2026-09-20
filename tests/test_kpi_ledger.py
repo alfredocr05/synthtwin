@@ -487,8 +487,9 @@ def _decision_seven_roles(home: pathlib.Path) -> "dict[str, str]":
         ):
             folder = home / f"{name}-{reading_of}"
             folder.mkdir(parents=True)
-            path = folder / "thing.csv"
-            path.write_text(fixtures.single_column_table("thing", cells), encoding="utf-8")
+            path = fixtures.write(
+                folder, "thing.csv", fixtures.single_column_table("thing", cells)
+            )
             run = S.cycle(path, flags, generate=False)
             key = f"decision_7/{name}/{reading_of}"
             if run["profile"] != 0:

@@ -45,12 +45,19 @@ its plan statement and added to the battery with the same rule:
   validator misses NOTHING: the respelled cells are the report-only
   indicator, the MISSED verdicts are the bound that can fail.
 
-WHAT THIS ENTRY DOES AND DOES NOT HOLD (round-2 ledger item 11). Three
-kinds of number live in K-2B-47 and they are not the same thing:
+WHAT THIS ENTRY DOES AND DOES NOT HOLD (round-2 ledger item 11, and
+its repair pass). FOUR kinds of number live in K-2B-47 and they are not
+the same thing:
 
 * MEASURED REGRESSION BOUNDS -- every `*_missed_checks`, the band
   split's shortfall, the read floor's count of moving facts: each can
   rise, and a rise is red.
+* THE SIZE OF THE SHAPE THE BOUND WAS TAKEN OVER -- `fortran_d_runs`
+  (at least 3) and `fortran_d_cells` (at least 400). A ceiling held over
+  less evidence is not the same ceiling: cutting the seeds here from
+  (4, 0, 1) to one left the MISSED verdicts at 0 and the respelled count
+  at 400, both inside their bounds, over a third of the runs, and
+  nothing saw it (the repair pass of this pass, finding 3).
 * REPORT-ONLY INDICATORS -- `read_floor_unchecked` and
   `fortran_d_cells_respelled`: each already stands at the largest value
   its shape can produce, so it cannot turn red; what moves it is its

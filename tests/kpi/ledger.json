@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression. THE ROUND-2 LEDGER PASS (2026-09-19) re-measured four entries on its own tree, 05e7d89, and their value_at names that commit: K-P0-05 (the decontamination scan's reads are counted where they happen now, not taken from the listing), K-2B-47 (the read floor's moving facts and the Fortran D exponent), and the two new OPEN entries K-2B-50 and K-2B-51, the fidelity failures still with the owner, which had no ceiling before. Every other value_at is still caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only on the reference machine while its one-minute load average is under reference_machine.quiet_load_average_below (kpi_rules.seconds_judged_here), by the runner and the KPI tests alike; the integrity guard judges every recorded seconds value too, so one taken under load that breaks its rule is marked RED in its evidence. Re-measure seconds on a quiet reference machine before reading one as a regression. THE ROUND-2 LEDGER PASS (2026-09-19) re-measured four entries on its own tree, 05e7d89, and all four value_at name that commit and the driver that took them: K-P0-05 (the decontamination scan's reads and surfaces, counted where they happen now, not taken from the listing), K-2B-47 (the read floor's moving facts and the Fortran D exponent), and the two new OPEN entries K-2B-50 and K-2B-51, the fidelity failures still with the owner, which had no ceiling before. K-2B-47 kept caf3079's stamp while carrying six keys that commit's driver could not emit until the repair pass corrected it (finding 2); test_kpi_ledger_integrity.py holds this sentence and the entries off the base commit equal from now on. ONE OTHER value_at predates caf3079 and is not this pass's: K-2B-42 (the document oracle's independence) stands at 40cadbc, the commit its measurement was taken on, because it is RED on caf3079 -- 181 of 393 against a bound of 176 -- and its evidence says so. That sentence used to read 'every other value_at is still caf3079's', which was already untrue when it was written; the guard this repair pass added found it. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -161,11 +161,12 @@
    "headline": true,
    "name": "No repository file holds any word from the private source study",
    "status": "GREEN",
-   "rule": "the scan lists and reads >= 400 repository files (the non-vacuity floor) and finds 0 matches; the full scan is the SLOW driver",
+   "rule": "the scan lists and COMPLETES a read of >= 400 repository files and >= 100,000 text surfaces in them (the non-vacuity floor, both counts instrumented at check.file_surfaces, never taken from the listing) and finds 0 matches; the full scan is the SLOW driver",
    "rule_kind": "at_least",
    "expected": {
     "files_listed": 400,
     "files_scanned": 400,
+    "surfaces_scanned": 100000,
     "matches": 0,
     "pinned_nodes_failing": 0
    },
@@ -174,22 +175,23 @@
    "nodes": [
     "tests/test_decontamination.py::test_repo_tree_is_clean_under_real_manifest",
     "tests/test_decontamination.py::test_the_scan_counts_the_reads_it_completes_and_not_the_paths_it_lists",
+    "tests/test_decontamination.py::test_a_scan_that_opens_every_file_and_reads_one_token_is_a_drop",
     "tests/test_decontamination.py::test_a_scan_that_raises_is_never_reported_as_a_measurement"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_p0_05",
    "driver": "tools/measurements/kpi_decontamination.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "the worktree of this commit",
-   "evidence": "418 files scanned, 0 matches (2,065-entry manifest). The existing test passes when 0 files are walked: on a copy under a 'build' folder, check.py printed 'clean' after scanning 0 files",
+   "evidence": "418 files scanned, 0 matches (2,065-entry manifest). The existing test passes when 0 files are walked: on a copy under a 'build' folder, check.py printed 'clean' after scanning 0 files. ROUND-2 LEDGER PASS (item 4): the count came from the LISTING, so with check.file_surfaces replaced by an empty iterator the driver reported 447 files scanned over a run that opened nothing and this entry read PASS; it is taken from the surfaces the scan pulls now. REPAIR PASS (finding 1): the file count alone still let a reader that yields ONE trivial surface per file report 447 files read and PASS while reading 1/1230 of the text -- measured on this tree, 447 surfaces against the honest 550,152 read on the tree of this commit -- so surfaces_scanned is a bound too, at 100,000: an order of magnitude under the honest number and two orders over that attack",
    "value_at": {
     "commit": "05e7d89",
     "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_decontamination.py --kpi on the tree of the round-2 ledger pass",
+    "measured_by": "tools/measurements/kpi_decontamination.py --kpi on the tree of the round-2 ledger pass's REPAIR pass -- the tree this commit builds, whose own text the scan reads too: 550,152 surfaces. The pass first wrote 549,120, which matched no tree it could have been taken on (9223dbe reads 549,744); that is what the repair pass corrected",
     "value": {
      "exit": 0,
      "files_listed": 447,
      "files_scanned": 447,
-     "surfaces_scanned": 549120,
+     "surfaces_scanned": 550152,
      "matches": 0,
      "pinned_nodes_failing": 0
     }
@@ -5242,7 +5244,7 @@
    "headline": false,
    "name": "Carried fidelity misses and the carried residue: the known-miss battery",
    "status": "OPEN",
-   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the read floor as HOW MANY published facts move when build_document is handed a table read at a lower floor (4), and the Fortran D exponent's MISSED verdicts (0); target 0. THREE KINDS OF NUMBER, kept apart since the round-2 ledger pass (item 11): the keys above are MEASURED REGRESSION BOUNDS; read_floor_unchecked and fortran_d_cells_respelled are REPORT-ONLY, each already at the largest value its shape can produce, so neither can turn red and only its target of 0 moves it; and the two generator passes the oracle does not mirror are COVERAGE TRACKED ELSEWHERE, by K-P4-23's uncovered, not by this entry",
+   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the read floor as HOW MANY published facts move when build_document is handed a table read at a lower floor (4), and the Fortran D exponent's MISSED verdicts (0) over a shape that keeps its size (fortran_d_runs >= 3 and fortran_d_cells >= 400, so a driver cut to one seed or a shorter column cannot hold the bound over less evidence); target 0. FOUR KINDS OF NUMBER, kept apart since the round-2 ledger pass (item 11) and its repair pass: the keys above are MEASURED REGRESSION BOUNDS; fortran_d_runs and fortran_d_cells are THE SIZE OF THE SHAPE the bound was taken over, at_least bounds so a ceiling cannot be held over less evidence; read_floor_unchecked and fortran_d_cells_respelled are REPORT-ONLY, each already at the largest value its shape can produce, so neither can turn red and only its target of 0 moves it; and the two generator passes the oracle does not mirror are COVERAGE TRACKED ELSEWHERE, by K-P4-23's uncovered, not by this entry. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
    "rule_kind": "at_most",
    "expected": {
     "dose_missed_checks": 18,
@@ -5257,7 +5259,10 @@
     "read_floor_facts_differing": 4,
     "fortran_d_missed_checks": 0,
     "read_floor_unchecked": 1,
-    "fortran_d_cells_respelled": 1200
+    "fortran_d_cells_respelled": 1200,
+    "fortran_d_runs": 3,
+    "fortran_d_cells": 400,
+    "pinned_nodes_failing": 0
    },
    "report_only": [
     "read_floor_unchecked",
@@ -5268,16 +5273,23 @@
    },
    "tier": "SLOW",
    "source": "driver",
-   "nodes": [],
+   "nodes": [
+    "tests/test_kpi_ledger_integrity.py::test_a_carried_shape_measured_over_fewer_runs_is_a_drop",
+    "tests/test_kpi_ledger_integrity.py::test_a_report_only_key_is_a_bound_its_own_shape_already_saturates",
+    "tests/test_kpi_ledger_integrity.py::test_a_coverage_elsewhere_field_names_a_live_entry_and_a_key_it_measures",
+    "tests/test_kpi_ledger_integrity.py::test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_commit",
+    "tests/test_kpi_ledger_integrity.py::test_a_re_measured_entry_records_every_key_its_rule_bounds",
+    "tests/test_kpi_ledger_integrity.py::test_every_entry_with_pinned_nodes_bounds_how_many_may_fail"
+   ],
    "test": null,
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
-   "pin_strength": "NONE",
+   "pin_strength": "WEAKER",
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
-   "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11. ROUND-2 LEDGER PASS (item 11), on the tree of this pass: read_floor_unchecked was int(documents differ) against a bound of at most 1, which no description this defect could produce would ever break -- the 4 published facts that actually move (blank_lines[0].after, .lines, .text and line_endings[0].lines) are the bound now, the boolean is kept beside it as the report-only indicator it always was. The Fortran D exponent, carried by the changelog's ceiling list and measured by nothing: 400 cells like 4.60D+03 at floor 11 are read as free text, 0 of 400 numeric, and the twin writes stand-ins (1.30D-08 comes back as 1.55S-44) on 1,200 of 1,200 cells over seeds 4, 0 and 1 while the validator misses NOTHING -- so the respelled count is report-only and the 0 MISSED verdicts are the bound that can fail. The two generator passes the oracle does not mirror were never measured here and are not: K-P4-23 counts them",
+   "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11. ROUND-2 LEDGER PASS (item 11), on the tree of this pass: read_floor_unchecked was int(documents differ) against a bound of at most 1, which no description this defect could produce would ever break -- the 4 published facts that actually move (blank_lines[0].after, .lines, .text and line_endings[0].lines) are the bound now, the boolean is kept beside it as the report-only indicator it always was. The Fortran D exponent, carried by the changelog's ceiling list and measured by nothing: 400 cells like 4.60D+03 at floor 11 are read as free text, 0 of 400 numeric, and the twin writes stand-ins (1.30D-08 comes back as 1.55S-44) on 1,200 of 1,200 cells over seeds 4, 0 and 1 while the validator misses NOTHING -- so the respelled count is report-only and the 0 MISSED verdicts are the bound that can fail. The two generator passes the oracle does not mirror were never measured here and are not: K-P4-23 counts them. REPAIR PASS (finding 3): fortran_d_runs was emitted and bounded by nothing, so cutting the loop from seeds (4, 0, 1) to one left fortran_d_missed_checks at 0 and fortran_d_cells_respelled at 400, both inside their bounds, over a third of the runs; the run and cell counts are at_least bounds now. Measured: at fortran_d_runs 2 the entry is OPEN-WORSE, at 3 OPEN-held.",
    "value_at": {
-    "commit": "caf3079",
+    "commit": "05e7d89",
     "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the tree of the round-2 ledger pass (the six read-floor and Fortran D keys did not exist at caf3079, whose value_at this entry wrongly kept until the repair pass, finding 2)",
     "value": {
      "band_split_distinct_short": 4,
      "date_joint_word_missed_checks": 3,
@@ -5300,7 +5312,8 @@
      "read_floor_unchecked": 1,
      "record_layout_missed_checks": 3,
      "temperature_over_mode_runs": 0,
-     "temperature_runs": 2
+     "temperature_runs": 2,
+     "pinned_nodes_failing": 0
     }
    },
    "target_stage": "stage 3 (the carried fidelity items); the residue of 2026-09-19 needs no ruling and has no stage set",
@@ -5318,7 +5331,13 @@
     "fortran_d_missed_checks": 0,
     "read_floor_unchecked": 0,
     "fortran_d_cells_respelled": 0
-   }
+   },
+   "key_kinds": {
+    "fortran_d_runs": "at_least",
+    "fortran_d_cells": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "nodes_min_collected": 6
   },
   {
    "id": "K-2B-48",
@@ -5412,16 +5431,18 @@
    "headline": false,
    "name": "A pooled population of numbers beside labels loses its scale",
    "status": "OPEN",
-   "rule": "must not get worse: on 100 alpha, twenty 100 and ten each of 200 to 209 at a floor of eleven, the twin's numeric mean and population spread may not fall further from the real ones than 87.083333 and 36.005366, the worst of seeds 4, 0 and 1; and the MISSED verdicts stay at 0, which is the point -- both files validate clean, so no miss count can see this. Target 0 on each",
+   "rule": "must not get worse: on 100 alpha, twenty 100 and ten each of 200 to 209 at a floor of eleven, the twin's numeric mean and population spread may not fall further from the real ones than 87.083333 and 36.005366, the worst of seeds 4, 0 and 1; and the MISSED verdicts stay at 0, which is the point -- both files validate clean, so no miss count can see this. Target 0 on each. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
    "rule_kind": "at_most",
    "expected": {
     "pooled_mean_error": 87.083333,
     "pooled_spread_error": 36.005366,
     "pooled_missed_checks": 0,
-    "pooled_runs": 3
+    "pooled_runs": 3,
+    "pinned_nodes_failing": 0
    },
    "key_kinds": {
-    "pooled_runs": "at_least"
+    "pooled_runs": "at_least",
+    "pinned_nodes_failing": "exact"
    },
    "tier": "SLOW",
    "source": "driver",
@@ -5442,7 +5463,8 @@
      "pooled_mean_error": 87.083333,
      "pooled_missed_checks": 0,
      "pooled_runs": 3,
-     "pooled_spread_error": 36.005366
+     "pooled_spread_error": 36.005366,
+     "pinned_nodes_failing": 0
     }
    },
    "target_stage": "none set: the failure is still with the owner (CHANGELOG, 'Still with the owner'); generating this population from disclosure-safe aggregates is not built",
@@ -5459,17 +5481,19 @@
    "headline": false,
    "name": "A timestamp column whose absorbed mark leaves a description no file satisfies",
    "status": "OPEN",
-   "rule": "must not get worse: on sixty moments at midnight on each of two days beside five T spellings of the first, at a floor of eleven, the twin misses at most 3 checks and the REAL file misses 0; the description goes on publishing 3 distinct values. Target 0 twin misses",
+   "rule": "must not get worse: on sixty moments at midnight on each of two days beside five T spellings of the first, at a floor of eleven, the twin misses at most 3 checks and the REAL file misses 0; the description goes on publishing 3 distinct values. Target 0 twin misses. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
    "rule_kind": "at_most",
    "expected": {
     "stamp_twin_missed_checks": 3,
     "stamp_real_missed_checks": 0,
     "stamp_published_distinct": 3,
-    "stamp_runs": 3
+    "stamp_runs": 3,
+    "pinned_nodes_failing": 0
    },
    "key_kinds": {
     "stamp_published_distinct": "exact",
-    "stamp_runs": "at_least"
+    "stamp_runs": "at_least",
+    "pinned_nodes_failing": "exact"
    },
    "tier": "SLOW",
    "source": "driver",
@@ -5490,7 +5514,8 @@
      "stamp_published_distinct": 3,
      "stamp_real_missed_checks": 0,
      "stamp_runs": 3,
-     "stamp_twin_missed_checks": 3
+     "stamp_twin_missed_checks": 3,
+     "pinned_nodes_failing": 0
     }
    },
    "target_stage": "none set: the failure is still with the owner (CHANGELOG, 'Still with the owner'); the absorption itself is ruling 6 of 2026-09-17 and is not reopened here",

@@ -4,8 +4,9 @@
 a scan that walked no file exits 0 too: on a copy of this repository
 under a folder named `build`, the scanner's non-git fallback skipped
 every file and printed `clean`. So this counts the files the scan
-reads and the matches it finds, and the ledger holds both: at least
-400 files, and none matching. About five minutes.
+reads, the text surfaces it reads in them and the matches it finds,
+and the ledger holds all three: at least 400 files, at least 100,000
+surfaces, and none matching. About four minutes.
 
 COUNTED FROM THE READS THE SCAN COMPLETES, NOT FROM THE PATHS IT LISTS
 (round-2 ledger item 4). `files_scanned` was `len(check.tracked_files(ROOT))`
@@ -23,9 +24,17 @@ taken by INSTRUMENTING the surface reader the scan pulls its text
 through -- one wrapper around `check.file_surfaces`, counting each file
 whose surfaces the scan actually consumed and how many it consumed --
 which is the same reads, counted where they happen. A run that raises
-is not a measurement either: `completed` says the scan returned, and a
-driver that dies exits non-zero, which the runner now fails the entry
-for.
+is not a measurement either: `counted_scan` catches nothing, so a scan
+that dies comes out of this module before any KPI line is printed and
+the driver exits non-zero, which the runner fails the entry for.
+
+THE FILE COUNT ALONE IS NOT ENOUGH (the round-2 ledger repair pass,
+finding 1). A reader that yields ONE trivial surface per file reports
+447 files read and passes a floor of 400 while reading 1/1230 of the
+text: measured on this tree, the honest scan reads 549,744 surfaces
+against that attack's 447. So the surfaces are counted and bounded
+too, at 100,000 -- an order of magnitude under the honest number and
+two orders over the attack.
 
     .venv/bin/python tools/measurements/kpi_decontamination.py --kpi
 """
@@ -58,9 +67,19 @@ def counted_scan(check, root, manifest=None):
 
     Returns files_listed (what the scanner's own walk offers),
     files_scanned (files whose text surfaces the scan actually pulled),
-    surfaces_scanned (how many surfaces it pulled), matches, exit and
-    completed. `files_scanned` is 0 on a scan that reads nothing,
-    whatever the listing says and whatever the scan exits with.
+    surfaces_scanned (how many surfaces it pulled), matches and exit.
+    `files_scanned` is 0 on a scan that reads nothing, whatever the
+    listing says and whatever the scan exits with, and
+    `surfaces_scanned` is what separates a scan that read the tree from
+    one that opened every file and read a token out of each.
+
+    A SCAN THAT RAISES IS NOT A MEASUREMENT AND IS NOT REPORTED AS ONE.
+    Nothing is caught here: the exception leaves this function -- the
+    `finally` only puts the real reader back -- so no partial count is
+    ever returned and the driver dies before it can print a KPI line.
+    (The round-2 ledger repair pass, finding 5: a `completed` flag stood
+    here that no path could set to False, guarding a branch of main()
+    that could not run.)
     """
     reading = check.file_surfaces
     counted = {"files": 0, "surfaces": 0}
@@ -78,11 +97,9 @@ def counted_scan(check, root, manifest=None):
     argv = [str(root)] + ([] if manifest is None else ["--manifest", str(manifest)])
     printed = io.StringIO()
     check.file_surfaces = through
-    completed = False
     try:
         with contextlib.redirect_stdout(printed), contextlib.redirect_stderr(printed):
             code = check.main(argv)
-        completed = True
     finally:
         check.file_surfaces = reading
     lines = printed.getvalue().splitlines()
@@ -94,7 +111,6 @@ def counted_scan(check, root, manifest=None):
         "surfaces_scanned": counted["surfaces"],
         "matches": matches + violations,
         "exit": code,
-        "completed": completed,
     }
 
 
@@ -107,8 +123,6 @@ def main():
         f"surfaces read {found['surfaces_scanned']}, matches {found['matches']}, "
         f"exit {found['exit']}"
     )
-    if not found["completed"]:
-        raise SystemExit("the scan did not finish; nothing it printed is a measurement")
     kpi_rules.emit(
         "K-P0-05",
         {

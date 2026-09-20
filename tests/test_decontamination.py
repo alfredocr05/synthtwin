@@ -368,7 +368,7 @@ def test_the_scan_counts_the_reads_it_completes_and_not_the_paths_it_lists(
     assert honest["files_listed"] == 5
     assert honest["files_scanned"] == 5
     assert honest["surfaces_scanned"] >= 5
-    assert honest["matches"] == 0 and honest["exit"] == 0 and honest["completed"]
+    assert honest["matches"] == 0 and honest["exit"] == 0
 
     read_nothing = check.file_surfaces
     try:
@@ -393,8 +393,65 @@ def test_the_scan_counts_the_reads_it_completes_and_not_the_paths_it_lists(
     assert verdict.is_drop and "files_scanned" in verdict.message, verdict
 
 
-def test_a_scan_that_raises_is_never_reported_as_a_measurement() -> None:
-    """`completed` is False when the scan dies, so the driver exits non-zero."""
+def test_a_scan_that_opens_every_file_and_reads_one_token_is_a_drop(
+    tree: Path, tmp_path: Path
+) -> None:
+    """Repair pass, finding 1: the file count alone still passed a scan that read nothing much.
+
+    A reader that yields ONE trivial surface per file completes a read
+    of every file, so `files_scanned` is the full count and the floor of
+    400 is met -- while the text actually read is 447 surfaces against
+    the honest 549,744 measured on this tree, 1/1230 of it. Only a bound
+    on `surfaces_scanned` can tell those apart, and until this pass
+    K-P0-05 had none: the driver emitted the number and the ledger's
+    `expected` did not name it.
+    """
+    driver = _driver()
+    manifest = make_manifest(tmp_path, [CANARY])
+    for extra in range(4):
+        (tree / f"thin{extra}.md").write_text(
+            f"ordinary words number {extra}\n", newline="\n", encoding="utf-8"
+        )
+
+    real_reader = check.file_surfaces
+    try:
+        check.file_surfaces = lambda *arguments, **named: iter([("harmless", 1, "x")])
+        thin = driver.counted_scan(check, tree, manifest)  # type: ignore[attr-defined]
+    finally:
+        check.file_surfaces = real_reader
+    # Every file was opened and a surface pulled from each, so the file
+    # count cannot see the attack at all.
+    assert thin["files_listed"] == 5 and thin["files_scanned"] == 5, thin
+    assert thin["surfaces_scanned"] == 5, thin
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-P0-05"]
+    at_scale = dict(entry["value_at"]["value"])
+    assert at_scale["surfaces_scanned"] >= 100_000, at_scale
+    # The same shape at repository scale: every path listed and read,
+    # one token out of each.
+    thin_at_scale = dict(
+        at_scale,
+        pinned_nodes_failing=0,
+        surfaces_scanned=at_scale["files_scanned"],
+    )
+    verdict = kpi_rules.judge(entry, thin_at_scale)
+    assert verdict.is_drop and "surfaces_scanned" in verdict.message, verdict
+    assert not kpi_rules.judge(entry, dict(at_scale, pinned_nodes_failing=0)).is_drop
+
+
+def test_a_scan_that_raises_is_never_reported_as_a_measurement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A scan that dies leaves this module by raising, so no KPI line is ever printed.
+
+    Repair pass, finding 5: a `completed` flag used to be returned here
+    and guarded a branch of `main()`, and no path could set it False --
+    `counted_scan` has no `except`, so the exception was already leaving
+    the function and the guard was dead. What makes this safe is the
+    propagation, and that is what is asserted: `counted_scan` raises,
+    the real surface reader is put back, and `main()` carries the
+    exception out with nothing emitted.
+    """
     driver = _driver()
 
     class Died:
@@ -410,6 +467,19 @@ def test_a_scan_that_raises_is_never_reported_as_a_measurement() -> None:
 
     with pytest.raises(RuntimeError):
         driver.counted_scan(Died, Path("."))  # type: ignore[attr-defined]
+    # The instrumented reader is the scanner's own again, dead or not.
+    assert Died.file_surfaces.__name__ != "through"
+
+    loaded = driver.load_scanner  # type: ignore[attr-defined]
+    try:
+        driver.load_scanner = lambda root: Died  # type: ignore[attr-defined]
+        with pytest.raises(RuntimeError):
+            driver.main()  # type: ignore[attr-defined]
+    finally:
+        driver.load_scanner = loaded  # type: ignore[attr-defined]
+    printed = capsys.readouterr().out
+    assert "synthtwin imported from" in printed, printed
+    assert "KPI " not in printed, printed
 
 
 # ---------- attestation ----------------------------------------------------

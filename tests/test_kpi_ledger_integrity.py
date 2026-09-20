@@ -126,6 +126,219 @@ def test_every_entry_s_expected_value_is_judged_true_of_itself() -> None:
             )
 
 
+# -- the fields the ledger states ABOUT its own numbers ------------------
+#
+# Repair pass of the round-2 ledger, points 2 and 4 of it: three fields were
+# written in this pass and read by nothing -- `report_only`,
+# `coverage_elsewhere`, and the `measurement_note` sentence that names
+# which entries were re-measured off the base commit. A field no code
+# reads can go on saying something untrue with every KPI green, and one
+# of them already did: K-2B-47 carried six keys its stamped commit's
+# driver could not emit, while the note written in the same commit said
+# that entry had been re-stamped.
+
+
+def _report_only_bounds() -> "list[tuple[str, str, object, object]]":
+    """(entry id, key, its bound, its recorded value) for every report-only key."""
+    out = []
+    for entry in LEDGER["entries"]:
+        for key in entry.get("report_only", []):
+            out.append(
+                (
+                    entry["id"],
+                    key,
+                    entry["expected"].get(key, _ABSENT),
+                    entry["value_at"]["value"].get(key, _ABSENT),
+                )
+            )
+    return out
+
+
+_ABSENT = object()
+
+
+def test_a_report_only_key_is_a_bound_its_own_shape_already_saturates() -> None:
+    """Finding 4: `report_only` is a claim about a number, so it is checked like one.
+
+    An entry says a key is REPORT-ONLY when its shape cannot produce a
+    larger value, so the bound records a ceiling rather than leaving
+    room to fall: `read_floor_unchecked` is `int(a != b)` against at most
+    1, and `fortran_d_cells_respelled` is 1,200 of 1,200 cells. Both are
+    therefore named in `expected` AND recorded AT their bound. A key
+    whose bound leaves slack can turn red and is a measured bound, not a
+    report-only indicator, and saying otherwise in the ledger is what
+    this fails on.
+    """
+    listed = _report_only_bounds()
+    assert listed, "no entry declares a report-only key; this guard has nothing to hold"
+    wrong = []
+    for entry_id, key, bound, recorded in listed:
+        if bound is _ABSENT:
+            wrong.append(f"{entry_id}: {key} is declared report-only and its rule does not bound it")
+        elif recorded is _ABSENT:
+            wrong.append(f"{entry_id}: {key} is declared report-only and no value is recorded for it")
+        elif recorded != bound:
+            wrong.append(
+                f"{entry_id}: {key} is declared report-only but its bound {bound!r} leaves room "
+                f"above the recorded {recorded!r}, so it CAN turn red and is a measured bound"
+            )
+    assert wrong == [], "; ".join(wrong)
+
+
+def test_a_coverage_elsewhere_field_names_a_live_entry_and_a_key_it_measures() -> None:
+    """Finding 4: an entry that hands coverage to another names one that carries it.
+
+    K-2B-47 says the two unmirrored generator passes are counted by
+    `K-P4-23 (uncovered)`. If that entry were deleted, renamed, or
+    stopped measuring `uncovered`, the sentence would go on standing
+    while nothing measured the thing at all.
+    """
+    named = [
+        (entry["id"], what, where)
+        for entry in LEDGER["entries"]
+        for what, where in entry.get("coverage_elsewhere", {}).items()
+    ]
+    assert named, "no entry hands coverage elsewhere; this guard has nothing to hold"
+    wrong = []
+    for entry_id, what, where in named:
+        holder = sorted(other for other in ENTRIES if other in where)
+        if not holder:
+            wrong.append(f"{entry_id}: {where!r} for {what!r} names no entry of this ledger")
+            continue
+        for other in holder:
+            keys = [key for key in ENTRIES[other]["expected"] if key in where]
+            if not keys:
+                wrong.append(
+                    f"{entry_id}: {where!r} names {other}, which measures "
+                    f"{sorted(ENTRIES[other]['expected'])} and not the key named there"
+                )
+    assert wrong == [], "; ".join(wrong)
+
+
+def _ids_named_in(sentence: str) -> "set[str]":
+    """The entry ids this ledger's prose names."""
+    return {entry_id for entry_id in ENTRIES if entry_id in sentence}
+
+
+def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_commit() -> None:
+    """Finding 2: a value_at re-stamped, or not re-stamped, is what the note says it is.
+
+    Every value_at was taken on `base_commit` except the ones a later
+    pass re-measured, and the note names those. MEASURED on the tree of
+    the round-2 ledger pass: the note named four entries and only three
+    carried another commit -- K-2B-47 still stamped caf3079 while its
+    value had gained six keys (fortran_d_*, read_floor_facts_differing)
+    that caf3079's driver could not emit. Nothing read the note, so
+    nothing said so.
+    """
+    base = LEDGER["base_commit"]
+    off_base = {
+        entry["id"]: entry["value_at"]["commit"]
+        for entry in LEDGER["entries"]
+        if entry["value_at"]["commit"] != base
+    }
+    note = LEDGER["measurement_note"]
+    assert base in note, "the note does not name the commit every other value was taken on"
+    named = _ids_named_in(note)
+    assert named == set(off_base), (
+        "the measurement note names "
+        + (", ".join(sorted(named)) or "no entry")
+        + " and the entries whose value_at is not "
+        + base
+        + " are "
+        + (", ".join(sorted(off_base)) or "none")
+    )
+    for entry_id, commit in sorted(off_base.items()):
+        assert commit in note, f"{entry_id} was measured on {commit}, which the note does not name"
+        # A re-measured entry says which driver or run took it, so a
+        # value carrying keys an older driver could not emit is visible.
+        assert ENTRIES[entry_id]["value_at"].get("measured_by"), (
+            f"{entry_id}: re-measured off {base} and does not say what measured it"
+        )
+
+
+def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:
+    """Finding 2, the other half: a stamp is only as good as the value under it.
+
+    A value_at that has gained keys since it was stamped is a value
+    taken by a driver that did not exist at that commit. Every key the
+    rule bounds must be one the recorded value carries, so a rule
+    extended without a re-measurement is red here.
+    """
+    missing = []
+    for entry in LEDGER["entries"]:
+        expected = entry["expected"]
+        value = entry["value_at"]["value"]
+        if not isinstance(expected, dict) or not isinstance(value, dict):
+            continue
+        gone = sorted(k for k in expected if k not in value and k != "pinned_nodes_failing")
+        if gone:
+            missing.append(f"{entry['id']}: {', '.join(gone)}")
+    assert missing == [], (
+        "these entries bound a key their recorded value does not carry, so the rule was "
+        "extended and the value was not re-measured: " + "; ".join(missing)
+    )
+
+
+
+def test_a_carried_shape_measured_over_fewer_runs_is_a_drop() -> None:
+    """Finding 3: a ceiling held over less evidence is not the same ceiling.
+
+    K-2B-47's Fortran D shape is 400 cells over seeds 4, 0 and 1.
+    MEASURED: cutting the driver's loop to one seed leaves
+    `fortran_d_missed_checks` at 0 (inside at most 0) and
+    `fortran_d_cells_respelled` at 400 (inside at most 1,200), so the
+    entry stayed green over a third of the runs and two thirds of the
+    chances to see a miss vanished -- K-2B-50 and K-2B-51 bound their
+    run counts and this one did not. The run and cell counts are
+    at_least bounds now, so the same cut is a drop.
+    """
+    entry = ENTRIES["K-2B-47"]
+    recorded = dict(entry["value_at"]["value"])
+    assert not kpi_rules.judge(entry, recorded).is_drop, recorded
+    one_seed = dict(
+        recorded,
+        fortran_d_runs=1,
+        fortran_d_cells_respelled=400,
+        fortran_d_missed_checks=0,
+    )
+    verdict = kpi_rules.judge(entry, one_seed)
+    assert verdict.is_drop and "fortran_d_runs" in verdict.message, verdict
+    shorter = dict(recorded, fortran_d_cells=399)
+    verdict = kpi_rules.judge(entry, shorter)
+    assert verdict.is_drop and "fortran_d_cells" in verdict.message, verdict
+
+
+def test_every_entry_with_pinned_nodes_bounds_how_many_may_fail() -> None:
+    """Repair pass: a pin the rule does not bound is decoration.
+
+    `kpi_run.judge_rows` merges `pinned_nodes_failing` into an entry's
+    value, and `kpi_rules.judge` judges only the keys the rule names --
+    so an entry that pins tests and does not bound that key reads held
+    while a pinned test fails. MEASURED on the tree of the round-2
+    ledger pass: 127 entries carried pinned nodes, 124 bound them, and
+    the three that did not were exactly the three that pass touched
+    (K-2B-47 and the two new ceilings K-2B-50 and K-2B-51), whose pins
+    were therefore measuring nothing.
+    """
+    loose = [
+        entry["id"]
+        for entry in LEDGER["entries"]
+        if entry.get("nodes")
+        and isinstance(entry["expected"], dict)
+        and "pinned_nodes_failing" not in entry["expected"]
+    ]
+    assert loose == [], (
+        "these entries pin tests whose failure their rule does not judge: " + ", ".join(loose)
+    )
+    for entry_id in ("K-2B-47", "K-2B-50", "K-2B-51"):
+        entry = ENTRIES[entry_id]
+        recorded = dict(entry["value_at"]["value"])
+        assert not kpi_rules.judge(entry, recorded).is_drop, entry_id
+        verdict = kpi_rules.judge(entry, dict(recorded, pinned_nodes_failing=1))
+        assert verdict.is_drop and "pinned_nodes_failing" in verdict.message, (entry_id, verdict)
+
+
 # -- the checks can fail -------------------------------------------------
 
 
