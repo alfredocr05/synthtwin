@@ -489,6 +489,27 @@ dead: a census naming one width word over fewer cells than the column
 holds reaches both. Two new frozen cases reach them, each with a mutant
 that moves its cells.
 
+### Fixed: the first CI run of stages 1, 2 and 2b, and the three defects it found (2026-09-20)
+
+**Every static check passed and every test cell failed** — lint, types,
+the offline scan, provenance, decontamination, sensitive paths and build
+all green; five Pythons across Ubuntu, Windows and macOS all red (pull
+request #6, run 35508922164). None of the three was a defect in the
+product: each was a test that could only pass in the arrangement it was
+written in, and `src/synthtwin` is untouched by this landing.
+
+| what CI saw | the cause | what the suite does now |
+|---|---|---|
+| `a network operation was attempted` | the readings battery ran its twelve columns over a process pool, whose machinery takes a socket, in a suite that is network-dead by design | three columns, serially — 25 s of the battery's 95 — holding all three of its missed counts and the two columns the accepted trade moved; the whole battery stays with the driver the ledger already names |
+| `peak_mb=703 vs at_most 600` (539 here) | peak memory was judged in the ordinary suite, and it moves with the platform, the Python and the allocator | the refusal, and the cap that produced it, are judged everywhere, word for word against the sentence the cap builds; peak memory is recorded everywhere and judged only on the quiet reference machine, never on a runner |
+| `SystemExit: 2` from the KPI guard | CI installs the wheel built from the commit and tests THAT, on purpose, so the package does not sit under `src/` | the guard asks whether the imported package IS this tree's code, byte for byte, rather than where it sits — and still refuses a worktree that imports another checkout's source, which is the mistake it exists to catch |
+
+**The suite costs 54 minutes here and up to three hours on a two-core
+runner**, and one cell ended at 3 h 00 m 06 s. That is measured and left
+for the owner to decide: the twenty slowest cases are 54% of the run and
+the top three are 33.5%, two of them fixture setup shared by many tests,
+so the lever is sharing a fixture rather than deleting a test.
+
 ### Fixed: what a fourth review round found, and an oracle that copied the code it checks (2026-09-20)
 
 **A missing value reopened the worst defect of the stage.** One `NA`

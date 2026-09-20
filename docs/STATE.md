@@ -48,10 +48,10 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 7,083 collected. The run that closed stage 2 is recorded in `CHANGELOG.md`; re-measure here whenever the count moves |
+| suite | 7,087 collected, and **54 min 42 s** on the reference machine in one process: 7,037 passed, 49 skipped. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 150 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 133 green, 13 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request, five Pythons across Ubuntu and Windows. **It has not yet seen stages 1, 2 or 2b.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** The test cells cost 1 h 20 m to 3 h and the `minimums` cell ended at 3 h 00 m 06 s; the workflow declares no `timeout-minutes`, so why it ended there is not known from this repository. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
@@ -177,6 +177,14 @@ cannot get worse unseen.
 8. **A branch is not done until the WHOLE suite has run on it.** Four
    fix branches each ran only their own area's tests and together left
    56 tests red elsewhere.
+9. **A test may open no process pool, no thread pool that takes a
+   socket, and no socket.** The suite is network-dead and the conftest
+   guard fires on the pool's own machinery. And **a number the machine
+   decides — an absolute time, a peak memory — is recorded by the
+   ordinary suite and judged only on the quiet reference machine, never
+   on a CI runner** (`kpi_rules.MACHINE_KINDS`, `kpi_rules.on_a_runner`);
+   what the suite judges everywhere is the property of the CODE beside
+   it.
 
 ## Already tried here, and it does not work
 
@@ -189,6 +197,12 @@ cannot get worse unseen.
 - **A count restated in several places will disagree.**
 - **A GIT WORKTREE HAS NO `.venv`, AND BORROWING THE SHARED ONE TESTS
   THE WRONG SOURCE.** Set `PYTHONPATH=<worktree>/src` or give it a venv.
+  But the guard that catches it asks whether the imported package IS
+  this tree's code, not where it sits: CI installs the wheel built from
+  the commit and tests THAT on purpose.
+- **A MUTATION LINE IN A DOCSTRING GOES STALE** when a second statement
+  covers the same ground. Re-run the mutation before citing it; a stale
+  one reads as a guard that does not exist.
 - **A repair that prints ambiguous numbers is worse than the silence it
   replaced.**
 - **Measure a ruling against the suite BEFORE building it.** The tests
