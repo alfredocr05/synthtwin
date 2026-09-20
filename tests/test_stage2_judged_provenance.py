@@ -414,20 +414,37 @@ def test_a_judged_pass_whose_other_spelling_the_floor_pooled(
 ) -> None:
     """One pass, two spellings of its day, and only one clears the floor.
 
-    This is the shape that decides whether V5's new count bound is `at
+    This is the shape that decides whether V5's count bound is `at
     most` or `exactly`, so it is measured rather than assumed. `end`
     holds twenty cells spelled `1900-01-01 00:00:00` beside five spelled
     `1900-01-01T00:00:00`; NOTHING is declared, so its placeholder pass
-    judges all twenty-five. At a floor of eleven the description may
-    name only the first, and publishes one spelling worth twenty cells
-    against an `n_occurrences` of twenty-five, pooling the other five;
-    at a floor of one it names both and the two come to exactly
-    twenty-five.
+    judges all twenty-five. At a floor of one the description names both
+    spellings and the two come to exactly twenty-five.
 
-    A bound demanding equality would refuse the first of those, which is
-    a description a producer writes. Both must load, both must round
-    trip, and `start`'s eighty legitimate values of the judged spelling
-    must survive either way.
+    THE FLOOR OF ELEVEN MOVED WITH REVIEW ROUND 2's DISCLOSURE ITEM 2
+    AND ITS REPAIR PASS. It used to name the first spelling alone --
+    `missing_by_source {"1900-01-01 00:00:00": 20}` against an
+    `n_occurrences` of twenty-five, `n_missing_withheld` 5 -- and
+    twenty-five less twenty is five cells wearing a spelling the
+    description never names and publishes no total for, which is a
+    group of five under a floor of eleven. The pool now takes the named
+    spelling as well: the spelling census goes empty, the verdict names
+    no spelling, all twenty-five cells read `(withheld)`, and the
+    difference a reader can take is the decision's whole total against
+    a census that covers none of it, which says nothing. Measured on
+    `05e7d89` and here, both floors, in the numbers below.
+
+    THE BOUND IS STILL `AT MOST` AND NOT `EXACTLY`: what changed is the
+    SIZE of the difference a consumer will read, not whether one is
+    allowed. THE COST IS REAL AND IS NAMED HERE: the twin of this
+    column writes twenty-five blanks where it used to write the
+    commonest placeholder spelling twenty times. That is the floor's
+    own bargain -- a group fewer than eleven rows carry is named in no
+    description written under it -- paid in fidelity rather than in
+    disclosure.
+
+    Both must load, both must round trip, and `start`'s eighty
+    legitimate values of the judged spelling must survive either way.
     """
     end = [SPACED] * 20 + [TEED] * 5 + _days(datetime.date(2020, 1, 1), 475)
     start = [SPACED] * 80 + _days(datetime.date(1890, 1, 1), 420, step=100)
@@ -448,11 +465,11 @@ def test_a_judged_pass_whose_other_spelling_the_floor_pooled(
     # The pass took all twenty-five cells either way...
     assert judged[0]["n_occurrences"] == 25, judged[0]
     if floor == "11":
-        # ...but at eleven only one spelling may be named, so the cells
-        # its `spellings` cover fall SHORT of `n_occurrences`.
-        assert ended["missing_by_source"] == {SPACED: 20}
-        assert ended["n_missing_withheld"] == 5
-        assert judged[0]["spellings"] == [SPACED], judged[0]
+        # ...and at eleven neither spelling may be named, because
+        # naming the first alone leaves the other five recoverable.
+        assert ended["missing_by_source"] == {}
+        assert ended["n_missing_withheld"] == 25
+        assert judged[0]["spellings"] == [], judged[0]
     else:
         assert ended["missing_by_source"] == {SPACED: 20, TEED: 5}
         assert ended["n_missing_withheld"] == 0

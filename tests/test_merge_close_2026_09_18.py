@@ -220,7 +220,9 @@ def test_the_fifth_rule_is_what_holds_the_blocker_shut(
     and describes 239 rows where the file holds 240.
     """
     monkeypatch.setattr(
-        reading, "_measurement_among_numbers", lambda name, values: False
+        reading,
+        "_measurement_among_numbers",
+        lambda name, values, floor: False,
     )
     read = _described(tmp_path, _bare_records())
     assert read["names"] == ["R001", "North Unit", "<0.10"]

@@ -2114,6 +2114,35 @@ def _census(
     return out
 
 
+def _present_cells(census: "dict[str, object]") -> "int | None":
+    """How many cells of a column the published census says are THERE.
+
+    THE SECOND POPULATION A FORMULA COUNT LIES IN (round 2 of the
+    review, the disclosure pass, item 6). Every class but `absent`
+    holds a cell the sheet carries, and a formula is one of those, so
+    this is the total a reader subtracts the formula count from. It is
+    a fact of the CENSUS and of nothing else: the answer is None where
+    any class of it is withheld, because a census holding a count back
+    publishes no total for a reader to subtract from in the first
+    place.
+
+    Guarantees: accepts one published cell-class census; returns the
+    present cells or None. Determinism: a fixed function of the census,
+    whose keys are read in the closed order. Raises nothing. No I/O.
+    """
+    present = 0
+    for key in CELL_CLASSES:
+        if key not in census:
+            return None
+        counted = census[key]
+        if not isinstance(counted, int):
+            return None
+        if key == CELL_ABSENT:
+            continue
+        present = present + counted
+    return present
+
+
 def _format_census(
     codes: "list[str]", total: int, floor: int
 ) -> "dict[str, object]":
@@ -2471,14 +2500,23 @@ def document_of(
             classes = as_the_twin_writes(
                 classes, sheet.columns[index], emptied[index]
             )
+        published_classes = _census(classes, CELL_CLASSES, total, floor)
         columns += [
             {
-                "cell_classes": _census(classes, CELL_CLASSES, total, floor),
+                "cell_classes": published_classes,
                 "format_kinds": kinds,
                 "format_code": _leading_code(
                     classes, sheet.formats[index], kinds, floor
                 ),
-                "formulas": dialect.sheet_count(formulas, total, floor),
+                # ...AND INSIDE THE PRESENT CELLS THE CENSUS BESIDE IT
+                # PUBLISHES (round 2 of the review, the disclosure pass,
+                # item 6). A formula cell is a PRESENT cell, and on a
+                # column of holes the present cells are very much the
+                # smaller population: `sheet_count` says what twenty
+                # formulas beside twenty-one present cells gave away.
+                "formulas": dialect.sheet_count(
+                    formulas, total, floor, _present_cells(published_classes)
+                ),
                 "value_class": _value_class(classes, floor),
             }
         ]

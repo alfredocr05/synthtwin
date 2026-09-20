@@ -4484,8 +4484,84 @@ def _declared_numbers_removed(
     return kept, missing
 
 
+def _judged_totals(
+    entries: "list[dict[str, object]]",
+    judged: "dict[str, dict[str, int]]",
+    by_source: "dict[str, int]",
+) -> "list[tuple[int, int]]":
+    """The totals a reader holds beside `missing_by_source`, all of them.
+
+    THE THIRD READING OF THE SPELLING CENSUS (round 2 of the review,
+    the disclosure pass, item 2). `_missing_maps` weighed the spelling
+    census against `n_missing` and the class census against it too, and
+    both were clear -- but a published VERDICT carries a total of its
+    own. `n_occurrences` is every cell that denoted one stand-in
+    number, however it was spelled, and `spellings` names exactly those
+    of its spellings the floor let the column publish. The difference
+    between them is the count of cells wearing the spellings the floor
+    POOLED, which is a count the pool exists to hide.
+
+    **Measured** at a floor of eleven on 400 rows of a declared
+    measurement -- 368 ordinary values, twenty `-999`, one `-999.0` and
+    eleven `NA`: `missing_by_source {"-999": 20}` beside a judged
+    `-999` verdict of `n_occurrences` 21 published 21 less 20, which is
+    one cell of a spelling the description never names. The eleven
+    pooled `NA` cells raised the overall pool to twelve and left that
+    subtraction exactly where it was, because it is a reading INSIDE
+    one candidate and neither map's own total touches it.
+
+    So each published judged verdict hands back one `(total, covered)`
+    pair -- its occurrences, and how many of them this column's
+    spelling census accounts for. A verdict that kept its candidate as
+    a number took no cell out and offers no pair; a candidate below the
+    floor is not published at all, so it has no total a reader can
+    hold.
+
+    THESE PAIRS ARE ASKED AT THE SETTINGS FLOOR AND NOT AT THE LINE OF
+    TWO (the repair pass of this landing, round 2's disclosure finding
+    3). The first writing handed them to `census_names_one_row` beside
+    the caller's own pair, which asks its line of two -- so a remainder
+    of ONE closed and a remainder of two to ten stayed open.
+    **Measured** at a floor of eleven with twenty `-999` beside TWO
+    `-999.0`: the description published `missing_by_source {"-999": 20,
+    "NA": 11}` against an `n_occurrences` of 22, and 22 less 20 is two
+    cells wearing a spelling the description never names, under a floor
+    of eleven. The line of two is right for the two maps beside this
+    one, whose pooled remainder the description publishes as
+    `(withheld)` -- there the subtraction gives back a count the reader
+    already holds. Nothing publishes this remainder, so it is asked at
+    the floor like every other count synthtwin withholds, which is what
+    the item asked for in the first place.
+
+    Guarantees: accepts the published decisions, the record
+    `_spelling_judged` gathered and the floored spelling map; returns
+    one pair per published judged decision. Determinism: a function of
+    the three; the keys are read in sorted order. Raises nothing. No
+    I/O of any kind.
+    """
+    totals: "list[tuple[int, int]]" = []
+    for entry in entries:
+        if _text_at(entry, "verdict") != VERDICT_MISSING:
+            continue
+        candidate = _text_at(entry, "candidate")
+        if candidate not in judged:
+            continue
+        occurrences = entry["n_occurrences"]
+        if not isinstance(occurrences, int):
+            continue
+        covered = 0
+        for spelling in sorted(judged[candidate]):
+            if spelling in by_source:
+                covered = covered + by_source[spelling]
+        totals += [(occurrences, covered)]
+    return totals
+
+
 def _missing_maps(
-    missing: list[tuple[str, str]], settings: Settings
+    missing: list[tuple[str, str]],
+    settings: Settings,
+    entries: "list[dict[str, object]]",
+    judged: "dict[str, dict[str, int]]",
 ) -> "tuple[dict[str, int], dict[str, int], int, int]":
     """The two missing mappings and the two counts, under the floor.
 
@@ -4598,6 +4674,14 @@ def _missing_maps(
     description already carries. `census_names_one_row` reads no row
     there for the same reason: a census covering no cell of a total
     leaves the reader nothing to subtract.
+
+    AND THE THIRD TOTAL IS A JUDGED CANDIDATE'S OWN (round 2 of the
+    review, the disclosure pass, item 2). `_judged_totals` next door
+    states what that total is and what it was measured to give away;
+    the pool is raised against it by this same walk and by this same
+    rule, which is why it arrives as another pair handed to
+    `census_names_one_row` rather than as a second reading of the
+    disclosure rule somewhere else.
     """
     held_back: "list[str]" = []
     if settings.small_cell_floor <= 1:
@@ -4627,6 +4711,10 @@ def _missing_maps(
             named_classes, [(total, covered_classes)]
         ) != -1 or parsing.census_names_one_row(
             by_source, [(total, covered_spellings)]
+        ) != -1 or parsing.census_names_one_row(
+            {},
+            _judged_totals(entries, judged, by_source),
+            settings.small_cell_floor,
         ) != -1
         if not names_a_row:
             return by_source, pooled, named_blank, withheld
@@ -5793,7 +5881,19 @@ def _levels_read_by_subtraction(
             smallest = counts[label]
     if parsing.pool_names_a_level(len(rare), pooled, published):
         return tuple(rare)
-    return _levels_read_by_class(cells, role, rare, smallest)
+    # BOTH SIBLING READINGS, AND THE ANSWER IS THEIR UNION (round 2 of
+    # the review, the disclosure pass, item 3). The four reading classes
+    # are one family of totals a reader subtracts the published levels
+    # from; the FORM census is another, published beside the very level
+    # entries whose `shape_form_cells` do the subtracting. A level the
+    # first pass leaves alone can be named outright by the second, so
+    # both are asked and every label either names is counted out.
+    counted_out: "dict[str, int]" = {}
+    for label in _levels_read_by_class(cells, role, rare, smallest):
+        counted_out[label] = 1
+    for label in _levels_read_by_form(cells, role, rare):
+        counted_out[label] = 1
+    return tuple(sorted(counted_out))
 
 
 def _levels_read_by_class(
@@ -5918,6 +6018,143 @@ def _levels_read_by_class(
             {reading: rows}, [(total, covered)]
         ) != -1:
             counted_out += held[reading]
+    return tuple(sorted(counted_out))
+
+
+def _census_key_of(value: str, census: "dict[str, int]") -> str:
+    """The key ONE cell was counted under in a form census, or the empty text.
+
+    THE CASE RULE, READ BACK (round 2 of the review, the disclosure
+    pass, item 3). `_lower_case_split` names a form under two keys
+    where its lower-case cells reach the line and the rest do too, and
+    under the lower-case key alone where the rest fall below it; below
+    the line the form is named blind to case, and below the floor or
+    the room rule it is not named at all. So a cell's key is not
+    `parsing.shape_form` of it: a walk that assumed so would count a
+    split form's cells under a key the census does not carry, and read
+    a difference of one where there is none.
+
+    The empty text means the census says nothing about this cell --
+    it has no form, or its form was pooled.
+
+    Guarantees: accepts one cell as the description speaks of it and
+    the census the block publishes; returns a key of that census or the
+    empty text. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    form = parsing.shape_form(value)
+    if not form:
+        return ""
+    lowered = parsing.lower_case_form(form)
+    if lowered and lowered in census:
+        if form not in census or parsing.is_lower_case_text(value):
+            return lowered
+    if form in census:
+        return form
+    return ""
+
+
+def _levels_read_by_form(
+    cells: _Cells, role: str, rare: "list[str]"
+) -> "tuple[str, ...]":
+    """The same ruling asked of the FORM census, which levels subtract from.
+
+    THE OWNER'S RULING OF 2026-09-17, ITEM 5, OVER THE CENSUS PUBLISHED
+    BESIDE THE LEVELS (round 2 of the review, the disclosure pass, item
+    3). `_levels_read_by_class` next door weighs the published levels
+    against the four totals saying what the column's cells READ AS. It
+    is not the only family of totals a reader can subtract them from:
+    every level entry carries `shape_form_cells`, how many of that
+    level's cells were written in a form, and the block publishes a
+    column-wide `shape_forms` census beside them. Those two are about
+    THE SAME CELLS, so the census less the published levels' own
+    contributions is the cells of the held-back levels wearing that
+    form -- and where that difference is one, a held-back level is one
+    row and its FORM is published.
+
+    **Measured** at a floor of eleven and seed 4, on one column holding
+    `ABC-100` a hundred times, `ABC-200` a hundred times, `ABC-300`
+    once, `QQ-400` five times and `RR-500` six times. The block
+    published both common levels at `shape_form_cells` 100 beside
+    `shape_forms {"@@@-%%%": 201, "@@-%%%": 11}`, and 201 less 100 less
+    100 is one: one held-back level covers one row and wears three
+    letters, a hyphen and three figures. `n_missing` was nought, the
+    twin wrote one `AAA-000`, and BOTH files validated at nought with
+    47 held back and nothing missed -- every executable check passed
+    over a description that named an individual's form. The second key
+    is untouched by this pass and must be: its eleven cells belong to
+    two held-back levels, no published level wears that form, so the
+    census covers none of any total a reader holds and the pool is
+    doing exactly what the ruling asks of it.
+
+    THE QUESTION IS `parsing.census_names_one_row`, over the held-back
+    rows of each named form as a POOL and over the pair `(census,
+    published cells)` together -- the same call, at the same width, as
+    the class pass beside it and as the loader's own check. The census
+    is the one the block will publish, built by `_shape_forms` from the
+    respelling `described_spellings` gives, so a form key this pass
+    reads is a form key the description carries: a form the census
+    pooled is not named, is not read here, and stays pooled.
+
+    Guarantees:
+
+    - Inputs: the tally, the role the reading before this pass gave it,
+      and the levels the floor holds back.
+    - Determinism: a fixed function of the three; the answer is in
+      sorted order.
+    - Errors raised: none.
+    - Boundary: answers nothing where the floor holds nothing back, for
+      a role that publishes no level list, for a cell with no form at
+      all -- which this census counts nowhere -- and for any form whose
+      held-back cells are none or more than one. No file is opened.
+    """
+    if not rare:
+        return ()
+    population = cells
+    with_text_total = True
+    if role == ROLE_COMPOUND:
+        compound = _compound_reading(cells)
+        if compound is None:
+            return ()
+        # THE LABEL HALF, TALLIED THE WAY THE BLOCK TALLIES IT, so this
+        # pass reads the census `_level_details` will publish for that
+        # half and not a second census of its own.
+        population = _tally(
+            _classify_all(
+                [cell.text for cell in compound.labels], cells.decimal_comma
+            ),
+            len(compound.labels),
+            cells.settings,
+            cells.decimal_comma,
+        )
+        with_text_total = False
+    elif role not in _LEVEL_ROLES:
+        return ()
+    spelled = described_spellings(population.present, population.settings)
+    census = _shape_forms(population, False, with_text_total, spelled)
+    held: "dict[str, list[str]]" = {}
+    rows: "dict[str, int]" = {}
+    covered: "dict[str, int]" = {}
+    for value in spelled:
+        form = _census_key_of(value, census)
+        if not form:
+            continue
+        key = parsing.folded(value)
+        if key not in rare:
+            covered[form] = (covered[form] if form in covered else 0) + 1
+            continue
+        rows[form] = (rows[form] if form in rows else 0) + 1
+        named = held[form] if form in held else []
+        held[form] = named if key in named else named + [key]
+    counted_out: "list[str]" = []
+    for form in sorted(census):
+        if form not in held:
+            continue
+        seen = covered[form] if form in covered else 0
+        if parsing.census_names_one_row(
+            {form: rows[form]}, [(census[form], seen)]
+        ) != -1:
+            counted_out += held[form]
     return tuple(sorted(counted_out))
 
 
@@ -8839,6 +9076,28 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
     )
 
 
+def _signable_decimals(decimals: int, negatives: int) -> int:
+    """How many decimals a reader can work out could have carried a plus.
+
+    THE SECOND POPULATION OF THE PLUS CENSUS (round 2 of the review,
+    the disclosure pass, item 5). Both numbers are published: the
+    decimals by the forms map and `n_negative` by the block. A negative
+    cell is written with a minus and never with a plus, so their
+    difference is what is left for the census to be about. It is a
+    LOWER bound, because `n_negative` counts the negative whole numbers
+    too, and `_decimal_plus` reads it only where it does not fall below
+    the signed count -- below there the two do not describe one another
+    and the difference is no reading of anything.
+
+    Guarantees: accepts the two counts; returns their difference, never
+    below nought. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if negatives >= decimals:
+        return 0
+    return decimals - negatives
+
+
 def _decimal_plus(cells: _Cells, styles: "dict[str, int]") -> "dict[str, int]":
     """How many cells written with a point carried a leading plus.
 
@@ -8921,12 +9180,66 @@ def _decimal_plus(cells: _Cells, styles: "dict[str, int]") -> "dict[str, int]":
         counted = 0
     if decimals < 1:
         return {}
-    # THE DISCLOSURE RULE, stated once in `parsing.census_nameable` and
-    # read here over the one population a reader subtracts this count
-    # from (plan P4-D140).
-    if parsing.census_nameable(
-        [counted], [decimals], cells.settings.small_cell_floor
+    floor = cells.settings.small_cell_floor
+    # THE SECOND POPULATION, WHICH IS DERIVED AND NOT PRINTED (round 2
+    # of the review, the disclosure pass, item 5). A reader does not
+    # only hold the decimals: `n_negative` is published beside them, and
+    # a negative cell is written with a minus and never with a plus, so
+    # the decimals LESS the negatives are the cells that could have
+    # carried one. `census_nameable` was asked of the first population
+    # and not of the second. **Measured** at a floor of eleven on a
+    # declared measurement of 500 cells -- 400 written `+100.5` upward,
+    # 99 written `-100.5` downward and ONE written `250.5` -- which
+    # published `n_numeric` 500, `n_negative` 99 and `decimal_plus
+    # {"+": 400}`, so 500 less 99 less 400 is one unsigned non-negative
+    # cell. The description loaded and the source file validated with
+    # nothing missed.
+    #
+    # `n_negative` counts the whole column and a negative WHOLE number
+    # is in it too, so the difference is a LOWER bound on the cells that
+    # could carry a plus. Erring low errs toward withholding, which is
+    # the direction that publishes less.
+    signable = _signable_decimals(decimals, cells.n_negative)
+    # ...AND RULING 6 TAKES THE RARE SPELLING FIRST (the owner's ruling
+    # of 2026-09-17, item 6). The unsigned cells among those are a
+    # spelling of the same value; below the line they are counted into
+    # the commonest spelling the column wrote, which is the plus, and
+    # the description is that of the column with them written that way
+    # -- so the census says 401 and the difference is nought. Withholding
+    # the whole census instead would have cost 400 cells their plus in
+    # the twin to hide one, and ruling 6 exists to refuse that trade.
+    unsigned = signable - counted
+    line = parsing.census_floor(floor)
+    # ...AND ONLY WHERE THE FIRST POPULATION IS ALREADY SATISFIED. The
+    # complement over the DECIMALS is settled by withholding the census
+    # and has been since P4-D140 -- 1,199 signed prices beside one whole
+    # number at a floor of one publish `{"(unavailable)": 0}`, and that
+    # is a decision of its own, not this one. Ruling 6 is asked here
+    # about the cells the second population leaves over, and about
+    # nothing else, so this reads a description the old rule already
+    # allowed and never rewrites one it refused.
+    if (
+        parsing.census_nameable([counted], [decimals], floor)
+        and counted >= line
+        and 0 < unsigned < line
     ):
+        counted = signable
+        unsigned = 0
+    # THE DISCLOSURE RULE, stated once in `parsing.census_nameable` and
+    # read here over BOTH populations a reader subtracts this count from
+    # (plan P4-D140).
+    # THE SECOND POPULATION IS READ ONLY WHERE THE SUBTRACTION IS
+    # CONSISTENT. `n_negative` counts the negative WHOLE numbers too, so
+    # on a column holding both kinds the difference falls BELOW the
+    # signed count and tells a reader nothing except that their
+    # arithmetic does not apply -- measured on 900 changes written half
+    # `+12` and half `+3.25`, where it comes out well under the plus
+    # count at every seed. Reading it there would refuse a description
+    # every such column produces.
+    populations = [decimals]
+    if signable >= counted:
+        populations += [signable]
+    if parsing.census_nameable([counted], populations, floor):
         return {"+": counted}
     return {UNAVAILABLE_LABEL: 0}
 
@@ -9307,6 +9620,115 @@ def _offset_counts(
     return parsing.absorbed_census(
         counts, len(pairs), settings.small_cell_floor, 0
     )
+
+
+def _offsets_published(
+    format_name: str,
+    pairs: list[tuple[str, str]],
+    sources: list[str],
+    settings: Settings,
+) -> "tuple[dict[str, int], list[tuple[str, str]]]":
+    """The offset census and the pairs it describes, over the right population.
+
+    THE POPULATION AN OFFSET CENSUS IS ABOUT (round 2 of the review,
+    the disclosure pass, item 4). A whole DATE carries no offset and
+    can carry none: on a joint ISO column its cells land under
+    `(none)` because of what they are, not because of how anybody wrote
+    them. `resolution_mix` publishes how many such cells there are, and
+    its counts are exact -- so `(none)` less that number is the count of
+    TIMESTAMPS written with no offset, and a floor applied to the whole
+    column says nothing about it.
+
+    **Measured** at a floor of eleven: 100 ISO dates, 299 timestamps at
+    noon written with a trailing `Z`, and ONE noon timestamp written
+    with no offset at all. `utc_offsets` published `{"(none)": 101,
+    "Z": 299}` beside `resolution_mix {"iso-date": 100,
+    "iso-datetime": 300}`, and 101 less 100 is one person's cell told
+    from the 299 beside it. The description loaded and the source file
+    validated with nothing missed.
+
+    So ruling 6 is applied WHERE THE CONVENTION LIVES: the absorption
+    that counts a rare offset into the commonest one is decided over
+    the timestamps alone, those cells are read at the offset it gives
+    them, and the census published afterwards counts every cell as the
+    description now speaks of it -- the dates under `(none)`, each
+    timestamp under the offset it was read at. The rare cell is then
+    told apart by nothing, because nothing publishes it: the one
+    unzoned timestamp above is read at `Z`, the map is `{"(none)": 100,
+    "Z": 300}`, and `(none)` less the date-only cells is nought.
+
+    A column that is not the joint reading, and a joint column with no
+    date-only cell or no timestamp, has one population and this is the
+    census it always was.
+
+    Guarantees: accepts the format member, the parsed (canonical,
+    offset) pairs, the source cells that parsed -- one per pair, in the
+    same order -- and the settings; returns the published census and
+    the pairs as that census speaks of them, in the order given.
+    Determinism: a function of the four; every mapping is walked in
+    sorted order. Raises nothing. No I/O of any kind.
+    """
+    dated = _date_only_places(format_name, pairs, sources)
+    if not dated or len(dated) == len(pairs):
+        offsets = _offset_counts(pairs, settings)
+        return offsets, _offsets_as_published(pairs, offsets)
+    stamped: "list[tuple[str, str]]" = []
+    place = 0
+    for canonical, offset in pairs:
+        if place not in dated:
+            stamped += [(canonical, offset)]
+        place = place + 1
+    named = _offset_counts(stamped, settings)
+    if parsing.MISSING_WITHHELD in named:
+        # NO OFFSET OF THE TIMESTAMPS REACHES THE LINE, so the census
+        # names none of them and the column is read on the shared clock.
+        # The pool then covers every parsed cell of the column: a map
+        # that named `(none)` for the dates beside a pool would say the
+        # rest wore something else, which is the reading the pool exists
+        # to refuse.
+        return {parsing.MISSING_WITHHELD: len(pairs)}, pairs
+    written = _offsets_as_published(stamped, named)
+    kept: "list[tuple[str, str]]" = []
+    counts: "dict[str, int]" = {}
+    taken = 0
+    place = 0
+    for canonical, offset in pairs:
+        worn = offset
+        if place not in dated:
+            worn = written[taken][1]
+            taken = taken + 1
+        key = worn if worn else "(none)"
+        counts[key] = (counts[key] if key in counts else 0) + 1
+        kept += [(canonical, worn)]
+        place = place + 1
+    return counts, kept
+
+
+def _date_only_places(
+    format_name: str, pairs: list[tuple[str, str]], sources: list[str]
+) -> "dict[int, int]":
+    """Which places of a joint column hold a whole DATE and no clock.
+
+    Empty for every reading but the joint one, and for a joint column
+    whose cells all wrote a clock. The test is `_resolution_mix`'s own:
+    a cell that parses as `iso-datetime` is a timestamp, and everything
+    else the joint reading claimed is a date.
+
+    Guarantees: accepts the format member, the parsed pairs and the
+    source cells beside them; returns the places, as a mapping used as a
+    set. Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    places: "dict[int, int]" = {}
+    if format_name != FORMAT_ISO_MIXED:
+        return places
+    if len(sources) != len(pairs):
+        return places
+    place = 0
+    for value in sources:
+        if parsing.parse_datetime(value, ISO_FORMS[1]) is None:
+            places[place] = 1
+        place = place + 1
+    return places
 
 
 def _offsets_as_published(
@@ -9823,8 +10245,9 @@ def _datetime_details(
     # THE OFFSETS AS PUBLISHED, FIRST (plan P4-D222): a value whose offset
     # the census counts into the commonest one is read at that offset by
     # everything below, so no published fact tells it apart.
-    offsets = _offset_counts(pairs, settings)
-    pairs = _offsets_as_published(pairs, offsets)
+    offsets, pairs = _offsets_published(
+        format_name, pairs, sources, settings
+    )
     reading = _datetime_reading(pairs)
     # AND A CENSUS HELD BACK WHOLE SAYS NOT EVEN WHETHER THE COLUMN WORE ONE
     # OFFSET (plan P4-D222). The local clock is published where every value
@@ -10263,11 +10686,60 @@ def _midnight_count(
         if parsing.clock_at_midnight(value, format_name):
             counted = counted + 1
     floor = parsing.census_floor(settings.small_cell_floor)
+    if not _joint_midnight_nameable(format_name, sources, floor):
+        return None
     if counted == len(sources):
         return counted if counted >= floor else None
     if counted >= floor and len(sources) - counted >= floor:
         return counted
     return None
+
+
+def _joint_midnight_nameable(
+    format_name: str, sources: "list[str]", floor: int
+) -> bool:
+    """Whether the TIMESTAMP half of a joint column may carry the count.
+
+    THE TOTAL A READER SUBTRACTS FROM `n_at_midnight` (round 2 of the
+    review, the disclosure pass, item 4). A joint ISO column publishes
+    `resolution_mix`, whose counts are EXACT by construction, and a
+    whole date of such a column stands at midnight by definition -- so
+    `n_at_midnight` less the date-only cells is the count of TIMESTAMPS
+    at midnight, and the floor on either side of the whole column says
+    nothing about either side of that residual.
+
+    **Measured** at a floor of eleven: 100 ISO dates, 299 timestamps at
+    noon and ONE timestamp at midnight published `resolution_mix
+    {"iso-date": 100, "iso-datetime": 300}` beside `n_at_midnight` 101.
+    Both sides of 101 against 400 clear eleven, and 101 less 100 is one
+    person's time of day. The description loaded and the source file
+    validated with nothing missed.
+
+    So the residual is held to the same floor on both sides, and where
+    it is not the count is not published at all -- the field's one
+    silence, written `null`, which is what `_midnight_count` above does
+    for every other reason it cannot speak.
+
+    A column that is not the joint reading has no such residual: every
+    cell of it carries a clock, or none does, and the answer is True.
+
+    Guarantees: accepts the column's format member, its parsed cells
+    and the census floor; returns a bool. Determinism: a fixed function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    if format_name != FORMAT_ISO_MIXED:
+        return True
+    stamped = 0
+    at_midnight = 0
+    for value in sources:
+        if parsing.parse_datetime(value, ISO_FORMS[1]) is None:
+            continue
+        stamped = stamped + 1
+        if parsing.clock_at_midnight(value, format_name):
+            at_midnight = at_midnight + 1
+    if at_midnight == stamped or at_midnight == 0:
+        return True
+    return at_midnight >= floor and stamped - at_midnight >= floor
 
 
 # The joint ISO reading's own name, used where a rule has to tell it
@@ -15000,7 +15472,7 @@ def profile_column(
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
-        missing, settings
+        missing, settings, entries, judged_spellings
     )
     # AND EACH DECISION'S OWN SPELLINGS, filled once the floor has said
     # which spellings may be named at all (contract V5).

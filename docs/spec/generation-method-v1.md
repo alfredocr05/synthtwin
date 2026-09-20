@@ -4885,7 +4885,10 @@ that way.
 - **A count at midnight withheld for its size** (P4-D191,
   `contract.midnight_withheld_for_its_size`: a column of moments, not
   wholly at midnight, not read on the shared clock with its offsets
-  pooled). On a column counted in seconds, each rank asked on its own
+  pooled, and not the joint ISO reading -- a joint column withholds
+  that count for a reason of its own since review round 2's disclosure
+  item 4, and no consumer can tell the two silences apart, so nothing
+  is owed there). On a column counted in seconds, each rank asked on its own
   wall clock -- its offset applied on the shared clock -- with the line
   two or the floor: where the eleven published instants
   stand at midnight no more than half the time, every unpinned rank

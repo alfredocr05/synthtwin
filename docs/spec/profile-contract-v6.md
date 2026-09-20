@@ -771,7 +771,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
-| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D290, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests apply only where the floor is above one |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D290, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests apply only where the floor is above one. AND BOTH ARE ASKED OF THE RECORDS' OWN ENDINGS TOO, once the lines the description publishes above the table -- the separator hint, the preamble's runs, the header, the rows of column descriptions -- are taken off the front (round 2 of the review, the disclosure pass, item 7): ten title lines, a header and record 1 written with a bare newline against 119 records written with a carriage return and a newline published `[{lf: 12}, {crlf: 119}]`, and 12 less 11 is that one record |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
 | `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
 | `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
@@ -784,7 +784,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 **Invariants FD1-FD13** (`contract.INVARIANTS`): FD1 one column form per
 column; FD2 the line endings account for every line the file holds, in
 runs that each end their lines one way, or past the cap on runs and in
-their place as counts of two or more endings in listed order; FD3 a mark only on UTF-8 or
+their place as counts of two or more endings in listed order, and above a floor of one no ending's total, no run's length and neither of those over the records alone falls under the smallest group size or under two; FD3 a mark only on UTF-8 or
 UTF-16, and always on UTF-16; FD4 blank lines in file order, within the
 table, spaces and tabs only, and in a one-column table only after its
 last record, within their caps, and blank lines published counted only
@@ -3792,11 +3792,30 @@ a document instead of through a count.
 
 **The bound is AT MOST and not EXACTLY, and the floor is why.** A pass
 takes every cell of its candidate, but the description names only the
-spellings the floor let it publish. A column holding twenty
-`1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both judged,
-publishes at a floor of eleven one spelling worth twenty cells against
-an `n_occurrences` of twenty-five and pools the other five. Demanding
-equality would refuse a description a producer writes.
+spellings the floor let it publish. Demanding equality would refuse a
+description a producer writes: a column whose second spelling reaches
+the floor names both, and the difference is nought; a column whose
+second spelling does not reach it names neither, because the pool
+takes the first as well, and the difference is the decision's whole
+total against a census that covers none of it, which says nothing.
+
+**...AND WHAT IS LEFT OVER IS NOUGHT OR REACHES THE FLOOR (review
+round 2, the disclosure pass, item 2 and its repair pass).** The
+difference between `n_occurrences` and the cells a decision's named
+spellings cover is the count of cells wearing the spellings the floor
+POOLED, and nothing in the document publishes that count — so it is
+held to `census_floor` like every other count synthtwin withholds,
+which is the one disclosure rule asked at the one line
+(`parsing.census_names_one_row` over the pair, at the smallest group
+size). Measured at a floor of eleven: twenty `-999` beside one
+`-999.0` published `missing_by_source {"-999": 20}` against an
+`n_occurrences` of 21, and 21 less 20 is one person; two, five and ten
+of the second spelling gave two, five and ten the same way. The
+producer pools the named spellings until the difference is nought or
+reaches the line, and this loader refuses any description — written by
+hand or not — that says otherwise. At the default floor of one nothing
+moves, because `census_floor(1)` is two, which is the line this part
+asked when it was written.
 
 It publishes no group the floor pooled and no spelling the block does
 not already carry. What it adds is the LINK between a published hole
@@ -10500,7 +10519,7 @@ it answers to.
 | V2 | `candidate` is `(withheld)` on exactly the columns where `missing_by_source` is empty for N3's reason — a column whose publication class permits no value of the table anywhere in its block. Naming a candidate there would publish a value out of a column that publishes none, and on every other column no candidate reads `(withheld)` | yes |
 | V3 | `verdict` is `read_as_missing` only when `reason` is `outlier_and_frequent`; the other four reasons all keep the candidate as an ordinary number of the column | yes |
 | V4 | entries appear in three groups, in this order, and the rule is TOTAL over the candidates this format permits: (1) NUMBERS, ascending by the number; (2) CALENDAR DAY SPELLINGS, ascending by the candidate text; (3) `(withheld)`, ordered by `n_occurrences`, then `verdict`, then `reason`, so no position can say which of two withheld candidates is the smaller. The datetime section states the rule entire, with the reason it is written total rather than for the mixed case alone | yes |
-| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences`, the cells a column's `read_as_missing` decisions took out and name no spelling for come, over all of them, to at most `n_missing_withheld` on a column that publishes values (P4-D135), and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
+| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences` and what is left over is nought or reaches `census_floor` of the smallest group size, the cells a column's `read_as_missing` decisions took out and name no spelling for come, over all of them, to at most `n_missing_withheld` on a column that publishes values (P4-D135), and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
 
 ---
 

@@ -1723,7 +1723,9 @@ def census_form(text: str, census: "dict[str, int]") -> str:
 
 
 def census_names_one_row(
-    counts: "dict[str, int]", totals: "list[tuple[int, int]]"
+    counts: "dict[str, int]",
+    totals: "list[tuple[int, int]]",
+    floor: int = 1,
 ) -> int:
     """Which reading of a census names one row of the table, or -1.
 
@@ -1753,18 +1755,36 @@ def census_names_one_row(
     the first pair whose difference is one, and ``-1`` where the census
     names no row, so a producer can repair the reading that failed.
 
+    ``floor`` NAMES THE LINE, AND IT DEFAULTS TO THE LINE OF TWO (round
+    2 of the review, the disclosure pass, item 2; the repair pass of
+    this landing). Every caller written before this argument leaves it
+    out and asks exactly what it asked, because `census_floor(1)` is
+    two. It is here for the reading whose S13 reasoning does NOT hold:
+    a census's own pooled remainder is published beside it, so what the
+    reader gets back by subtracting it is already a fact the description
+    states, and the question is only whether any reading is ONE. A
+    judged stand-in number's `n_occurrences` less its named spellings
+    is not like that -- the cells it counts wear spellings the
+    description never names and publishes no total for -- so that
+    reading is asked at the settings floor, and `taxonomy._missing_maps`
+    and the loader's V5 both pass it.
+
     Guarantees: reads only its arguments; returns an int. Determinism:
     a function of the arguments; the keys are read in sorted order.
     Raises nothing. No I/O of any kind.
     """
     for key in sorted(counts):
         # A count of nought names nobody, and it is no reading to refuse.
-        if counts[key] >= 1 and not census_nameable([counts[key]], [], 1):
+        if counts[key] >= 1 and not census_nameable([counts[key]], [], floor):
             return -2
     place = 0
     for total, covered in totals:
         rest = total - covered
-        if covered >= 1 and rest >= 1 and not census_nameable([], [rest], 1):
+        if (
+            covered >= 1
+            and rest >= 1
+            and not census_nameable([], [rest], floor)
+        ):
             return place
         place = place + 1
     return -1
