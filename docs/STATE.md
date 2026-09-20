@@ -62,10 +62,10 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 
 | # | landing | gate | wk |
 |---|---|---|---|
-| 1 | **DONE 2026-09-13. The list idiom and the heap merge.** Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical, and `tests/test_growth_is_linear.py` turns red on either defect. KPIs `K-S1-*` | done |
+| 1 | **DONE 2026-09-13. The list idiom and the heap merge.** Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical; `tests/test_no_quadratic_list_growth.py` turns red on the idiom, and KPIs `K-S1-02`, `K-S1-03` and `K-S1-07` hold the growth ratios | done |
 | 2 | **DONE 2026-09-14. The three silent defects.** A grouped number keeps its mark, a moment keeps its separator, a date at midnight stays at midnight | MET: `tests/test_stage2_round_trip.py`, 19 shapes, every stage-2 fact returned. KPIs `K-S2-*` | done |
 | 2b | **DONE 2026-09-19. The twin writes each column as the source wrote it.** Numbers keep their distribution and every common spelling; dates their own format; labels, text and missing values their spellings; record numbers and codes their layout; the file its dialect; Excel in and out. Every published count asks one floor rule. Owner rulings of 2026-09-17 built. Three review rounds closed | MET: the KPI ledger's `K-2B-*` entries, green or at their recorded ceiling, and the whole suite green | done |
-| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared. **Inherits:** the spread 1.4–3.7% too wide on normal-shaped columns (the straight outer segment to the exact extreme, `K-P3-03`); the heavy-tail mean and spread; 147 single-row labels published at the shipped floor of 1 (`K-P4-22`) | no published number is held by fewer than the floor; a one-row table is refused | 5 |
+| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared. **Inherits:** the spread 1.1 to 3.8% too wide on normal-shaped columns (the straight outer segment to the exact extreme, `K-P3-03`); the heavy-tail mean and spread; 147 single-row labels published at the shipped floor of 1 (`K-P4-22`) | no published number is held by fewer than the floor; a one-row table is refused | 5 |
 | 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
 | 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
@@ -127,17 +127,20 @@ cannot get worse unseen.
 - **The description still names individuals.** Exact minima and maxima
   are published, and at the shipped floor of 1 so are labels held by one
   row: 147 on the every-role table. Landing 3.
-- **Spread too wide on normal-shaped columns**, 1.4–3.7% (potassium,
-  sodium, systolic pressure, haemoglobin): the twin draws the outer 1%
+- **Spread too wide on normal-shaped columns**, 1.1 to 3.8% over the
+  ledger's twenty columns and 1.4 to 3.7% on potassium, sodium,
+  systolic pressure and haemoglobin: the twin draws the outer 1%
   as a straight line to the exact published extreme. At 20,000 rows the
   twin misses its own spread check on 19 of 20 columns. Landing 3
   replaces those extremes, so it repairs this there.
 - **Relationships between columns are not carried.** Landing 6.
 - **Time of day inside timestamps** is spread over the whole day.
   Landing 3b.
-- **Cells of three or four numbers** sit at 597 of 2,160 pair
-  agreements outside their window, against 550 when recorded; the
-  pairing walk. Landing 6.
+- **Cells of three or four numbers** sit at 609 of 2,160 pair
+  agreements outside their window and 3 above-counts missed, against
+  550 and 7 when recorded; the repair of a nearly full band traded 12
+  agreements for 4 exact counts (`K-P4-06`). The pairing walk is the
+  open cause. Landing 6.
 - **A short list of carried edge cases** fails the twin's own check on
   one shape each: two date-width allocations, one identifier layout, a
   sign band given more slots than it has numbers. The known-miss entry

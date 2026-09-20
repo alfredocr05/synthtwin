@@ -354,7 +354,8 @@ an independent check.
   Empty strings had become blank cells. A hostile cell reference had
   taken 2.592 s to refuse, and now takes 0.000 s. A spreadsheet packing
   a million cells into 5 MB had been read in 4 s and 630 MB, and is now
-  refused in 3 s within 300 MB.
+  refused in 3 s at a peak of 539 MB, under the 600 MB the ledger holds
+  it to.
 
 **Accepted as a limit (2026-09-18).** The reader still accepts a workbook
 date cell that names no day, when another program wrote it.
