@@ -5413,6 +5413,50 @@
     "rank_correlation_gap": 0.05,
     "death_rate_gap_lost": 0.05
    }
+  },
+  {
+   "id": "K-2B-50",
+   "phase_stage": "Stage 2b, review round 2 (the disclosure pass) and its repair pass",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "No published census, count or column name lets a reader subtract one person out",
+   "status": "GREEN",
+   "rule": "every reproduction round 2's disclosure reviewer and its skeptic wrote is described, generated and validated, and none of the seven subtractions names a row: the first record is never published as the column names; a judged stand-in number's occurrences less its named spellings is nought or reaches the census floor; a form census covers no held-back label; a joint date/timestamp column's midnight count and offset census leave no timestamp residual under the line; n_numeric less n_negative less the plus census is nought or a group; a formula count clears the line inside the published present cells; a line-ending run clears it with the file's furniture taken off. Every round trip validates the twin AND the real table at exit 0",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_round2_disclosure.py::test_one_absent_or_censored_reading_never_publishes_a_record",
+    "tests/test_round2_disclosure.py::test_the_same_workbook_publishes_no_record_either",
+    "tests/test_round2_disclosure.py::test_a_judged_candidate_leaves_no_spelling_of_one",
+    "tests/test_round2_disclosure.py::test_a_judged_candidate_leaves_no_group_under_the_floor",
+    "tests/test_round2_disclosure.py::test_a_form_census_names_no_held_back_label",
+    "tests/test_round2_disclosure.py::test_a_joint_column_names_no_lone_midnight_timestamp",
+    "tests/test_round2_disclosure.py::test_a_joint_column_names_no_lone_unzoned_timestamp",
+    "tests/test_round2_disclosure.py::test_the_plus_census_leaves_no_unsigned_cell_of_one",
+    "tests/test_round2_disclosure.py::test_a_formula_count_names_no_literal_cell",
+    "tests/test_round2_disclosure.py::test_file_furniture_never_carries_a_lone_record_ending",
+    "tests/test_round2_disclosure.py::test_a_joint_column_generates_a_twin_that_passes_its_own_description",
+    "tests/test_round2_disclosure.py::test_a_headed_export_keeps_the_names_its_file_wrote",
+    "tests/test_round2_disclosure.py::test_one_word_nobody_declared_never_publishes_a_record"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the reviewer's and the skeptic's own inputs: 240 headerless records at floors 1 and 11; 400 readings with twenty -999 and a second spelling of 1, 2, 5, 10 and 11; 212 labels of five levels; 400 joint ISO cells at four floors and three seeds; 500 signed decimals; a 400-row workbook of twenty formulas; a 131-line file under ten title lines; 320 headed records under seven realistic column names, three cell kinds and two floors",
+   "evidence": "on 05e7d89 every one of the seven reproductions published the subtraction: the first record as three column names over 239 rows; 21-20=1; 201-200=1; n_at_midnight 101 beside 100 whole dates; utc_offsets (none) 101 beside 100; 500-99-400=1; 21-20=1; [{lf: 12}, {crlf: 119}] over ten title lines. The repair pass then measured two costs the disclosure pass had not: a joint column's twin failed its own description at the default floor (validate exit 3 on midnight.withheld, all seeds), and an ordinary headed export whose header carries a figure lost its real column names (site,2024 total over 320 records with NA every 29th row became column_1/column_2 over 321). Both are pinned here, because both are what a repair of a disclosure leak costs when nobody measures it",
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-19",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   },
+   "nodes_min_collected": 78
   }
  ]
 }

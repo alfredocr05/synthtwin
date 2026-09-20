@@ -1264,8 +1264,9 @@ INVARIANTS = {
         "its absent cells, each once and in order, no spelling is "
         "named by two decisions of one column, the cells those "
         "spellings cover never outnumber the rows the decision says "
-        "held its candidate, the cells the column's decisions took out "
-        "and name no spelling for fit among the absent cells whose "
+        "held its candidate and what is left over is nought or names "
+        "at least the smallest group, the cells the column's decisions "
+        "took out and name no spelling for fit among the absent cells whose "
         "spellings it holds back, and a decision that kept its candidate "
         "as a number names none"
     ),
@@ -5882,6 +5883,7 @@ def _judged_spellings(
     counts: "dict[str, int]",
     occurrences: int,
     claimed: "dict[str, int]",
+    floor: int,
 ) -> "tuple[str, ...]":
     """The published hole spellings one decision took out (5.5, V5).
 
@@ -5929,8 +5931,21 @@ def _judged_spellings(
     `1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both
     judged, publishes at a floor of eleven one spelling worth twenty
     cells against an `n_occurrences` of twenty-five, and pools the
-    other five. Demanding equality would refuse that description, which
-    is one a producer writes.
+    other five. Demanding equality would refuse that description.
+
+    ...AND WHAT IS LEFT OVER IS NOUGHT OR REACHES THE FLOOR (the repair
+    pass of this landing, round 2's disclosure finding 3). The bound
+    above is still `at most`, and it is not equality; what changed is
+    the SIZE of the difference this loader will read. The remainder
+    counts cells wearing spellings the description never names and
+    publishes no total for, so five of twenty-five at a floor of eleven
+    is five people recoverable by subtraction, not an acceptable
+    rounding -- the producer next door (`taxonomy._judged_totals`) now
+    pools until that remainder is nought or reaches the floor, and
+    `synthtwin generate` refuses any description that says otherwise,
+    hand-written or not. At the DEFAULT floor of one nothing moves:
+    `parsing.census_floor(1)` is two, which is the line this part
+    already asked.
 
     NO REFUSAL HERE PRINTS A SPELLING. A key of `missing_by_source` is
     a value out of somebody's table (C5-N5, R15), so what is wrong is
@@ -5940,9 +5955,10 @@ def _judged_spellings(
 
     Guarantees: accepts the list, where it stands, the decision's own
     verdict, this column's published hole spellings WITH THEIR COUNTS,
-    the rows the decision says held its candidate, and the spellings
-    every earlier decision of this column already named -- which this
-    function adds to. Determinism: a function of the six. No I/O.
+    the rows the decision says held its candidate, the spellings every
+    earlier decision of this column already named -- which this
+    function adds to -- and the smallest group size. Determinism: a
+    function of the seven. No I/O.
     """
     listed = _listing(value, "spellings", where)
     found: list[str] = []
@@ -6004,21 +6020,25 @@ def _judged_spellings(
             f"it says {occurrences} row(s) held its stand-in number",
         )
     # ...AND THE DIFFERENCE BETWEEN THEM IS A CENSUS READING LIKE ANY
-    # OTHER (round 2 of the review, the disclosure pass, item 2). What
-    # the decision's occurrences leave over its named spellings is the
-    # count of cells wearing the spellings the floor POOLED, and the
-    # pool exists to hide exactly that. The question is the producer's
-    # own, `parsing.census_names_one_row` over the pair -- so a
-    # decision naming no spelling at all is asked nothing, as an empty
-    # census always is, and a remainder of five under a floor of eleven
-    # stays acceptable, which is the "at most, not exactly" bound this
-    # docstring states and a producer writes.
-    if parsing.census_names_one_row({}, [(occurrences, covered)]) == 0:
+    # OTHER (round 2 of the review, the disclosure pass, item 2; its
+    # repair pass raised the line). What the decision's occurrences
+    # leave over its named spellings is the count of cells wearing the
+    # spellings the floor POOLED, and the pool exists to hide exactly
+    # that. The question is the producer's own,
+    # `parsing.census_names_one_row` over the pair at the settings
+    # floor -- so a decision naming no spelling at all is asked
+    # nothing, as an empty census always is, and what is left over is
+    # nought or names a group the floor lets a reader see.
+    if parsing.census_names_one_row({}, [(occurrences, covered)], floor) == 0:
         raise _broken(
             "V5",
             where,
             f"the spellings this decision names cover {covered} absent cell(s)",
-            f"it says {occurrences} row(s) held its stand-in number, one more",
+            (
+                f"it says {occurrences} row(s) held its stand-in number, and "
+                f"what is left over names fewer than "
+                f"{parsing.census_floor(floor)} of them"
+            ),
         )
     for spelling in found:
         claimed[spelling] = 1
@@ -6088,7 +6108,13 @@ def _sentinel_verdicts(
                 f"the smallest group size is {floor}",
             )
         spellings = _judged_spellings(
-            mapping["spellings"], seat, verdict, counts, occurrences, claimed
+            mapping["spellings"],
+            seat,
+            verdict,
+            counts,
+            occurrences,
+            claimed,
+            floor,
         )
         if publishes_nothing != (candidate == WITHHELD):
             raise _broken(
@@ -8282,12 +8308,41 @@ def midnight_withheld_for_its_size(facts: "DatetimeFacts") -> bool:
 
     THE ONE READING OF A WITHHELD COUNT (plan P4-D191), asked by the
     generator and the validator alike. The describing step withholds the
-    count for three reasons (`taxonomy._midnight_count`): the column is
+    count for FOUR reasons (`taxonomy._midnight_count`): the column is
     not one of moments; it is read on the shared clock with its offsets
-    pooled; or too few moments stood at midnight, or too few did not. A
-    column wholly at midnight publishes `all_at_midnight` instead. Only
-    the third says anything about a file's own count: fewer than the line
-    at midnight, or fewer than the line off it.
+    pooled; the joint reading's TIMESTAMP residual names a row; or too
+    few moments stood at midnight, or too few did not. A column wholly
+    at midnight publishes `all_at_midnight` instead. Only the last says
+    anything about a file's own count: fewer than the line at midnight,
+    or fewer than the line off it.
+
+    A JOINT COLUMN OWES NOTHING HERE, AND THAT IS WHAT THE FOURTH REASON
+    COSTS (round 2 of the review, the disclosure pass; the repair pass
+    of this landing). `taxonomy._joint_midnight_nameable` withholds the
+    count of a column holding whole dates and moments together where the
+    timestamps' own residual would name one person's time of day --
+    and nothing in the LOADED facts can tell that silence from the
+    older one, because the residual is exactly what the withheld count
+    would have supplied. The two readings are indistinguishable to this
+    function by construction, so a joint column is owed neither.
+
+    **Measured** before the guard, on the disclosure pass's own item-4
+    input at the DEFAULT floor of one -- 100 ISO dates, 299 timestamps
+    at noon and one at midnight: `synthtwin generate` wrote a twin and
+    `synthtwin validate` then exited 3 on `midnight.withheld
+    [datetime.n_at_midnight]: MISSED`, on every seed tried and at floors
+    two and five as well. The generator cannot meet the obligation on
+    this shape whatever it does: by `_ordinals_off_midnight`'s own
+    statement "a bare-date rank of an `iso-mixed` column is left as it
+    is", so the hundred whole dates stand at midnight and no rank shift
+    can bring that side under the line. After the guard: no rank is
+    shifted, no deviation is noted, the validator LISTS the field
+    instead of checking it, and the twin and the real file both exit 0
+    while `n_at_midnight` stays silent.
+
+    `resolution_mix` is the one fact that says which reading a column
+    was given: a single-format column carries one key, and only the
+    joint reading carries two (`taxonomy._resolution_mix`).
 
     Guarantees: accepts loaded datetime facts; returns a bool. A function
     of the facts. Raises nothing. No I/O of any kind.
@@ -8295,6 +8350,8 @@ def midnight_withheld_for_its_size(facts: "DatetimeFacts") -> bool:
     if facts.resolution != "datetime" or facts.n_at_midnight is not None:
         return False
     if facts.all_at_midnight:
+        return False
+    if len(facts.resolution_mix) > 1:
         return False
     return not (facts.datetimes_read_at != "local" and WITHHELD in facts.utc_offsets)
 

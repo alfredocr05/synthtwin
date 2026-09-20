@@ -802,7 +802,47 @@ def _reads_as_a_reading(text: str) -> bool:
     return _holds_a_figure_as_a_value(text)
 
 
-def _measurement_among_numbers(name: str, values: list[str]) -> bool:
+# How many letters in a row make a WORD rather than a unit. Two is a
+# unit -- `mg`, `kg`, `ml`, `cm` -- and a measurement is written with
+# one; three is `total`, `count`, `time`, `week`, `dose`, and a column
+# name is written with those. The line is stated once, here, and
+# `_carries_a_word` is the only reader of it.
+_A_WORD = 3
+
+
+def _carries_a_word(text: str) -> bool:
+    """Whether this value holds a run of `_A_WORD` letters or more.
+
+    WHAT TELLS A COLUMN NAME FROM A MEASUREMENT ONCE THE FIGURE TEST
+    HAS PASSED (round 2 of the review, the disclosure pass; the repair
+    pass of this landing). `_holds_a_figure_as_a_value` asks only that
+    the value carries a figure and does not OPEN on a letter, and an
+    ordinary export's column name passes that test whenever it opens on
+    a figure or a mark: `2024 total`, `1st reading`, `100m time`,
+    `3-month change`, `>65 count`. The readings the measurement rule
+    exists for do not carry a word: `<0.10`, `2-4` and `5 mg` are a
+    mark, a range and a unit.
+
+    The letters are read against this module's own alphabet rather than
+    asked of a method, because this text came out of the user's file.
+
+    Guarantees: accepts text; returns a bool. Determinism: a fixed
+    function of the text. Raises nothing. No I/O of any kind.
+    """
+    run = 0
+    for character in text:
+        if character in _SILHOUETTE_ALPHABET:
+            run = run + 1
+            if run >= _A_WORD:
+                return True
+        else:
+            run = 0
+    return False
+
+
+def _measurement_among_numbers(
+    name: str, values: list[str], floor: int
+) -> bool:
     """True when the first row's value is a MEASUREMENT of a numeric column.
 
     THE FIFTH RECORD RULE (the owner's ruling of 2026-09-17, item 8;
@@ -869,14 +909,65 @@ def _measurement_among_numbers(name: str, values: list[str]) -> bool:
     value to stand among, and this rule declines it and leaves it to the
     furniture rule and to convention, as before.
 
-    Guarantees: accepts the first row's value in one column and the
-    values below it; returns a bool. Determinism: a fixed function of
-    the two. Raises nothing. No I/O of any kind.
+    A FIRST-ROW VALUE CARRYING A WORD IS A COLUMN NAME (the repair pass
+    of this landing, round 2's disclosure finding 2). Widening the
+    population above cost something the first writing did not measure:
+    one recognised missing spelling below the row used to defeat this
+    rule, and that ACCIDENT was the only thing keeping it off an
+    ordinary headed export whose header opens on a figure. **Measured**
+    at floors one and eleven on a perfectly ordinary CSV -- the header
+    `site,2024 total` over 320 records `North Unit,437` with `NA` every
+    twenty-ninth row -- the tree before this guard published
+    `column_1`/`column_2` over 321 records where 05e7d89 published
+    `site`/`2024 total` over 320: the file's own column names thrown
+    away and its header row generated as a 321st record. Of eleven
+    realistic header names over that table, five flipped. That is two
+    of the owner's mandatory goals broken at once -- code written on
+    the twin no longer runs unchanged on the real table, and the row
+    count is wrong by one -- so `_carries_a_word` is asked of the first
+    row's own value before the column is looked at, and the seven
+    header names measured below keep their file's reading:
+
+    * kept as names: `2024 total`, `1st reading`, `100m time`,
+      `3-month change`, `>65 count`, `5 mg dose`, `2-4 week`;
+    * still read as a record: `<0.10`, `2-4`, `5 mg`, `250.5`.
+
+    The cost is stated rather than hidden: a headerless file whose
+    first record's reading carries a word -- `3 tablets` -- is not
+    caught by this rule and falls to convention, as it did before round
+    2's item 1. A column name carrying no word at all (`50%`) is not
+    told from a reading either, which is the state 05e7d89 was already
+    in for a file with no absent cell in that column.
+
+    AND A MINORITY THAT READS AS NEITHER IS TOLERATED (the repair pass
+    of this landing, round 2's disclosure finding 4). The first writing
+    answered False at the first value below that was neither a
+    recognised spelling of no value nor a reading, so ONE cell somebody
+    typed as `missing` -- a word `parsing.is_missing_text` does not
+    know, and no more does `unknown`, `N.A.` or `nil` -- put the whole
+    of somebody's record back among the column names. **Measured** on
+    the rule's own table with the last reading written `missing`:
+    05e7d89 and the tree before this guard alike published `R001`,
+    `North Unit` and `<0.10` as the three column names over 239
+    records. So the values that read as neither are COUNTED, and the
+    rule survives them while they are fewer than `parsing.census_floor`
+    of the caller's floor -- the same shape `_shares_the_shape_below`
+    uses, that two values below say the first row is one of a
+    population, and the same line every other disclosure question in
+    this package is asked at. A column most of whose values are words
+    is still no column of numbers and still declines.
+
+    Guarantees: accepts the first row's value in one column, the values
+    below it and the person's smallest group size; returns a bool.
+    Determinism: a fixed function of the three. Raises nothing. No I/O
+    of any kind.
     """
     text = f"{name}"
     if parsing.classify_number(text) != parsing.NOT_A_NUMBER:
         return False
     if not _holds_a_figure_as_a_value(text):
+        return False
+    if _carries_a_word(text):
         return False
     # A cell holding NO VALUE is not evidence either way, so it is
     # dropped rather than counted against the rule, and the vocabulary
@@ -893,16 +984,19 @@ def _measurement_among_numbers(name: str, values: list[str]) -> bool:
     if len(present) < 2:
         return False
     figures = 0
+    unread = 0
     for value in present:
         if not _reads_as_a_reading(value):
-            return False
-        if parsing.classify_number(value) != parsing.NOT_A_NUMBER:
+            unread = unread + 1
+        elif parsing.classify_number(value) != parsing.NOT_A_NUMBER:
             figures = figures + 1
+    if unread >= parsing.census_floor(floor):
+        return False
     return figures >= 2
 
 
 def _record_evidence(
-    header: list[str], columns: list[list[str]]
+    header: list[str], columns: list[list[str]], floor: int
 ) -> "str | None":
     """What shows the first row is a record, in words, or None.
 
@@ -928,6 +1022,13 @@ def _record_evidence(
     `_measurement_among_numbers`, was added by plan P4-D292 and reads
     the measurement written the way no column name is written -- the
     exact shape `_names_evidence` refuses as evidence of names.
+
+    ``floor`` is the person's smallest group size, and only the fifth
+    rule reads it: it is the line under which that rule tolerates
+    values it can read as neither a spelling of no value nor a reading
+    (round 2's disclosure finding 4, closed in the repair pass of this
+    landing). The four rules before it ask nothing of the floor and
+    take none.
     """
     for index in range(len(header)):
         if _numeric_fit(header[index], columns[index]):
@@ -959,14 +1060,15 @@ def _record_evidence(
                 f"a record in that column looks like"
             )
     for index in range(len(header)):
-        if _measurement_among_numbers(header[index], columns[index]):
+        if _measurement_among_numbers(header[index], columns[index], floor):
             return (
                 f"in column {index + 1} the value in that row is not a "
                 f"number but is written the way a measurement is written, "
                 f"standing over a column whose values below it are "
-                f"numbers, apart from readings written the same way and "
-                f"cells holding no value, which is what a reading in that "
-                f"column looks like"
+                f"numbers, apart from readings written the same way, "
+                f"cells holding no value, and fewer cells than the "
+                f"smallest group that read as neither, which is what a "
+                f"reading in that column looks like"
             )
     return None
 
@@ -1260,7 +1362,7 @@ def _read_authoritatively(
 
 
 def _settle_the_first_row(
-    found: _Reading, shown: str, first_row: str
+    found: _Reading, shown: str, first_row: str, floor: int
 ) -> "tuple[str, bool, str]":
     """Settle WHICH row holds the column names, and say why (plan P1-D3).
 
@@ -1298,6 +1400,12 @@ def _settle_the_first_row(
     single right reading to choose between -- so that disagreement is
     reported first, and this question is asked only about a file both
     readers read the same way.
+
+    ``floor`` is the person's smallest group size, handed down to
+    `_record_evidence` for the one rule that reads it. Both callers
+    have it: the delimited path as `read_table`'s ``small_cell_floor``
+    and the workbook path as `_read_workbook_table`'s ``floor``, so the
+    two formats settle the first row by one rule at one line.
     """
     header = found.column_names
     if first_row != FIRST_ROW_AUTOMATIC:
@@ -1307,7 +1415,7 @@ def _settle_the_first_row(
     ]
     if len(numbers) == len(header):
         return _NOT_TOLD, False, EVERY_VALUE_A_NUMBER
-    spoken = _record_evidence(header, found.columns)
+    spoken = _record_evidence(header, found.columns, floor)
     if spoken is not None:
         return _NOT_TOLD, False, spoken
     shown_by = _names_evidence(header, found.columns)
@@ -1740,7 +1848,7 @@ def _read_workbook_table(
     seen = ""
     if source == HEADER_FROM_FILE and not positions:
         spoken, by_convention, seen = _settle_the_first_row(
-            found, shown, first_row
+            found, shown, first_row, floor
         )
         if seen:
             # THE SHEET IS READ AGAIN AS A SHEET WITH NO NAMES IN IT
@@ -2053,7 +2161,7 @@ def read_table(
     seen = ""
     if found.header_source == HEADER_FROM_FILE:
         spoken, by_convention, seen = _settle_the_first_row(
-            found, shown, first_row
+            found, shown, first_row, small_cell_floor
         )
         if seen:
             # THE FILE IS WALKED AGAIN, AS A FILE WITH NO NAMES IN IT

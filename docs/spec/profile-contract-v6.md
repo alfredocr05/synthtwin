@@ -3792,11 +3792,30 @@ a document instead of through a count.
 
 **The bound is AT MOST and not EXACTLY, and the floor is why.** A pass
 takes every cell of its candidate, but the description names only the
-spellings the floor let it publish. A column holding twenty
-`1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both judged,
-publishes at a floor of eleven one spelling worth twenty cells against
-an `n_occurrences` of twenty-five and pools the other five. Demanding
-equality would refuse a description a producer writes.
+spellings the floor let it publish. Demanding equality would refuse a
+description a producer writes: a column whose second spelling reaches
+the floor names both, and the difference is nought; a column whose
+second spelling does not reach it names neither, because the pool
+takes the first as well, and the difference is the decision's whole
+total against a census that covers none of it, which says nothing.
+
+**...AND WHAT IS LEFT OVER IS NOUGHT OR REACHES THE FLOOR (review
+round 2, the disclosure pass, item 2 and its repair pass).** The
+difference between `n_occurrences` and the cells a decision's named
+spellings cover is the count of cells wearing the spellings the floor
+POOLED, and nothing in the document publishes that count — so it is
+held to `census_floor` like every other count synthtwin withholds,
+which is the one disclosure rule asked at the one line
+(`parsing.census_names_one_row` over the pair, at the smallest group
+size). Measured at a floor of eleven: twenty `-999` beside one
+`-999.0` published `missing_by_source {"-999": 20}` against an
+`n_occurrences` of 21, and 21 less 20 is one person; two, five and ten
+of the second spelling gave two, five and ten the same way. The
+producer pools the named spellings until the difference is nought or
+reaches the line, and this loader refuses any description — written by
+hand or not — that says otherwise. At the default floor of one nothing
+moves, because `census_floor(1)` is two, which is the line this part
+asked when it was written.
 
 It publishes no group the floor pooled and no spelling the block does
 not already carry. What it adds is the LINK between a published hole
@@ -10500,7 +10519,7 @@ it answers to.
 | V2 | `candidate` is `(withheld)` on exactly the columns where `missing_by_source` is empty for N3's reason — a column whose publication class permits no value of the table anywhere in its block. Naming a candidate there would publish a value out of a column that publishes none, and on every other column no candidate reads `(withheld)` | yes |
 | V3 | `verdict` is `read_as_missing` only when `reason` is `outlier_and_frequent`; the other four reasons all keep the candidate as an ordinary number of the column | yes |
 | V4 | entries appear in three groups, in this order, and the rule is TOTAL over the candidates this format permits: (1) NUMBERS, ascending by the number; (2) CALENDAR DAY SPELLINGS, ascending by the candidate text; (3) `(withheld)`, ordered by `n_occurrences`, then `verdict`, then `reason`, so no position can say which of two withheld candidates is the smaller. The datetime section states the rule entire, with the reason it is written total rather than for the mixed case alone | yes |
-| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences`, the cells a column's `read_as_missing` decisions took out and name no spelling for come, over all of them, to at most `n_missing_withheld` on a column that publishes values (P4-D135), and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
+| V5 | every member of `spellings` is a key of this column's `missing_by_source`, the members are in ascending order and each appears once, no spelling is named by two decisions of one column, the cells those spellings cover never outnumber `n_occurrences` and what is left over is nought or reaches `census_floor` of the smallest group size, the cells a column's `read_as_missing` decisions took out and name no spelling for come, over all of them, to at most `n_missing_withheld` on a column that publishes values (P4-D135), and a decision whose `verdict` is `kept_as_a_number` names none. It publishes no group the floor pooled and no spelling the block does not already carry: what it adds is the LINK between a published hole spelling and the pass that made those cells absent, which no count in this document can supply. The count bound is what makes that link checkable on the block's own arithmetic, so a description cannot claim a DECLARED word was one column's judgement (P4-D95) | yes |
 
 ---
 

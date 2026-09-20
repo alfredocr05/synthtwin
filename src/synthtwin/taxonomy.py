@@ -4488,7 +4488,6 @@ def _judged_totals(
     entries: "list[dict[str, object]]",
     judged: "dict[str, dict[str, int]]",
     by_source: "dict[str, int]",
-    first: "tuple[int, int]",
 ) -> "list[tuple[int, int]]":
     """The totals a reader holds beside `missing_by_source`, all of them.
 
@@ -4513,18 +4512,34 @@ def _judged_totals(
 
     So each published judged verdict hands back one `(total, covered)`
     pair -- its occurrences, and how many of them this column's
-    spelling census accounts for -- beside the pair the caller already
-    held. A verdict that kept its candidate as a number took no cell
-    out and offers no pair; a candidate below the floor is not
-    published at all, so it has no total a reader can hold.
+    spelling census accounts for. A verdict that kept its candidate as
+    a number took no cell out and offers no pair; a candidate below the
+    floor is not published at all, so it has no total a reader can
+    hold.
+
+    THESE PAIRS ARE ASKED AT THE SETTINGS FLOOR AND NOT AT THE LINE OF
+    TWO (the repair pass of this landing, round 2's disclosure finding
+    3). The first writing handed them to `census_names_one_row` beside
+    the caller's own pair, which asks its line of two -- so a remainder
+    of ONE closed and a remainder of two to ten stayed open.
+    **Measured** at a floor of eleven with twenty `-999` beside TWO
+    `-999.0`: the description published `missing_by_source {"-999": 20,
+    "NA": 11}` against an `n_occurrences` of 22, and 22 less 20 is two
+    cells wearing a spelling the description never names, under a floor
+    of eleven. The line of two is right for the two maps beside this
+    one, whose pooled remainder the description publishes as
+    `(withheld)` -- there the subtraction gives back a count the reader
+    already holds. Nothing publishes this remainder, so it is asked at
+    the floor like every other count synthtwin withholds, which is what
+    the item asked for in the first place.
 
     Guarantees: accepts the published decisions, the record
-    `_spelling_judged` gathered, the floored spelling map and the
-    caller's own pair; returns that pair and one per published judged
-    decision. Determinism: a function of the four; the keys are read in
-    sorted order. Raises nothing. No I/O of any kind.
+    `_spelling_judged` gathered and the floored spelling map; returns
+    one pair per published judged decision. Determinism: a function of
+    the three; the keys are read in sorted order. Raises nothing. No
+    I/O of any kind.
     """
-    totals: "list[tuple[int, int]]" = [first]
+    totals: "list[tuple[int, int]]" = []
     for entry in entries:
         if _text_at(entry, "verdict") != VERDICT_MISSING:
             continue
@@ -4695,10 +4710,11 @@ def _missing_maps(
         names_a_row = parsing.census_names_one_row(
             named_classes, [(total, covered_classes)]
         ) != -1 or parsing.census_names_one_row(
-            by_source,
-            _judged_totals(
-                entries, judged, by_source, (total, covered_spellings)
-            ),
+            by_source, [(total, covered_spellings)]
+        ) != -1 or parsing.census_names_one_row(
+            {},
+            _judged_totals(entries, judged, by_source),
+            settings.small_cell_floor,
         ) != -1
         if not names_a_row:
             return by_source, pooled, named_blank, withheld

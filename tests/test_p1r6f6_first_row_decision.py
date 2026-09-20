@@ -174,6 +174,7 @@ def test_the_number_that_speaks_is_the_one_inside_the_range() -> None:
     spoken = reading._record_evidence(
         ["alice", "canada", "34"],
         [["bob", "carol", "dan"], ["usa", "usa", "usa"], ["29", "41", "38"]],
+        1,
     )
     assert spoken is not None
     assert "column 3" in spoken, spoken
@@ -441,7 +442,7 @@ def test_no_record_rule_speaks_for_the_review_items_file() -> None:
         assert not reading._numeric_fit(header[index], columns[index])
         assert not reading._date_fit(header[index], columns[index])
         assert not reading._repeats_a_value_below(header[index], columns[index])
-    assert reading._record_evidence(header, columns) is None
+    assert reading._record_evidence(header, columns, 1) is None
 
 
 # --------------------------------------------------------------------
@@ -635,6 +636,7 @@ def test_what_was_found_states_only_what_was_found() -> None:
     spoken = reading._record_evidence(
         ["alice", "canada", "34"],
         [["bob", "carol", "dan"], ["usa", "usa", "usa"], ["29", "41", "38"]],
+        1,
     )
     assert spoken is not None
     assert "in column 3 the value in that row is a number" in spoken

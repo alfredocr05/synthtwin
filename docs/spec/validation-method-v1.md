@@ -1256,15 +1256,31 @@ floor, so the real table meets its description by construction:
 checked on its side.** Where `n_at_midnight` is absent because too few
 values stood at midnight or too few did not
 (`contract.midnight_withheld_for_its_size`: a column of moments, not
-wholly at midnight, and not read on the shared clock with its offsets
-pooled), the file owes a count its own description withholds too
+wholly at midnight, not read on the shared clock with its offsets
+pooled, and NOT the joint ISO reading), the file owes a count its own
+description withholds too
 (`midnight.withheld`): HELD where the file's description publishes none,
 MISSED where it publishes one. It was LISTED as asking nothing, and a
 twin of discharge times between seven and seven that wrote two values at
 midnight -- a count its own description published -- passed. The line
 prints no number for a file whose count is withheld. The count stays
-LISTED where it is absent for the other reason, offsets pooled on the
-shared clock.
+LISTED where it is absent for the other reasons: offsets pooled on the
+shared clock, and a column of whole dates AND moments together.
+
+**Amended 2026-09-19 (review round 2, the disclosure pass, item 4 and
+its repair pass): a JOINT column owes nothing here.** A column holding
+whole dates beside moments -- `resolution_mix` with both ISO members --
+now withholds `n_at_midnight` for a fourth reason as well: the
+timestamps' own residual, the count less the whole dates that stand at
+midnight by definition, would name one person's time of day. Nothing
+in the loaded description can tell that silence from the older one,
+because the residual is exactly what the withheld count would have
+supplied, so neither obligation is owed on such a column and the field
+is LISTED. Measured before the amendment, on the reviewer's own input
+at the default floor: the generator wrote a twin and validation exited
+3 on `midnight.withheld [datetime.n_at_midnight]: MISSED`, on every
+seed, because a bare-date rank of a joint column is left where it is
+and no rank shift can bring that side under the line.
 
 **Amended 2026-09-15 (landing 2b.6): the MEMBER is an obligation, and
 how the dates were written is four more.** The owner reversed decision

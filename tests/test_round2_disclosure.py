@@ -103,6 +103,37 @@ def _records_ending_with(reading_text: str) -> str:
     return "\n".join(lines + [f"R240,East,{reading_text}"]) + "\n"
 
 
+def _records_with_eleven(reading_text: str) -> str:
+    """The same 240 records with ELEVEN readings written as given.
+
+    WHY THE RED CHECKS BELOW COUNT TO ELEVEN AND NOT TO ONE (the repair
+    pass of this landing, round 2's disclosure finding 4). The rule now
+    TOLERATES values below that read as neither a spelling of no value
+    nor a reading, while they are fewer than `parsing.census_floor` of
+    the person's floor -- because one cell somebody typed as `missing`
+    used to put a whole record back among the column names. That
+    tolerance means a red check that withdraws one seam over a single
+    cell is covered by the other, and measures nothing: withdrawing
+    `parsing.is_missing_text` over ONE `NA` leaves one unread cell of
+    239, the tolerance carries it, and the rule still answers True.
+
+    So each seam is withdrawn over a population the tolerance cannot
+    carry: eleven cells at a floor of eleven, which is the line itself.
+    Eleven is also the size a real export reaches: the header
+    regression that finding 2 closed was measured on a file writing
+    `NA` every twenty-ninth row of 320, which is eleven cells. So the
+    shape is the reviewer's, at the size that makes the seam load
+    bearing. Every twentieth record of 2 to 239 is eleven cells.
+    """
+    lines = [_LEAD]
+    for index in range(2, 240):
+        if index % 20 == 0:
+            lines = lines + [f"R{index:03},East,{reading_text}"]
+        else:
+            lines = lines + [f"R{index:03},East,{index}.5"]
+    return "\n".join(lines + ["R240,East,240.5"]) + "\n"
+
+
 def _described(tmp_path: pathlib.Path, body: str) -> dict:
     table = tmp_path / "table.csv"
     table.write_text(body, encoding="utf-8", newline="")
@@ -258,13 +289,22 @@ def test_the_missing_spellings_filter_is_what_holds_item_one_shut(
     """RED CHECK for item 1's first half: the vocabulary of no value.
 
     With `parsing.is_missing_text` answering False for everything, the
-    `NA` cell is back in the evidence population, the rule declines the
-    column, and the file publishes the record again -- 239 records and
-    the three real values as the names, which is exactly what `05e7d89`
-    did.
+    eleven `NA` cells are back in the evidence population, they reach
+    the line the tolerance stops at, the rule declines the column, and
+    the file publishes the record again -- 239 records and the three
+    real values as the names, which is exactly what `05e7d89` did with
+    one such cell.
+
+    The filter in place, the same file reads as records: that is the
+    first assertion, and it is what makes the second a withdrawal of
+    this seam rather than a statement about the table.
     """
+    body = _records_with_eleven("NA")
+    assert _described(tmp_path, body)["names"] == [
+        "column_1", "column_2", "column_3"
+    ]
     monkeypatch.setattr(parsing, "is_missing_text", lambda text: False)
-    read = _described(tmp_path, _records_ending_with("NA"))
+    read = _described(tmp_path, body)
     assert read["names"] == ["R001", "North Unit", "<0.10"]
     assert read["n_rows"] == 239
 
@@ -275,15 +315,28 @@ def test_the_reading_population_is_what_holds_the_censored_cell_shut(
     """RED CHECK for item 1's second half: a second censored reading.
 
     Put `reading._reads_as_a_reading` back to the rule it replaced --
-    "this value parses as a number" -- and the one `<0.05` cell defeats
-    the column again, republishing the record over 239 rows.
+    "this value parses as a number" -- and the eleven RANGE readings
+    defeat the column again, republishing the record over 239 rows.
+    Eleven and not one, for the reason `_records_with_eleven` gives.
+
+    THE RANGE AND NOT A SECOND CENSORED READING, which is a fact about
+    the withdrawal rather than about the rule. Eleven cells written
+    `<0.05` are caught by the FOURTH record rule instead of the fifth:
+    they wear the same silhouette as `<0.10`, so `_shares_the_shape_
+    below` speaks for that column and the file reads as records however
+    this seam answers. `2-4` wears another silhouette, so the fifth
+    rule is the only one that can speak and the withdrawal measures it.
     """
+    body = _records_with_eleven("2-4")
+    assert _described(tmp_path, body)["names"] == [
+        "column_1", "column_2", "column_3"
+    ]
     monkeypatch.setattr(
         reading,
         "_reads_as_a_reading",
         lambda text: parsing.classify_number(text) != parsing.NOT_A_NUMBER,
     )
-    read = _described(tmp_path, _records_ending_with("<0.05"))
+    read = _described(tmp_path, body)
     assert read["names"] == ["R001", "North Unit", "<0.10"]
     assert read["n_rows"] == 239
 
@@ -301,9 +354,9 @@ def test_a_column_of_readings_with_no_numbers_is_still_no_evidence(
     marked-up text as a column of readings.
     """
     below = ["<0.05"] * 12 + ["NA"] * 3
-    assert not reading._measurement_among_numbers("<0.10", below)
-    assert reading._measurement_among_numbers("<0.10", ["1.5", "2.5", "NA"])
-    assert not reading._measurement_among_numbers("<0.10", ["1.5", "NA"])
+    assert not reading._measurement_among_numbers("<0.10", below, 11)
+    assert reading._measurement_among_numbers("<0.10", ["1.5", "2.5", "NA"], 11)
+    assert not reading._measurement_among_numbers("<0.10", ["1.5", "NA"], 11)
 
 
 # -- the round-trip harness the rest of the items are measured with ---
@@ -444,9 +497,7 @@ def test_the_judged_total_is_what_holds_item_two_shut(
     from synthtwin import taxonomy
 
     monkeypatch.setattr(
-        taxonomy,
-        "_judged_totals",
-        lambda entries, judged, by_source, first: [first],
+        taxonomy, "_judged_totals", lambda entries, judged, by_source: []
     )
     folder = tmp_path / "sentinels"
     folder.mkdir(parents=True)
@@ -479,32 +530,95 @@ def test_the_judged_total_is_what_holds_item_two_shut(
     )
 
 
-def test_a_judged_candidate_may_still_leave_a_group_over(
-    tmp_path: pathlib.Path,
-) -> None:
-    """The bound stays AT MOST and not EXACTLY, which V5 states.
-
-    Twenty cells of one spelling beside five of another, both judged,
-    publish one spelling worth twenty against an `n_occurrences` of
-    twenty-five at a floor of eleven. Five is a group the pool holds,
-    not a row, so nothing moves and the description is unchanged.
-    """
+def _judged_pair(second: int) -> str:
+    """375 ordinary readings, twenty `-999`, and `second` of `-999.0`."""
     cells = (
         [f"{100 + place % 100}" for place in range(375)]
         + ["-999"] * 20
-        + ["-999.0"] * 5
+        + ["-999.0"] * second
     )
     rows = ["reading,site"]
     for place in range(len(cells)):
         rows = rows + [f"{cells[place]},s{place % 3}"]
+    return "\n".join(rows) + "\n"
+
+
+@pytest.mark.parametrize("second", [2, 5, 10])
+def test_a_judged_candidate_leaves_no_group_under_the_floor(
+    tmp_path: pathlib.Path, second: int
+) -> None:
+    """The remainder is nought or reaches the floor (finding 3).
+
+    THE ITEM'S OWN EXPECTATION, which the first repair did not meet.
+    It closed a remainder of ONE, because it asked
+    `census_names_one_row` at that function's line of two. **Measured**
+    at a floor of eleven on this landing's own tree before the repair
+    pass: twenty `-999` beside TWO `-999.0` published `missing_by_source
+    {"-999": 20, "NA": 11}` against an `n_occurrences` of 22, so 22 less
+    20 named two cells wearing a spelling the description never names;
+    five `-999.0` named five the same way, and ten named ten. All three
+    are groups under a floor of eleven, which is exactly what the floor
+    is for.
+
+    Now the pool takes the named spellings until the remainder is
+    nought or reaches the line: the spelling census goes empty, the
+    verdict names no spelling, and an empty census is asked nothing
+    because it leaves the reader nothing to subtract.
+    """
     read = _round_trip(
-        tmp_path / "bound",
-        "\n".join(rows) + "\n",
+        tmp_path / f"bound{second}",
+        _judged_pair(second),
         ["--smallest-group", _FLOOR_ELEVEN, "--measurement", "reading"],
     )
     block = _reading_block(read["document"])
-    assert block["missing_by_source"] == {"-999": 20}
-    assert block["sentinel_verdicts"][0]["n_occurrences"] == 25
+    assert block["missing_by_source"] == {}
+    assert block["sentinel_verdicts"][0]["spellings"] == []
+    assert block["sentinel_verdicts"][0]["n_occurrences"] == 20 + second
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+def test_a_second_spelling_that_reaches_the_floor_is_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The bound stays AT MOST and not EXACTLY, which V5 states.
+
+    Eleven cells of the second spelling reach the line at a floor of
+    eleven, so both spellings are named, they cover all 31 of the
+    decision's occurrences, and the remainder is nought. Nothing about
+    this description moves under finding 3's raised line -- measured
+    identically on `05e7d89` and here -- which is what shows the repair
+    pools where a reader could subtract and nowhere else.
+    """
+    read = _round_trip(
+        tmp_path / "bound11",
+        _judged_pair(11),
+        ["--smallest-group", _FLOOR_ELEVEN, "--measurement", "reading"],
+    )
+    block = _reading_block(read["document"])
+    assert block["missing_by_source"] == {"-999": 20, "-999.0": 11}
+    assert block["sentinel_verdicts"][0]["n_occurrences"] == 31
+    assert block["sentinel_verdicts"][0]["spellings"] == ["-999", "-999.0"]
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+def test_the_default_floor_reads_the_judged_remainder_as_it_always_did(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Finding 3's raised line moves NOTHING at a floor of one.
+
+    `parsing.census_floor(1)` is two, which is the line
+    `census_names_one_row` already asked, so the same table describes
+    identically at the default floor: both spellings named, the
+    remainder nought. Measured on `05e7d89` and here alike.
+    """
+    read = _round_trip(
+        tmp_path / "default",
+        _judged_pair(2),
+        ["--measurement", "reading"],
+    )
+    block = _reading_block(read["document"])
+    assert block["missing_by_source"] == {"-999": 20, "-999.0": 2}
+    assert block["sentinel_verdicts"][0]["spellings"] == ["-999", "-999.0"]
     assert (read["twin_exit"], read["real_exit"]) == (0, 0)
 
 
@@ -1214,3 +1328,450 @@ def test_a_file_whose_records_change_ending_in_groups_is_unmoved(
         {"ending": "lf", "lines": 71}, {"ending": "crlf", "lines": 60},
     ]
     assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+# =====================================================================
+# THE REPAIR PASS OF THIS LANDING: the skeptic's five results.
+#
+# The seven items above were verified against `05e7d89` and against the
+# landing's own commit by a skeptic reading for what the REPAIRS cost.
+# Five came back and each is closed here, from the skeptic's
+# own reproduction, with its own red check.
+#
+#   1 BLOCKER -- item 4's midnight repair made the tool generate a twin
+#     that then failed its own description at the DEFAULT floor;
+#   2 MAJOR   -- item 1's widening threw away the real column names of
+#     ordinary headed exports whose header carries a figure;
+#   3 MINOR   -- item 2 closed a remainder of one and left two to ten;
+#   4 MINOR   -- one cell somebody typed as `missing` still published a
+#     whole record as the column names;
+#   5 MINOR   -- no KPI entry moved when any repair was withdrawn.
+#
+# Finding 3 is closed beside item 2 above; finding 5 is closed in
+# `tests/kpi/ledger.json` and checked by `tests/test_kpi_ledger.py`.
+# =====================================================================
+
+
+def _joint_iso_column(at_midnight: int, zulu: int, unzoned: int) -> str:
+    """100 whole ISO dates over timestamps, as the reviewer wrote them."""
+    lines = ["when"]
+    for place in range(100):
+        lines = lines + [f"2024-01-{(place % 28) + 1:02}"]
+    day = 0
+    for place in range(at_midnight):
+        day = day + 1
+        lines = lines + [f"2024-02-{(place % 28) + 1:02}T00:00:00"]
+    for place in range(zulu):
+        lines = lines + [f"2024-03-{(place % 28) + 1:02}T12:00:00Z"]
+    for place in range(unzoned):
+        lines = lines + [f"2024-03-{(place % 28) + 1:02}T12:00:00"]
+    return "\n".join(lines) + "\n"
+
+
+def _noon_and_one_midnight() -> str:
+    """The reviewer's item-4(a) input: 100 dates, 299 noon, one midnight."""
+    lines = ["when"]
+    for place in range(100):
+        lines = lines + [f"2024-01-{(place % 28) + 1:02}"]
+    for place in range(299):
+        lines = lines + [f"2024-02-{(place % 28) + 1:02}T12:00:00"]
+    return "\n".join(lines + ["2024-02-04T00:00:00"]) + "\n"
+
+
+@pytest.mark.parametrize("floor", [[], ["--smallest-group", "2"],
+                                   ["--smallest-group", "5"],
+                                   ["--smallest-group", _FLOOR_ELEVEN]])
+@pytest.mark.parametrize("seed", ["0", "4", "19"])
+def test_a_joint_column_generates_a_twin_that_passes_its_own_description(
+    tmp_path: pathlib.Path, floor: "list[str]", seed: str
+) -> None:
+    """FINDING 1, the blocker of the repair pass.
+
+    THE SKEPTIC'S REPRODUCTION. Item 4(a)'s own input at
+    `--smallest-group 1`, which is the DEFAULT: 100 whole ISO dates,
+    299 timestamps at noon and one at midnight. Item 4 withholds
+    `n_at_midnight` there, correctly -- 101 less the hundred whole
+    dates is one person's time of day. **Measured** on the landing's
+    own commit before this repair: `synthtwin generate` wrote a twin
+    and `synthtwin validate` then exited 3 on `midnight.withheld
+    [datetime.n_at_midnight]: MISSED`, at floors one, two and five and
+    on every seed tried. `05e7d89` exited 0 at every floor. Floors
+    eleven and twenty-five passed only by luck, the twin landing inside
+    the band.
+
+    The round's own requirement is that a round trip validate the twin
+    AND the real table at exit 0. It does now, at four floors and three
+    seeds, and the count stays withheld while it does.
+    """
+    read = _round_trip(
+        tmp_path / f"joint{seed}{len(floor)}",
+        _noon_and_one_midnight(),
+        floor,
+        seed=seed,
+    )
+    block = read["document"]["columns"][0]
+    assert block["n_at_midnight"] is None
+    assert block["all_at_midnight"] is False
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+def test_a_single_format_column_still_owes_its_withheld_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The blocker's repair reaches JOINT columns and nothing else.
+
+    A column of moments ALONE -- no whole dates in it -- whose midnight
+    count is withheld for its size still owes that count on one side,
+    which is what P4-D191 built and what the generator's rank shift is
+    for. Here 396 timestamps stand across the working day and four at
+    midnight, so at a floor of eleven the count is withheld: fewer than
+    the line stood there. `resolution_mix` holds ONE key, the guard
+    does not fire, and the obligation is still owed and still met.
+    """
+    lines = ["when"]
+    for place in range(396):
+        lines = lines + [f"2024-02-{(place % 28) + 1:02}T{9 + place % 8:02}:30:00"]
+    for place in range(4):
+        lines = lines + [f"2024-03-{place + 1:02}T00:00:00"]
+    read = _round_trip(
+        tmp_path / "alone",
+        "\n".join(lines) + "\n",
+        ["--smallest-group", _FLOOR_ELEVEN],
+    )
+    block = read["document"]["columns"][0]
+    assert block["n_at_midnight"] is None
+    assert len(block["resolution_mix"]) == 1
+    from synthtwin import contract
+
+    loaded = contract.load_profile(
+        f"{tmp_path / 'alone' / 'table-profile.json'}"
+    )
+    facts = loaded.columns[0].facts
+    assert facts is not None
+    assert contract.midnight_withheld_for_its_size(facts) is True
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+def test_the_joint_guard_is_what_holds_finding_one_shut(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED CHECK for finding 1: withdraw the joint reading of a silence.
+
+    Put `contract.midnight_withheld_for_its_size` back to the reading
+    that cannot tell item 4's new silence from the old one -- the same
+    answer it gave before the guard -- and the generator owes an
+    obligation no rank shift can meet on a joint column, so the twin
+    fails its own description at exit 3 on
+    `midnight.withheld [datetime.n_at_midnight]`.
+    """
+    from synthtwin import contract
+
+    original = contract.midnight_withheld_for_its_size
+
+    def _without_the_guard(facts: object) -> bool:
+        mix = getattr(facts, "resolution_mix")
+        try:
+            object.__setattr__(facts, "resolution_mix", {"iso-datetime": 1})
+            return original(facts)  # type: ignore[arg-type]
+        finally:
+            object.__setattr__(facts, "resolution_mix", mix)
+
+    monkeypatch.setattr(
+        contract, "midnight_withheld_for_its_size", _without_the_guard
+    )
+    folder = tmp_path / "withdrawn"
+    folder.mkdir(parents=True)
+    table = folder / "table.csv"
+    table.write_text(_noon_and_one_midnight(), encoding="utf-8", newline="")
+    assert (
+        _quiet(
+            ["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+        )
+        == 0
+    )
+    described = folder / "table-profile.json"
+    assert (
+        _quiet(
+            [
+                "generate", f"{described}", "--out-dir", f"{folder}",
+                "--seed", "4", "--replace",
+            ]
+        )
+        == 0
+    )
+    checked = folder / "checked"
+    checked.mkdir()
+    assert (
+        _quiet(
+            [
+                "validate", f"{described}",
+                "--twin", f"{folder / 'table-twin.csv'}",
+                "--out-dir", f"{checked}", "--replace",
+            ]
+        )
+        == 3
+    )
+    report = (checked / "table-twin-quality.txt").read_text(encoding="utf-8")
+    assert "n_at_midnight" in report
+
+
+def test_a_joint_column_still_names_no_lone_timestamp_at_the_default_floor(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Finding 1's repair does not reopen item 4, at any floor.
+
+    The leak item 4 closed is the arithmetic `n_at_midnight` less the
+    exact `resolution_mix` count of whole dates. It stays shut at the
+    default floor: the count is absent, so there is nothing to subtract
+    from, and the offset census counts the one unzoned timestamp into
+    the commonest offset the timestamps wrote.
+    """
+    read = _round_trip(
+        tmp_path / "shut",
+        _joint_iso_column(0, 299, 1),
+        [],
+    )
+    block = read["document"]["columns"][0]
+    dates = block["resolution_mix"]["iso-date"]
+    assert dates == 100
+    assert block["utc_offsets"] == {"(none)": 100, "Z": 300}
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
+
+
+# -- finding 2: an ordinary headed export loses its column names ------
+#
+# THE SKEPTIC'S REPRODUCTION. A perfectly ordinary headed CSV: the
+# header `site,2024 total`, 320 records `North Unit,437`, with `NA`
+# every twenty-ninth row -- eleven cells of 320.
+#
+# MEASURED: `05e7d89` published `site` and `2024 total` over 320
+# records; the landing's own commit published `column_1` and `column_2`
+# over 321, the header row described and generated as a 321st record.
+# Five of eleven realistic header names flipped that way.
+
+_SITES = ("North Unit", "South Unit", "East Unit", "West Unit")
+
+
+def _headed_export(header: str, absent: str) -> str:
+    """320 records under a header, with `absent` every 29th row."""
+    lines = [header]
+    for place in range(1, 321):
+        cell = absent if place % 29 == 0 else f"{10 + (place * 7) % 890}"
+        lines = lines + [f"{_SITES[place % 4]},{cell}"]
+    return "\n".join(lines) + "\n"
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "site,2024 total",
+        "site,1st reading",
+        "site,100m time",
+        "site,3-month change",
+        "site,>65 count",
+        "site,5 mg dose",
+        "site,2-4 week",
+    ],
+)
+@pytest.mark.parametrize("absent", ["NA", "<10", "437"])
+@pytest.mark.parametrize("floor", [[], ["--smallest-group", _FLOOR_ELEVEN]])
+def test_a_headed_export_keeps_the_names_its_file_wrote(
+    tmp_path: pathlib.Path, header: str, absent: str, floor: "list[str]"
+) -> None:
+    """FINDING 2: the header is a column name, not somebody's reading.
+
+    Each of these headers opens on a figure or a mark and carries one,
+    so `_holds_a_figure_as_a_value` accepts it and the fifth record
+    rule used to read the header row as a record. The guard asks
+    whether the value carries a WORD, which every column name here does
+    and no reading does.
+
+    Two of the owner's mandatory goals ride on this: the twin's columns
+    must be the real table's columns, or code written on the twin does
+    not run unchanged on the real table, and the twin must hold 320
+    records, or counts taken on it are wrong.
+    """
+    folder = tmp_path / f"headed{len(header)}{absent}{len(floor)}"
+    folder.mkdir(parents=True)
+    table = folder / "table.csv"
+    table.write_text(
+        _headed_export(header, absent), encoding="utf-8", newline=""
+    )
+    assert (
+        _quiet(
+            ["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+            + floor
+        )
+        == 0
+    )
+    document = _document(folder / "table-profile.json")
+    names = [column["name"] for column in document["columns"]]
+    assert names == header.split(",")
+    assert document["n_rows"] == 320
+
+
+def test_the_word_guard_is_what_holds_finding_two_shut(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED CHECK for finding 2: withdraw the word test.
+
+    With `reading._carries_a_word` answering False the header `2024
+    total` is read as a record again: the file's own column names are
+    thrown away for `column_1` and `column_2`, and its 320 records
+    become 321. Those are the numbers measured on this landing's commit
+    before the repair pass.
+    """
+    monkeypatch.setattr(reading, "_carries_a_word", lambda text: False)
+    folder = tmp_path / "withdrawn"
+    folder.mkdir(parents=True)
+    table = folder / "table.csv"
+    table.write_text(
+        _headed_export("site,2024 total", "NA"), encoding="utf-8", newline=""
+    )
+    assert (
+        _quiet(
+            [
+                "profile", f"{table}", "--out-dir", f"{folder}", "--replace",
+                "--smallest-group", _FLOOR_ELEVEN,
+            ]
+        )
+        == 0
+    )
+    document = _document(folder / "table-profile.json")
+    names = [column["name"] for column in document["columns"]]
+    assert names == ["column_1", "column_2"]
+    assert document["n_rows"] == 321
+
+
+def test_a_word_is_three_letters_and_a_unit_is_two() -> None:
+    """Where the line stands, stated on the values it was drawn for.
+
+    The readings the fifth record rule exists for carry a mark, a range
+    or a unit; a column name carries a word. Two letters is a unit and
+    three is a word, which is the whole of the rule.
+    """
+    for reading_text in ["<0.10", "2-4", "5 mg", "250.5", "12.5 kg", "-3"]:
+        assert not reading._carries_a_word(reading_text)
+    for name in [
+        "2024 total", "1st reading", "100m time", "3-month change",
+        "><65 count", "5 mg dose", "2-4 week",
+    ]:
+        assert reading._carries_a_word(name)
+
+
+# -- finding 4: one unrecognised word publishes a whole record --------
+#
+# THE SKEPTIC'S REPRODUCTION. The reviewer's own item-1 table with the
+# last reading written `missing` instead of `NA`.
+#
+# MEASURED on `05e7d89` AND on this landing's commit alike: names
+# `R001`, `North Unit`, `<0.10`; 239 records; no first-row question;
+# all three of that person's values in the description, the printed
+# page and the questions file. `parsing.is_missing_text('missing')` is
+# False -- so are `MISSING`, `unknown`, `N.A.` and `nil` -- so item 1's
+# vocabulary never reached it.
+
+
+@pytest.mark.parametrize(
+    "written",
+    ["missing", "MISSING", "Missing", "unknown", "N.A.", "nil",
+     "not recorded"],
+)
+def test_one_word_nobody_declared_never_publishes_a_record(
+    tmp_path: pathlib.Path, written: str
+) -> None:
+    """FINDING 4: the blocker's own class, for text nobody declared.
+
+    The rule counts the values below that read as NEITHER a spelling of
+    no value nor a reading, and survives them while they are fewer than
+    `parsing.census_floor` of the floor. One such cell in 239 is far
+    under the line of eleven, so the record is read as a record: three
+    placeholder names, 240 records, the first-row question asked, and
+    no value of that record anywhere in what synthtwin publishes.
+    """
+    read = _described(tmp_path, _records_ending_with(written))
+    assert read["names"] == ["column_1", "column_2", "column_3"]
+    assert read["n_rows"] == 240
+    assert read["asked"]
+    for secret in ("R001", "North Unit", "<0.10"):
+        assert secret not in read["written"]
+
+
+def test_a_column_mostly_of_words_is_still_no_column_of_readings(
+    tmp_path: pathlib.Path
+) -> None:
+    """The tolerance is a MINORITY and the floor says how small.
+
+    Eleven cells of an undeclared word at a floor of eleven reach the
+    line, so the rule declines the column: a column a reader would call
+    text is not read as a column of readings just because two of its
+    cells parse as numbers. The file then falls to the furniture rule
+    and to convention, as it did before item 1.
+    """
+    below = ["1.5", "2.5"] + ["not recorded"] * 11
+    assert not reading._measurement_among_numbers("<0.10", below, 11)
+    assert reading._measurement_among_numbers("<0.10", below[:12], 11)
+
+
+def test_the_tolerance_is_what_holds_finding_four_shut(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED CHECK for finding 4: withdraw the minority.
+
+    Hold the tolerance to nought -- which is the rule as item 1 wrote
+    it, answering False at the first value that reads as neither -- and
+    the single `missing` cell publishes the whole record as the column
+    names over 239 records again, which is what `05e7d89` and this
+    landing's commit both did.
+    """
+    monkeypatch.setattr(parsing, "census_floor", lambda floor: 1)
+    read = _described(tmp_path, _records_ending_with("missing"))
+    assert read["names"] == ["R001", "North Unit", "<0.10"]
+    assert read["n_rows"] == 239
+
+
+def test_the_raised_line_is_what_holds_finding_three_shut(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED CHECK for finding 3: put the judged reading back to two.
+
+    With `parsing.census_names_one_row` deaf to the line its caller
+    names, the judged pair is read at the line of two again: twenty
+    `-999` beside two `-999.0` republish `missing_by_source` with
+    `-999` in it beside an `n_occurrences` of 22, and 22 less 20 names
+    two cells of a spelling the description never names. The loader's
+    own V5 then refuses the description the producer just wrote, which
+    is what makes the two one rule.
+    """
+    original = parsing.census_names_one_row
+    monkeypatch.setattr(
+        parsing,
+        "census_names_one_row",
+        lambda counts, totals, floor=1: original(counts, totals),
+    )
+    folder = tmp_path / "line"
+    folder.mkdir(parents=True)
+    table = folder / "table.csv"
+    table.write_text(_judged_pair(2), encoding="utf-8", newline="")
+    assert (
+        _quiet(
+            [
+                "profile", f"{table}", "--out-dir", f"{folder}", "--replace",
+                "--smallest-group", _FLOOR_ELEVEN, "--measurement", "reading",
+            ]
+        )
+        == 0
+    )
+    block = _reading_block(_document(folder / "table-profile.json"))
+    assert block["missing_by_source"]["-999"] == 20
+    assert block["sentinel_verdicts"][0]["n_occurrences"] == 22
+    monkeypatch.undo()
+    assert (
+        _quiet(
+            [
+                "generate", f"{folder / 'table-profile.json'}",
+                "--out-dir", f"{folder}", "--seed", "4", "--replace",
+            ]
+        )
+        == 1
+    )
