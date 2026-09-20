@@ -17714,6 +17714,23 @@ def _numeric_listings(
     # conforming twin cannot meet is not an obligation, so the pair is
     # listed until a landing gives the mode's own stratum its published
     # size. The reason below says exactly that.
+    #
+    # AND THE GENERATOR NOW NAMES THE DIFFERENCE RATHER THAN LEAVING IT
+    # TO THIS LISTING (item 1 of the numbers pass of the second Codex
+    # round, 2026-09-19). `generation._mode_held` declared success
+    # wherever some stratum held the mode's VALUE, whatever that
+    # stratum's size, so the count went unmet in silence on both pages
+    # at once: measured at a floor of eleven on one-place values -1.8,
+    # -0.9, -0.6, 0.8, 1.8, 3.3 and 3.5 at the counts 9, 18, 28, 23, 8,
+    # 30 and 23, at seeds 4, 0, 1, 7 and 13 alike, the published mode 3.3
+    # at a count of 30 was written ONCE, the mean moved 1.17338 to
+    # 1.06619 and the spread 1.92529 to 2.08471, and nothing was named
+    # anywhere. The twin's report now names `mode_count` with the size
+    # the twin holds, and the very demonstration this comment measures --
+    # `visits`, 28 published against the ladder's 27 -- is named there
+    # too. The pair stays a LISTING here for the reason above, unchanged:
+    # the size comes from the ladder's runs and a conforming twin cannot
+    # be held to it.
     if facts.mode is not None:
         listings += [
             Listing(column.name, "numeric.mode", "", _NOT_CHECKABLE_MODE),

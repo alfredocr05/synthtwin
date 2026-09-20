@@ -1,0 +1,465 @@
+"""The second Codex round of 2026-09-19: its number and date items.
+
+Codex reviewed 05e7d89 in five passes. Three items of its NUMBERS pass
+and two of its DATES pass are reproduced here from the review's own
+inputs and its own figures, each with the measurement taken BEFORE the
+repair beside it, and each paired with a MUTANT test that withdraws the
+repair and shows the review's own numbers coming back.
+
+Every table is built by seeded neutral code at runtime (plan D13) and no
+value here comes from any real table.
+"""
+
+import collections
+import csv
+import io
+import json
+import pathlib
+import re
+import statistics
+import zipfile
+
+import pytest
+
+from synthtwin import generation, sheetwriting
+from tests import fixtures, workbooks
+from tests.test_extra_round_numbers import _exit_of, _round_trip
+
+
+# -- the numbers pass, item 1: the mode's published FREQUENCY ---------
+
+
+_MODE_VALUES = (-1.8, -0.9, -0.6, 0.8, 1.8, 3.3, 3.5)
+_MODE_COUNTS = (9, 18, 28, 23, 8, 30, 23)
+
+
+def _mode_frequency_cells() -> "list[str]":
+    """Codex's own column: seven one-place values at its own counts."""
+    cells: "list[str]" = []
+    for place in range(len(_MODE_VALUES)):
+        for _each in range(_MODE_COUNTS[place]):
+            cells += [f"{_MODE_VALUES[place]:.1f}"]
+    return cells
+
+
+@pytest.mark.parametrize("seed", ["4", "0", "1", "7", "13"])
+def test_a_mode_held_at_the_wrong_frequency_is_named(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The published pair is a PAIR, and the count is half of it.
+
+    MEASURED before the repair, at seeds 4, 0, 1, 7 and 13 alike: the
+    description publishes the mode 3.3 at a count of 30; the ladder gives
+    3.3 a stratum of ONE cell and no stratum at all is 30 cells, so the
+    twin wrote 3.3 once and its commonest numbers were -0.6 and 3.4 at 28
+    each. The mean moved 1.17338 -> 1.06619 and the spread
+    1.92529 -> 2.08471, every executable check passed on both files, and
+    the report named NOTHING: the pass returned successfully wherever
+    some stratum held the mode's VALUE, whatever that stratum's size.
+
+    The cells cannot move -- no stratum of this ladder is 30 cells, so
+    the frequency is not reachable at all -- and what the repair owes is
+    that the difference be REPORTED rather than silently accepted.
+    """
+    cells = _mode_frequency_cells()
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "mode", cells, ("--smallest-group", "11"), seed
+    )
+    assert block["mode"] == 3.3
+    assert block["mode_count"] == 30
+    held = collections.Counter(written)
+    assert held["3.3"] == 1
+    assert held.most_common(1)[0][1] == 28
+    numbers = [float(cell) for cell in written]
+    assert round(statistics.fmean(numbers), 5) == 1.06619
+    assert round(statistics.stdev(numbers), 5) == 2.08471
+    # ...and the report says so, against the published count.
+    report = (tmp_path / "mode" / "real-twin-report.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "'value' -- mode_count" in report
+    assert "the description says: 30" in report
+    assert "the twin holds:       1" in report
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_mutant_accepts_the_wrong_frequency_in_silence(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the frequency unasked, and the report silent again."""
+    held = generation._mode_held
+
+    def withdrawn(
+        column: "object", facts: "object", layout: "object", values: "object"
+    ) -> "object":
+        mode = facts.mode  # type: ignore[attr-defined]
+        for value in values:  # type: ignore[attr-defined]
+            if value == mode:
+                return values, []
+        return held(column, facts, layout, values)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_mode_held", withdrawn)
+    _block, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "unasked", _mode_frequency_cells(),
+        ("--smallest-group", "11"), "4",
+    )
+    report = (tmp_path / "unasked" / "real-twin-report.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "mode_count" not in report
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+# -- the numbers pass, item 2: a record number's absorbed counts ------
+
+
+_ABSORBED_CELLS = ["12"] * 230 + ["Z"] * 10
+
+
+def _identifier_round_trip(
+    folder: pathlib.Path,
+) -> "tuple[dict[str, object], list[str], int, int]":
+    """Codex's own declared record number, described, built and checked."""
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(
+            ["record"], [[cell] for cell in _ABSORBED_CELLS]
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    assert _exit_of([
+        "profile", str(table), "--out-dir", str(folder), "--replace",
+        "--identifier", "record", "--smallest-group", "11",
+    ]) == 0
+    description = folder / "real-profile.json"
+    assert _exit_of([
+        "generate", str(description), "--out-dir", str(folder),
+        "--seed", "4", "--replace",
+    ]) == 0
+    twin = folder / "real-twin.csv"
+    written = [
+        row[0]
+        for row in csv.reader(io.StringIO(twin.read_text(encoding="utf-8")))
+        if row
+    ][1:]
+    checked = folder / "check-twin"
+    checked.mkdir()
+    twin_exit = _exit_of([
+        "validate", str(description), "--twin", str(twin),
+        "--out-dir", str(checked), "--replace",
+    ])
+    looked = folder / "check-real"
+    looked.mkdir()
+    real_exit = _exit_of([
+        "validate", str(description), "--twin", str(table),
+        "--out-dir", str(looked), "--replace",
+    ])
+    block = json.loads(description.read_text(encoding="utf-8"))["columns"][0]
+    return block, written, twin_exit, real_exit
+
+
+def _every_cell_whole(written: "list[str]") -> bool:
+    """Whether every cell reads as a whole number, as pandas would read it."""
+    for cell in written:
+        if re.fullmatch(r"-?\d+", cell) is None:
+            return False
+    return True
+
+
+def test_an_absorbed_reading_keeps_the_columns_usable_type(
+    tmp_path: pathlib.Path
+) -> None:
+    """A feasible reading is offered, so the twin reads back as text.
+
+    MEASURED before the repair, at a floor of eleven and seed 4: the ten
+    `Z` cells fall below the floor, so the published counts absorb to
+    `n_numeric 240`, `n_all_digits 240`, `n_code_alphabet 240` and
+    `all_whole_numbers false`. 87,845 other readings of those counts
+    exist and exactly FOUR of them any packing of whole groups can meet;
+    the offer's first 256 held one of the four and the reading the
+    column's own values make stood at position 17,773, so the twin came
+    back `16` on 230 rows and `0` on ten -- every cell a whole number
+    against a description that says not every value is one. `validate`
+    exited 3 on the twin and 0 on the real table, and `pandas` reads the
+    source's column as text and that twin's as whole numbers.
+    """
+    block, written, twin_exit, real_exit = _identifier_round_trip(
+        tmp_path / "absorbed"
+    )
+    assert block["all_whole_numbers"] is False
+    assert block["n_numeric"] == 240
+    assert block["n_all_digits"] == 240
+    assert block["n_code_alphabet"] == 240
+    counted = collections.Counter(written)
+    assert len(counted) == 2
+    assert sorted(counted.values()) == [10, 230]
+    assert not _every_cell_whole(written)
+    assert not _every_cell_whole(_ABSORBED_CELLS)
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_mutant_spends_the_candidate_limit_on_infeasible_readings(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: nothing sifted, and the whole-number fact lost again."""
+    monkeypatch.setattr(
+        generation, "_whole_groups_reach", lambda reached, total: True
+    )
+    _block, written, twin_exit, real_exit = _identifier_round_trip(
+        tmp_path / "unsifted"
+    )
+    assert _every_cell_whole(written)
+    assert twin_exit == 3
+    assert real_exit == 0
+
+
+# -- the numbers pass, item 3: the exponent form's own scale ----------
+
+
+def _exponent_cells(sign: str) -> "list[str]":
+    """Codex's own column, at a positive and at a negative exponent."""
+    cells = ["alpha"] * 100
+    cells += [f"1.10e{sign}7"] * 20
+    cells += [f"1.11e{sign}7"] * 10
+    return cells + [f"1.12e{sign}7"] * 10
+
+
+@pytest.mark.parametrize("sign", ["+", "-"])
+def test_every_cell_of_an_exponent_form_wears_it(
+    tmp_path: pathlib.Path, sign: str
+) -> None:
+    """Forty cells of `%.%%&x%`, not twenty and twenty bare numbers.
+
+    MEASURED before the repair, at a floor of eleven and seed 4: the
+    description requires `shape_forms {"%.%%&+%": 40}` and the source
+    passes all 45 executable checks, while the twin wrote the form TWENTY
+    times and spelled the other twenty `10999999` and `11000001` -- a
+    ladder walking in hundredths where the form can only spell hundreds
+    of thousands, and a dressing that counts figures into figure places
+    and so has no room for eight of them. The twin missed the form count
+    and exited 3 where the real table exited 0. The negative exponent
+    failed the same way.
+    """
+    cells = _exponent_cells(sign)
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / f"exponent{'up' if sign == '+' else 'down'}",
+        cells, ("--smallest-group", "11"), "4",
+    )
+    form = f"%.%%&{sign}%"
+    assert block["shape_forms"] == {form: 40}
+    wearing = [cell for cell in written if re.fullmatch(
+        r"\d\.\d\de" + re.escape(sign) + r"\d", cell
+    )]
+    assert len(wearing) == 40
+    assert collections.Counter(written)[f"1.10e{sign}7"] == 20
+    # ...and every made-up number stands at the column's own magnitude.
+    for cell in wearing:
+        assert cell[5:] == f"{sign}7"
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_mutant_walks_the_mantissas_bare_places(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the exponent's scale withdrawn, and the form unpaid."""
+    monkeypatch.setattr(
+        generation,
+        "_form_scale",
+        lambda form, ladder, decimal_comma: generation._form_places(
+            form, decimal_comma
+        ),
+    )
+    monkeypatch.setattr(
+        generation, "_exponent_fittings", lambda *arguments: []
+    )
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "bare", _exponent_cells("+"),
+        ("--smallest-group", "11"), "4",
+    )
+    assert block["shape_forms"] == {"%.%%&+%": 40}
+    wearing = [
+        cell for cell in written if re.fullmatch(r"\d\.\d\de\+\d", cell)
+    ]
+    assert len(wearing) == 20
+    assert "10999999" in written
+    assert "11000001" in written
+    assert twin_exit == 3
+    assert real_exit == 0
+
+
+# -- the dates pass, item 1: the calendar repair and published text ---
+
+
+def _mixed_storage_book() -> bytes:
+    """60 `2024-03-01` stored as dates beside 60 `2024-02-30` stored as text."""
+    rows: "list[tuple[int, list[str]]]" = [
+        (1, [workbooks.cell("A1", "0", "s")])
+    ]
+    for place in range(120):
+        number = 2 + place
+        if place % 2 == 0:
+            rows += [(
+                number,
+                [workbooks.cell(f"A{number}", "2024-03-01", "d")],
+            )]
+            continue
+        rows += [(
+            number,
+            [workbooks.cell(f"A{number}", "2024-02-30", "inlineStr")],
+        )]
+    return workbooks.package([
+        (
+            "[Content_Types].xml",
+            workbooks._content_types(1, True, False, False),
+        ),
+        ("_rels/.rels", workbooks._root_rels()),
+        ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+        ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, True)),
+        ("xl/styles.xml", workbooks._styles()),
+        ("xl/sharedStrings.xml", workbooks._shared_strings(["observed"])),
+        (
+            "xl/worksheets/sheet1.xml",
+            workbooks.sheet(rows, dimension="A1:A121"),
+        ),
+    ])
+
+
+def _book_round_trip(
+    folder: pathlib.Path,
+) -> "tuple[dict[str, object], str, str, int, int]":
+    """Describe the mixed-storage book, build its twin and check both."""
+    folder.mkdir(parents=True, exist_ok=True)
+    source = folder / "real.xlsx"
+    source.write_bytes(_mixed_storage_book())
+    assert _exit_of([
+        "profile", str(source), "--out-dir", str(folder), "--replace",
+        "--first-row", "names", "--smallest-group", "5",
+    ]) == 0
+    description = folder / "real-profile.json"
+    assert _exit_of([
+        "generate", str(description), "--out-dir", str(folder),
+        "--seed", "0", "--replace",
+    ]) == 0
+    twin = folder / "real-twin.xlsx"
+    with zipfile.ZipFile(twin) as package:
+        sheet = package.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        shared = package.read("xl/sharedStrings.xml").decode("utf-8")
+    checked = folder / "check-twin"
+    checked.mkdir()
+    twin_exit = _exit_of([
+        "validate", str(description), "--twin", str(twin),
+        "--out-dir", str(checked), "--replace",
+    ])
+    looked = folder / "check-real"
+    looked.mkdir()
+    real_exit = _exit_of([
+        "validate", str(description), "--twin", str(source),
+        "--out-dir", str(looked), "--replace",
+    ])
+    block = json.loads(description.read_text(encoding="utf-8"))["columns"][0]
+    return block, sheet, shared, twin_exit, real_exit
+
+
+def test_a_published_text_label_survives_the_calendar_repair(
+    tmp_path: pathlib.Path
+) -> None:
+    """A cell the source stored as legal TEXT is not an invalid date cell.
+
+    MEASURED before the repair, at a floor of five and seed 0: the
+    profile publishes both labels at 60 rows each and generation keeps
+    both, and the workbook serialization rewrote all 60 text cells as
+    `2024-02-29`. The source had zero validation misses and the
+    serialized twin had six label-related misses, `validate` exiting 3.
+    """
+    block, sheet, shared, twin_exit, real_exit = _book_round_trip(
+        tmp_path / "mixed"
+    )
+    labels = sorted(level["label"] for level in block["levels"])
+    assert labels == ["2024-02-30", "2024-03-01"]
+    assert "2024-02-30" in shared
+    assert "2024-02-29" not in shared
+    assert "2024-02-29" not in sheet
+    # Every cell actually stored as a date names a real day.
+    assert sheet.count('t="d"><v>2024-03-01</v>') == 60
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_mutant_rewrites_the_published_label(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: no spelling held back, and the label moves a day."""
+    monkeypatch.setattr(
+        sheetwriting, "_published_spellings", lambda column: frozenset()
+    )
+    _block, sheet, shared, twin_exit, real_exit = _book_round_trip(
+        tmp_path / "rewritten"
+    )
+    assert "2024-02-29" in shared or "2024-02-29" in sheet
+    assert twin_exit == 3
+    assert real_exit == 0
+
+
+# -- the dates pass, item 2: the paid merge and midnight --------------
+
+
+_MIDNIGHT_CELLS = (
+    ["2024-03-01T00:00:00"] * 40
+    + ["2024-03-02T00:00:00"] * 40
+    + ["2024-03-03T12:00:00"] * 40
+)
+
+
+def test_a_stranded_non_midnight_run_is_merged_by_a_paid_trade(
+    tmp_path: pathlib.Path
+) -> None:
+    """Three published timestamps, and three in the twin.
+
+    MEASURED before the repair, at a floor of eleven and seed 4: the twin
+    held those three values 41, 39 and 35 times beside FIVE invented
+    `2024-03-01T16:13:10` cells, missing `n_distinct` and
+    `n_distinct_folded`, four against three, while the source passed.
+    P4-D258's paid merge trades WIDTH alone and returns at its first line
+    on this column, so the extra non-midnight run stranded between
+    midnight pins had no merge of any kind.
+    """
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "midnight", _MIDNIGHT_CELLS,
+        ("--smallest-group", "11"), "4",
+    )
+    assert block["n_distinct"] == 3
+    assert block["n_distinct_folded"] == 3
+    assert len(set(written)) == 3
+    assert sorted(set(written)) == sorted(set(_MIDNIGHT_CELLS))
+    # ...and the midnight census is exactly where it was.
+    at_midnight = [cell for cell in written if cell.endswith("T00:00:00")]
+    assert len(at_midnight) == 80
+    assert twin_exit == 0
+    assert real_exit == 0
+
+
+def test_the_mutant_trades_widths_only_and_strands_the_run(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: the midnight trade withdrawn, and four values again."""
+    traded = generation._traded_merges
+
+    def widths_only(*arguments: "object") -> int:
+        if len(arguments) > 12 and arguments[12]:
+            return 0
+        return traded(*arguments)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_traded_merges", widths_only)
+    _block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "stranded", _MIDNIGHT_CELLS,
+        ("--smallest-group", "11"), "4",
+    )
+    assert len(set(written)) == 4
+    assert twin_exit == 3
+    assert real_exit == 0

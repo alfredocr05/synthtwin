@@ -206,6 +206,7 @@ gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
 gen_alphabet_readings = gen.alphabet_readings
 gen_identifier_readings = gen.identifier_readings
+gen_traded = gen.traded_merges
 
 
 
@@ -492,6 +493,9 @@ SIXTH_BRANCH_CASES = (
     "date_both_fields_disagree",
     "date_endpoint_ties",
     "date_midnight_feasible",
+    # The MIDNIGHT half of P4-D258's paid merge (the dates pass of the
+    # second Codex round of 2026-09-19).
+    "date_midnight_traded",
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
@@ -633,6 +637,9 @@ SEEDS = {
     "date_two_kinds_nonadjacent": 206,
     # Its repair pass takes the next.
     "date_both_fields_disagree": 207,
+    # The dates pass of the second Codex round of 2026-09-19 takes 270
+    # onward, clear of every block above it.
+    "date_midnight_traded": 270,
     # The carried numbers pass of 2026-09-18 takes 260 onward, clear of
     # the blocks above and of the other carried passes.
     "saturated_band": 260,
@@ -2060,7 +2067,8 @@ _NEXT_ON_THE_LADDER = gen.next_on_ladder
 
 
 def _next_on_the_ladder_without_the_census(
-    ladder, name, cursor, named, seen, folds, needed=0, pool=None, bounded=False
+    ladder, name, cursor, named, seen, folds, needed=0, pool=None,
+    bounded=False, scaled=False,
 ):
     """G8.3a's walk with the rule on what the census could hold withdrawn.
 
@@ -2074,7 +2082,9 @@ def _next_on_the_ladder_without_the_census(
     shows -- is withdrawn here too: withdrawn alone, the census rule left
     the narrow walk deciding these cells and the case no longer moved.
     """
-    return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
+    return _NEXT_ON_THE_LADDER(
+        ladder, name, cursor, named, seen, folds, 0, None, False, scaled
+    )
 
 
 def _levels_from_the_second_spelling(
@@ -2578,6 +2588,20 @@ CASE_MUTANTS = {
         "mode is written nowhere",
         attribute="mode_held",
         replacement=lambda values, *rest: values,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_midnight_traded": Mutant(
+        branch="the MIDNIGHT half of P4-D258's paid merge (item 2 of the "
+        "dates pass of the second Codex round, 2026-09-19); the mutant "
+        "keeps the width trade and withdraws the midnight one, the "
+        "stranded run of non-midnight ranks has no merge of any kind, and "
+        "the twin holds four different instants against three",
+        attribute="traded_merges",
+        replacement=lambda column, ordinals, pinned, lows, highs, day, step,
+        unit, held, widths, word, owed, clock=False: 0 if clock else gen_traded(
+            column, ordinals, pinned, lows, highs, day, step, unit, held,
+            widths, word, owed,
+        ),
         outcome=CHANGES_THE_CELLS,
     ),
     "held_back_dressed": Mutant(

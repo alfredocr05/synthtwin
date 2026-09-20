@@ -154,6 +154,24 @@ def test_a_span_with_no_reachable_spelling_still_goes_short_and_says_so(
 
     If a later change makes this test's twin exit 0, the question to ask
     is which number it invented to get there.
+
+    **THAT QUESTION WAS ASKED AND ANSWERED AT THE NUMBERS PASS OF THE
+    SECOND CODEX ROUND** (2026-09-19, item 3). The twin does now exit 0,
+    and the number it invented is `1.0e6`: one step of the form's own
+    grid BELOW the published minimum, placed by the LADDER, which P4-D268
+    already lets step outside the published ends -- its own frozen case
+    `held_back_dressed` writes `+14` and `+16` around a published `+15`.
+    What P4-D92 and P4-D100 bound is the form's OWN walk of step 2, which
+    is not a ladder at all and which is still held to the published ends;
+    this column's debt was unpaid because the ladder could not SPELL an
+    exponent form, not because a rule forbade it. Measured at seeds 4 and
+    13 alike: the census comes out twenty-six of twenty-six, and the
+    twin's numbers have mean 1,126,923 and standard deviation 72,430.3
+    against the table's 1,173,077 and 72,430.3 -- the spread reproduced
+    EXACTLY, where the unpaid twin gave 50,383, 30 per cent low -- with a
+    maximum of 1,200,000 against the table's 1,300,000. The overshoot
+    P4-D92 was written against was `9.6E6`, 7.4 times the largest number
+    the table holds; this is 100,000 below the smallest.
     """
     cells = (
         ["alpha"] * 20
@@ -164,12 +182,15 @@ def test_a_span_with_no_reachable_spelling_still_goes_short_and_says_so(
     _first, _second, written, twin_exit, real_exit = _round_trip(
         tmp_path, cells, _FLOOR, seed
     )
-    assert _worn(written)["%.%&%"] == 22
-    assert twin_exit == 3
+    assert _worn(written)["%.%&%"] == 26
+    assert twin_exit == 0
     assert real_exit == 0
-    # The shortfall is announced, and NOT paid with an overshoot.
+    # ...and NOT paid with an overshoot: nothing reaches past the
+    # largest number the table holds, which is what P4-D92 forbids.
     for value in _numbers(written):
-        assert value <= 1200000.0
+        assert value <= 1300000.0
+    assert max(_numbers(written)) == 1200000.0
+    assert min(_numbers(written)) == 1000000.0
 
 
 @pytest.mark.parametrize("seed", ["4", "77"])

@@ -228,8 +228,18 @@ ANCHORS = (
     ("2.5E1", 25.0, (25, 0)),
     ("1.5e-3", 0.0015, (15, 4)),  # (c) the shortest spelling, positional
     ("9.007199254740992e15", 2.0**53, (90071992547409920, 1)),  # one nought
-    ("1e20", 1e20, None),  # (c) printed with an exponent: no anchor
-    ("1e-5", 1e-5, None),
+    # (c) printed with an exponent: READ THROUGH IT since item 3 of the
+    # numbers pass of the second Codex round (2026-09-19). The part
+    # before the mark is read plainly and the exponent moves the places
+    # it was read at, downward where it is positive and upward where it
+    # is negative; where that leaves fewer than no places the units carry
+    # the difference. Before this both rows answered None, a column
+    # published at 1.1e-7 had no anchor at all, and its made-up cells
+    # came back near a thousandth.
+    ("1e20", 1e20, (10 ** 20, 0)),
+    ("1e-5", 1e-5, (1, 5)),
+    ("1.1e-7", 1.1e-07, (11, 8)),
+    ("-2.5e18", -2.5e18, (-2500000000000000000, 0)),
     ("x", None, None),
 )
 
@@ -418,6 +428,11 @@ WITNESS_MUTANTS = {
         "anchor",
         "        return int(value), 0\n    shortest",
         "        return int(value) * 10, 1\n    shortest",
+    ),
+    "anchor_exponent_spelling_unread": (
+        "anchor",
+        '    head, mark, tail = shortest.partition("e")\n',
+        '    return None\n    head, mark, tail = shortest.partition("e")\n',
     ),
     "absorbed_even_split_outside": (
         "absorbed",
