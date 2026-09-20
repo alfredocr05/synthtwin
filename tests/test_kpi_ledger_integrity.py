@@ -374,3 +374,195 @@ def test_a_run_against_another_checkout_refuses_with_exit_2(
     with pytest.raises(SystemExit) as refused:
         RUNNER._refuse_unless_this_tree()  # type: ignore[attr-defined]
     assert refused.value.code == 2
+
+
+# -- a KPI that does not measure what it names (files review 2026-09-18, item 5) --
+#
+# K-2B-31 says "exit 0/0 on EVERY shape" and its evidence names 38
+# exporter shapes, UTF-16 Unicode Text among them. It pinned four nodes,
+# and none of them read a UTF-16 file: replacing only UTF-16 decoding
+# with a refusal left all four passing, the judging function returning
+# PASS with zero failures, and the board green over a withdrawn shape.
+# Every shape the rule names is pinned now, one node each, and the test
+# below is the measurement -- it withdraws UTF-16 decoding and requires
+# a node this entry pins to go red.
+
+
+_EXPORTER = "tests/test_file_dialect_round_trip.py::"
+_UTF16_NODE = _EXPORTER + "test_excel_unicode_text"
+# The four that stood alone until the review, kept by name because the
+# finding is exactly that they are insensitive to this withdrawal.
+_NODES_BEFORE = (
+    _EXPORTER + "test_excel_csv_utf8_on_windows",
+    _EXPORTER + "test_european_excel_semicolon_with_a_separator_line",
+    _EXPORTER + "test_sas_padded_latin1_export",
+    _EXPORTER + "test_line_endings_that_change_kind_past_the_cap",
+)
+
+
+def _without_utf16(monkeypatch: "pytest.MonkeyPatch") -> None:
+    """Withdraw UTF-16 decoding and nothing else: the file is refused."""
+    from synthtwin import dialect, errors
+
+    reads = dialect.decoded
+
+    def refusing(data: bytes, shown: str) -> "tuple[str, str, bool]":
+        if data[:2] == b"\xff\xfe" or data[:2] == b"\xfe\xff":
+            raise errors.ProfileError(errors.looks_like_utf16(shown))
+        return reads(data, shown)
+
+    monkeypatch.setattr(dialect, "decoded", refusing)
+
+
+def _outcome(node: str, folder: pathlib.Path) -> str:
+    """Run one pinned node in this process and say whether it passed."""
+    import importlib
+
+    where, name = kpi_rules.split_node(node)
+    module = importlib.import_module(
+        where.replace("/", ".").removesuffix(".py")
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        getattr(module, name)(folder)
+    except BaseException:
+        return "failed"
+    return "passed"
+
+
+def test_the_exporter_kpi_goes_red_when_utf16_support_is_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """The KPI measures every shape it names, UTF-16 included.
+
+    Withdrawing UTF-16 decoding must fail a node K-2B-31 pins, and the
+    judging function must then call the entry a drop. The four nodes
+    that stood here before the review are run under the same withdrawal
+    and still pass, which is why the entry was green over it.
+    """
+    entry = ENTRIES["K-2B-31"]
+    assert _UTF16_NODE in entry["nodes"]
+    for node in _NODES_BEFORE:
+        assert node in entry["nodes"]
+    _without_utf16(monkeypatch)
+    assert _outcome(_UTF16_NODE, tmp_path / "utf16") == "failed"
+    for node in _NODES_BEFORE:
+        assert _outcome(node, tmp_path / kpi_rules.split_node(node)[1]) == (
+            "passed"
+        ), node
+    failing = {"pinned_nodes_failing": 1}
+    assert kpi_rules.judge(entry, failing).is_drop
+
+
+# -- and the 28 shapes that were named but not pinned (repair pass 2026-09-19) --
+#
+# Pinning ten of the 38 narrowed the hole rather than closing it: the
+# rule still read "exit 0/0 on EVERY shape" while 28 shapes had no pin.
+# **Measured** on the ten-node entry: withdrawing the DOS end-of-file
+# mark -- refusing any file holding 0x1A, one of the 38 shapes, with a
+# node of its own -- failed that node and left `pinned_nodes_failing`
+# at 0 and `judge` at PASS, is_drop False. So the pin set is now the
+# file's own measured set: every node that asks `_held` is pinned, the
+# floor counts them all, and the two tests below hold the list equal to
+# the file and measure the DOS withdrawal that used to pass.
+
+
+_HELD = "_held("
+
+
+def _shapes_the_file_measures() -> "list[str]":
+    """Every node of the exporter file that asks `_held` of its twin.
+
+    That question -- the twin's form and encoding against the source's,
+    and `validate` at exit 0 on both files -- IS K-2B-31's rule, so the
+    set of nodes asking it is the set of shapes the rule covers. Read
+    out of the file's own source rather than listed here, so a shape
+    added to the file with no pin behind it turns this red.
+    """
+    source = (
+        kpi_rules.REPO_ROOT / "tests" / "test_file_dialect_round_trip.py"
+    ).read_text(encoding="utf-8")
+    found: "list[str]" = []
+    name = ""
+    body = ""
+    for line in source.split("\n") + ["def test_end_of_file("]:
+        if line.startswith("def test_"):
+            if name != "" and _HELD in body:
+                found += [name]
+            name = line[4:].partition("(")[0]
+            body = ""
+        body = body + line + "\n"
+    return found
+
+
+def test_every_exporter_shape_the_file_measures_is_pinned() -> None:
+    """The pin set IS the measured set: 38 shapes, 38 nodes, one each.
+
+    Stated as well as measured, so a shape the file round-trips with no
+    pin behind it is seen -- which is what let the DOS end-of-file mark
+    be withdrawn under a green entry. The entry's collection floor
+    counts one case per pinned node.
+    """
+    entry = ENTRIES["K-2B-31"]
+    measured = [_EXPORTER + shape for shape in _shapes_the_file_measures()]
+    assert len(measured) == 38, len(measured)
+    assert sorted(entry["nodes"]) == sorted(measured)
+    assert len(set(entry["nodes"])) == len(entry["nodes"]) == 38
+    # 39 cases, not 38: `test_a_double_spaced_export` is parametrized
+    # twice, and the floor counts CASES, so a parametrize list that
+    # shrinks is seen as well as a node that disappears.
+    assert entry["nodes_min_collected"] == 39
+    # The ten the review of 2026-09-18 pinned are still among them, and
+    # so is the shape the repair pass withdrew.
+    for shape in (
+        "test_excel_csv_utf8_on_windows",
+        "test_european_excel_semicolon_with_a_separator_line",
+        "test_excel_unicode_text",
+        "test_old_macintosh_excel_writes_carriage_returns",
+        "test_r_write_csv_with_row_names",
+        "test_pandas_to_csv_with_its_index",
+        "test_sas_padded_latin1_export",
+        "test_redcap_export_sorted_by_record_id",
+        "test_qualtrics_metadata_rows",
+        "test_line_endings_that_change_kind_past_the_cap",
+        "test_a_dos_end_of_file_mark_and_mixed_endings",
+    ):
+        assert _EXPORTER + shape in entry["nodes"], shape
+    assert kpi_rules.integrity_problems(LEDGER) == []
+
+
+def test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
+    """A shape that was named but not pinned, measured the same way.
+
+    Refusing every file that holds a DOS end-of-file mark withdraws one
+    of the 38 shapes and nothing else. Its own node fails; under the
+    ten-node pin set the four that stood here before it all passed and
+    the entry stayed green, so the node is pinned now and the judging
+    function calls the entry a drop.
+    """
+    from synthtwin import dialect, errors
+
+    entry = ENTRIES["K-2B-31"]
+    node = _EXPORTER + "test_a_dos_end_of_file_mark_and_mixed_endings"
+    assert node in entry["nodes"]
+    reads = dialect.decoded
+
+    def refusing(data: bytes, shown: str) -> "tuple[str, str, bool]":
+        for byte in data:
+            if byte == 26:
+                raise errors.ProfileError(
+                    errors.unreadable_as_csv(
+                        shown, "a DOS end-of-file mark"
+                    )
+                )
+        return reads(data, shown)
+
+    monkeypatch.setattr(dialect, "decoded", refusing)
+    assert _outcome(node, tmp_path / "dos") == "failed"
+    for older in _NODES_BEFORE:
+        assert _outcome(
+            older, tmp_path / kpi_rules.split_node(older)[1]
+        ) == "passed", older
+    assert kpi_rules.judge(entry, {"pinned_nodes_failing": 1}).is_drop

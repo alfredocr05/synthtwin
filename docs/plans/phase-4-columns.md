@@ -18365,6 +18365,264 @@ changed its shape, not its three checks, which G6.5a dictates, so its
 drop from 0.60 to 0.48 in K-2B-42 is a score and not evidence of
 independence. K-2B-42 stays 176 of 393: no oracle function changed.
 
+## The files review of 2026-09-18, round 2 — decisions P4-D310 to P4-D312
+
+The second files review of that date carried five items. Items 1 and 2
+belong to the disclosure and the date landings; the three below are the
+files cluster's own. Numbers P4-D310 onward are used because P4-D294 to
+P4-D299 were taken by the landings running beside this one.
+
+### P4-D310 A reading's opening is a mark, and a letter is a letter in every alphabet
+
+Item 3 of that review, a MAJOR, and a defect P4-D272 introduced.
+
+**The defect.** `reading._holds_a_figure_as_a_value` asked whether the
+value's first character stood in `_SILHOUETTE_ALPHABET`, which is the
+26 ASCII letters in both cases. Every other character in the world
+therefore OPENED A READING, an accented letter and a leading space
+among them, and `_measurement_among_numbers` — the fifth record rule
+— then read an ordinary header as one of its own records.
+**Measured** at a smallest group of eleven, on a header of two names
+over 120 records holding the numbers 1 to 120 and three repeating
+groups: `échelle1,group` and ` q1,group` each published `column_1`
+and `column_2`, described 121 records where the file holds 120, gave
+the numeric column a fresh `n_not_numeric 1`, counted the word `group`
+as one missing cell, and asked about the first row. Both were read
+correctly at `c5d09d5`, before the rule existed, and the same shape as a
+workbook lost its names the same way. The description loaded and
+nothing looked unusual.
+
+**The decision.** The opening is asked the other way round. A value
+opens a READING where its first character past any leading space or tab
+is a figure or one of `reading._READING_OPENINGS` — every ASCII mark
+but the underscore a name is written with, and the comparison, sign and
+currency marks outside ASCII that a reading opens with — and it opens
+a NAME otherwise, which is every letter of every alphabet. The marks
+are enumerated rather than the letters because the letters are a
+Unicode table that moves between releases and because the offline audit
+accepts no method call on a value read out of the user's file; the
+leading space is skipped rather than stripped for the same reason, and
+the name keeps the spelling the source wrote, its leading space
+included.
+
+**Measured after.** Both headers name their own columns, 120 records,
+`n_not_numeric 0`, no missing cell in the label column and no question
+about the first row, in delimited text and in a workbook alike.
+Unmoved: ruling 8's own shape — 240 headerless records
+`R001,North Unit,<0.10` still publish `column_1` to `column_3` over 240
+records with the question asked and no text of the record anywhere —
+and `q1,q2,q3,q4` and `subject,glucose1,week_2` under a title line.
+
+**Its named cost, measured — and it was a BLOCKER, closed by P4-D313
+below.** A reading opening on a mark this enumeration does not hold is
+read as a name, so a headerless table whose first record opens that way
+is published as the schema again. This entry first stated that cost
+without measuring it, and named only the full-width `＜`. Measured, it
+was FIVE of nine reading spellings over 240 headerless records, each of
+them publishing the record's own text as the column names and writing
+it verbatim as the twin's header line — ruling 8 of 2026-09-17
+reversed. P4-D313 widens the enumeration; the alternative it does NOT
+take is every non-ASCII character opening a reading, which is the
+defect above.
+
+### P4-D311 A blank line's FORM is held to the line, not only the count of places
+
+Item 4 of that review, a MAJOR.
+
+**The defect.** `dialect.blank_places_disclosed` counted the places
+together and published them all once they reached the line, so a place
+wearing a form no other place wears rode in on the others' count.
+**Measured** at a smallest group of eleven, on a header and 120 records
+with `record` declared an identifier: ordinary blank lines after
+records 1 to 11 and ONE blank line holding a single space after record
+57 published `{after: 57, lines: 1, text: " "}` — the sole record
+standing beside that spelling. The loader accepted it, the twin wrote
+the spaced line back, and both files validated at exit 0. The same
+shape in the other field: eleven places of one line each beside THREE
+blank lines after record 57 published `{after: 57, lines: 3, text: ""}`,
+which names record 57 the same way.
+
+**The decision.** The line is asked of each FORM a place publishes —
+the pair of how many lines stood there and what each of them holds —
+and a form worn by fewer places than the line is published as the
+COMMONEST form, a tie going to the form standing earliest in the file.
+That is ruling 6 of 2026-09-17 read on a file's own blank lines,
+exactly as `endings_disclosed` reads it on a file's own endings. The
+positions are kept, of which there are at least as many as the line;
+the count rule above it is unchanged, so a file with fewer places than
+the line still publishes none. `blank_lines_withheld` becomes the
+difference between the lines the places hold and the lines the
+published places hold — nought where every place stands as it is, all
+of them where none is published, and the difference either way where a
+run was absorbed into a longer or a shorter one — so invariant FD2
+still has the endings account for every line the description keeps.
+
+**Measured after.** The spaced place publishes `text ""`, the twin
+writes no spaced blank line, and both files validate at exit 0 with the
+endings at 133 lines. The run of three publishes `lines 1`, the two
+lines it does not keep leave the ending count with them (135 to 133),
+and both files validate at exit 0. Eleven runs of three beside one run
+of one publishes twelve runs of three, the ending count rises by two,
+and both files validate at exit 0. A file whose blank lines are all of
+one form is untouched, and at the default floor nothing moves.
+
+**What it costs, stated:** that one spelling and that one run length in
+the twin, which is the price of not naming the record they stand
+beside.
+
+### P4-D312 The exporter KPI pins every shape it claims
+
+Item 5 of that review, a MAJOR, and a KPI that did not measure what it
+named.
+
+**The defect.** `K-2B-31` states "twin form and encoding == source; exit
+0/0 on every shape" and its evidence claimed 38 exporter shapes, UTF-16
+Unicode Text named among them. It pinned FOUR nodes, none of which
+reads a UTF-16 file. **Measured:** replacing only UTF-16 decoding with
+a refusal failed `test_excel_unicode_text` and left all four pinned
+nodes passing, so the judging function returned PASS with
+`partial:false` and zero failures and the board stayed green over a
+withdrawn shape.
+
+**The decision.** Every shape the entry's own evidence names is pinned,
+one node each — Excel CSV, `sep=;` cp1252, UTF-16 Unicode Text, old
+Mac CR, R row names, pandas index, SAS Latin-1, REDCap, Qualtrics and
+the endings past the cap — `nodes_min_collected` rises from 4 to 10,
+and the evidence says that withdrawing one shape's support turns the
+entry red. The measurement itself is a test:
+`test_the_exporter_kpi_goes_red_when_utf16_support_is_withdrawn`
+withdraws UTF-16 decoding, requires the newly pinned node to fail and
+the four older ones to pass, and requires the ledger's own judging
+function to call the entry a drop.
+
+**Amended in the repair pass of 2026-09-19 (see P4-D315 below):** ten
+pins narrowed the hole rather than closing it, so all 38 are pinned
+now and `nodes_min_collected` is 39.
+
+## The repair pass of 2026-09-19 — decisions P4-D313 to P4-D315
+
+The skeptic of the files cluster's round-2 landing verified items 3, 4
+and 5 against their own reproductions and raised one BLOCKER and three
+MINORs against the repairs themselves. All four are closed here. The
+numbering continues the cluster's own block.
+
+### P4-D313 Every mark a reading opens with, so no record is handed back to the schema
+
+The skeptic's BLOCKER against P4-D310, and ruling 8 of 2026-09-17
+reversed by the door P4-D272 was written to shut.
+
+**The defect.** P4-D310 turned the opening test round — a figure or an
+enumerated MARK opens a reading, and every other character opens a name
+— and enumerated the ASCII marks plus eleven marks outside ASCII.
+Every mark absent from that list therefore opened a NAME, so a
+headerless table whose first record's measurement was written with one
+was published as the schema. **Measured** at a smallest group of
+eleven, on 240 headerless records whose only evidence is the fifth
+record rule (`North Unit,<reading>` over 239 records of a one-word site
+beside a plain number), over nine spellings of that reading: at
+`05e7d89` all nine published `column_1` and `column_2` over 240
+records, asked about the first row and published no text of the record
+anywhere. At `f459dad` FIVE of the nine instead published `North Unit`
+and the reading itself as the column names, described 239 records where
+the file holds 240, asked nothing, and wrote the record verbatim as the
+twin's header line: `＜0.10` (full-width, a CJK export), ` <0.10` (a
+NO-BREAK SPACE, a pasted cell), `×10`, `０0.10` (a full-width figure) and
+`′5` (a prime). The landing had stated this as a cost and named one
+of the five; it gave no measurement, and its dichotomy — that the
+alternative is the defect itself — is false, because the enumeration
+can hold both.
+
+**The decision.** The enumeration is widened, not the rule. A reading's
+opening is now stated in four pieces, each held by the battery in
+`tests/test_extra_round_disclosure.py`: the ASCII marks but the
+underscore; the comparison, sign, currency and unit marks outside ASCII
+(`×`, `÷`, `′`, `″` added); the FULL-WIDTH figures; and the full-width
+forms of those same ASCII marks but the full-width underscore, which is
+the ASCII repertoire as a CJK exporter rewrites it. `_NAME_LEADING_SPACES`
+likewise holds the spaces outside ASCII a pasted cell opens with
+(` `, the general-punctuation spaces, ` `, ` `, `　`, `﻿`, `​`);
+skipping one of those never turns a name into a reading on its own,
+because it only lets the character behind it answer. And a value that
+has OPENED a reading carries its figures in whatever alphabet its file
+writes them (`_READING_FIGURES`), so `１２０` is a reading and not a
+word. The silhouette stays the ASCII question P4-D241 made it.
+
+**Measured after.** All nine spellings publish `column_1` and
+`column_2` over 240 records, ask about the first row, and put no text
+of the record in the description, the questions file, the quality
+report or the twin. P4-D310's own shapes are unmoved: `échelle1,group`
+and ` q1,group` keep their names over 120 records, and `_2021`, `＿q1`,
+` q1` and `　week_2` are still names.
+
+**What it still costs, stated.** The enumeration is an enumeration: a
+reading opening on a mark absent from all four pieces is read as a
+name. That is now a one-character amendment held by a frozen
+nine-spelling battery, rather than an unmeasured note.
+
+### P4-D314 What a raised floor takes out of `bytes.blank-lines`, said in the check
+
+The skeptic's first MINOR against P4-D311, and a checkable obligation
+quietly narrowed.
+
+**The defect.** `synthtwin validate` reads the checked file by the
+description's own rules, so P4-D311's absorption applies to BOTH sides
+of `bytes.blank-lines` and the comparison meets after it. **Measured**
+on a description of 120 records with twelve ordinary blank places at a
+floor of eleven: at `05e7d89` a candidate whose twelfth place held one
+space, a tab, or three lines was `bytes.blank-lines` MISSED at exit 3;
+at `f459dad` all three are HELD at exit 0, and the report's "the file
+was found to hold" line describes the absorbed reading rather than the
+file's bytes. A place that MOVES is still MISSED at exit 3.
+
+**The decision.** This is the ruling's price and not a defect — the
+obligation cannot see what the description is forbidden to publish —
+but K-2B-31 claims "twin form == source", so the price is SAID rather
+than left to be discovered. Wherever the floor is above one and either
+side holds a blank place, both sentences of that subcheck carry one
+clause naming the terms of the comparison: a blank line's form below
+the smallest group size is compared as the commonest form, so a file
+differing only in a rare blank line's spelling or run length is
+reported HELD. The clause stands on both sides, so it moves no verdict.
+The `blank_lines` row of the contract says the same thing.
+
+**Measured after.** The three candidates are HELD at exit 0 with the
+clause printed; the moved place is MISSED at exit 3; and at the default
+floor nothing is absorbed, nothing is said, and the rare spelling is
+MISSED exactly as it was before P4-D311.
+
+### P4-D315 K-2B-31 pins the set it measures, mechanically
+
+The skeptic's second MINOR against P4-D312.
+
+**The defect.** Pinning ten of the 38 exporter shapes narrowed the hole
+rather than closing it: the rule still read "exit 0/0 on EVERY shape"
+while 28 shapes had no pin. **Measured** on the ten-node entry:
+withdrawing the DOS end-of-file mark — refusing any file holding
+`0x1A`, one of the 38 shapes, with a node of its own — failed that
+node, left `pinned_nodes_failing` at 0 and `judge` at
+`Verdict('PASS', 'meets its rule')`, `is_drop` False.
+
+**The decision.** The pin set is the measured set. Every node of
+`tests/test_file_dialect_round_trip.py` that asks `_held` — the twin's
+form and encoding against the source's, and `validate` at exit 0 on
+both files, which IS this entry's rule — is pinned: 38 nodes,
+`nodes_min_collected` 39, because `test_a_double_spaced_export` is
+parametrized twice and the floor counts CASES.
+`test_every_exporter_shape_the_file_measures_is_pinned` reads that set
+out of the file's own source and holds the ledger equal to it, so a
+shape added there with no pin behind it turns red; and
+`test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn`
+measures the withdrawal that used to pass.
+
+**Measured after.** The same DOS withdrawal fails a pinned node and
+`judge` returns `Verdict('FAIL', 'pinned_nodes_failing=3 vs exact 0')`,
+`is_drop` True. `kpi_rules.integrity_problems` stays empty.
+`tests/kpi/ledger.json` is 216,369 bytes, under its 250,000-byte cap;
+the round-2 report's figure of 213,657 bytes was wrong — that file was
+213,251 bytes at `f459dad` and 212,474 at `05e7d89` (the skeptic's
+third MINOR, and no plan entry or changelog line carried the wrong
+figure).
+
 ## Owner decisions of 2026-09-18
 
 The owner's own words are quoted where the owner gave them. Calls the
