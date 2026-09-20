@@ -23,7 +23,9 @@ HOW EACH ENTRY IS MEASURED.
 EXIT CODES. 0 when every GREEN entry passes and every OPEN or
 ACCEPTED_LIMIT entry is at or inside its must-not-get-worse bound; 1 on
 any drop, and a KPI test that fails before it records its value is a
-drop (FAIL); 2 when the ledger fails its own integrity check (a pinned
+drop (FAIL), as is an entry whose DRIVER exited non-zero, whatever the
+driver printed before it died; 2 when the ledger fails its own
+integrity check (a pinned
 node that no longer exists or is not collected, fewer pinned cases
 collected than the entry's `nodes_min_collected`, a pinned case that was
 SKIPPED -- a skipped case measures nothing, so it may never read as a
@@ -160,9 +162,19 @@ def _run_pytest(nodes: "list[str]", work: pathlib.Path) -> "dict[str, list[dict]
     return cases
 
 
-def _run_drivers(commands: "list[str]") -> "dict[str, list[dict]]":
-    """Run each driver with its arguments; collect its KPI lines by id."""
+def _run_drivers(commands: "list[str]") -> "tuple[dict[str, list[dict]], dict[str, int]]":
+    """Run each driver with its arguments; its KPI lines by id, AND how it exited.
+
+    A DRIVER THAT PRINTED A VALUE AND THEN DIED HAS MEASURED NOTHING
+    (round-2 ledger item 5). Its exit status used to be printed and
+    thrown away, so a driver that emitted K-2B-14's record and then
+    failed an assertion, exiting 1, produced verdict PASS, pass True,
+    partial False: the runner reported green over a measurement that
+    never finished. The status is returned beside the records now, and
+    `judge_rows` fails every entry a non-zero driver was to measure.
+    """
     found: "dict[str, list[dict]]" = {}
+    exits: "dict[str, int]" = {}
     for command in commands:
         parts = command.split()
         print(f"running {command} ...", flush=True)
@@ -170,6 +182,7 @@ def _run_drivers(commands: "list[str]") -> "dict[str, list[dict]]":
             [sys.executable, *parts], cwd=str(ROOT), env=_environment(),
             capture_output=True, text=True, check=False,
         )
+        exits[command] = done.returncode
         lines = [line[4:] for line in done.stdout.splitlines() if line.startswith("KPI ")]
         if done.returncode != 0 or not lines:
             print(f"  the driver exited {done.returncode} and printed {len(lines)} KPI lines")
@@ -177,7 +190,7 @@ def _run_drivers(commands: "list[str]") -> "dict[str, list[dict]]":
         for line in lines:
             record = json.loads(line)
             found.setdefault(record["id"], []).append(record)
-    return found
+    return found, exits
 
 
 def _merge(parts: "list[object]") -> object:
@@ -212,21 +225,29 @@ def measure(entries: "list[dict]", ledger: "dict", slow: bool, work: pathlib.Pat
             nodes += [entry["test"]]
     cases = _run_pytest(sorted(set(nodes)), work)
     drivers: "dict[str, list[dict]]" = {}
+    driver_exits: "dict[str, int]" = {}
     if slow:
-        drivers = _run_drivers(sorted({e["driver"] for e in entries if e.get("driver")}))
+        drivers, driver_exits = _run_drivers(
+            sorted({e["driver"] for e in entries if e.get("driver")})
+        )
     seconds_count, _why = kpi_rules.seconds_judged_here(ledger)
-    return judge_rows(entries, ledger, slow, cases, drivers, seconds_count)
+    return judge_rows(entries, ledger, slow, cases, drivers, seconds_count, driver_exits)
 
 
 def judge_rows(
     entries: "list[dict]", ledger: "dict", slow: bool,
     cases: "dict[str, list[dict]]", drivers: "dict[str, list[dict]]", seconds_count: bool,
+    driver_exits: "dict[str, int] | None" = None,
 ) -> "list[dict]":
     """One result row per entry, from the pytest cases and driver records already gathered.
 
     ``cases`` maps 'file::function' to its collected cases, each
     {"outcome": "passed" | "failed" | "skipped", "kpi": recorded or None}.
-    A PROBLEM is an integrity fault (exit 2); a FAILURE is a drop (exit 1).
+    ``driver_exits`` maps a driver command to the status it exited with;
+    a command absent from it was not run here, and one that exited
+    non-zero FAILS every entry it was to measure, whatever it printed
+    before it died. A PROBLEM is an integrity fault (exit 2); a FAILURE
+    is a drop (exit 1).
     """
     rows = []
     for entry in entries:
@@ -282,6 +303,14 @@ def judge_rows(
                     details += [r["detail"] for r in records if r.get("detail")]
                 else:
                     problem = f"its driver {entry['driver']} printed no value for it"
+                code = (driver_exits or {}).get(entry["driver"])
+                if code:
+                    # It printed a value and then died: the measurement
+                    # did not finish, so nothing it printed is a pass.
+                    failure = (
+                        f"its driver {entry['driver']} exited {code}: the measurement "
+                        "did not finish, so the value it printed is not a pass"
+                    )
             else:
                 partial = True
         if problem:

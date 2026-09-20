@@ -20,6 +20,8 @@ import runpy
 import types
 import typing
 
+import pytest
+
 from synthtwin import contract, generation, validation
 
 ORACLE = (
@@ -299,8 +301,27 @@ def test_the_swap_offers_the_census_marks_before_a_mark_nobody_wrote() -> None:
 
 
 def test_the_census_repair_takes_a_repeated_spelling_and_stays_linear() -> None:
-    """Many moments at midnight on one declared-absent day, restored in linear time."""
+    """Many moments at midnight on one declared-absent day, restored in linear time.
+
+    THE TEN-SECOND BUDGET IS JUDGED ONLY WHERE SECONDS ARE JUDGED
+    (round-2 ledger item 7). It was asserted unconditionally, which is
+    the one thing the ledger's own timing policy says a seconds rule may
+    never be: `kpi_rules.seconds_judged_here` allows one only on the
+    reference machine while its one-minute load average is quiet,
+    because a machine shared with other suites runs two to three times
+    slower with no regression in the product. Measured at 05e7d89 with
+    generation untouched and a clock reporting 11.32 s: every
+    correctness assertion here passed and the test failed anyway, and
+    since this is K-S2-06's only pinned node the runner reported FAIL --
+    `pinned_nodes_failing` is an exact key, so `--slow` on a loaded
+    machine could not spare it either. What cannot be excused by a busy
+    machine is the SHAPE of the growth, and that is measured separately:
+    K-S2-06's machine-free half, 320,000 cells under 8x the time of
+    80,000, is the driver `tools/measurements/kpi_census_repair_speed.py`.
+    """
     import time
+
+    import kpi_rules
 
     column = typing.cast(contract.ColumnBlock, types.SimpleNamespace(name="c"))
     parsed = 40000
@@ -319,7 +340,48 @@ def test_the_census_repair_takes_a_repeated_spelling_and_stays_linear() -> None:
     assert sorted(cell[10] for cell in fixed) == sorted(wanted)
     assert notes == []
     assert holes[0] not in fixed
-    assert spent < 10.0, spent
+    judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
+    if judged:
+        assert spent < 10.0, spent
+    else:
+        print(
+            f"the 10 s budget at 40,000 cells is reported and not judged here: {why}. "
+            f"It took {spent:.2f} s; the growth itself is K-S2-06's machine-free ratio."
+        )
+
+
+def test_the_linear_repairs_budget_follows_the_reference_machine_policy(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    """Round-2 ledger item 7, as a check: the 11 s clock, twice.
+
+    On a machine whose seconds the ledger does not judge -- here the
+    reference machine under a load average of 18 -- an unchanged repair
+    that the clock says took 11.32 s is REPORTED. On the quiet reference
+    machine the same clock still fails, because that is where the budget
+    is a measurement. Withdrawing the guard makes the first half red:
+    that is the reproduction, and it is how this test goes red again.
+    """
+    import time
+
+    import kpi_rules
+
+    real = time.perf_counter
+    counted = {"n": 0}
+
+    def eleven_seconds() -> float:
+        counted["n"] = counted["n"] + 1
+        return real() + (11.0 if counted["n"] % 2 == 0 else 0.0)
+
+    monkeypatch.setattr(time, "perf_counter", eleven_seconds)
+    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: True)
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 18.0)
+    test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
+
+    counted["n"] = 0
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
+    with pytest.raises(AssertionError):
+        test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
 
 
 def test_the_census_repair_never_folds_two_values_into_one() -> None:

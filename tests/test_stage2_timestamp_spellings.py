@@ -233,8 +233,9 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
     window of the quality report.
     """
     cells = ["2025-01-01 00:00:00"] * 60 + ["2025-01-02 00:00:00"] * 60 + ["2025-01-01T00:00:00"] * 5
+    folder = tmp_path / "two-days"
     first, second, _written, twin_exit, _real = _round_trip(
-        tmp_path / "two-days", _shuffled(cells, 1), ("--smallest-group", "11"), False, "0"
+        folder, _shuffled(cells, 1), ("--smallest-group", "11"), False, "0"
     )
     assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == ("datetime", 3, 3)
     # SIX SINCE LANDING 2b.6, WHERE IT WAS FIVE, and the shape is still
@@ -265,6 +266,26 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
     assert first["datetime_separators"] == {"space": 125}
     assert (second["role"], second["n_distinct"]) == ("binary", 2)
     assert twin_exit == 3
+    # HOW MUCH IT MISSES IS A CEILING NOW (round-2 ledger item 1,
+    # K-2B-51). The exit code alone said only that something was missed,
+    # so a twin missing four checks or five passed this line unchanged.
+    # Measured at 05e7d89 on seeds 0, 4 and 1 alike: the twin misses
+    # exactly these three and the real file misses none.
+    loaded = contract.load_profile(str(folder / "real-profile.json"))
+    missed = sorted(
+        f"{check.column}:{check.subcheck}"
+        for check in validation.measure(loaded, str(folder / "real-twin.csv")).checks
+        if check.verdict == validation.MISSED
+    )
+    assert missed == [
+        "value:axes.role", "value:axes.statistical_type", "value:midnight.count",
+    ], missed
+    real_missed = [
+        f"{check.column}:{check.subcheck}"
+        for check in validation.measure(loaded, str(folder / "real.csv")).checks
+        if check.verdict == validation.MISSED
+    ]
+    assert real_missed == [], real_missed
 
 
 # -- C: a column mixing bare dates with midnight moments keeps both forms

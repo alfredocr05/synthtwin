@@ -47,6 +47,26 @@ stands, and that was measured rather than assumed:
   both facts over seeded inputs of the shape the walks hand on, and
   holds the third refusal, POINT-FREE, to deciding some of them.
 
+**A CLAUSE IS COVERED ONLY WHERE A CASE PARTS ITS TWO ROADS** (the
+round-2 ledger pass, item 6). "Each clause, one call at a time" was too
+strong a reading of this file until that pass: two clauses of
+`anchor_units` had a case that TOUCHED them and no case that could tell
+them from the fallback. Measured at 05e7d89, each mutant rebuilding all
+nine generation reference files byte for byte and leaving every witness
+here empty:
+
+- with the leading-minus frame removed, `-0.05` still answers `(-5, 2)`
+  -- it falls through to (c), whose shortest spelling writes the same
+  two places -- while `anchor_units("-12.50", -12.5)` drops from
+  `(-1250, 2)` to `(-125, 1)`;
+- with the minus removed from (c)'s whitelist of characters a shortest
+  spelling may hold, every positive case is unmoved while
+  `anchor_units("-1.5e-3", -0.0015)` drops from `(-15, 4)` to `None`.
+
+Both spellings and both mutants are in the tables below. A clause whose
+mutant leaves EVERY case here answering as before is not witnessed,
+however many cases reach it.
+
 **What this file holds.** Each rule's clauses, as a table of inputs and
 the answers the method's statement gives, worked out by hand from the
 statement (contract C6-31f with method G6.7.2; G6.5a; G8.3a step 3;
@@ -217,6 +237,19 @@ ANCHORS = (
     # (spelling, value, (units, places) or None)
     ("12.50", 12.5, (1250, 2)),  # (a) a plain decimal
     ("-0.05", -0.05, (-5, 2)),
+    # THE NEGATIVE CLAUSES, WORKED OUT BY HAND (round-2 ledger item 6).
+    # `-0.05` above does not witness the leading-minus frame: with the
+    # frame gone the spelling falls through to (c), whose shortest
+    # spelling is `-0.05` at two places, and the answer is the same
+    # (-5, 2) by another road. `-12.50` is where the two roads part: (b)
+    # reads the minus and the two written places and gives (-1250, 2),
+    # while (c) reads repr(-12.5) == '-12.5' and gives (-125, 1). And
+    # (c)'s own whitelist must hold the minus: `-1.5e-3` reaches no
+    # rewriting, so it is read from its value, whose shortest spelling
+    # `-0.0015` carries a sign character that a whitelist of digits and
+    # a point alone would refuse, turning the anchor into None.
+    ("-12.50", -12.5, (-1250, 2)),  # (b) the leading-minus frame, trailing noughts kept
+    ("-1.5e-3", -0.0015, (-15, 4)),  # (c) the sign is part of the shortest spelling
     ("7", 7.0, (7, 0)),
     ("+1.50", 1.5, (150, 2)),  # (b) a leading plus dropped
     ("(12.50)", -12.5, (-1250, 2)),  # (b) brackets are negative
@@ -405,6 +438,14 @@ WITNESS_MUTANTS = {
     ),
     "anchor_no_leading_plus": (
         "anchor", 'frames = (("+", "", False), ', "frames = (",
+    ),
+    "anchor_no_leading_minus": (
+        "anchor", '("-", "", True), ', "",
+    ),
+    "anchor_value_read_without_its_minus": (
+        "anchor",
+        'set(shortest) <= set("-.0123456789")',
+        'set(shortest) <= set(".0123456789")',
     ),
     "anchor_brackets_read_as_positive": (
         "anchor",

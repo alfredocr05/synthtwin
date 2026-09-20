@@ -1,4 +1,4 @@
-"""K-2B-47 and K-2B-49 (OPEN): carried fidelity misses and the calls of 2026-09-18, held still.
+"""K-2B-47, K-2B-49, K-2B-50 and K-2B-51 (OPEN): the carried misses and the two still with the owner.
 
 The stage-2b plan carries four measured misses that no other KPI holds,
 each rebuilt here from its plan statement with a committed seed:
@@ -36,8 +36,56 @@ its plan statement and added to the battery with the same rule:
 - read floor: a table with trailing blank lines read at the default
   floor of one and described at eleven, which `profile.build_document`
   accepts and describes differently from the same table read at eleven
-  (its docstring states the rule and nothing checks it): 1 while
-  unchecked.
+  (its docstring states the rule and nothing checks it): HOW MANY
+  PUBLISHED FACTS MOVE, which is 4, beside the boolean it used to be.
+- Fortran `D` exponent: 400 cells of the form `4.60D+03` at a floor of
+  eleven, carried by the changelog's ceiling list and measured by
+  nothing. The column is read as free text (0 of 400 numeric), so the
+  twin writes stand-ins -- `1.55S-44` for `1.30D-08` -- and the
+  validator misses NOTHING: the respelled cells are the report-only
+  indicator, the MISSED verdicts are the bound that can fail.
+
+WHAT THIS ENTRY DOES AND DOES NOT HOLD (round-2 ledger item 11, and
+its repair pass). FOUR kinds of number live in K-2B-47 and they are not
+the same thing:
+
+* MEASURED REGRESSION BOUNDS -- every `*_missed_checks`, the band
+  split's shortfall, the read floor's count of moving facts: each can
+  rise, and a rise is red.
+* THE SIZE OF THE SHAPE THE BOUND WAS TAKEN OVER -- `fortran_d_runs`
+  (at least 3) and `fortran_d_cells` (at least 400). A ceiling held over
+  less evidence is not the same ceiling: cutting the seeds here from
+  (4, 0, 1) to one left the MISSED verdicts at 0 and the respelled count
+  at 400, both inside their bounds, over a third of the runs, and
+  nothing saw it (the repair pass of this pass, finding 3).
+* REPORT-ONLY INDICATORS -- `read_floor_unchecked` and
+  `fortran_d_cells_respelled`: each already stands at the largest value
+  its shape can produce, so it cannot turn red; what moves it is its
+  target of 0. `read_floor_unchecked` was the whole of this entry's read
+  floor until this pass, and `int(a != b) <= 1` is a rule no description
+  could ever break.
+* COVERAGE TRACKED ELSEWHERE -- the two generator passes the oracle does
+  not mirror (the width pass G6.6 and the empty-bin pass G6.7) are
+  counted by K-P4-23's `uncovered`, not here, and the changelog's list
+  of carried items should say so rather than sending every line to this
+  entry.
+
+K-2B-50 and K-2B-51 (OPEN), the two fidelity failures the changelog
+leaves "still with the owner", which had no regression ceiling at all
+until this pass (round-2 ledger item 1):
+
+- pooled numbers beside labels: 100 `alpha`, twenty `100` and ten each
+  of 200 to 209 at a floor of eleven. The numeric subset's mean and
+  population spread come back as 100 and 3.027650 against 187.083333 and
+  39.033017, and BOTH files validate with nothing missed, so no miss
+  count can see it. The errors themselves are the bound; the existing
+  test asserted only that the mean error is over 50, which a worse twin
+  passes;
+- the absorbed mark: sixty moments at midnight on each of two days
+  beside five `T` spellings of the first, at a floor of eleven. The
+  description publishes `datetime`, three distinct values and 125 space
+  separators, and its twin comes back as `binary` and misses three
+  checks while the real file misses none.
 
 K-2B-49 (OPEN): the orchestrator's calls of 2026-09-18, made under the
 owner's rule and reversible by the owner, held still the same way:
@@ -73,6 +121,7 @@ import collections
 import datetime
 import pathlib
 import random
+import statistics
 import sys
 import tempfile
 
@@ -263,7 +312,7 @@ with tempfile.TemporaryDirectory() as folder:
 
     blank_tail = home / "blank-tail.csv"
     blank_tail.write_text("site\n" + "\n".join(["north"] * 30 + ["south"] * 30) + "\n\n\n\n",
-                          encoding="utf-8")
+                          encoding="utf-8", newline="\n")
     settings = taxonomy.Settings(small_cell_floor=11)
     documents = [
         profile.build_document(
@@ -271,11 +320,136 @@ with tempfile.TemporaryDirectory() as folder:
         )
         for read_at in (1, 11)
     ]
-    value.update(read_floor_unchecked=int(documents[0] != documents[1]))
-    details.append(f"read floor: described at 11, read at 1 and at 11 differ: {documents[0] != documents[1]}")
+
+    def leaves(node, path=""):
+        """Every published fact of a description, as path -> value."""
+        if isinstance(node, dict):
+            for key in sorted(node):
+                yield from leaves(node[key], f"{path}.{key}")
+        elif isinstance(node, list):
+            for place in range(len(node)):
+                yield from leaves(node[place], f"{path}[{place}]")
+        else:
+            yield path, node
+
+    read_at_one = dict(leaves(documents[0]))
+    read_at_eleven = dict(leaves(documents[1]))
+    differing = sorted(
+        key for key in set(read_at_one) | set(read_at_eleven)
+        if read_at_one.get(key, "(absent)") != read_at_eleven.get(key, "(absent)")
+    )
+    # THE FACTS, NOT THE BOOLEAN (round-2 ledger item 11). This key was
+    # int(documents[0] != documents[1]) against a bound of at most 1, so
+    # no description this defect could produce would ever fail it. The
+    # COUNT of facts that move can rise; the boolean is kept beside it as
+    # the report-only indicator it always was.
+    value.update(read_floor_facts_differing=len(differing),
+                 read_floor_unchecked=int(documents[0] != documents[1]))
+    details.append(
+        f"read floor: described at 11, read at 1 and at 11 differ in {len(differing)} "
+        f"published facts: {differing}"
+    )
+
+    # The Fortran `D` exponent, carried by the changelog's ceiling list
+    # and measured by nothing until this pass (round-2 ledger item 11).
+    # The column is read as free text, so every cell is a stand-in and
+    # the validator misses NOTHING: the respelling is the report-only
+    # indicator and the missed checks are the bound that can fail.
+    draw = random.Random("fortran-d")
+    fortran = [
+        f"{draw.randrange(100, 999) / 100:.2f}D{draw.choice('+-')}{draw.randrange(1, 10):02d}"
+        for _ in range(400)
+    ]
+    described = kpi_shapes.describe(home / "fortran-d", "reading",
+                                    column_text("reading", fortran), 11)
+    block = described.block("reading")
+    respelled = checks = runs = 0
+    for seed in (4, 0, 1):
+        twin = kpi_shapes.twin_text(described, seed)
+        cells = [cell for cell in twin.splitlines()[1:] if cell]
+        respelled += sum(1 for cell in cells if cell not in set(fortran))
+        checks += len(kpi_shapes.missed(kpi_shapes.measure(described, twin, f"d{seed}.csv")))
+        runs += 1
+        details.append(f"fortran D s{seed}: twin writes {cells[0]!r} for a cell like "
+                       f"{fortran[0]!r}; {respelled} respelled so far")
+    value.update(fortran_d_missed_checks=checks, fortran_d_cells_respelled=respelled,
+                 fortran_d_runs=runs, fortran_d_numeric_cells=block.get("n_numeric") or 0,
+                 fortran_d_cells=block.get("n_present") or 0)
+    details.append(f"fortran D: role {block['role']}, n_numeric {block.get('n_numeric')} "
+                   f"of {block.get('n_present')}, {checks} MISSED over {runs} runs")
+
+    # ---- K-2B-50: the pooled population of numbers beside labels -------
+    # The first of the two fidelity failures still with the owner
+    # (CHANGELOG "Still with the owner"), which no ceiling held: the
+    # existing test asserted only that the mean error is over 50, so a
+    # worse twin passed it (round-2 ledger item 1).
+    still_open = {}
+    anchored = ["alpha"] * 100 + ["100"] * 20
+    for number in range(200, 210):
+        anchored += [str(number)] * 10
+    described = kpi_shapes.describe(home / "anchored", "value",
+                                    column_text("value", anchored), 11)
+
+    def read_numbers(cells):
+        found = []
+        for cell in cells:
+            number = parsing.parse_number(cell.strip())
+            if number is not None:
+                found += [float(number)]
+        return found
+
+    real_numbers = read_numbers(anchored)
+    real_mean = statistics.fmean(real_numbers)
+    real_spread = statistics.pstdev(real_numbers)
+    mean_error = spread_error = 0.0
+    pooled_checks = pooled_runs = 0
+    for seed in (4, 0, 1):
+        twin = kpi_shapes.twin_text(described, seed)
+        twin_numbers = read_numbers([cell for cell in twin.splitlines()[1:] if cell])
+        mean_error = max(mean_error, abs(statistics.fmean(twin_numbers) - real_mean))
+        spread_error = max(spread_error, abs(statistics.pstdev(twin_numbers) - real_spread))
+        pooled_checks += len(kpi_shapes.missed(
+            kpi_shapes.measure(described, twin, f"p{seed}.csv")))
+        pooled_runs += 1
+        details.append(
+            f"pooled numbers s{seed}: mean {statistics.fmean(twin_numbers):.6f} and spread "
+            f"{statistics.pstdev(twin_numbers):.6f} against {real_mean:.6f} and "
+            f"{real_spread:.6f}"
+        )
+    still_open.update(
+        pooled_mean_error=round(mean_error, 6), pooled_spread_error=round(spread_error, 6),
+        pooled_missed_checks=pooled_checks, pooled_runs=pooled_runs,
+    )
+
+    # ---- K-2B-51: the absorbed mark and the description no file meets --
+    stamps = (["2025-01-01 00:00:00"] * 60 + ["2025-01-02 00:00:00"] * 60
+              + ["2025-01-01T00:00:00"] * 5)
+    random.Random(1).shuffle(stamps)
+    described = kpi_shapes.describe(home / "absorbed-mark", "stamp",
+                                    column_text("stamp", stamps), 11)
+    block = described.block("stamp")
+    twin_checks = real_checks = stamp_runs = 0
+    for seed in (0, 4, 1):
+        twin = kpi_shapes.twin_text(described, seed)
+        found = kpi_shapes.missed(kpi_shapes.measure(described, twin, f"m{seed}.csv"))
+        twin_checks = max(twin_checks, len(found))
+        real_checks = max(real_checks, len(kpi_shapes.missed(kpi_shapes.measure(
+            described, column_text("stamp", stamps), f"n{seed}.csv"))))
+        stamp_runs += 1
+        details.append(f"absorbed mark s{seed}: twin misses {found}, the real file misses none")
+    still_open.update(
+        stamp_twin_missed_checks=twin_checks, stamp_real_missed_checks=real_checks,
+        stamp_runs=stamp_runs, stamp_published_distinct=block["n_distinct"],
+    )
+    details.append(f"absorbed mark: role {block['role']}, n_distinct {block['n_distinct']}, "
+                   f"separators {block.get('datetime_separators')}")
 
 for line in details:
     print(line)
 kpi_rules.emit("K-2B-47", value, "; ".join(details)[:2000])
 kpi_rules.emit("K-2B-49", calls, "; ".join(line for line in details
                                          if line.startswith(("grid", "subsecond", "record classes")))[:2000])
+kpi_rules.emit("K-2B-50", {k: v for k, v in still_open.items() if k.startswith("pooled_")},
+               "; ".join(line for line in details if line.startswith("pooled numbers"))[:2000])
+kpi_rules.emit("K-2B-51", {k: v for k, v in still_open.items() if k.startswith("stamp_")},
+               "; ".join(line for line in details if line.startswith("absorbed mark"))[:2000])
