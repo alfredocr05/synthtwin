@@ -197,6 +197,23 @@ def test_an_unplaced_exponent_form_is_left_unpaid_and_says_so(
     Every published number here is an exponent spelling, so no plain
     decimal anchors the ladder and NOTHING places a made-up number.
     The debt therefore stands, and it stands where a reader can see it.
+
+    **RE-RECORDED AT THE NUMBERS PASS OF THE SECOND CODEX ROUND**
+    (2026-09-19, item 3). The ladder now walks an exponent form at the
+    scale that form's own exponent fixes -- units of a hundred thousand
+    here -- so it DOES place a made-up number for this column, and the
+    debt is settled from the published numbers rather than from the
+    form's own counting. Measured at seeds 4, 13 and 125 alike: all four
+    held-back cells take `1.0e6`, one ladder step below the published
+    minimum exactly as P4-D268's own frozen case writes `+14` one step
+    below a published `+15`; the census comes out twenty-six of
+    twenty-six; and the twin's numbers have mean 1,126,923 and standard
+    deviation 72,430.3 against the table's 1,173,077 and 72,430.3 -- the
+    SPREAD REPRODUCED EXACTLY, where leaving the debt unpaid gave 50,383
+    -- with a maximum of 1,200,000 against the table's 1,300,000.
+    **What P4-D92 forbids is untouched and still asserted below**: no
+    made-up cell reaches past the largest number the table holds, which
+    is what `9.6E6` did at 7.4 times it.
     """
     cells = _amounts_in_exponent_notation()
     first, second, written, twin_exit, real_exit = _round_trip(
@@ -218,8 +235,13 @@ def test_an_unplaced_exponent_form_is_left_unpaid_and_says_so(
     # The shortfall is ANNOUNCED rather than settled: the table meets
     # its own description and the twin does not. That asymmetry is the
     # signal, and this landing's repair is that it survives.
+    # ...and the debt is now SETTLED from the ladder, at the form's own
+    # scale, so both files meet their own description.
     assert real_exit == 0
-    assert twin_exit == 3
+    assert twin_exit == 0
+    assert [cell for cell in made if parsing.parse_number(cell) is not None] == (
+        ["1.0e6"] * 4
+    )
     assert second["role"] == first["role"]
 
 

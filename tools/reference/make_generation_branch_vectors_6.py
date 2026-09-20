@@ -20,7 +20,10 @@ absorbed count added (plan P4-D298), `free_text_absorbed_figures` and
 `identifier_absorbed_figure` -- and for `judged_stand_in_written`, G10.1's
 write rule with a judged stand-in among a column's absent cells (plan
 P4-D6.4), built on a branch of its own that went here for the same
-reason, which bring it to thirteen cases.
+reason, which bring it to thirteen cases -- and for `date_midnight_traded`,
+the MIDNIGHT half of plan P4-D258's paid merge, which the dates pass of
+the second Codex round of 2026-09-19 added here for that same reason, and
+which brings it to FOURTEEN.
 
 **Why they are an eighth file.**  The two passes were built on branches of
 their own and each added its cases to the seventh file.  Merged, that file
@@ -69,9 +72,13 @@ carried date items and the two of the readings of an absorbed count, and
 with all nine new cases it would have passed the 250000-byte cap -- so the
 numbers pass's four moved WHOLE into the ninth file, beside the two its
 repair pass put there, and this file holds twelve cases.  The next case
-goes here again, until this file's output passes 200000 bytes.  The first
-three files are FULL and take no case; the fifth takes one only where this
-file cannot.
+goes here again, until this file's output passes 200000 bytes.  Plan
+P4-D6.4 sent one here, taking it to thirteen cases and 191318 bytes, and
+the dates pass of the second Codex round of 2026-09-19 sent
+`date_midnight_traded` here, taking it to fourteen and 212306 -- PAST that
+line, so the next case again goes to an entry point of its own, written
+the way this one was.  The first three files are FULL and take no case;
+the fifth takes one only where this file cannot.
 
 Usage:  python3 make_generation_branch_vectors_6.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

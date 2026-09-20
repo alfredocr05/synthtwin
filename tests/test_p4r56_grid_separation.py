@@ -95,6 +95,29 @@ def _crowded_code_column() -> "list[str]":
     ]
 
 
+def _beside_the_mode(twin: "generation.Twin") -> "list[tuple[str, str, str]]":
+    """Every deviation but the mode's COUNT, which is report-only.
+
+    THE MODE PAIR IS LISTED AND NOT CHECKED (plan P4-D267, and
+    `validation`'s own reason): a stratum's size comes from the runs of
+    the published ladder and not from `mode_count`, so a conforming twin
+    can hold the published mode's VALUE at a size the pair does not name.
+    The generator said nothing about that until item 1 of the numbers
+    pass of the second Codex round (2026-09-19) and now names it, which
+    is the whole of the item. MEASURED on this file's own columns: the
+    fixed-width code column publishes `mode_count` 3 and its twin holds
+    the mode once; the plus-signed column of 120 rows publishes 60 and
+    its twin holds 30. Neither cell moved with the repair -- both twins
+    are byte-identical to the ones this file recorded -- and what these
+    assertions are about is everything ELSE staying silent.
+    """
+    return [
+        (one.fact, one.published, one.achieved)
+        for one in twin.deviations
+        if one.fact != "mode_count"
+    ]
+
+
 def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -116,10 +139,9 @@ def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
     assert published["n_distinct_values"] == 99
     assert len({float(cell) for cell in cells}) == 99
 
-    # SO THE TWIN FILES NOTHING AGAINST ITSELF.
-    assert not twin.deviations, [
-        (one.fact, one.published, one.achieved) for one in twin.deviations
-    ]
+    # SO THE TWIN FILES NOTHING AGAINST ITSELF, beside the mode's
+    # report-only count (`_beside_the_mode`).
+    assert _beside_the_mode(twin) == []
 
     # ...AND THE SAME ON THE CROWDED COLUMN THE MUTANT BELOW IS RUN ON.
     crowded = _crowded_code_column()
@@ -130,7 +152,7 @@ def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
     assert not [cell for cell in cells if not shape.match(cell)]
     assert published["n_distinct_values"] == 106
     assert len({float(cell) for cell in cells}) == 106
-    assert not twin.deviations
+    assert _beside_the_mode(twin) == []
 
 
 def test_the_grid_walk_is_what_keeps_them_apart(
@@ -803,6 +825,4 @@ def test_the_ceiling_counts_the_whole_column_and_not_the_walk(
         twin = generation.generate(described, seed)
         cells = [cell for cell in twin.columns[0] if cell != ""]
         assert len({float(cell) for cell in cells}) == 3, seed
-        assert not twin.deviations, [
-            (one.fact, one.published, one.achieved) for one in twin.deviations
-        ]
+        assert _beside_the_mode(twin) == [], seed

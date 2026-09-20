@@ -2059,7 +2059,20 @@ GOLDEN_REPORT_SHA256 = (
     # 11, 13, 160 and 240). `reading`'s said it left 13 cells empty while
     # the twin holds thirteen `-999` cells and no blank. The twin's and
     # the quality report's digests did not move. No other line moved.
-    "213a25cbbbe147ce31e99010e35f5705133e6c7a9715d926921c306b64e33eee"
+    # RE-RECORDED AT THE NUMBERS PASS OF THE SECOND CODEX ROUND
+    # (2026-09-19, item 1), read line by line against 05e7d89: FIVE LINES
+    # ARE ADDED, all five one new deviation block on `visits`, and not
+    # one other line of the report moved. They say that the column's
+    # published `mode_count` of 28 is held by 27 cells of the twin. That
+    # gap is not new -- `validation` has recorded it in as many words
+    # since P4-D267, because `visits`'s mode is its LARGEST value and so
+    # a pinned end of the ladder, which the ladder gives 27 cells -- and
+    # until now the report was SILENT about it, which is exactly the
+    # defect the item reproduced: the mode pass declared success
+    # wherever some stratum held the mode's value, whatever its size.
+    # The twin's own digest above did NOT move, so not one cell of the
+    # twin changed with it.
+    "1a8f88c9ce416df5b116627065f263b557edcfa8aaa318169731aa4cd341d8fe"
 )
 
 

@@ -639,6 +639,18 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
                 # column whose other published facts leave it nowhere
                 # to go.
                 "empty_edges",
+                # AND THE MODE'S COUNT, a fourth reading of the same
+                # crowding and report-only for the same kind of reason
+                # (plan P4-D267, and `validation`'s own listing): a
+                # stratum's size comes from the runs of the published
+                # ladder and not from `mode_count`, so a twin that holds
+                # the published mode's VALUE can hold it a different
+                # number of times. This column publishes `mode_count` 20
+                # and its twin holds the mode 18 times. The generator
+                # said nothing about that until item 1 of the numbers
+                # pass of the second Codex round (2026-09-19) and now
+                # names it; not one cell of this twin moved with it.
+                "mode_count",
             )
         ]
         assert other == [], seed

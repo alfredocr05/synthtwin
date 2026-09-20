@@ -294,7 +294,21 @@ the twelve, a day the month has in that year (G7.1's calendar, whose
 leap rule is the Gregorian one), an hour of at most 23 and minutes and
 seconds of at most 59 (plan P4-D291: the shape alone let `2006-06-32`
 fit, and a `t="d"` cell holding it is a file no reader can open at
-all); and `number` fits the text a
+all). **A CELL HOLDING A SPELLING THE COLUMN'S OWN DESCRIPTION PRINTS IS
+NOT BROUGHT ONTO THE CALENDAR** (item 1 of the dates pass of the second
+Codex round, 2026-09-19). The correction is for the date candidates the
+twin FABRICATES from a published shape; a published label, and a
+published variant of one, is the source's own text and is owed
+character for character. MEASURED at a floor of five, seed 0, on a
+workbook column of 60 `2024-03-01` cells stored as dates beside 60
+`2024-02-30` cells stored as TEXT, both published as labels over 60 rows
+each: generation kept both and the serialization rewrote all 60 text
+cells as `2024-02-29`, the source missing nothing and the serialized
+twin missing six label obligations. A cell the source stored as legal
+text is not an invalid date cell, and since `date` fits only a spelling
+that names a day, holding the published spellings back also sends the
+cells that DO name days to the date class first, so nothing stored as a
+date names a day the calendar does not have. And `number` fits the text a
 workbook stores as a number (an optional sign, figures, an optional
 point with figures on one side or both, and an optional exponent whose
 mark is followed by an optional sign and at least one figure — never a
@@ -2018,7 +2032,7 @@ exactly one of six **styles**, and in no other form:
 
 **AS MANY CELLS REACH A THOUSAND AS THE CENSUS OF MARKS COUNTS** (plan P4-D185). A cell carries a mark between thousands exactly where its number reaches a thousand, and the ladder places the strata near a thousand by interpolation, a rank or two either side: 2,000 lognormal amounts written `1.234,56` published `{".": 418}` and the twin wrote 416 at every seed, and over twelve such columns sixteen twins of twenty-four wrote one or two fewer and two wrote one more, the surplus named nowhere. So, as the last of the value passes of G6.5a and G6.6, on a column whose every numeric cell is on ONE grid (G6.5a's first two clauses), naming no field width and no form but `decimal` and `plain`: let `C` be the census's cells, named and pooled, and `K` the cells whose values reach a thousand in size, of either sign. Where `K < C`, the run of strata just below a thousand, from the highest down while their cells do not pass `C - K`, takes the lowest free grid points of a thousand or more, in order, the last below the value of the stratum above the run. Where `C < K < C + max(2, small_cell_floor)` -- a surplus the table cannot have held as bare cells, since the census is published only beside a bare remainder of nought or at least that floor -- the run from a thousand up, from the lowest while their cells do not pass `K - C`, takes the highest free grid points below a thousand, in order, the first above the value of the stratum below it. A free grid point is one whose text no stratum holds and whose text survives being read and written again, looked for at most sixty-four units past the run's own length. A stratum moves only where its text is its own and never the first or last stratum; the run moves whole or not at all, so the count of different values, the sign counts and the order of the strata stay where they were. Only strata in the positive band are in a run. **AND ON THE NEGATIVE SIDE** (plan P4-D194, the final skeptic of stage 2's close): the rule first stood aside on any column holding a negative value, and 1,500 amounts one in ten negated published `{",": 396}` while the twin wrote 397 at seeds 4 and 11 with nothing named -- over forty such columns, 36 twins of 80 missed by one to three. So on a column holding a negative value, once the run above has moved or not, `K` is counted again and the same rule is taken among the strata of the negative band read by size: "a thousand or more" is "minus a thousand or less", the run below a thousand is the run of negative strata just above minus a thousand, from the lowest up, taking the highest free grid points of minus a thousand or less, each above the value of the stratum below the run, and the run from a thousand up is the run from minus a thousand down, taking the lowest free grid points above minus a thousand. **A SURPLUS UNDER THE LINE IS NAMED**: where the cells the census's marks leave over number more than nought and fewer than the census line, and so wear the published mark, the twin's report names `thousands_marks` with the census's count and the count the twin holds.
 
-**THE PUBLISHED MODE IS A NUMBER THE TWIN HOLDS** (plan P4-D267, the extra review round of 2026-09-18; stated here and mirrored in the oracle by the carried numbers pass of the same day). After the census of marks, as the LAST of the value passes, where the column publishes a `mode` and a `mode_count` of one or more and has at least three strata: where some stratum already holds the `mode`, nothing moves. Otherwise the stratum taken is the one, among all but the first and the last, whose size is exactly `mode_count`, standing nearest the `mode` by absolute difference, the earliest on a tie; where none is that size nothing moves. It takes the `mode` as its value only where every guarantee the passes before it established survives the move: the `mode` lies strictly between the values of the strata on either side of it; the stratum's sign band holds it (the zero band nought alone, and no other band nought); on a column whose styles map asks for a point-free cell, whether the stratum's value has a point-free spelling does not change; on a column written on ONE grid (G6.5a's first two clauses) the `mode` is a point of it -- a whole number on the integer grid, and on a grid of `f > 0` figures a value whose grid text reads back as itself; and, where the column publishes `empty_bins`, the `mode`'s bin under contract C6-31f's division of the published `min` to `max` is not one of them. Where the move is not made, the twin's report names `mode` with the published number beside "a number of its own". Measured before the rule, on eleven one-place values from -1.7 to 6.9 at a floor of eleven: the published mode -0.6 over 210 rows was written nowhere, and the twin's median moved from -0.6 to -0.2 with nothing named.
+**THE PUBLISHED MODE IS A NUMBER THE TWIN HOLDS** (plan P4-D267, the extra review round of 2026-09-18; stated here and mirrored in the oracle by the carried numbers pass of the same day). After the census of marks, as the LAST of the value passes, where the column publishes a `mode` and a `mode_count` of one or more and has at least three strata: where some stratum already holds the `mode`, nothing moves, and the twin's report names `mode_count` with that stratum's SIZE against the published count wherever the two differ (item 1 of the numbers pass of the second Codex round, 2026-09-19). The published pair is a pair, and this pass declared success on the VALUE alone: measured at a floor of eleven on one-place values -1.8, -0.9, -0.6, 0.8, 1.8, 3.3 and 3.5 at the counts 9, 18, 28, 23, 8, 30 and 23, at seeds 4, 0, 1, 7 and 13 alike, the description publishes the mode 3.3 at a count of 30, the ladder gives 3.3 a stratum of one cell and no stratum at all is 30 cells, so the twin wrote 3.3 once, its commonest numbers were -0.6 and 3.4 at 28 each, its mean moved 1.17338 to 1.06619 and its spread 1.92529 to 2.08471, and NOTHING was named. The cells do not move for it -- a stratum's size comes from the runs of the published ladder and not from `mode_count`, which is why the pair is LISTED and not checked (G11, and the same measurement the validator records) -- and what is owed is that the difference be said. Otherwise the stratum taken is the one, among all but the first and the last, whose size is exactly `mode_count`, standing nearest the `mode` by absolute difference, the earliest on a tie; where none is that size nothing moves. It takes the `mode` as its value only where every guarantee the passes before it established survives the move: the `mode` lies strictly between the values of the strata on either side of it; the stratum's sign band holds it (the zero band nought alone, and no other band nought); on a column whose styles map asks for a point-free cell, whether the stratum's value has a point-free spelling does not change; on a column written on ONE grid (G6.5a's first two clauses) the `mode` is a point of it -- a whole number on the integer grid, and on a grid of `f > 0` figures a value whose grid text reads back as itself; and, where the column publishes `empty_bins`, the `mode`'s bin under contract C6-31f's division of the published `min` to `max` is not one of them. Where the move is not made, the twin's report names `mode` with the published number beside "a number of its own". Measured before the rule, on eleven one-place values from -1.7 to 6.9 at a floor of eleven: the published mode -0.6 over 210 rows was written nowhere, and the twin's median moved from -0.6 to -0.2 with nothing named.
 
 **Accounting brackets never hold a sign.** The rule that stood here -- never write accounting parentheses, because they are reserved for the contradictory-notation stand-in of G10.3 -- is withdrawn by landing 2b.2: that stand-in is brackets around a SIGNED number, `(-5)`, and a written negative in the `brackets` notation holds the unsigned figures, so the two constructions stay distinct and a cell keeps its class.
 
@@ -4928,7 +4942,34 @@ that way.
   rank moves whole onto the instant of the rank just below or just
   above it, where that lies inside its gap and is of the same width kind
   and midnight standing -- nearest first, then the shorter run, then the
-  lower rank. Too few: each unpinned rank sharing its unit is offered
+  lower rank; and, where no such instant exists, onto the nearest
+  instant any rank holds inside its gap of that same standing, earlier
+  before later at one distance (plan P4-D258). **AND WHERE NO UNIT OF
+  THE RUN'S OWN STANDING LIES IN ITS GAP AT ALL, THE MERGE IS MADE WITH
+  A PAYMENT** (plan P4-D258 for the width kind; extended to midnight by
+  item 2 of the dates pass of the second Codex round, 2026-09-19). The
+  run moves whole onto the nearest instant ranks hold inside its gap of
+  the OTHER standing in one respect, and exactly as many ranks elsewhere
+  move BETWEEN HELD UNITS the other way -- each leaving a unit other
+  ranks still hold, each landing on a unit ranks already hold, each
+  flipping that one respect, and neither of the trade's own two units
+  touched. Neither half changes how many different units are held, the
+  two together leave that standing's count exactly where it stood, and
+  no pinned rank moves; a payment that cannot be made in full is put
+  back cell for cell. The width kind is traded first, at the single
+  nearest offer, and the midnight standing after it, where the nearest
+  four offers of each run are tried in turn -- because whether a merge
+  can be PAID FOR is a fact about the ranks elsewhere, and the nearest
+  target is often the one whose own block the payment would have had to
+  draw on. MEASURED at a floor of eleven, seed 4, on 40 each of
+  `2024-03-01T00:00:00`, `2024-03-02T00:00:00` and
+  `2024-03-03T12:00:00`: with the width trade alone the twin held those
+  three values 41, 39 and 35 times beside FIVE invented
+  `2024-03-01T16:13:10` cells -- a non-midnight run stranded between
+  midnight pins, with no unit of its own standing anywhere in its gap --
+  missing both distinct counts, four against three, while the source
+  passed and the twin kept all eleven rungs and the 80 cells the census
+  puts at midnight. Too few: each unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
   and midnight standing, earlier first, nearest first, ties to the lower
   rank.
@@ -6223,8 +6264,17 @@ number when it is one under that reading.
    binary64, written the way that spelling is conventionally printed --
    positionally from 10^-4 up to below 10^16, with a single nought after
    the point where the value is whole, and with an exponent outside that
-   range, which gives the ladder no anchor; a value that is not finite
-   gives none either. That window is the way Python's own `repr` prints
+   range, which is READ THROUGH THAT EXPONENT (item 3 of the numbers
+   pass of the second Codex round, 2026-09-19): the part before the
+   exponent mark is read as (a), and the exponent moves the count of
+   places it was read at -- down by the exponent where it is
+   positive, up by its size where it is negative, and where that
+   leaves fewer than no places the units carry the difference
+   instead. Before this a column published at 1.1e-7 had NO ANCHOR,
+   its walk counted from nought, and its made-up cells came back
+   near a thousandth: four orders of magnitude above every number
+   the column is known to hold. A value that is not finite
+   gives no anchor. That window is the way Python's own `repr` prints
    a binary64, which the generator's own reading calls: it was COMPLETED
    FROM THE SHIPPED CODE'S BEHAVIOUR at the independence repair, since
    P4-D268 named no window, and the skeptic of that repair recorded it
@@ -6266,6 +6316,80 @@ number when it is one under that reading.
    written with a minus where negative, its whole part as the figures
    it has -- no leading zero invented -- and exactly its places after
    the point, with the column's own decimal mark.
+
+   **THE DRESSING, and an exponent form's own SCALE** (plan P4-D268;
+   the scale added by item 3 of the numbers pass of the second Codex
+   round, 2026-09-19). A step of the walk is written as a plain decimal,
+   and a census form may be a plain decimal WITH A DECORATION -- a
+   leading plus, a thousands mark, accounting brackets -- or an
+   EXPONENT, which is a form carrying exactly one letter place. So the
+   step is written into the form and the result verified: the form's
+   figure places take figures in order, a letter place takes `e` for a
+   lower-case key and `E` for a case-blind one, every other character of
+   the form stands as itself, and the answer is kept only where it reads
+   as a number, wears exactly that form under the published census and
+   parses to the step's own value. A form with more figure places than
+   the step has figures is filled from the left and then, where it
+   carries a letter place, from the right; those two placements are
+   tried in that order.
+
+   An exponent form spells `mantissa` times ten to the `exponent`, and
+   its two halves are read SEPARATELY. The mantissa is the figure places
+   before the letter, split by the decimal mark into `lead` before it
+   and `after` it; the exponent is the figure places following the
+   letter, written as a size, negative where the form writes a minus
+   after its letter and positive otherwise. A THIRD fitting is offered,
+   after the two above: the exponent that leaves the mantissa exactly
+   `lead + after` figures, and the one either side of it, each giving
+   the mantissa the step's own value divided by that power of ten --
+   exactly, or not at all -- and each still held to the verification.
+   Those exponent fittings are offered ONLY on the walk below, and never
+   on the ladder's plain places, so no column the dressing already
+   answered moves.
+
+   And the ladder is walked a second time for such a form, at `after`
+   less that exponent -- which may be fewer than no places at all and
+   then means units larger than one. That walk is the LAST of three and
+   is taken only where the other two have both come back empty: the
+   ladder at the form's plain places, then the form's OWN filling of
+   step 2, which is held to the published ends, and then this. Measured
+   on landing 2b.15's own columns, a column publishing both notations
+   still writes `5.0e6` and an unanchored one still writes `5.0e6`,
+   because the form's own filling answers them first; what moves is the
+   column whose published span holds no spelling of its form at all,
+   whose four held-back cells were written `1100001` and are now written
+   `1.0e6` -- one ladder step below the published minimum, exactly as
+   P4-D268's own frozen case writes `+14` one step below a published
+   `+15` -- and whose spread now reproduces the table's exactly, 72,430.3
+   against 72,430.3 where the unpaid twin gave 50,383. What P4-D92 and
+   P4-D100 bound is the form's OWN walk of step 2, which is not a ladder
+   at all; the ladder has always stepped outside the published ends.
+   MEASURED at a floor of
+   eleven, seed 4, on a hundred `alpha` beside twenty `1.10e+7`, ten
+   `1.11e+7` and ten `1.12e+7`: the census requires `%.%%&+%` on forty
+   cells and the source passes all 45 executable checks, while the twin
+   wore the form TWENTY times and spelled the other twenty `10999999`
+   and `11000001` -- a walk in hundredths where the form spells hundreds
+   of thousands, and a dressing with no room for eight figures in four
+   figure places. The same column at `1.10e-7` failed the same way.
+
+   A PUBLISHED MAGNITUDE OF NOUGHT IS AN EXPONENT OF NOUGHT (the
+   skeptic's finding 3 on that item, the repair pass of 2026-09-19).
+   Nought has no magnitude to read an exponent off, and reading its one
+   written figure as a figure before the mark would give the scaled walk
+   a place the ladder's own places contradict. But a column that
+   publishes nought alone publishes it AS its form spells it, and the
+   mantissa's own lead figures spell nought at an exponent of nought, so
+   the scaled place is the mantissa's `after`. MEASURED at a floor of
+   eleven, seeds 4 and 13 alike, on a hundred `alpha` beside twenty
+   `0.00e+0` and two held-back levels of ten: before this the rule stood
+   aside and answered the plain places, which sends the walk back at its
+   first line, and the twin wore the form TWENTY times and wrote the
+   other twenty as the bare figures `1` and `2`, missing the form count
+   at exit 3 against the table's 0. After it the twin writes `0.01e+0`
+   and `0.02e+0`, forty of forty wearing the form, both files at exit 0.
+   The same column with `1.10e+0` published instead -- a magnitude that
+   is not nought -- is byte-identical either way.
 
    **The sign rule.** A negative needs a published negative. A positive
    needs a published positive, or a published zero and no published
@@ -8176,8 +8300,28 @@ packing of whole groups meets it, at most eight of them:
 
 in ascending order of the six counts' differences summed, ties by the
 partition's own difference, then the partition, then the pair, each
-ascending; the first 256 readings of that order are offered and no
-more, and of those at most eight are built. The first reading whose cells hold every count as published,
+ascending. **A READING WHOLE GROUPS CANNOT MEET IS NOT OFFERED** (item 2
+of the numbers pass of the second Codex round, 2026-09-19): every count
+of a reading is filled by whole repetition groups, so a reading is
+passed over at once where any of its four class counts, or any of its
+three alphabet bands -- the cells in figures alone, the rest of the code
+alphabet, and the cells outside both -- is a total no choice of whole
+groups adds up to. The first 256 readings that survive that sift are
+offered and no more, at most 131,072 are looked at, and of those offered
+at most eight are built. MEASURED at a floor of eleven, seed 4, on a
+declared record number holding `12` on 230 rows and `Z` on ten, whose
+counts absorb to `n_numeric 240`, `n_all_digits 240`, `n_code_alphabet
+240` and `all_whole_numbers: false`: 87,845 readings exist and exactly
+FOUR of them any packing can meet, the unsifted first 256 held one of
+those four, the reading the column's own values make stood at position
+17,773, and the twin came back `16` on 230 rows and `0` on ten -- every
+cell a whole number against a description that says not every value is
+one, `validate` exiting 3 on the twin and 0 on the real table, and
+`pandas` reading the source as text and that twin as whole numbers. The
+sift leaves eleven readings of the 87,845, at a cost of 0.01 seconds
+against the 46 seconds packing all of them would take. A shortfall this
+search leaves is reported as a search that found no way and NOT as a
+proof that none exists. The first reading whose cells hold every count as published,
 file no more deviations, miss no other count the published build held
 and leave no more named layouts short is the column; where none does,
 the published build stands and every miss is named. **Measured** at
@@ -9102,6 +9246,15 @@ above turned red with every other check green -- which is exactly what it
 is for, and it is the same lesson twice: a closed enumeration is stated
 in up to eight places and this index is one of them.
 
+**AND ONE MORE AT THE SECOND CODEX ROUND OF 2026-09-19** (item 1 of its
+numbers pass): `mode_count`, named where the twin holds the published
+mode's VALUE on a stratum the published count does not size. The pass of
+P4-D267 declared success wherever some stratum held the mode, whatever
+its size, so the count went unmet in silence: measured at a floor of
+eleven on one-place values -1.8, -0.9, -0.6, 0.8, 1.8, 3.3 and 3.5 at the
+counts 9, 18, 28, 23, 8, 30 and 23, the published mode 3.3 at a count of
+30 was written ONCE and nothing was named.
+
 **AND ONE MORE AT PLAN P4-D192**: `date_field_widths`, named where a
 census of one convention is left unmet by the count passes of G7.3. *Widened by plan P4-D195:* a census naming several conventions is
 recounted the same way, and each convention whose count the twin does not
@@ -9145,6 +9298,7 @@ the floor, so without the note a different count passed unsaid.
 * `n_whole`
 * `n_whole_unknown`
 * `mode`
+* `mode_count`
 * `negative_notations`
 * `numeric_styles`
 * `pad_widths`
@@ -10555,7 +10709,30 @@ withdrawn with every committed byte where it was. Built on a branch of
 its own and merged at the integration of the gap passes (2026-09-19), it
 takes the eighth file to thirteen cases and 191318 bytes.
 
-**All one hundred and seven are required.** The count is taken off the committed
+**The dates pass of the second Codex round of 2026-09-19 adds one, to the
+eighth file**, where plan P4-D295 still sends the next case while that
+file stands under 200000 bytes: `date_midnight_traded`, the MIDNIGHT half
+of P4-D258's paid merge. Every case frozen for that plan carries two
+WIDTH kinds, so the trade's other standing -- whether a unit is written at
+midnight -- could have been withdrawn with every committed byte where it
+was, and a run of non-midnight ranks stranded between midnight pins had
+no merge of any kind. It takes the eighth file to fourteen cases and
+212306 bytes.
+
+TWO MORE CAME WITH THE REPAIR PASS OF THAT ROUND (2026-09-19), closing
+its skeptic's finding that G8.3a step 3's two new rules were held up by
+no committed byte: withdrawn from the oracle, singly or together, they
+left 814 reference and oracle-witness tests green and all ten vector
+files byte-identical. `exponent_scaled` pins the SCALED walk and
+`exponent_fitted` the EXPONENT FITTINGS. They go in the SEVENTH file,
+which stands at 162761 bytes, and not in the eighth or the ninth, both
+past plan P4-D295's 200000-byte line: the eighth's own entry point
+provides for exactly this, saying the fifth takes a case where it
+cannot. Opening a tenth entry point would have moved every other
+committed file's bytes, because each file's `case_set` account names all
+the others. The seventh file now holds eight cases and 176541 bytes.
+
+**All one hundred and ten are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10570,8 +10747,8 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds six; the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds thirteen; and the
+holds eight; the eighth,
+`tests/reference/generation-branch-vectors-6.json`, holds fourteen; and the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six
 (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
@@ -10604,6 +10781,8 @@ case passed, which is the failure the count exists to prevent:
 | `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
 | `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |
 | `held_back_dressed` | G8.3a's dressing (plan P4-D268): thirty `alpha` beside eleven `+15` and two held-back signed numbers over eleven rows, whose census names `+%%` twenty-two times. The ladder's plainly spelled steps are written through the form and kept where they wear it and hold the same value, `+14` and `+16`. Its mutant withdraws the dressing and the held-back rows are bare numbers |
+| `exponent_scaled` | G8.3a step 3's SCALED walk (item 3 of the numbers pass of the second Codex round, 2026-09-19): thirty `alpha` beside eleven `1.10e+3` and two held-back exponent spellings over eleven rows, whose census names `%.%%&+%` twenty-two times. The form writes two figures after its mark, but the value those two figures move by is a hundredth of the EXPONENT'S scale, so a walk at the form's plain places offers steps a thousand times finer than the form can spell and the dressing refuses every one. The exponent is read off the largest published magnitude, written with the mantissa's own count of figures before the mark, and the ladder is walked again at `after` less that exponent — last of three, after the ladder's plain places and after the form's own filling of step 2. The held-back rows take `1.11e+3` and `1.09e+3`. Its mutant answers the plain places and they are written `1101` and `1099`, bare numbers wearing no form |
+| `exponent_fitted` | G8.3a step 3's EXPONENT FITTINGS (item 3 of the same pass): thirty `alpha` beside eleven `2.20e+4` and two held-back exponent spellings over eleven rows, under the same census. Step 2's two placements count a candidate's figures into the form's figure places in order, which reaches only a value the mantissa has room for — five figures into four places is no filling at all. An exponent form is filled instead by choosing the exponent that leaves the mantissa exactly its own count of figures, and the one either side, the mantissa being the candidate's value divided by that power of ten exactly or not at all. The held-back rows take `2.21e+4` and `2.19e+4`. Its mutant offers no exponent filling, step 2's placements answer alone, and they are written `22001` and `21999` |
 | `held_back_anchored` | G8.3a's anchors (plan P4-D268): thirty `alpha` beside eleven `+25` and two held-back signed numbers over eleven rows. The only published number carries a plus, which the plain reading refuses; read a second way it anchors the ladder at twenty-five, so the held-back rows take `+24` and `+26`. Its mutant reads the plain spelling alone and the ladder counts up from nought |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |
@@ -10678,6 +10857,7 @@ case passed, which is the failure the count exists to prevent:
 | `date_endpoint_ties` | G7.4's hold on the ranks tied at an end (plan P4-D255): forty-eight moments on three days at midnight or noon under `+01:00` and `+02:00`, twenty-four of each, published on the shared clock, several ranks standing on the latest instant. Its mutant holds none of them and the larger offset is published for that end |
 | `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
 | `date_traded_merge` | The day's width KIND (plan P4-D294): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three. Its mutant asks the narrower question -- does the day SHOW the width -- in place of the census's own membership, and the twin's dates move. It was frozen for G7.3's traded merge (plan P4-D258) and no longer reaches it: under a joint word every day counts into the census, so a column of one kind has no gap without a unit of its own kind. See the note below this table |
+| `date_midnight_traded` | The MIDNIGHT half of P4-D258's paid merge (item 2 of the dates pass of the second Codex round, 2026-09-19): forty each of `2024-03-01T00:00:00`, `2024-03-02T00:00:00` and `2024-03-03T12:00:00`, eighty of them at midnight, on a column writing no width at all. The count passes strand a run of non-midnight ranks between midnight pins, whose gap holds no unit off midnight anywhere; the run merges onto a midnight unit and as many ranks elsewhere move between held units from midnight to the non-midnight one to pay the count back. Its mutant keeps the width trade and withdraws the midnight one, and the twin holds four different instants against the three the description publishes |
 | `date_nonadjacent_merge` | The same three days at other words, pinning the same corrected kind question (plan P4-D294); its mutant is the same narrowing and it moves these cells too. It was frozen for G7.3's merge onto a unit that is no rank neighbour (plan P4-D258) and no longer reaches it, for the reason the row above gives |
 | `date_two_kinds_nonadjacent` | G7.3's merge onto a held unit that is no rank neighbour (plan P4-D258), on a column carrying two width kinds: the description the producer writes of ten `08/15/2020`, thirteen `08/22/2020`, seven `10/05/2020` and six `10/5/2020`, publishing four different values and `first-field-padded` on twenty-three cells, the thirteen left standing on the fifth of October, which is of the other kind. A run drawn onto the seventeenth of September, of the named kind, has rank neighbours of the other kind on either side -- the ninth of September, whose two fields both show, and the fifth of October -- and merges onto the twenty-second of August past them. Its mutant offers the rank neighbours alone, the run stays, and the twin holds five different dates against four. Rebuilt by the repair pass of the carried date items of 2026-09-18: first frozen at three different values, which no table of these cells can publish |
 | `date_two_kinds_traded` | G7.3's traded merge (plan P4-D258), on a column carrying two width kinds: the description the producer writes of eleven `03/19/2020`, eleven `04/10/2020`, seven `3/3/2020` and seven `3/03/2020`, publishing four different values and `first-field-padded` on twenty-two cells, the fourteen left standing on the third of March. A run of five ranks drawn onto the sixth of April, whose two fields both show, has no unit of its own kind in its gap, so it moves onto the tenth of April and three ranks of the eleventh and the nineteenth of March move onto a day of the other kind to pay for it. Its mutant makes no trade, and the twin's fourth date is the sixth of April on five cells in place of the eleventh of March. Rebuilt by the repair pass of the carried date items of 2026-09-18: first frozen at three different values, which no table of these cells can publish, and with the third of March written `03/03/2020`, the spelling that folded its own census away; G7.5 step 1 now writes it `3/03/2020` |

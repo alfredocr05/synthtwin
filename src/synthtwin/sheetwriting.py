@@ -1318,15 +1318,91 @@ def _stores_dates(column: "contract.WorkbookColumn") -> bool:
     return column.value_class == dialect.SHEET_CELL_DATE
 
 
-def _onto_the_calendar(own: "tuple[str, ...]") -> "tuple[str, ...]":
+def _published_spellings(column: "contract.ColumnBlock") -> "frozenset[str]":
+    """Every spelling a label column's own description prints (P4-D291a).
+
+    THE ONE THING THE CALENDAR REPAIR MAY NOT REWRITE (item 1 of the
+    dates pass of the second Codex round, 2026-09-19). A published label
+    and its published variants are the source's own text, printed in the
+    description and owed by the twin CHARACTER FOR CHARACTER under the
+    ruling that the twin writes everything exactly as the source wrote
+    it. A cell holding one of them is not a fabricated date candidate,
+    whatever its shape, so `_onto_the_calendar` steps over it.
+
+    A HELD-BACK SPELLING IS NOT ONE OF THEM, and the first version of
+    this function put `variants_withheld` in the set as though it were
+    (the skeptic's finding 2 on item 1 of the dates pass, 2026-09-19).
+    That field is a MULTIPLICITY MAP, not a list of spellings: contract
+    7.4.8 pads its ROW-COUNT keys with leading noughts to a uniform
+    width and its values count how many held-back spellings stood at
+    that count, which is how `contract.py` reads it back. Walking its
+    keys added `003` and `010` to the set -- row counts, told to stand
+    for text -- and never a spelling, because a spelling the floor held
+    back is not in the description AT ALL and so cannot be held back
+    from a repair. MEASURED on a hand-written level of `2024-02-30` with
+    `variants_withheld {"003": 2, "010": 1}`: the old walk returned
+    `['003', '010', '2024-02-30']`. Nothing moved in a twin synthtwin's
+    own producer described, because the owner's ruling of 2026-09-17
+    counts a below-floor spelling into the commonest and every
+    `variants_withheld` it writes came back empty -- but the loader
+    accepts a description written by hand, and that is where the row
+    counts would have arrived.
+
+    Only a LABEL role publishes spellings this way. Every other role
+    either publishes no text at all or is generated from instants, and
+    `dialect.sheet_date_on_the_calendar` hands a real day back unchanged,
+    so an empty answer costs those columns nothing.
+
+    Guarantees: accepts one published column block; returns the set of
+    spellings it prints. Determinism: a fixed function of the block.
+    Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.LabelFacts):
+        return frozenset()
+    spellings: "list[str]" = []
+    for level in facts.levels:
+        spellings += [level.label]
+        for spelling in level.variants:
+            spellings += [spelling]
+    return frozenset(spellings)
+
+
+def _onto_the_calendar(
+    own: "tuple[str, ...]", published: "frozenset[str]" = frozenset()
+) -> "tuple[str, ...]":
     """A date-storing column's cells brought onto the calendar (P4-D291).
 
     `dialect.sheet_date_on_the_calendar` per cell: a cell that is not a
     date's shape, and one that already names a day, come back exactly as
     they came.
+
+    A CELL HOLDING A PUBLISHED SPELLING COMES BACK EXACTLY AS IT CAME
+    TOO (item 1 of the dates pass of the second Codex round,
+    2026-09-19). P4-D291 made this repair for the FABRICATED date
+    candidates of a column whose role publishes no value -- free text, a
+    long tail -- and it was applied to every cell of the column instead.
+    MEASURED at a floor of five on a workbook column of 60 `2024-03-01`
+    cells stored as dates and 60 `2024-02-30` cells stored as TEXT, both
+    published as labels over 60 rows each: generation kept both, and the
+    serialization rewrote all 60 text cells as `2024-02-29`. The source
+    missed nothing and the serialized twin missed six label obligations.
+    A cell the source stored as legal text is not an invalid date cell,
+    and the ruling that the twin writes every spelling as the source
+    wrote it is not answered by a day the source never held.
+
+    `published` is `_published_spellings` of the same column, and an
+    empty set leaves the rule exactly where P4-D291 put it.
+
+    Guarantees: accepts the column's cells and the spellings its
+    description prints; returns as many cells. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
     """
     out: "list[str]" = []
     for text in own:
+        if text in published:
+            out += [text]
+            continue
         out += [dialect.sheet_date_on_the_calendar(text)]
     return tuple(out)
 
@@ -1449,7 +1525,10 @@ def _members(
         written = tuple(twin.columns[index])
         stores_dates = _stores_dates(column)
         if stores_dates:
-            written = _onto_the_calendar(written)
+            told: "frozenset[str]" = frozenset()
+            if index < len(profile.columns):
+                told = _published_spellings(profile.columns[index])
+            written = _onto_the_calendar(written, told)
         held = cell_classes(
             column.cell_classes, written, column.value_class
         )

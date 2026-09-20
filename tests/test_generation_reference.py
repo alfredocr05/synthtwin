@@ -206,6 +206,8 @@ gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
 gen_alphabet_readings = gen.alphabet_readings
 gen_identifier_readings = gen.identifier_readings
+gen_traded = gen.traded_merges
+gen_form_places = gen.form_places
 
 
 
@@ -472,6 +474,15 @@ FOURTH_BRANCH_CASES = (
 # (plan P4-D198). Sorted, like the tuples above.
 FIFTH_BRANCH_CASES = (
     "code_band_words",
+    # THE TWO RULES OF G8.3a STEP 3 (the repair pass of the second Codex
+    # round, 2026-09-19, closing its skeptic's finding 1). They come here
+    # because the eighth committed file stands at 212306 bytes and the
+    # ninth at 214367, both past plan P4-D295's 200000-byte line, while
+    # this one stands at 162761 -- which is the case the eighth entry
+    # point's own account provides for when it says the fifth takes a case
+    # where it cannot.
+    "exponent_fitted",
+    "exponent_scaled",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
     "truth_values_written",
@@ -492,6 +503,9 @@ SIXTH_BRANCH_CASES = (
     "date_both_fields_disagree",
     "date_endpoint_ties",
     "date_midnight_feasible",
+    # The MIDNIGHT half of P4-D258's paid merge (the dates pass of the
+    # second Codex round of 2026-09-19).
+    "date_midnight_traded",
     "date_nonadjacent_merge",
     "date_second_field_class",
     "date_traded_merge",
@@ -633,6 +647,12 @@ SEEDS = {
     "date_two_kinds_nonadjacent": 206,
     # Its repair pass takes the next.
     "date_both_fields_disagree": 207,
+    # The dates pass of the second Codex round of 2026-09-19 takes 270
+    # onward, clear of every block above it, and its repair pass the two
+    # after that.
+    "date_midnight_traded": 270,
+    "exponent_fitted": 271,
+    "exponent_scaled": 272,
     # The carried numbers pass of 2026-09-18 takes 260 onward, clear of
     # the blocks above and of the other carried passes.
     "saturated_band": 260,
@@ -1231,8 +1251,11 @@ THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
 THIRD_BRANCH_NAMED_COUNTS = 339
 FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
-FIFTH_BRANCH_PUBLISHED_NUMBERS = 623
-FIFTH_BRANCH_NAMED_COUNTS = 254
+# The seventh file's floor was measured again at the repair pass of the
+# second Codex round (2026-09-19), which added `exponent_scaled` and
+# `exponent_fitted` to it: 623 and 254 with the six cases before them.
+FIFTH_BRANCH_PUBLISHED_NUMBERS = 626
+FIFTH_BRANCH_NAMED_COUNTS = 342
 # The eighth and ninth floors were measured again at the integration of
 # the carried passes of 2026-09-18 and 2026-09-19, when the numbers pass's
 # four cases moved whole from the eighth file to the ninth: each file's
@@ -2060,7 +2083,8 @@ _NEXT_ON_THE_LADDER = gen.next_on_ladder
 
 
 def _next_on_the_ladder_without_the_census(
-    ladder, name, cursor, named, seen, folds, needed=0, pool=None, bounded=False
+    ladder, name, cursor, named, seen, folds, needed=0, pool=None,
+    bounded=False, scaled=False,
 ):
     """G8.3a's walk with the rule on what the census could hold withdrawn.
 
@@ -2074,7 +2098,9 @@ def _next_on_the_ladder_without_the_census(
     shows -- is withdrawn here too: withdrawn alone, the census rule left
     the narrow walk deciding these cells and the case no longer moved.
     """
-    return _NEXT_ON_THE_LADDER(ladder, name, cursor, named, seen, folds)
+    return _NEXT_ON_THE_LADDER(
+        ladder, name, cursor, named, seen, folds, 0, None, False, scaled
+    )
 
 
 def _levels_from_the_second_spelling(
@@ -2580,6 +2606,20 @@ CASE_MUTANTS = {
         replacement=lambda values, *rest: values,
         outcome=CHANGES_THE_CELLS,
     ),
+    "date_midnight_traded": Mutant(
+        branch="the MIDNIGHT half of P4-D258's paid merge (item 2 of the "
+        "dates pass of the second Codex round, 2026-09-19); the mutant "
+        "keeps the width trade and withdraws the midnight one, the "
+        "stranded run of non-midnight ranks has no merge of any kind, and "
+        "the twin holds four different instants against three",
+        attribute="traded_merges",
+        replacement=lambda column, ordinals, pinned, lows, highs, day, step,
+        unit, held, widths, word, owed, clock=False: 0 if clock else gen_traded(
+            column, ordinals, pinned, lows, highs, day, step, unit, held,
+            widths, word, owed,
+        ),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "held_back_dressed": Mutant(
         branch="plan P4-D268's dressing, which writes a ladder number through "
         "the published form its group owes; the mutant withdraws it and the "
@@ -2845,6 +2885,25 @@ CASE_MUTANTS = {
         "strata on a tenth that is not whole",
         attribute="twice_written",
         replacement=lambda column, values, *arguments: list(values),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "exponent_scaled": Mutant(
+        branch="G8.3a step 3's SCALED walk (item 3 of the numbers pass of "
+        "the second Codex round, 2026-09-19); the mutant walks the ladder "
+        "at the form's plain places, every step it offers is a thousand "
+        "times finer than `%.%%&+%` can spell, and the held-back rows are "
+        "written `1101` and `1099` as bare numbers wearing no form",
+        attribute="form_scale",
+        replacement=lambda form, ladder: gen_form_places(form),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "exponent_fitted": Mutant(
+        branch="G8.3a step 3's EXPONENT FITTINGS (item 3 of the numbers "
+        "pass of the second Codex round, 2026-09-19); the mutant offers no "
+        "exponent filling, the two placements of step 2 answer alone, and "
+        "the held-back rows are written `22001` and `21999`",
+        attribute="exponent_fittings",
+        replacement=lambda candidate, form: [],
         outcome=CHANGES_THE_CELLS,
     ),
     "twice_written_merged": Mutant(

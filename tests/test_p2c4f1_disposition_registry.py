@@ -1815,6 +1815,22 @@ def _permitted(role: str, fact: str) -> "str | None":
     """
     if fact in dispositions.UNPUBLISHED_NOTES:
         return "the profile publishes no such fact"
+    # A JOINED COLUMN'S PART IS A NUMERIC READING, AND ITS FACTS ARE THE
+    # NUMERIC GROUP'S (contract 9.4a's array notation, `parts[]`). The
+    # generator writes `parts[N].<fact>` for a note about one position of
+    # a joined cell, and the plan disposes those facts once, under
+    # `numeric`, rather than once per position -- a registry keyed by
+    # position would go stale the first time a column carried three.
+    # Nothing here had reported such a note until item 1 of the numbers
+    # pass of the second Codex round (2026-09-19) gave the mode's COUNT a
+    # sentence, and the joined column of the producer battery carries the
+    # pair on its second position: `parts[1].mode_count`, 3 published
+    # against 2 held, which is REPORT-ONLY under `numeric/mode_count`.
+    if fact.startswith("parts[") and "]." in fact:
+        inner = fact.split("].", 1)[1]
+        entry = dispositions.BY_KEY.get(("numeric", inner))
+        if entry is not None and entry.disposition not in dispositions.EXACT:
+            return f"numeric/{inner} is {entry.disposition}"
     group = dispositions.ROLE_GROUPS.get(role, "")
     for owner in (group, "universal", "document"):
         entry = dispositions.BY_KEY.get((owner, fact))

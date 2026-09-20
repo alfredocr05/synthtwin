@@ -5352,6 +5352,35 @@ def exponent_filling(form):
     return built
 
 
+def exponent_mantissa(body):
+    """``1.10e+3`` as ``1.10``; None for a spelling wearing no exponent.
+
+    ``body`` is a candidate with its sign already taken off.  The answer
+    is its MANTISSA where the spelling wears an exponent -- exactly one
+    letter, which is `e` or `E`, figures after it behind an optional sign,
+    and something before it -- and None otherwise, which is the ordinary
+    case.  The mantissa is handed back unread: whether it is a plain
+    decimal is the caller's question, and it is the same question the
+    caller asks of a spelling wearing no exponent at all.
+
+    Guarantees: accepts any string; returns a string or None.
+    Determinism: a fixed function of the string.  Raises nothing.  No I/O.
+    """
+    letter = ""
+    for character in body:
+        if character.isalpha():
+            if letter:
+                return None
+            letter = character
+    if letter not in ("e", "E"):
+        return None
+    head, _mark, tail = body.partition(letter)
+    figures = tail[1:] if tail[:1] in ("+", "-") else tail
+    if not head or not figures or not figures.isdigit():
+        return None
+    return head
+
+
 def usable_of_class(candidate, reads, wearing=""):
     """The neutrality tests of G8.3a, for a stand-in of a numeric class.
 
@@ -5390,13 +5419,35 @@ def usable_of_class(candidate, reads, wearing=""):
         # still asked of it there.
         if plus_worn:
             body = body[1:]
-        if len(candidate) > LONGEST_FROZEN_NUMBER or body.count(".") > 1 or not all(
-            character.isdigit() or character == "." for character in body
+        # A SPELLING WEARING AN EXPONENT IS NOT HELD TO THE LENGTH
+        # (item NUMBERS 3 of the second Codex round of 2026-09-19, and
+        # its skeptic's MAJOR finding 1).  The cap above is a statement
+        # about the date rule: no shipped date format reads a PLAIN
+        # decimal of fewer than eight characters, so a shorter one
+        # cannot be a date whatever this file knows.  An exponent
+        # spelling is not a plain decimal and no shipped format reads
+        # one either -- every member of DATE_FORMATS holds either no
+        # letter at all or a month name or a quarter's `Q`, and this
+        # spelling's only letter is a single `e` or `E` between
+        # figures.  MEASURED against the product's own reader: 588
+        # exponent spellings (seven mantissas, both letters, three
+        # exponent signs, seven exponents from `0` to `20240317`, with
+        # and without a leading minus) against all twenty date formats
+        # give 11,760 readings and ZERO dates.  The mantissa is then
+        # held to exactly the test a bare candidate is held to, so a
+        # spelling with two points or a letter of its own is refused
+        # here as before.
+        mantissa = exponent_mantissa(body)
+        read_as = body if mantissa is None else mantissa
+        too_long = mantissa is None and len(candidate) > LONGEST_FROZEN_NUMBER
+        if too_long or read_as.count(".") > 1 or not all(
+            character.isdigit() or character == "." for character in read_as
         ):
             raise AssertionError(
-                f"{candidate!r} is not a plain decimal of at most "
-                f"{LONGEST_FROZEN_NUMBER} characters, so the date rule could "
-                "reach it, and this file states no reading of that rule"
+                f"{candidate!r} is neither a plain decimal of at most "
+                f"{LONGEST_FROZEN_NUMBER} characters nor a decimal wearing "
+                "an exponent, so the date rule could reach it, and this "
+                "file states no reading of that rule"
             )
     return True
 
@@ -5474,10 +5525,34 @@ def anchor_units(text, value):
     if value == math.floor(value) and abs(value) < 2 ** 53:
         return int(value), 0
     shortest = repr(float(value))
-    if not set(shortest) <= set("-.0123456789"):
+    if set(shortest) <= set("-.0123456789"):
+        places = len(shortest.partition(".")[2])
+        return int(F(shortest) * 10 ** places), places
+    # AND A SHORTEST SPELLING THAT WEARS AN EXPONENT IS READ THROUGH IT:
+    # the part before the exponent mark is read plainly and the exponent
+    # moves the count of places it was read at.  Before this a column
+    # published at 1.1e-7 had no anchor at all and its walk counted from
+    # nought.
+    head, mark, tail = shortest.partition("e")
+    if not mark:
+        head, mark, tail = shortest.partition("E")
+    if not mark:
         return None
-    places = len(shortest.partition(".")[2])
-    return int(F(shortest) * 10 ** places), places
+    read = plain_units(head)
+    if read is None:
+        return None
+    size, places = read
+    low = tail[:1] == "-"
+    figures = tail[1:] if tail[:1] in ("+", "-") else tail
+    if not figures.isdigit():
+        return None
+    exponent = int(figures)
+    if low:
+        return size, places + exponent
+    places -= exponent
+    if places >= 0:
+        return size, places
+    return size * 10 ** -places, 0
 
 
 def form_places(form):
@@ -5485,6 +5560,96 @@ def form_places(form):
     if "." not in form:
         return 0
     return form.rsplit(".", 1)[1].count(SHAPE_DIGIT)
+
+
+def form_mantissa(form):
+    """An exponent form's figures before and after its mark -- G8.3a step 3.
+
+    The mantissa is everything up to the one letter place; the exponent's
+    own figures follow it and are not counted here.
+    """
+    head = form
+    for mark in (SHAPE_LETTER, SHAPE_LOWER):
+        if mark in head:
+            head = head[:head.index(mark)]
+    whole, _point, fraction = head.partition(".")
+    return whole.count(SHAPE_DIGIT), fraction.count(SHAPE_DIGIT)
+
+
+def form_scale(form, ladder):
+    """The decimal place an EXPONENT form's own walk steps at -- G8.3a step 3.
+
+    A plain decimal steps at the figures it writes after its mark.  An
+    EXPONENT form spells `mantissa` times ten to the `exponent`, so the
+    value its last mantissa figure moves by is `after` less that
+    exponent -- which may be fewer than no places at all and then means
+    units larger than one.  The exponent is read off the magnitudes the
+    column publishes: the largest of them, written with the mantissa's
+    own count of figures before the mark, fixes it.  That scaled place is
+    walked ONLY where the ladder's plain places and the form's OWN
+    filling of step 2 have both come back empty, so no column either of
+    those answered moves by a byte.  A form with no letter place, or a
+    column with no anchor, answers the plain places.
+    """
+    plain = form_places(form)
+    if form.count(SHAPE_LETTER) + form.count(SHAPE_LOWER) != 1:
+        return plain
+    lead, after = form_mantissa(form)
+    if lead < 1 or not ladder["anchored"]:
+        return plain
+    units = max(abs(ladder["lowest"]), abs(ladder["highest"]))
+    # A PUBLISHED MAGNITUDE OF NOUGHT is spelled by the mantissa's own
+    # lead figures at an exponent of nought, so the scaled place is the
+    # mantissa's `after` (the skeptic's finding 3 on item 3 of the
+    # numbers pass, 2026-09-19).
+    if units == 0:
+        return after
+    return after - (len(str(units)) - ladder["places"] - lead)
+
+
+def exponent_fittings(candidate, form):
+    """The figures an exponent form needs for this candidate -- G8.3a step 3.
+
+    The exponent that leaves the mantissa exactly its own count of
+    figures, and the one either side of it; the mantissa is then the
+    candidate's value divided by that power of ten, exactly or not at
+    all.  A form writing a minus after its letter spells a negative
+    exponent and writes its size.  Everything else is refused by the
+    caller's verification.
+    """
+    lead, after = form_mantissa(form)
+    mantissa = lead + after
+    room = form.count(SHAPE_DIGIT) - mantissa
+    if lead < 1 or room < 1:
+        return []
+    tail = form
+    for mark in (SHAPE_LETTER, SHAPE_LOWER):
+        if mark in tail:
+            tail = tail[tail.index(mark) + 1:]
+    below = "-" in tail
+    read = plain_units(candidate)
+    if read is None or read[0] == 0:
+        return []
+    size, written = abs(read[0]), read[1]
+    base = len(str(size)) + after - written - mantissa
+    out = []
+    for nudge in (0, 1, -1):
+        exponent = base + nudge
+        power = -exponent if below else exponent
+        if power < 0 or power >= 10 ** room:
+            continue
+        shift = after - exponent - written
+        if shift >= 0:
+            value = size * 10 ** shift
+        elif size % 10 ** -shift:
+            continue
+        else:
+            value = size // 10 ** -shift
+        spelled = str(value)
+        if len(spelled) > mantissa:
+            continue
+        out.append(spelled.rjust(mantissa, "0") + str(power).rjust(room, "0"))
+    return out
 
 
 def number_ladder(written, forms):
@@ -5591,7 +5756,14 @@ def outward_at(ladder, places, position, low_ended=False, high_ended=False):
 
 
 def whole_figures(units, places):
-    """Figures before the decimal mark of a number of ``places`` places."""
+    """Figures before the decimal mark of a number of ``places`` places.
+
+    A NEGATIVE ``places`` IS A UNIT LARGER THAN ONE (G8.3a step 3's
+    exponent scale): units of a hundred thousand are places of -5, and
+    every figure of the unit stands before the mark.
+    """
+    if places < 0:
+        return len(str(abs(units) * 10 ** -places))
     return len(str(abs(units) // 10 ** places))
 
 
@@ -5605,16 +5777,22 @@ def form_whole_figures(form):
 
 
 def units_spelled(units, places):
-    """A whole number of last places written plainly, no zero invented."""
+    """A whole number of last places written plainly, no zero invented.
+
+    A NEGATIVE ``places`` is units larger than one, which is what an
+    exponent form's own walk steps in (G8.3a step 3).
+    """
     lead = "-" if units < 0 else ""
     size = -units if units < 0 else units
+    if places < 0:
+        return f"{lead}{size * 10 ** -places}"
     whole, part = divmod(size, 10 ** places)
     if places == 0:
         return f"{lead}{whole}"
     return f"{lead}{whole}.{part:0{places}d}"
 
 
-def dressed_in_form(candidate, form, named):
+def dressed_in_form(candidate, form, named, scaled=False):
     """The same number written into one published form, or "" -- G8.3a, P4-D268.
 
     Read from the method: the form's figure places take the candidate's
@@ -5632,12 +5810,20 @@ def dressed_in_form(candidate, form, named):
     figures = "".join(character for character in candidate if character.isdigit())
     places = form.count(SHAPE_DIGIT)
     letters = form.count(SHAPE_LETTER) + form.count(SHAPE_LOWER)
-    if places < len(figures) or not figures or letters > 1:
+    if not figures or letters > 1:
         return ""
-    spare = "0" * (places - len(figures))
-    fittings = [figures + spare]
-    if letters == 1 and spare:
-        fittings.append(spare + figures)
+    fittings = []
+    if places >= len(figures):
+        spare = "0" * (places - len(figures))
+        fittings.append(figures + spare)
+        if letters == 1 and spare:
+            fittings.append(spare + figures)
+    # AND THE EXPONENT'S OWN FITTINGS, AFTER THE TWO ABOVE: counting the
+    # candidate's figures into the figure places reaches only a value the
+    # mantissa has room for, so a form of four figure places refused
+    # every eight-figure step of a column published at 1.10e+7.
+    if letters == 1 and scaled:
+        fittings.extend(exponent_fittings(candidate, form))
     for fitting in fittings:
         built = ""
         step = 0
@@ -5662,7 +5848,7 @@ def dressed_in_form(candidate, form, named):
 
 
 def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None,
-                   bounded=False):
+                   bounded=False, scaled=False):
     """The next made-up number one debt may take, or "" -- G8.3a.
 
     A number wearing no named form walks the ladder's tiers, finest count
@@ -5677,6 +5863,11 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     reach = 0
     if name != OWED_NUMBER:
         tiers = (form_places(name),)
+        if scaled:
+            step_scale = form_scale(name, ladder)
+            if step_scale == tiers[0]:
+                return ""
+            tiers = (step_scale,)
         reach = form_whole_figures(name)
     # THE NARROW WALK (integration repair): the widest number the column
     # published, or the widest plain form the census names, bounds a
@@ -5721,7 +5912,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                 # THE SAME NUMBER, WRITTEN THROUGH THE FORM THE CENSUS ASKS
                 # FOR (plan P4-D268): a form that is a plain decimal with a
                 # decoration was worn by no step of the ladder.
-                dressed = dressed_in_form(candidate, name, named)
+                dressed = dressed_in_form(candidate, name, named, scaled)
                 if not dressed:
                     wider = whole_figures(units, places) > reach
                     if side == "high" and units > 0 and wider:
@@ -5740,11 +5931,11 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
 
 
 def ladder_room(ladder, name, wanted, named, seen, folds, needed=0, pool=None,
-                bounded=False):
+                bounded=False, scaled=False):
     cursor = {}
     usable = 0
     while usable < wanted and next_on_ladder(
-        ladder, name, cursor, named, seen, folds, needed, pool, bounded
+        ladder, name, cursor, named, seen, folds, needed, pool, bounded, scaled
     ):
         usable += 1
     return usable
@@ -5986,6 +6177,14 @@ def class_stand_ins_walked(
                 room[form] = max(
                     ladder_room(ladder, form, len(sub), named, seen, folds),
                     usable_room(form, len(sub), seen, folds, reads, ladder),
+                    # AND A THIRD, THE FORM'S OWN SCALE: an exponent form
+                    # the ladder cannot spell at its bare places can be
+                    # spelled at the scale its own exponent fixes.  It is
+                    # SPENT last of the three.
+                    ladder_room(
+                        ladder, form, len(sub), named, seen, folds,
+                        0, None, False, True,
+                    ),
                 )
             else:
                 room[form] = usable_room(form, len(sub), seen, folds, reads)
@@ -6029,6 +6228,20 @@ def class_stand_ins_walked(
                             ):
                                 found = trial
                                 break
+                    if not found:
+                        # AND LAST, THE LADDER AT THE FORM'S OWN SCALE.
+                        # An exponent form walked at its mantissa's bare
+                        # places offers only steps the dressing must
+                        # refuse, and the form's own filling above is
+                        # held to the published ends.  Where both come
+                        # back empty the ladder is walked again at the
+                        # scale the form's exponent fixes, so the debt is
+                        # placed from the published numbers rather than
+                        # left unpaid.
+                        found = next_on_ladder(
+                            ladder, form, cursor, named, seen, folds,
+                            0, None, False, True,
+                        )
                 if not found:
                     found = next_on_ladder(
                         ladder, OWED_NUMBER, cursor, named, seen, folds, needed, pool,
@@ -7678,6 +7891,16 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             )
             count -= traded
             changed = changed or traded > 0
+        if count > distinct:
+            # AND THE SAME TRADE FOR MIDNIGHT, asked second so no column
+            # the width trade already settled moves (item 2 of the dates
+            # pass of the second Codex round, 2026-09-19).
+            traded = traded_merges(
+                column, ordinals, pinned, lows, highs, day, step, unit, held,
+                widths, word, count - distinct, True,
+            )
+            count -= traded
+            changed = changed or traded > 0
     elif count < distinct:
         options, full = [], set()
         for rank in range(parsed):
@@ -7745,24 +7968,50 @@ def nearest_held_unit(value, low, high, unit, held, spot, fits):
     return None if found is None else spot[found // unit]
 
 
-def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, owed):
-    """A merge onto a unit of the OTHER width kind, paid for (plan P4-D258).
+# HOW MANY HELD UNITS ONE RUN IS OFFERED FOR A MIDNIGHT TRADE: whether a
+# merge can be PAID FOR is a fact about the ranks elsewhere, so the
+# nearest target is not always the payable one.  A WIDTH trade keeps
+# P4-D258's single offer and its single attempt.
+TRADE_TARGETS = 4
 
-    A run whose gap holds no unit of its own width kind has nowhere to
-    go.  It moves onto the nearest held unit of the other kind and the
-    same midnight standing, and exactly as many ranks elsewhere move
-    BETWEEN HELD UNITS the other way -- each from a unit that keeps
-    other ranks, onto a unit ranks already hold -- so neither half
-    changes the count of different units and the two together leave the
-    width census where it stood.  A payment that cannot be made in full
-    is put back, cell for cell.
+
+def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, owed, clock=False):
+    """A merge onto a unit of the OTHER standing, paid for (plan P4-D258).
+
+    A run whose gap holds no unit of its own standing has nowhere to go.
+    It moves onto the nearest held unit of the other standing in ONE
+    respect -- the width kind, or, since item 2 of the dates pass of the
+    second Codex round (2026-09-19), whether the unit is written at
+    midnight -- and exactly as many ranks elsewhere move BETWEEN HELD
+    UNITS the other way, each from a unit that keeps other ranks, onto a
+    unit ranks already hold, each flipping that one respect.  Neither
+    half changes the count of different units and the two together leave
+    that standing's count where it stood.  A payment that cannot be made
+    in full is put back, cell for cell.
+
+    The width kind is traded first, at the single nearest offer; the
+    midnight standing after it, where each run's nearest ``TRADE_TARGETS``
+    offers are tried in turn.  Before the midnight trade a non-midnight
+    run stranded between midnight pins had no merge of any kind: 40 each
+    of `2024-03-01T00:00:00`, `2024-03-02T00:00:00` and
+    `2024-03-03T12:00:00` came back 41, 39 and 35 beside five invented
+    `2024-03-01T16:13:10` cells, four different values against three.
     """
-    if not widths or owed <= 0:
+    if owed <= 0 or (not clock and not widths) or (clock and day != 86400):
         return 0
     parsed = len(ordinals)
     made = 0
 
     def flips(value, target):
+        """Whether the move flips the traded standing and keeps the other."""
+        if clock:
+            if written_at_midnight(value, 0, step) == written_at_midnight(
+                target, 0, step
+            ):
+                return False
+            return not widths or counts_into_width(
+                column, value // day, word
+            ) == counts_into_width(column, target // day, word)
         if counts_into_width(column, value // day, word) == counts_into_width(
             column, target // day, word
         ):
@@ -7773,46 +8022,64 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
 
     for _attempt in range(owed):
         spot = {value // unit: value for value in ordinals}
-        best = None
+        offers = []
         first = 0
         while first < parsed:
             last = first
             while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
                 last += 1
-            if not any(pinned[first:last + 1]):
-                found = nearest_fitting(
-                    ordinals[first], lows[first], highs[first],
-                    lambda candidate, own=ordinals[first], low=lows[first], high=highs[first]: (
-                        held.get(candidate // unit, 0) > 0
-                        and spot.get(candidate // unit) is not None
-                        and low <= spot[candidate // unit] <= high
-                        and flips(own, spot[candidate // unit])
-                    ),
-                    unit,
-                )
-                if found is not None and held[ordinals[first] // unit] == last - first + 1:
+            if not any(pinned[first:last + 1]) and held[
+                ordinals[first] // unit
+            ] == last - first + 1:
+                tried = set()
+                while len(tried) < (TRADE_TARGETS if clock else 1):
+                    found = nearest_fitting(
+                        ordinals[first], lows[first], highs[first],
+                        lambda candidate, own=ordinals[first], low=lows[first], high=highs[first], seen=tried: (
+                            candidate // unit not in seen
+                            and held.get(candidate // unit, 0) > 0
+                            and spot.get(candidate // unit) is not None
+                            and low <= spot[candidate // unit] <= high
+                            and flips(own, spot[candidate // unit])
+                        ),
+                        unit,
+                    )
+                    if found is None:
+                        break
                     target = spot[found // unit]
-                    offer = (abs(target - ordinals[first]), last - first + 1, first, target)
-                    if best is None or offer < best:
-                        best = offer
+                    offers.append(
+                        (abs(target - ordinals[first]), last - first + 1, first, target)
+                    )
+                    tried.add(found // unit)
             first = last + 1
-        if best is None:
+        if not offers:
             return made
-        _distance, size, start, target = best
-        own = ordinals[start] // unit
-        gaining = counts_into_width(column, target // day, word)
-        paid = repaid_standings(
-            column, ordinals, pinned, lows, highs, day, step, unit, held, spot,
-            word, size, not gaining, own, target // unit,
-        )
-        if len(paid) < size:
-            for rank in sorted(paid):
-                moved_between(ordinals, held, unit, rank, paid[rank])
+        asked = sorted(offers)
+        if not clock:
+            asked = asked[:1]
+        settled = False
+        for _distance, size, start, target in asked:
+            own = ordinals[start] // unit
+            gaining = (
+                written_at_midnight(target, 0, step) if clock
+                else counts_into_width(column, target // day, word)
+            )
+            paid = repaid_standings(
+                column, ordinals, pinned, lows, highs, day, step, unit, held, spot,
+                word, size, not gaining, own, target // unit, clock, widths,
+            )
+            if len(paid) < size:
+                for rank in sorted(paid):
+                    moved_between(ordinals, held, unit, rank, paid[rank])
+                continue
+            ordinals[start:start + size] = [target] * size
+            held[own] = 0
+            held[target // unit] += size
+            made += 1
+            settled = True
+            break
+        if not settled:
             return made
-        ordinals[start:start + size] = [target] * size
-        held[own] = 0
-        held[target // unit] += size
-        made += 1
     return made
 
 
@@ -7823,8 +8090,27 @@ def moved_between(ordinals, held, unit, rank, target):
     held[target // unit] = held.get(target // unit, 0) + 1
 
 
-def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, held, spot, word, wanted, gaining, skip, onto):
-    """Ranks moved between held units to pay a trade's width count back."""
+def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, held, spot, word, wanted, gaining, skip, onto, clock=False, widths=True):
+    """Ranks moved between held units to pay a trade's count back.
+
+    Each rank moved leaves a unit other ranks still hold, lands on a unit
+    ranks already hold, and FLIPS the one standing being traded -- the
+    width kind, or whether it stands at midnight -- keeping the other.
+    """
+    def standing(value):
+        if clock:
+            return written_at_midnight(value, 0, step)
+        return counts_into_width(column, value // day, word)
+
+    def keeps_the_other(value, target):
+        if clock:
+            return not widths or counts_into_width(
+                column, value // day, word
+            ) == counts_into_width(column, target // day, word)
+        return day != 86400 or written_at_midnight(
+            target, 0, step
+        ) == written_at_midnight(value, 0, step)
+
     paid = {}
     for rank in range(len(ordinals)):
         if len(paid) >= wanted:
@@ -7834,7 +8120,7 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
         own = ordinals[rank] // unit
         if own in (skip, onto) or held[own] <= 1:
             continue
-        if counts_into_width(column, ordinals[rank] // day, word) == gaining:
+        if standing(ordinals[rank]) == gaining:
             continue
         value = ordinals[rank]
         found = nearest_fitting(
@@ -7844,15 +8130,8 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
                 and held.get(candidate // unit, 0) > 0
                 and spot.get(candidate // unit) is not None
                 and low <= spot[candidate // unit] <= high
-                and counts_into_width(
-                    column, spot[candidate // unit] // day, word
-                )
-                != counts_into_width(column, own_value // day, word)
-                and (
-                    day != 86400
-                    or written_at_midnight(spot[candidate // unit], 0, step)
-                    == written_at_midnight(own_value, 0, step)
-                )
+                and standing(spot[candidate // unit]) != standing(own_value)
+                and keeps_the_other(own_value, spot[candidate // unit])
             ),
             unit,
         )
@@ -11463,7 +11742,16 @@ def identifier_readings(column):
     THEM BUILT -- ARE NOT WRITTEN HERE, and that is a statement about
     reach, measured rather than assumed (plan P4-D298).**  A cap is
     reached only where it moves a cell: where a reading past it would
-    answer a description no reading inside it answers.  On 3,000
+    answer a description no reading inside it answers.  **NOR IS THE SIFT
+    THAT FEEDS THE FIRST CAP** (item 2 of the numbers pass of the second
+    Codex round, 2026-09-19): the shipped rule passes over a reading whose
+    class counts or alphabet bands no choice of WHOLE REPETITION GROUPS
+    adds up to, before that reading can spend one of the 256, because a
+    column of 230 and 10 spent all 256 on readings no packing could meet
+    and never reached the one its own values make.  A sift before a cap
+    that is never reached cannot move a cell, and this walk offers every
+    reading there is, in the same order, so it answers as the sifted walk
+    answers wherever the caps do not bind.  On 3,000
     producer record numbers the most readings any column built was five;
     the 88 hand-built descriptions at this file's floor that did build
     eight wrote the same cells with the build cap lifted, and so did the
@@ -17346,6 +17634,84 @@ def _held_back_dressed():
     }
 
 
+def _exponent_held_back(published, form, count):
+    """A label column whose held-back numbers owe an EXPONENT form (G8.3a).
+
+    The same shape `_plus_held_back` builds, with an exponent spelling in
+    place of a signed whole number: thirty `alpha`, eleven of one
+    published exponent spelling and eleven more over two held-back ones,
+    at a floor of eleven, so the census names the form on twenty-two
+    cells and the held-back rows owe it eleven.
+    """
+    return _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        n_present=52, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=22, n_not_numeric=30, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            {
+                "label": "alpha", "count": 30,
+                "variants": {"alpha": 30}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+            {
+                "label": published, "count": count,
+                "variants": {published: count}, "variants_withheld": {},
+                "shape_form_cells": count,
+            },
+        ],
+        suppressed_levels=2, suppressed_rows=11, level_ceiling=5,
+        shape_forms={form: 22},
+    )
+
+
+def _exponent_scaled():
+    """The ladder walked at the scale an exponent form fixes -- G8.3a step 3."""
+    return {
+        "why": "G8.3a step 3's SCALED walk (item 3 of the numbers pass of "
+        "the second Codex round, 2026-09-19): thirty `alpha` beside eleven "
+        "`1.10e+3` and two held-back exponent spellings over eleven rows, "
+        "whose census names `%.%%&+%` twenty-two times. The form writes two "
+        "figures after its mark, but the value those two figures move by is "
+        "a hundredth OF THE EXPONENT'S SCALE, so a walk at the form's plain "
+        "places offers steps a thousand times finer than the form can "
+        "spell and the dressing refuses every one of them. The exponent is "
+        "read off the largest magnitude the column publishes, written with "
+        "the mantissa's own count of figures before the mark, and the "
+        "ladder is walked again at `after` less that exponent -- last of "
+        "three, after the ladder's plain places and after the form's own "
+        "filling of step 2, so no column either of those answered moves. "
+        "The held-back rows take `1.11e+3` and `1.09e+3`. The mutant "
+        "answers the plain places, and they are written `1101` and `1099` "
+        "as bare numbers wearing no form at all.",
+        "column": _exponent_held_back("1.10e+3", "%.%%&+%", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
+def _exponent_fitted():
+    """An exponent form filled mantissa and exponent apart -- G8.3a step 3."""
+    return {
+        "why": "G8.3a step 3's EXPONENT FITTINGS (item 3 of the numbers "
+        "pass of the second Codex round, 2026-09-19): thirty `alpha` beside "
+        "eleven `2.20e+4` and two held-back exponent spellings over eleven "
+        "rows, whose census names `%.%%&+%` twenty-two times. The two "
+        "placements of step 2 count a candidate's figures into the form's "
+        "figure places in order, which reaches only a value the mantissa "
+        "has room for -- five figures into four places is no filling at "
+        "all. An exponent form is filled by choosing instead the exponent "
+        "that leaves the mantissa exactly its own count of figures, and "
+        "the one either side of it, the mantissa being the candidate's "
+        "value divided by that power of ten exactly or not at all. The "
+        "held-back rows take `2.21e+4` and `2.19e+4`. The mutant offers no "
+        "exponent filling, the two placements of step 2 answer alone, and "
+        "the held-back rows are written `22001` and `21999`.",
+        "column": _exponent_held_back("2.20e+4", "%.%%&+%", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
 def _held_back_anchored():
     """A ladder anchored by a number spelled with a plus (plan P4-D268)."""
     return {
@@ -21264,6 +21630,57 @@ def _midnight_feasible_offsets():
     }
 
 
+def _midnight_traded_merge():
+    """The MIDNIGHT half of P4-D258's paid merge (the dates pass of the
+    second Codex round, 2026-09-19).
+
+    A hundred and twenty moments on three instants, forty each:
+    `2024-03-01T00:00:00`, `2024-03-02T00:00:00` and
+    `2024-03-03T12:00:00`.  Eighty of them stand at midnight and forty do
+    not, the column writes no width at all, and the count passes leave one
+    run of non-midnight ranks stranded between midnight pins -- its gap
+    holds no unit off midnight anywhere.  The width trade returns at its
+    first line on a column whose width census is not held, so before the
+    midnight trade there was no merge of any kind for it and the twin held
+    a fourth instant.
+    """
+    rungs = [
+        "2024-03-01 00:00:00", "2024-03-01 00:00:00", "2024-03-01 00:00:00",
+        "2024-03-01 00:00:00", "2024-03-01 00:00:00", "2024-03-02 00:00:00",
+        "2024-03-03 12:00:00", "2024-03-03 12:00:00", "2024-03-03 12:00:00",
+        "2024-03-03 12:00:00", "2024-03-03 12:00:00",
+    ]
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=120, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_numeric=0, n_not_numeric=120, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 120},
+        datetime_separators={"upper_t": 120},
+        all_at_midnight=False, n_at_midnight=80,
+    )
+    return {
+        "why": "the MIDNIGHT half of P4-D258's paid merge (item 2 of the "
+        "dates pass of the second Codex round, 2026-09-19): forty each of "
+        "three instants, eighty of them at midnight, on a column that "
+        "writes no width at all. The count passes strand a run of "
+        "non-midnight ranks between midnight pins, whose gap holds no "
+        "unit off midnight anywhere, so the run merges onto a midnight "
+        "unit and as many ranks elsewhere move between held units from "
+        "midnight to a non-midnight unit to pay for it. This case's "
+        "mutant withdraws the midnight trade and keeps the width one, and "
+        "the twin holds FOUR different instants against the three the "
+        "description publishes.",
+        "column": column,
+        "rows": 120,
+        "identifier_declared": False,
+    }
+
+
 def _endpoint_tie_offsets_case():
     """Interior ranks standing on an end's own instant (plan P4-D255).
 
@@ -21576,6 +21993,17 @@ FIFTH_BRANCH_CASE_BUILDERS = {
     # A whole number written two ways (plan P4-D193).
     "twice_written_filled": _twice_written_filled,
     "twice_written_merged": _twice_written_merged,
+    # THE TWO RULES OF G8.3a STEP 3 (item 3 of the numbers pass of the
+    # second Codex round, 2026-09-19, and its skeptic's finding 1): the
+    # scaled walk and the exponent fittings.  They come to THIS file and
+    # not to the eighth, whose own entry point says the fifth takes a case
+    # where it cannot: the eighth's output stands at 212306 bytes and the
+    # ninth's at 214367, both past plan P4-D295's 200000-byte line, while
+    # this one stands at 162761 with room for both.  Opening a tenth entry
+    # point would have moved every other committed file's bytes, because
+    # each one's `case_set` account names all the others.
+    "exponent_fitted": _exponent_fitted,
+    "exponent_scaled": _exponent_scaled,
 }
 
 # THE SEVEN CASES OF THE EXTRA REVIEW ROUND OF 2026-09-18, its date pass
@@ -21609,6 +22037,11 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "identifier_absorbed_figure": _identifier_absorbed_figure,
     # G10.1's write rule, a judged stand-in's key included (plan P4-D6.4).
     "judged_stand_in_written": _judged_stand_in_written,
+    # The MIDNIGHT half of P4-D258's paid merge (item 2 of the dates pass
+    # of the second Codex round, 2026-09-19). It goes in this file because
+    # plan P4-D295 sends the next case to the EIGHTH while its output
+    # stands under 200000 bytes, which it did, at 191318.
+    "date_midnight_traded": _midnight_traded_merge,
 }
 
 SEVENTH_BRANCH_CASE_BUILDERS = {
@@ -21809,6 +22242,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "seventh file only because the sixth stands within a few kilobytes of "
     "the provenance manifest's byte cap."
+    " Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
 )
@@ -21844,6 +22278,14 @@ _SIXTH_BRANCH_ACCOUNT = (
     "276235 bytes against the provenance manifest's 250000-byte cap. No "
     "case was dropped, no proof was shortened and the cap was not raised."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " And, added here by the dates pass of the second Codex round of"
+    " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
+    " of three instants, eighty of them at midnight, on a column writing"
+    " no width at all, where a stranded run of non-midnight ranks merges"
+    " onto a midnight unit and as many ranks elsewhere pay the midnight"
+    " count back. It goes in this file because plan P4-D295 sends the"
+    " next case to the eighth while its output stands under 200000"
+    " bytes, which it did, at 191318."
 )
 
 _SEVENTH_BRANCH_ACCOUNT = (
@@ -21908,6 +22350,44 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "exponent_fitted": (
+        14424975820530563457, 15610671806914588064, 11117871264214182582,
+        4598625107104034805, 3553724125616827433, 9415263999882945131,
+        5755432505288189310, 5136528199047781676, 1469366162924300586,
+        9419098116555578491, 12372334808679126492, 9030162397736433948,
+        4072563521392892672, 3309604836059055980, 18304680649784205850,
+        13909051196965466066, 9274473535808218923, 3250060710791822855,
+        4159679801882132341, 11810140203027825274, 14371234274233986739,
+        6397929174887374857, 16262636762791379663, 3727752101511876133,
+        3667602410425560649, 9650187741626867195, 13936547618194813392,
+        2419139064829515942, 2982477764054244478, 9116682835735373164,
+        17852422705257111250, 8703043133054634264, 2670550438430694920,
+        523335524908506356, 17514215469693441075, 4468546607721577576,
+        14949509998847095519, 10349757993040877804, 444465570891266000,
+        5612701628519384714, 3661024348911573019, 9206183531549452922,
+        16194894475051891251, 14776790800561398655, 14126737892811992908,
+        2184710861624991002, 8509433144774156735, 8199942287079359752,
+        4856185346840231243, 13189402790271083518, 2353745320876098810,
+    ),
+    "exponent_scaled": (
+        8008445975337470844, 6554941983521102517, 12055477982783999003,
+        12739347490420820715, 4432151388956694022, 17556408585168782169,
+        6477535450776680385, 18157065842049356168, 12967244308987777367,
+        12366327304182198370, 9955161618361707626, 9101774378134450920,
+        12266596785175467130, 10234132534023548751, 15979028109567910025,
+        17004202748590516004, 11828356213276119570, 9756599628731633499,
+        16335757565194275210, 17145747449697029045, 7971869019810804311,
+        13464040985187003963, 11028558879099325417, 5676104135255289304,
+        1649773374485131901, 7524313289032117375, 2948819549820794861,
+        11375297578708749540, 14371835270566472573, 11487790211375476785,
+        8893708382244819743, 16584876905152400942, 4916971692879016885,
+        10598990921780437119, 8441165432097193907, 16558210006956996595,
+        12296584649504399971, 1626217112631668119, 5164658247613449439,
+        3490449752439342144, 4281538421097699617, 12105244519235289351,
+        18219985809272882807, 18084792635920443039, 14691873067100567526,
+        9113967287279801177, 7456732520836430467, 6350305149464016082,
+        6394567025502691656, 16410625569160695706, 12849387199389510591,
+    ),
     "date_both_fields_disagree": (
         5096034806614510811, 9127885328592248719, 16304617541838727871,
         10614954204615546728, 14963909110165282232, 8845507511527769126,
@@ -21957,6 +22437,92 @@ GIVEN_WORDS = {
         17905301607030523964, 5782913684655845935, 4268664161891039779,
         18207263717473703640, 17702622945500174976, 3460933630988142990,
         14637705151496892656, 7855628863750435337, 1590975076863017816,
+    ),
+    # The MIDNIGHT half of P4-D258's paid merge (the dates pass of the
+    # second Codex round), at seed 270.
+    "date_midnight_traded": (
+        7168471518118716308, 15475560794848685798, 8924140341879527192,
+        4967833174847410269, 2521600805326278595, 3211921511271988608,
+        13793826536334235812, 5591220328069069820, 1566988582973551249,
+        2574198232748350135, 1917938315370456910, 14229379392909940238,
+        3153833681656668790, 3125095158028828437, 11414223514983501011,
+        12470193241497515817, 17378656145803634055, 3100755109175122990,
+        1815883427542560730, 5338330397398956657, 3041849209165327456,
+        13798903564982855177, 15285580636187604972, 5539994885386805808,
+        2072011233089586573, 5585605023446448166, 6464022585167439944,
+        12414187237531420064, 141927170518100324, 4922913969716396582,
+        1438632646250748914, 8221304252731240128, 9842722986182707337,
+        14611837445958923843, 14139757625919000981, 5106631985779164133,
+        6189971069956979760, 14285781198183533130, 13530242619369618965,
+        3364424954818150634, 3479465582763757298, 5940146090757925324,
+        8418903263675065801, 7045849646647321036, 4593880993879664383,
+        9404817944052910056, 10257184126787145951, 9798829297242936417,
+        5289810165526548196, 6009053058717558257, 888802061150194328,
+        7198198002812619212, 5864020528965736960, 7246455572106723925,
+        2904524798543780999, 7501703175098888194, 5621693339106478361,
+        14518303483435677295, 15208714254471306893, 1082778542565118236,
+        16680424921824792443, 8607769559550869510, 5017351845340358944,
+        8914090409141612068, 17891164877682313591, 12384823470267723479,
+        5524352784762526924, 18139026444915565242, 10533723085658061189,
+        16714213617330219328, 5669528801300602764, 6508776144433407489,
+        16588944346068629178, 18131537132767547698, 4104204466001513894,
+        796143570343244212, 7797054353527615783, 10797504144548344495,
+        12569932630329940897, 1282015243225405181, 8059909907640425864,
+        2442862504910807619, 16374460575099351788, 10614312655163774919,
+        12646358539225724495, 11399793445460180737,
+        17508245807699514599, 15542602462653070958,
+        17450888426340956582, 5076867010192538879, 8076993534559873327,
+        8938771632850360413, 4819502582603002986, 5693388569468731951,
+        16755506782709276883, 9960602419394685433, 5813565232553525093,
+        2430061244803306718, 16082399182598054253, 9933413554448161799,
+        6345737770359037345, 8883094865877763581, 11428410600251619308,
+        12831833065260468679, 16668817496131220280, 6290433525937319526,
+        13117594181183918330, 16606972233916943426, 1044584479818561305,
+        16569300410748336921, 4839014751913968745, 4965450910332061924,
+        506736296839120984, 1463744332166574852, 703514815279920141,
+        6241307879677483961, 13765043540714266351, 10171166221766728557,
+        13587454869707549417, 9761689530118700219, 9271055636364979921,
+        16327519181023220037, 13113044887737095980, 8201604764348086600,
+        8928842087825424088, 13393105935946848283, 15584041298184864510,
+        2136510194740616531, 1270432503124760292, 3980372070700985995,
+        5259930629379562331, 18012192370106833047, 5874813679265345891,
+        3391186940273698699, 18303718472826905274, 7933183800430307793,
+        7094913357365366477, 13868772901280139363, 10907800944523999005,
+        17063144424374322250, 10232583360202462851,
+        12425953063329392142, 5401040468917206565, 16356375258860772046,
+        4517363277134371918, 13051549805640666875, 2516339273404933345,
+        9961899040511626705, 4252283270445560699, 11637177723487352553,
+        6356293966502524231, 7736330270531976222, 4330258131688442614,
+        10223815985525903071, 3229700860821456885, 7272290829314275584,
+        14963202172584358683, 14873065055535351223,
+        11202857238020844531, 79247533540697594, 16422271243411452075,
+        8221092285983930218, 2754571642691452034, 12914454621533121646,
+        11396178479863836780, 102987943412683582, 12797928008167945644,
+        11651262847234420645, 16217670342661556970, 6025274276223726788,
+        7401744765187658083, 7217506675086860297, 6125137736297282671,
+        3789971357307111547, 12567099479802279287, 13138741493013640497,
+        6549243295320517258, 4690735084855672752, 14327232907668256348,
+        4884158340868016907, 16039080837170728797, 9372340876049760748,
+        1695652363829081312, 8414945864398014895, 7887197818244279015,
+        11889725949052351354, 4576115003376701001, 1821933361929308065,
+        3952327320411330082, 16645725767986243063, 5019330991451512527,
+        8711659910871513429, 4774679975588098456, 8435433733975193261,
+        14697247530817523643, 13488406855042313999,
+        13138750523287407187, 15358136057585139929,
+        16903428561626486043, 8541864332566834725, 17710531757229834488,
+        9164421348310817888, 9703077602385775660, 5894747655929082682,
+        771721524103226469, 15835779006523241033, 17195158905209626413,
+        2044180877853935226, 8983009961071797173, 12002795207041122288,
+        13235870197597233938, 7847683393297466275, 18121347312759260652,
+        4245025626029537247, 6306273070477825682, 1070447441377481073,
+        9813608731728741835, 15923369857931604978, 12715705738882429625,
+        16733368721467097901, 17388856195536909865,
+        15815244677436409864, 4379901919250920654, 15206909740821799237,
+        4095767077212344568, 3008838506158031792, 9306037255774213636,
+        3147373262984231579, 7780221573939425812, 11525977127990580094,
+        16474116593570107225, 2368060873153530944, 12538237132415947689,
+        11672080576509263339, 9027570162051686691, 12300573366893236916,
+        4792685064245557157,
     ),
     "date_two_kinds_traded": (
         16753067613118181217, 4206969878013758167, 15183236063515065596,
