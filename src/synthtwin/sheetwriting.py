@@ -1329,6 +1329,25 @@ def _published_spellings(column: "contract.ColumnBlock") -> "frozenset[str]":
     it. A cell holding one of them is not a fabricated date candidate,
     whatever its shape, so `_onto_the_calendar` steps over it.
 
+    A HELD-BACK SPELLING IS NOT ONE OF THEM, and the first version of
+    this function put `variants_withheld` in the set as though it were
+    (the skeptic's finding 2 on item 1 of the dates pass, 2026-09-19).
+    That field is a MULTIPLICITY MAP, not a list of spellings: contract
+    7.4.8 pads its ROW-COUNT keys with leading noughts to a uniform
+    width and its values count how many held-back spellings stood at
+    that count, which is how `contract.py` reads it back. Walking its
+    keys added `003` and `010` to the set -- row counts, told to stand
+    for text -- and never a spelling, because a spelling the floor held
+    back is not in the description AT ALL and so cannot be held back
+    from a repair. MEASURED on a hand-written level of `2024-02-30` with
+    `variants_withheld {"003": 2, "010": 1}`: the old walk returned
+    `['003', '010', '2024-02-30']`. Nothing moved in a twin synthtwin's
+    own producer described, because the owner's ruling of 2026-09-17
+    counts a below-floor spelling into the commonest and every
+    `variants_withheld` it writes came back empty -- but the loader
+    accepts a description written by hand, and that is where the row
+    counts would have arrived.
+
     Only a LABEL role publishes spellings this way. Every other role
     either publishes no text at all or is generated from instants, and
     `dialect.sheet_date_on_the_calendar` hands a real day back unchanged,
@@ -1345,8 +1364,6 @@ def _published_spellings(column: "contract.ColumnBlock") -> "frozenset[str]":
     for level in facts.levels:
         spellings += [level.label]
         for spelling in level.variants:
-            spellings += [spelling]
-        for spelling in level.variants_withheld:
             spellings += [spelling]
     return frozenset(spellings)
 

@@ -23185,8 +23185,28 @@ def _form_scale(
     if lead < 1 or not ladder.anchored:
         return plain
     units = max(abs(ladder.lowest), abs(ladder.highest))
+    # A COLUMN WHOSE ONLY PUBLISHED MAGNITUDE IS NOUGHT IS ANCHORED AT AN
+    # EXPONENT OF NOUGHT (the skeptic's finding 3 on item 3 of the numbers
+    # pass, 2026-09-19). Nought has no magnitude to read an exponent off,
+    # and the line below would read `len("0")` as one figure before the
+    # mark where the ladder's own places say otherwise; but a column that
+    # publishes nought alone publishes it AS its form spells it, and the
+    # mantissa's own lead figures spell nought at an exponent of nought.
+    # So `figures` is the mantissa's lead and the scaled place is the
+    # mantissa's `after` -- one line, and it is the same answer the
+    # general reading gives every column whose published magnitude is not
+    # nought. MEASURED at a floor of eleven on a hundred `alpha` beside
+    # twenty `0.00e+0` and two held-back levels of ten, seeds 4 and 13
+    # alike: the description requires `shape_forms {"%.%%&+%": 40}`, the
+    # source passes every executable check, and before this the twin wore
+    # the form TWENTY times and wrote the other twenty as the bare
+    # figures `1` and `2` at exit 3 against the table's 0. After it the
+    # twin writes `0.01e+0` and `0.02e+0`, forty of forty wearing the
+    # form, both files at exit 0. `zero_not_lowest` -- the same column
+    # with nought held back instead of published -- is byte-identical
+    # either way, because its ladder's magnitude is not nought.
     if units == 0:
-        return plain
+        return after
     # THE EXPONENT IS READ IN WHOLE FIGURES AND NEVER FROM A LOGARITHM:
     # the ladder's own units are exact, and how many figures the largest
     # magnitude writes before its mark -- which a value below one writes

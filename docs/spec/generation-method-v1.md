@@ -6370,6 +6370,24 @@ number when it is one under that reading.
    of thousands, and a dressing with no room for eight figures in four
    figure places. The same column at `1.10e-7` failed the same way.
 
+   A PUBLISHED MAGNITUDE OF NOUGHT IS AN EXPONENT OF NOUGHT (the
+   skeptic's finding 3 on that item, the repair pass of 2026-09-19).
+   Nought has no magnitude to read an exponent off, and reading its one
+   written figure as a figure before the mark would give the scaled walk
+   a place the ladder's own places contradict. But a column that
+   publishes nought alone publishes it AS its form spells it, and the
+   mantissa's own lead figures spell nought at an exponent of nought, so
+   the scaled place is the mantissa's `after`. MEASURED at a floor of
+   eleven, seeds 4 and 13 alike, on a hundred `alpha` beside twenty
+   `0.00e+0` and two held-back levels of ten: before this the rule stood
+   aside and answered the plain places, which sends the walk back at its
+   first line, and the twin wore the form TWENTY times and wrote the
+   other twenty as the bare figures `1` and `2`, missing the form count
+   at exit 3 against the table's 0. After it the twin writes `0.01e+0`
+   and `0.02e+0`, forty of forty wearing the form, both files at exit 0.
+   The same column with `1.10e+0` published instead -- a magnitude that
+   is not nought -- is byte-identical either way.
+
    **The sign rule.** A negative needs a published negative. A positive
    needs a published positive, or a published zero and no published
    negative, which is a column of counts whose only published number is
@@ -10698,7 +10716,20 @@ was, and a run of non-midnight ranks stranded between midnight pins had
 no merge of any kind. It takes the eighth file to fourteen cases and
 212306 bytes.
 
-**All one hundred and eight are required.** The count is taken off the committed
+TWO MORE CAME WITH THE REPAIR PASS OF THAT ROUND (2026-09-19), closing
+its skeptic's finding that G8.3a step 3's two new rules were held up by
+no committed byte: withdrawn from the oracle, singly or together, they
+left 814 reference and oracle-witness tests green and all ten vector
+files byte-identical. `exponent_scaled` pins the SCALED walk and
+`exponent_fitted` the EXPONENT FITTINGS. They go in the SEVENTH file,
+which stands at 162761 bytes, and not in the eighth or the ninth, both
+past plan P4-D295's 200000-byte line: the eighth's own entry point
+provides for exactly this, saying the fifth takes a case where it
+cannot. Opening a tenth entry point would have moved every other
+committed file's bytes, because each file's `case_set` account names all
+the others. The seventh file now holds eight cases and 176541 bytes.
+
+**All one hundred and ten are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10713,7 +10744,7 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds six; the eighth,
+holds eight; the eighth,
 `tests/reference/generation-branch-vectors-6.json`, holds fourteen; and the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six
 (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
@@ -10747,6 +10778,8 @@ case passed, which is the failure the count exists to prevent:
 | `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
 | `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |
 | `held_back_dressed` | G8.3a's dressing (plan P4-D268): thirty `alpha` beside eleven `+15` and two held-back signed numbers over eleven rows, whose census names `+%%` twenty-two times. The ladder's plainly spelled steps are written through the form and kept where they wear it and hold the same value, `+14` and `+16`. Its mutant withdraws the dressing and the held-back rows are bare numbers |
+| `exponent_scaled` | G8.3a step 3's SCALED walk (item 3 of the numbers pass of the second Codex round, 2026-09-19): thirty `alpha` beside eleven `1.10e+3` and two held-back exponent spellings over eleven rows, whose census names `%.%%&+%` twenty-two times. The form writes two figures after its mark, but the value those two figures move by is a hundredth of the EXPONENT'S scale, so a walk at the form's plain places offers steps a thousand times finer than the form can spell and the dressing refuses every one. The exponent is read off the largest published magnitude, written with the mantissa's own count of figures before the mark, and the ladder is walked again at `after` less that exponent — last of three, after the ladder's plain places and after the form's own filling of step 2. The held-back rows take `1.11e+3` and `1.09e+3`. Its mutant answers the plain places and they are written `1101` and `1099`, bare numbers wearing no form |
+| `exponent_fitted` | G8.3a step 3's EXPONENT FITTINGS (item 3 of the same pass): thirty `alpha` beside eleven `2.20e+4` and two held-back exponent spellings over eleven rows, under the same census. Step 2's two placements count a candidate's figures into the form's figure places in order, which reaches only a value the mantissa has room for — five figures into four places is no filling at all. An exponent form is filled instead by choosing the exponent that leaves the mantissa exactly its own count of figures, and the one either side, the mantissa being the candidate's value divided by that power of ten exactly or not at all. The held-back rows take `2.21e+4` and `2.19e+4`. Its mutant offers no exponent filling, step 2's placements answer alone, and they are written `22001` and `21999` |
 | `held_back_anchored` | G8.3a's anchors (plan P4-D268): thirty `alpha` beside eleven `+25` and two held-back signed numbers over eleven rows. The only published number carries a plus, which the plain reading refuses; read a second way it anchors the ladder at twenty-five, so the held-back rows take `+24` and `+26`. Its mutant reads the plain spelling alone and the ladder counts up from nought |
 | `code_band_words` | G9.2's HEADED enumeration of a band's made-up words (plan P4-D234): six one-word cells of the code alphabet at two characters, `A-`, `B-`, `C-`, `D-`, `E-`, `F-`. Its mutant counts the whole word over the alphabet and puts the first permitted character in the leading place afterwards, which is how the reference oracle read the rule until the two implementations were measured against each other, and the cells become `A-`, `A0`, `A1` |
 | `count_spellings` | G6.8's census of spellings: a count column writing `7`, `07` and `007` beside `0`, eleven cells each, whose numbers are written as the census and nothing else. Its mutant withdraws the rule, the ladder and style walks write the column, and the cells move |

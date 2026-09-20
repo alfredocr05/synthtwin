@@ -5352,6 +5352,35 @@ def exponent_filling(form):
     return built
 
 
+def exponent_mantissa(body):
+    """``1.10e+3`` as ``1.10``; None for a spelling wearing no exponent.
+
+    ``body`` is a candidate with its sign already taken off.  The answer
+    is its MANTISSA where the spelling wears an exponent -- exactly one
+    letter, which is `e` or `E`, figures after it behind an optional sign,
+    and something before it -- and None otherwise, which is the ordinary
+    case.  The mantissa is handed back unread: whether it is a plain
+    decimal is the caller's question, and it is the same question the
+    caller asks of a spelling wearing no exponent at all.
+
+    Guarantees: accepts any string; returns a string or None.
+    Determinism: a fixed function of the string.  Raises nothing.  No I/O.
+    """
+    letter = ""
+    for character in body:
+        if character.isalpha():
+            if letter:
+                return None
+            letter = character
+    if letter not in ("e", "E"):
+        return None
+    head, _mark, tail = body.partition(letter)
+    figures = tail[1:] if tail[:1] in ("+", "-") else tail
+    if not head or not figures or not figures.isdigit():
+        return None
+    return head
+
+
 def usable_of_class(candidate, reads, wearing=""):
     """The neutrality tests of G8.3a, for a stand-in of a numeric class.
 
@@ -5390,13 +5419,35 @@ def usable_of_class(candidate, reads, wearing=""):
         # still asked of it there.
         if plus_worn:
             body = body[1:]
-        if len(candidate) > LONGEST_FROZEN_NUMBER or body.count(".") > 1 or not all(
-            character.isdigit() or character == "." for character in body
+        # A SPELLING WEARING AN EXPONENT IS NOT HELD TO THE LENGTH
+        # (item NUMBERS 3 of the second Codex round of 2026-09-19, and
+        # its skeptic's MAJOR finding 1).  The cap above is a statement
+        # about the date rule: no shipped date format reads a PLAIN
+        # decimal of fewer than eight characters, so a shorter one
+        # cannot be a date whatever this file knows.  An exponent
+        # spelling is not a plain decimal and no shipped format reads
+        # one either -- every member of DATE_FORMATS holds either no
+        # letter at all or a month name or a quarter's `Q`, and this
+        # spelling's only letter is a single `e` or `E` between
+        # figures.  MEASURED against the product's own reader: 588
+        # exponent spellings (seven mantissas, both letters, three
+        # exponent signs, seven exponents from `0` to `20240317`, with
+        # and without a leading minus) against all twenty date formats
+        # give 11,760 readings and ZERO dates.  The mantissa is then
+        # held to exactly the test a bare candidate is held to, so a
+        # spelling with two points or a letter of its own is refused
+        # here as before.
+        mantissa = exponent_mantissa(body)
+        read_as = body if mantissa is None else mantissa
+        too_long = mantissa is None and len(candidate) > LONGEST_FROZEN_NUMBER
+        if too_long or read_as.count(".") > 1 or not all(
+            character.isdigit() or character == "." for character in read_as
         ):
             raise AssertionError(
-                f"{candidate!r} is not a plain decimal of at most "
-                f"{LONGEST_FROZEN_NUMBER} characters, so the date rule could "
-                "reach it, and this file states no reading of that rule"
+                f"{candidate!r} is neither a plain decimal of at most "
+                f"{LONGEST_FROZEN_NUMBER} characters nor a decimal wearing "
+                "an exponent, so the date rule could reach it, and this "
+                "file states no reading of that rule"
             )
     return True
 
@@ -5547,8 +5598,12 @@ def form_scale(form, ladder):
     if lead < 1 or not ladder["anchored"]:
         return plain
     units = max(abs(ladder["lowest"]), abs(ladder["highest"]))
+    # A PUBLISHED MAGNITUDE OF NOUGHT is spelled by the mantissa's own
+    # lead figures at an exponent of nought, so the scaled place is the
+    # mantissa's `after` (the skeptic's finding 3 on item 3 of the
+    # numbers pass, 2026-09-19).
     if units == 0:
-        return plain
+        return after
     return after - (len(str(units)) - ladder["places"] - lead)
 
 
@@ -17579,6 +17634,84 @@ def _held_back_dressed():
     }
 
 
+def _exponent_held_back(published, form, count):
+    """A label column whose held-back numbers owe an EXPONENT form (G8.3a).
+
+    The same shape `_plus_held_back` builds, with an exponent spelling in
+    place of a signed whole number: thirty `alpha`, eleven of one
+    published exponent spelling and eleven more over two held-back ones,
+    at a floor of eleven, so the census names the form on twenty-two
+    cells and the held-back rows owe it eleven.
+    """
+    return _universal(
+        "column_1", "categorical", "categorical", "data", "ok",
+        n_present=52, n_missing=0, n_distinct=4, n_distinct_folded=4,
+        n_numeric=22, n_not_numeric=30, n_out_of_range=0, n_contradictory=0,
+        levels=[
+            {
+                "label": "alpha", "count": 30,
+                "variants": {"alpha": 30}, "variants_withheld": {},
+                "shape_form_cells": 0,
+            },
+            {
+                "label": published, "count": count,
+                "variants": {published: count}, "variants_withheld": {},
+                "shape_form_cells": count,
+            },
+        ],
+        suppressed_levels=2, suppressed_rows=11, level_ceiling=5,
+        shape_forms={form: 22},
+    )
+
+
+def _exponent_scaled():
+    """The ladder walked at the scale an exponent form fixes -- G8.3a step 3."""
+    return {
+        "why": "G8.3a step 3's SCALED walk (item 3 of the numbers pass of "
+        "the second Codex round, 2026-09-19): thirty `alpha` beside eleven "
+        "`1.10e+3` and two held-back exponent spellings over eleven rows, "
+        "whose census names `%.%%&+%` twenty-two times. The form writes two "
+        "figures after its mark, but the value those two figures move by is "
+        "a hundredth OF THE EXPONENT'S SCALE, so a walk at the form's plain "
+        "places offers steps a thousand times finer than the form can "
+        "spell and the dressing refuses every one of them. The exponent is "
+        "read off the largest magnitude the column publishes, written with "
+        "the mantissa's own count of figures before the mark, and the "
+        "ladder is walked again at `after` less that exponent -- last of "
+        "three, after the ladder's plain places and after the form's own "
+        "filling of step 2, so no column either of those answered moves. "
+        "The held-back rows take `1.11e+3` and `1.09e+3`. The mutant "
+        "answers the plain places, and they are written `1101` and `1099` "
+        "as bare numbers wearing no form at all.",
+        "column": _exponent_held_back("1.10e+3", "%.%%&+%", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
+def _exponent_fitted():
+    """An exponent form filled mantissa and exponent apart -- G8.3a step 3."""
+    return {
+        "why": "G8.3a step 3's EXPONENT FITTINGS (item 3 of the numbers "
+        "pass of the second Codex round, 2026-09-19): thirty `alpha` beside "
+        "eleven `2.20e+4` and two held-back exponent spellings over eleven "
+        "rows, whose census names `%.%%&+%` twenty-two times. The two "
+        "placements of step 2 count a candidate's figures into the form's "
+        "figure places in order, which reaches only a value the mantissa "
+        "has room for -- five figures into four places is no filling at "
+        "all. An exponent form is filled by choosing instead the exponent "
+        "that leaves the mantissa exactly its own count of figures, and "
+        "the one either side of it, the mantissa being the candidate's "
+        "value divided by that power of ten exactly or not at all. The "
+        "held-back rows take `2.21e+4` and `2.19e+4`. The mutant offers no "
+        "exponent filling, the two placements of step 2 answer alone, and "
+        "the held-back rows are written `22001` and `21999`.",
+        "column": _exponent_held_back("2.20e+4", "%.%%&+%", 11),
+        "rows": 52,
+        "identifier_declared": False,
+    }
+
+
 def _held_back_anchored():
     """A ladder anchored by a number spelled with a plus (plan P4-D268)."""
     return {
@@ -21860,6 +21993,17 @@ FIFTH_BRANCH_CASE_BUILDERS = {
     # A whole number written two ways (plan P4-D193).
     "twice_written_filled": _twice_written_filled,
     "twice_written_merged": _twice_written_merged,
+    # THE TWO RULES OF G8.3a STEP 3 (item 3 of the numbers pass of the
+    # second Codex round, 2026-09-19, and its skeptic's finding 1): the
+    # scaled walk and the exponent fittings.  They come to THIS file and
+    # not to the eighth, whose own entry point says the fifth takes a case
+    # where it cannot: the eighth's output stands at 212306 bytes and the
+    # ninth's at 214367, both past plan P4-D295's 200000-byte line, while
+    # this one stands at 162761 with room for both.  Opening a tenth entry
+    # point would have moved every other committed file's bytes, because
+    # each one's `case_set` account names all the others.
+    "exponent_fitted": _exponent_fitted,
+    "exponent_scaled": _exponent_scaled,
 }
 
 # THE SEVEN CASES OF THE EXTRA REVIEW ROUND OF 2026-09-18, its date pass
@@ -22098,6 +22242,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "seventh file only because the sixth stands within a few kilobytes of "
     "the provenance manifest's byte cap."
+    " Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
 )
@@ -22205,6 +22350,44 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "exponent_fitted": (
+        14424975820530563457, 15610671806914588064, 11117871264214182582,
+        4598625107104034805, 3553724125616827433, 9415263999882945131,
+        5755432505288189310, 5136528199047781676, 1469366162924300586,
+        9419098116555578491, 12372334808679126492, 9030162397736433948,
+        4072563521392892672, 3309604836059055980, 18304680649784205850,
+        13909051196965466066, 9274473535808218923, 3250060710791822855,
+        4159679801882132341, 11810140203027825274, 14371234274233986739,
+        6397929174887374857, 16262636762791379663, 3727752101511876133,
+        3667602410425560649, 9650187741626867195, 13936547618194813392,
+        2419139064829515942, 2982477764054244478, 9116682835735373164,
+        17852422705257111250, 8703043133054634264, 2670550438430694920,
+        523335524908506356, 17514215469693441075, 4468546607721577576,
+        14949509998847095519, 10349757993040877804, 444465570891266000,
+        5612701628519384714, 3661024348911573019, 9206183531549452922,
+        16194894475051891251, 14776790800561398655, 14126737892811992908,
+        2184710861624991002, 8509433144774156735, 8199942287079359752,
+        4856185346840231243, 13189402790271083518, 2353745320876098810,
+    ),
+    "exponent_scaled": (
+        8008445975337470844, 6554941983521102517, 12055477982783999003,
+        12739347490420820715, 4432151388956694022, 17556408585168782169,
+        6477535450776680385, 18157065842049356168, 12967244308987777367,
+        12366327304182198370, 9955161618361707626, 9101774378134450920,
+        12266596785175467130, 10234132534023548751, 15979028109567910025,
+        17004202748590516004, 11828356213276119570, 9756599628731633499,
+        16335757565194275210, 17145747449697029045, 7971869019810804311,
+        13464040985187003963, 11028558879099325417, 5676104135255289304,
+        1649773374485131901, 7524313289032117375, 2948819549820794861,
+        11375297578708749540, 14371835270566472573, 11487790211375476785,
+        8893708382244819743, 16584876905152400942, 4916971692879016885,
+        10598990921780437119, 8441165432097193907, 16558210006956996595,
+        12296584649504399971, 1626217112631668119, 5164658247613449439,
+        3490449752439342144, 4281538421097699617, 12105244519235289351,
+        18219985809272882807, 18084792635920443039, 14691873067100567526,
+        9113967287279801177, 7456732520836430467, 6350305149464016082,
+        6394567025502691656, 16410625569160695706, 12849387199389510591,
+    ),
     "date_both_fields_disagree": (
         5096034806614510811, 9127885328592248719, 16304617541838727871,
         10614954204615546728, 14963909110165282232, 8845507511527769126,

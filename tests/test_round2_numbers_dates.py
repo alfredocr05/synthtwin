@@ -12,6 +12,7 @@ value here comes from any real table.
 
 import collections
 import csv
+import dataclasses
 import io
 import json
 import pathlib
@@ -21,7 +22,7 @@ import zipfile
 
 import pytest
 
-from synthtwin import generation, sheetwriting
+from synthtwin import contract, generation, sheetwriting
 from tests import fixtures, workbooks
 from tests.test_extra_round_numbers import _exit_of, _round_trip
 
@@ -57,9 +58,21 @@ def test_a_mode_held_at_the_wrong_frequency_is_named(
     the report named NOTHING: the pass returned successfully wherever
     some stratum held the mode's VALUE, whatever that stratum's size.
 
-    The cells cannot move -- no stratum of this ladder is 30 cells, so
-    the frequency is not reachable at all -- and what the repair owes is
-    that the difference be REPORTED rather than silently accepted.
+    THE CELLS CANNOT MOVE UNDER THIS PASS, AND THAT IS A NARROWER CLAIM
+    THAN THE FIRST VERSION OF THIS DOCSTRING MADE (the skeptic's finding
+    5, 2026-09-19). No stratum of this ladder is 30 cells -- the sizes
+    are 27, 28, 23, 9, 1, 28 and 23 -- and this pass resizes no stratum,
+    so no move it may make reaches the pair. The pair itself IS
+    reachable by some conforming table: the real table here holds 3.3
+    exactly thirty times and `validate` exits 0 on it against this same
+    description, at all five seeds. Its 139 sorted values put 3.3 at
+    ranks 86 to 115, which carries p75 (rank 103.5) at 3.3 and p90 (rank
+    124.2) at 3.5 exactly as the ladder publishes them -- so what would
+    have to change to reach the pair is which values the ladder invents
+    between its rungs and how many cells it gives each, which is the
+    spread of the column and the owner's DEFERRED stage-3 item. What the
+    repair owes here is that the difference be REPORTED rather than
+    silently accepted.
     """
     cells = _mode_frequency_cells()
     block, written, twin_exit, real_exit = _round_trip(
@@ -293,6 +306,106 @@ def test_the_mutant_walks_the_mantissas_bare_places(
     assert real_exit == 0
 
 
+def _zero_anchor_cells(published: str) -> "list[str]":
+    """A hundred `alpha` beside forty cells of `%.%%&+%` at exponent nought.
+
+    ``published`` is the level the floor of eleven leaves standing; the
+    other two are held back and the twin must make its own spellings for
+    them.
+    """
+    levels = ["0.00e+0", "1.10e+0", "2.20e+0"]
+    cells = ["alpha"] * 100 + [published] * 20
+    for level in levels:
+        if level != published:
+            cells += [level] * 10
+    return cells
+
+
+def test_an_exponent_column_anchored_at_nought_wears_its_form(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 3: the one neighbouring shape item 3 missed.
+
+    MEASURED on 05e7d89 AND on the first repair of item 3 alike, at a
+    floor of eleven and seeds 4 and 13: a hundred `alpha` beside twenty
+    `0.00e+0`, ten `1.10e+0` and ten `2.20e+0` publishes
+    `shape_forms {"%.%%&+%": 40}` and passes every executable check, and
+    the twin wore the form TWENTY times and wrote the other twenty as
+    the bare figures `1` and `2`, missing the form count at exit 3 while
+    the real table exited 0. Every other shape of the same defect the
+    first repair fixed -- exponents e+0 to e+6 and e+17, either sign of
+    the value, either letter case, no sign, one mantissa decimal.
+
+    The residue was a column whose published magnitude is NOUGHT:
+    `_form_scale` read the exponent off the largest published magnitude,
+    nought has none, and the rule stood aside and answered the plain
+    places, which sends the scaled walk back at its first line. A column
+    publishing nought alone publishes it as its form spells it, so the
+    exponent is nought and the scaled place is the mantissa's own
+    `after`.
+
+    `zero_not_lowest` -- the same three levels with `1.10e+0` published
+    instead -- is the control: its magnitude is not nought, it was
+    already settled at forty of forty, and it must not move.
+    """
+    for seed in ("4", "13"):
+        block, written, twin_exit, real_exit = _round_trip(
+            tmp_path / f"zero{seed}", _zero_anchor_cells("0.00e+0"),
+            ("--smallest-group", "11"), seed,
+        )
+        assert block["shape_forms"] == {"%.%%&+%": 40}
+        wearing = [
+            cell for cell in written if re.fullmatch(r"\d\.\d\de\+\d", cell)
+        ]
+        assert len(wearing) == 40
+        assert collections.Counter(written)["0.00e+0"] == 20
+        for cell in wearing:
+            assert cell[5:] == "+0"
+        assert twin_exit == 0
+        assert real_exit == 0
+        # THE CONTROL, at the same seed: a published magnitude that is
+        # not nought is untouched by this repair.
+        _block, control, control_twin, control_real = _round_trip(
+            tmp_path / f"notlowest{seed}", _zero_anchor_cells("1.10e+0"),
+            ("--smallest-group", "11"), seed,
+        )
+        assert sorted(collections.Counter(control).items()) == [
+            ("1.08e+0", 10), ("1.09e+0", 10), ("1.10e+0", 20), ("alpha", 100),
+        ]
+        assert control_twin == 0
+        assert control_real == 0
+
+
+def test_the_mutant_reads_a_published_nought_at_the_plain_place(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mutant: a nought magnitude sent back to the plain places."""
+    scale = generation._form_scale
+
+    def stood_aside(form: str, ladder: object, decimal_comma: bool) -> int:
+        letters = generation._form_letters(form)
+        lead, _after = generation._form_mantissa(form, decimal_comma)
+        units = max(abs(ladder.lowest), abs(ladder.highest))
+        if letters == 1 and lead >= 1 and ladder.anchored and units == 0:
+            return generation._form_places(form, decimal_comma)
+        return scale(form, ladder, decimal_comma)
+
+    monkeypatch.setattr(generation, "_form_scale", stood_aside)
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "plainplace", _zero_anchor_cells("0.00e+0"),
+        ("--smallest-group", "11"), "4",
+    )
+    assert block["shape_forms"] == {"%.%%&+%": 40}
+    wearing = [
+        cell for cell in written if re.fullmatch(r"\d\.\d\de\+\d", cell)
+    ]
+    assert len(wearing) == 20
+    assert "1" in written
+    assert "2" in written
+    assert twin_exit == 3
+    assert real_exit == 0
+
+
 # -- the dates pass, item 1: the calendar repair and published text ---
 
 
@@ -463,3 +576,112 @@ def test_the_mutant_trades_widths_only_and_strands_the_run(
     assert len(set(written)) == 4
     assert twin_exit == 3
     assert real_exit == 0
+
+
+def _one_level(withheld: "dict[str, int]") -> "contract.LevelEntry":
+    """One published level of a date-shaped label, with a withheld map."""
+    return contract.LevelEntry(
+        label="2024-02-30",
+        count=60,
+        variants={"2024-02-30": 54, "2024-2-30": 6},
+        variants_withheld=dict(withheld),
+        shape_form_cells=0,
+    )
+
+
+def _label_block_with(
+    folder: pathlib.Path, level: "contract.LevelEntry"
+) -> "contract.ColumnBlock":
+    """A real published label column, carrying one hand-written level.
+
+    The block is a described column of synthtwin's own producer, loaded
+    back through `contract.load_profile`, so every other fact on it is
+    one a description really carries; only the level is written here,
+    because a `variants_withheld` map with anything in it is one the
+    producer never writes (the owner's ruling of 2026-09-17) and a
+    hand-written description is the door it comes through.
+    """
+    made = folder / f"level{len(level.variants_withheld)}"
+    made.mkdir(parents=True, exist_ok=True)
+    table = made / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(
+            ["value"], [[cell] for cell in ["alpha"] * 60 + ["beta"] * 60]
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    # THE PRODUCT WRITES THE DESCRIPTION THIS TEST LOADS, here rather than
+    # through a helper, so the line-endings rule can see it do so.
+    described = ["profile", str(table), "--out-dir", str(made), "--replace"]
+    assert _exit_of(described + ["--smallest-group", "11"]) == 0
+    document = contract.load_profile(str(made / "real-profile.json"))
+    column = document.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.LabelFacts)
+    return dataclasses.replace(
+        column, facts=dataclasses.replace(facts, levels=[level])
+    )
+
+
+def _withheld_walked(column: "contract.ColumnBlock") -> "frozenset[str]":
+    """The FIRST version of `_published_spellings`, withheld keys and all."""
+    facts = column.facts
+    if not isinstance(facts, contract.LabelFacts):
+        return frozenset()
+    spellings: "list[str]" = []
+    for level in facts.levels:
+        spellings += [level.label]
+        for spelling in level.variants:
+            spellings += [spelling]
+        for spelling in level.variants_withheld:
+            spellings += [spelling]
+    return frozenset(spellings)
+
+
+def test_a_withheld_row_count_is_not_a_published_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's finding 2: `variants_withheld` is a multiplicity map.
+
+    Its KEYS are zero-padded ROW COUNTS and its values are how many
+    held-back spellings stood at that count -- contract 7.4.8, and the
+    way `contract.py` reads it back. The first version of
+    `_published_spellings` walked those keys as though they were
+    spellings, so a level with `{"003": 2, "010": 1}` told
+    `_onto_the_calendar` to step over any cell whose text is `003` or
+    `010`.
+
+    MEASURED on that exact level: the first version answers
+    `['003', '010', '2024-02-30', '2024-2-30']` and this one answers the
+    two spellings the description really prints. Nothing moved in a twin
+    synthtwin's own producer described -- the owner's ruling of
+    2026-09-17 counts a below-floor spelling into the commonest, so every
+    `variants_withheld` it writes is empty -- but the loader accepts a
+    description written by hand, and that is the door the row counts
+    came through.
+    """
+    block = _label_block_with(tmp_path, _one_level({"003": 2, "010": 1}))
+    assert sheetwriting._published_spellings(block) == frozenset(
+        {"2024-02-30", "2024-2-30"}
+    )
+    # Every member is a spelling the description prints, and no member is
+    # a bare count of rows.
+    for spelling in sheetwriting._published_spellings(block):
+        assert not spelling.isdigit()
+    # An empty map answers the same two, so the repair costs the ordinary
+    # description nothing.
+    assert sheetwriting._published_spellings(
+        _label_block_with(tmp_path, _one_level({}))
+    ) == frozenset({"2024-02-30", "2024-2-30"})
+
+
+def test_the_mutant_walks_the_withheld_multiplicity_keys(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The mutant: the first version's loop, and the row counts return."""
+    block = _label_block_with(tmp_path, _one_level({"003": 2, "010": 1}))
+    assert sorted(_withheld_walked(block)) == [
+        "003", "010", "2024-02-30", "2024-2-30",
+    ]
+    assert _withheld_walked(block) != sheetwriting._published_spellings(block)
