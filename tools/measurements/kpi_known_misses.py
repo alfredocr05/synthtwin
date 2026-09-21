@@ -76,11 +76,15 @@ until this pass (round-2 ledger item 1):
 
 - pooled numbers beside labels: 100 `alpha`, twenty `100` and ten each
   of 200 to 209 at a floor of eleven. The numeric subset's mean and
-  population spread come back as 100 and 3.027650 against 187.083333 and
-  39.033017, and BOTH files validate with nothing missed, so no miss
-  count can see it. The errors themselves are the bound; the existing
+  population spread came back as 100 and 3.027650 against 187.083333 and
+  39.033017, and BOTH files validated with nothing missed, so no miss
+  count could see it. The errors themselves are the bound; the existing
   test asserted only that the mean error is over 50, which a worse twin
-  passes;
+  passes. CLOSED by the owner's decision of 2026-09-21 (plan P4-D302):
+  the pool publishes its mean and not its spread, method G8.3c places
+  the twin's made-up numbers on that mean, and the mean error is nought
+  while the spread error, which nothing published constrains any more,
+  is a recorded bound of 2.059274;
 - the absorbed mark: sixty moments at midnight on each of two days
   beside five `T` spellings of the first, at a floor of eleven. The
   description publishes `datetime`, three distinct values and 125 space
@@ -379,10 +383,16 @@ with tempfile.TemporaryDirectory() as folder:
                    f"of {block.get('n_present')}, {checks} MISSED over {runs} runs")
 
     # ---- K-2B-50: the pooled population of numbers beside labels -------
-    # The first of the two fidelity failures still with the owner
-    # (CHANGELOG "Still with the owner"), which no ceiling held: the
-    # existing test asserted only that the mean error is over 50, so a
-    # worse twin passed it (round-2 ledger item 1).
+    # The first of the two fidelity failures that were still with the
+    # owner (CHANGELOG "Still with the owner"), which no ceiling held:
+    # the existing test asserted only that the mean error is over 50, so
+    # a worse twin passed it (round-2 ledger item 1). CLOSED by the
+    # owner's decision of 2026-09-21 (plan P4-D302). BOTH errors are
+    # still measured here and both are bounds, but they are bounds of
+    # different kinds: the mean is a published obligation and the spread
+    # is not -- no description carries a pooled spread any more, so what
+    # the second number records is how far the generator's own choice of
+    # spacing lands from the table, which may not get worse.
     still_open = {}
     anchored = ["alpha"] * 100 + ["100"] * 20
     for number in range(200, 210):

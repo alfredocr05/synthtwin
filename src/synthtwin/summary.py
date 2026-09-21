@@ -888,15 +888,30 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         # the block's several silences it was -- a column with no
         # held-back numbers at all, or one of the refusals contract
         # 6.3.3 states, which is what the floor exists to withhold.
+        #
+        # AND THE SENTENCE SAYS WHAT IS NOT THERE, which costs nothing
+        # and is owed (owner's decision of 2026-09-21, plan P4-D302).
+        # This line used to print a spread beside the average. It is not
+        # published any more, because a mean and a spread together solve
+        # a tightly spaced pool for its own values -- so a person
+        # reading this page would otherwise be left to assume the twin's
+        # own spread over these cells meant something. It does not. The
+        # clause is printed on EVERY column that reaches this line, so
+        # it tells a reader nothing about which column they are looking
+        # at.
         scale = _map_of(column["suppressed_numbers"])
         if _count_of(scale["n_cells"]):
             lines += [
                 (
                     f"    of those, the ones that were numbers: "
                     f"{_count_of(scale['n_cells'])} cells, "
-                    f"average {_text_of(scale['mean'])}, "
-                    f"spread {_text_of(scale['spread'])}"
-                )
+                    f"average {_text_of(scale['mean'])}"
+                ),
+                (
+                    "      this description does not say how far apart "
+                    "they lay, so a spread over them is not a fact "
+                    "about your table"
+                ),
             ]
     if role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
         ladder = _map_of(column["percentiles"])

@@ -1325,10 +1325,9 @@ INVARIANTS = {
     "B4d": (
         "the scale published for the held-back numbers is taken over a "
         "group: the cells it speaks of are nought, or they and the "
-        "column's other numbers each reach the census line -- its mean "
-        "and its spread stand exactly where those cells do, and a "
-        "spread it speaks of is above nought, because a pool of no "
-        "spread publishes the value of every cell in it"
+        "column's other numbers each reach the census line -- and its "
+        "mean stands exactly where those cells do, written where they "
+        "are counted and absent where they are not"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -2237,11 +2236,17 @@ class UnrepresentableFacts:
 class PooledNumbers:
     """The scale of the numbers the floor held back (6.3, invariant B4d).
 
-    THREE AGGREGATES OVER ONE GROUP and no fourth: how many cells of the
-    held-back levels read as numbers, their mean, and their POPULATION
-    spread -- divided by the count of them, not by one less, because
-    what it describes is the whole of a pool and not a sample of
-    something larger.
+    TWO AGGREGATES OVER ONE GROUP and no third: how many cells of the
+    held-back levels read as numbers, and their mean.
+
+    THE SPREAD THIS BLOCK USED TO CARRY IS WITHDRAWN by the owner's
+    decision of 2026-09-21 (plan P4-D302). A mean and a spread are two
+    equations over the pool's values, and a pool packed as closely as
+    its own grid allows is solved by them; a mean alone is one equation
+    over as many unknowns as the pool has different values. What it
+    cost is stated where it is paid: method G12.12's window used to be
+    drawn from the published spread, and is drawn from the width and
+    the cell count instead.
 
     `n_cells` nought is the one state this block has to say nothing
     with. It is reached both by a column whose held-back levels hold no
@@ -2250,18 +2255,17 @@ class PooledNumbers:
     indistinguishable: a refusal that looked different from nought would
     itself publish that the pool holds numbers and how few.
 
-    `mean` and `spread` are both absent exactly there, which is what the
-    loader holds them to.
+    `mean` is absent exactly there, which is what the loader holds it
+    to.
     """
 
     n_cells: int
     mean: "float | None"
-    spread: "float | None"
 
 
 # WHAT A LABEL BLOCK CARRIES WHERE NO POOLED SCALE IS PUBLISHED. One
 # value, so that no caller builds a second spelling of the same state.
-NO_POOLED_NUMBERS = PooledNumbers(n_cells=0, mean=None, spread=None)
+NO_POOLED_NUMBERS = PooledNumbers(n_cells=0, mean=None)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7510,8 +7514,8 @@ def _pooled_numbers(
     """The scale of the held-back numbers, read and held to B4d.
 
     THE DISCLOSURE QUESTION IS ASKED HERE AND NOT ASSUMED. The block
-    names a group of cells and two aggregates over it, so the rule it
-    has to meet is the one every census of this format meets:
+    names a group of cells and an aggregate over it, so the rule it has
+    to meet is the one every census of this format meets:
     `parsing.census_nameable`, with the pooled count as the one count it
     prints and the column's numeric total as the population a reader
     subtracts it from. Both sides of that subtraction are then a group
@@ -7520,19 +7524,22 @@ def _pooled_numbers(
     numeric cell behind hands that cell over the same way.
 
     THE SECOND HALF OF THE RULE IS THAT SILENCE IS TOTAL. Where the
-    count is nought the mean and the spread are absent, and where it is
-    not they are both present; a block that spoke one of them would say
-    by its shape what the count is for.
+    count is nought the mean is absent, and where it is not it is
+    written; a block that spoke one without the other would say by its
+    shape what the count is for.
 
-    AND A SPREAD THAT IS WRITTEN IS ABOVE NOUGHT (repair pass of
-    2026-09-21). A pool of no spread holds ONE value in every one of its
-    cells, so its mean is that value and the block hands over exactly
-    what the floor was holding back -- measured at a floor of eleven on
-    200 `blank` beside forty `3` and eight each of `5`, `5.0`, `05` and
-    `5.00`, which published 32 cells at mean 5.0 and spread 0.0 and
-    printed "average 5.0, spread 0.0" on the page a person reads. The
-    producer refuses to write one; this is the half that stops a
-    hand-written description carrying one.
+    WHAT THIS INVARIANT NO LONGER RE-ASKS, said plainly because it is a
+    real loss. Until the owner's decision of 2026-09-21 the block also
+    carried the pool's population spread, and B4d re-asked that the
+    spread was above nought -- the loader's half of the producer rule
+    against a pool whose every cell holds one value, whose mean IS that
+    value. No spread is published now, so there is nothing for a loader
+    to re-ask: a hand-written description carrying a pool of one value
+    is refused by the producer that writes one and by nothing here. The
+    same is true of the two rules B4d never re-asked, the width bound
+    and the room the mean leaves the values, and contract 6.3.3 gives
+    the same reason for all three -- what the loader would need for them
+    is more numbers about the pool than the pool publishes.
 
     INSIDE A COMPOUND COLUMN'S LABEL HALF the numeric total is the
     column's and counts the numbers of the OTHER half, so it is not a
@@ -7540,14 +7547,14 @@ def _pooled_numbers(
     clause is not asked. The count's own line still is.
 
     Guarantees: accepts the block, where it stands, the floor and
-    whether this is a compound column's half; returns the three values.
+    whether this is a compound column's half; returns the two values.
     Raises ProfileError for B4d, and the shape refusals for a value of
     the wrong kind. No I/O of any kind.
     """
     inner = _mapping(
         mapping["suppressed_numbers"], "suppressed_numbers", where
     )
-    for key in ("n_cells", "mean", "spread"):
+    for key in ("n_cells", "mean"):
         if key not in inner:
             raise _missing(
                 f"suppressed_numbers -> {key}",
@@ -7560,34 +7567,13 @@ def _pooled_numbers(
     middle = _figure_or_nothing(
         inner["mean"], "suppressed_numbers -> mean", where
     )
-    spread = _figure_or_nothing(
-        inner["spread"], "suppressed_numbers -> spread", where
-    )
-    spoken = middle is not None and spread is not None
-    if spoken != (cells > 0) or (middle is None) != (spread is None):
+    spoken = middle is not None
+    if spoken != (cells > 0):
         raise _broken(
             "B4d",
             where,
             f"the pooled scale speaks of {cells} cell(s)",
-            (
-                "its mean and its spread are "
-                + ("written" if spoken else "absent")
-            ),
-        )
-    # A SPREAD OF NOUGHT IS REFUSED AND NOT ONLY A NEGATIVE ONE (repair
-    # pass of 2026-09-21). The producer never writes one -- a pool of
-    # one value spelled several ways is refused there, for the reason
-    # `taxonomy._pooled_numbers` states -- and this is the loader's half
-    # of that rule, so a HAND-WRITTEN description cannot carry it
-    # either. It is reached only where the mean and the spread are
-    # written, which invariant B4d has already tied to a count above
-    # nought.
-    if spread is not None and spread <= 0.0:
-        raise _broken(
-            "B4d",
-            where,
-            f"the pooled scale speaks of a spread of {spread}",
-            "a pool that has no spread holds one value in every cell",
+            "its mean is " + ("written" if spoken else "absent"),
         )
     if cells < 1:
         return NO_POOLED_NUMBERS
@@ -7612,7 +7598,7 @@ def _pooled_numbers(
                 f"is below the census line of {parsing.census_floor(floor)}"
             ),
         )
-    return PooledNumbers(n_cells=cells, mean=middle, spread=spread)
+    return PooledNumbers(n_cells=cells, mean=middle)
 
 
 def _label_facts(

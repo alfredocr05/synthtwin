@@ -6564,22 +6564,28 @@ mean near 3.4 and whole numbers up to seventy-eight.
 
 ### G8.3c The pool's own scale
 
-**WHERE THE COLUMN PUBLISHES A SCALE FOR ITS HELD-BACK NUMBERS, the
+**WHERE THE COLUMN PUBLISHES A MEAN FOR ITS HELD-BACK NUMBERS, the
 made-up numbers are placed on it** (contract section 6.3.3, invariant
-B4d; plan P4-D301). The block gives three numbers over the pool: how
-many of the held-back cells read as numbers, their mean `mu`, and their
-population spread `sigma`. This section says what the twin writes from
-them.
+B4d; plan P4-D302). The block gives two numbers over the pool: how many
+of the held-back cells read as numbers, and their mean `mu`. This
+section says what the twin writes from them.
 
 **Why it exists.** Without it the walk of G8.3a has only the numbers
 the column PUBLISHED to step outward from, and a column whose rare
 values are its numbers publishes few of them or one. 100 `alpha`,
 twenty `100` and ten each of 200 to 209 at a floor of eleven publishes
 `100` alone; its twin wrote 95 to 105, so the numeric mean came back
-100 against 187.083333 and the spread 3.027650 against 39.033017 — and
-both files passed every check, because no published fact spoke of the
-pool. The same shape as a long tail, 180 cells of 900 to 959 beside two
-words, came back with a mean of 20.46 against 929.5.
+100 against 187.083333 — and both files passed every check, because no
+published fact spoke of the pool.
+
+**What it does NOT get, and this is the whole shape of the section.**
+The block used to carry the pool's POPULATION SPREAD as well, and the
+owner's decision of 2026-09-21 withdrew it: a mean and a spread are two
+equations and solve a tightly spaced pool outright. So HOW FAR APART
+THE HELD-BACK NUMBERS STOOD IS A FACT THE TWIN DOES NOT HAVE. The
+generator has to write something, so step 2 below chooses a spacing of
+its own and the report says in words that the spread of this column's
+made-up numbers is not a fact about the reader's table.
 
 **What is placed.** Every group the class split of G8.3a step 1 gave to
 the number class, in the order that step hands them out, which is
@@ -6594,14 +6600,43 @@ census decides how it is WRITTEN.
    of the table sit.
 2. **The centre and the spacing.** With the groups covering
    `c_1..c_m` rows and `N = c_1 + ... + c_m` between them, the weighted
-   centre is `C = sum(c_i * p_i) / N` and the weighted second moment
-   about it is `S = sum(c_i * (p_i - C) ** 2) / N`. Group `i` is asked
-   for the value `mu + h * (p_i - C)`. That puts the mean of the cells
-   written at `mu` for any `h`, because the offsets cancel by
-   construction, and their population spread at `h * sqrt(S)`. So the
-   spacing is `h = sigma / sqrt(S)`. `S` is nought only where one group
-   stands alone, and a single group carries no spread: it takes `mu`
-   itself.
+   centre is `C = sum(c_i * p_i) / N`. Group `i` is asked for the value
+   `mu + h * (p_i - C)`. That puts the mean of the cells written at
+   `mu` for ANY spacing `h`, because the offsets cancel by
+   construction — which is what lets `h` be this method's own choice.
+
+   **`h` IS FIVE PLACES OF THE FINEST GRID THE LADDER WRITES AT, held
+   inside the room the column's own published numbers leave, and then
+   down to an ODD whole number of places.** Each of those three is
+   measured.
+
+   * **Five, and not one.** At one place the groups stand as closely as
+     the grid allows, which is the arrangement a pool of consecutive
+     whole numbers already has — so the twin's pool comes back AS the
+     table's: measured on the shape ledger K-2B-50 names, all ten
+     held-back values and every one of their hundred cells. Ledger
+     K-2B-19 counts exactly that and is an accepted limit whose rule is
+     that it may not get worse. At five, twenty of those hundred cells
+     come back.
+   * **Odd.** The offsets from the weighted centre are half-integers
+     wherever the pool has an even number of equal groups, so an even
+     multiple lands every value half a place off the grid and the
+     rounding of step 3 pushes the written mean off `mu`: measured on
+     that same shape, a pooled mean of 205.0 against a published 204.5
+     at two places, against 204.5 exactly at one, three, five and seven.
+   * **Held inside the room.** The room is the span of the numbers the
+     column publishes, or how far `mu` stands outside that span,
+     whichever is wider; `h` is the largest odd whole number of places
+     that keeps the outermost group inside it, and one place where
+     nothing fits. A column that publishes NO number bounds nothing and
+     the five places stand. Without this, a pool of many levels five
+     places apart reaches a long way — eighty groups on a column of
+     integers around 120 spanned four hundred — and the twin's numeric
+     spread came back 77.6 against the table's 20.4; held inside the
+     room it comes back within 2.61 of it.
+
+   `C` is the weighted centre whatever the sizes, and a single group
+   stands at it and takes `mu` itself.
 3. **The spelling.** The value asked for is rounded to the nearest
    whole number of the tier's last place and written plainly there,
    then dressed in the group's form where it owes one, by the same
@@ -6630,13 +6665,14 @@ held-back note of a column whose made-up values are numbers used to end
 by telling the person that an average or a spread over this column's
 numbers is not a fact about their table, because the LOCATION of those
 numbers was the version's own choice. Where this section placed EVERY
-one of them that sentence is false, and a report that went on saying it
-would send a person away from the one number this section exists to make
-reliable; so the note says instead that the description publishes the
-held-back numbers' average and spread as a group, that the twin places
-them on those two, and that what is still not a fact about the table is
-which made-up number stands for which label. Where the placement ran
-short of even one group the older sentence is the true one and stands.
+one of them the AVERAGE part of that sentence is false, and a report
+that went on saying it would send a person away from the one number
+this section exists to make reliable; so the note says instead that the
+description publishes the held-back numbers' average as a group, that
+the twin places them on it, and that what is still not a fact about the
+table is HOW FAR APART they lie and which made-up number stands for
+which label. Where the placement ran short of even one group the older
+sentence is the true one and stands.
 
 **The width rule, in the two cases this section distinguishes.** Two
 different bounds are called a width here and only one of them is
@@ -6645,32 +6681,24 @@ evidence about magnitude.
 **WHERE THE COLUMN PUBLISHED A NUMBER OF ITS OWN** — where the ladder
 of G8.3a step 3 is anchored — those numbers' own width says what this
 column's numbers look like, and no made-up number is a whole figure
-wider, wherever the scale's own ends would fall outside it. A scale is
+wider, wherever the mean's own reach would fall outside it. A mean is
 met as far as that width allows and no further. Measured: 1,200 ages at
 a floor of twenty, whose held-back numbers are the tails, asked for
-values past 99 and took the widest two-figure ones instead — the twin's
-numeric mean moved from 1.22 away from the table's to 0.23, and its
-spread from 1.19 away to 0.52, while every made-up age stayed at two
-figures as the table's are.
+values past 99 and took the widest two-figure ones instead.
 
 **WHERE IT PUBLISHED NONE**, the only width there is comes from the
 form census, which says how the cells that WORE those forms were
 written and nothing at all about the held-back ones. There the
-published mean and spread are the better evidence — they state the
-held-back numbers' magnitude outright — so the value the scale asks for
-carries its own width and the stepping is held to that. Measured on a
-column of amounts given whose census names `%.%` and whose labels
-publish no number, while its table holds two-figure amounts the census
-cannot see: held to the census's one figure the twin's pool came back
-at a mean of 7.12 against a published 9.68 and a spread of 3.09 against
-6.63, which G12.12's window refuses; allowed the scale's own reach it
-comes back at 8.65 and 4.72, inside it.
+published mean is the better evidence — it states the held-back
+numbers' magnitude outright — so the value the mean asks for carries
+its own width and the stepping is held to that.
 
-**What this section does NOT publish.** It reads the three aggregates
-of contract 6.3.3 and nothing else. It does not learn which held-back
-level covered which rows, what any one of them was worth, or how the
-pool's cells split between them, and the values it writes are a
-construction over three numbers rather than a reading of any cell.
+**What this section does NOT publish.** It reads the two aggregates of
+contract 6.3.3 and the column's own published numbers, and nothing
+else. It does not learn which held-back level covered which rows, what
+any one of them was worth, or how the pool's cells split between them,
+and the values it writes are a construction over two numbers and a
+spacing this method chose.
 
 ### G8.4 The order of `content`
 
@@ -10300,59 +10328,71 @@ construction cannot keep.
 
 ### G12.12 The window on the scale of the held-back numbers
 
-The two aggregates contract section 6.3.3 publishes over a column's
-pooled numbers — their mean `mu` and their population spread `sigma` —
-are APPROXIMATED, and this is the window they are met inside. Method
-G8.3c places the twin's made-up numbers on them and then rounds each
-value onto a place the column writes at, stepping outward wherever a
-spelling is refused, so the twin's own pool comes back NEAR the two
-numbers rather than on them.
+The one aggregate contract section 6.3.3 publishes over a column's
+pooled numbers — their mean `mu` — is APPROXIMATED, and this is the
+window it is met inside. Method G8.3c places the twin's made-up numbers
+on it and then rounds each value onto a place the column writes at,
+stepping outward wherever a spelling is refused, so the twin's own pool
+comes back NEAR `mu` rather than on it.
 
 ```
-mean    is met where   |mean(pool of the file)   - mu|     <=  sigma / 2
-spread  is met where   |spread(pool of the file) - sigma|  <=  sigma / 2
+reach   is the largest magnitude this column's description states for
+        its numbers: the largest of its published numbers, or |mu|
+        where it publishes none  (taxonomy.pooled_window)
+
+mean    is met where   |mean(pool of the file) - mu|  <=  reach / 5
 ```
 
-**THE WIDTH IS THE SCALE'S OWN SPREAD**, because that is the width the
-scale itself declares. A pool whose mean sits more than half that width
-from the published mean, or whose spread does, is not this population
-written a little differently; it is a different population. Measured on
-the shape ledger entry K-2B-50 names: before G8.3c the twin put a pool
-published at mean 204.5 and spread 2.872281 at 100 and 3.027650, which
-this window refuses, and after it the twin lands on both exactly.
+**THERE WERE TWO OBLIGATIONS HERE AND NOW THERE IS ONE.** The pool used
+to publish its population spread beside its mean, and this section drew
+both windows from that spread. The owner's decision of 2026-09-21
+withdrew the spread, for the reason contract 6.3.3 states: a mean and a
+spread together solve a tightly spaced pool for its own values. **SO
+NOTHING IN THIS METHOD NOW CHECKS HOW FAR APART A FILE'S HELD-BACK
+NUMBERS LIE.** A file whose pool sits at the published average and is
+spread a tenth as wide as the real column's meets every obligation this
+method states, and meets them honestly, because no published fact was
+missed. The twin's own pooled spread is the generator's own choice of
+spacing (G8.3c step 2) and a fact about no table; the held-back note of
+the generation report is where a person is told so.
 
-**`sigma` IS NEVER NOUGHT HERE** since the repair pass of 2026-09-21.
-It used to be a state this window had to excuse — a window of nought
-width admits one value and nothing else — and it is now refused where
-it is made: the producer does not publish a flat pool, because
-publishing one names the value of every cell in it, and invariant B4d
-refuses one in a description the producer did not write. Contract 6.3.3
-carries the measurement. So a published spread is above nought and a
-window can always be drawn.
+**THE WIDTH IS A SHARE OF THE COLUMN'S OWN REACH**, because that is
+what is left to draw it from, and it is MEASURED rather than chosen.
+Over ten shapes whose description publishes a pool and whose twin
+publishes one back — the shape ledger K-2B-50 names, its loose cousin,
+a decimal pool, an unanchored pool of readings, a negative pool from
+that ledger's own sweep, 2,500 one-decimal readings at two seeds and
+1,000 integers beside comments at two — the furthest a conforming twin's
+own pooled mean stood from the published one was ONE PART IN ELEVEN of
+that reach. The window is one part in five, a little over twice the
+worst measured. The defect ledger K-2B-50 names stands at one part in
+two: the twin without G8.3c's placement puts a pool published at 204.5
+at 100, and the reach there is 204.5, so the window is 40.9 and the
+error 104.5.
+
+**`reach` IS THE COLUMN'S WHERE IT PUBLISHES A NUMBER and the MEAN'S
+OWN where it publishes none** — the same two cases G8.3c's width rule
+distinguishes, for the same reason: a column that publishes no number
+bounds a made-up one by nothing, so the only statement about the pool's
+magnitude is the pool's own mean. A reach of nought is one whole unit,
+which is the narrowest window that can hold anything at all.
 
 **THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
-none closes the gate**: both obligations are WITHHELD, as every other
+none closes the gate**: the obligation is WITHHELD, as every other
 check of this kind reads a re-described block that says nothing.
 
-**THAT MAKES THIS CHECK VACUOUS TODAY, and the repair pass of
-2026-09-21 measured why rather than papering over it.** The file's own
-block is written by the producer rules of contract 6.3.3, and one of
-them refuses a pool packed as closely as its own values allow, because
-such a pool is NAMED by its mean and its spread. Step 1 of G8.3c above
-spaces the twin's groups EVENLY, which is that arrangement: measured on
-a six-level pool of hundreds and on one of thousands, the twin's own
-pool came back at a looseness of 1.333 and 1.825 against the 2.5 the
-producer asks for. So no twin this product writes publishes the pool it
-was asked to write, and both obligations are withheld on every one.
-
-**READING THE CLOSED GATE AS A MISS WAS TRIED AND WITHDRAWN** in the
-same pass: it states an obligation no conforming twin can meet, which
-is the defect class that pass existed to close. **WHAT CLOSES IT** is
-step 1 choosing positions whose gaps are UNEVEN — spaced so the pool
-the twin writes stands as far clear of its own tightest arrangement as
-the description's pair does — which is a change to this section that
-the pass did not make, and which the landing's report puts to the owner
-beside the other way out.
+**THAT GATE USED TO CLOSE ON EVERY TWIN THIS PRODUCT WROTE, and does
+not now.** While the pool published a spread, the producer refused any
+pool packed as closely as its own values allow — such a pool is NAMED
+by its mean and its spread — and G8.3c spaced the twin's groups evenly,
+which is exactly that arrangement. So a twin's own description
+published no pool, both obligations were withheld on every file, and
+this section said so rather than pretending otherwise. A mean names no
+arrangement, tight or loose, so the producer's rules let a twin's own
+description publish its pool and the comparison happens. Measured on the
+shape ledger K-2B-50 names: the twin's own re-described block publishes
+a hundred pooled cells at a mean of 204.5, and the twin built without
+the placement publishes a hundred at 100 and is MISSED.
 
 ## G13. Residuals this method carries
 
@@ -11006,7 +11046,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_column_prefix` | G9.6a's TEMPLATE for the whole column (plan P4-D202, owner ruling of 2026-09-17): a declared identifier publishing `{"@@@%%%%": 24}` and `{"(column)": "REC"}` over twelve identities written once and six twice; every cell is `REC` and four figures filled from the step, `REC1816`, `REC2632`, and the eighteen stay different. Its mutant reads the census as published, the letters are filled from the step, and the recount of 7.12a stops the oracle |
 | `identifier_layout_prefixes` | G9.6a's templates per layout (plan P4-D202): `{"@%%%%%": 12, "@@%%%%": 12}` with `{"@%%%%%": "E", "@@%%%%": "ST"}` over twenty-four identities; the rotation spreads `E%%%%%` and `ST%%%%` over them as it spread the layouts, `E30816`, `ST7553`. Its mutant reads the census as published, and the recount of 7.12a stops the oracle |
 | `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
-| `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the scale contract 6.3.3 publishes for them (plan P4-D301, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells, mean 50, population spread 5 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, their weighted centre is a quarter and their weighted second moment forty-seven eightieths, so the spacing is 6.523280730534421 and the four values round onto 48, 55, 42 and 61. The twin's own pool then holds a mean of 49.85 and a spread of 5.012733785071775 against the published 50 and 5, inside the window G12.12 draws and not on it, which is what makes this fact APPROXIMATED. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |
+| `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the mean contract 6.3.3 publishes for them (plan P4-D302, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells and a mean of 50, with NO spread since the owner's decision of 2026-09-21 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, and their weighted centre is a quarter, so their offsets are -1/4, 3/4, -5/4 and 7/4. Nothing published says how far apart the held-back numbers stood, so the spacing is this method's own — five places of this column's whole-number grid, unbounded here because the column publishes no number to bound it — and the four values asked for, 48.75, 53.75, 43.75 and 58.75, round onto 49, 54, 44 and 59. The twin's own pool then holds a mean of 50.25 against the published 50, inside the window G12.12 draws and not on it, which is what makes this fact APPROXIMATED. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |

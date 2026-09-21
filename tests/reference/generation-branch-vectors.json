@@ -4035,8 +4035,7 @@
         "suppressed_levels": 45,
         "suppressed_numbers": {
           "mean": null,
-          "n_cells": 0,
-          "spread": null
+          "n_cells": 0
         },
         "suppressed_rows": 60
       },
@@ -4283,8 +4282,7 @@
         "suppressed_levels": 20,
         "suppressed_numbers": {
           "mean": null,
-          "n_cells": 0,
-          "spread": null
+          "n_cells": 0
         },
         "suppressed_rows": 29
       },
@@ -4491,8 +4489,7 @@
         "suppressed_levels": 20,
         "suppressed_numbers": {
           "mean": null,
-          "n_cells": 0,
-          "spread": null
+          "n_cells": 0
         },
         "suppressed_rows": 29
       },

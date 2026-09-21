@@ -484,18 +484,22 @@ def test_a_column_read_with_a_decimal_comma_writes_its_numbers_with_one(
 def test_numbers_nothing_published_places_are_named_as_such(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A long tail that published none of its readings says so in the report.
+    """A long tail that published none of its readings: which sentence stands.
 
-    RE-TARGETED TWICE AND BACK WHERE IT STARTED. The pooled-scale
-    landing of 2026-09-21 (plan P4-D301) held the OTHER sentence here,
-    because section 6.3.3 then published this column's held-back
-    readings' mean and spread and the twin's readings came back at
-    7.1047 and 2.0213 against the table's 7.0741 and 2.0928. The repair
-    pass of the same day withdrew that publication on this shape: a
-    thousand readings on a tenth-of-a-unit grid are packed as closely as
-    that grid allows, and a pool at its own tightest arrangement is
-    NAMED by its mean and its spread. So the description publishes
-    nothing about where they lie, and the report says so again.
+    RE-TARGETED THREE TIMES. The pooled-scale landing of 2026-09-21
+    (plan P4-D301) held the PLACED sentence here, because section 6.3.3
+    then published this column's held-back readings' mean and spread;
+    the repair pass of the same day withdrew that publication on this
+    shape, because a thousand readings on a tenth-of-a-unit grid are
+    packed as closely as that grid allows and a pool at its own tightest
+    arrangement is NAMED by its mean and its spread; and the owner's
+    decision of the same day (plan P4-D302) withdrew the SPREAD, so a
+    tight pool names nothing and this column publishes its mean again.
+
+    What this test holds is that the report tells the reader the truth
+    of whichever state it is in: the pool's average IS about their
+    table and its spread is NOT, because nothing published says how far
+    apart the held-back readings lay.
     """
     cells = _readings_beside_notes(1000, random.Random(1000 * 31 + 1))
     first, second, _written, twin_exit, _real = _round_trip(
@@ -504,14 +508,15 @@ def test_numbers_nothing_published_places_are_named_as_such(
     assert first["role"] == "long_tail_labels"
     assert second["n_numeric"] == first["n_numeric"]
     assert twin_exit == 0
-    assert first["suppressed_numbers"] == {
-        "n_cells": 0, "mean": None, "spread": None
-    }
+    scale = first["suppressed_numbers"]
+    assert sorted(scale) == ["mean", "n_cells"]
+    assert scale["n_cells"] == 529
     report = (tmp_path / "unplaced" / "real-twin-report.txt").read_text(
         encoding="utf-8"
     )
     flat = " ".join(report.split())
-    assert "this column published no number at all" in flat
+    assert "IS about your table" in flat
+    assert "A SPREAD IS NOT" in flat
 
 
 @pytest.mark.parametrize("seed", (3, 4))

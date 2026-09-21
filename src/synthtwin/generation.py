@@ -20625,12 +20625,12 @@ def _class_stand_ins_walked(
         order = sorted([(0 - sub[step], mine[step], step)
                         for step in range(len(sub))])
         # THE POOL'S OWN SCALE, WHERE THE DESCRIPTION PUBLISHES ONE
-        # (method G8.3b; plan P4-D301, ledger K-2B-50). Every group
-        # paying the number class is placed on the published mean and
-        # spread of the held-back numbers, in the order the walk hands
-        # them out, and dressed in whatever form the census settled on
-        # it; every group the placement cannot spell falls through to
-        # the ordinary ladder below, exactly as before.
+        # (method G8.3c; plan P4-D302, ledger K-2B-50). Every group
+        # paying the number class is placed on the published mean of
+        # the held-back numbers, in the order the walk hands them out,
+        # and dressed in whatever form the census settled on it; every
+        # group the placement cannot spell falls through to the
+        # ordinary ladder below, exactly as before.
         pooled_places: "dict[int, str]" = {}
         if name == _OWED_NUMBER:
             scale = _pooled_scale(column)
@@ -22592,25 +22592,35 @@ _HELD_BACK_NUMBERS_REASON = (
     "fact about your table, so an average or a spread computed over "
     "the column's numbers is not a fact about your table either."
 )
-# ...AND WHERE THE POOL'S OWN SCALE PLACED THEM (method G8.3c, plan
-# P4-D301, ledger K-2B-50). The three sentences above each end by
+# ...AND WHERE THE POOL'S OWN MEAN PLACED THEM (method G8.3c, plan
+# P4-D302, ledger K-2B-50). The three sentences above each end by
 # telling the person that a statistic over this column's numbers is not
 # a fact about their table, because the made-up numbers' LOCATION was
 # this version's own choice. Where the description publishes the pool's
-# mean and spread that is no longer true, and a report that went on
+# mean that is no longer true of an AVERAGE, and a report that went on
 # saying it would send a person away from the one number this landing
 # exists to make reliable.
+#
+# AND IT IS STILL TRUE OF A SPREAD, which is why this sentence says so
+# in as many words. The owner's decision of 2026-09-21 withdrew the
+# pool's population spread from what a description publishes, so how
+# far apart the held-back numbers stood is a fact the twin does not
+# have: `_POOLED_LOOSENESS` is this version's own choice and nothing
+# else. A person reading this is owed that plainly, because the report
+# is where they decide what to compute on the twin.
 _HELD_BACK_SCALED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
     "keeps how many there were and the rows they covered together, "
     "but not the labels or the rows of each one. Where "
     "they were numbers the twin writes numbers in their place, and "
-    "your description publishes the average and the spread of the "
-    "held-back numbers as a group, so the twin places them on those "
-    "two: an average or a spread computed over this column's numbers "
-    "IS about your table, to the nearest place this column writes at. "
-    "What is still not about your table is which made-up number stands "
-    "for which label you held back, and a made-up number can equal one "
+    "your description publishes the AVERAGE of the held-back numbers "
+    "as a group, so the twin places them on it: an average computed "
+    "over this column's numbers IS about your table, to the nearest "
+    "place this column writes at. A SPREAD IS NOT. Your description "
+    "does not say how far apart the held-back numbers lay, so how far "
+    "apart the twin writes them is this version's own choice. What is "
+    "also not about your table is which made-up number stands for "
+    "which label you held back, and a made-up number can equal one "
     "your table held back without being worked out from it."
 )
 _HELD_BACK_UNPLACED_REASON = (
@@ -23873,6 +23883,46 @@ def _next_on_ladder(
 # so a scale every nearby spelling refuses costs a bounded time.
 _POOLED_STEPS = 1 << 10
 
+# HOW MANY PLACES OF THE COLUMN'S FINEST GRID the pool's groups stand
+# apart (method G8.3c step 2). It is the generator's OWN choice and not
+# a published fact: the owner's decision of 2026-09-21 withdrew the
+# pool's spread from what a description carries, so nothing says how far
+# apart the held-back numbers stood, and something has to be written.
+#
+# MEASURED, on five shapes that publish a pool and on ledger K-2B-19's
+# own committed sweep of nineteen columns, whose ACCEPTED CEILING is 55
+# of 251 held-back cells reproduced exactly and may not rise:
+#
+#   places | K-2B-19 | the owner's shape: mean error, spread error,
+#          |         | and how many of its 100 held-back cells come back
+#        1 |   62 -- | 0.0000   0.0000   100 of 100
+#        2 |   55 ok | 0.4167   0.4480    50
+#        3 |   63 -- | 0.0000   0.6983    40
+#        5 |   55 ok | 0.0000   2.0593    20
+#        7 |   64 -- | 0.0000   4.0202    20
+#
+# FIVE IS THE ONLY ONE MEASURED THAT DOES BOTH: it holds K-2B-19 exactly
+# where the owner accepted it, and the twin meets the published mean
+# exactly on the shape the owner asked about. At one place the groups
+# stand as closely as the grid allows, which is the arrangement a pool
+# of consecutive whole numbers already has -- so the twin's pool comes
+# back AS the table's, all ten held-back values and every one of their
+# hundred cells.
+#
+# AND IT IS ODD FOR A REASON. The groups' offsets from their own
+# weighted centre are half-integers wherever the pool has an even number
+# of equal groups, so an EVEN multiple lands every value half a place
+# off the grid and the rounding that follows pushes the written mean off
+# the published one -- which is the 0.4167 in the table above, against
+# nought at one, three, five and seven.
+#
+# WHAT IT DOES NOT BUY. The twin's pooled SPREAD is this number times
+# the shape of the groups, and nothing published says what it should be:
+# on the loose shape of plan P4-D301 it stands 25.84 from the table's
+# own however this constant is set. The generation report's held-back
+# note is where the person is told that.
+_POOLED_LOOSENESS = 5
+
 # THE LARGEST MAGNITUDE, IN UNITS OF THE LAST PLACE, a pooled placement
 # will write. Beyond it the rounding onto whole units is no longer
 # exact and a spelling would say more figures than the value has, so the
@@ -23895,13 +23945,13 @@ def _pooled_scale(
     if not isinstance(facts, (contract.LabelFacts,)):
         return None
     scale = facts.suppressed_numbers
-    if scale.n_cells < 1 or scale.mean is None or scale.spread is None:
+    if scale.n_cells < 1 or scale.mean is None:
         return None
     return scale
 
 
 def _pooled_positions(count: int) -> "list[int]":
-    """The centre-outward places of ``count`` groups (method G8.3b).
+    """The centre-outward places of ``count`` groups (method G8.3c step 1).
 
     Nought, then one above, one below, two above, two below, and on
     outward. The groups reach this in descending size order, so the
@@ -23918,28 +23968,22 @@ def _pooled_positions(count: int) -> "list[int]":
     return out
 
 
-def _pooled_spacing(
-    sizes: "tuple[int, ...]", positions: "list[int]", spread: float
-) -> "tuple[float, float]":
-    """The centre of the positions and the spacing that reproduces ``spread``.
+def _pooled_centre(
+    sizes: "tuple[int, ...]", positions: "list[int]"
+) -> float:
+    """The weighted centre of the groups' positions (method G8.3c).
 
-    Method G8.3b's arithmetic, written out. With ``m`` groups of sizes
-    ``c_1..c_m`` standing at positions ``p_1..p_m`` and covering
-    ``N = sum c_i`` rows between them, the weighted centre is
-    ``C = sum(c_i * p_i) / N`` and the weighted second moment about it
-    is ``S = sum(c_i * (p_i - C) ** 2) / N``. Writing group ``i`` the
-    value ``mu + h * (p_i - C)`` puts the mean of the written cells at
-    ``mu`` for any ``h``, because the offsets cancel by construction,
-    and their population spread at ``h * sqrt(S)``. So the spacing that
-    reproduces the published spread is ``h = spread / sqrt(S)``.
+    With ``m`` groups of sizes ``c_1..c_m`` standing at positions
+    ``p_1..p_m`` and covering ``N = sum c_i`` rows between them, this is
+    ``C = sum(c_i * p_i) / N``. Writing group ``i`` the value
+    ``mu + h * (p_i - C)`` then puts the mean of the written cells at
+    ``mu`` for ANY spacing ``h``, because the offsets cancel by
+    construction -- which is what lets the spacing be the generator's
+    own choice now that no spread is published.
 
-    ``S`` is nought only where every group stands at the same position,
-    which is one group and nothing else; a single group can carry no
-    spread at all and takes the mean itself.
-
-    Guarantees: accepts the sizes, their positions and the published
-    spread; returns the centre and the spacing. Determinism: a fixed
-    function of the three. Raises nothing for a non-empty list. No I/O.
+    Guarantees: accepts the sizes and their positions; returns their
+    weighted centre, and nought for no groups. Determinism: a fixed
+    function of the two. Raises nothing. No I/O of any kind.
     """
     rows = 0
     weighted = 0
@@ -23947,16 +23991,89 @@ def _pooled_spacing(
         rows = rows + sizes[step]
         weighted = weighted + sizes[step] * positions[step]
     if rows < 1:
-        return 0.0, 0.0
-    centre = weighted / rows
-    second = 0.0
-    for step in range(len(sizes)):
-        away = positions[step] - centre
-        second = second + sizes[step] * away * away
-    second = second / rows
-    if second <= 0.0 or not math.isfinite(second):
-        return centre, 0.0
-    return centre, spread / math.sqrt(second)
+        return 0.0
+    return weighted / rows
+
+
+def _pooled_step(
+    ladder: "_Ladder", middle: float, furthest: float
+) -> float:
+    """How far apart the pool's groups stand (method G8.3c step 2).
+
+    NOTHING PUBLISHED SAYS THIS, and that is the whole point of it. The
+    description carries the pool's mean and its cell count and no
+    spread, by the owner's decision of 2026-09-21, so how far apart the
+    held-back numbers stood is a fact the twin does not have. The
+    generator has to write SOMETHING, so it writes a spacing of its own
+    and says so: `_POOLED_LOOSENESS` places of the finest grid this
+    column writes at, and the generation report tells the reader that
+    the spread of this column's made-up numbers is not a fact about
+    their table.
+
+    AND IT IS HELD INSIDE THE ROOM THE COLUMN'S OWN PUBLISHED NUMBERS
+    LEAVE, which is the one piece of evidence there is about how far
+    apart this column's numbers lie: the span between the smallest and
+    the largest number it publishes, or how far the pool's own mean
+    stands outside that span, whichever is wider. The spacing is the
+    largest whole number of places that keeps the OUTERMOST group
+    inside it, and never more than the places asked for.
+
+    WHY, MEASURED. A pool of many levels spaced a fixed number of
+    places apart reaches a long way: eighty groups five places apart on
+    a column of whole numbers around 120 spanned four hundred, and the
+    twin's numeric spread came back 77.6 against the table's 20.4. That
+    column publishes 118 and 119 and a mean of 119.94, so its room is
+    one place and the spacing falls to one, and the spread comes back
+    within 2.61. The owner's own shape publishes `100` beside a pooled
+    mean of 204.5, so its room is 104.5 against a furthest position of
+    4.5 and the five places asked for stand.
+
+    AND THE PLACES ARE ODD. The offsets from the groups' own weighted
+    centre are half-integers wherever the pool has an even number of
+    equal groups, so an EVEN multiple lands every value half a place
+    off the grid and the rounding that follows pushes the written mean
+    off the published one -- measured on the owner's shape, a pooled
+    mean of 205.0 against a published 204.5 at two places, against
+    204.5 exactly at one, three, five and seven.
+
+    A COLUMN THAT PUBLISHES NO NUMBER bounds nothing, so the places
+    asked for stand; and one place is the least this can ever be,
+    because two of the pool's values must be different.
+
+    ``furthest`` is how far the outermost group stands from the groups'
+    own weighted centre, in positions.
+
+    Guarantees: accepts the ladder, the published mean and the furthest
+    position; returns a spacing above nought. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    places = 0
+    if ladder.tiers:
+        places = ladder.tiers[0]
+    unit = 1.0
+    if places > 0:
+        unit = 1.0 / float(_ten_to(places))
+    if places < 0:
+        unit = float(_ten_to(0 - places))
+    places_apart = _POOLED_LOOSENESS
+    if ladder.spanned and furthest > 0.0:
+        room = ladder.greatest - ladder.least
+        below = ladder.least - middle
+        if below > room:
+            room = below
+        above = middle - ladder.greatest
+        if above > room:
+            room = above
+        held = 0
+        if room > 0.0:
+            held = int(room / (furthest * unit))
+        if held < places_apart:
+            places_apart = held
+    if places_apart % 2 == 0:
+        places_apart = places_apart - 1
+    if places_apart < 1:
+        places_apart = 1
+    return float(places_apart) * unit
 
 
 def _pooled_spelling(
@@ -24056,13 +24173,11 @@ def _pooled_spelling(
         # and whose labels publish no number, and whose table holds
         # two-figure amounts the census cannot see: held to the census's
         # one figure the twin's pool came back at a mean of 7.12 against
-        # a published 9.68 and a spread of 3.09 against 6.63, which
-        # G12.12's window refuses; allowed the scale's own reach it
-        # comes back at 8.65 and 4.72, inside it. Measured on the other
-        # side, 1,200 ages at a floor of twenty, whose ladder IS
-        # anchored: the width bound is what keeps its twin's numbers to
-        # two figures, and its mean and spread errors at 0.2313 and
-        # 0.5225 against the 1.2215 and 1.1947 this landing found.
+        # a published 9.68, which G12.12's window refuses; allowed the
+        # scale's own reach it comes back at 8.65, inside it. Measured
+        # on the other side, 1,200 ages at a floor of twenty, whose
+        # ladder IS anchored: the width bound is what keeps its twin's
+        # numbers to two figures.
         reach_figures = widest
         if not ladder.anchored and _whole_figures(anchor, places) > (
             reach_figures
@@ -24124,19 +24239,21 @@ def _pooled_numbers_placed(
     pool: "list[int] | None",
     widest: int,
 ) -> "dict[int, str]":
-    """Every made-up number of the pool, placed at the published scale (G8.3b).
+    """Every made-up number of the pool, placed on its published mean (G8.3c).
 
     THE DEFECT THIS CLOSES (ledger K-2B-50). Where the floor holds back
     a column's rare NUMBERS, the ordinary walk of G8.3a has only the
     numbers that were published to step outward from: a column of 100
     `alpha`, twenty `100` and ten each of 200 to 209 published one
     number, and its twin wrote 95 to 105 -- a numeric mean of 100
-    against 187.083333 and a spread of 3.027650 against 39.033017, with
-    nothing missed by either file, because no published fact spoke of
-    the pool at all.
+    against 187.083333, with nothing missed by either file, because no
+    published fact spoke of the pool at all.
 
-    Section 6.3 of the contract now publishes that pool's own mean and
-    population spread, and this places the made-up numbers on them.
+    Section 6.3 of the contract publishes that pool's own MEAN and no
+    spread, by the owner's decision of 2026-09-21, and this places the
+    made-up numbers on it. How far apart they stand is this method's
+    own choice, which `_pooled_step` states and the report tells the
+    person in words.
 
     ``groups`` is the pool's number-owing groups as (size, place, form)
     in the order the walk hands them out, which is descending size.
@@ -24152,12 +24269,19 @@ def _pooled_numbers_placed(
     """
     placed: "dict[int, str]" = {}
     middle = scale.mean
-    spread = scale.spread
-    if middle is None or spread is None or not groups:
+    if middle is None or not groups:
         return placed
     sizes = tuple([pair[0] for pair in groups])
     positions = _pooled_positions(len(groups))
-    centre, spacing = _pooled_spacing(sizes, positions, spread)
+    centre = _pooled_centre(sizes, positions)
+    furthest = 0.0
+    for step in range(len(positions)):
+        away = positions[step] - centre
+        if away < 0.0:
+            away = 0.0 - away
+        if away > furthest:
+            furthest = away
+    spacing = _pooled_step(ladder, middle, furthest)
     for step in range(len(groups)):
         wanted = middle + spacing * (positions[step] - centre)
         found = _pooled_spelling(
@@ -37198,30 +37322,35 @@ def _pooled_approximations(
     facts: contract.LabelFacts,
     written: "list[str]",
 ) -> "list[Approximation]":
-    """The pool's mean and spread, measured on the twin (method G12.12).
+    """The pool's mean, measured on the twin (method G12.12).
 
-    TWO RECORDS AND ALWAYS TWO, on every role that publishes levels:
+    ONE RECORD AND ALWAYS ONE, on every role that publishes levels:
     this format has no optional keys and a measurement that appeared
     only where it was interesting would be a measurement whose ABSENCE
     speaks. Where the description publishes no scale -- the state a
     column whose held-back levels hold no number reaches, and the state
-    the disclosure rule leaves behind -- both records say so in their
-    note and carry nought, which is what there is to say.
+    the disclosure rule leaves behind -- the record says so in its note
+    and carries nought, which is what there is to say.
 
-    The window is G12.12's: half the published spread either side of
-    each of the two numbers. Where the published spread is nought the
-    window would admit one value and nothing else, so the ends are the
-    published value itself and the note says why.
+    THERE WERE TWO RECORDS UNTIL THE OWNER'S DECISION OF 2026-09-21,
+    the second being the pool's population spread. It is not published
+    any more, so there is nothing to measure and nothing to say: the
+    twin's own pooled spread is the generator's own choice of spacing
+    (method G8.3c step 2) and a fact about no table, which is what the
+    held-back note tells the person in words.
+
+    The window is G12.12's: `taxonomy.pooled_window` either side of the
+    published mean, which is what one cell of the pool standing at the
+    far end of the column's own width would move that mean by.
     """
     scale = facts.suppressed_numbers
     middle = scale.mean
-    spread = scale.spread
-    if scale.n_cells < 1 or middle is None or spread is None:
+    if scale.n_cells < 1 or middle is None:
         # WRITTEN OUT, NOT BUILT FROM A NAME. The key index of G12.1
         # names every family whose key a report builds from a number,
         # and a name assembled here would read as one of those families
-        # while being two fixed keys -- so the two keys stand as
-        # themselves and the index needs no entry for them.
+        # while being a fixed key -- so the key stands as itself and
+        # the index needs no entry for it.
         silent = (
             "this column publishes no scale for the numbers its floor "
             "held back"
@@ -37238,29 +37367,14 @@ def _pooled_approximations(
                 note=silent,
                 covers_published=True,
             ),
-            Approximation(
-                column=column.name,
-                fact="suppressed_numbers.spread",
-                published=_figure(0.0),
-                achieved=_figure(0.0),
-                lowest=_bound_figure(0.0),
-                highest=_bound_figure(0.0),
-                inside=True,
-                note=silent,
-                covers_published=True,
-            ),
         ]
     pool = _pooled_written(column, facts, written)
     achieved_mean = 0.0
-    achieved_spread = 0.0
     if pool:
-        achieved_mean, achieved_spread = taxonomy.population_moments_of(
-            list(pool)
-        )
-    reach = spread / 2.0
-    lowest = spread - reach
-    if lowest < 0.0:
-        lowest = 0.0
+        achieved_mean = taxonomy.population_mean_of(list(pool))
+    reach = taxonomy.pooled_window(
+        middle, [entry.label for entry in facts.levels]
+    )
     return [
         Approximation(
             column=column.name,
@@ -37273,20 +37387,6 @@ def _pooled_approximations(
             note=(
                 "the average of the numbers among this column's held-back "
                 "values"
-            ),
-            covers_published=True,
-        ),
-        Approximation(
-            column=column.name,
-            fact="suppressed_numbers.spread",
-            published=_figure(spread),
-            achieved=_figure(achieved_spread),
-            lowest=_bound_figure(lowest),
-            highest=_bound_figure(spread + reach),
-            inside=_inside(achieved_spread, lowest, spread + reach),
-            note=(
-                "how far apart the numbers among this column's held-back "
-                "values lie"
             ),
             covers_published=True,
         ),

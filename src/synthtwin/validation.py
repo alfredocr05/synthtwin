@@ -373,9 +373,10 @@ _AGREEMENT_SLACK = parsing.RANK_AGREEMENT_WINDOW
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
 # The window the scale of a column's held-back numbers is met inside.
-# The placement of method G8.3b puts the pool's cells on the published
-# mean and spread and then rounds each onto a written place, so the two
-# aggregates are approximated and not exact, and G12.12 says by how
+# The placement of method G8.3c puts the pool's cells on the published
+# MEAN -- the owner's decision of 2026-09-21 withdrew the spread that
+# stood beside it -- and then rounds each onto a written place, so the
+# one aggregate is approximated and not exact, and G12.12 says by how
 # much.
 ENVELOPE_POOLED_SCALE = "docs/spec/generation-method-v1.md G12.12"
 ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
@@ -487,12 +488,12 @@ INPUT_SIDE_ENTRIES = (
     ("numeric", "n_rows"),
     ("label", "level_ceiling"),
     # THE POOL'S OWN SCALE, on the same terms (contract 6.3.3, plan
-    # P4-D301). The container key carries no VALUE obligation -- its
-    # membership is the three keys inside it -- and `n_cells` is the
+    # P4-D302). The container key carries no VALUE obligation -- its
+    # membership is the two keys inside it -- and `n_cells` is the
     # count the LOADER reads to ask the disclosure rule of the pool
     # against the column's numbers (invariant B4d), which puts nothing
-    # on the written file. The two aggregates inside it DO, and they
-    # are checked below against G12.12's window.
+    # on the written file. The one aggregate inside it DOES, and it is
+    # checked below against G12.12's window.
     ("label", "suppressed_numbers"),
     ("label", "suppressed_numbers.n_cells"),
     ("free_text", "length"),
@@ -618,17 +619,26 @@ _NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
 # being deliberately indistinguishable, this sentence has to cover both
 # and name neither.
 _NOT_CHECKABLE_NO_POOLED_SCALE = (
-    "the description publishes no average and no spread for the numbers "
-    "among this column's held-back values, so it asks no file for them"
+    "the description publishes no average for the numbers among this "
+    "column's held-back values, so it asks no file for one"
 )
 # THERE IS NO SECOND CASE SINCE THE REPAIR PASS OF 2026-09-21. A scale
 # of no spread used to be one: every cell of the pool held one value, a
 # window of nought width would admit that value and nothing else, and a
 # check that cannot be met is not a check. It is now refused where it is
-# made -- the producer does not publish a flat pool, because publishing
-# it names the value of every held-back cell, and invariant B4d refuses
-# one in a hand-written description -- so the state no longer reaches
-# this module and the sentence that excused it has gone with it.
+# made -- the producer does not publish a pool of one value, because
+# publishing it names the value of every held-back cell.
+#
+# AND THE SPREAD ITSELF IS GONE SINCE THE OWNER'S DECISION OF THE SAME
+# DAY (plan P4-D302): what the pool publishes is a count and a mean, so
+# there is one obligation here and not two. WHAT IS NO LONGER CHECKED,
+# said plainly: no check of this module, and no line of any report it
+# writes, now says anything about how far apart a file's held-back
+# numbers lie. A twin whose pool sits at the right average and is
+# spread a tenth as wide as the real one meets every check here. The
+# spread of a twin's made-up numbers is the generator's own choice of
+# spacing (method G8.3c step 2), and the held-back note of the
+# generation report is where a person is told so.
 #
 _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "the description does not say that every moment of the real column "
@@ -14277,8 +14287,8 @@ def _pooled_scale_listings(
     if isinstance(facts, (contract.LabelFacts,)):
         labelled = facts
     # ...AND A COMPOUND COLUMN'S LABEL HALF, which publishes the same
-    # block and whose checks `_label_checks` files under the same two
-    # subchecks. One obligation is checked or listed, never both and
+    # block and whose checks `_label_checks` files under the same
+    # subcheck. One obligation is checked or listed, never both and
     # never neither, so the half is reached here as well as there.
     if isinstance(facts, (contract.CompoundFacts,)):
         labelled = facts.labels
@@ -14286,18 +14296,17 @@ def _pooled_scale_listings(
         return []
     scale = labelled.suppressed_numbers
     why = ""
-    if scale.n_cells < 1 or scale.mean is None or scale.spread is None:
+    if scale.n_cells < 1 or scale.mean is None:
         why = _NOT_CHECKABLE_NO_POOLED_SCALE
     if not why:
         return []
     return [
         Listing(
             column.name,
-            f"label.suppressed_numbers.{name}",
-            f"suppressed.numbers.{name}",
+            "label.suppressed_numbers.mean",
+            "suppressed.numbers.mean",
             why,
         )
-        for name in ("mean", "spread")
     ]
 
 
@@ -14308,71 +14317,61 @@ def _pooled_scale_checks(
 ) -> "list[Check]":
     """The scale of the held-back numbers, against G12.12's window.
 
-    WHAT THIS CHECKS AND WHY IT IS NOT EXACT. Section 6.3 publishes the
-    mean and the population spread of the cells of the held-back levels
-    that read as numbers, and method G8.3b places the twin's made-up
-    numbers on them. The placement rounds each value onto a place the
-    column writes at and steps outward where a spelling is refused, so
-    the file's own pool comes back near the published scale rather than
-    on it -- an approximated obligation, met inside the window G12.12
-    draws: half the published spread either side of each number.
+    WHAT THIS CHECKS AND WHY IT IS NOT EXACT. Section 6.3 publishes how
+    many of a column's held-back cells read as numbers and their mean,
+    and method G8.3c places the twin's made-up numbers on that mean.
+    The placement rounds each value onto a place the column writes at
+    and steps outward where a spelling is refused, so the file's own
+    pool comes back near the published mean rather than on it -- an
+    approximated obligation, met inside the window G12.12 draws.
 
-    THE WINDOW IS DRAWN FROM THE SCALE'S OWN SPREAD because that is the
-    width the scale itself declares. A pool whose mean sits more than
-    half that width away, or whose spread does, is not this population
-    written a little differently; it is a different population. Measured
-    on the shape ledger K-2B-50 names: the twin before G8.3b put a pool
-    published at mean 204.5 and spread 2.872281 at 100 and 3.027650,
-    which this window refuses, and the twin after it lands on both
-    exactly.
+    WHAT IS NO LONGER CHECKED, AND IT IS A REAL LOSS, stated here
+    rather than in a footnote. Until the owner's decision of 2026-09-21
+    this block also published the pool's population SPREAD, and this
+    function held a file to it. It does not any more, because nothing
+    publishes it: a mean and a spread together solve a tightly spaced
+    pool for its own values, and the owner took the mean. So NO CHECK
+    IN THIS MODULE NOW SAYS ANYTHING ABOUT HOW FAR APART A FILE'S
+    HELD-BACK NUMBERS LIE. A file whose pool sits at the published
+    average and is spread a tenth as wide as the real column's passes
+    here, and passes honestly, because no published fact was missed.
 
-    A SCALE OF NO SPREAD NEVER REACHES HERE since the repair pass of
-    2026-09-21. It used to draw no window and leave both obligations
-    unchecked; it is now refused by the producer and by invariant B4d,
-    for the disclosure reason `taxonomy._pooled_numbers` states, so a
-    published spread is above nought and a window can always be drawn.
+    THE WINDOW IS DRAWN FROM WHAT IS LEFT -- the pool's own cell count
+    and the widest number the column shows -- and it has a meaning
+    rather than a taste. `taxonomy.pooled_window` is
+    `10 ** figures / n_cells`: the most one cell of the pool could move
+    the pooled mean by, if it stood at the far end of the width this
+    column's numbers are held to instead of where it belongs. A file
+    further out than that is not this population written a little
+    differently. Measured on the shape ledger K-2B-50 names, whose
+    window is ten either side of a published 204.5: the twin without
+    the placement puts its pool at 100 and is MISSED, and the twin with
+    it lands at 204.5 exactly.
 
     THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
-    none closes the gate: both obligations are WITHHELD, exactly as
-    every other check reads a re-described block that says nothing.
-    **THAT MAKES THIS CHECK VACUOUS TODAY, and the repair pass of
-    2026-09-21 measured why rather than papering over it.** The file's
-    block is written by the producer rules that refuse a pool, and one
-    of those is the looseness rule of `taxonomy._POOLED_SCALE_LOOSENESS`
-    -- a pool packed as closely as its own values allow is NAMED by its
-    mean and its spread, so it may not be published. Method G8.3c
-    spaces the twin's groups evenly, which is that arrangement: measured
-    on the reproduction and on a six-level pool of thousands, the twin's
-    own pool came back at a looseness of 1.333 and 1.825 against the 2.5
-    the producer asks for, so a twin written by this product never
-    publishes the pool it was asked to write.
-
-    Reading the closed gate as a MISS was tried in the same pass and
-    withdrawn: it states an obligation no conforming twin can meet,
-    which is the defect this landing was repaired for in the first
-    place. What closes it is G8.3c placing the pool as LOOSELY as the
-    published pair allows instead of evenly, which is a change to the
-    generator that this pass did not make; the report puts it to the
-    owner beside the other way out. Until then this is a published fact
-    no file is held to, and it says so here rather than in a footnote.
+    none closes the gate, exactly as every other check reads a
+    re-described block that says nothing. **THAT GATE USED TO CLOSE ON
+    EVERY TWIN THIS PRODUCT WROTE**, because the producer refused a
+    pool standing at the tightest arrangement its values could take and
+    method G8.3c wrote exactly that arrangement -- so the check was
+    vacuous and said so. The owner's decision withdrew the rule that
+    closed it: a mean alone names no arrangement, tight or loose, so a
+    twin's own description publishes its pool and this check is a check
+    again.
     """
     scale = facts.suppressed_numbers
     middle = scale.mean
-    spread = scale.spread
-    if scale.n_cells < 1 or middle is None or spread is None:
+    if scale.n_cells < 1 or middle is None:
         return []
-    reach = spread / 2.0
+    reach = taxonomy.pooled_window(
+        middle, [entry.label for entry in facts.levels]
+    )
     inner = _inner_at(block, "suppressed_numbers")
     found_mean: "float | None" = None
-    found_spread: "float | None" = None
     if inner is not None:
         cells = _count_at(inner, "n_cells")
         if cells is not None and cells > 0:
             found_mean = _number_at(inner, "mean")
-            found_spread = _number_at(inner, "spread")
-    lowest = spread - reach
-    if lowest < 0.0:
-        lowest = 0.0
     return [
         _within(
             name,
@@ -14383,16 +14382,6 @@ def _pooled_scale_checks(
             (middle - reach, middle + reach),
             ENVELOPE_POOLED_SCALE,
             middle,
-        ),
-        _within(
-            name,
-            "label.suppressed_numbers.spread",
-            "suppressed.numbers.spread",
-            _shown_number(spread),
-            found_spread,
-            (lowest, spread + reach),
-            ENVELOPE_POOLED_SCALE,
-            spread,
         ),
     ]
 

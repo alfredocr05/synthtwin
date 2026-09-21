@@ -5963,21 +5963,32 @@ POOLED_STEPS = 1 << 10
 POOLED_REACH = 1 << 53
 
 
-def pooled_offsets(sizes, spread):
+# HOW MANY PLACES OF THE COLUMN'S FINEST GRID the pool's groups stand
+# apart -- G8.3c step 2.  Nothing published says how far apart the
+# held-back numbers stood, so the spacing is the generator's own.
+POOLED_LOOSENESS = 5
+
+
+def pooled_offsets(sizes, ladder, middle):
     """How far from the pool's mean each group stands -- G8.3c steps 1 and 2.
 
     Step 1 puts the groups at nought, one above, one below, two above and
     on outward, in the order the walk hands them out.  Step 2 takes the
-    weighted centre `C` of those positions and their weighted second
-    moment `S` about it, and writes group `i` at `mu + h * (p_i - C)`
-    with `h = sigma / sqrt(S)`: the offsets then sum to nought against
-    the sizes, which is what puts the written mean at `mu`, and their
-    weighted second moment is `sigma * sigma`, which is what puts the
-    written spread at `sigma`.
+    weighted centre `C` of those positions and writes group `i` at
+    `mu + h * (p_i - C)`: the offsets then sum to nought against the
+    sizes, which is what puts the written mean at `mu` for ANY spacing
+    `h`, and no published fact chooses `h`, because the pool publishes a
+    mean and no spread.
 
-    `S` is nought only where one group stands alone, and a lone group
-    carries no spread: it takes the mean itself, which is an offset of
-    nought.
+    So the method chooses it: `POOLED_LOOSENESS` places of the finest
+    grid the ladder writes at, held inside the room the column's OWN
+    published numbers leave -- their span, or how far the pool's mean
+    stands outside it, whichever is wider -- and then down to an odd
+    whole number of places, because the offsets are half-integers
+    wherever the pool has an even number of equal groups and an even
+    multiple would land every value half a place off the grid.  One
+    place is the least it can be.  A column that publishes no number at
+    all bounds nothing, and the places asked for stand.
     """
     standing = [
         (rank + 1) // 2 * (1 if rank % 2 else -1) for rank in range(len(sizes))
@@ -5987,10 +5998,20 @@ def pooled_offsets(sizes, spread):
         return [0.0 for _each in standing]
     centre = sum(a * b for a, b in zip(sizes, standing)) / rows
     away = [place - centre for place in standing]
-    second = sum(a * b * b for a, b in zip(sizes, away)) / rows
-    if not second > 0 or not math.isfinite(second):
-        return [0.0 for _each in away]
-    return [reach * spread / math.sqrt(second) for reach in away]
+    furthest = max([abs(reach) for reach in away] + [0.0])
+    unit = 10.0 ** (0 - (ladder["tiers"][0] if ladder["tiers"] else 0))
+    apart = POOLED_LOOSENESS
+    if ladder["spanned"] and furthest > 0:
+        room = max(
+            ladder["greatest"] - ladder["least"],
+            ladder["least"] - middle,
+            middle - ladder["greatest"],
+        )
+        apart = min(apart, int(room / (furthest * unit)) if room > 0 else 0)
+    if apart % 2 == 0:
+        apart = apart - 1
+    apart = max(apart, 1)
+    return [reach * apart * unit for reach in away]
 
 
 def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest):
@@ -6076,12 +6097,11 @@ def pooled_placements(
     placement could write; a group it could not is absent, and G8.3c step
     4 leaves it to the ordinary walk of G8.3a step 3.
 
-    Nothing below the floor is read: the three numbers of contract 6.3.3
+    Nothing below the floor is read: the two numbers of contract 6.3.3
     are the whole input, and the values written are a construction over
-    them.
+    them and over the column's own published numbers.
     """
     middle = wire_value(scale["mean"])
-    spread = wire_value(scale["spread"])
     widest = 0
     if bounded:
         widest = max(
@@ -6092,7 +6112,9 @@ def pooled_placements(
             )
             + [form_whole_figures(form) for form in named]
         )
-    offsets = pooled_offsets([group[0] for group in groups], spread)
+    offsets = pooled_offsets(
+        [group[0] for group in groups], ladder, middle
+    )
     written = {}
     for group, offset in zip(groups, offsets):
         if not math.isfinite(middle + offset):
@@ -6387,7 +6409,7 @@ def class_stand_ins_walked(
         if name == OWED_NUMBER:
             scale = column.get("suppressed_numbers") or {}
             if scale.get("n_cells", 0) > 0 and wire_value(
-                scale.get("spread")
+                scale.get("mean")
             ) is not None:
                 pooled = pooled_placements(
                     ladder, scale,
@@ -13016,7 +13038,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # key existed is in, because none of them holds a number at all.
     if role in LABEL_ROLES and "suppressed_numbers" not in block:
         block["suppressed_numbers"] = {
-            "n_cells": 0, "mean": None, "spread": None
+            "n_cells": 0, "mean": None
         }
     # The census of LAYOUTS (contract 7.12), REQUIRED on the identifier
     # role and forbidden everywhere else, so a case that states none
@@ -14742,7 +14764,7 @@ def _long_tail_levels():
 
 
 def _pooled_number_scale():
-    """The pool's own scale, placed by G8.3c (plan P4-D301, ledger K-2B-50).
+    """The pool's own scale, placed by G8.3c (plan P4-D302, ledger K-2B-50).
 
     EVERY LABEL CASE BEFORE THIS ONE either publishes no held-back number
     at all or publishes numbers of its own for the walk to step from, so
@@ -14756,39 +14778,46 @@ def _pooled_number_scale():
     column publishes no number of its own, so the ladder of G8.3a step 3
     is unanchored and counts upward from nought; what places these four
     instead is contract 6.3.3's block, which says the pool holds twenty
-    numeric cells whose mean is 50 and whose population spread is 5.
+    numeric cells whose mean is 50.
+
+    THE BLOCK CARRIES NO SPREAD, by the owner's decision of 2026-09-21,
+    and that is what this case now freezes.  A mean and a spread are two
+    equations over the pool's values and solve a tightly spaced pool
+    outright; a mean alone is one equation.  So the spacing is no longer
+    read from the description at all -- it is the generator's own, which
+    is the clause this case exists to hold up.
 
     WHAT G8.3c THEN DOES, step by step.  G8.3 reads the four sizes off
     the pool as 10, 6, 3 and 1, and the walk hands them out largest
     first, so they stand at positions 0, 1, -1 and 2.  Their weighted
-    centre is 1/4 and their weighted second moment about it is 47/80, so
-    the spacing is 6.523280730534421 and the values asked for are
-    48.369179817366394, 54.89246054790082, 41.84589908683198 and
-    61.415741278435235.  Rounded onto whole numbers, which is the place
-    this column writes at, they are 48, 55, 42 and 61.
+    centre is a quarter, so their offsets from it are -1/4, 3/4, -5/4
+    and 7/4.  The column publishes no number, so nothing bounds the
+    spacing and it is the five places of `POOLED_LOOSENESS` on this
+    column's whole-number grid: the values asked for are 48.75, 53.75,
+    43.75 and 58.75, and rounded onto whole numbers they are 49, 54, 44
+    and 59.
 
     THIS CASE'S DESCRIPTION IS BUILT HERE AND NOT BY THE PRODUCER, as
-    every case in this file is, and the repair pass of 2026-09-21 left
-    it at four held-back levels on purpose. The producer will not WRITE
-    a pooled scale below six numeric levels -- contract 6.3.3 carries
-    the sweep that chose six -- but that is a producer obligation the
-    loader does not re-ask, stated there in as many words, so this is a
-    description the loader accepts and G8.3c is asked exactly what this
-    file says it is asked. What the case freezes is the GENERATOR'S
-    arithmetic, which the repair pass did not touch.
+    every case in this file is, and it stands at four held-back levels
+    on purpose.  The producer will not WRITE a pooled scale whose mean
+    leaves the values fewer than a thousand arrangements -- contract
+    6.3.3 carries that rule and the count behind it -- but that is a
+    producer obligation the loader does not re-ask, stated there in as
+    many words, so this is a description the loader accepts and G8.3c is
+    asked exactly what this file says it is asked.
 
     THE ROUNDING IS THE REASON THIS FACT IS APPROXIMATED and not exact,
     and the case is chosen to show it rather than to hide it: the twin's
-    own pool comes back with a mean of 49.85 against the published 50
-    and a spread of 5.012733785071775 against the published 5, both
-    inside the window G12.12 draws and neither on it.
+    own pool comes back with a mean of 50.25 against the published 50,
+    inside the window G12.12 draws -- a fifth of the largest magnitude
+    this description states, which is the mean's own 50, so ten either
+    side -- and not on it.
     """
     scale = {}
     claims = {}
-    for key, text in (("mean", "50"), ("spread", "5")):
-        field, claim = nearest_field(text)
-        scale[key] = field
-        claims[("column", "suppressed_numbers", key)] = claim
+    field, claim = nearest_field("50")
+    scale["mean"] = field
+    claims[("column", "suppressed_numbers", "mean")] = claim
     scale["n_cells"] = 20
     column = _universal(
         "column_1", "categorical", "categorical", "data", "ok",
@@ -14813,22 +14842,26 @@ def _pooled_number_scale():
         "why": "the pool's own scale (contract 6.3.3, method G8.3c): a "
         "column whose rare values are its NUMBERS publishes none of them, "
         "so the ladder of G8.3a step 3 has nothing to step from and counts "
-        "upward from nought. The block of three aggregates over the pool "
-        "-- twenty numeric cells, mean 50, population spread 5 -- is what "
-        "places them instead. G8.3 reads the four sizes off the pool as "
-        "10, 6, 3 and 1 and the walk hands them out largest first, so they "
-        "stand at positions 0, 1, -1 and 2; their weighted centre is a "
-        "quarter and their weighted second moment forty-seven eightieths, "
-        "so the spacing is 6.523280730534421 and the four values asked for "
-        "round onto 48, 55, 42 and 61. The twin's own pool then comes back "
-        "with a mean of 49.85 against the published 50 and a spread of "
-        "5.012733785071775 against the published 5 -- both inside the "
-        "window G12.12 draws and neither on it, which is why this fact is "
-        "APPROXIMATED and not exact. This case's mutant withdraws the "
-        "placement, so the unanchored ladder of G8.3a answers instead and "
-        "the four levels come back as the smallest numbers it can write. "
-        "A label column consumes no content word, so every byte here is "
-        "fixed by published counts.",
+        "upward from nought. The block of two aggregates over the pool -- "
+        "twenty numeric cells and a mean of 50, with NO spread since the "
+        "owner's decision of 2026-09-21 -- is what places them instead. "
+        "G8.3 reads the four sizes off the pool as 10, 6, 3 and 1 and the "
+        "walk hands them out largest first, so they stand at positions 0, "
+        "1, -1 and 2; their weighted centre is a quarter, so their offsets "
+        "are -1/4, 3/4, -5/4 and 7/4. NOTHING PUBLISHED SAYS HOW FAR APART "
+        "THE HELD-BACK NUMBERS STOOD, so the spacing is the generator's "
+        "own -- five places of this column's whole-number grid, unbounded "
+        "here because the column publishes no number to bound it -- and "
+        "the four values asked for, 48.75, 53.75, 43.75 and 58.75, round "
+        "onto 49, 54, 44 and 59. The twin's own pool then comes back with "
+        "a mean of 50.25 against the published 50, inside the window "
+        "G12.12 draws -- a fifth of the largest magnitude this description "
+        "states, so ten either side -- and not on it, which is why this "
+        "fact is APPROXIMATED and not exact. This case's mutant withdraws "
+        "the placement, so the unanchored ladder of G8.3a answers instead "
+        "and the four levels come back as the smallest numbers it can "
+        "write. A label column consumes no content word, so every byte "
+        "here is fixed by published counts.",
         "column": column,
         "claims": claims,
         "rows": 31,

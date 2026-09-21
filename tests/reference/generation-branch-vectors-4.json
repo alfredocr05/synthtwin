@@ -3461,8 +3461,7 @@
         "suppressed_levels": 5,
         "suppressed_numbers": {
           "mean": null,
-          "n_cells": 0,
-          "spread": null
+          "n_cells": 0
         },
         "suppressed_rows": 21
       },

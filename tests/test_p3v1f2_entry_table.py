@@ -5665,9 +5665,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "spelling.decimal_plus"): "numeric.decimal_plus",
     ("compound", "styles.spill"): "numeric.numeric_styles",
     ("compound", "suppressed.numbers.mean"): "label.suppressed_numbers.mean",
-    ("compound", "suppressed.numbers.spread"): (
-        "label.suppressed_numbers.spread"
-    ),
     ("compound", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("compound", "suppressed.suppressed_rows"): "label.suppressed_rows",
     ("compound", "type.integer_valued"): "numeric.integer_valued",
@@ -6005,9 +6002,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "presence.n_missing"): "universal.n_missing",
     ("label", "presence.n_present"): "universal.n_present",
     ("label", "suppressed.numbers.mean"): "label.suppressed_numbers.mean",
-    ("label", "suppressed.numbers.spread"): (
-        "label.suppressed_numbers.spread"
-    ),
     ("label", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("label", "suppressed.suppressed_rows"): "label.suppressed_rows",
     # -- numeric -----------------------------------------------------------
