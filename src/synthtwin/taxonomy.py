@@ -5644,10 +5644,23 @@ def _column_distinct(
 
 # WHAT A POOLED NUMERIC AGGREGATE PUBLISHES WHEN IT CANNOT SPEAK, and
 # it is the state a pool of no numbers at all reaches (plan P4-D301).
-# The two are deliberately the same three values: a refusal a reader
-# can tell apart from nought would itself say that the held-back levels
-# hold numbers and how few, which is the count the floor exists to
-# withhold.
+# The two are deliberately the same two values, so that NO REFUSAL
+# REASON IS DISTINGUISHABLE FROM ANOTHER: a refused pool of one value,
+# a refused pool with no room to move and a pool holding no number at
+# all publish the identical block, and nothing in this state says which
+# rule was reached or how close the pool came to passing it.
+#
+# WHAT THIS STATE DOES NOT HIDE, said plainly because the comment here
+# once claimed otherwise. The pooled numeric CELL COUNT is derivable
+# from the block whether the pool speaks or not: `n_numeric` is
+# published beside every published level and its count, so a reader
+# subtracts the published numeric levels' cells from `n_numeric` and
+# has it. Measured over the twelve shapes of this landing's table:
+# `narrow_width` publishes nought here while a reader computes 48,
+# `one_value_six_spellings` nought against 48, `two_levels` nought
+# against 20, `wider_than_shown` nought against 24. That count is a
+# fact section 6.3 already publishes elsewhere, and what this state
+# withholds is the pool's SCALE, not its size.
 _NO_POOLED_SCALE: "dict[str, object]" = {
     "n_cells": 0,
     "mean": None,
@@ -5843,23 +5856,78 @@ def population_mean_of(numbers: list[float]) -> float:
     return _rounded_ratio(top, bottom)
 
 
-# HOW NARROW METHOD G12.12'S WINDOW ON THE POOLED MEAN IS, as a share
-# of the largest magnitude the column's description states. It is
-# MEASURED rather than chosen: over ten shapes whose description
-# publishes a pool and whose twin publishes one back -- the shape ledger
-# K-2B-50 names, its loose cousin, a decimal pool, an unanchored pool of
-# readings, a negative pool from the ledger's own sweep, 2,500
-# one-decimal readings at two seeds and 1,000 integers beside comments
-# at two -- the furthest a conforming twin's own pooled mean stood from
-# the published one was ONE PART IN ELEVEN of that magnitude. The window
-# is one part in five, a little over twice the worst measured, and the
-# defect ledger K-2B-50 names stands at one part in two: the twin
-# without method G8.3c's placement puts a pool published at 204.5 at
-# 100, which is 0.51 of the reach against the 0.20 this admits.
-_POOLED_WINDOW_SHARE = 5
+# HOW WIDE METHOD G12.12'S WINDOW ON THE POOLED MEAN IS, counted in
+# PLACES OF THE COLUMN'S OWN GRID. It is MEASURED rather than chosen.
+# Method G8.3c step 4 makes the groups carry each other's arrears, so
+# every group but the last is asked for whatever the cells still to be
+# written must average for the pool to come out on the published mean,
+# and the only error left over is the LAST group's own rounding onto a
+# place the column writes at. Over 371 pools that publish a scale and
+# whose twin publishes one back -- the shape ledger K-2B-50 names, its
+# loose cousin, a decimal pool, an unanchored pool of readings, the ten
+# shapes of the landing's own before-and-after table, and four draws of
+# 150 randomised pools at four widths, two grids and both signs -- the
+# furthest a conforming twin's own pooled mean stood from the published
+# one was A THIRD OF ONE PLACE. The window is TWO places, six times the
+# worst measured.
+#
+# WHY PLACES AND NOT A SHARE OF ANYTHING. A window that was a share of
+# some magnitude on the page was a window drawn from a number that has
+# nothing to do with the pool: measured on 100 `alpha`, twenty `990`
+# and ten each of 940 to 949 at a floor of eleven, the column's own
+# published `990` set a window of 198.0 around a pooled mean of 944.5,
+# and the very defect ledger K-2B-50 names -- G8.3c's placement
+# withdrawn, the twin's pool back at 990.0 -- passed inside it. What
+# the placement can and cannot do is a fact about the GRID, so that is
+# what the window is counted in, and the same defect now stands at
+# forty-five and a half places of a window two places wide.
+_POOLED_WINDOW_PLACES = 2
 
 
-def pooled_window(middle: float, labels: "list[str]") -> float:
+def _published_places(labels: "list[str]") -> int:
+    """The FEWEST decimal places any published number of a column has.
+
+    The coarsest grid the ladder of method G8.3a can reach, which is
+    the coarsest any pooled placement can be rounded onto: the ladder's
+    tiers are the counts of places the published numbers were written
+    with, and a placement walks them finest first and whole numbers
+    last. A column that publishes no number at all is read as whole
+    numbers here, which is both the coarsest grid there is and the one
+    an unanchored ladder ends on.
+
+    A DECIMAL MARK THIS READS AS A GROUPING MARK ANSWERS NOUGHT, and
+    that is the safe direction: a column whose own mark is a comma has
+    `4,5` read here as a whole number, so the grid is taken to be
+    coarser than it is and the window wider than it needs to be. A
+    window read too NARROW would call a sound twin missed.
+
+    Guarantees: accepts the published labels; returns nought or more.
+    Determinism: a fixed function of the labels. Raises nothing. No I/O
+    of any kind.
+    """
+    fewest = -1
+    for label in labels:
+        body = parsing.trimmed(label)
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        places = 0
+        marks = 0
+        for step in range(len(body)):
+            if body[step] == ".":
+                marks = marks + 1
+                places = 0
+            elif marks > 0:
+                places = places + 1
+        if marks != 1:
+            places = 0
+        if fewest < 0 or places < fewest:
+            fewest = places
+    if fewest < 0:
+        return 0
+    return fewest
+
+
+def pooled_window(labels: "list[str]") -> float:
     """Half the window method G12.12 draws around the published pooled mean.
 
     PUBLIC because two modules draw it and neither may import the other:
@@ -5869,49 +5937,34 @@ def pooled_window(middle: float, labels: "list[str]") -> float:
 
     THE WINDOW USED TO BE DRAWN FROM THE POOL'S PUBLISHED SPREAD -- half
     of it either side of each aggregate -- and the owner's decision of
-    2026-09-21 withdrew that spread. It is drawn from what is left: the
-    REACH of the column, which is the largest magnitude its description
-    states for this column's numbers -- the largest of its published
-    numbers, or the pool's own mean where it publishes none, the same
-    two cases method G8.3c's width rule distinguishes.
+    2026-09-21 withdrew that spread. It was drawn next from the largest
+    magnitude the column's description states, which was worse than
+    nothing: on a column of 100 `alpha`, twenty `990` and ten each of
+    940 to 949 the published `990` set a window of 198.0 around a pooled
+    mean of 944.5, and the defect ledger K-2B-50 names passed inside it.
 
-    WHY A SHARE OF THE REACH AND NOT A COUNT OF ANYTHING. The
-    placement of G8.3c writes each group at the nearest value its own
-    form, the census and the column's width allow, so a group the
-    description's own censuses push away from the mean moves the pool's
-    mean with it -- and how many groups that happens to is not a
-    published fact. What IS published is how large this column's
-    numbers are, and a file whose pool sits a fifth of that away from
-    the published mean is not this population written a little
-    differently. `_POOLED_WINDOW_SHARE` carries the measurement.
+    IT IS DRAWN FROM THE GRID, because the grid is what decides how
+    exactly a placement can meet a mean. Method G8.3c step 4 asks every
+    group but the last for what the cells still to be written must
+    average for the pool to come out on ``mu``, so the arrears of a
+    group the census pushed elsewhere are carried by the groups after
+    it and the only error left is the last group's rounding onto a
+    place the column writes at. `_POOLED_WINDOW_PLACES` carries the
+    measurement of how far that reaches.
 
-    A REACH OF NOUGHT is one whole unit here, which is the narrowest
-    window that can hold anything at all. It is reached only by a pool
-    whose mean is nought beside a column that publishes no number, and
-    a window of nought width would be a check no file could meet.
+    A COLUMN THAT PUBLISHES NO NUMBER is read as whole numbers, which
+    is the coarsest grid there is and so the widest this window ever
+    becomes. It is never nought, so no file meets a window of no width.
 
-    Guarantees: accepts the published mean and the published labels;
-    returns a half-window above nought. Determinism: a fixed function of
-    the two. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the published labels; returns a half-window
+    above nought. Determinism: a fixed function of them. Raises
+    nothing. No I/O of any kind.
     """
-    reach = middle
-    if reach < 0.0:
-        reach = 0.0 - reach
-    for label in labels:
-        body = parsing.trimmed(label)
-        if parsing.classify_number(body) != parsing.NUMBER:
-            continue
-        size = parsing.parse_number(body)
-        if size is None or not math.isfinite(size):
-            continue
-        wide = size
-        if wide < 0.0:
-            wide = 0.0 - wide
-        if wide > reach:
-            reach = wide
-    if reach <= 0.0:
-        reach = 1.0
-    return reach / float(_POOLED_WINDOW_SHARE)
+    places = _published_places(labels)
+    unit = 1.0
+    if places > 0:
+        unit = 1.0 / float(10 ** places)
+    return unit * float(_POOLED_WINDOW_PLACES)
 
 
 def _pooled_numbers(

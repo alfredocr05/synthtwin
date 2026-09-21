@@ -47,6 +47,7 @@ THE RED CHECKS, each measured by withdrawing the rule in place:
 Every table is built by seeded neutral code at runtime (plan D13).
 """
 
+import dataclasses
 import pathlib
 import statistics
 
@@ -229,15 +230,23 @@ def test_a_file_at_the_wrong_scale_is_missed_and_not_withheld(
     assert _missed(loaded, folder / "right.csv", cells) == []
 
 
-def test_the_window_is_drawn_from_the_reach_and_not_from_a_spread(
+def test_the_window_is_drawn_from_the_grid_and_not_from_a_magnitude(
     tmp_path: pathlib.Path,
 ) -> None:
-    """METHOD G12.12's window, and the two numbers that decide it.
+    """METHOD G12.12's window, and the one thing that decides it.
 
-    A fifth of the largest magnitude the description states for this
-    column: the pool's own mean of 204.5 against the published `100`,
-    so 204.5 and a window of 40.9. The defect's pool sits 104.5 away,
-    which is outside it; the twin as built sits on the mean.
+    TWO PLACES OF THE COLUMN'S OWN GRID, and nothing else on the page.
+    The owner's shape publishes `100` beside a pooled mean of 204.5 and
+    writes whole numbers, so the window is 2; the defect's pool sits
+    104.5 away, which is outside it, and the twin as built sits on the
+    mean.
+
+    AND THE SAME WINDOW WHATEVER THE MAGNITUDES ARE. A column of the
+    same shape whose published number is `990` and whose pool is 940 to
+    949 draws the same 2, where the withdrawn rule -- a fifth of the
+    largest magnitude the description stated -- drew 198.0 from the
+    `990` and admitted an error of 45.5 in a pool published at 944.5.
+    A column written at one decimal place draws a fifth of a unit.
     """
     cells = _anchored_cells()
     folder = tmp_path / "anchored"
@@ -248,11 +257,19 @@ def test_the_window_is_drawn_from_the_reach_and_not_from_a_spread(
     assert isinstance(facts, (contract.LabelFacts,))
     scale = facts.suppressed_numbers
     assert scale.mean == 204.5
-    reach = taxonomy.pooled_window(
-        scale.mean, [entry.label for entry in facts.levels]
-    )
-    assert reach == 204.5 / 5.0
+    reach = taxonomy.pooled_window([entry.label for entry in facts.levels])
+    assert reach == 2.0
     assert abs(100.0 - scale.mean) > reach
+    # The magnitudes move and the window does not.
+    assert taxonomy.pooled_window(["alpha", "990"]) == 2.0
+    assert taxonomy.pooled_window(["alpha", "3"]) == 2.0
+    assert taxonomy.pooled_window(["alpha"]) == 2.0
+    # ...but the GRID moves it, which is what it is drawn from.
+    assert taxonomy.pooled_window(["alpha", "48.0"]) == 0.2
+    assert taxonomy.pooled_window(["alpha", "4.500"]) == 0.002
+    # The COARSEST published place wins, because the ladder's tiers end
+    # on whole numbers and a placement may be rounded onto any of them.
+    assert taxonomy.pooled_window(["alpha", "48.0", "50"]) == 2.0
 
 
 def test_withdrawing_the_placement_puts_the_defect_back(
@@ -283,30 +300,64 @@ def test_withdrawing_the_placement_puts_the_defect_back(
     )
 
 
+def _with_a_shifted_pool(
+    loaded: contract.Profile, moved: float
+) -> contract.Profile:
+    """The same description with the pool's published mean moved."""
+    column = loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, (contract.LabelFacts,))
+    scale = facts.suppressed_numbers
+    assert scale.mean is not None
+    return dataclasses.replace(
+        loaded,
+        columns=(
+            dataclasses.replace(
+                column,
+                facts=dataclasses.replace(
+                    facts,
+                    suppressed_numbers=dataclasses.replace(
+                        scale, mean=scale.mean + moved
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def test_a_twin_whose_pool_is_shifted_is_caught(
-    tmp_path: pathlib.Path, monkeypatch: object
+    tmp_path: pathlib.Path,
 ) -> None:
     """THE WINDOW IS NOT A BLANKET EXCUSE, and this is the proof.
 
-    The mutant moves the whole pooled population one held-back level's
-    worth off its own centre -- the twin's pool moves a long way
-    against a published 204.5 -- while every other rule of G8.3c stands
-    and every other published fact is met. The window is 40.9 either
-    side, so the check says so.
+    NOTHING IS PATCHED HERE. The generator is handed a description
+    whose pooled mean stands 60 above the true one and writes a twin
+    that obeys method G8.3c to the letter against it; that twin is then
+    checked against the description the real table produced. Every
+    other published fact is met -- the level counts, the spellings, the
+    censuses, the row counts -- and the pool alone is in the wrong
+    place, which is the shape of a generator defect rather than of a
+    broken file.
+
+    THE BOUNDARY IS WHERE THE RULE PUTS IT, measured either side: a
+    pool moved by one place of the column's grid is inside the window
+    of two and passes, a pool moved by three places is outside it and
+    is MISSED. The arrears of G8.3c step 4 put the twin's pool on
+    whatever mean it was given, so the miss is the whole of the shift.
     """
     cells = _anchored_cells()
     folder = tmp_path / "anchored"
     _first, _second, _written, _twin, _real = _round_trip(folder, cells, FLOOR)
     loaded = _loaded(folder)
-    keep = generation._pooled_centre
-    monkeypatch.setattr(  # type: ignore[attr-defined]
-        generation,
-        "_pooled_centre",
-        lambda sizes, positions: keep(sizes, positions) - 20.0,
-    )
-    written = list(generation.generate(loaded, 4).columns[0])
+    far = list(generation.generate(_with_a_shifted_pool(loaded, 60.0), 4).columns[0])
     assert "value:suppressed.numbers.mean" in _missed(
-        loaded, folder / "shifted.csv", written
+        loaded, folder / "shifted.csv", far
+    )
+    near = list(generation.generate(_with_a_shifted_pool(loaded, 1.0), 4).columns[0])
+    assert _missed(loaded, folder / "nudged.csv", near) == []
+    out = list(generation.generate(_with_a_shifted_pool(loaded, 3.0), 4).columns[0])
+    assert "value:suppressed.numbers.mean" in _missed(
+        loaded, folder / "past.csv", out
     )
 
 
@@ -333,9 +384,130 @@ def test_widening_the_window_without_bound_lets_the_defect_through(
         loaded, folder / "narrow.csv", written
     )
     monkeypatch.setattr(  # type: ignore[attr-defined]
-        taxonomy, "pooled_window", lambda _middle, _labels: 1.0e18
+        taxonomy, "pooled_window", lambda _labels: 1.0e18
     )
     assert _missed(loaded, folder / "wide.csv", written) == []
+
+
+def _dwarfed_cells() -> "list[str]":
+    """The owner's shape with a published number LARGER than its pool.
+
+    100 `alpha`, twenty `990`, ten each of 940 to 949: the floor
+    publishes `alpha` and `990` and pools the ten rare numbers, whose
+    mean is 944.5. It is the ordinary shape of a common code published
+    beside rarer neighbours, and it is the shape the repair pass of
+    2026-09-21 found the window could not see.
+    """
+    cells = ["alpha"] * 100 + ["990"] * 20
+    for number in range(940, 950):
+        cells += [str(number)] * 10
+    return cells
+
+
+def test_a_column_whose_published_number_dwarfs_its_pool_is_still_checked(
+    tmp_path: pathlib.Path, monkeypatch: object
+) -> None:
+    """THE BLOCKER OF THE 2026-09-21 REVIEW, closed and pinned.
+
+    While method G12.12's window was a fifth of the largest magnitude
+    the description stated, this column's published `990` set a window
+    of 198.0 around a pooled mean of 944.5 -- a width drawn from a
+    number that has nothing to do with the pool. The very defect ledger
+    K-2B-50 names, G8.3c's placement withdrawn, puts the twin's pool at
+    990.0 and its numeric mean at 990.000 against the table's 952.083,
+    and that file EXITED CLEAN.
+
+    The window is two places of this column's whole-number grid, so the
+    45.5 the defect stands out by is outside it and the file is MISSED.
+    The twin as built meets the published mean exactly.
+    """
+    cells = _dwarfed_cells()
+    folder = tmp_path / "dwarfed"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, cells, FLOOR
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    assert first["suppressed_numbers"]["mean"] == 944.5
+    assert second["suppressed_numbers"]["mean"] == 944.5
+    assert statistics.fmean(_numbers(written)) == statistics.fmean(
+        _numbers(cells)
+    )
+    loaded = _loaded(folder)
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, (contract.LabelFacts,))
+    assert taxonomy.pooled_window(
+        [entry.label for entry in facts.levels]
+    ) == 2.0
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation, "_pooled_numbers_placed", lambda *_arguments: {}
+    )
+    defect = list(generation.generate(loaded, 4).columns[0])
+    assert abs(statistics.fmean(_numbers(defect)) - 990.0) < 0.001
+    assert "value:suppressed.numbers.mean" in _missed(
+        loaded, folder / "defect.csv", defect
+    )
+    # ...and the withdrawn rule would have admitted it: a fifth of 990.
+    assert abs(990.0 - 944.5) < 990.0 / 5.0
+
+
+def _pushed_cells() -> "list[str]":
+    """A pool with one group the census pushes a long way from its value.
+
+    200 `alpha`, thirty `48.0` and five held-back one-decimal levels.
+    Four of the five owe the census's `%%.%`; the fifth owes no form at
+    all, and every two-figure one-place spelling near the pool's mean
+    WEARS that form, so nothing near 52.7 may be written for it.
+    """
+    cells = ["alpha"] * 200 + ["48.0"] * 30
+    for number in ("0.6", "20.1", "64.0", "90.8", "93.1"):
+        cells += [number] * 10
+    return cells
+
+
+def test_a_group_the_census_pushes_away_is_carried_by_the_others(
+    tmp_path: pathlib.Path, monkeypatch: object
+) -> None:
+    """METHOD G8.3c STEP 4, and the defect it closes.
+
+    Before the arrears, the group owing no form was refused every
+    spelling near the value it was asked for and the offer of step 3
+    walked four hundred and twenty-eight places to `9.9`: the twin's
+    own pool came back at 45.14 against a published 53.72, a sixth of
+    the published mean out, on a twin that broke no other rule. That is
+    what made a window drawn from the grid impossible and a window
+    drawn from a magnitude the only thing left.
+
+    Now the pushed group goes FIRST and the four after it are asked for
+    what the cells still to be written must average, so the published
+    mean is met inside the window of two places of this column's grid,
+    which is a fifth of a unit.
+
+    THE MUTATION CHECK, run in place: with `_pooled_value` answering
+    nothing -- the placement no longer reading back what it wrote, so
+    no group carries another's arrears -- the same twin is MISSED.
+    """
+    cells = _pushed_cells()
+    folder = tmp_path / "pushed"
+    first, second, _written, twin_exit, real_exit = _round_trip(
+        folder, cells, FLOOR
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    published = first["suppressed_numbers"]["mean"]
+    assert published is not None
+    loaded = _loaded(folder)
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, (contract.LabelFacts,))
+    window = taxonomy.pooled_window([entry.label for entry in facts.levels])
+    assert window == 0.2
+    assert second["suppressed_numbers"]["mean"] is not None
+    assert abs(second["suppressed_numbers"]["mean"] - published) <= window
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation, "_pooled_value", lambda _spelling, _comma: None
+    )
+    adrift = list(generation.generate(loaded, 4).columns[0])
+    assert "value:suppressed.numbers.mean" in _missed(
+        loaded, folder / "adrift.csv", adrift
+    )
 
 
 def _verdicts(

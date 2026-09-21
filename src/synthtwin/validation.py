@@ -14336,15 +14336,26 @@ def _pooled_scale_checks(
     average and is spread a tenth as wide as the real column's passes
     here, and passes honestly, because no published fact was missed.
 
-    THE WINDOW IS DRAWN FROM WHAT IS LEFT -- the pool's own cell count
-    and the widest number the column shows -- and it has a meaning
-    rather than a taste. `taxonomy.pooled_window` is
-    `10 ** figures / n_cells`: the most one cell of the pool could move
-    the pooled mean by, if it stood at the far end of the width this
-    column's numbers are held to instead of where it belongs. A file
-    further out than that is not this population written a little
-    differently. Measured on the shape ledger K-2B-50 names, whose
-    window is ten either side of a published 204.5: the twin without
+    THE WINDOW IS DRAWN FROM THE COLUMN'S GRID, which is the one thing
+    left that says how exactly a placement can meet a mean.
+    `taxonomy.pooled_window` is TWO PLACES of the coarsest grid this
+    column's description writes its numbers at, and whole numbers where
+    it publishes no number at all. Method G8.3c step 4 makes the pool's
+    groups carry each other's arrears, so every group but the last is
+    asked for whatever the cells still to be written must average, and
+    the only error left over is the last group's own rounding onto a
+    place the column writes at: measured over 371 publishing pools, the
+    furthest a conforming twin stood was a THIRD of one place.
+
+    IT IS NOT DRAWN FROM ANY MAGNITUDE ON THE PAGE, and that is a
+    repair rather than a preference. While the window was a fifth of
+    the largest number the column's description stated, a column of 100
+    `alpha`, twenty `990` and ten each of 940 to 949 drew a window of
+    198.0 around a pooled mean of 944.5 from a number that has nothing
+    to do with its pool -- and the very defect this check exists to
+    catch, G8.3c's placement withdrawn and the twin's pool back at
+    990.0, passed inside it. On the shape ledger K-2B-50 names the
+    window is two either side of a published 204.5: the twin without
     the placement puts its pool at 100 and is MISSED, and the twin with
     it lands at 204.5 exactly.
 
@@ -14364,7 +14375,7 @@ def _pooled_scale_checks(
     if scale.n_cells < 1 or middle is None:
         return []
     reach = taxonomy.pooled_window(
-        middle, [entry.label for entry in facts.levels]
+        [entry.label for entry in facts.levels]
     )
     inner = _inner_at(block, "suppressed_numbers")
     found_mean: "float | None" = None

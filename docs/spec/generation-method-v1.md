@@ -6636,7 +6636,9 @@ census decides how it is WRITTEN.
      room it comes back within 2.61 of it.
 
    `C` is the weighted centre whatever the sizes, and a single group
-   stands at it and takes `mu` itself.
+   stands at it and takes `mu` itself. Step 4 below moves the value
+   each group is actually asked for, and the offsets of this step are
+   what it moves them around.
 3. **The spelling.** The value asked for is rounded to the nearest
    whole number of the tier's last place and written plainly there,
    then dressed in the group's form where it owes one, by the same
@@ -6655,10 +6657,80 @@ census decides how it is WRITTEN.
    G8.3a, it carries a sign no published number has, or it is too wide
    under the rule below — the offer steps one place outward, below then
    above, and on outward until one is accepted. One place is the
-   smallest move there is, so stepping keeps the group at the scale it
-   was asked for.
-4. **Where nothing is accepted**, the group is left to the ordinary
-   walk of G8.3a step 3, unchanged.
+   smallest move there is, so a short walk keeps the group at the scale
+   it was asked for; a LONG one does not, which is why step 4 exists.
+4. **The offers, and which one is written.** Steps 1 to 3 ask each
+   group for its own value and let the written mean fall where it may,
+   and where a rule of step 3 refuses every spelling near a group's
+   value the offer steps outward until one is accepted — HOWEVER FAR
+   THAT IS. Measured on a column of 200 `alpha`, thirty `48.0` and five
+   held-back one-decimal levels whose census names `%%.%`: the one
+   group that owed no form was refused every two-figure one-place
+   spelling there is, because each of them wears the form the census
+   names, and the offer walked four hundred and twenty-eight places to
+   `9.9`. Its pool came back at 45.14 against a published 53.72 — a
+   sixth of the published mean out, on a twin that broke no other rule;
+   over a hundred and fifty randomised pools the worst such twin stood
+   A FIFTH of its published mean away. That is the defect this step
+   closes, and it is what made G12.12's window impossible to draw from
+   anything but a magnitude.
+
+   **So the pool is offered several ways, on copies, and the offer
+   whose own cells average closest to `mu` is the one written.**
+
+   1. **The plain offer** of steps 1 to 3, at `mu` itself.
+   2. **Up to three moved offers.** Each stands where the one before it
+      would have had to stand for its own cells to average `mu` — a
+      plain fixed-point step. A moved offer keeps the pool's
+      arrangement exactly and only slides it, so it is asked for before
+      the offer that does not. Three is measured: over 551 pools that
+      publish a scale and whose twin publishes one back, no fourth
+      offer came closer than the best of the first four.
+   3. **The carried offer**, asked last because it rearranges the pool
+      rather than sliding it. In it the groups CARRY EACH OTHER'S
+      ARREARS: with `A` still owed — `mu * N` less what has been
+      written — over `R` cells still to be written, the next group is
+      asked for `A / R + h * (p_i - C_rest)`, where `C_rest` is the
+      weighted centre of the positions still to be written. Those
+      offsets cancel against `C_rest` exactly as the first ones cancel
+      against `C`, so if every group were written where it was asked the
+      pool would land on `mu` whatever order they were asked in. The
+      group the census pushes FURTHEST goes first, because only the
+      groups after it can carry it: every group is offered its step 2
+      value once, writing nothing, and the distance between what it was
+      offered and what was accepted is the order, the furthest first, a
+      group nothing was accepted for before them all, ties in the
+      walk's own order. A group nothing is accepted for does not lay
+      its shortfall on the groups after it, because what the ordinary
+      walk writes for it is not known here.
+
+   **THIS STEP IS A REPAIR AND NOT A PREFERENCE.** It does not run at
+   all where the plain offer already meets the window of G12.12, and it
+   stops at the first offer that meets it. Moving a pool that was
+   already inside the window buys nothing on the one obligation there
+   is and MOVES THE TWIN'S NUMBERS: measured on 2,500 one-decimal
+   readings at a floor of eleven, a moved offer took the pooled mean's
+   error from 0.056 to 0.000 and the twin's whole numeric population
+   spread from within a fifth of the table's to a quarter past it.
+
+   **AND THE PLAIN OFFER IS AMONG THEM**, so a pool this step cannot
+   improve is placed exactly where steps 1 to 3 place it: step 4 cannot
+   make a twin worse. Ties go to the earliest offer.
+
+   **BOTH KINDS OF OFFER EARN THEIR PLACE, measured.** With the carried
+   offer withdrawn, four to five of about 115 randomised pools per draw
+   came back outside the window — a dense one-decimal pool at 16 places
+   out — because no slide of the whole pool helps when the column's
+   unused spellings near the mean are spent. With the moved offers
+   withdrawn, a dense pool of many levels ran the arrears away instead
+   of closing them: 2,500 one-decimal readings at a floor of twenty,
+   whose 43 held-back levels leave almost no unused tenth, asked its
+   last group for 44.92 on a column whose numbers run from 5.1 to 9.3
+   and came back at 4.17 against a published 6.79.
+
+5. **Where nothing is accepted**, the group is left to the ordinary
+   walk of G8.3a step 3, unchanged, and it is counted in no offer's own
+   mean, because what that walk writes is not known here.
 
 **WHAT THE REPORT SAYS, AND THE SENTENCE THIS SECTION CHANGES.** The
 held-back note of a column whose made-up values are numbers used to end
@@ -10331,16 +10403,18 @@ construction cannot keep.
 The one aggregate contract section 6.3.3 publishes over a column's
 pooled numbers — their mean `mu` — is APPROXIMATED, and this is the
 window it is met inside. Method G8.3c places the twin's made-up numbers
-on it and then rounds each value onto a place the column writes at,
-stepping outward wherever a spelling is refused, so the twin's own pool
-comes back NEAR `mu` rather than on it.
+on it and then rounds each value onto a place the column writes at, so
+the twin's own pool comes back NEAR `mu` rather than on it.
 
 ```
-reach   is the largest magnitude this column's description states for
-        its numbers: the largest of its published numbers, or |mu|
-        where it publishes none  (taxonomy.pooled_window)
+places  is the FEWEST decimal places any number this column publishes
+        was written with, and nought where it publishes none: the
+        coarsest grid the ladder of G8.3a can reach, and so the
+        coarsest a pooled placement can be rounded onto
 
-mean    is met where   |mean(pool of the file) - mu|  <=  reach / 5
+window  is  2 * 10 ** -places                (taxonomy.pooled_window)
+
+mean    is met where   |mean(pool of the file) - mu|  <=  window
 ```
 
 **THERE WERE TWO OBLIGATIONS HERE AND NOW THERE IS ONE.** The pool used
@@ -10356,26 +10430,39 @@ missed. The twin's own pooled spread is the generator's own choice of
 spacing (G8.3c step 2) and a fact about no table; the held-back note of
 the generation report is where a person is told so.
 
-**THE WIDTH IS A SHARE OF THE COLUMN'S OWN REACH**, because that is
-what is left to draw it from, and it is MEASURED rather than chosen.
-Over ten shapes whose description publishes a pool and whose twin
-publishes one back — the shape ledger K-2B-50 names, its loose cousin,
-a decimal pool, an unanchored pool of readings, a negative pool from
-that ledger's own sweep, 2,500 one-decimal readings at two seeds and
-1,000 integers beside comments at two — the furthest a conforming twin's
-own pooled mean stood from the published one was ONE PART IN ELEVEN of
-that reach. The window is one part in five, a little over twice the
-worst measured. The defect ledger K-2B-50 names stands at one part in
-two: the twin without G8.3c's placement puts a pool published at 204.5
-at 100, and the reach there is 204.5, so the window is 40.9 and the
-error 104.5.
+**THE WIDTH IS COUNTED IN PLACES OF THE COLUMN'S OWN GRID**, because
+the grid is what decides how exactly a placement can meet a mean, and
+it is MEASURED rather than chosen. G8.3c step 4 makes the pool's groups
+carry each other's arrears, so every group but the last is asked for
+whatever the cells still to be written must average for the pool to
+come out on `mu`, and the only error left over is the LAST group's own
+rounding. Over 371 pools that publish a scale and whose twin publishes
+one back — the shape ledger K-2B-50 names, its loose cousin, a decimal
+pool, an unanchored pool of readings, the ten shapes of this landing's
+before-and-after table, and four draws of 150 randomised pools at four
+widths, two grids, both signs and mixed grids — the furthest a
+conforming twin's own pooled mean stood from the published one was A
+THIRD OF ONE PLACE. The window is TWO places, six times the worst
+measured. The defect ledger K-2B-50 names stands at a hundred and four
+and a half places: the twin without G8.3c's placement puts a pool
+published at 204.5 at 100, on a column of whole numbers whose window is
+therefore 2.
 
-**`reach` IS THE COLUMN'S WHERE IT PUBLISHES A NUMBER and the MEAN'S
-OWN where it publishes none** — the same two cases G8.3c's width rule
-distinguishes, for the same reason: a column that publishes no number
-bounds a made-up one by nothing, so the only statement about the pool's
-magnitude is the pool's own mean. A reach of nought is one whole unit,
-which is the narrowest window that can hold anything at all.
+**IT WAS A SHARE OF A MAGNITUDE AND THAT WAS WORSE THAN NOTHING.** For
+one landing this window was a fifth of the largest magnitude the
+column's description stated — the largest of its published numbers, or
+`|mu|` where it published none. A column's published number has nothing
+to do with its pool: measured on 100 `alpha`, twenty `990` and ten each
+of 940 to 949 at a floor of eleven, the published `990` drew a window of
+198.0 around a pooled mean of 944.5, and the very defect this section
+exists to catch — G8.3c's placement withdrawn, the twin's pool back at
+990.0, its numeric mean 990.000 against the table's 952.083 — passed
+inside it and the file exited clean. It does not now.
+
+**A COLUMN THAT PUBLISHES NO NUMBER is read as whole numbers**, which
+is the coarsest grid there is and so the widest this window ever
+becomes; an unanchored ladder ends on that same grid. The window is
+never nought, so no file is held to a check of no width.
 
 **THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
 none closes the gate**: the obligation is WITHHELD, as every other
@@ -11046,7 +11133,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_column_prefix` | G9.6a's TEMPLATE for the whole column (plan P4-D202, owner ruling of 2026-09-17): a declared identifier publishing `{"@@@%%%%": 24}` and `{"(column)": "REC"}` over twelve identities written once and six twice; every cell is `REC` and four figures filled from the step, `REC1816`, `REC2632`, and the eighteen stay different. Its mutant reads the census as published, the letters are filled from the step, and the recount of 7.12a stops the oracle |
 | `identifier_layout_prefixes` | G9.6a's templates per layout (plan P4-D202): `{"@%%%%%": 12, "@@%%%%": 12}` with `{"@%%%%%": "E", "@@%%%%": "ST"}` over twenty-four identities; the rotation spreads `E%%%%%` and `ST%%%%` over them as it spread the layouts, `E30816`, `ST7553`. Its mutant reads the census as published, and the recount of 7.12a stops the oracle |
 | `pooled_level_sizes` | G8.3's sizes read off a pooled total and its debts (plan P4-D201, owner ruling of 2026-09-17): a column of categories publishing `alpha` and `beta` beside five held-back labels pooled on twenty-one rows at a floor of eleven, all owed to the one form the census names; the debt takes the three labels that pay it below the floor and then the other two, and its rows are shared one each and the rest by the square of each label's place, so the stand-ins cover 1, 2, 4, 6 and 8 rows. Its mutant shares the pool out evenly, 4, 4, 4, 4 and 5, and the cells move |
-| `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the mean contract 6.3.3 publishes for them (plan P4-D302, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells and a mean of 50, with NO spread since the owner's decision of 2026-09-21 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, and their weighted centre is a quarter, so their offsets are -1/4, 3/4, -5/4 and 7/4. Nothing published says how far apart the held-back numbers stood, so the spacing is this method's own — five places of this column's whole-number grid, unbounded here because the column publishes no number to bound it — and the four values asked for, 48.75, 53.75, 43.75 and 58.75, round onto 49, 54, 44 and 59. The twin's own pool then holds a mean of 50.25 against the published 50, inside the window G12.12 draws and not on it, which is what makes this fact APPROXIMATED. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |
+| `pooled_number_scale` | G8.3c's placement of the pool's made-up numbers on the mean contract 6.3.3 publishes for them (plan P4-D302, ledger K-2B-50): thirty-one rows at a floor of eleven, one published label `alpha` on eleven and four held-back levels covering twenty rows, every one of which the source wrote as a number. The column publishes no number of its own, so the ladder of G8.3a step 3 is unanchored; the pool's block — twenty numeric cells and a mean of 50, with NO spread since the owner's decision of 2026-09-21 — places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1, the walk hands them out largest first at positions 0, 1, -1 and 2, and their weighted centre is a quarter, so their offsets are -1/4, 3/4, -5/4 and 7/4. Nothing published says how far apart the held-back numbers stood, so the spacing is this method's own — five places of this column's whole-number grid, unbounded here because the column publishes no number to bound it — and the first value asked for, 48.75, rounds onto 49. The four groups then CARRY EACH OTHER'S ARREARS (step 4): no group is pushed by the census here, so the order is the walk's own, and each group after the first is asked for what the cells still to be written must average for the pool to come out on 50 — 53.5 onto 54, 42.75 onto 43 and 57 onto 57 — against the 54, 44 and 59 the step 2 values alone would have written. The twin's own pool comes back at 50 EXACTLY, inside the window G12.12 draws, which is two places of this column's whole-number grid; the fact stays APPROXIMATED because a mean the last group's rounding cannot carry is met inside that window and not on it. Its mutant withdraws the placement and the unanchored ladder answers instead, so all four cells move |
 | `grouped_thousands` | G6.1's census of marks held at a thousand (plan P4-D185): thirty-three different readings at one place between 920.1 and 1096.6 published with `thousands_marks: {",": 20}`; the ladder puts one stratum fewer at a thousand or more, so the highest stratum below a thousand takes the lowest free tenth of a thousand or more and twenty cells wear the comma. Its mutant withdraws the rule and the cells move |
 | `signed_pads` | G6.5's padded sign exchange (plan P4-D145, as amended): thirty-three cells of ten whole numbers from 100 to 110 at one named field width of four figures, published `leading_plus: 22` and `leading_zero: 11` with twenty spellings, so cells written with a plus trade forms with cells written with a zero until every value the twin holds is written both ways |
 | `mixed_conventions` | G6.1's two MIXED-CONVENTION censuses (landing 2b.7, plan P4-D65.2), and the only case in the three files naming more than one convention — with a single notation or a single mark the census path and the majority path write the same cell, so neither allocator can be pinned. Twenty-two cells of minus twelve thousand three hundred and forty-five and a half, published with `negative_notations: {"minus": 11, "brackets": 11}` and `thousands_marks: {" ": 11, U+202F: 11}`: each census is spent in the contract's own order of conventions, so the first eleven are written `-12 345.5` and the last eleven `(12 345.5)`. Two spellings of one number is the count of different cells published, so no cell spends a leading zero |

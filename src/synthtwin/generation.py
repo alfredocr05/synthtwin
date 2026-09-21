@@ -20647,6 +20647,7 @@ def _class_stand_ins_walked(
                     _widest_whole_figures(ladder, named, decimal_comma)
                     if bounded
                     else 0,
+                    _pooled_window_of(column),
                 )
         for triple in order:
             place = triple[1]
@@ -23950,6 +23951,28 @@ def _pooled_scale(
     return scale
 
 
+def _pooled_window_of(column: contract.ColumnBlock) -> float:
+    """The window method G12.12 draws on this column's pooled mean.
+
+    Read HERE and handed down to the placement, because step 4 of
+    method G8.3c is a repair and has to know what it is repairing
+    towards: `taxonomy.pooled_window` is the one arithmetic, and the
+    generator's own report and the validator draw the same number from
+    it. A column that publishes no levels at all has no pooled mean to
+    place, so the window it answers is never used.
+
+    Guarantees: accepts one column block; returns a window above
+    nought. Determinism: a fixed function of the block. Raises nothing.
+    No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (contract.LabelFacts,)):
+        return taxonomy.pooled_window([])
+    return taxonomy.pooled_window(
+        [entry.label for entry in facts.levels]
+    )
+
+
 def _pooled_positions(count: int) -> "list[int]":
     """The centre-outward places of ``count`` groups (method G8.3c step 1).
 
@@ -24226,6 +24249,398 @@ def _pooled_spelling(
     return ""
 
 
+def _pooled_value(spelling: str, decimal_comma: bool) -> "float | None":
+    """What a placed spelling is WORTH, read in the column's own grammar.
+
+    The arrears of method G8.3c step 4 are kept in the pool's own
+    currency, so a group that was written somewhere other than where it
+    was asked has to be read back as a number rather than assumed to be
+    the number it was offered. A spelling dressed in a census form can
+    be worth something else entirely -- an exponent form turns 1234 into
+    1.234e5 -- so what is read is the SPELLING, not the units it was
+    built from.
+
+    Guarantees: accepts one spelling and whether this column's decimal
+    mark is a comma; returns its value, or None where it does not read
+    as a number this format can hold. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
+    body = parsing.trimmed(_read_in_grammar(spelling, decimal_comma))
+    if parsing.classify_number(body) != parsing.NUMBER:
+        return None
+    return parsing.parse_number(body)
+
+
+def _pooled_offered(
+    ladder: "_Ladder",
+    groups: "list[tuple[int, int, str]]",
+    positions: "list[int]",
+    centre: float,
+    spacing: float,
+    middle: float,
+    shift: float,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+) -> "tuple[dict[int, str], float, int]":
+    """One whole offer of the pool at ``shift``, writing nothing.
+
+    Every group is offered `mu + shift + h * (p_i - C)` in the walk's
+    own order, on COPIES of what the column has used, and what comes
+    back is the spellings, the mean of the cells that were placed, and
+    how many cells those were. Method G8.3c step 4 asks for several of
+    these and writes only one of them.
+
+    A GROUP NOTHING IS ACCEPTED FOR IS ABSENT from the mean reported
+    here as it is absent from the spellings: the ordinary walk of G8.3a
+    step 3 answers for it and what that writes is not known here.
+
+    Guarantees: accepts the ladder, the groups, their positions and
+    weighted centre, the spacing, the published mean, a shift, and the
+    walk's own refusals; returns the spellings it would write, their
+    cells' mean and their number, and leaves ``used`` and ``owners``
+    exactly as it found them. Determinism: a fixed function of the
+    arguments, drawing no random number. Raises nothing. No I/O.
+    """
+    taken = dict(used)
+    answered = dict(owners)
+    written: "dict[int, str]" = {}
+    cells = 0
+    weighted = 0.0
+    for step in range(len(groups)):
+        wanted = middle + shift + spacing * (positions[step] - centre)
+        found = ""
+        if math.isfinite(wanted):
+            found = _pooled_spelling(
+                ladder, wanted, groups[step][2], named, taken, answered,
+                holes, decimal_comma, needed, pool, widest,
+            )
+        if not found:
+            continue
+        taken[found] = 1
+        answered[parsing.folded(found)] = found
+        written[groups[step][1]] = found
+        value = _pooled_value(found, decimal_comma)
+        if value is None:
+            continue
+        cells = cells + groups[step][0]
+        weighted = weighted + value * float(groups[step][0])
+    reached = middle
+    if cells > 0:
+        reached = weighted / float(cells)
+    return written, reached, cells
+
+
+# HOW MANY TIMES METHOD G8.3c STEP 4 OFFERS THE POOL AGAIN, each time
+# moved by what the offer before it fell short of the published mean.
+# Three is measured: over 445 pools that publish a scale and whose twin
+# publishes one back, no fourth offer came closer than the best of the
+# first four.
+_POOLED_SHIFTS = 3
+
+
+def _pooled_carried(
+    ladder: "_Ladder",
+    groups: "list[tuple[int, int, str]]",
+    positions: "list[int]",
+    centre: float,
+    spacing: float,
+    middle: float,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+) -> "tuple[dict[int, str], float, int]":
+    """The offer in which the groups CARRY EACH OTHER'S ARREARS.
+
+    A group is not asked for its own share of ``mu``; it is asked for
+    what the cells NOT YET WRITTEN must average for the whole pool to
+    come out on ``mu``, plus its own offset from the weighted centre of
+    the positions still to be written. Those offsets cancel against
+    that centre exactly as the first ones cancel against ``C``, so if
+    every group were written where it was asked the pool would land on
+    ``mu`` exactly, whatever order they were asked in.
+
+    THE GROUP THE CENSUS PUSHES FURTHEST GOES FIRST, because only the
+    groups placed after it can carry it: every group is offered its
+    step 2 value once, on copies, and the distance between what it was
+    offered and what was accepted is the order, the furthest first,
+    with a group nothing was accepted for before them all and ties in
+    the walk's own order.
+
+    THIS OFFER IS NOT ALWAYS THE BEST ONE, which is why step 4 keeps
+    several and writes one. On a DENSE pool -- 2,500 one-decimal
+    readings at a floor of twenty, whose 43 held-back levels leave
+    almost no unused tenth near the mean -- the arrears compound
+    instead of closing: each group written far from where it was asked
+    raises what the next must average, and the last group was asked for
+    44.92 on a column whose numbers run from 5.1 to 9.3, so the pool
+    came back at 4.17 against a published 6.79. On a pool whose census
+    pushes ONE group a long way it is the only offer that works.
+
+    Guarantees: accepts the ladder, the groups, their positions and
+    weighted centre, the spacing, the published mean and the walk's own
+    refusals; returns the spellings it would write, the mean of the
+    cells it placed and their number, and leaves ``used`` and
+    ``owners`` exactly as it found them. Determinism: a fixed function
+    of the arguments, drawing no random number. Raises nothing. No I/O
+    of any kind.
+    """
+    order = _pooled_pushed_first(
+        ladder, groups, positions, centre, spacing, middle, named, used,
+        owners, holes, decimal_comma, needed, pool, widest,
+    )
+    taken = dict(used)
+    answered = dict(owners)
+    written: "dict[int, str]" = {}
+    cells = 0
+    weighted = 0.0
+    owed = 0.0
+    left = 0
+    for step in range(len(groups)):
+        owed = owed + middle * float(groups[step][0])
+        left = left + groups[step][0]
+    for turn in range(len(order)):
+        step = order[turn]
+        if left < 1:
+            break
+        rest_cells = 0
+        rest_weighted = 0.0
+        for after in range(turn, len(order)):
+            rest_cells = rest_cells + groups[order[after]][0]
+            rest_weighted = rest_weighted + float(
+                groups[order[after]][0] * positions[order[after]]
+            )
+        rest_centre = 0.0
+        if rest_cells > 0:
+            rest_centre = rest_weighted / float(rest_cells)
+        share = owed / float(left)
+        wanted = share + spacing * (positions[step] - rest_centre)
+        found = ""
+        if math.isfinite(wanted):
+            found = _pooled_spelling(
+                ladder, wanted, groups[step][2], named, taken, answered,
+                holes, decimal_comma, needed, pool, widest,
+            )
+        value: "float | None" = None
+        if found:
+            taken[found] = 1
+            answered[parsing.folded(found)] = found
+            written[groups[step][1]] = found
+            value = _pooled_value(found, decimal_comma)
+        if value is None:
+            # NOTHING WAS ACCEPTED, or what was accepted does not read
+            # back as a number: the shortfall is not laid on the groups
+            # that follow, because nobody has measured it.
+            owed = owed - share * float(groups[step][0])
+        else:
+            owed = owed - value * float(groups[step][0])
+            cells = cells + groups[step][0]
+            weighted = weighted + value * float(groups[step][0])
+        left = left - groups[step][0]
+    reached = middle
+    if cells > 0:
+        reached = weighted / float(cells)
+    return written, reached, cells
+
+
+def _pooled_pushed_first(
+    ladder: "_Ladder",
+    groups: "list[tuple[int, int, str]]",
+    positions: "list[int]",
+    centre: float,
+    spacing: float,
+    middle: float,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+) -> "list[int]":
+    """The groups in the order `_pooled_carried` places them.
+
+    Every group is offered its step 2 value once, on copies of what the
+    column has used and writing nothing, and how far the answer stood
+    from what was asked is read off. The order is that distance, the
+    furthest first, a group nothing was accepted for before them all,
+    and ties in the walk's own order, which is descending size.
+
+    Guarantees: accepts the ladder, the groups, their positions and
+    weighted centre, the spacing, the published mean and the walk's own
+    refusals; returns every group's index exactly once, and leaves
+    ``used`` and ``owners`` as it found them. Determinism: a fixed
+    function of the arguments, drawing no random number. Raises
+    nothing. No I/O of any kind.
+    """
+    taken = dict(used)
+    answered = dict(owners)
+    pushed: "list[float]" = []
+    for step in range(len(groups)):
+        wanted = middle + spacing * (positions[step] - centre)
+        found = ""
+        if math.isfinite(wanted):
+            found = _pooled_spelling(
+                ladder, wanted, groups[step][2], named, taken, answered,
+                holes, decimal_comma, needed, pool, widest,
+            )
+        value: "float | None" = None
+        if found:
+            taken[found] = 1
+            answered[parsing.folded(found)] = found
+            value = _pooled_value(found, decimal_comma)
+        if value is None:
+            pushed += [-1.0]
+            continue
+        away = value - wanted
+        if away < 0.0:
+            away = 0.0 - away
+        pushed += [away]
+    order: "list[int]" = []
+    seated: "dict[int, int]" = {}
+    for _turn in range(len(groups)):
+        best = -1
+        for step in range(len(groups)):
+            if step in seated:
+                continue
+            if best < 0:
+                best = step
+                continue
+            if pushed[best] < 0.0:
+                continue
+            if pushed[step] < 0.0 or pushed[step] > pushed[best]:
+                best = step
+        seated[best] = 1
+        order += [best]
+    return order
+
+
+def _pooled_best(
+    ladder: "_Ladder",
+    groups: "list[tuple[int, int, str]]",
+    positions: "list[int]",
+    centre: float,
+    spacing: float,
+    middle: float,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+    window: float,
+) -> "tuple[dict[int, str], int]":
+    """The offer method G8.3c step 4 writes: the one that lands closest.
+
+    THE DEFECT ALL OF THIS CLOSES, measured. Steps 1 to 3 ask each
+    group for its own value and let the written mean fall where it may,
+    and where a rule of step 3 refuses every spelling near a group's
+    value the offer steps outward until one is accepted -- HOWEVER FAR
+    THAT IS. Measured on a column of 200 `alpha`, thirty `48.0` and
+    five held-back one-decimal levels whose census names `%%.%`: the one
+    group that owed no form was refused every two-figure one-place
+    spelling there is, because each of them wears the form the census
+    names, and the offer walked four hundred and twenty-eight places to
+    `9.9`. Its pool came back at 45.14 against a published 53.72 -- a
+    sixth of the published mean out, on a twin that broke no other
+    rule; over a hundred and fifty randomised pools the worst such twin
+    stood A FIFTH of its published mean away.
+
+    FIVE OFFERS ARE ASKED FOR, on copies, and the one whose own cells
+    average closest to ``mu`` is written:
+
+    1. THE PLAIN OFFER of steps 1 to 3, at ``mu`` itself.
+    2. UP TO `_POOLED_SHIFTS` MOVED OFFERS, each standing where the one
+       before it would have had to stand for its own cells to average
+       ``mu`` -- a plain fixed-point step. A moved offer keeps the
+       pool's own arrangement exactly and only slides it, so it is
+       asked for BEFORE the one that does not. They are what closes a
+       DENSE pool, where the column's unused spellings near the mean
+       are already spent.
+    3. THE CARRIED OFFER, in which the groups carry each other's
+       arrears (`_pooled_carried`) -- the last asked, because it
+       rearranges the pool rather than sliding it. It is what closes
+       the shape above: the four groups that can move end up carrying
+       the one that cannot, which no slide does.
+
+    AND THE PLAIN OFFER IS AMONG THEM, which is what makes this safe: a
+    pool none of the others improves is placed exactly where steps 1 to
+    3 place it, so step 4 cannot make a twin worse. Ties go to the
+    earliest offer, so the plain one wins them.
+
+    STEP 4 IS A REPAIR AND NOT A PREFERENCE, so it does not run at all
+    where the plain offer already meets ``window`` -- G12.12's own
+    window, handed down from the column's published grid -- and it
+    stops at the first offer that meets it. Moving a pool that was
+    already inside the window buys nothing on the one obligation there
+    is and MOVES THE TWIN'S NUMBERS: measured on 2,500 one-decimal
+    readings at a floor of eleven, a moved offer took the pooled mean's
+    error from 0.056 to 0.000 and the twin's whole numeric population
+    spread from within a fifth of the table's to a quarter past it,
+    which is the deviation guard of
+    `tests/test_numbers_beside_labels.py`.
+
+    Guarantees: accepts the ladder, the groups, their positions and
+    weighted centre, the spacing, the published mean and the walk's own
+    refusals; returns the spellings of the best offer by the place each
+    group owes, and how many cells that offer placed -- nought where
+    nothing was placed at all -- and leaves ``used`` and ``owners``
+    exactly as it found them. Determinism: a fixed function of the
+    arguments, drawing no random number. Raises nothing. No I/O of any
+    kind.
+    """
+    best, reached, cells = _pooled_offered(
+        ladder, groups, positions, centre, spacing, middle, 0.0, named, used,
+        owners, holes, decimal_comma, needed, pool, widest,
+    )
+    closest = reached - middle
+    if closest < 0.0:
+        closest = 0.0 - closest
+    if cells < 1 or closest <= window:
+        return best, cells
+    shift = middle - reached
+    for _again in range(_POOLED_SHIFTS):
+        if closest <= window or not math.isfinite(shift):
+            break
+        moved, moved_at, moved_cells = _pooled_offered(
+            ladder, groups, positions, centre, spacing, middle, shift, named,
+            used, owners, holes, decimal_comma, needed, pool, widest,
+        )
+        if moved_cells < 1:
+            break
+        gap = moved_at - middle
+        if gap < 0.0:
+            gap = 0.0 - gap
+        if gap < closest:
+            best, closest, cells = moved, gap, moved_cells
+        shift = shift + (middle - moved_at)
+    if closest <= window:
+        return best, cells
+    carried, carried_at, carried_cells = _pooled_carried(
+        ladder, groups, positions, centre, spacing, middle, named, used,
+        owners, holes, decimal_comma, needed, pool, widest,
+    )
+    gap = carried_at - middle
+    if gap < 0.0:
+        gap = 0.0 - gap
+    if carried_cells > 0 and gap < closest:
+        best, closest, cells = carried, gap, carried_cells
+    return best, cells
+
+
 def _pooled_numbers_placed(
     ladder: "_Ladder",
     scale: "contract.PooledNumbers",
@@ -24238,6 +24653,7 @@ def _pooled_numbers_placed(
     needed: int,
     pool: "list[int] | None",
     widest: int,
+    window: float,
 ) -> "dict[int, str]":
     """Every made-up number of the pool, placed on its published mean (G8.3c).
 
@@ -24261,6 +24677,16 @@ def _pooled_numbers_placed(
     the walk refuses is left out, and the caller's ordinary ladder
     answers for it as before.
 
+    THE WHOLE POOL IS OFFERED SEVERAL WAYS AND THE BEST OFFER IS
+    WRITTEN (step 4 of the method), which is what makes the published
+    mean something the twin MEETS rather than aims at. `_pooled_best`
+    asks for the pool at ``mu`` itself, for the offer in which the
+    groups carry each other's arrears, and for up to `_POOLED_SHIFTS`
+    offers each moved by what the one before it fell short; the offer
+    whose own cells average closest to ``mu`` is the one placed here.
+    The plain offer of steps 1 to 3 is among them, so a pool step 4
+    cannot improve is placed exactly where those steps place it.
+
     Guarantees: accepts the ladder, the published scale, the groups and
     the walk's own refusals; returns a spelling for each group it could
     place, each distinct and each registered in ``used`` and ``owners``.
@@ -24282,17 +24708,20 @@ def _pooled_numbers_placed(
         if away > furthest:
             furthest = away
     spacing = _pooled_step(ladder, middle, furthest)
+    best, cells = _pooled_best(
+        ladder, groups, positions, centre, spacing, middle, named, used,
+        owners, holes, decimal_comma, needed, pool, widest, window,
+    )
+    if cells < 1:
+        return placed
     for step in range(len(groups)):
-        wanted = middle + spacing * (positions[step] - centre)
-        found = _pooled_spelling(
-            ladder, wanted, groups[step][2], named, used, owners, holes,
-            decimal_comma, needed, pool, widest,
-        )
-        if not found:
+        place = groups[step][1]
+        if place not in best:
             continue
+        found = best[place]
         used[found] = 1
         owners[parsing.folded(found)] = found
-        placed[groups[step][1]] = found
+        placed[place] = found
     return placed
 
 
@@ -37340,8 +37769,10 @@ def _pooled_approximations(
     held-back note tells the person in words.
 
     The window is G12.12's: `taxonomy.pooled_window` either side of the
-    published mean, which is what one cell of the pool standing at the
-    far end of the column's own width would move that mean by.
+    published mean, which is two places of the coarsest grid this
+    column's description writes its numbers at -- six times the
+    furthest a conforming twin was measured to stand from the mean now
+    that the groups of G8.3c step 4 carry each other's arrears.
     """
     scale = facts.suppressed_numbers
     middle = scale.mean
@@ -37373,7 +37804,7 @@ def _pooled_approximations(
     if pool:
         achieved_mean = taxonomy.population_mean_of(list(pool))
     reach = taxonomy.pooled_window(
-        middle, [entry.label for entry in facts.levels]
+        [entry.label for entry in facts.levels]
     )
     return [
         Approximation(

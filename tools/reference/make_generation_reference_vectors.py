@@ -5966,11 +5966,43 @@ POOLED_REACH = 1 << 53
 # HOW MANY PLACES OF THE COLUMN'S FINEST GRID the pool's groups stand
 # apart -- G8.3c step 2.  Nothing published says how far apart the
 # held-back numbers stood, so the spacing is the generator's own.
+POOLED_SHIFTS = 3
 POOLED_LOOSENESS = 5
 
 
+def pooled_window(labels):
+    """G12.12's window on the pooled mean, from the column's own GRID.
+
+    TWO PLACES of the coarsest grid this column's description writes its
+    numbers at -- the FEWEST decimal places any number it publishes was
+    written with -- and whole numbers where it publishes none, which is
+    the coarsest grid there is and the widest this ever becomes.  It is
+    what method G8.3c step 4 repairs towards, and what the validator
+    holds a file to; a mark this reader takes for a grouping mark
+    answers nought places, which widens the window rather than
+    narrowing it.
+    """
+    places = [
+        len(label.strip().split(".")[1])
+        for label in labels
+        if label.strip().count(".") == 1
+        and label.strip().replace(".", "").replace("-", "").isdigit()
+    ] + [
+        0
+        for label in labels
+        if label.strip().count(".") == 0
+        and label.strip().replace("-", "").isdigit()
+    ]
+    return 2.0 * 10.0 ** (0 - (min(places) if places else 0))
+
+
 def pooled_offsets(sizes, ladder, middle):
-    """How far from the pool's mean each group stands -- G8.3c steps 1 and 2.
+    """Where the pool's groups stand and how far apart -- G8.3c steps 1 and 2.
+
+    What comes back is the POSITIONS `p_i` and the spacing `h`, because
+    step 4 moves the value each group is asked for and needs both; the
+    offset of step 2 is `(p_i - C) * h` for the weighted centre `C` of
+    whichever positions are still to be written.
 
     Step 1 puts the groups at nought, one above, one below, two above and
     on outward, in the order the walk hands them out.  Step 2 takes the
@@ -5995,7 +6027,7 @@ def pooled_offsets(sizes, ladder, middle):
     ]
     rows = sum(sizes)
     if rows < 1:
-        return [0.0 for _each in standing]
+        return standing, 0.0
     centre = sum(a * b for a, b in zip(sizes, standing)) / rows
     away = [place - centre for place in standing]
     furthest = max([abs(reach) for reach in away] + [0.0])
@@ -6011,7 +6043,7 @@ def pooled_offsets(sizes, ladder, middle):
     if apart % 2 == 0:
         apart = apart - 1
     apart = max(apart, 1)
-    return [reach * apart * unit for reach in away]
+    return standing, apart * unit
 
 
 def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest):
@@ -6086,8 +6118,218 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
     return ""
 
 
+def spelled_value(spelling):
+    """What a placed spelling is WORTH -- the currency G8.3c step 4 keeps.
+
+    A spelling dressed in a census form can be worth something other
+    than the units it was built from, so what is read is the SPELLING:
+    accounting parentheses and a trailing minus say negative, grouping
+    marks are not figures, and what is left is the number.
+    """
+    body = spelling.strip().replace("\u2212", "-")
+    signed = "-" + body[1:-1] if body[:1] == "(" and body[-1:] == ")" else body
+    signed = "-" + signed[:-1] if signed[-1:] == "-" else signed
+    plain = "".join(mark for mark in signed if mark not in ", '_\u00a0")
+    return None if plain in ("", "-", "+") else float(plain)
+
+
+def pooled_pushed_first(
+    groups, standing, centre, apart, middle, ladder, named, seen, folds,
+    needed, pool, widest,
+):
+    """Which group the carried offer of G8.3c step 4 places first.
+
+    Every group is offered its step 2 value ONCE, on a copy of what the
+    column has used and writing nothing, and the distance between what
+    it was offered and what was accepted is read off.  The order is
+    that distance, the furthest first; a group nothing was accepted for
+    stands before them all; ties keep the walk's own order, which is
+    descending size.  Only the groups placed AFTER a pushed group can
+    carry its arrears, which is why it goes first.
+    """
+    offered, answered = set(seen), set(folds)
+    pushed = []
+    for step, group in enumerate(groups):
+        wanted = middle + apart * (standing[step] - centre)
+        spelling = (
+            pooled_step(
+                ladder, wanted, group[2], named, offered, answered, needed,
+                pool, widest,
+            )
+            if math.isfinite(wanted)
+            else ""
+        )
+        value = spelled_value(spelling) if spelling else None
+        if spelling:
+            offered.add(spelling)
+            answered.add(folded(spelling))
+        pushed += [-1.0 if value is None else abs(value - wanted)]
+    return sorted(
+        range(len(groups)),
+        key=lambda step: (
+            0 if pushed[step] < 0 else 1, 0 - pushed[step], step
+        ),
+    )
+
+
+def pooled_carried(
+    groups, standing, centre, apart, middle, ladder, named, seen, folds,
+    needed, pool, widest,
+):
+    """The offer in which the groups CARRY EACH OTHER'S ARREARS -- step 4.
+
+    A group is not asked for its own share of `mu`; it is asked for what
+    the cells NOT YET WRITTEN must average for the whole pool to come
+    out on `mu`, plus its own offset from the weighted centre of the
+    positions still to be written.  Those offsets cancel against that
+    centre exactly as the first ones cancel against `C`, so if every
+    group were written where it was asked the pool would land on `mu`
+    whatever order they were asked in.  A group nothing is accepted for
+    does not lay its shortfall on the groups that follow, because what
+    the ordinary walk writes for it is not known here.
+    """
+    order = pooled_pushed_first(
+        groups, standing, centre, apart, middle, ladder, named, seen, folds,
+        needed, pool, widest,
+    )
+    offered, answered = set(seen), set(folds)
+    written, placed = {}, []
+    owed = middle * sum(group[0] for group in groups)
+    left = sum(group[0] for group in groups)
+    for turn, step in enumerate(order):
+        rest = [order[after] for after in range(turn, len(order))]
+        rest_cells = sum(groups[other][0] for other in rest)
+        rest_centre = sum(
+            groups[other][0] * standing[other] for other in rest
+        ) / max(rest_cells, 1)
+        share = owed / left if left > 0 else middle
+        wanted = share + apart * (standing[step] - rest_centre)
+        spelling = (
+            pooled_step(
+                ladder, wanted, groups[step][2], named, offered, answered,
+                needed, pool, widest,
+            )
+            if left > 0 and math.isfinite(wanted)
+            else ""
+        )
+        value = spelled_value(spelling) if spelling else None
+        if spelling:
+            offered.add(spelling)
+            answered.add(folded(spelling))
+            written[groups[step][1]] = spelling
+        if value is None:
+            owed = owed - share * groups[step][0]
+        else:
+            owed = owed - value * groups[step][0]
+            placed += [(value, groups[step][0])]
+        left = left - groups[step][0]
+    return written, pooled_reached(placed, middle), sum(
+        cells for _value, cells in placed
+    )
+
+
+def pooled_offered(
+    groups, standing, centre, apart, middle, shift, ladder, named, seen,
+    folds, needed, pool, widest,
+):
+    """One whole offer of the pool at `shift`, writing nothing -- step 4.
+
+    Every group is offered `mu + shift + h * (p_i - C)` in the walk's
+    own order, on copies of what the column has used.  What comes back
+    is the spellings it would write, the mean of the cells it placed and
+    their number; a group nothing is accepted for is absent from both,
+    because the ordinary walk of G8.3a step 3 answers for it and what
+    that writes is not known here.
+    """
+    offered, answered = set(seen), set(folds)
+    written, placed = {}, []
+    for step, group in enumerate(groups):
+        wanted = middle + shift + apart * (standing[step] - centre)
+        spelling = (
+            pooled_step(
+                ladder, wanted, group[2], named, offered, answered, needed,
+                pool, widest,
+            )
+            if math.isfinite(wanted)
+            else ""
+        )
+        if not spelling:
+            continue
+        offered.add(spelling)
+        answered.add(folded(spelling))
+        written[group[1]] = spelling
+        value = spelled_value(spelling)
+        if value is not None:
+            placed += [(value, group[0])]
+    return written, pooled_reached(placed, middle), sum(
+        cells for _value, cells in placed
+    )
+
+
+def pooled_reached(placed, middle):
+    """What the cells of an offer average, or `mu` where it placed none."""
+    cells = sum(count for _value, count in placed)
+    if cells < 1:
+        return middle
+    return sum(value * count for value, count in placed) / cells
+
+
+def pooled_best(
+    groups, standing, centre, apart, middle, ladder, named, seen, folds,
+    needed, pool, widest, window,
+):
+    """The offer G8.3c step 4 writes: the one whose cells land closest.
+
+    Up to five offers are asked for, on copies, and the one whose own
+    cells average closest to `mu` is written: the PLAIN offer of steps 1
+    to 3 at `mu` itself; then up to `POOLED_SHIFTS` MOVED offers, each
+    standing where the one before it would have had to stand for its
+    own cells to average `mu`, which is a plain fixed-point step; and
+    LAST the CARRIED offer in which the groups carry each other's
+    arrears, because that one rearranges the pool where a moved offer
+    only slides it.
+
+    STEP 4 IS A REPAIR AND NOT A PREFERENCE.  It does not run where the
+    plain offer already meets `window` -- G12.12's own window, drawn
+    from the column's published grid -- and it stops at the first offer
+    that meets it, because moving a pool already inside the window buys
+    nothing on the one obligation there is and moves the twin's
+    numbers.  The plain offer is among them, so a pool step 4 cannot
+    improve is placed exactly where steps 1 to 3 place it and no twin
+    is made worse.
+    """
+    def asked():
+        """Every offer G8.3c step 4 may ask for, in the order it asks."""
+        shift, landed = 0.0, None
+        for _turn in range(POOLED_SHIFTS + 1):
+            if landed is not None:
+                shift = shift + (middle - landed)
+                if not math.isfinite(shift):
+                    return
+            made = pooled_offered(
+                groups, standing, centre, apart, middle, shift, ladder,
+                named, seen, folds, needed, pool, widest,
+            )
+            landed = made[1]
+            yield made
+        yield pooled_carried(
+            groups, standing, centre, apart, middle, ladder, named, seen,
+            folds, needed, pool, widest,
+        )
+
+    kept = None
+    for spellings, landed, laid in asked():
+        if laid < 1:
+            break
+        if kept is None or abs(landed - middle) < kept[1]:
+            kept = (spellings, abs(landed - middle), laid)
+        if kept[1] <= window:
+            break
+    return (kept[0], kept[2]) if kept is not None else ({}, 0)
+
+
 def pooled_placements(
-    ladder, scale, groups, named, seen, folds, needed, pool, bounded
+    ladder, scale, groups, named, seen, folds, needed, pool, bounded, labels
 ):
     """The pool's made-up numbers, placed on its published scale -- G8.3c.
 
@@ -6112,22 +6354,19 @@ def pooled_placements(
             )
             + [form_whole_figures(form) for form in named]
         )
-    offsets = pooled_offsets(
-        [group[0] for group in groups], ladder, middle
+    sizes = [group[0] for group in groups]
+    standing, apart = pooled_offsets(sizes, ladder, middle)
+    centre = sum(a * b for a, b in zip(sizes, standing)) / max(sum(sizes), 1)
+    written, cells = pooled_best(
+        groups, standing, centre, apart, middle, ladder, named, seen, folds,
+        needed, pool, widest, pooled_window(labels),
     )
-    written = {}
-    for group, offset in zip(groups, offsets):
-        if not math.isfinite(middle + offset):
-            continue
-        spelling = pooled_step(
-            ladder, middle + offset, group[2], named, seen, folds,
-            needed, pool, widest,
-        )
-        if not spelling:
-            continue
-        seen.add(spelling)
-        folds.add(folded(spelling))
-        written[group[1]] = spelling
+    if cells < 1:
+        return {}
+    for group in groups:
+        if group[1] in written:
+            seen.add(written[group[1]])
+            folds.add(folded(written[group[1]]))
     return written
 
 
@@ -6416,6 +6655,7 @@ def class_stand_ins_walked(
                     [(sub[step], place, forms_of[step])
                      for _size, place, step in order],
                     named, seen, folds, needed, pool, bounded,
+                    [entry["label"] for entry in column.get("levels") or []],
                 )
         for _size, place, step in order:
             form = forms_of[step]
@@ -14797,6 +15037,12 @@ def _pooled_number_scale():
     43.75 and 58.75, and rounded onto whole numbers they are 49, 54, 44
     and 59.
 
+    STEP 4 DOES NOT RUN HERE, and that is part of what this case pins.
+    The plain offer of steps 1 to 3 lands at 50.25, a quarter of a place
+    off a window two places wide, so it already meets G12.12 and step 4
+    -- which is a repair and not a preference -- leaves it alone.  The
+    case `pooled_number_carried` is the one that reaches step 4.
+
     THIS CASE'S DESCRIPTION IS BUILT HERE AND NOT BY THE PRODUCER, as
     every case in this file is, and it stands at four held-back levels
     on purpose.  The producer will not WRITE a pooled scale whose mean
@@ -14809,9 +15055,8 @@ def _pooled_number_scale():
     THE ROUNDING IS THE REASON THIS FACT IS APPROXIMATED and not exact,
     and the case is chosen to show it rather than to hide it: the twin's
     own pool comes back with a mean of 50.25 against the published 50,
-    inside the window G12.12 draws -- a fifth of the largest magnitude
-    this description states, which is the mean's own 50, so ten either
-    side -- and not on it.
+    inside the window G12.12 draws -- two places of this column's
+    whole-number grid -- and not on it.
     """
     scale = {}
     claims = {}
@@ -14853,11 +15098,14 @@ def _pooled_number_scale():
         "own -- five places of this column's whole-number grid, unbounded "
         "here because the column publishes no number to bound it -- and "
         "the four values asked for, 48.75, 53.75, 43.75 and 58.75, round "
-        "onto 49, 54, 44 and 59. The twin's own pool then comes back with "
-        "a mean of 50.25 against the published 50, inside the window "
-        "G12.12 draws -- a fifth of the largest magnitude this description "
-        "states, so ten either side -- and not on it, which is why this "
-        "fact is APPROXIMATED and not exact. This case's mutant withdraws "
+        "onto 49, 54, 44 and 59. STEP 4 DOES NOT RUN HERE: the plain "
+        "offer of steps 1 to 3 lands at 50.25, a quarter of a place off "
+        "a window two places wide, so it already meets G12.12 and the "
+        "repair leaves it alone -- `pooled_number_carried` is the case "
+        "that reaches step 4. The twin's own pool comes back with a mean "
+        "of 50.25 against the published 50, inside the window and not on "
+        "it, which is why this fact is APPROXIMATED and not exact. This "
+        "case's mutant withdraws "
         "the placement, so the unanchored ladder of G8.3a answers instead "
         "and the four levels come back as the smallest numbers it can "
         "write. A label column consumes no content word, so every byte "
