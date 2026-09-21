@@ -32,6 +32,7 @@ beside the mutation tests of the ledger checks.
 
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -766,7 +767,9 @@ def test_every_environment_a_runner_sets_is_read_and_an_off_value_is_not_one(
     not kpi_rules.on_reference_machine(LEDGER),
     reason="this is not the quiet reference machine the ledger's seconds were stated for",
 )
-def test_the_real_reference_machine_agrees_with_its_own_load_average() -> None:
+def test_the_real_reference_machine_agrees_with_its_own_load_average(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The one assertion about THIS machine, and it runs nowhere else.
 
     The four cases above are the policy; this is the policy meeting the
@@ -777,10 +780,24 @@ def test_the_real_reference_machine_agrees_with_its_own_load_average() -> None:
     every `seconds_below` rule silently unjudged everywhere with nothing
     saying so. Off that machine there is nothing here to check, so this
     is skipped rather than weakened.
+
+    ONE SAMPLE, JUDGED TWICE. The load average used to be read inside
+    `seconds_judged_here` and again on the line below it, and the two
+    readings were then asserted to agree about being quiet. They are
+    two different moments. A machine that crosses the threshold
+    between them -- another suite starting, an editor indexing --
+    turned this red with nothing wrong, on the one machine it is not
+    skipped on, and a red test nobody can reproduce is worse than no
+    test. THIS machine's load is still what is read, and read from the
+    real `os.getloadavg`; it is read ONCE, and the policy is then made
+    to judge that same number, so the two judgements cannot disagree
+    about anything but the rule they apply.
     """
+    sample = kpi_rules.load_average()
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: sample)
     judged, why = kpi_rules.seconds_judged_here(LEDGER)
-    quiet = kpi_rules.load_average() < LEDGER["reference_machine"]["quiet_load_average_below"]
-    assert judged is quiet, (judged, why, kpi_rules.load_average())
+    quiet = sample < LEDGER["reference_machine"]["quiet_load_average_below"]
+    assert judged is quiet, (judged, why, sample)
     if not judged:
         assert "loaded" in why
 
@@ -1140,3 +1157,94 @@ def test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn(
             older, tmp_path / kpi_rules.split_node(older)[1]
         ) == "passed", older
     assert kpi_rules.judge(entry, {"pinned_nodes_failing": 1}).is_drop
+
+
+# -- a KPI is never lost to a missing development convenience -----------
+
+# The cross-check reader (`tests/crosscheck.py`) wraps openpyxl, which
+# is TEST-ONLY and absent from CI's `minimums` cell. Three of its entry
+# points never skip -- `present`, which answers whether the reader is
+# here; `read_excel_present`, the workbook read for a caller that has
+# already asked; and `part_not_measured`, which reports at the end --
+# and a KPI test may use only those: a headline that skips is a
+# headline nobody measured.
+CROSSCHECK_ASKS_THAT_NEVER_SKIP = frozenset(
+    {"present", "read_excel_present", "part_not_measured"}
+)
+
+
+def _crosscheck_calls(path: pathlib.Path) -> "list[tuple[str, str, int]]":
+    """(function, crosscheck entry point, line) for each ask in a file."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for inner in ast.walk(node):
+            if (
+                isinstance(inner, ast.Call)
+                and isinstance(inner.func, ast.Attribute)
+                and isinstance(inner.func.value, ast.Name)
+                and inner.func.value.id == "crosscheck"
+            ):
+                found.append((node.name, inner.func.attr, inner.lineno))
+    return found
+
+
+def _kpi_call_lines(path: pathlib.Path, function: str) -> "list[int]":
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function:
+            return [
+                inner.lineno
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Call)
+                and isinstance(inner.func, ast.Name)
+                and inner.func.id == "_kpi"
+            ]
+    raise AssertionError(f"{function} is not defined in {path.name}")
+
+
+def test_no_kpi_test_can_be_skipped_by_the_absent_cross_check_reader() -> None:
+    """THE REVIEW OF 2026-09-21, and the one thing it must not repeat.
+
+    `test_k_2b_46` carries the headline "code runs unchanged", which is
+    the owner's first-stated goal. Half of it is `pandas.read_csv` over
+    the every-role table and needs no second reader at all. The ask for
+    the cross-check reader sat INSIDE the eight-shapes loop, which
+    yields `csv, xlsx` per family, so where openpyxl was absent the
+    skip fired on the second run, the CSV key was computed and thrown
+    away, and `_kpi` -- the only assertion in the test -- was never
+    reached. A dtype regression in that half was RED locally and a
+    green skip on `minimums`.
+
+    A skip is the right answer for a test that is nothing but a
+    cross-check. It is never the right answer for a KPI test, which is
+    why this file may only ask in the two ways that do not skip:
+    `crosscheck.present()` to decide, and `crosscheck.part_not_measured()`
+    to report -- and that report must come AFTER the entry has been
+    recorded and judged on what could be measured.
+    """
+    path = kpi_rules.REPO_ROOT / kpi_rules.LEDGER_TEST_FILE
+    asks = _crosscheck_calls(path)
+    skipping = [
+        f"{function} asks crosscheck.{name} at line {line}"
+        for function, name, line in asks
+        if name not in CROSSCHECK_ASKS_THAT_NEVER_SKIP
+    ]
+    assert not skipping, (
+        "a KPI test would skip where the cross-check reader is absent, "
+        f"measuring nothing: {skipping}. Ask with crosscheck.present(), "
+        "measure every key that does not need the reader, record and judge "
+        "them, and report the rest with crosscheck.part_not_measured()."
+    )
+    for function, name, line in asks:
+        if name != "part_not_measured":
+            continue
+        recorded = [at for at in _kpi_call_lines(path, function) if at < line]
+        assert recorded, (
+            f"{function} reports an unmeasured part at line {line} without "
+            "having recorded the entry first, so nothing of it is judged. "
+            "part_not_measured is the LAST statement of such a test, not a "
+            "way out of it."
+        )

@@ -26,6 +26,7 @@ import zipfile
 
 import pytest
 
+import crosscheck
 import fixtures
 from synthtwin import contract, dialect, errors, reading, sheetwriting, workbook
 
@@ -297,8 +298,6 @@ def test_a_header_with_a_blank_cell_is_the_header(tmp_path: pathlib.Path) -> Non
     `amber`, published whole at a floor of five -- and the table lost
     that record. The header is the first row holding two cells now.
     """
-    openpyxl = pytest.importorskip("openpyxl")
-    pandas = pytest.importorskip("pandas")
     result = _trip(tmp_path, "blank", _headed_with_a_blank(), ("--smallest-group", "5"))
     _held(result)
     document = result["document"]
@@ -309,11 +308,12 @@ def test_a_header_with_a_blank_cell_is_the_header(tmp_path: pathlib.Path) -> Non
     assert document["source"]["workbook"]["rows_above_header"] == 0
     assert b"CASE-ZEBRA-471" not in result["described"].read_bytes()
     # The twin's header leaves the same cell blank, so every reader names
-    # its columns the way it names the source's.
-    sheet = openpyxl.load_workbook(result["twin"]).worksheets[0]
+    # its columns the way it names the source's. Everything above is
+    # synthtwin reading its own files, so the second reader is asked last.
+    sheet = crosscheck.reader().load_workbook(result["twin"]).worksheets[0]
     assert sheet["B1"].value is None
-    assert list(pandas.read_excel(result["twin"]).columns) == list(
-        pandas.read_excel(result["source"]).columns
+    assert list(crosscheck.read_excel(result["twin"]).columns) == list(
+        crosscheck.read_excel(result["source"]).columns
     )
 
 
@@ -514,7 +514,6 @@ def test_a_placeholder_is_never_a_published_name_in_another_case(
     which a spreadsheet cannot hold: openpyxl renamed the published sheet
     `sheet11`, and validation missed nothing.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     notes = _rows({1: [_cell("A1", "2", "s")]})
     data = _book(
         [("Private notes", notes), ("sheet1", _table_rows())],
@@ -525,8 +524,10 @@ def test_a_placeholder_is_never_a_published_name_in_another_case(
     )
     _held(result)
     assert result["document"]["source"]["workbook"]["sheet_names"] == [None, "sheet1"]
-    assert openpyxl.load_workbook(result["twin"]).sheetnames == ["Sheet2", "sheet1"]
     assert dialect.twin_sheet_names((None, "sheet1")) == ("Sheet2", "sheet1")
+    assert crosscheck.reader().load_workbook(result["twin"]).sheetnames == [
+        "Sheet2", "sheet1",
+    ]
 
 
 # -- item 6 and merge item 2: storage types and their values -----------
@@ -583,7 +584,7 @@ def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> No
     labels in row order. A boolean beside labels lost its booleans the
     same way. A class goes only to a cell spelled the way it is written.
     """
-    pandas = pytest.importorskip("pandas")
+    runs = []
     for name, odd in (("errors", lambda row: _cell(f"A{row}", "#N/A", "e")),
                       ("booleans", lambda row: _cell(f"A{row}", f"{row % 2}", "b"))):
         grid = {1: [_cell("A1", "0", "s")]}
@@ -594,8 +595,14 @@ def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> No
             )]
         result = _trip(tmp_path / name, name, _book([("Data", _rows(grid))], ["v", "North", "South"]))
         _held(result)
-        source = pandas.read_excel(result["source"])["v"].astype(str).value_counts().to_dict()
-        twin = pandas.read_excel(result["twin"])["v"].astype(str).value_counts().to_dict()
+        runs.append((name, result))
+    # Both shapes are described, generated and validated above; the
+    # second reader is asked about them once both have been.
+    for name, result in runs:
+        held = crosscheck.read_excel(result["source"])["v"].astype(str)
+        source = held.value_counts().to_dict()
+        made = crosscheck.read_excel(result["twin"])["v"].astype(str)
+        twin = made.value_counts().to_dict()
         assert twin == source, (name, source, twin)
 
 
@@ -613,7 +620,6 @@ def test_a_colour_or_a_currency_does_not_make_a_date(
     floats from the source and datetimes from the twin, and validation
     missed nothing. An elapsed count in brackets is still elapsed.
     """
-    pandas = pytest.importorskip("pandas")
     grid = {1: [_cell("A1", "0", "s")]}
     for place in range(60):
         number = 2 + place
@@ -622,10 +628,10 @@ def test_a_colour_or_a_currency_does_not_make_a_date(
     _held(result)
     kinds = result["document"]["source"]["workbook"]["columns"][0]["format_kinds"]
     assert kinds["plain"] == 60, kinds
-    assert str(pandas.read_excel(result["twin"])["amount"].dtype) == "float64"
     assert workbook.format_kind("[h]:mm:ss") == dialect.SHEET_FORMAT_ELAPSED
     assert workbook.format_kind("[mm]:ss") == dialect.SHEET_FORMAT_ELAPSED
     assert workbook.format_kind("[$-409]d-mmm-yy") == dialect.SHEET_FORMAT_DATE
+    assert str(crosscheck.read_excel(result["twin"])["amount"].dtype) == "float64"
 
 
 # -- items 8 and 9: a second table, and refusals that name positions ---
@@ -747,7 +753,6 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
     wrong text and both files validated. The independent reader is the
     judge of what the value is.
     """
-    pandas = pytest.importorskip("pandas")
     items = [
         '<si><t>alpha</t><rPh sb="0" eb="5"><t>READING</t></rPh></si>',
         "<si><t>v</t></si>",
@@ -756,11 +761,11 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
     grid = {1: [_cell("A1", "1", "s")]}
     for place in range(30):
         grid[2 + place] = [_cell(f"A{2 + place}", "0" if place % 2 else "2", "s")]
-    result = _trip(tmp_path / "phonetic", "phonetic", _book([("Data", _rows(grid))], items))
-    _held(result)
-    assert b"READING" not in result["described"].read_bytes()
-    source = sorted(pandas.read_excel(result["source"])["v"].tolist())
-    assert sorted(pandas.read_excel(result["twin"])["v"].tolist()) == source
+    phonetic = _trip(
+        tmp_path / "phonetic", "phonetic", _book([("Data", _rows(grid))], items)
+    )
+    _held(phonetic)
+    assert b"READING" not in phonetic["described"].read_bytes()
 
     inline = '<row r="1"><c r="A1" t="inlineStr"><is><t>v</t></is></c></row>' + "".join(
         f'<row r="{2 + place}"><c r="A{2 + place}" t="inlineStr"><is>\n <t>North</t>\n'
@@ -769,8 +774,11 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
     )
     result = _trip(tmp_path / "inline", "inline", _book([("Data", inline)], []))
     _held(result)
-    assert pandas.read_excel(result["twin"])["v"].tolist() == ["North"] * 30
     assert b"NORTH" not in result["described"].read_bytes()
+    # Both twins are written before either is handed to the second reader.
+    source = sorted(crosscheck.read_excel(phonetic["source"])["v"].tolist())
+    assert sorted(crosscheck.read_excel(phonetic["twin"])["v"].tolist()) == source
+    assert crosscheck.read_excel(result["twin"])["v"].tolist() == ["North"] * 30
 
 
 # -- item 11 and merge item 4: the table keeps its place ---------------
@@ -784,16 +792,17 @@ def test_the_columns_before_a_table_are_kept(tmp_path: pathlib.Path) -> None:
     validated, and code reaching a column by its position reached a
     different one.
     """
-    pandas = pytest.importorskip("pandas")
     grid = {1: [_cell("B1", "0", "s"), _cell("C1", "1", "s")]}
     for place in range(120):
         number = 2 + place
         grid[number] = [_cell(f"B{number}", f"{place}"), _cell(f"C{number}", f"{place % 7}")]
     result = _trip(tmp_path, "offset", _book([("Data", _rows(grid))], ["x", "y"]))
     _held(result)
-    assert pandas.read_excel(result["source"]).shape == (120, 3)
-    assert pandas.read_excel(result["twin"]).shape == (120, 3)
-    assert list(pandas.read_excel(result["twin"]).columns) == ["Unnamed: 0", "x", "y"]
+    assert crosscheck.read_excel(result["source"]).shape == (120, 3)
+    assert crosscheck.read_excel(result["twin"]).shape == (120, 3)
+    assert list(crosscheck.read_excel(result["twin"]).columns) == [
+        "Unnamed: 0", "x", "y",
+    ]
 
 
 # -- item 13 and merge item 5: a date stored as a date -----------------
@@ -808,7 +817,6 @@ def test_an_iso_date_cell_stays_a_date(tmp_path: pathlib.Path) -> None:
     the twin missed `workbook.cell-classes` on 120 cells. They are their
     own class now and written back as date cells.
     """
-    pandas = pytest.importorskip("pandas")
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(120):
         number = 2 + place
@@ -822,10 +830,12 @@ def test_an_iso_date_cell_stays_a_date(tmp_path: pathlib.Path) -> None:
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
     assert census["date"] == 120 and census["number"] == 0, census
-    assert str(pandas.read_excel(result["source"])["when"].dtype).startswith("datetime64")
-    assert str(pandas.read_excel(result["twin"])["when"].dtype).startswith("datetime64")
     with zipfile.ZipFile(result["twin"]) as bundle:
         assert 't="d"' in bundle.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    source_dtype = crosscheck.read_excel(result["source"])["when"].dtype
+    assert str(source_dtype).startswith("datetime64")
+    twin_dtype = crosscheck.read_excel(result["twin"])["when"].dtype
+    assert str(twin_dtype).startswith("datetime64")
 
 
 # -- item 14: a withheld format is not a licence for plain -------------
@@ -939,7 +949,6 @@ def test_a_carriage_return_in_a_header_is_written_back(tmp_path: pathlib.Path) -
     into a line feed: the real workbook validated and its twin missed
     `header.presence`, `header.names`, `columns.order` and `position.at`.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     strings = _DECLARATION + (
         f'<sst xmlns="{_MAIN}"><si><t>line&#13;name</t></si><si><t>other</t></si></sst>'
     )
@@ -957,7 +966,8 @@ def test_a_carriage_return_in_a_header_is_written_back(tmp_path: pathlib.Path) -
             bundle.writestr(entry, strings if name == "xl/sharedStrings.xml" else held)
     result = _trip(tmp_path, "returned", buffer.getvalue())
     _held(result)
-    assert openpyxl.load_workbook(result["twin"]).worksheets[0]["A1"].value == "line\rname"
+    sheet = crosscheck.reader().load_workbook(result["twin"]).worksheets[0]
+    assert sheet["A1"].value == "line\rname"
 
 
 # -- item 19: the oracle refuses what it does not read -----------------
@@ -1051,7 +1061,6 @@ def test_a_withheld_census_still_keeps_digit_codes_as_text(
     it the twin could not tell these texts from numbers, and pandas would
     read integers from the twin and strings from the source.
     """
-    pandas = pytest.importorskip("pandas")
     strings = ["code", "k"] + [f"{place:05d}" for place in range(1, 61)]
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(61):
@@ -1065,8 +1074,8 @@ def test_a_withheld_census_still_keeps_digit_codes_as_text(
     column = result["document"]["source"]["workbook"]["columns"][0]
     assert set(column["cell_classes"].values()) == {None}, column
     assert column["value_class"] == "text"
-    source = pandas.read_excel(result["source"], dtype=object)["code"].dropna()
-    twin = pandas.read_excel(result["twin"], dtype=object)["code"].dropna()
+    source = crosscheck.read_excel(result["source"], dtype=object)["code"].dropna()
+    twin = crosscheck.read_excel(result["twin"], dtype=object)["code"].dropna()
     assert {type(one) for one in twin} == {type(one) for one in source} == {str}
 
 
@@ -1080,7 +1089,6 @@ def test_a_mostly_empty_date_column_keeps_its_date_format(
     general format, so the general format was published and the twin's
     dates came back from pandas as numbers (plan P4-D164).
     """
-    pandas = pytest.importorskip("pandas")
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(100):
         number = 2 + place
@@ -1095,7 +1103,8 @@ def test_a_mostly_empty_date_column_keeps_its_date_format(
     column = result["document"]["source"]["workbook"]["columns"][0]
     # Published as the source wrote it since plan P4-D189.
     assert column["format_code"] == "yyyy-mm-dd", column
-    assert str(pandas.read_excel(result["twin"])["when"].dtype).startswith("datetime64")
+    when = crosscheck.read_excel(result["twin"])["when"].dtype
+    assert str(when).startswith("datetime64")
 
 
 # -- the repair pass after the files review (plan P4-D174) -------------
@@ -1163,7 +1172,6 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
     about is unmoved -- `CASE-ZEBRA-471` is never a column name -- and
     the round trip holds, declared and undeclared alike.
     """
-    pandas = pytest.importorskip("pandas")
     for flags, where in (
         (("--smallest-group", "5"), "undeclared"),
         (("--smallest-group", "5", "--first-row", "names"), "declared"),
@@ -1182,9 +1190,6 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
     assert document["n_rows"] == 41
     assert document["source"]["workbook"]["rows_above_header"] == 0
     assert b"ZEBRA" not in result["described"].read_bytes()
-    assert list(pandas.read_excel(result["twin"]).columns) == list(
-        pandas.read_excel(result["source"]).columns
-    )
     # AND UNDECLARED IT IS UNMOVED TOO, which is the limit plan P4-D232
     # names: the header rule takes the one-word row itself, so nothing
     # is furniture above the names and the row under them is read by
@@ -1195,6 +1200,10 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
     assert list(table.column_names) == ["subject", "Unnamed: 1", "Unnamed: 2"]
     assert table.n_rows == 41
     assert table.first_row_seen == ""
+    # Last: what a second reader names the twin's columns.
+    assert list(crosscheck.read_excel(result["twin"]).columns) == list(
+        crosscheck.read_excel(result["source"]).columns
+    )
 
 
 def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> None:

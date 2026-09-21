@@ -20,9 +20,8 @@ what code each cell of the twin wears.
 import collections
 import pathlib
 
-import pytest
-
 from synthtwin import dialect, workbook
+from tests import crosscheck
 from tests.test_files_review_repairs import _book, _cell, _held, _rows, _trip
 
 _FORMATS = ("General", "00000", "yyyy-mm-dd hh:mm", "yyyy-mm-dd", '0.0" kg"', "0.00")
@@ -49,7 +48,6 @@ def _visits(rows: int) -> bytes:
 def test_codes_of_the_format_language_are_written_as_written(
     tmp_path: pathlib.Path,
 ) -> None:
-    openpyxl = pytest.importorskip("openpyxl")
     result = _trip(tmp_path, "visits", _visits(120), ("--smallest-group", "5"))
     _held(result)
     published = [
@@ -63,13 +61,14 @@ def test_codes_of_the_format_language_are_written_as_written(
         column["format_code"] for column in result["again"]["source"]["workbook"]["columns"]
     ]
     assert again == published
-    sheet = openpyxl.load_workbook(result["twin"]).active
+    assert b"kg" not in result["described"].read_bytes()
+    # LAST: the codes the independent reader finds on the twin's cells.
+    sheet = crosscheck.reader().load_workbook(result["twin"]).active
     for place, wanted in enumerate(published):
         worn = collections.Counter(
             sheet.cell(row=row, column=place + 1).number_format for row in range(2, 122)
         )
         assert worn == {wanted: 120}, (place, worn)
-    assert b"kg" not in result["described"].read_bytes()
 
 
 def test_the_grammar_admits_tokens_and_refuses_words() -> None:

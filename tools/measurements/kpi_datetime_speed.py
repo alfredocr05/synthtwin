@@ -101,6 +101,14 @@ def run(described):
 
 
 def extract_text(rows):
+    # THE ONE PLACE OUTSIDE tests/crosscheck.py THAT NAMES openpyxl, and
+    # `tests/test_dependencies.py` records it by name with this reason.
+    # openpyxl is TEST-ONLY -- synthtwin imports it nowhere -- and CI's
+    # `minimums` cell has none, so a test that needs it SKIPS through
+    # `tests/crosscheck.py`. This is not a test: it is a measurement
+    # driver run by hand on a quiet machine, no test loads it, and a
+    # pytest helper has no business inside `tools/`. On a floors-only
+    # environment it cannot run at all, which is the right answer for it.
     import openpyxl
 
     sheet = openpyxl.load_workbook(io.BytesIO(dates._extract(rows, 9))).worksheets[0]

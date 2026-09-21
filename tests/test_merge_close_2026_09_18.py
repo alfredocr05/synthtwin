@@ -57,7 +57,7 @@ import sys
 import pytest
 
 from synthtwin import asking, generation, reading, taxonomy
-from tests import workbooks
+from tests import crosscheck, workbooks
 
 _FLOOR_ELEVEN = "11"
 
@@ -296,9 +296,7 @@ def test_a_headerless_workbook_of_records_writes_no_record(
             f"{tmp_path}", "--seed", "4", "--replace",
         ]
     ) == 0
-    import openpyxl
-
-    book = openpyxl.load_workbook(tmp_path / "real-twin.xlsx")
+    book = crosscheck.reader().load_workbook(tmp_path / "real-twin.xlsx")
     sheet = book[book.sheetnames[0]]
     header = [f"{sheet.cell(row=1, column=place).value}" for place in (1, 2, 3)]
     assert header != ["R001", "North Unit", "<0.10"]

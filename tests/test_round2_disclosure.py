@@ -44,7 +44,7 @@ import pytest
 
 import fixtures
 from synthtwin import parsing, reading
-from tests import workbooks
+from tests import crosscheck, workbooks
 
 _FLOOR_ELEVEN = "11"
 
@@ -273,9 +273,7 @@ def test_the_same_workbook_publishes_no_record_either(
         )
         == 0
     )
-    import openpyxl
-
-    book = openpyxl.load_workbook(tmp_path / "real-twin.xlsx")
+    book = crosscheck.reader().load_workbook(tmp_path / "real-twin.xlsx")
     sheet = book[book.sheetnames[0]]
     header = [
         f"{sheet.cell(row=1, column=place).value}" for place in (1, 2, 3)

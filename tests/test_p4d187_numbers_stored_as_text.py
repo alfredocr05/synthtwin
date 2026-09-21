@@ -23,6 +23,7 @@ import random
 import pytest
 
 from synthtwin import sheetwriting
+from tests import crosscheck
 from tests.test_files_review_repairs import _book, _cell, _held, _rows, _trip
 
 
@@ -50,7 +51,6 @@ def _measurements(rows: int, share: float, seed: int) -> "tuple[bytes, list[bool
 def test_numbers_stored_as_text_are_read_and_written_back_as_text(
     tmp_path: pathlib.Path, floor: str
 ) -> None:
-    openpyxl = pytest.importorskip("openpyxl")
     data, stored = _measurements(300, 0.07, 5)
     result = _trip(tmp_path, "weights", data, ("--smallest-group", floor))
     _held(result)
@@ -59,7 +59,13 @@ def test_numbers_stored_as_text_are_read_and_written_back_as_text(
     census = document["source"]["workbook"]["columns"][0]["cell_classes"]
     texts = sum(stored)
     assert (census["text"], census["number"]) == (texts, 300 - texts), census
-    sheet = openpyxl.load_workbook(result["twin"]).active
+    report = (tmp_path / "weights-twin-report.txt").read_text(encoding="utf-8")
+    assert (
+        f"'weight' stores {texts} of its values as text and {300 - texts} as numbers,"
+        in report
+    )
+    # LAST: what the independent reader finds in the twin's cells.
+    sheet = crosscheck.reader().load_workbook(result["twin"]).active
     kinds = [isinstance(sheet.cell(row=row, column=1).value, str) for row in range(2, 302)]
     assert sum(kinds) == texts
     places = [index for index in range(300) if kinds[index]]
@@ -68,11 +74,6 @@ def test_numbers_stored_as_text_are_read_and_written_back_as_text(
     assert places[0] < 300 // texts + 1
     widest = max(places[index + 1] - places[index] for index in range(len(places) - 1))
     assert widest <= 2 * (300 // texts) + 1, places
-    report = (tmp_path / "weights-twin-report.txt").read_text(encoding="utf-8")
-    assert (
-        f"'weight' stores {texts} of its values as text and {300 - texts} as numbers,"
-        in report
-    )
 
 
 def test_the_count_is_spread_where_more_cells_fit_than_it_names() -> None:
