@@ -18674,3 +18674,71 @@ it trades 12 more agreements outside the 0.02 window (597 to 609 of
 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
 Ceilings move in their own commit, never inside a merge.
+
+## Decision P4-D301 — the pooled numbers keep their scale (2026-09-21)
+
+**THE OWNER'S WORDS**, asked which of the carried fidelity failures to
+take now: "Apparently i want this fixed."
+
+**THE FAILURE.** Where a floor holds back a column's rare NUMBERS, the
+pool published how many there were and how many rows they covered and
+nothing about what they were worth, so the generator had only the
+numbers the column PUBLISHED to place its made-up ones beside. Ledger
+entry K-2B-50 measures it at a floor of eleven on 100 `alpha`, twenty
+`100` and ten each of 200 to 209: the twin's numeric mean came back 100
+against 187.083333 and its population spread 3.027650 against
+39.033017, and BOTH files validated with nothing missed, because no
+published fact spoke of the pool at all. The same shape as a long tail
+came back with a mean of 20.46 against 929.5.
+
+**WHAT IS PUBLISHED.** Contract section 6.3.3 adds one block to the
+four label roles: how many cells of the held-back levels read as
+numbers, their mean and their population spread. Its disposition is
+this decision's ruling. The block's own key `suppressed_numbers` is
+STRUCTURAL, carrying no value obligation of its own, and
+`suppressed_numbers.n_cells` is LOADER-ONLY: the loader reads it to ask
+the disclosure rule and it puts nothing on the twin. Its two
+aggregates, `suppressed_numbers.mean` and `suppressed_numbers.spread`,
+are APPROXIMATED,
+under the window generation method G12.12 draws around the two
+aggregates — half the published spread either side of each — because
+the placement rounds every value it writes onto a place the column
+writes at and steps outward wherever a spelling is refused, so the twin
+lands near the scale rather than on it.
+
+**WHY IT IS SAFE, ASKED AND NOT ASSERTED.** The pool is a group by
+construction, and the producer and the loader both ask
+`parsing.census_nameable` with the pooled count as the one count they
+would print and the column's numeric total as the population a reader
+can subtract it from. The pool therefore reaches `parsing.census_floor`
+and so does whatever it leaves of the column's numbers. Where the
+question is answered no the block publishes nought and two nulls, which
+is exactly what a column whose held-back levels hold no number
+publishes: a refusal a reader could tell apart from nought would itself
+publish the count the floor exists to withhold. Invariant B4d is the
+loader's half of the same question.
+
+**WHAT THE TWO-LEVEL POOL COSTS, AND WHY THE PRODUCER REFUSES IT.** The
+census rule asks whether the pooled COUNT names a group. It does not ask
+whether a mean and a spread name a VALUE, and on a pool of exactly two
+numeric levels whose sizes the published pool pins they do: two
+equations, two unknowns, solved exactly. Measured at a floor of eleven
+on 420 `missing` beside two negative readings of ten rows each — the
+block published a mean of -48 and a spread of 11, and -48 -+ 11 is -59
+and -37, the two values the table held. So the producer publishes the
+scale only where THREE or more held-back levels hold numbers, where the
+same two equations leave a curve of candidate populations rather than a
+point. It costs nothing measured: on that shape the twin's numeric mean
+and spread were the table's own before this landing and after it.
+
+**WHAT IT STILL LETS A READER NARROW**, recorded rather than waved
+away, and it is the residue section 6.3 already records for the pool
+itself: three numbers over a pool of three levels or more leave a family
+of candidate populations, not one, because neither the held-back levels'
+sizes nor how many of them hold numbers is published. What a reader
+takes is the SCALE of a group at the census line, which is narrower than
+what the twin already gives them -- and that limit, the owner's accepted
+one of 2026-09-18, is WIDENED by this decision. Measured, ledger
+K-2B-19: 55 held-back cells the twin reproduces exactly to 125 of 251,
+with the count of columns rebuilt whole unmoved at 1 of 19. The two move
+together and reversing this decision reverses both.

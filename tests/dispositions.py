@@ -425,6 +425,14 @@ PLAN4_REGIONS = {
         "## Amendment A-P4-47 — the per-level form census is RULED IN "
         "(owner ruling 2026-08-31)"
     ),
+    # THE SCALE OF THE HELD-BACK NUMBERS (ledger K-2B-50), which
+    # nothing disposed until the landing that built it: the label
+    # roles' own table in the Phase 2 matrix is the record of what
+    # Phase 2 ruled and has no row for a key Phase 2 never had.
+    "pooled-scale": (
+        "## Decision P4-D301 — the pooled numbers keep their scale "
+        "(2026-09-21)"
+    ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
     "joined": (
@@ -1566,6 +1574,42 @@ REGISTRY += [
         plan_words="a code's SHAPE identifies nobody",
         plan_region="per-level-forms",
         aliases=("per-level form census", "level form count"),
+    ),
+    # THE SCALE OF THE HELD-BACK NUMBERS (plan P4-D301, ledger
+    # K-2B-50). APPROXIMATED and not exact, and the difference is the
+    # construction rather than a lowered bar: method G8.3c places the
+    # pool's made-up numbers on the published mean and spread and then
+    # rounds each onto a place the column writes at, stepping outward
+    # wherever a spelling is refused, so the twin's own pool comes back
+    # near the two numbers rather than on them. G12.12 draws the window
+    # and the validator holds the file to it.
+    Fact(
+        "label",
+        "suppressed_numbers",
+        STRUCTURAL,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
+    Fact(
+        "label",
+        "suppressed_numbers.n_cells",
+        LOADER_ONLY,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
+    Fact(
+        "label",
+        "suppressed_numbers.mean",
+        APPROXIMATED,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
+    ),
+    Fact(
+        "label",
+        "suppressed_numbers.spread",
+        APPROXIMATED,
+        plan_region="pooled-scale",
+        aliases=("pooled scale", "the pool's own scale"),
     ),
 ]
 REGISTRY += _facts(

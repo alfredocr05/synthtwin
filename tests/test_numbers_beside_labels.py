@@ -484,9 +484,26 @@ def test_a_column_read_with_a_decimal_comma_writes_its_numbers_with_one(
 def test_numbers_nothing_published_places_are_named_as_such(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A long tail that published none of its readings says so in the report."""
+    """A long tail that published none of its readings, and what places them.
+
+    RE-TARGETED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+    ledger K-2B-50), and the sentence it used to assert is now FALSE on
+    this shape rather than merely unwritten. It read "this column
+    published no number at all, so nothing in the description says where
+    they lie": the first half still holds -- every published level here
+    is a note -- and the second does not, because section 6.3.3 now
+    publishes the held-back numbers' own mean and population spread and
+    method G8.3c places the twin's made-up numbers on them. Measured on
+    this very column: the twin's readings came back with a mean of
+    7.1047 and a spread of 2.0213 against the table's 7.0741 and 2.0928,
+    where the sentence this test used to assert was the true one.
+
+    So the test holds the OTHER sentence, the one the report writes when
+    every made-up number was placed at the published scale, and holds
+    the statistics that sentence promises.
+    """
     cells = _readings_beside_notes(1000, random.Random(1000 * 31 + 1))
-    first, second, _written, twin_exit, _real = _round_trip(
+    first, second, written, twin_exit, _real = _round_trip(
         tmp_path / "unplaced", cells, ("--smallest-group", "20"), False, "1"
     )
     assert first["role"] == "long_tail_labels"
@@ -496,7 +513,15 @@ def test_numbers_nothing_published_places_are_named_as_such(
         encoding="utf-8"
     )
     flat = " ".join(report.split())
-    assert "this column published no number at all" in flat
+    assert "this column published no number at all" not in flat
+    assert (
+        "the twin places them on those two" in flat
+    ), flat
+    real = _numbers(cells)
+    twin = _numbers(written)
+    spread = statistics.pstdev(real)
+    assert abs(statistics.fmean(twin) - statistics.fmean(real)) <= 0.1 * spread
+    assert abs(statistics.pstdev(twin) - spread) <= 0.1 * spread
 
 
 @pytest.mark.parametrize("seed", (3, 4))

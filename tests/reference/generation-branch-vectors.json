@@ -4033,6 +4033,11 @@
         "statistical_type": "long_tail_labels",
         "structural_role": "data",
         "suppressed_levels": 45,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 60
       },
       "content": [
@@ -4276,6 +4281,11 @@
         "statistical_type": "long_tail_labels",
         "structural_role": "data",
         "suppressed_levels": 20,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 29
       },
       "content": [
@@ -4479,6 +4489,11 @@
         "statistical_type": "categorical",
         "structural_role": "data",
         "suppressed_levels": 20,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 29
       },
       "content": [

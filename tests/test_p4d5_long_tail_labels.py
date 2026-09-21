@@ -197,6 +197,7 @@ def test_it_publishes_the_four_label_keys_and_not_the_ceiling() -> None:
     for key in (
         "levels",
         "suppressed_levels",
+        "suppressed_numbers",
         "suppressed_rows",
     ):
         assert key in block
@@ -249,6 +250,13 @@ def test_a_document_claiming_the_role_without_a_covering_level() -> None:
     ]
     block["suppressed_levels"] = 220
     block["suppressed_rows"] = 220
+    # ...AND THE SCALE OF THE HELD-BACK NUMBERS (contract 6.3.3, plan
+    # P4-D301), which a block claiming a label role carries like the
+    # four keys above. This column's values are words, so it is the
+    # state that says nothing.
+    block["suppressed_numbers"] = {
+        "n_cells": 0, "mean": None, "spread": None
+    }
     # The free-text keys go with the role that carried them: the
     # format has no optional keys, so a block claiming this role
     # carries the four label keys and nothing else its role does not

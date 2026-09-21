@@ -1547,7 +1547,8 @@ empty, so every field that carries what the floor held back is empty
 or zero. Every one of these is empty or zero, and this list is the
 whole of it:
 
-`suppressed_levels`; `suppressed_rows`;
+`suppressed_levels`; `suppressed_rows`; the `n_cells` of every
+`suppressed_numbers` block, whose `mean` and `spread` are then `null`;
 every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `n_missing_withheld`; and the `(withheld)` ENTRIES of
 `missing_by_class`, `utc_offsets`, `datetime_separators`,
@@ -4133,9 +4134,9 @@ method states that rule (`docs/spec/generation-method-v1.md` G10.5).
 ### 6.3 The label roles: shared shape
 
 `constant`, `binary`, `categorical` and `long_tail_labels` all publish
-LEVELS. Their FOUR shared keys are specified once here; sections 6.4
+LEVELS. Their FIVE shared keys are specified once here; sections 6.4
 and 6.5, section 6.6.1, and the section for `long_tail_labels` state
-only what each adds or restricts. The four are the labels publication
+only what each adds or restricts. The five are the labels publication
 class, and the forbidden-key matrix admits `levels` on no other role.
 
 **THE FOURTH SHARED KEY IS `shape_forms`, AND IT STANDS ON ALL FOUR**
@@ -4143,12 +4144,24 @@ because whether a label role holds levels back is a fact about the
 FLOOR and not about the role. Section 6.11's matrix is the authority
 on where it stands; section 7.9 states what it holds.
 
+**THE FIFTH IS `suppressed_numbers`, AND IT STANDS ON ALL FOUR FOR THE
+SAME REASON** (plan P4-D301). Whether the labels a floor holds back are
+WORDS or NUMBERS is a fact about the table, not about the role, and a
+column whose rare values are numbers loses their scale entirely when
+the pool says only how many there were: 100 `alpha`, twenty `100` and
+ten each of 200 to 209 at a floor of eleven publishes one number, and
+its twin wrote 95 to 105 — a numeric mean of 100 where the table has
+187.083333 and a spread of 3.027650 where it has 39.033017, with both
+files passing every check, because until this key no published fact
+spoke of the pool at all.
+
 | key | JSON type | meaning |
 |---|---|---|
 | `levels` | array of level entries | the published labels and their counts, section 6.3.1 |
 | `suppressed_levels` | integer ≥ 0 | how many labels the floor held back |
 | `suppressed_rows` | integer ≥ 0 | how many rows those held-back labels covered in total — the POOLED TOTAL, and the only size of them this format publishes |
 | `shape_forms` | object | the census of WRITTEN FORMS the column's cells wore, section 7.9; REQUIRED on all four label roles, written even when empty |
+| `suppressed_numbers` | object | the SCALE of the held-back cells that read as numbers, section 6.3.3; REQUIRED on all four label roles, written even where it says nothing |
 
 The floor named throughout this section is `small_cell_floor`, the
 setting of section 4.4. Every rule below that reads it is written as
@@ -4205,6 +4218,79 @@ their keys hold, what a value means, where the two keys may and may not
 appear, and invariants W1 to W7. Section 7.4.8 specifies
 `shape_form_cells` and invariant W8. Section 5.3 fixes the form of a
 multiplicity map.
+
+#### 6.3.3 The scale of the held-back numbers
+
+An object with exactly these THREE keys. A loader refuses a block that
+carries any other key inside it, or that is missing one of these.
+
+| key | JSON type | meaning |
+|---|---|---|
+| `n_cells` | integer ≥ 0 | how many cells of the held-back levels read as numbers — nought where the block says nothing |
+| `mean` | number or null | the arithmetic mean of those cells |
+| `spread` | number or null | their POPULATION standard deviation, divided by `n_cells` and not by one less |
+
+**THE SPREAD IS THE POPULATION ONE AND NOT A SAMPLE ESTIMATE.** What it
+describes is the whole of a pool this document itself delimits, not a
+draw from something larger, so dividing by one less than the count
+would describe a population nobody has.
+
+**WHAT MAKES THESE THREE SAFE TO PUBLISH IS THAT THEY ARE TAKEN OVER A
+GROUP**, and that is asked rather than assumed. The producer asks
+`parsing.census_nameable` with `n_cells` as the one count it would
+print and the column's `n_numeric` as the population a reader can
+subtract it from, at the document's own floor; the loader asks the same
+question of the same two numbers as invariant B4d. So the pool reaches
+`parsing.census_floor`, and so does whatever is left of the column's
+numbers once the pool is taken off it. A pool of one cell would BE that
+cell's value written under the name `mean`; a pool leaving one
+published numeric cell behind hands that cell over by subtraction. Both
+are refused.
+
+**AND A PRODUCER OBLIGATION THE LOADER CANNOT RE-ASK: THE POOL MUST
+HOLD THREE HELD-BACK NUMERIC LEVELS OR MORE.** The census rule above
+asks whether the pooled COUNT names a group; this asks whether the two
+aggregates name a VALUE, which is a different question and is answered
+by arithmetic. A pool of exactly two numeric levels whose sizes the
+published pool pins — `suppressed_rows` over `suppressed_levels`, inside
+invariant B4's band, can leave one split only — gives a reader two
+equations in two unknowns, and a mean and a spread solve them exactly.
+Measured at a floor of eleven on 420 `missing` beside two negative
+readings of ten rows each: the block published a mean of −48 and a
+spread of 11, and −48 ∓ 11 is −59 and −37, which is what the table held.
+At three numeric levels the same two equations run over three unknown
+values and leave a curve of candidate populations rather than a point.
+The producer therefore publishes nothing below three, reaching the state
+below. **THE LOADER DOES NOT RE-ASK IT**, and that is a decision rather
+than an omission: how many of the held-back levels hold numbers is not a
+published fact, and publishing it so the loader could check it would be
+a fourth number about the pool — a worse trade than leaving one rule to
+the producer, which is the trade invariants B4b and B4c already make for
+the level pass.
+
+**NOUGHT IS THE ONE STATE THIS BLOCK SAYS NOTHING WITH**, and it is
+reached two ways on purpose: by a column whose held-back levels hold no
+number at all, and by a column where the question above was answered
+no. A refusal a reader could tell apart from nought would itself
+publish that the pool holds numbers and how few of them — the count the
+floor exists to withhold. `mean` and `spread` are `null` together
+exactly there.
+
+**WHAT IT STILL LETS A READER NARROW, stated rather than waved away.**
+Three numbers over a pool of three levels or more leave a family of
+populations rather than one: `n_cells`, a mean and a spread are three
+equations in as many unknowns as the pool has levels and sizes, and
+neither the levels' sizes (withdrawn by the owner ruling of 2026-09-17,
+item 2) nor how many of them hold numbers is published. What a reader
+can take from the block is the SCALE of a group of at least
+`parsing.census_floor` cells — where those rare numbers sat and how far
+apart they were — which is the same class of fact as the pool's own two
+counts, and narrower than the twin already gives them: the twin writes
+its made-up numbers at that scale, which is the limit the owner accepted
+on 2026-09-18 and which this section widens. That widening is measured
+rather than described — ledger K-2B-19, 55 held-back cells the twin
+reproduces exactly to 125 of 251 — and the two move together, so a reader
+who wants it closed closes the section.
 
 #### 6.3.2 Label invariants
 
@@ -4346,6 +4432,20 @@ publishing that a row is MISSING is ruling 5's own consequence, and
 asking the disclosure rule of the presence split would change every
 column block this format writes rather than repair this one. Plan
 P4-D271 records the measurement and puts the question to the owner.
+
+**Invariant B4d (a pooled scale is taken over a group).** The block of
+6.3.3 speaks only of a group: `suppressed_numbers.n_cells` is nought,
+or `parsing.census_nameable([n_cells], [n_numeric], floor)` holds — the
+pool reaches `parsing.census_floor` and so does whatever the pool
+leaves of the column's numbers. `mean` and `spread` are written exactly
+where `n_cells` is above nought and are `null` together everywhere
+else, and `spread` is never negative. Inside a compound column's label
+half the `n_numeric` beside it counts the OTHER half's numbers, so it
+is not a population this pool is subtractable from and the second
+clause is not asked there; the first still is. Measured at a floor of
+eleven: a pool of three numeric cells publishes a mean that is three
+people's values averaged, and a pool of one publishes that person's
+value under another name.
 
 **Invariant B5 (the floor).** Every `entry.count` is at least the floor.
 
@@ -6330,6 +6430,7 @@ rather than a list of its own, so the two cannot part again.
 | `levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_levels` | | | ● | ● | ● | ● | | | | | | | | | |
 | `suppressed_rows` | | | ● | ● | ● | ● | | | | | | | | | |
+| `suppressed_numbers` | | | ● | ● | ● | ● | | | | | | | | | |
 | `level_ceiling` | | | | | ● | | | | | | | | | | |
 | `format` | | | | | | | ● | | | | | | | | |
 | `resolution` | | | | | | | ● | | | | | | | | |
@@ -6427,14 +6528,19 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Ninety-nine rows, one hundred and eighty-five marked cells**,
-distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 4,
-`binary` 4, `categorical` 5, `long_tail_labels` 4, `datetime` 20,
+**One hundred rows, one hundred and eighty-nine marked cells**,
+distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
 `time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE POOLED-SCALE LANDING** (2026-09-21, plan P4-D301):
+`suppressed_numbers` is one row and one mark on each of the four label
+roles, so the rows go from ninety-nine to a hundred and the marked
+cells from a hundred and eighty-five to a hundred and eighty-nine.
 
 **THE COUNTS WERE STALE AGAIN AND ARE CORRECTED AGAIN** (landing
 2b.18). They were `Eighty-seven rows, one hundred and sixty-six marked
@@ -11005,6 +11111,9 @@ rather than on the reasoning above it.
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
+| `suppressed_numbers` (all four label roles) | STRUCTURAL — the container's own key carries no VALUE obligation; its membership is the three keys below, and every one of them is disposed in its own right |
+| `suppressed_numbers.n_cells` | LOADER-ONLY: the loader reads it to ask `parsing.census_nameable` of the pool against the column's numbers (invariant B4d), and it puts no obligation on the twin — what the twin owes is the two aggregates below |
+| `suppressed_numbers.mean`, `suppressed_numbers.spread` | APPROXIMATED under the window G12.12 draws: half the published spread either side of the pooled mean and of the pooled spread. Method G8.3c places the pool's made-up numbers on the two aggregates and then rounds each value onto a place the column writes at, stepping outward wherever a spelling is refused, so the twin's own pool lands near the published scale rather than on it. The three keys it carries are floor-free in the sense every aggregate over a group is: `parsing.census_nameable` is asked of the pooled count against the column's numeric total before the block speaks at all, and where it answers no the block publishes nought and two nulls — the same state a column whose held-back levels hold no number publishes (plan P4-D301, invariant B4d) |
 | `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, then by the made-up spellings of each published label, whose forms are fixed by that level's own `shape_form_cells` (7.4.8), and then by the STAND-INS. The description used to say nothing about which held-back spelling of a label wore that label's form, so the census could fall short of the published count OR run past it; amendment A-P4-47 publishes the fact and closes residual R-P4-34. What can still fall short is the STAND-IN half, where a form's supply is spent or every spelling of it is refused, and the report names it |
 
 The first five rows bind `long_tail_labels` exactly as they bind the

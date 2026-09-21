@@ -192,13 +192,23 @@ def test_the_loader_refuses_a_class_total_that_leaves_one_row() -> None:
 def test_the_anchored_held_back_sentence_warns_about_statistics(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The mean and spread move and the report has to say a statistic is not one.
+    """The mean and spread are the table's own, and the report says so.
 
-    MEASURED by the review: the numeric subset's mean and population
-    spread go from 187.083333 and 39.033017 to 100 and 3.027650, and both
-    files pass all 99 executable checks. Generating this population from
-    disclosure-safe aggregates is not built; what is built is the
-    sentence that stops a reader trusting the numbers.
+    RE-TARGETED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301),
+    which CLOSES ledger K-2B-50. This test was written when generating
+    the pooled population from disclosure-safe aggregates was not built:
+    the numeric subset's mean and population spread went from 187.083333
+    and 39.033017 to 100 and 3.027650, both files passed every
+    executable check, and what the repair of the day added was the
+    sentence that stopped a reader trusting the numbers.
+
+    That sentence is now the WRONG one on this shape. Contract section
+    6.3.3 publishes the pool's own mean and population spread, method
+    G8.3c places the made-up numbers on them, and the twin's numeric
+    mean and spread ARE the table's -- so the report says instead that
+    an average or a spread over this column's numbers IS about the
+    table, and names what is still not: which made-up number stands for
+    which held-back label.
     """
     cells = ["alpha"] * 100 + ["100"] * 20
     for value in range(200, 210):
@@ -212,26 +222,33 @@ def test_the_anchored_held_back_sentence_warns_about_statistics(
     twin = _read(written)
     assert round(statistics.fmean(real), 6) == 187.083333
     assert round(statistics.pstdev(real), 6) == 39.033017
-    # The fidelity is still unmet; what the repair adds is the warning.
-    assert abs(statistics.fmean(twin) - statistics.fmean(real)) > 50
-    # ...AND IT MAY NOT GET WORSE (round-2 ledger item 1, K-2B-50). A
-    # floor of "more than 50" is a ceiling on nothing: a twin whose mean
-    # error grew to 187 passed this line. The measured errors at
-    # 05e7d89, the same on seeds 4, 0 and 1, are the ledger's OPEN bound.
-    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) <= 87.083333
-    assert round(abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6) <= 36.005366
-    # Both files validate clean, which is why no miss count can see this.
+    # THE FIDELITY IS MET EXACTLY, which is ledger K-2B-50's target and
+    # the bound it now stands at: both errors are nought, on this seed
+    # and on seeds 0 and 1 alike.
+    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) == 0
+    assert round(
+        abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6
+    ) == 0
+    # Both files validate clean, which is why no miss count could ever
+    # have seen this and why only the two numbers can.
     assert (twin_exit, real_exit) == (0, 0)
     report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert "is not a fact about your table" in report
-    # All three held-back sentences end by warning about a statistic;
-    # before this repair only the two unanchored ones did.
+    assert "the twin places them on those two" in report
+    assert "is not a fact about your table" not in report
+    # The three sentences that DO warn about a statistic are still
+    # there, for the three states that still reach them: a pool with no
+    # published scale, one the ladder cannot place, and one whose
+    # column published a number it cannot step from.
     for sentence, warning in (
         (generation._HELD_BACK_NUMBERS_REASON, "not a fact about your table"),
         (generation._HELD_BACK_UNPLACED_REASON, "means nothing about your table"),
         (generation._HELD_BACK_UNSPELLED_REASON, "not a fact about your table"),
     ):
         assert warning in sentence
+    # ...and the fourth says the opposite, on purpose.
+    assert (
+        "IS about your table" in generation._HELD_BACK_SCALED_REASON
+    )
 
 
 # -- item 4: the published mode (plan P4-D267) ------------------------

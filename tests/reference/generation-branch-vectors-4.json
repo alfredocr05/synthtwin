@@ -3459,6 +3459,11 @@
         "statistical_type": "categorical",
         "structural_role": "data",
         "suppressed_levels": 5,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 21
       },
       "content": [

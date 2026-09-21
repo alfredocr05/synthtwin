@@ -5288,6 +5288,11 @@ class _Levels:
     published: list[dict[str, object]]
     suppressed_levels: int
     suppressed_rows: int
+    # THE SCALE OF THE POOLED NUMBERS (plan P4-D301, ledger K-2B-50),
+    # under `n_cells`, `mean` and `spread`. The pool itself is what
+    # this aggregate is taken over, and `_pooled_numbers` states why
+    # that is a group and not a row.
+    pooled_numbers: dict[str, object]
 
 
 def _absorb_lone_spellings(
@@ -5637,6 +5642,154 @@ def _column_distinct(
     return numbers + spoken
 
 
+# WHAT A POOLED NUMERIC AGGREGATE PUBLISHES WHEN IT CANNOT SPEAK, and
+# it is the state a pool of no numbers at all reaches (plan P4-D301).
+# The two are deliberately the same three values: a refusal a reader
+# can tell apart from nought would itself say that the held-back levels
+# hold numbers and how few, which is the count the floor exists to
+# withhold.
+_NO_POOLED_SCALE: "dict[str, object]" = {
+    "n_cells": 0,
+    "mean": None,
+    "spread": None,
+}
+
+# HOW MANY HELD-BACK LEVELS MUST HOLD NUMBERS before their scale may be
+# published (plan P4-D301). THREE, and the reason is arithmetic rather
+# than taste. A pool of TWO numeric levels whose sizes the published
+# pool pins -- `suppressed_rows` over `suppressed_levels` with invariant
+# B4's band leaving one split only -- is SOLVED by a mean and a spread:
+# two equations, two unknowns, and the two values come out exactly.
+# Measured at a floor of eleven on 420 `missing` beside two negative
+# readings of ten rows each: the block published a mean of -48 and a
+# spread of 11, and -48 -+ 11 is -59 and -37, which is what the table
+# held. At three levels the same two equations run over three unknown
+# values and leave a curve of candidate populations rather than a point,
+# so nothing is named. The count is of LEVELS and not of cells, because
+# it is the levels a reader would be solving for.
+_POOLED_SCALE_LEVELS = 3
+
+
+def population_moments_of(numbers: list[float]) -> "tuple[float, float]":
+    """The mean and the POPULATION spread of ``numbers``, exactly rounded.
+
+    PUBLIC because the generator measures its own pool against the
+    published one with it (method G12.12), and a second copy of this
+    arithmetic in that module would be a second answer to one question.
+
+    The spread divides by ``n`` and not by ``n - 1``: what the twin has
+    to reproduce is the scale of a whole population the description
+    speaks of as a pool, not an estimate drawn from a larger one.
+
+    The arithmetic is the module's one rule -- every value written as a
+    whole number of one shared power of two, summed exactly, and rounded
+    to binary64 once at the end -- so the answer depends on the multiset
+    and not on the order the rows arrived in.
+
+    Guarantees: accepts at least one finite number; returns its mean and
+    its population standard deviation, each the correctly rounded
+    binary64 value of the exact statistic. Determinism: a fixed function
+    of the multiset. Raises nothing for a non-empty list. No I/O of any
+    kind.
+    """
+    count = len(numbers)
+    total, squares, _cubes, _fourths, base = _totals(numbers)
+    top, bottom = _over_two(total, count, base)
+    middle = _rounded_ratio(top, bottom)
+    spread = count * squares - total * total
+    if spread <= 0:
+        return middle, 0.0
+    top, bottom = _over_two(spread, count * count, base + base)
+    if _root_beyond_binary64(top, bottom):
+        return middle, 0.0
+    return middle, _rounded_root(top, bottom)
+
+
+def _pooled_numbers(
+    counts: dict[str, int],
+    spellings_by_folded: dict[str, dict[str, int]],
+    settings: Settings,
+) -> "dict[str, object]":
+    """The scale of the numbers the floor held back (plan P4-D301).
+
+    THE DEFECT THIS CLOSES (ledger K-2B-50). A column of 100 `alpha`,
+    twenty `100` and ten each of 200 to 209 at a floor of eleven
+    publishes one numeric level, `100`, and pools the ten others. The
+    generator then has one number to place the made-up ones beside, so
+    it writes 95 to 105 and the numeric population's mean falls from
+    187.083333 to 100 and its spread from 39.033017 to 3.027650 --
+    while both files validate with nothing missed, because no published
+    fact speaks of the pool's scale at all.
+
+    WHAT IS PUBLISHED IS THREE NUMBERS ABOUT A GROUP: how many cells of
+    the held-back levels read as numbers, their mean, and their
+    population spread. No level is named, no count of any one level is
+    given, and no cell is placed: a mean and a spread over a group are
+    facts about the group.
+
+    AND THE POOL MUST HOLD THREE NUMERIC LEVELS OR MORE, which is a
+    rule about what a reader can SOLVE rather than about what is
+    counted; `_POOLED_SCALE_LEVELS` states it and measures the two-level
+    shape it closes. The loader cannot re-ask it -- how many of the
+    held-back levels hold numbers is not a published fact, and
+    publishing it would be a fourth number about the pool -- so it is a
+    producer obligation, stated in contract 6.3.3 beside the invariant
+    that is the loader's half.
+
+    THE DISCLOSURE RULE IS ASKED AND NOT ASSERTED. `parsing.
+    census_nameable` is asked with the pooled count as the one count it
+    would print and the column's numeric cells as the population a
+    reader can subtract it from, at the settings floor -- so the pool
+    reaches `parsing.census_floor`, and so does what is left of the
+    numeric cells once it is taken off. A pool of one numeric cell
+    would BE that cell's value under the name `mean`, and the rule
+    refuses it; so does a pool that leaves one published numeric cell
+    behind, because that cell's own value is then recoverable.
+
+    WHERE THE RULE REFUSES, `_NO_POOLED_SCALE` stands, which is what a
+    column with no held-back numbers publishes too.
+
+    Guarantees: accepts the folded counts, the spellings of each folded
+    value and the settings; returns a mapping of exactly `n_cells`,
+    `mean` and `spread`, whose mean and spread are None together.
+    Determinism: a fixed function of the three. Raises nothing. No I/O
+    of any kind.
+    """
+    pooled: list[float] = []
+    numeric = 0
+    levels = 0
+    for label in sorted(counts):
+        spellings = spellings_by_folded[label]
+        held = counts[label] < settings.small_cell_floor
+        mine = 0
+        for spelling in sorted(spellings):
+            if parsing.classify_number(spelling) != parsing.NUMBER:
+                continue
+            size = parsing.parse_number(spelling)
+            if size is None or not math.isfinite(size):
+                continue
+            numeric = numeric + spellings[spelling]
+            if not held:
+                continue
+            mine = mine + spellings[spelling]
+            for _each in range(spellings[spelling]):
+                pooled += [size]
+        if held and mine > 0:
+            levels = levels + 1
+    if not pooled or levels < _POOLED_SCALE_LEVELS:
+        return dict(_NO_POOLED_SCALE)
+    if not parsing.census_nameable(
+        [len(pooled)], [numeric], settings.small_cell_floor
+    ):
+        return dict(_NO_POOLED_SCALE)
+    middle, spread = population_moments_of(pooled)
+    return {
+        "n_cells": len(pooled),
+        "mean": published(middle),
+        "spread": published(spread),
+    }
+
+
 def _levels(
     counts: dict[str, int],
     spellings_by_folded: dict[str, dict[str, int]],
@@ -5744,6 +5897,7 @@ def _levels(
         published=entries,
         suppressed_levels=suppressed_levels,
         suppressed_rows=suppressed_rows,
+        pooled_numbers=_pooled_numbers(counts, spellings_by_folded, settings),
     )
 
 
@@ -6589,6 +6743,13 @@ def _level_details(
         "levels": levels.published,
         "suppressed_levels": levels.suppressed_levels,
         "suppressed_rows": levels.suppressed_rows,
+        # ...AND THE SCALE OF THE NUMBERS AMONG THEM (plan P4-D301,
+        # ledger K-2B-50). Held back one by one, the pooled numeric
+        # levels left the generator one published number to place its
+        # made-up ones beside; three aggregates over the whole pool put
+        # them back where the table had them. `_pooled_numbers` states
+        # the rule and the disclosure question it asks.
+        "suppressed_numbers": levels.pooled_numbers,
         # ...COUNTED OVER THE SPELLINGS THE LEVEL ENTRIES SPEAK OF (plan
         # P4-D275.1): a spelling the floor counted into its level's
         # commonest is counted there by this census too, or the column's

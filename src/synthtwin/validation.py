@@ -372,6 +372,12 @@ _AGREEMENT_SLACK = parsing.RANK_AGREEMENT_WINDOW
 
 ENVELOPE_TEXT_SHAPE = "docs/spec/generation-method-v1.md G12.6"
 ENVELOPE_LABEL_DISTINCT = "docs/spec/generation-method-v1.md G12.7"
+# The window the scale of a column's held-back numbers is met inside.
+# The placement of method G8.3b puts the pool's cells on the published
+# mean and spread and then rounds each onto a written place, so the two
+# aggregates are approximated and not exact, and G12.12 says by how
+# much.
+ENVELOPE_POOLED_SCALE = "docs/spec/generation-method-v1.md G12.12"
 ENVELOPE_NUMERIC_DISTINCT = "docs/spec/generation-method-v1.md G12.8"
 
 # -- the refusals of method G12 (V4.3, V9) ----------------------------
@@ -480,6 +486,15 @@ INPUT_SIDE_ENTRIES = (
     ("document", "source"),
     ("numeric", "n_rows"),
     ("label", "level_ceiling"),
+    # THE POOL'S OWN SCALE, on the same terms (contract 6.3.3, plan
+    # P4-D301). The container key carries no VALUE obligation -- its
+    # membership is the three keys inside it -- and `n_cells` is the
+    # count the LOADER reads to ask the disclosure rule of the pool
+    # against the column's numbers (invariant B4d), which puts nothing
+    # on the written file. The two aggregates inside it DO, and they
+    # are checked below against G12.12's window.
+    ("label", "suppressed_numbers"),
+    ("label", "suppressed_numbers.n_cells"),
     ("free_text", "length"),
     ("free_text", "words"),
     # The joined role's own container, on the same terms as the two
@@ -594,6 +609,27 @@ _NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
     "figures in the format, and a twin writes them as zeros -- which a "
     "day count stores as the whole second it is -- so no workbook "
     "wearing this format can carry them"
+)
+# WHY THE SCALE OF A COLUMN'S HELD-BACK NUMBERS IS NOT CHECKED, in the
+# two cases there are (contract 6.3.3, method G12.12). The first is the
+# state the block reaches where it says nothing at all, which is what a
+# column whose held-back levels hold no number publishes AND what the
+# disclosure rule leaves behind where it refuses to speak -- the two
+# being deliberately indistinguishable, this sentence has to cover both
+# and name neither.
+_NOT_CHECKABLE_NO_POOLED_SCALE = (
+    "the description publishes no average and no spread for the numbers "
+    "among this column's held-back values, so it asks no file for them"
+)
+# The second is a scale of no spread: every cell of the pool holds one
+# value, so a window of nought width would admit that value and nothing
+# else -- which no pool written in two different spellings of it can
+# meet. A check that cannot be met is not a check.
+_NOT_CHECKABLE_POOLED_SCALE_FLAT = (
+    "the description publishes a spread of nought for the numbers among "
+    "this column's held-back values, so every one of them held one "
+    "value and no window can be drawn that a file writing it two ways "
+    "could meet"
 )
 _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "the description does not say that every moment of the real column "
@@ -14200,6 +14236,7 @@ def _label_checks(
             _level_form_cells(name, level, entry, measured, floor),
         ]
     checks += [_level_set(name, published_keys, measured)]
+    checks += _pooled_scale_checks(name, facts, block)
     # THE POOL IS HELD, AND ONLY THE POOL (owner ruling of 2026-09-17,
     # item 2, option A; plan P4-D201). The size of each held-back label
     # is published no more, so what a file owes about them is how many
@@ -14219,6 +14256,128 @@ def _label_checks(
             )
         ]
     return checks
+
+
+def _pooled_scale_listings(
+    column: contract.ColumnBlock,
+) -> "list[Listing]":
+    """The pool's two aggregates, where no window can be drawn for them.
+
+    ONE OBLIGATION IS CHECKED OR LISTED, NEVER BOTH, and never neither:
+    the two states `_pooled_scale_checks` leaves without a check are the
+    two states named here, so a label column files these two facts on
+    exactly one census whatever its description says.
+    """
+    facts = column.facts
+    labelled: "contract.LabelFacts | None" = None
+    if isinstance(facts, (contract.LabelFacts,)):
+        labelled = facts
+    # ...AND A COMPOUND COLUMN'S LABEL HALF, which publishes the same
+    # block and whose checks `_label_checks` files under the same two
+    # subchecks. One obligation is checked or listed, never both and
+    # never neither, so the half is reached here as well as there.
+    if isinstance(facts, (contract.CompoundFacts,)):
+        labelled = facts.labels
+    if labelled is None:
+        return []
+    scale = labelled.suppressed_numbers
+    why = ""
+    if scale.n_cells < 1 or scale.mean is None or scale.spread is None:
+        why = _NOT_CHECKABLE_NO_POOLED_SCALE
+    elif scale.spread <= 0.0:
+        why = _NOT_CHECKABLE_POOLED_SCALE_FLAT
+    if not why:
+        return []
+    return [
+        Listing(
+            column.name,
+            f"label.suppressed_numbers.{name}",
+            f"suppressed.numbers.{name}",
+            why,
+        )
+        for name in ("mean", "spread")
+    ]
+
+
+def _pooled_scale_checks(
+    name: str,
+    facts: contract.LabelFacts,
+    block: "dict[str, object]",
+) -> "list[Check]":
+    """The scale of the held-back numbers, against G12.12's window.
+
+    WHAT THIS CHECKS AND WHY IT IS NOT EXACT. Section 6.3 publishes the
+    mean and the population spread of the cells of the held-back levels
+    that read as numbers, and method G8.3b places the twin's made-up
+    numbers on them. The placement rounds each value onto a place the
+    column writes at and steps outward where a spelling is refused, so
+    the file's own pool comes back near the published scale rather than
+    on it -- an approximated obligation, met inside the window G12.12
+    draws: half the published spread either side of each number.
+
+    THE WINDOW IS DRAWN FROM THE SCALE'S OWN SPREAD because that is the
+    width the scale itself declares. A pool whose mean sits more than
+    half that width away, or whose spread does, is not this population
+    written a little differently; it is a different population. Measured
+    on the shape ledger K-2B-50 names: the twin before G8.3b put a pool
+    published at mean 204.5 and spread 2.872281 at 100 and 3.027650,
+    which this window refuses, and the twin after it lands on both
+    exactly.
+
+    A SCALE OF NO SPREAD DRAWS NO WINDOW. Where every cell of the pool
+    holds one value the window would admit that value and nothing else,
+    which no pool written in two different spellings of it can meet, so
+    the two checks are left out rather than made unmeetable. Nothing
+    else can reach that state: a pool of one level never clears the
+    census line, so a spread of nought here means one value spelled
+    several ways.
+
+    THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file whose levels
+    all clear the floor has no pool at all -- the gate is closed and
+    both obligations are WITHHELD, exactly as every other check reads a
+    re-described block that says nothing.
+    """
+    scale = facts.suppressed_numbers
+    middle = scale.mean
+    spread = scale.spread
+    if scale.n_cells < 1 or middle is None or spread is None:
+        return []
+    if spread <= 0.0:
+        return []
+    reach = spread / 2.0
+    inner = _inner_at(block, "suppressed_numbers")
+    found_mean: "float | None" = None
+    found_spread: "float | None" = None
+    if inner is not None:
+        cells = _count_at(inner, "n_cells")
+        if cells is not None and cells > 0:
+            found_mean = _number_at(inner, "mean")
+            found_spread = _number_at(inner, "spread")
+    lowest = spread - reach
+    if lowest < 0.0:
+        lowest = 0.0
+    return [
+        _within(
+            name,
+            "label.suppressed_numbers.mean",
+            "suppressed.numbers.mean",
+            _shown_number(middle),
+            found_mean,
+            (middle - reach, middle + reach),
+            ENVELOPE_POOLED_SCALE,
+            middle,
+        ),
+        _within(
+            name,
+            "label.suppressed_numbers.spread",
+            "suppressed.numbers.spread",
+            _shown_number(spread),
+            found_spread,
+            (lowest, spread + reach),
+            ENVELOPE_POOLED_SCALE,
+            spread,
+        ),
+    ]
 
 
 def _level_spelling(
@@ -17131,6 +17290,7 @@ def _listings(
                 _NOT_CHECKABLE_DECLARED_AXIS,
             )
         ]
+        listings = listings + _pooled_scale_listings(column)
         if not _position_is_evidencible(column, headed):
             listings += [
                 Listing(
