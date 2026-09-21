@@ -1148,14 +1148,15 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "suppressed_rows"): _HELD_BACK,
     # THE SCALE OF THE POOLED NUMBERS (plan P4-D301, ledger K-2B-50):
     # how many cells of the held-back levels read as numbers, and that
-    # group's mean and population spread. Three aggregates over ONE
-    # group, which is why they carry no floor of their own beyond the
-    # count's: a mean over a group at the disclosure line is a fact
-    # about the group.
+    # group's mean. TWO aggregates over ONE group, which is why they
+    # carry no floor of their own beyond the count's: a mean over a
+    # group at the disclosure line is a fact about the group. The
+    # POPULATION SPREAD that stood beside them is withdrawn by the
+    # owner's decision of 2026-09-21 (plan P4-D302), because a mean and
+    # a spread together solve for a tightly spaced pool's own values.
     ("columns", _EACH, "suppressed_numbers"): _OBJECT,
     ("columns", _EACH, "suppressed_numbers", "n_cells"): _POOLED_SCALE_COUNT,
     ("columns", _EACH, "suppressed_numbers", "mean"): _MAYBE_NUMBER,
-    ("columns", _EACH, "suppressed_numbers", "spread"): _MAYBE_NUMBER,
     ("columns", _EACH, "level_ceiling"): _COUNT,
     # The numeric roles.
     ("columns", _EACH, "percentiles"): _OBJECT,

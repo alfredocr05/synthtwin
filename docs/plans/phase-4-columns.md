@@ -18820,3 +18820,231 @@ something:
   published again. It costs the published spread, which is what method
   G12.12's window is drawn from, so the window would have to be derived
   some other way — a landing of its own, with its own review.
+
+## Decision P4-D302 — the pool publishes its MEAN and not its spread (2026-09-21)
+
+**THE OWNER'S DECISION**, taken on the two ways plan P4-D301 priced for
+them: **publish the mean and not the spread.** They were shown that
+publishing both lets a reader solve for the held-back values when the
+pool is tightly spaced — the reproduction's published spread was exactly
+the smallest a pool of ten distinct whole numbers can have, which forces
+them to be ten consecutive numbers, and the mean then says which ten —
+and that the mean alone is one equation over as many unknowns as the
+pool has different values. **They were told the cost in these words and
+accepted it: "the validator's window for that column is drawn from the
+spread, so the check that the twin actually met the scale becomes
+weaker. Statistics improve, verification weakens."** They also asked for
+it to be fixed on their own shape: 100 `alpha`, twenty `100`, ten each of
+200 to 209 at a floor of eleven, where the real numeric mean is
+187.083333 and the twin's was 100.
+
+**WHAT IS PUBLISHED.** Contract 6.3.3 now carries TWO keys and no third:
+`suppressed_numbers.n_cells` and `suppressed_numbers.mean`.
+`n_cells` stays LOADER-ONLY and `mean` is APPROXIMATED under the window
+method G12.12 draws. The `spread` key is gone from the format.
+
+**WHICH OF THE FOUR REFUSALS SURVIVE — MEASURED, and the answer is
+NONE OF THEM AS ITSELF.** Plan P4-D301 guarded the pair with four
+producer refusals. All four were asking one question badly: how many
+populations fit what the description says. With a mean alone that
+question is counted outright rather than approximated by a proxy, and
+`taxonomy._arrangements` counts it exactly.
+
+| the old refusal | what became of it |
+|---|---|
+| at least six held-back numeric levels | replaced. The count stood in for "more unknowns than equations"; with one equation the protection is ROOM. A pool of ONE different number has exactly one arrangement and is still refused, which is where the arity that mattered went |
+| the pool's spread above nought | replaced, and it is the one-arrangement case of the rule above: one value in every cell means the mean IS that value. Nothing publishes a spread for the loader to re-ask, so this guard is the producer's alone now, stated in 6.3.3 |
+| the pool not at the tightest arrangement its values could take | WITHDRAWN, with the number that withdrew it. The owner's own shape leaves 429,466,368,887,745,697 sets of ten different whole numbers sharing its mean over the thousand places its column's width allows. Over twenty-five random pools at each level count, a family drawn AT the tightest arrangement leaves a median of 189, 45,757 and 6,318,400 answers at two, three and four levels, against a loose family's 224, 47,502 and 4,219,740. The rule bought nothing once the spread was gone |
+| the pool fitting inside the width the column shows | WITHDRAWN, by proof and not by measurement. What a description now states is the MEAN; every arrangement stands on the grid inside that width, so a mean beyond it has no arrangement at all and the room rule answers nought. What the width rule still refused was a pool holding one wide value beside small ones — 1, 5 and 2089 beside a three-figure column, mean 698.33 — which a twin writes exactly. Measured over 200,000 random pools at four widths: not one had a mean the twin could not write and room enough to publish, while 2,915 were refused with a mean it could |
+
+**AND ONE RULE REPLACES THEM: THE ROOM THE MEAN LEAVES THE VALUES.**
+`taxonomy._arrangements` counts how many sets of `k` different places on
+the pool's own grid, inside the range the column's width and sign
+census allow, add up to what the mean and the cell count say the pool
+adds up to. It is a Gaussian binomial coefficient, walked one factor at
+a time, checked against an exhaustive count of every subset over 980
+cases at four range sizes and seven level counts. The bound is
+`_POOLED_SCALE_ROOM`, **a thousand arrangements** — the level rule of
+six it replaces was accepted with a measured median of 118 and two pools
+of twenty-five down to four answers, and this asks a thousand of every
+pool rather than a median of the family.
+
+**WHAT THE COUNT OF LEVELS NEVER SAW.** Six different ONE-FIGURE
+numbers beside a published one-figure number passed every one of the
+four old rules and are named to within SIXTEEN answers: six of the ten
+one-figure numbers there are. Measured over every pool of one-figure
+numbers at every level count from one to seven, the smallest count of
+surviving arrangements is ONE. That shape published a pooled mean before
+this decision and does not now.
+
+**THE PROOF THE VALUES CANNOT BE RECOVERED** was taken the way the last
+pass proved they could: by counting, over the whole range the width
+allows, with the sizes given to the reader and the values taken as whole
+numbers, which is the coarsest grid and so the fewest answers. **Seventy-
+two shapes were run through the whole product** — the owner's own, eleven
+others built to reach a named rule, and sixty randomised label columns —
+and fifteen of them publish a pool. Counted exactly, the smallest number
+of surviving arrangements across every published pool is **1,224**, on a
+three-level pool of whole numbers beside a two-figure published number.
+**Not one shape came back with a single arrangement.** The owner's own
+shape leaves 429,466,368,887,745,697. The fifty-seven shapes the
+producer refuses reach the same state as a column with no held-back
+number at all, so a reader cannot tell a refusal from a silence.
+
+**WHAT THE VALIDATOR CHECKS NOW.** Method G12.12 is ONE obligation and
+no longer two. Its window is `taxonomy.pooled_window`: a fifth of the
+REACH, which is the largest magnitude the description states for this
+column's numbers — the largest of its published numbers, or the pool's
+own mean where it publishes none. It is measured rather than chosen:
+over ten shapes whose description publishes a pool and whose twin
+publishes one back, the furthest a conforming twin's own pooled mean
+stood from the published one was one part in eleven of that reach; the
+window is one part in five. The defect stands at one part in two.
+
+**IT IS NOT A BLANKET EXCUSE, and that is measured three ways on the
+owner's own shape.** As built the twin's pool sits on 204.5 and the check
+passes. With G8.3c's placement withdrawn the twin's pool sits at 100 and
+`validate` exits 3 on `suppressed.numbers.mean` while the real table
+exits 0. With the twin's pooled population shifted off its own
+centre — its pool at 264.5 against a window of 40.9 either side of
+204.5 — it exits 3 again, and the boundary is exactly where the rule
+puts it: a shift to 244.5 passes and one to 264.5 does not. With the
+window widened without bound the first mutant passes, which is what
+shows the window and not some other obligation is doing the work.
+
+**AND THE CHECK STOPPED BEING VACUOUS.** While the pool published a
+spread, the producer refused a pool at the tightest arrangement, G8.3c
+wrote exactly that arrangement, and every twin this product wrote
+published no pool of its own — so both obligations were WITHHELD on
+every file and plan P4-D301 said so. A mean names no arrangement, so a
+twin's own description publishes its pool and the comparison happens.
+
+**WHAT IS NO LONGER CHECKED, said plainly.** No check in this product,
+and no line of any report it writes, now says anything about how far
+apart a file's held-back numbers lie. A twin whose pool sits at the
+published average and is spread a tenth as wide as the real column's
+meets every obligation and meets them honestly, because no published
+fact was missed. The generation report's held-back note says so to the
+person in words: an average over this column's numbers IS about their
+table, a spread is not.
+
+**THE GENERATOR.** Method G8.3c step 2 no longer reads a spacing from
+the description, because there is none to read. It chooses one, and the
+choice is stated: `_POOLED_LOOSENESS` places of the finest grid the
+ladder writes at, held inside the room the column's own published
+numbers leave, and down to an odd whole number of places. Measured:
+
+| places apart | K-2B-19 | the owner's shape: mean error, spread error, held-back cells rebuilt |
+|---|---|---|
+| 1 | 62 | 0.0000, 0.0000, 100 of 100 |
+| 2 | 62 | 0.4167, 0.4480, 50 |
+| 3 | 63 | 0.0000, 0.6983, 40 |
+| 5 | 63 | 0.0000, 2.0593, 20 |
+| 7 | 63 | 0.0000, 4.0202, 20 |
+
+At one place the twin's pool comes back AS the table's, which is the
+"suspiciously tight" the landing brief names: a pool of consecutive
+whole numbers IS the tightest arrangement, and the mean pins where it
+starts. Five is odd, which keeps the written mean exactly on `mu` where
+the offsets are half-integers, and it halves again what a twin hands
+back. The room bound is what stops a pool of many levels reaching a long
+way: eighty groups five places apart on a column of integers around 120
+spanned four hundred and the twin's numeric spread came back 77.6
+against the table's 20.4; held inside the room it comes back within 2.61.
+
+**WHAT IT COSTS ON K-2B-19, and the owner is told rather than the
+ceiling moved quietly.** The accepted limit is 55 of 251 held-back cells
+the twin reproduces exactly, on a committed sweep of nineteen columns.
+It goes to **63 of 251**, with the count of columns rebuilt whole
+unmoved at 1 of 19. The cause was isolated: exactly ONE of the nineteen
+columns publishes a pool under contract 6.3.3, and withdrawing method
+G8.3c's placement alone puts the number back at 55. **This needs the
+owner's acceptance.**
+
+**WHAT THE READER IS STILL LEFT WITH, stated rather than waved away.**
+`suppressed_levels` with `suppressed_rows` pins the held-back levels'
+sizes wherever the pool stands at the top of invariant B4's band, and
+`n_cells` equal to `suppressed_rows` says every held-back level holds a
+number. Nothing here rests on either. A cell count and a mean over a pool
+whose values have at least a thousand arrangements leave a SET of
+populations and not a point; it is not a continuum, and no rule here
+makes it one while the held-back values are whole numbers.
+
+## Decision P4-D303 — the window on the pooled mean is counted in PLACES (2026-09-21, repair pass)
+
+**THE BLOCKER THIS CLOSES**, found by the review of plan P4-D302's
+landing. Method G12.12's window on `suppressed_numbers.mean` was a fifth
+of the largest magnitude the column's description stated — the largest
+of its published numbers, or `|mu|` where it published none. **A
+column's published number has nothing to do with its pool.** Measured on
+an ordinary shape, 100 `alpha`, twenty `990` and ten each of 940 to 949
+at a floor of eleven: the published `990` drew a window of 198.0 around
+a pooled mean of 944.5, and **the very defect ledger K-2B-50 names** —
+method G8.3c's placement withdrawn, the twin's pool back at 990.0 and
+its numeric mean 990.000 against the table's 952.083 — **passed inside
+it and the file exited clean.** The landing's single window test stood
+on the owner's own shape, where the reach and `|mu|` happen to coincide.
+
+**THE WINDOW IS DRAWN FROM THE GRID**, which is the one thing left that
+says how exactly a placement can meet a mean: TWO PLACES of the coarsest
+grid the column's description writes its numbers at — the fewest decimal
+places any number it publishes was written with — and whole numbers
+where it publishes none, which is the coarsest grid there is and the
+widest the window ever becomes. A mark this reader takes for a grouping
+mark answers nought places, which widens the window rather than
+narrowing it; a window read too narrow would call a sound twin missed.
+
+**WHY THE GENERATOR HAD TO MOVE FIRST.** A window counted in places is
+unmeetable while a conforming twin can stand a fifth of its published
+mean away, and it could: where a rule of G8.3c step 3 refuses every
+spelling near a group's value the offer steps outward until one is
+accepted, however far that is. Measured on 200 `alpha`, thirty `48.0`
+and five held-back one-decimal levels whose census names `%%.%`, the one
+group owing no form was refused every two-figure one-place spelling
+there is and the offer walked four hundred and twenty-eight places to
+`9.9`: the pool came back at 45.14 against a published 53.72, on a twin
+that broke no other rule.
+
+**SO G8.3c GAINED STEP 4: several offers, and the best one is written.**
+The plain offer of steps 1 to 3; then up to three MOVED offers, each
+standing where the one before it would have had to stand for its own
+cells to average `mu` (a plain fixed-point step, which slides the pool
+and keeps its arrangement); and last the CARRIED offer, in which the
+groups carry each other's arrears and the group the census pushes
+furthest goes first. **It is a repair and not a preference:** it does
+not run where the plain offer already meets the window, and it stops at
+the first offer that does, because moving a pool already inside the
+window buys nothing and moves the twin's numbers. **The plain offer is
+among them, so step 4 cannot make a twin worse.**
+
+**MEASURED, and both kinds of offer earn their place.**
+
+| measurement | before | after |
+|---|---|---|
+| furthest a conforming twin's own pooled mean stood from the published one, over 551 publishing pools (the landing's twelve shapes, the blocker's family and four draws of 150 randomised pools at four widths, two grids, both signs and mixed grids) | a FIFTH of the published mean | a THIRD of one place of the column's grid |
+| the K-2B-50 defect on 100 `alpha`, twenty `990`, ten each of 940–949 | error 45.5 against a window of 198.0 — **exit 0** | error 45.5 against a window of 2 — **exit 3** |
+| the K-2B-50 defect on the owner's own shape | error 104.5 against a window of 40.9 — exit 3 | error 104.5 against a window of 2 — exit 3 |
+| publishing pools outside the window, per draw of ~115 randomised pools | — | 0 |
+
+With the CARRIED offer withdrawn, four to five pools per draw came back
+outside the window, a dense one-decimal pool at sixteen places out,
+because no slide helps when the column's unused spellings near the mean
+are spent. With the MOVED offers withdrawn, a dense pool ran the arrears
+away instead of closing them: 2,500 one-decimal readings at a floor of
+twenty, whose 43 held-back levels leave almost no unused tenth, asked
+its last group for 44.92 on a column whose numbers run from 5.1 to 9.3
+and came back at 4.17 against a published 6.79.
+
+**WHAT THIS DOES NOT CHANGE.** Nothing published moves: contract 6.3.3
+still carries two keys and no third, the producer's room rule is
+untouched, and no check anywhere says how far apart a file's held-back
+numbers lie. The owner's own shape is placed exactly as P4-D302 placed
+it — step 4 does not run on it — so ledger K-2B-50's every measured
+value is unmoved.
+
+**WHAT IS STILL OWED.** No frozen case of any vectors file reaches step
+4: `pooled_number_scale`'s plain offer already meets its window, so the
+oracle's mirror of step 4 is held up by no committed byte. The rule is
+held by `tests/test_pooled_number_scale.py` and its mutation checks
+instead, and a frozen case that reaches step 4 — a column whose census
+pushes one pooled group a long way — is the next pass's work.

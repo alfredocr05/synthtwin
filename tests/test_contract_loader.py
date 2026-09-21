@@ -868,37 +868,35 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             # B4d, A POOLED SCALE TAKEN OVER TOO FEW CELLS (plan
-            # P4-D301, ledger K-2B-50). Section 6.3 publishes the mean
-            # and the population spread of the numbers the floor held
-            # back, and they are safe only because the pool they are
-            # taken over is a group: a mean over three cells is three
-            # people's values averaged, and over one it IS that value.
-            # The census line is asked here as it is of every other
-            # census this format carries.
+            # P4-D302, ledger K-2B-50). Section 6.3 publishes the mean
+            # of the numbers the floor held back, and it is safe only
+            # because the pool it is taken over is a group: a mean over
+            # three cells is three people's values averaged, and over
+            # one it IS that value. The census line is asked here as it
+            # is of every other census this format carries.
             "B4d", "a pooled scale taken over fewer cells than the line",
             edit(
                 "region",
-                suppressed_numbers={
-                    "n_cells": 3, "mean": 5.0, "spread": 1.0
-                },
+                suppressed_numbers={"n_cells": 3, "mean": 5.0},
             ),
         ),
         Mutation(
-            # B4d, A POOLED SCALE OF NO SPREAD (repair pass of
-            # 2026-09-21). A pool whose spread is nought holds ONE value
-            # in every cell it speaks of, so its mean IS that value and
-            # the block hands over what the floor held back. The
-            # producer refuses to write one -- four spellings of five
-            # are four levels and one number -- and this is the loader's
-            # half, so a hand-written description cannot carry one
-            # either. The count and the census line are untouched here:
-            # only the spread is.
-            "B4d", "a pooled scale whose spread is nought",
+            # B4d, A MEAN SPOKEN OVER NO CELLS AT ALL (owner's decision
+            # of 2026-09-21, plan P4-D302). Silence is total: where the
+            # count is nought the mean is absent, and where it is not
+            # the mean is written. A block that spoke one without the
+            # other would say by its shape what the count is for.
+            #
+            # THIS ENTRY REPLACES THE ONE THAT ASKED FOR A SPREAD ABOVE
+            # NOUGHT, and the replacement is a loss named rather than
+            # hidden: no spread is published any more, so no loader can
+            # refuse a hand-written pool of one value whose mean IS that
+            # value. Contract 6.3.3 says so, and the producer's own
+            # refusal is the only guard left for it.
+            "B4d", "a pooled mean spoken over no cells at all",
             edit(
                 "region",
-                suppressed_numbers={
-                    "n_cells": 65, "mean": 5.0, "spread": 0.0
-                },
+                suppressed_numbers={"n_cells": 0, "mean": 5.0},
             ),
         ),
         Mutation(

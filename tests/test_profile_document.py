@@ -464,17 +464,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # ledger K-2B-50), and the ONE key added is the whole of the difference.
 # The four label columns -- `region`, `answer`, `batch` and `note` --
 # gained `suppressed_numbers`, the scale of the numbers the floor held
-# back, and every one of them publishes the state that says nothing:
-# `{"n_cells": 0, "mean": null, "spread": null}`, because none of their
-# held-back levels holds a number. MEASURED by this file's own
-# procedure: these bytes with that one key deleted from those four
-# columns hash to
-# 1eb70ad1a43fb80404b1e88a4c161871f09cd5e33315934d203f9f21373a005c,
-# the digest this one replaces. No other key moved, and the twin digest
-# in tests/test_twin_golden.py did not move at all -- the generator is
-# handed one more key and writes exactly what it wrote before.
+# back, and every one of them publishes the state that says nothing,
+# because none of their held-back levels holds a number.
+# RE-RECORDED AGAIN BY THE OWNER'S DECISION OF 2026-09-21 (plan
+# P4-D302), and ONE KEY REMOVED from inside it is the whole of this
+# difference: `suppressed_numbers` carried `n_cells`, `mean` and
+# `spread`, and the spread is withdrawn, so those four columns now read
+# `{"n_cells": 0, "mean": null}`. No other key moved, and the twin
+# digest in tests/test_twin_golden.py did not move at all -- none of
+# this demonstration's columns publishes a pooled scale, so nothing
+# placed any of its made-up numbers before or after.
 GOLDEN_SHA256 = (
-    "cebcd806b9a3ac3dd1e9b313ce28c66ce87f220fc41594806c2272681587fe85"
+    "d77dedf9a06f2e79a1f951333ef6ef10969f8b433b79bbb5d8cdc22b582ec0bc"
 )
 
 

@@ -1548,7 +1548,7 @@ or zero. Every one of these is empty or zero, and this list is the
 whole of it:
 
 `suppressed_levels`; `suppressed_rows`; the `n_cells` of every
-`suppressed_numbers` block, whose `mean` and `spread` are then `null`;
+`suppressed_numbers` block, whose `mean` is then `null`;
 every `variants_withheld` block; `n_sentinel_candidates_unpublished`;
 `n_missing_withheld`; and the `(withheld)` ENTRIES of
 `missing_by_class`, `utc_offsets`, `datetime_separators`,
@@ -4221,21 +4221,35 @@ multiplicity map.
 
 #### 6.3.3 The scale of the held-back numbers
 
-An object with exactly these THREE keys. A loader refuses a block that
+An object with exactly these TWO keys. A loader refuses a block that
 carries any other key inside it, or that is missing one of these.
 
 | key | JSON type | meaning |
 |---|---|---|
 | `n_cells` | integer ≥ 0 | how many cells of the held-back levels read as numbers — nought where the block says nothing |
 | `mean` | number or null | the arithmetic mean of those cells |
-| `spread` | number or null | their POPULATION standard deviation, divided by `n_cells` and not by one less |
 
-**THE SPREAD IS THE POPULATION ONE AND NOT A SAMPLE ESTIMATE.** What it
-describes is the whole of a pool this document itself delimits, not a
-draw from something larger, so dividing by one less than the count
-would describe a population nobody has.
+**THE POPULATION SPREAD THAT STOOD BESIDE THEM IS WITHDRAWN, by the
+owner's decision of 2026-09-21 (plan P4-D302), and this section is
+written from that decision rather than amended into it.** The landing
+of 2026-09-21 published a cell count, a mean and a population spread.
+A mean and a spread are TWO equations over the pool's values, and two
+equations over a pool packed as closely as its own grid allows leave
+ONE arrangement: the reproduction ledger K-2B-50 is measured on
+published a spread of 2.8722813232690143, which is exactly
+`sqrt((10 × 10 − 1) / 12)`, the smallest a pool of ten distinct whole
+numbers can have — so its ten held-back values came back as 200 to 209
+by arithmetic from the description. A mean alone is ONE equation over
+as many unknowns as the pool has different values.
 
-**WHAT MAKES THESE THREE SAFE TO PUBLISH IS THAT THEY ARE TAKEN OVER A
+**WHAT IT COSTS IS STATED WHERE IT IS PAID.** Method G12.12's window
+was drawn from the published spread; it is drawn from the column's own
+published magnitudes instead, and NO CHECK ANYWHERE now says anything
+about how far apart a file's held-back numbers lie. The owner was told
+this in those words and accepted it: statistics improve, verification
+weakens.
+
+**WHAT MAKES THESE TWO SAFE TO PUBLISH IS THAT THEY ARE TAKEN OVER A
 GROUP**, and that is asked rather than assumed. The producer asks
 `parsing.census_nameable` with `n_cells` as the one count it would
 print and the column's `n_numeric` as the population a reader can
@@ -4247,161 +4261,136 @@ cell's value written under the name `mean`; a pool leaving one
 published numeric cell behind hands that cell over by subtraction. Both
 are refused.
 
-**AND THREE PRODUCER OBLIGATIONS, two of which the loader cannot
-re-ask.** The census rule above asks whether the pooled COUNT names a
-group. These ask three further questions it does not: whether the two
-aggregates name a VALUE, whether they name one outright, and whether
-any file could meet them.
+**AND ONE PRODUCER OBLIGATION, WHICH THE LOADER CANNOT RE-ASK: THE
+PUBLISHED MEAN MUST LEAVE THE VALUES ROOM TO MOVE.** The census rule
+above asks whether the pooled COUNT names a group. This asks whether
+the MEAN names a value, and it asks it by counting.
 
-**THE POOL MUST HOLD SIX HELD-BACK NUMERIC LEVELS OR MORE.** A mean and
-a spread are two equations. The values of the held-back levels are the
-unknowns, and their SIZES are not unknown wherever `suppressed_levels`
-over `suppressed_rows` leaves one split of invariant B4's band — which
-is every pool standing at the top of that band, the commonest shape
-there is. So what protects the values is only that there are more of
-them than there are equations, and how much protection that is was
-COUNTED. Over twenty-five random pools of distinct whole numbers at each
-level count, with the sizes given to the reader and the search taken
-thirty either side of the pool, the whole solution set is:
+**THE COUNT, EXACTLY.** Take the numbers the pool holds: `k` different
+ones, standing on the grid its own values stand on — the closest two of
+them stand, which is the coarsest grid the producer can read off them
+and so the fewest answers — inside the places the column's width and
+its sign census allow. How many SETS of `k` different places add up to
+what the mean and the cell count say the pool adds up to? Choosing `k`
+different places out of `n` with a fixed sum is the same question as
+splitting the room the pool has above the smallest such sum into at
+most `k` parts, none larger than `n − k`, and the number of those is
+one coefficient of a Gaussian binomial. `taxonomy._arrangements` walks
+it, checked against an exhaustive count of every subset over 980 cases
+at four range sizes and seven level counts. The count is symmetric
+about the middle of its own range and never falls on the way up, so the
+walk folds the room to the nearer end and stops at 256 steps of it: past
+that, the answer is a floor rather than the total, and a caller
+comparing against a bound is answered either way.
 
-| held-back numeric levels | pools solved outright | pools down to four answers | median answers |
+**THE BOUND IS A THOUSAND ARRANGEMENTS** (`taxonomy.
+_POOLED_SCALE_ROOM`). MEASURED, over twenty-five random pools of
+distinct whole numbers at each level count, with the sizes given to the
+reader and the search over every value the column's own width allows:
+
+| held-back numeric levels | solved outright | down to four | median arrangements |
 |---|---|---|---|
-| 3 | 17 of 25 | 25 of 25 | 1 |
-| 4 | 1 of 25 | 15 of 25 | 3 |
-| 5 | 1 of 25 | 6 of 25 | 8 |
-| 6 | none | 2 of 25 | 118 |
-| 7 | none | none | 252 |
+| 1 | 25 of 25 | 25 of 25 | 1 |
+| 2 | none | none | 224 |
+| 3 | none | none | 47,502 |
+| 4 | none | none | 4,219,740 |
+| 5 | none | none | 457,634,000 |
+| 6 | none | none | 76,176,700,000 |
 
-**THE THREE-LEVEL RULE THIS REPLACES WAS UNSOUND**, and the pooled-scale
-landing of 2026-09-21 shipped it before the repair pass of the same day
-measured it. The reproduction is 200 `yes`, thirty `1` and ten each of
-44, 46 and 48 at a floor of eleven: three levels over thirty rows with
-every level under eleven admits the sizes (10, 10, 10) and no others,
-`n_cells` equal to `suppressed_rows` says all three hold numbers, and a
-search over whole numbers returns (44, 46, 48) and nothing else. Every
-held-back value named, by the block written to protect them.
+The level rule of six this replaces was accepted with a measured median
+of 118 arrangements and two pools of twenty-five down to four answers;
+a thousand is asked of EVERY pool rather than of the family's median.
 
-**AND THE POOL MUST STAND CLEAR OF THE TIGHTEST ARRANGEMENT ITS OWN
-VALUES COULD TAKE.** The level count above is not enough, and the proof
-is the landing's own reproduction. Two equations leave a family only
-where the values have ROOM TO MOVE; where they are packed as closely as
-their own grid allows there is one such arrangement up to where it
-starts, and the mean says where. The reproduction published a spread of
-2.8722813232690143, which is exactly the smallest a pool of ten distinct
-whole numbers can have — `sqrt((10 × 10 − 1) / 12)` — so its ten
-held-back values come back by arithmetic as 200 to 209, every one of
-them. So does any evenly spaced pool: an even pool IS the tightest
-arrangement of its own grid, and the spread fixes the spacing.
+**THE FOUR RULES THIS ONE REPLACES, and why each goes.** The landing of
+2026-09-21 guarded the mean and the spread with four producer refusals.
+All four asked one question badly.
 
-The producer therefore measures the pool's population variance against
-the smallest one a pool of that many distinct values at those sizes
-could have, at the closest spacing the pool's own values show, and
-publishes nothing below a stated multiple of it. **MEASURED**, over
-sixty real pools of ten distinct whole numbers with the sizes given to
-the reader and the mean exact, counting how many OTHER pools share the
-published pair:
+1. **A pool of SIX held-back numeric levels or more.** The count was
+   standing in for "more unknowns than equations". With one equation
+   the protection is room and not arity, and the room is counted.
+2. **A pool with a spread above nought.** Nothing publishes a spread,
+   so there is nothing to ask. Its reason — every level of a pool is a
+   different FOLDED value but different folded values can be the same
+   NUMBER, so `5`, `5.0`, `05` and `5.00` are four levels and one five,
+   whose mean IS what each of those cells held — is the ONE-arrangement
+   case of the rule above, and is refused there.
+3. **A pool standing clear of the tightest arrangement its own values
+   could take.** WITHDRAWN, with the number that withdrew it. The
+   tightest arrangement is what a published SPREAD names outright; a
+   mean names no arrangement at all. Measured: the owner's own shape,
+   ten consecutive whole numbers, leaves 429,466,368,887,745,697 sets
+   of ten different whole numbers sharing its mean over the thousand
+   places its column's three-figure width allows, and over the same
+   twenty-five pools at each level count a family drawn AT the tightest
+   arrangement leaves a median of 189, 45,757 and 6,318,400 answers at
+   two, three and four levels against a loose family's 224, 47,502 and
+   4,219,740. The rule bought nothing once the spread was gone.
+4. **A pool fitting inside the width the column shows.** WITHDRAWN, and
+   this one by proof. Method G8.3a step 3 allows no made-up number more
+   figures before the mark than the widest the column publishes, so a
+   SCALE wider than that was an obligation no conforming twin could
+   meet. What a description now states is the MEAN, every arrangement
+   stands on the grid inside that width, so a mean beyond it has no
+   arrangement at all and the count above is nought. What the width
+   rule still refused was a pool holding one wide value beside small
+   ones — 1, 5 and 2089 beside a three-figure column, whose mean is
+   698.33 — and that mean is one a twin writes exactly. Measured over
+   200,000 random pools at four widths: not one had a mean the twin
+   could not write and room enough to publish, while 2,915 were refused
+   with a mean it could.
 
-| variance against the tightest | other pools sharing the pair |
-|---|---|
-| 1.00 (the tightest arrangement) | none — the pool is named |
-| 1.78 | 1 |
-| 2.45 | 28 |
-| 2.89 / 2.96 / 3.13 | 52 / 19 / 59 |
+**WHAT THE COUNT OF LEVELS NEVER SAW, and this rule does.** A pool of
+six different ONE-FIGURE numbers beside a published one-figure number
+passed every one of the four rules above: six levels, a spread of 2.75,
+and a looseness well past two and a half times the tightest. Six
+different one-figure numbers are six of the ten there are, and the mean
+says which six to within SIXTEEN answers. Measured over every pool of
+one-figure numbers at every level count from one to seven, the smallest
+count of surviving arrangements is ONE — a pool standing against either
+end of the range its width allows is named whatever its level count.
+What protects the values is ROOM, and the room is what is counted.
 
-**THE MULTIPLE IS 2.5**, and `taxonomy._POOLED_SCALE_LOOSENESS` carries
-it with the measurement. **What this costs is the whole of the shape
-ledger K-2B-50 names**: that column publishes no scale any more and the
-entry is OPEN again. What it leaves is the pools whose values are spaced
-unevenly enough that the pair names nothing, and on those the placement
-of method G8.3c is worth what it was measured at — a numeric mean 0.0002
-and a spread 0.0651 from the table's own, against the 50 and more they
-stand away without it.
-
-**AND THE CHECK ON THIS FACT IS VACUOUS WHILE THAT RULE STANDS**, stated
-here rather than left to be found. Method G8.3c spaces the twin's groups
-evenly, which is the tightest arrangement, so a twin's OWN description
-publishes no pool and method G12.12's two obligations close their gate
-and are WITHHELD on every file this product writes. Reading that closed
-gate as a miss was measured and withdrawn: it states an obligation no
-conforming twin can meet. What closes it is G8.3c placing the pool as
-loosely as the published pair allows, which is a change to the generator
-and not to this section.
-
-**THE POOL MUST FIT INSIDE THE WIDTH THE COLUMN SHOWS**, wherever the
-column shows a number at all. Method G8.3a step 3 allows no made-up
-number more figures before the decimal mark than the widest number the
-column publishes, and G8.3c is held to the same bound, so a pool wider
-than that is a scale the generator is FORBIDDEN to write — and
-publishing it states an obligation no conforming twin could meet.
-Measured at a floor of eleven: 300 `hold` beside twenty `7` and five
-each of 1000000 to 5000000 published a mean of 3000000 and a spread of
-1414213.562373095, its twin's own pool stood at 6.68 and 1.434 because
-one figure is all `7` allows, and `validate` exited 3 on the twin while
-the real table exited 0. Over a sixty-shape sweep of a common word
-beside one published number and three to six rare numeric levels, 52 of
-120 runs did that; after the rule, none did. **Where the column
-publishes NO number the bound does not apply**: the ladder is then
-unanchored, the generator takes its width from the scale itself, and a
-long tail of readings beside notes comes back at 7.1047 and 2.0213
-against the table's 7.0741 and 2.0928.
-
-**THE LOADER DOES NOT RE-ASK EITHER OF THOSE TWO**, and that is a
-decision rather than an omission: how many of the held-back levels hold
-numbers, and how wide they were written, are not published facts, and
+**THE LOADER DOES NOT RE-ASK IT**, and that is a decision rather than an
+omission: how many of the held-back levels hold numbers, what grid they
+stand on and how wide they were written are not published facts, and
 publishing them so the loader could check them would be further numbers
-about the pool — a worse trade than leaving two rules to the producer,
+about the pool — a worse trade than leaving the rule to the producer,
 which is the trade invariants B4b and B4c already make for the level
-pass.
-
-**THE POOL MUST HAVE A SPREAD, AND THIS ONE THE LOADER DOES RE-ASK**
-(invariant B4d). Every level of a pool is a different FOLDED value, but
-different folded values can be the same NUMBER: `5`, `5.0`, `05` and
-`5.00` are four levels and one five. There the mean IS the value of
-every cell the pool speaks of and the spread says so outright. Measured
-at a floor of eleven on 200 `blank` beside forty `3` and eight each of
-those four spellings: the block published 32 cells at mean 5.0 and
-spread 0.0, and the plain-language page a person reads and shares
-printed "of those, the ones that were numbers: 32 cells, average 5.0,
-spread 0.0" over thirty-two cells the floor was holding back. The
-producer refuses to write one and invariant B4d refuses one in a
-description the producer did not write.
+pass. **What the loader LOST with the spread is named rather than
+left**: invariant B4d used to re-ask that a published spread stood above
+nought, which stopped a HAND-WRITTEN description carrying a pool of one
+value. Nothing here stops one now. The producer refuses to write one and
+the producer is the only guard.
 
 **NOUGHT IS THE ONE STATE THIS BLOCK SAYS NOTHING WITH**, and it is
 reached several ways on purpose: by a column whose held-back levels hold
 no number at all, and by a column where any of the questions above was
 answered no. A refusal a reader could tell apart from nought would
 itself publish that the pool holds numbers and how few of them — the
-count the floor exists to withhold. `mean` and `spread` are `null`
-together exactly there.
+count the floor exists to withhold. `mean` is `null` exactly there.
 
-**WHAT IT STILL LETS A READER NARROW, stated rather than waved away,
-and the earlier statement of it was FALSE.** Until the repair pass of
-2026-09-21 this paragraph rested the publication on two claims —
-"neither the levels' sizes nor how many of them hold numbers is
-published" — and both are untrue. `suppressed_levels` with
-`suppressed_rows` pins the sizes wherever the pool stands at the top of
-invariant B4's band, and `n_cells` equal to `suppressed_rows` says that
-every held-back level holds a number. Nothing here rests on either any
-more.
+**WHAT IT STILL LETS A READER NARROW, stated rather than waved away.**
+`suppressed_levels` with `suppressed_rows` pins the held-back levels'
+sizes wherever the pool stands at the top of invariant B4's band, and
+`n_cells` equal to `suppressed_rows` says that every held-back level
+holds a number. Nothing here rests on either. What a reader is left
+with is a cell count and a mean over a pool whose values have at least a
+thousand arrangements on their own grid — a SET of populations and not a
+point. It is not a continuum, and no rule here makes it one while the
+held-back values are whole numbers. What a reader can take is the
+SCALE of a group of at least `parsing.census_floor` cells: about where
+those rare numbers sat. That is the same class of fact as the pool's own
+two counts, and it is no wider than what the twin already gives them,
+because the twin writes its made-up numbers at that mean.
 
-What a reader is left with is this. `n_cells`, a mean and a spread are
-three numbers over a pool of six levels or more that stands at least
-two and a half times looser than the tightest arrangement its values
-could take, and the solution set is then a SET of tens of populations
-rather than a point. It is not a continuum, and no rule here makes it
-one while the held-back values are whole numbers. What a reader can take
-is the SCALE of a group of at least `parsing.census_floor` cells: where
-those rare numbers sat and how far apart they were. That is the same
-class of fact as the pool's own two counts, and it is no wider than what
-the twin already gives them, because the twin writes its made-up numbers
-at that scale.
-
-**AND IT COSTS THE OWNER'S ACCEPTED LIMIT NOTHING, measured.** Ledger
-K-2B-19 counts the held-back cells a twin reproduces exactly. The
-pooled-scale landing moved it from 55 of 251 to 125 and said so; with
-the three obligations above in place it is back at 55 of 251, with the
-count of columns rebuilt whole unmoved at 1 of 19. The limit the owner
-accepted on 2026-09-18 stands where they accepted it.
+**WHAT IT COSTS THE OWNER'S ACCEPTED LIMIT, measured.** Ledger K-2B-19
+counts the held-back cells a twin reproduces exactly. On its committed
+sweep of nineteen columns, ONE column publishes a pool under this
+section, and placing that column's made-up numbers on its published mean
+takes the count from 55 of 251 to 63, with the count of columns rebuilt
+whole unmoved at 1 of 19. Withdrawing method G8.3c's placement puts it
+back at 55, which is how that was measured. The owner is told rather
+than the ceiling moved quietly.
 
 #### 6.3.2 Label invariants
 
@@ -4548,12 +4537,14 @@ P4-D271 records the measurement and puts the question to the owner.
 6.3.3 speaks only of a group: `suppressed_numbers.n_cells` is nought,
 or `parsing.census_nameable([n_cells], [n_numeric], floor)` holds — the
 pool reaches `parsing.census_floor` and so does whatever the pool
-leaves of the column's numbers. `mean` and `spread` are written exactly
-where `n_cells` is above nought and are `null` together everywhere
-else, and a `spread` that is written is ABOVE NOUGHT — a pool of no
-spread holds one value in every cell it speaks of, so its mean is that
-value and the block hands over exactly what the floor was holding back
-(repair pass of 2026-09-21; 6.3.3 carries the measurement). Inside a compound column's label
+leaves of the column's numbers. `mean` is written exactly where
+`n_cells` is above nought and is `null` everywhere else. **The clause
+about a published SPREAD is gone with the spread** (owner's decision of
+2026-09-21, plan P4-D302): B4d used to re-ask that a written spread
+stood above nought, which stopped a hand-written description carrying a
+pool of one value whose mean IS that value, and no spread is published
+for it to ask about. That guard is the producer's alone now, and 6.3.3
+says so. Inside a compound column's label
 half the `n_numeric` beside it counts the OTHER half's numbers, so it
 is not a population this pool is subtractable from and the second
 clause is not asked there; the first still is. Measured at a floor of
@@ -11225,9 +11216,9 @@ rather than on the reasoning above it.
 | `n_distinct_folded` | EXACT-OBSERVABLE |
 | `n_distinct` | EXACT-OBSERVABLE where the published variants and the withheld-variant map supply enough spellings — the ordinary case; APPROXIMATED under the two-sided envelope only where they do not, with the report naming the profile's count beside the twin's. The envelope is G12.7 |
 | `level_ceiling` (`categorical` only) | LOADER-ONLY |
-| `suppressed_numbers` (all four label roles) | STRUCTURAL — the container's own key carries no VALUE obligation; its membership is the three keys below, and every one of them is disposed in its own right |
-| `suppressed_numbers.n_cells` | LOADER-ONLY: the loader reads it to ask `parsing.census_nameable` of the pool against the column's numbers (invariant B4d), and it puts no obligation on the twin — what the twin owes is the two aggregates below |
-| `suppressed_numbers.mean`, `suppressed_numbers.spread` | APPROXIMATED under the window G12.12 draws: half the published spread either side of the pooled mean and of the pooled spread. Method G8.3c places the pool's made-up numbers on the two aggregates and then rounds each value onto a place the column writes at, stepping outward wherever a spelling is refused, so the twin's own pool lands near the published scale rather than on it. The three keys it carries are floor-free in the sense every aggregate over a group is: `parsing.census_nameable` is asked of the pooled count against the column's numeric total before the block speaks at all, and where it answers no the block publishes nought and two nulls — the same state a column whose held-back levels hold no number publishes (plan P4-D301, invariant B4d) |
+| `suppressed_numbers` (all four label roles) | STRUCTURAL — the container's own key carries no VALUE obligation; its membership is the two keys below, and both are disposed in their own right |
+| `suppressed_numbers.n_cells` | LOADER-ONLY: the loader reads it to ask `parsing.census_nameable` of the pool against the column's numbers (invariant B4d), and it puts no obligation on the twin — what the twin owes is the aggregate below |
+| `suppressed_numbers.mean` | APPROXIMATED under the window G12.12 draws: `taxonomy.pooled_window` either side of the published mean, which is TWO PLACES of the coarsest grid this column's description writes its numbers at, and whole numbers where it publishes none. Method G8.3c places the pool's made-up numbers on the mean, rounds each value onto a place the column writes at, and makes the groups carry each other's arrears, so the twin's own pool lands within the grid's own rounding of the published mean rather than on it. The window was a fifth of the largest magnitude the description stated until this landing, which is a number that has nothing to do with the pool: on a column publishing `990` beside a pooled mean of 944.5 it admitted an error of 198.0, and the defect ledger K-2B-50 names passed inside it. The POPULATION SPREAD that stood beside it is withdrawn by the owner's decision of 2026-09-21 (plan P4-D302), so this row is one obligation and not two, and nothing in this document now asks a file how far apart its held-back numbers lie. Both keys are floor-free in the sense every aggregate over a group is: `parsing.census_nameable` is asked of the pooled count against the column's numeric total before the block speaks at all, and where it answers no the block publishes nought and a null — the same state a column whose held-back levels hold no number publishes (invariant B4d) |
 | `shape_forms` (all four label roles) | EXACT-OBSERVABLE against the recount identity 7.9 states: cells recounted at a named form number at least the published count and at most that count plus the pooled `(withheld)` value. It is met by the published spellings, which wear their own forms, then by the made-up spellings of each published label, whose forms are fixed by that level's own `shape_form_cells` (7.4.8), and then by the STAND-INS. The description used to say nothing about which held-back spelling of a label wore that label's form, so the census could fall short of the published count OR run past it; amendment A-P4-47 publishes the fact and closes residual R-P4-34. What can still fall short is the STAND-IN half, where a form's supply is spent or every spelling of it is refused, and the report names it |
 
 The first five rows bind `long_tail_labels` exactly as they bind the

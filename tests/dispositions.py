@@ -1578,11 +1578,12 @@ REGISTRY += [
     # THE SCALE OF THE HELD-BACK NUMBERS (plan P4-D301, ledger
     # K-2B-50). APPROXIMATED and not exact, and the difference is the
     # construction rather than a lowered bar: method G8.3c places the
-    # pool's made-up numbers on the published mean and spread and then
-    # rounds each onto a place the column writes at, stepping outward
-    # wherever a spelling is refused, so the twin's own pool comes back
-    # near the two numbers rather than on them. G12.12 draws the window
-    # and the validator holds the file to it.
+    # pool's made-up numbers on the published MEAN -- the owner's
+    # decision of 2026-09-21 withdrew the spread that stood beside it --
+    # and then rounds each onto a place the column writes at, stepping
+    # outward wherever a spelling is refused, so the twin's own pool
+    # comes back near that mean rather than on it. G12.12 draws the
+    # window and the validator holds the file to it.
     Fact(
         "label",
         "suppressed_numbers",
@@ -1600,13 +1601,6 @@ REGISTRY += [
     Fact(
         "label",
         "suppressed_numbers.mean",
-        APPROXIMATED,
-        plan_region="pooled-scale",
-        aliases=("pooled scale", "the pool's own scale"),
-    ),
-    Fact(
-        "label",
-        "suppressed_numbers.spread",
         APPROXIMATED,
         plan_region="pooled-scale",
         aliases=("pooled scale", "the pool's own scale"),

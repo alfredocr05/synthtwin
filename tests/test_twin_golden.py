@@ -204,7 +204,6 @@ WIDE_RUNS_FACT = "numeric.wide_runs"
 # them.
 POOLED_SCALE_FACTS = (
     "label.suppressed_numbers.mean",
-    "label.suppressed_numbers.spread",
 )
 
 LISTINGS_ADDED_SINCE = (
@@ -760,13 +759,9 @@ def test_widening_the_demonstration_lost_no_obligation(
         if any(fact in entry for fact in POOLED_SCALE_FACTS)
     ) == [
         "answer|label.suppressed_numbers.mean|suppressed.numbers.mean",
-        "answer|label.suppressed_numbers.spread|suppressed.numbers.spread",
         "batch|label.suppressed_numbers.mean|suppressed.numbers.mean",
-        "batch|label.suppressed_numbers.spread|suppressed.numbers.spread",
         "note|label.suppressed_numbers.mean|suppressed.numbers.mean",
-        "note|label.suppressed_numbers.spread|suppressed.numbers.spread",
         "region|label.suppressed_numbers.mean|suppressed.numbers.mean",
-        "region|label.suppressed_numbers.spread|suppressed.numbers.spread",
     ]
     # ...and the four the new key adds are the four it should, named
     # rather than counted: one per numeric-family column.
@@ -1361,8 +1356,19 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # digest this one replaces. The TWIN digest below did not move, which is
 # the other half of the same statement: the generator is handed one more
 # key and writes exactly what it wrote before.
+# RE-RECORDED BY THE OWNER'S DECISION OF 2026-09-21 (plan P4-D302), and
+# GOLDEN_TWIN_SHA256 DID NOT MOVE. The pool of held-back numbers
+# publishes a mean and no longer a population spread, so the DESCRIPTION
+# lost a key on each of this demonstration's four label columns, the
+# twin's REPORT lost the record that measured the spread and rewrote the
+# held-back sentence to say that an average over the column's numbers is
+# about the reader's table and a spread is not, and the QUALITY report
+# lost the obligation that compared the spread. Not one cell of the twin
+# moved: none of this demonstration's columns publishes a pooled scale
+# at all, so nothing placed any of its made-up numbers before or after.
+
 GOLDEN_DESCRIPTION_SHA256 = (
-    "c0031ee7d2c837e7cb396b8990c939604edc57d3f93ad40084a914a7e257775f"
+    "544cd155c1824540f065b20937efc443420a21d64963a7bed568146a81123a61"
 )
 
 
@@ -2127,7 +2133,7 @@ GOLDEN_REPORT_SHA256 = (
     # demonstration holds back WORDS, so all eight lines say that this
     # column publishes no such scale. The twin's own digest above did
     # NOT move, so not one cell of the twin changed with it.
-    "7b230c895d3ee7b85fb88b7198c22ae6679fae24d31465f1c6ec241983249b12"
+    "470b3fe3dde34358a16312220be5c7ff00e84eb0a112405f7b40c20a80616928"
 )
 
 
@@ -2828,7 +2834,7 @@ GOLDEN_QUALITY_SHA256 = (
     # checkable became 171. NO OBLIGATION LEFT the census and no verdict
     # moved; the description and twin digests above tell which of the
     # two inputs changed, and it is the description alone.
-    "3104d5a1f6150543dd3a5c30be15b95efe6e807f6acc969fa41d3e5c247640d3"
+    "a6bf2b45d78612472dcbfe7b978318a7623c53f05bcf01b76471cdf4fb4b1445"
 )
 
 
