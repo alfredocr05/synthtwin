@@ -218,74 +218,258 @@ def test_a_slashed_stamp_whose_every_mark_is_held_back_keeps_its_space(
     assert (twin_exit, real_exit) == (0, 0)
 
 
-def test_two_days_and_a_pooled_spelling_keep_the_kind_but_not_the_count(
+def test_two_days_and_a_pooled_spelling_keep_the_kind_and_the_count(
     tmp_path: pathlib.Path,
 ) -> None:
-    """DESIGNED NOT TO RETURN, pinned so a change to it is a visible decision.
+    """The absorbed mark is reached again, and the description is met (G7.9).
 
-    Sixty and sixty values at midnight on two days beside five `T` spellings of the
-    first day, at a floor of 11. The pool is written with the marks the
-    census leaves unnamed, and marks are given to ranks without regard to
-    value, so the pooled spellings land on both days: the column keeps
-    its kind -- it no longer reads back as a column of two values -- but
-    holds five different spellings where the real table held three. The
-    named count moves, and nothing says it moves except the distinct-count
-    window of the quality report.
+    Sixty and sixty values at midnight on two days beside five `T` spellings of
+    the first, at a floor of 11. Ruling 6 of 2026-09-17 counts the five `T`
+    into the commonest mark, so the census publishes `{space: 125}` and
+    THAT STANDS -- this landing does not reopen it.
+
+    WHAT THIS SHAPE USED TO COST (ledger K-2B-51, plan P4-D245, the
+    owner on 2026-09-21). Reading that census as an instruction about
+    the CELLS wrote 125 spaces over two days: two different values
+    where the description publishes three, a twin that read back as a
+    column of two values -- binary, not a column of dates -- and a
+    report saying the twin missed `axes.role`, `axes.statistical_type`
+    and `midnight.count` while the real file missed none. The tool told
+    the person the twin was wrong for doing what the description said.
+
+    WHAT IT COSTS NOW. The construction spends the SHORTFALL the
+    description itself publishes, `n_distinct_folded` less the
+    different folded spellings written -- one value here, never the
+    five the real column held, which is not published -- on a permitted
+    mark the census leaves unnamed, and it spends it below
+    `parsing.census_floor`, so the twin described again counts the mark
+    back into the commonest name and publishes the same census. The
+    column keeps its kind AND its count, and both files validate at
+    exit 0.
     """
     cells = ["2025-01-01 00:00:00"] * 60 + ["2025-01-02 00:00:00"] * 60 + ["2025-01-01T00:00:00"] * 5
     folder = tmp_path / "two-days"
-    first, second, _written, twin_exit, _real = _round_trip(
-        folder, _shuffled(cells, 1), ("--smallest-group", "11"), False, "0"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, _shuffled(cells, 1), ("--smallest-group", "11"), True, "0"
     )
     assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == ("datetime", 3, 3)
-    # SIX SINCE LANDING 2b.6, WHERE IT WAS FIVE, and the shape is still
-    # designed not to return. The pooled spellings are still given to
-    # ranks without regard to value, so they still land on both days;
-    # what changed is that the ranks themselves are drawn across the gap
-    # between the pinned values rather than each sitting in its own
-    # slice, so one more of the pooled marks falls on a day that did not
-    # already carry it. The column keeps its kind and the named count
-    # still moves -- by three spellings now rather than two -- and
-    # nothing says it moves except the distinct-count window.
-    #
-    # FOUR AND THREE SINCE PLAN P4-D220 (stage 2 closed by the owner
-    # rulings of 2026-09-17), and still designed not to return. The five
-    # `T` spellings were pooled beside 120 named spaces, which named the
-    # one mark they wore; every mark pools now, so the twin writes a space
-    # and a `t` on one value each and a `T` on the other 123, and those
-    # three marks over two days make four spellings where the real table
-    # held three.
-    #
-    # AND SINCE PLAN P4-D222 THE KIND DOES NOT COME BACK EITHER, a cost
-    # named here and in the plan (stage 2 closed by the owner rulings of
-    # 2026-09-17). The five `T` are counted into the spaces, so the twin
-    # writes every value with a space: two spellings of two days, which
-    # reads back as a column of two values, and its check misses the role.
-    # The third spelling is the one thing that made the table a column of
-    # dates, and it is five rows the census may not name.
+    # RULING 6 STILL ABSORBS, on both sides, and the two censuses agree.
     assert first["datetime_separators"] == {"space": 125}
-    assert (second["role"], second["n_distinct"]) == ("binary", 2)
-    assert twin_exit == 3
-    # HOW MUCH IT MISSES IS A CEILING NOW (round-2 ledger item 1,
-    # K-2B-51). The exit code alone said only that something was missed,
-    # so a twin missing four checks or five passed this line unchanged.
-    # Measured at 05e7d89 on seeds 0, 4 and 1 alike: the twin misses
-    # exactly these three and the real file misses none.
+    assert second["datetime_separators"] == first["datetime_separators"]
+    # THE THIRD SPELLING IS BACK, on exactly one value: the shortfall of
+    # one the description publishes, and not the five the table held.
+    marks: "dict[str, int]" = {}
+    for cell in written:
+        found = parsing.datetime_separator(cell, "iso-datetime")
+        assert found is not None, cell
+        marks[found] = marks[found] + 1 if found in marks else 1
+    assert marks == {"space": 124, "upper_t": 1}
+    assert len(set(written)) == 3 and len(written) == 125
+    # ...and it stays below the line the census could name it at, which
+    # is what keeps the published census true of the twin.
+    assert marks["upper_t"] < parsing.census_floor(11)
+    assert (second["role"], second["n_distinct"], second["n_distinct_folded"]) == (
+        "datetime", 3, 3,
+    )
+    assert (twin_exit, real_exit) == (0, 0)
+    # NOTHING IS MISSED ON EITHER SIDE NOW (ledger K-2B-51's target).
     loaded = contract.load_profile(str(folder / "real-profile.json"))
-    missed = sorted(
+    for name in ("real-twin.csv", "real.csv"):
+        found = [
+            f"{check.column}:{check.subcheck}"
+            for check in validation.measure(loaded, str(folder / name)).checks
+            if check.verdict == validation.MISSED
+        ]
+        assert found == [], (name, found)
+
+
+def test_a_twin_that_loses_a_value_the_census_can_supply_is_still_caught(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G7.9 IS NOT A BLANKET EXCUSE: the repair buys values, it does not hide losses.
+
+    The same shape, and a twin hand-written to hold ONE value where the
+    description publishes three. G7.9 spends at most the shortfall and
+    only on ranks whose own spelling survives, so nothing about it can
+    make a file this short conform: the check still reports the role,
+    the statistical type and the count at midnight missed.
+    """
+    cells = ["2025-01-01 00:00:00"] * 60 + ["2025-01-02 00:00:00"] * 60 + ["2025-01-01T00:00:00"] * 5
+    folder = tmp_path / "two-days-lost"
+    _first, _second, _written, _twin, _real = _round_trip(
+        folder, _shuffled(cells, 1), ("--smallest-group", "11"), True, "0"
+    )
+    loaded = contract.load_profile(str(folder / "real-profile.json"))
+    lost = fixtures.write(
+        folder, "one-value.csv", "value\n" + "2025-01-01 00:00:00\n" * 125
+    )
+    found = sorted(
         f"{check.column}:{check.subcheck}"
-        for check in validation.measure(loaded, str(folder / "real-twin.csv")).checks
+        for check in validation.measure(loaded, str(lost)).checks
         if check.verdict == validation.MISSED
     )
-    assert missed == [
-        "value:axes.role", "value:axes.statistical_type", "value:midnight.count",
-    ], missed
-    real_missed = [
+    assert found == [
+        "value:axes.role",
+        "value:axes.statistical_type",
+        "value:distinct.n_distinct",
+        "value:distinct.n_distinct_folded",
+        "value:midnight.count",
+    ], found
+
+
+def _window_of(
+    profile: pathlib.Path, seed: int, fact: str
+) -> "tuple[int, int, int, bool]":
+    """The generation report's own window for one approximated count."""
+    loaded = contract.load_profile(str(profile))
+    built = generation.generate(loaded, seed)
+    for record in built.approximations:
+        if record.fact == fact:
+            return (
+                int(record.lowest),
+                int(record.highest),
+                int(record.achieved),
+                record.inside,
+            )
+    raise AssertionError(fact)
+
+
+def _missed_on(profile: pathlib.Path, table: pathlib.Path) -> "list[str]":
+    loaded = contract.load_profile(str(profile))
+    return sorted(
         f"{check.column}:{check.subcheck}"
-        for check in validation.measure(loaded, str(folder / "real.csv")).checks
+        for check in validation.measure(loaded, str(table)).checks
         if check.verdict == validation.MISSED
-    ]
-    assert real_missed == [], real_missed
+    )
+
+
+@pytest.mark.parametrize("seed", ["0", "1", "4"])
+def test_a_date_column_with_stand_ins_does_not_overshoot_its_count(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """G7.9 counts the stand-ins it cannot see (the review of 2026-09-21, finding 1).
+
+    303 moments at midnight over two days -- 150 of the first written
+    with a space, 148 of the second, 5 of the first with a `T` -- beside
+    TWO cells no date reader accepts. The description publishes
+    `n_distinct` and `n_distinct_folded` of FIVE and `n_unparsed` of
+    two, and the census still absorbs the five `T` into `{space: 303}`.
+
+    WHAT THIS SHAPE COST WHEN THE SHORTFALL WAS COUNTED ON THE CELLS IN
+    HAND. `_datetime_content` appends the `n_unparsed` stand-ins AFTER
+    this pass runs, so the pass saw two folded spellings where the
+    finished column would hold four, read the shortfall as three rather
+    than one, and spent two ranks. The twin then held SIX different
+    values against a published five and missed `distinct.n_distinct`
+    and `distinct.n_distinct_folded` -- a column that missed nothing
+    before G7.9 existed. Subtracting `n_unparsed` from the shortfall is
+    what closes it: the twin holds exactly five and misses nothing.
+    """
+    cells = (
+        ["2025-01-01 00:00:00"] * 150
+        + ["2025-01-02 00:00:00"] * 148
+        + ["2025-01-01T00:00:00"] * 5
+        + ["not recorded", "unknown stamp"]
+    )
+    folder = tmp_path / f"stand-ins-{seed}"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, _shuffled(cells, 1), ("--smallest-group", "11"), True, seed
+    )
+    assert (first["role"], first["n_distinct"], first["n_distinct_folded"]) == (
+        "datetime", 5, 5,
+    )
+    assert (first["n_unparsed"], first["datetime_separators"]) == (2, {"space": 303})
+    # EXACTLY THE PUBLISHED COUNT, and not one value more.
+    assert len(set(written)) == 5 and len(written) == 305
+    assert (second["n_distinct"], second["n_distinct_folded"]) == (5, 5)
+    assert second["datetime_separators"] == first["datetime_separators"]
+    assert (twin_exit, real_exit) == (0, 0)
+    for name in ("real-twin.csv", "real.csv"):
+        assert _missed_on(folder / "real-profile.json", folder / name) == []
+
+
+def test_the_promised_window_is_not_widened_where_the_repair_cannot_spend(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G12.5's `G` term is bounded by the shortfall (the review of 2026-09-21, finding 2).
+
+    Seventy moments at midnight on one day written with a space, fifty
+    on a second written with a `T` and four on a third with a `t`, at a
+    floor of eleven: the census names `space` and `upper_t`, the `t` is
+    absorbed, and `n_distinct_folded` of three is already inside the
+    product G12.5 computes without any spend. G7.9 buys this column
+    nothing -- its cells are the same bytes either way.
+
+    ADDING THE WHOLE BUDGET REGARDLESS took the promised window from 3
+    to 6 out to 3 to 16, so an over-count of up to ten on a column the
+    pass never touches would have been reported as landing inside the
+    range the method promises. Bounded by `n_distinct_folded`, the term
+    is not added here at all.
+    """
+    cells = (
+        ["2025-01-01 00:00:00"] * 70
+        + ["2025-01-02T00:00:00"] * 50
+        + ["2025-01-03t00:00:00"] * 4
+    )
+    folder = tmp_path / "unspendable"
+    first, _second, written, twin_exit, real_exit = _round_trip(
+        folder, _shuffled(cells, 7), ("--smallest-group", "11"), True, "0"
+    )
+    assert first["datetime_separators"] == {"space": 74, "upper_t": 50}
+    assert (first["n_distinct"], first["n_distinct_folded"]) == (3, 3)
+    profile = folder / "real-profile.json"
+    lowest, highest, achieved, inside = _window_of(profile, 0, "n_distinct")
+    assert (lowest, highest, achieved, inside) == (3, 6, 6, True)
+    assert len(set(written)) == 6
+    assert (twin_exit, real_exit) == (0, 0)
+    assert _missed_on(profile, folder / "real-twin.csv") == []
+
+
+def test_a_case_mixed_census_reports_the_one_count_it_leaves_outside(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The report and the checker agree, and the trade is recorded (review items 2 and 3).
+
+    Sixty moments at midnight on one day written with a `T`, sixty on a
+    second with a `t` and five of the first with a space, at a floor of
+    eleven. `upper_t` and `lower_t` FOLD TOGETHER, so the census names
+    both, the space is absorbed, and the construction already writes
+    four different texts for two folded ones against a published three.
+
+    WHAT G7.9 DOES HERE, and what it does not. It sees the folded
+    shortfall of one, spends a rank on the unnamed `space`, and reaches
+    `n_distinct_folded` of three exactly -- taking the unfolded count
+    from four to five. Before the pass this column missed `axes.role`,
+    `axes.statistical_type` and `midnight.count`; after it, it misses
+    `distinct.n_distinct` alone. Three checks for one.
+
+    THE TWO HALVES OF THE RUN AGREE ABOUT THAT ONE. While the whole
+    census budget was added to G12.5's upper end the window here was 2
+    to 14 and the report printed `inside` for a count `synthtwin
+    validate` reported MISSED. Bounded by `n_distinct_folded`, the
+    window is 2 to 4, the twin holds five, and both halves say so.
+    """
+    cells = (
+        ["2025-04-01T00:00:00"] * 60
+        + ["2025-04-02t00:00:00"] * 60
+        + ["2025-04-01 00:00:00"] * 5
+    )
+    folder = tmp_path / "case-mixed"
+    first, second, written, twin_exit, real_exit = _round_trip(
+        folder, _shuffled(cells, 7), ("--smallest-group", "11"), False, "0"
+    )
+    assert first["datetime_separators"] == {"lower_t": 65, "upper_t": 60}
+    assert (first["n_distinct"], first["n_distinct_folded"]) == (3, 3)
+    # THE FOLDED COUNT IS REACHED EXACTLY; the unfolded one is not.
+    assert second["n_distinct_folded"] == 3
+    assert len(set(written)) == 5
+    profile = folder / "real-profile.json"
+    lowest, highest, achieved, inside = _window_of(profile, 0, "n_distinct")
+    assert (lowest, highest, achieved, inside) == (2, 4, 5, False)
+    # ...and the checker names the same one fact, and only that one.
+    assert _missed_on(profile, folder / "real-twin.csv") == ["value:distinct.n_distinct"]
+    assert twin_exit == 3 and real_exit == 0
+    assert _missed_on(profile, folder / "real.csv") == []
 
 
 # -- C: a column mixing bare dates with midnight moments keeps both forms

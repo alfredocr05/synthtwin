@@ -16135,6 +16135,11 @@ def _datetime_content(
         column, marks, cells, holes, facts.parser_family
     )
     notes = notes + balanced
+    # AND THE COUNT A CENSUS ABSORBED OUT OF REACH (G7.9). Last of the
+    # mark passes, so it sees the cells as they will be written.
+    cells = _spellings_short_of_the_count(
+        column, facts, cells, holes, plan.small_cell_floor
+    )
     notes = notes + _worn_hole_notes(column, cells, holes)
     if parsed >= 1:
         notes = notes + _endpoint_notes(
@@ -16753,6 +16758,139 @@ def _rebalanced_marks(
         )
     ]
 
+
+def _spellings_short_of_the_count(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    floor: int,
+) -> "list[str]":
+    """Reach a published distinct count a census absorbed out of reach (G7.9).
+
+    RULING 6 OF 2026-09-17 IS NOT REOPENED HERE. A mark below the census
+    line is counted into the commonest mark, so a column of 120 midnight
+    stamps wearing a space and five wearing a `T` publishes `{space:
+    125}` -- and a construction that reads that census as an instruction
+    about the CELLS writes 125 spaces over two days, which is two
+    different values where the column publishes three. The twin then
+    reads back as a column of two values, which this package calls
+    binary, and `synthtwin validate` reports the twin missing its role,
+    its statistical type and its count at midnight while the real table
+    misses none. The description was true; the construction could not
+    reach it.
+
+    THE READING THE ABSORPTION LEAVES (the same rule as plan P4-D298's
+    absorbed counts, applied to the mark census). A published count a
+    rule absorbed into is met by every count the rule publishes as it,
+    which is how `synthtwin validate` holds a twin -- by describing it
+    again. So a column short of its published folded distinct count may
+    spend ranks on a permitted mark the census leaves unnamed, and while
+    fewer than `parsing.census_floor` ranks wear it the twin's own
+    description counts it back into the commonest mark and publishes the
+    census exactly as it stands.
+
+    WHERE THE SPENT RANKS COME FROM, AND WHY THEY NAME NO ROW. The
+    number spent is the SHORTFALL the description itself publishes --
+    `n_distinct_folded` less the different folded spellings the cells
+    hold -- and never the count the real table held, which is not
+    published and is not consulted. The budget is one below the census
+    line, so no reader of the twin's description can see the mark at
+    all; a spend that reached the line would publish a count the real
+    column's census withheld, and the twin would miss its own mark
+    census instead.
+
+    WHAT IT DOES NOT REPORT, and why. A shortfall this pass cannot
+    close is the shortfall the column already had: the published
+    distinct count of a column of dates is held under method G12.5's
+    envelope and `synthtwin validate` reports where it lands, so a
+    deviation here would complain a second time about a number that
+    rule already governs, on every datetime column that has ever fallen
+    short. This pass buys values; it does not take a report away and it
+    does not add one.
+
+    Guarantees: accepts the column, its loaded datetime facts, the
+    parsed cells as written, every absent spelling and the settings
+    floor; returns the cells. Determinism: a function of the five; draws
+    no word. No I/O of any kind.
+    """
+    fixed: list[str] = [cell for cell in cells]
+    if facts.parser_family not in _ISO_MARK_MEMBERS:
+        # Character eleven is a digit of the date on these members, so
+        # there is no mark there to respell (landing 2b.6).
+        return fixed
+    census = facts.datetime_separators
+    if contract.WITHHELD in census or not census:
+        # A POOL IS ALREADY SPLIT over every permitted mark
+        # (`_mark_weights`), so it leaves none unnamed to spend.
+        return fixed
+    spare: list[str] = []
+    for name in _permitted_marks(facts):
+        if name not in census:
+            spare += [parsing.SEPARATOR_MARKS[name]]
+    if not spare:
+        return fixed
+    folded_worn: dict[str, int] = {}
+    for cell in fixed:
+        key = parsing.folded(cell)
+        if key in folded_worn:
+            folded_worn[key] = folded_worn[key] + 1
+        else:
+            folded_worn[key] = 1
+    # THE STAND-INS ARE COUNTED THOUGH THIS PASS CANNOT SEE THEM.
+    # `_datetime_content` appends `n_unparsed` stand-ins AFTER this
+    # pass, each a spelling no other cell holds (`_text_spelling`), so
+    # the finished column holds `n_unparsed` folded spellings more
+    # than the cells in hand. Counting only the cells in hand made the
+    # shortfall too large by exactly that many and the pass overshot:
+    # measured on 303 midnight moments over two days beside two cells
+    # no date reader accepts, the twin wrote SIX different values
+    # against a published five and missed `distinct.n_distinct` and
+    # `distinct.n_distinct_folded` -- a column that missed nothing
+    # before this pass existed (skeptic finding 1 of 2026-09-21).
+    short = column.n_distinct_folded - len(folded_worn) - facts.n_unparsed
+    if short < 1:
+        return fixed
+    budget = parsing.census_floor(floor) - 1
+    named = ""
+    for name in sorted(census):
+        if not named or census[name] > census[named]:
+            named = name
+    wanted_mark = parsing.SEPARATOR_MARKS[named] if named else ""
+    spent = 0
+    last = len(fixed) - 1
+    for mark in spare:
+        for rank in range(len(fixed)):
+            if short < 1 or spent >= budget:
+                break
+            if rank == 0 or rank == last:
+                # THE TWO ENDS ARE WRITTEN AS THE DESCRIPTION PUBLISHES
+                # THEM (G7.5): `earliest` and `latest` are spellings the
+                # description prints, so this pass never respells one of
+                # them, and every interior rank is open to it instead.
+                continue
+            cell = fixed[rank]
+            if len(cell) < 11 or cell[10] != wanted_mark:
+                continue
+            changed = f"{cell[0:10]}{mark}{cell[11:]}"
+            if _is_a_hole_spelling(changed, holes):
+                continue
+            was = parsing.folded(cell)
+            becomes = parsing.folded(changed)
+            if becomes in folded_worn or folded_worn[was] < 2:
+                # NEVER ONE SPELLING FEWER, and never one the cells
+                # already hold: a respelling that repeats a spelling
+                # buys no value, and one that empties its own leaves
+                # the count where it was.
+                continue
+            fixed[rank] = changed
+            folded_worn[was] = folded_worn[was] - 1
+            folded_worn[becomes] = 1
+            short = short - 1
+            spent = spent + 1
+        if short < 1 or spent >= budget:
+            break
+    return fixed
 
 def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
     """The census names a column publishes, the withheld pool left out."""
@@ -36272,6 +36410,33 @@ def _forced_apart(lows: "list[int]", highs: "list[int]") -> int:
     return count
 
 
+def _marks_spendable(facts: contract.DatetimeFacts, floor: int) -> int:
+    """How many more different spellings G7.9 may buy this column.
+
+    One per rank it may spend, and it spends fewer ranks than the census
+    could print (`parsing.census_floor` less one); nought where it has
+    no permitted mark to spend, which is every column whose census names
+    them all, every census holding a withheld pool, and every member
+    whose eleventh character is a digit of the date.
+
+    Guarantees: accepts loaded datetime facts and the settings floor;
+    returns a count of nought or more. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    if facts.parser_family not in _ISO_MARK_MEMBERS:
+        return 0
+    census = facts.datetime_separators
+    if contract.WITHHELD in census or not census:
+        return 0
+    spare = 0
+    for name in _permitted_marks(facts):
+        if name not in census:
+            spare = spare + 1
+    if spare < 1:
+        return 0
+    return parsing.census_floor(floor) - 1
+
+
 def _spellings_of_a_date(facts: contract.DatetimeFacts) -> int:
     """How many ways one instant can be written in this column.
 
@@ -36424,6 +36589,7 @@ def _datetime_approximations(
     facts: contract.DatetimeFacts,
     written: "list[str]",
     holes: "tuple[str, ...]",
+    floor: int = 1,
 ) -> "list[Approximation]":
     """The two approximated families of a column of dates (G12.4, G12.5)."""
     present = _present_of(written, holes)
@@ -36486,6 +36652,29 @@ def _datetime_approximations(
         len(present),
         reachable * _spellings_of_a_date(facts) + stand_ins,
     )
+    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
+    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
+    # mark the census leaves unnamed, one different spelling each, and
+    # it stops the moment the folded count reaches `n_distinct_folded`.
+    # So the window reaches that count and no further. Measured before
+    # the term existed: a twin that met its published count of three
+    # exactly was reported as landing outside a range of 2 to 2, which
+    # is the method telling the person their conforming twin deviated.
+    #
+    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
+    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
+    # columns this pass never touches -- a census naming two marks over
+    # three days went from a range of 3 to 6 to one of 3 to 16 with the
+    # twin's bytes unchanged -- and on a census mixing `upper_t` with
+    # `lower_t` it made the report print `inside` for a count
+    # `synthtwin validate` reports MISSED, the two halves of the same
+    # run contradicting each other.
+    spendable = _marks_spendable(facts, floor)
+    if spendable >= 1 and column.n_distinct_folded > highest_count:
+        highest_count = min(
+            len(present),
+            min(highest_count + spendable, column.n_distinct_folded),
+        )
     lowest_count = min(lowest_count, highest_count)
     counted = _recounted(written, holes)
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
@@ -36955,7 +37144,7 @@ def _approximations(
         return _clock_approximations(column, facts, written)
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(
-            column, facts, written, _all_holes_of(plan)
+            column, facts, written, _all_holes_of(plan), plan.small_cell_floor
         )
     if isinstance(facts, contract.TextFacts):
         return _text_approximations(column, facts, written, plan.carriers)

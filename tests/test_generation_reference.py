@@ -475,6 +475,10 @@ FOURTH_BRANCH_CASES = (
 # (plan P4-D198). Sorted, like the tuples above.
 FIFTH_BRANCH_CASES = (
     "code_band_words",
+    # G7.9's spend of a mark the census absorbed out of reach (plan
+    # P4-D245, ledger K-2B-51, the owner on 2026-09-21). It comes here
+    # for the reason the two exponent cases below do.
+    "date_absorbed_mark",
     # THE TWO RULES OF G8.3a STEP 3 (the repair pass of the second Codex
     # round, 2026-09-19, closing its skeptic's finding 1). They come here
     # because the eighth committed file stands at 212306 bytes and the
@@ -654,6 +658,9 @@ SEEDS = {
     "date_midnight_traded": 270,
     "exponent_fitted": 271,
     "exponent_scaled": 272,
+    # G7.9's absorbed mark (plan P4-D245) takes the next, clear of every
+    # block in use.
+    "date_absorbed_mark": 273,
     # The carried numbers pass of 2026-09-18 takes 260 onward, clear of
     # the blocks above and of the other carried passes.
     "saturated_band": 260,
@@ -2554,6 +2561,17 @@ def _judged_keys_written_blank(column: dict) -> list:
 
 
 CASE_MUTANTS = {
+    "date_absorbed_mark": Mutant(
+        branch="G7.9's spend of a mark the census left unnamed, where ruling "
+        "6's absorption put the published folded distinct count out of the "
+        "construction's reach (plan P4-D245, ledger K-2B-51); the mutant "
+        "withdraws the spend, and the twin writes 125 spaces over two days "
+        "-- two different values against a published three, a twin that "
+        "reads back as binary rather than as a column of dates",
+        attribute="spellings_short_of_the_count",
+        replacement=lambda column, cells, holes, floor=11: list(cells),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "free_text_absorbed_figures": Mutant(
         branch="G9.5's packing against the READINGS of an absorbed count "
         "(plan P4-D298); the mutant packs the published alphabet counts "
