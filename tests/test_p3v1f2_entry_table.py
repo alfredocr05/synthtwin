@@ -114,6 +114,7 @@ import dataclasses
 import decimal
 import io
 import os
+import sys
 import pathlib
 import re
 import typing
@@ -188,6 +189,23 @@ def _reinstated() -> "typing.Iterator[None]":
     if os.environ.get("REINSTATE") == "P3-V4-F6-listings":
         monkeypatch.setattr(
             validation, "_corner_listings", _one_offset_fact_rebound
+        )
+    # LANDING D's OWN MUTANT. The measurements eleven cases now share
+    # are built once, so a name lost out of one of those lists is a
+    # fixture nobody walks any more and every one of those cases stays
+    # green. `test_the_shared_measurements_hold_every_run_they_stand_for`
+    # is what catches it, and this is how to see it catch it:
+    #
+    #     REINSTATE=D-SHARED-COVER python -m pytest \
+    #         tests/test_p3v1f2_entry_table.py -k shared_measurements
+    if os.environ.get("REINSTATE") == "D-SHARED-COVER":
+        monkeypatch.setattr(
+            sys.modules[__name__], "_green_runs", _one_shared_run_missing
+        )
+        monkeypatch.setattr(
+            sys.modules[__name__],
+            "_ordinary_entries_walked",
+            _one_walked_entry_missing,
         )
     yield
     monkeypatch.undo()
@@ -629,12 +647,71 @@ def _measured(
     return validation.measure(described, str(target))
 
 
+@pytest.fixture(scope="module")
+def green(
+    tmp_path_factory: pytest.TempPathFactory,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """Every fixture with its own unperturbed twin, MEASURED ONCE.
+
+    Eight cases below walked the same eleven files -- one of them
+    twice -- and each walk wrote every twin out again and ran a whole
+    `validate` over it, which is 99 measured files where there are
+    eleven. The measurement is a function of the description and the
+    file's characters, both of which `runs` already holds, so it is the
+    same eleven outcomes every time and it is built here.
+
+    WHAT MAKES SHARING THIS SAFE, and it is two things. `Outcome` is a
+    frozen dataclass of tuples, so no case can leave a mark on it for
+    the next; and no case here writes into this folder, reads the files
+    back, or reads `Outcome.measured_name`, so nothing depends on WHICH
+    path a twin was measured at. A perturbed file is a different
+    question and is not in here: the perturbation battery has its own
+    folder and its own fixture, and the two never share a file name.
+
+    MODULE-SCOPED and not wider, for the reason `runs` is: the
+    reinstatement above is a module-scoped patch, and a run built
+    outside this module would be a run built without it.
+    """
+    return _green_runs(tmp_path_factory.mktemp("entry-table-green"), runs)
+
+
+def _green_runs(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """The eleven unperturbed runs, measured. Named so a mutant can take it."""
+    return [
+        (name, described, twin, _measured(folder, described, twin, f"{name}.csv"))
+        for name, described, twin in runs
+    ]
+
+
+# The real builders, held before the mutant below can stand in for
+# them, so each mutant wraps the real one instead of calling itself.
+_REAL_GREEN_RUNS = _green_runs
+
+
+def _one_shared_run_missing(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """The shared runs with the last one left out: the mutant of landing D.
+
+    A fixture eight cases read is a place where a subject can be lost
+    with nothing going red -- each of those cases walks what it is
+    handed, so a shorter list is a shorter walk and a green one. This
+    is that mistake, made on demand.
+    """
+    built = _REAL_GREEN_RUNS(folder, runs)
+    return built[: len(built) - 1]
+
+
 # -- V3.1 and V3.3: the entry table IS the registry's projection ------
 
 
 def test_every_fact_the_validator_names_is_a_registry_fact(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """Drift in one direction: a fact nobody registered.
 
@@ -647,8 +724,7 @@ def test_every_fact_the_validator_names_is_a_registry_fact(
     known = {
         f"{fact.group}.{fact.field}" for fact in dispositions.REGISTRY
     }
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         for check in outcome.checks:
             assert (
                 _registry_key(check.fact) in known
@@ -825,8 +901,7 @@ def test_an_input_side_entry_is_a_fact_whose_obligation_is_on_the_profile() -> (
 
 
 def test_the_kind_of_every_entry_follows_from_its_disposition(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """The three-way split, derived rather than re-decided (V3.3).
 
@@ -841,8 +916,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
     by_key = {
         f"{fact.group}.{fact.field}": fact for fact in dispositions.REGISTRY
     }
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         for check in outcome.checks:
             if check.fact in validation.BYTE_RULE_FACTS:
                 continue
@@ -868,8 +942,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
 
 
 def test_no_obligation_is_both_checked_and_listed_in_one_run(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """Double-binding, which the plan refuses beside unbinding.
 
@@ -880,8 +953,7 @@ def test_no_obligation_is_both_checked_and_listed_in_one_run(
     counted twice, once in each census, and the two censuses then
     disagree about what the run did.
     """
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         verdicted = {
             (check.column, check.fact, check.subcheck)
             for check in outcome.checks
@@ -1036,8 +1108,7 @@ def test_every_named_predicate_binds_every_fact_exactly_once(
 
 
 def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """A lowering shown without its authority is one nobody can check.
 
@@ -1049,8 +1120,7 @@ def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
         f"{fact.group}.{fact.field}": fact for fact in dispositions.REGISTRY
     }
     seen = 0
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         for check in outcome.checks:
             if check.verdict != validation.AUTHORIZED_DEVIATION:
                 continue
@@ -6661,9 +6731,7 @@ def test_every_fact_this_file_states_is_a_registry_fact() -> None:
 
 
 def test_every_shipped_site_binds_the_fact_this_file_states(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """V3.1's third term, stated here and compared with the shipped table.
 
@@ -6706,7 +6774,7 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
-    walked = _every_entry_walked(tmp_path, runs, corner_runs)
+    walked = walked_with_corners
     for name, fixture, sites in walked:
         for site in sites:
             family = _family_of(fixture, site.column)
@@ -6755,10 +6823,9 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     )
 
 
-def _every_entry_walked(
+def _ordinary_entries_walked(
     folder: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
-    corners: "list[tuple[str, contract.Profile, str]] | None",
 ) -> "list[tuple[str, str, list[Site]]]":
     """Every ENTRY the shipped table files, over every predicate here.
 
@@ -6769,11 +6836,14 @@ def _every_entry_walked(
     collected one kind was a walk over half the table (review item
     P3-V4-F6).
 
-    The corner runs are walked only when they are handed in, because
-    they are the one thing here whose whole reason is a listing: the
-    six ordinary fixtures reach no corner, so four offset facts, three
-    identifier cardinalities and two distinctness bars are entries no
-    other run in this file files.
+    The corner runs are walked by `_corner_entries_walked` and placed
+    after these, because they are the one thing here whose whole reason
+    is a listing: the six ordinary fixtures reach no corner, so four
+    offset facts, three identifier cardinalities and two distinctness
+    bars are entries no other run in this file files. The two halves
+    stand apart so that a case which wants the corners and a case which
+    wants exactly this list can each have one without the other's
+    measurements being taken again.
     """
     walked: list[tuple[str, str, list[Site]]] = []
     for name, described, twin in runs:
@@ -6791,12 +6861,112 @@ def _every_entry_walked(
                 _sites_of(outcome) + _listed_sites_of(outcome),
             )
         ]
+    return walked
+
+
+def _corner_entries_walked(
+    folder: pathlib.Path,
+    corners: "list[tuple[str, contract.Profile, str]] | None",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The corner runs' own entries, which come last in the walk."""
+    walked: list[tuple[str, str, list[Site]]] = []
     for name, described, twin in corners if corners else []:
         outcome = _measured(folder, described, twin, f"{name}-facts.csv")
         walked = walked + [
             (name, name, _sites_of(outcome) + _listed_sites_of(outcome))
         ]
     return walked
+
+
+_REAL_ORDINARY_WALK = _ordinary_entries_walked
+
+
+def _one_walked_entry_missing(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The shared walk with its last row left out: the other half of the mutant."""
+    built = _REAL_ORDINARY_WALK(folder, runs)
+    return built[: len(built) - 1]
+
+
+@pytest.fixture(scope="module")
+def walked_ordinary(
+    tmp_path_factory: pytest.TempPathFactory,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The walk over the eleven fixtures and the four predicates, ONCE.
+
+    The walk was built four times over the same runs -- three cases,
+    one of them twice -- and each build wrote and measured every file
+    again. It is the same walk each time: the description and the
+    characters are what decide it, and both come from `runs`.
+
+    WHAT MAKES SHARING THIS SAFE. Every element is a name, a fixture
+    name and a list of `Site` tuples read off a frozen `Outcome`; no
+    case here writes into the folder or reads a measured file back, and
+    no case changes the list it is handed -- each builds its own with
+    `x = x + [item]`. Module-scoped for the same reason `runs` is: the
+    reinstatement at the top of this file is a module-scoped patch.
+    """
+    return _ordinary_entries_walked(tmp_path_factory.mktemp("entry-walk"), runs)
+
+
+@pytest.fixture(scope="module")
+def walked_with_corners(
+    tmp_path_factory: pytest.TempPathFactory,
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The same walk with the corner runs' entries after it.
+
+    Built from `walked_ordinary` rather than beside it, because that is
+    exactly what the whole walk is: the corner rows come last and
+    nothing before them depends on them.
+    """
+    return walked_ordinary + _corner_entries_walked(
+        tmp_path_factory.mktemp("entry-walk-corners"), corner_runs
+    )
+
+
+def test_the_shared_measurements_hold_every_run_they_stand_for(
+    runs: "list[tuple[str, contract.Profile, str]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
+) -> None:
+    """The measurements eleven cases share may not quietly hold less.
+
+    Landing D took two measurements that were being made over and over
+    -- the unperturbed run of every fixture, walked nine times by eight
+    cases, and the entry walk, built four times by three -- and made
+    each of them once. That is where a shared fixture needs a guard: a
+    name dropped from one of these lists is a fixture no case walks any
+    more, and every one of those cases stays green while it proves
+    less. Each cover is therefore asserted against the runs it stands
+    for. `REINSTATE=D-SHARED-COVER` drops one and shows this case, and
+    only this case, go red.
+    """
+    assert [name for name, *_rest in green] == [name for name, *_rest in runs]
+    for name, _described, _twin, outcome in green:
+        assert outcome.checks, f"{name}: the shared green run checked nothing"
+    ordinary = [name for name, _fixture, _sites in walked_ordinary]
+    assert {name for name, *_rest in runs} <= set(ordinary), (
+        "the shared walk no longer reaches every fixture"
+    )
+    assert set(PREDICATE_FIXTURES) <= set(ordinary), (
+        "the shared walk no longer reaches every named predicate"
+    )
+    assert walked_with_corners[: len(walked_ordinary)] == walked_ordinary, (
+        "the corner walk is no longer the ordinary walk with the corners "
+        "after it, so the two cases that read them read different tables"
+    )
+    assert [
+        name for name, _fixture, _sites in walked_with_corners[len(walked_ordinary) :]
+    ] == [name for name, *_rest in corner_runs], (
+        "the corner rows of the shared walk are not the corner runs"
+    )
 
 
 def test_every_corner_fixture_reaches_the_corner_it_is_for(
@@ -6836,9 +7006,7 @@ def test_every_corner_fixture_reaches_the_corner_it_is_for(
 
 
 def test_every_shipped_listing_binds_the_fact_this_file_states(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """V3.1's third term on the OTHER half of the entry table.
 
@@ -6869,9 +7037,7 @@ def test_every_shipped_listing_binds_the_fact_this_file_states(
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
-    for name, fixture, sites in _every_entry_walked(
-        tmp_path, runs, corner_runs
-    ):
+    for name, fixture, sites in walked_with_corners:
         for site in sites:
             if site.subcheck:
                 continue
@@ -6903,9 +7069,8 @@ def test_every_shipped_listing_binds_the_fact_this_file_states(
 
 
 def test_the_corner_listings_are_reached_by_this_walk_and_nowhere_else(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """The corner entries are IN the binding proof, and were not.
 
@@ -6918,8 +7083,8 @@ def test_the_corner_listings_are_reached_by_this_walk_and_nowhere_else(
     offset ones, so the walk cannot be narrowed back to them and stay
     green.
     """
-    ordinary = _every_entry_walked(tmp_path, runs, None)
-    with_corners = _every_entry_walked(tmp_path, runs, corner_runs)
+    ordinary = walked_ordinary
+    with_corners = walked_with_corners
     owed = {
         ("withheld-offsets", "recorded_on", "datetime.utc_offsets", "offsets.map"),
         (
@@ -7375,8 +7540,7 @@ def test_a_one_column_description_files_no_blank_line_rule_it_cannot_miss(
 
 
 def test_no_two_sites_of_one_fixture_share_a_name(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """A column and a subcheck name ONE entry, which the table relies on.
 
@@ -7387,8 +7551,7 @@ def test_no_two_sites_of_one_fixture_share_a_name(
     and would hide one of the two from the coverage identity. It is
     asserted rather than assumed, on the shipped table itself.
     """
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-names.csv")
+    for name, _described, _twin, outcome in green:
         seen: dict[tuple[str, str], str] = {}
         for site in _sites_of(outcome):
             key = (site.column, site.subcheck)
@@ -7689,8 +7852,7 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
 
 
 def test_every_fixture_is_GREEN_before_it_is_perturbed(
-    runs: "list[tuple[str, contract.Profile, str]]",
-    tmp_path: pathlib.Path,
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """The premise the whole red battery rests on, and it was unstated.
 
@@ -7713,8 +7875,7 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
     been asserting it all along.
     """
     broken: list[str] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-premise.csv")
+    for name, _described, _twin, outcome in green:
         # BOTH VERDICTS, because validation method V8.4 asks a green run
         # for zero MISSED *and* zero WITHHELD. Rejecting only MISSED
         # left a comparator that returns WITHHELD when the two agree
@@ -7752,8 +7913,7 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
 
 
 def test_the_coverage_identity_walks_the_shipped_table(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
     battery: "dict[str, dict[str, Case]]",
     registered: "list[RedCase]",
 ) -> None:
@@ -7815,8 +7975,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
             covered.setdefault(case.fixture, set()).add(found)
     uncovered: list[str] = []
     walked: dict[str, int] = {}
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-green.csv")
+    for name, _described, _twin, outcome in green:
         sites = _sites_of(outcome)
         walked[name] = len(sites)
         mine = covered.get(name, set())
@@ -7834,8 +7993,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     # and reads as though it proved something, which is the other half
     # of the same rot.
     dead: list[str] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-alive.csv")
+    for name, _described, _twin, outcome in green:
         sites = set(_sites_of(outcome))
         for case in registered:
             if case.fixture != name:
@@ -7915,8 +8073,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
 
 
 def test_the_vacuity_floor_counts_classes_per_disposition(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
     battery: "dict[str, dict[str, Case]]",
     registered: "list[RedCase]",
 ) -> None:
@@ -7952,8 +8109,7 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
         return by_key[_registry_key(fact)].disposition
 
     carried: dict[str, int] = {}
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"floor-{name}.csv")
+    for _name, _described, _twin, outcome in green:
         for site in _sites_of(outcome):
             key = disposition_of(site.fact)
             carried[key] = carried.get(key, 0) + 1

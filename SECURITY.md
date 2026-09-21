@@ -988,8 +988,15 @@ any of it before that.
 - **The four guard jobs behind the aggregate gate.** `decontam`,
   `offline-static`, `provenance`, and `sensitive-paths` each run on
   every push and pull request, and the aggregate `gate` job goes green
-  only when all eight jobs it depends on succeeded - a skipped or
-  cancelled job counts there as a failure, not as a pass.
+  only when every job it depends on succeeded - a skipped or
+  cancelled job counts there as a failure, not as a pass. Since the
+  suite was split across shards (landing D) those jobs are `lint`,
+  `types`, `tests`, `shard-coverage`, `build`, `decontam`,
+  `offline-static`, `provenance`, `sensitive-paths` and `minimums`, and
+  the count is not repeated here: `gate` names them and fails on any
+  one of them, and `shard-coverage` is the one that holds the sharded
+  `tests` and `minimums` matrices to having run every collected test
+  file, exactly once between them.
 - **Sensitive-path surfacing.** For any pull request touching
   `.github/workflows/**` or `tools/**`, CI emits a non-failing warning
   annotation and writes the changed sensitive paths to the job's step

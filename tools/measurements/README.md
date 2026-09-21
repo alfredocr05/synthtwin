@@ -71,6 +71,7 @@ written.
 | `kpi_census_repair_speed.py` | K-S2-06: the census-of-marks repair at 80,000 and 320,000 cells, as a growth ratio |
 | `kpi_large_workbooks.py` | K-2B-34: three writers' study workbooks at three sizes, the real book AND its twin validated |
 | `kpi_known_misses.py` | K-2B-47: the four carried fidelity misses (percent widths, a two-width dose, a temperature stratum over the mode count, a heavy tail) and the carried residue of 2026-09-19 (two date-width defects, the `(-%)` layout, the G5.2 band split, the unchecked read floor), held still as MISSED verdicts summed over each shape's runs; K-2B-49: the orchestrator's calls of 2026-09-18 (the point-free grid trade, subsecond digits as nought, a record number's class counts); K-2B-50 and K-2B-51: the two fidelity failures still with the owner (a pooled population of numbers beside labels losing its scale, and a timestamp column whose absorbed mark leaves a description no file satisfies) |
+| `kpi_suite_time.py` | K-P0-10: what the suite itself costs -- one ordinary single-process `pytest -q` from the repository root, timed by the wall clock, with the collected count beside it so seconds can never be bought by running fewer cases |
 | `kpi_oracle_similarity.py` | K-2B-42: oracle functions whose syntax sits at 0.60 or above against their closest shipped function, named |
 
 **This table went stale before landing L8 and is repaired there**: it
