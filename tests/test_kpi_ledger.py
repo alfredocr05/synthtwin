@@ -61,18 +61,33 @@ ENTRIES = kpi_rules.entries_by_id(LEDGER)
 REPO = kpi_rules.REPO_ROOT
 
 
-def _kpi(record_property, entry_id: str, value: object, detail: str = "") -> None:
-    """Record the measured value, then judge it by the ledger's rule."""
+def _kpi(
+    record_property,
+    entry_id: str,
+    value: object,
+    detail: str = "",
+    partial: bool = False,
+) -> None:
+    """Record the measured value, then judge it by the ledger's rule.
+
+    ``partial`` is for the one case a test cannot measure the whole of:
+    the caller says so in the open, having measured and asserted every
+    key it COULD, and the keys nobody measured are left out rather than
+    failed. It is not a way to record less -- a caller that passes it
+    must also report what it did not measure, as `test_k_2b_46` does
+    through `crosscheck.part_not_measured`.
+    """
     entry = ENTRIES[entry_id]
     record_property(
         "kpi", json.dumps({"id": entry_id, "value": value, "detail": detail}, sort_keys=True)
     )
     # Every key of the rule this test measures must be recorded: a key it
     # stops recording fails here, not only in the runner. Only an entry
-    # whose driver measures the rest is judged in part.
+    # whose driver measures the rest -- or a caller that declares a part
+    # unmeasurable here and says which -- is judged in part.
     verdict = kpi_rules.judge(
         kpi_rules.test_part(entry), value, kpi_rules.seconds_judged_here(LEDGER)[0],
-        partial=bool(entry.get("driver")),
+        partial=partial or bool(entry.get("driver")),
     )
     assert not verdict.is_drop, (
         f"{entry_id} ({entry['name']}): {verdict.word}: {verdict.message}. "
@@ -972,7 +987,27 @@ def test_k_2b_45(record_property, eight: "list[dict]") -> None:
 def test_k_2b_46(
     record_property, every_role: "dict", every_role_twins: "dict", eight: "list[dict]"
 ) -> None:
-    """Code runs unchanged: pandas gives every twin column the dtype it gives the real one."""
+    """Code runs unchanged: pandas gives every twin column the dtype it gives the real one.
+
+    HALF OF THIS NEEDS NO SECOND READER AND MUST NEVER BE SKIPPED.
+    `every_role_columns_mismatched` is `pandas.read_csv` over the
+    every-role table at two floors and three seeds: no workbook, no
+    openpyxl, and it carries the owner's first-stated goal. The review
+    of 2026-09-21 found the cross-check ask sitting INSIDE the
+    eight-shapes loop, which yields `csv, xlsx` per family: without
+    openpyxl the skip fired on the second run, the CSV key was computed
+    and thrown away, seven of the eight delimited comparisons never
+    happened and `_kpi` -- the only assertion here -- was never
+    reached. A one-line dtype regression injected into the CSV half was
+    RED with openpyxl and a green SKIP without it, under a message
+    saying everything synthtwin does had already run.
+
+    So the reader is asked for with `present()`, which never skips; the
+    delimited runs are taken FIRST; the CSV key is measured, recorded
+    and judged either way; and where the workbook half could not be
+    measured this case says which part that was instead of handing back
+    a whole verdict on half the evidence.
+    """
     import pandas
 
     mismatched: "set[str]" = set()
@@ -988,13 +1023,20 @@ def test_k_2b_46(
                 for name in real.columns
                 if str(real[name].dtype) != str(twin[name].dtype)
             }
+    # DELIMITED FIRST ("csv" sorts before "xlsx"), so a missing reader
+    # costs only the runs that need it.
+    a_reader = crosscheck.present()
     files = []
-    for run in eight:
+    delimited = 0
+    for run in sorted(eight, key=lambda run: run["kind"]):
         spec = run["family_spec"]
         if run["kind"] == "xlsx":
-            real = crosscheck.read_excel(run["path"])
-            twin = crosscheck.read_excel(run["twin"])
+            if not a_reader:
+                continue
+            real = crosscheck.read_excel_present(run["path"])
+            twin = crosscheck.read_excel_present(run["twin"])
         else:
+            delimited += 1
             real = pandas.read_csv(run["path"], sep=spec["mark"], encoding="utf-8-sig")
             twin = pandas.read_csv(run["twin"], sep=spec["mark"], encoding="utf-8-sig")
         differ = [
@@ -1003,10 +1045,22 @@ def test_k_2b_46(
         ]
         if differ or list(real.columns) != list(twin.columns):
             files += [f"{_tag(run)}: {differ}"]
-    _kpi(record_property, "K-2B-46",
-         {"every_role_columns_mismatched": len({m.split(" ")[0] for m in mismatched}),
-          "eight_shape_files_mismatched": len(files)},
-         "; ".join(sorted(mismatched) + files))
+    measured = {"every_role_columns_mismatched": len({m.split(" ")[0] for m in mismatched})}
+    if a_reader:
+        measured["eight_shape_files_mismatched"] = len(files)
+    _kpi(record_property, "K-2B-46", measured,
+         "; ".join(sorted(mismatched) + files), partial=not a_reader)
+    if not a_reader:
+        # The delimited runs DID happen, and a mismatch among them is a
+        # regression whether or not the workbook half could be measured.
+        assert not files, files
+        crosscheck.part_not_measured(
+            "the WORKBOOK runs of the eight realistic shapes, which pandas opens "
+            "through openpyxl (the key `eight_shape_files_mismatched`). The "
+            "every-role CSV columns at two floors and three seeds, and the "
+            f"{delimited} delimited runs of the eight shapes, were measured, "
+            "recorded and judged above."
+        )
 
 
 # -- Stage 6 (a baseline measured now) --------------------------------------

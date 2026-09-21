@@ -71,7 +71,7 @@ def _missed(folder: pathlib.Path) -> "list[str]":
 
 def _extract(n_rows: int, seed: int, epoch_1904: bool = False) -> bytes:
     """A seeded extract: a day column, a moment column mostly at midnight, an amount."""
-    openpyxl = crosscheck.reader()
+    openpyxl = crosscheck.fixture_writer()
     draw = random.Random(seed)
     book = openpyxl.Workbook()
     if epoch_1904:
@@ -111,7 +111,7 @@ def test_a_date_column_is_described_as_dates_and_keeps_its_at_midnight(
     tmp_path: pathlib.Path, epoch_1904: bool
 ) -> None:
     """The measured shape: dates and moments in a workbook, round-tripped."""
-    openpyxl = crosscheck.reader()
+    openpyxl = crosscheck.fixture_writer()
     source = tmp_path / "extract.xlsx"
     source.write_bytes(_extract(600, 5, epoch_1904))
     assert _exit_of(["profile", str(source), "--out-dir", str(tmp_path)]) == 0
@@ -158,7 +158,7 @@ def test_a_workbook_twin_is_generated_in_the_time_its_delimited_twin_is(
     on purpose, a factor of eight plus two seconds, so a slow machine
     does not turn it red; the defect was a factor of fifty.
     """
-    openpyxl = crosscheck.reader()
+    openpyxl = crosscheck.fixture_writer()
     data = _extract(2000, 9)
     book = tmp_path / "book"
     book.mkdir()

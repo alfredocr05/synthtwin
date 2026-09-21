@@ -51,21 +51,54 @@ another tool and never executed, and `Path.walk` is the exact
 spelling that tool's callback-slot rule exists to catch -- it is the
 one `pathlib.Path` method taking a callable.
 `test_the_reading_recognizes_the_shapes_it_claims_to` below carries
-one more, for the same reason: a guard needs a sample of the thing it
-reports.
+SEVEN more, for the same reason -- a guard needs a sample of the thing
+it reports -- and the lookup tables above it hold twenty-two more,
+since every key of `NAMES_ABOVE_THE_FLOOR` and
+`MODULES_ABOVE_THE_FLOOR` is itself a post-floor spelling written as a
+string. Thirty-three in the tree, of which the four in
+`test_offline_scan.py` are the only ones outside this file. (Counted
+again on 2026-09-21 by running both readings below over every string
+constant of the folders, ONE-LINE STRINGS INCLUDED: an earlier count
+here said "one more" because the harness behind it skipped any string
+with no newline in it, which is most of this file's samples.)
 
-THE LIMIT THAT WOULD MATTER is a string of source that IS executed --
-handed to `exec`, `eval` or `compile`, or written to a file that
-something then imports or runs -- because that spelling reaches the
-3.10 cells while this file says nothing. There is no such string in
-the tree: every string constant of `src`, `tests` and
-`tools` was re-read with the two readings below (dedented first,
-which is how the suite writes them) and each hit followed to its
-consumer, and the only consumers are the offline scanner and this
-file's own self-test. Every `spec_from_file_location` in the suite
-loads a committed file under `tools/` or `tests/`, which the folders
-below already cover. Anyone adding an executed source string has to
-prove the floor for it themselves, because this guard cannot.
+THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
+handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
+spelling reaches the 3.10 cells while this file says nothing about it.
+The tree holds THIRTEEN such calls. They are listed in
+`ROUTES_THAT_RUN_SOURCE` below and
+`test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
+holds the tree to that list, so a fourteenth cannot arrive unread.
+Every one of them runs a COMMITTED FILE of `tools/`, which the folders
+below already read:
+
+- `tests/test_oracle_rule_witnesses.py` builds a module with
+  `exec(compile(source, ...))`, where `source` is
+  `tools/reference/make_generation_reference_vectors.py` carrying one
+  `WITNESS_MUTANTS` or `REFUSALS` edit. Those edits are string
+  constants of `tests/`, so what the interpreter runs is not the
+  committed file alone; all 31 forms of it -- the oracle and its 30
+  edits -- were re-read with both readings below on 2026-09-21 and
+  hold no post-floor spelling.
+- `runpy.run_path` runs the same kind of committed file: twice in
+  `tests/`, in the two stage-2 oracle tests, and nine times in
+  `tools/`.
+
+A FILE loaded as a module is NOT this limit. The 26
+`importlib.util.spec_from_file_location` calls in the folders load
+committed files of `tools/` and `tests/`, which this guard reads as
+files rather than as strings; their number is pinned below so that a
+new loader makes somebody look at what it loads. (A grep for that name
+finds 27 lines -- the twenty-seventh is this paragraph.)
+
+THIS PARAGRAPH WAS WRONG ONCE, WHICH IS WHY IT IS NOW A TABLE. It read
+"there is no such string in the tree" and offered `spec_from_file_location`
+as the reason, when `exec(compile(...))` above is exactly such a
+string and the loader calls numbered 26 rather than the 23 claimed.
+The conclusion held -- no post-floor spelling is run -- but a reader
+redoing the check would have found the author had apparently not
+looked. Anyone adding a route to the table has to prove the floor for
+what it runs, because this guard cannot.
 """
 
 import ast
@@ -167,6 +200,37 @@ OLDER_OWNERS = {"walk": ("ast", "os", "os.path")}
 # The folders this reads. The product, the tests and the tools all run
 # on every cell of the matrix, so all three are read.
 FOLDERS = ("src", "tests", "tools")
+
+# THE ROUTES THAT RUN A STRING OF SOURCE, by the file holding the call
+# and the name it is spelled with. `compile` is matched as the bare
+# name, so the tree's fifty-odd `re.compile` calls are not it. Each of
+# these runs a committed file of `tools/` -- the module docstring says
+# which and why each is covered -- and a route this table does not hold
+# is a spelling this guard cannot see, so the test below fails until
+# somebody adds it here and proves the floor for what it runs.
+ROUTES_THAT_RUN_SOURCE = {
+    ("tests/test_oracle_rule_witnesses.py", "compile"): 1,
+    ("tests/test_oracle_rule_witnesses.py", "exec"): 1,
+    ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
+    ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
+    ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_2.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_3.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_4.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_5.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_6.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_7.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
+}
+RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
+
+# `importlib.util.spec_from_file_location` loads a FILE as a module,
+# which is a file this guard already reads -- so it is a count rather
+# than a table. The count is here so that a new loader is looked at
+# once: if what it loads is a committed file of the folders, move this
+# number and say so.
+FILES_LOADED_AS_MODULES = 26
 
 
 def _files() -> "list[pathlib.Path]":
@@ -371,3 +435,58 @@ def test_the_reading_recognizes_the_shapes_it_claims_to() -> None:
     # a row at or below it never reports; `shutil.which(mode=...)` is
     # the row that proves the comparison is made.
     assert calls_above_the_floor('shutil.which("git", mode=1)\n') == []
+
+
+def _source_running_sites() -> "tuple[dict, int]":
+    """Census of the running routes, and the count of file loaders."""
+    census: "dict[tuple[str, str], int]" = {}
+    loaders = 0
+    for path in _files():
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            spelled = _called_name(node)
+            if spelled in RUNNING_NAMES:
+                key = (relative, spelled)
+                census[key] = census.get(key, 0) + 1
+            elif spelled == "importlib.util.spec_from_file_location":
+                loaders += 1
+    return census, loaders
+
+
+def test_the_routes_that_run_a_string_of_source_are_the_ones_named_here() -> None:
+    """The one limit this guard cannot see is held to a list somebody has read.
+
+    THE REVIEW OF 2026-09-21. The docstring said the limit that would
+    matter is a string of source that is EXECUTED, said there was no
+    such string in the tree, and gave `spec_from_file_location` as the
+    reason. A reader who redid the check found `exec(compile(source,
+    ...))` in `tests/test_oracle_rule_witnesses.py` -- precisely the
+    excluded route -- and eleven `runpy.run_path` calls, none of them
+    mentioned. Nothing was broken by it: all 31 forms of the oracle
+    that call runs hold no post-floor spelling. What was broken was the
+    claim, and a prose claim nobody can redo is worth what this one
+    turned out to be worth.
+
+    So the routes are a table now. A new `exec`, `eval`, `compile` or
+    `runpy` call fails this until it is added, which is the moment to
+    ask what source it runs and whether the floor holds for it.
+    """
+    census, loaders = _source_running_sites()
+    arrived = {key: n for key, n in census.items() if ROUTES_THAT_RUN_SOURCE.get(key) != n}
+    gone = {key: n for key, n in ROUTES_THAT_RUN_SOURCE.items() if census.get(key) != n}
+    assert not arrived and not gone, (
+        "the routes that RUN a string of source have moved. New or changed "
+        f"here: {arrived}. Named below and no longer there: {gone}. This "
+        "guard reads each file's own syntax tree, so a post-floor spelling "
+        "inside a string it runs is invisible to it: add the route to "
+        "ROUTES_THAT_RUN_SOURCE and say in the module docstring what it "
+        "runs and why the floor holds for it."
+    )
+    assert loaders == FILES_LOADED_AS_MODULES, (
+        f"{loaders} calls to importlib.util.spec_from_file_location, against "
+        f"{FILES_LOADED_AS_MODULES} recorded. Each one loads a FILE as a "
+        "module: check that this one loads a committed file of src/, tests/ "
+        "or tools/ -- which this guard reads -- and then move the number."
+    )
