@@ -230,7 +230,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # than a table. The count is here so that a new loader is looked at
 # once: if what it loads is a committed file of the folders, move this
 # number and say so.
-FILES_LOADED_AS_MODULES = 26
+#
+# 27 AT THE INTEGRATION OF 2026-09-21, not 26: `tests/test_ci_shards.py`
+# arrived with the suite-time landing and loads `tools/ci/shards.py`
+# through `_load_tool`, so the split's own prover can be tested without
+# putting tools/ on the path. What it loads is a committed file under
+# tools/, which this guard reads directly -- `_files()` walks it -- so
+# the floor holds for it the way it holds for the other twenty-six.
+FILES_LOADED_AS_MODULES = 27
 
 
 def _files() -> "list[pathlib.Path]":
