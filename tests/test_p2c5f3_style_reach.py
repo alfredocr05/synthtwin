@@ -46,6 +46,7 @@ does apply to it and records the residue in words.
 
 import pathlib
 import random
+import types
 
 import pytest
 
@@ -195,19 +196,48 @@ def _battery(folder: pathlib.Path) -> "list[tuple[str, dict, contract.Profile]]"
 # and the assertion below is what holds that -- a kept twin is served
 # only while both shipped steps are the ones installed.
 _TWINS: "dict[tuple[str, int], generation.Twin]" = {}
-# Both generator steps this file's mutants replace, held at import.
-_SHIPPED_STEPS = (generation._reach_sizes, generation._style_strata)
+# The shipped generator, held at import.
+# WHAT COUNTS AS "THE GENERATOR HAS NOT MOVED". Not the one step
+# today's mutants replace -- every name the generator module holds, and
+# every name held by each synthtwin module the generator names. A case
+# added here later that patches some OTHER part of the generator, or
+# part of `parsing` or `taxonomy` below it, must be refused by the cache
+# exactly as today's mutants are; a guard that knew only today's mutants
+# would hand that case the shipped generator's answer and let it read
+# green while its mutation was live. Roughly 2,300 names are watched,
+# by identity, at a measured cost of 0.07 ms a call.
+_MODULES = [generation] + sorted(
+    (
+        held
+        for held in vars(generation).values()
+        if isinstance(held, types.ModuleType)
+        and getattr(held, "__name__", "").startswith("synthtwin")
+    ),
+    key=lambda held: held.__name__,
+)
+_SHIPPED_SURFACE = [
+    (vars(module), name, vars(module)[name])
+    for module in _MODULES
+    for name in sorted(vars(module))
+    if not name.startswith("__")
+]
+
+
+def _the_generator_that_moved() -> "str | None":
+    """The name of the first watched member that is no longer the shipped one."""
+    for held, name, shipped in _SHIPPED_SURFACE:
+        if name not in held or held[name] is not shipped:
+            return name
+    return None
 
 
 def _twin_of(
     name: str, loaded: contract.Profile, seed: int
 ) -> generation.Twin:
     """One twin of the battery, generated on first ask and kept."""
-    assert (
-        generation._reach_sizes,
-        generation._style_strata,
-    ) == _SHIPPED_STEPS, (
-        "a step of the generator has been replaced, so a kept twin "
+    moved = _the_generator_that_moved()
+    assert moved is None, (
+        f"the generator has been replaced at `{moved}`, so a kept twin "
         "would be the shipped generator's answer to a mutant's question. "
         "A case that patches the generator calls generation.generate "
         "directly."
@@ -246,11 +276,24 @@ def test_a_kept_twin_is_never_served_over_a_replaced_generator(
     be handed the SHIPPED generator's answer and would go green while
     the mutation was live, which is the hazard every shared fixture
     carries. The cache refuses instead, for both steps.
+
+    AND NOT ONLY THE STEP TODAY'S MUTANTS REPLACE. A case added here
+    later may patch some other part of the generator, or part of
+    `parsing` or `taxonomy` below it, and the cache has to refuse that
+    one too -- otherwise the new case reads the shipped generator's
+    twins and goes green with its mutation live. The members named
+    below are stand-ins for every one the old guard could not see.
     """
     name, _document, loaded = _battery(tmp_path)[0]
-    for step in ("_reach_sizes", "_style_strata"):
+    for holder, member in (
+        (generation, "_reach_sizes"),
+        (generation, "_style_strata"),
+        (generation, "_allocation"),
+        (parsing, "parse_datetime"),
+        (taxonomy, "_matching_date_format"),
+    ):
         with monkeypatch.context() as patched:
-            patched.setattr(generation, step, lambda *a, **k: None)
+            patched.setattr(holder, member, lambda *a, **k: None)
             with pytest.raises(AssertionError):
                 _twin_of(name, loaded, SEEDS[0])
 

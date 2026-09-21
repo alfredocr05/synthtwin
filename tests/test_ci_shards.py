@@ -24,6 +24,23 @@ made to happen on demand.
 
     REINSTATE=D-CI-SHARDS-DROP python -m pytest tests/test_ci_shards.py
 
+THE SECOND REPRODUCTION, and it is the other way a shard can run no
+test at all. The CI step redirects this tool into a file and hands the
+words to pytest, so the BYTES of that file are part of the interface: a
+stream that ends its lines the Windows way hands pytest twenty-five
+jobs' worth of paths with a trailing carriage return, and every one is
+"file or directory not found". Set `REINSTATE=D-SHARD-CRLF` and the
+tool runs without the guard that settles it:
+
+    REINSTATE=D-SHARD-CRLF python -m pytest tests/test_ci_shards.py
+
+THE THIRD, and it is about what those steps leave behind rather than
+what they run: the file each one redirects into the checkout root must
+be named in `.gitignore`, or the next `git add -A` stages a generated
+list into a repository that is otherwise strict about what enters it.
+
+    REINSTATE=D-SHARD-ARTEFACTS python -m pytest tests/test_ci_shards.py
+
 No table and no fixture data is involved: this file reads the test
 folder, the workflow and one weight table.
 """
@@ -33,12 +50,15 @@ import os
 import pathlib
 import random
 import re
+import subprocess
+import sys
 import typing
 
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW = REPO / ".github" / "workflows" / "ci.yml"
+IGNORED = REPO / ".gitignore"
 
 
 def _load_tool(relative: str, name: str) -> object:
@@ -392,3 +412,174 @@ def test_the_tool_prints_one_shard_and_nothing_else(
     assert code == 0
     printed = capsys.readouterr().out.splitlines()
     assert printed == _plan(count, collected_files)[0]
+
+
+# -- the bytes the CI step redirects into a file ------------------------
+
+# A child that runs the real tool with a stdout that translates line
+# endings the way a Windows console stream does, and writes it to the
+# file the CI step redirects into. Nothing here emulates the TOOL: the
+# tool is loaded from the repository and run as CI runs it. The only
+# thing standing in for Windows is the one byte-level behaviour of a
+# text stream opened with the platform default, which is what a macOS
+# or Linux runner cannot show by itself.
+_WINDOWS_STDOUT_CHILD = """
+import io, os, pathlib, runpy, sys
+
+target = pathlib.Path(sys.argv[1])
+count = sys.argv[2]
+shard = sys.argv[3]
+tool = pathlib.Path(sys.argv[4])
+
+handle = open(target, "wb")
+sys.stdout = io.TextIOWrapper(handle, encoding="utf-8", newline="\\r\\n")
+sys.argv = ["shards.py", "--of", count, "--shard", shard]
+try:
+    runpy.run_path(str(tool), run_name="__main__")
+except SystemExit as leaving:
+    code = leaving.code
+else:
+    code = 0
+sys.stdout.flush()
+handle.close()
+raise SystemExit(code)
+"""
+
+_WITHOUT_THE_GUARD = """
+import io, pathlib, sys
+
+target = pathlib.Path(sys.argv[1])
+count = sys.argv[2]
+shard = sys.argv[3]
+tool = pathlib.Path(sys.argv[4])
+
+import importlib.util
+spec = importlib.util.spec_from_file_location("shards_under_windows", tool)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.line_endings_stay_plain = lambda: False
+
+handle = open(target, "wb")
+sys.stdout = io.TextIOWrapper(handle, encoding="utf-8", newline="\\r\\n")
+code = module.main(["--of", count, "--shard", shard])
+sys.stdout.flush()
+handle.close()
+raise SystemExit(code)
+"""
+
+
+def test_the_shard_list_holds_no_carriage_return_on_any_platform(
+    tmp_path: pathlib.Path, collected_files: "list[str]"
+) -> None:
+    """The file list the CI step writes must be readable by bash on Windows.
+
+    THE REPRODUCTION. The `tests` job redirects this tool into
+    `shard-files.txt` and hands the words to pytest:
+
+        python tools/ci/shards.py --of 5 --shard N > shard-files.txt
+        python -m pytest $(cat shard-files.txt)
+
+    The workflow declares `shell: bash` for every platform, and bash
+    splits a command substitution on space, tab and newline -- never on
+    a carriage return. So if the tool's stdout translates \n to \r\n,
+    as a Windows text stream does by default, every path reaches pytest
+    with a trailing \r and pytest answers "file or directory not
+    found" for each one: all 25 Windows test jobs red, for a reason
+    that has nothing to do with any test.
+
+    This runs the tool with exactly that stream and reads the BYTES,
+    which is the half `capsys` cannot see -- a capture fixture is
+    handed the string and never the file the step actually writes.
+
+    THE MUTATION CHECK, and it is the same reproduction:
+
+        REINSTATE=D-SHARD-CRLF python -m pytest tests/test_ci_shards.py
+    """
+    count = _count_in_workflow()
+    written = tmp_path / "shard-files.txt"
+    child = _WINDOWS_STDOUT_CHILD
+    if os.environ.get("REINSTATE") == "D-SHARD-CRLF":
+        child = _WITHOUT_THE_GUARD
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            child,
+            str(written),
+            str(count),
+            "1",
+            str(REPO / "tools" / "ci" / "shards.py"),
+        ],
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+    raw = written.read_bytes()
+    assert b"\r" not in raw, (
+        "tools/ci/shards.py wrote a carriage return into the file the CI step "
+        "hands to pytest. On Windows every path in it would reach pytest with "
+        "a trailing \\r and no test would be found. See "
+        "shards.line_endings_stay_plain."
+    )
+    assert raw.decode("utf-8").splitlines() == _plan(count, collected_files)[0]
+
+
+# -- what those steps leave behind in the checkout ----------------------
+
+
+def _files_the_sharded_steps_write() -> "list[str]":
+    """Every `> name.txt` the shard steps redirect into the checkout root."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    found: list[str] = []
+    for name in re.findall(r">\s*([A-Za-z0-9_.-]+\.txt)\s*$", text, flags=re.MULTILINE):
+        if name not in found:
+            found = found + [name]
+    return found
+
+
+def _ignore_lines() -> "list[str]":
+    """The .gitignore, one stripped line at a time, with the mutant applied."""
+    lines = [
+        line.strip()
+        for line in IGNORED.read_text(encoding="utf-8").splitlines()
+    ]
+    if os.environ.get("REINSTATE") == "D-SHARD-ARTEFACTS":
+        written = _files_the_sharded_steps_write()
+        return [line for line in lines if line not in written]
+    return lines
+
+
+def test_what_the_sharded_steps_write_never_enters_the_repository(
+) -> None:
+    """A CI step's output file must not be stageable by the next `git add -A`.
+
+    THE REPRODUCTION. The sharded steps write `shard-files.txt` into
+    the checkout root, and the coverage job writes `collected.txt`
+    beside it. On a runner that folder is thrown away, but
+    CONTRIBUTING.md now tells a contributor how to run the same step
+    locally, and the landing checklist of this repository opens with
+    `git add -A`. A generated list of test files would be staged into a
+    tree that is otherwise strict about what enters it, and nothing
+    else here would refuse it.
+
+    The assertion is read off the workflow rather than written out, so
+    a step that starts redirecting into a third file has to say so
+    here.
+
+    THE MUTATION CHECK:
+
+        REINSTATE=D-SHARD-ARTEFACTS python -m pytest tests/test_ci_shards.py
+    """
+    written = _files_the_sharded_steps_write()
+    assert written, (
+        ".github/workflows/ci.yml redirects nothing into a .txt file; this "
+        "test reads the steps rather than a fixed list, so a step that "
+        "stopped doing that should take this case with it"
+    )
+    ignored = _ignore_lines()
+    missing = [name for name in written if name not in ignored]
+    assert not missing, (
+        f"the CI steps write {missing} into the checkout root and .gitignore "
+        "does not name them, so `git add -A` would stage a generated list"
+    )

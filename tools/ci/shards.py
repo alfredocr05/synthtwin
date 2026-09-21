@@ -201,7 +201,38 @@ def state_page_problems(collected_text, page_text):
     return []
 
 
+def line_endings_stay_plain():
+    """Make this tool's own output end lines with \n on every platform.
+
+    WHY. The CI step redirects `--shard N` into a file and hands the
+    words to pytest:
+
+        python tools/ci/shards.py --of 5 --shard 2 > shard-files.txt
+        python -m pytest $(cat shard-files.txt)
+
+    On Windows, a text stream opened with the platform default
+    translates every \n into \r\n on the way out, so each line of that
+    file ends with a carriage return. The workflow runs `shell: bash`
+    on Windows as well, and bash splits `$(cat ...)` on space, tab and
+    newline -- never on \r -- so every path would reach pytest with a
+    trailing \r and pytest would answer "file or directory not found"
+    for all of them. The list this tool prints is an argument list, not
+    prose for a console, so its lines end the same way on every
+    platform.
+
+    A stream without `reconfigure` -- a capture object in a test, a
+    replacement someone else installed -- is left exactly as it is.
+    """
+    stream = sys.stdout
+    settable = getattr(stream, "reconfigure", None)
+    if settable is None:
+        return False
+    settable(newline="\n")
+    return True
+
+
 def main(argv=None):
+    line_endings_stay_plain()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--of", type=int, required=True, help="how many shards")
     parser.add_argument("--shard", type=int, help="print this shard's files (1-based)")
