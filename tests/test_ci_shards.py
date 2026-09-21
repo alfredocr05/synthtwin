@@ -100,6 +100,24 @@ def _matrix_shard_lists() -> "list[list[int]]":
     ]
 
 
+def _included_shards() -> "list[int]":
+    """Every `shard: N` an `include` row names, as one sorted list.
+
+    A matrix `include` adds ONE combination at a time, so the macOS cell
+    is written out once per shard and those rows carry a bare number
+    rather than a list. They are the half of the matrix a `shard: [...]`
+    reading cannot see, and a split that grew by one would leave them a
+    shard short with nothing saying so.
+    """
+    text = WORKFLOW.read_text(encoding="utf-8")
+    return sorted(
+        int(found)
+        for found in re.findall(
+            r"^\s*shard:\s*(\d+)\s*$", text, flags=re.MULTILINE
+        )
+    )
+
+
 @pytest.fixture(scope="module")
 def collected_files() -> "list[str]":
     """Every test file in the tree, read here and not through the tool.
@@ -234,7 +252,10 @@ def test_every_matrix_runs_exactly_the_shards_the_split_has(
 
     Both sharded jobs -- the matrix cell suite and the floors job --
     name their shards as a list, and every such list must be 1..N for
-    the one declared N.
+    the one declared N. The `include` rows that add the macOS cell name
+    one shard each instead, and between them they must name the same N:
+    a split grown by one would otherwise leave macOS running four
+    fifths of the suite with every job still green.
     """
     count = _count_in_workflow()
     wanted = list(range(1, count + 1))
@@ -245,6 +266,15 @@ def test_every_matrix_runs_exactly_the_shards_the_split_has(
             f"a matrix runs shards {entry} of a {count}-way split; it must run "
             f"{wanted}, or the files in the missing shards run nowhere"
         )
+    included = _included_shards()
+    assert included, (
+        ".github/workflows/ci.yml has no `include` row naming a shard; the "
+        "macOS cell is added one shard at a time and each row names its own"
+    )
+    assert included == wanted, (
+        f"the `include` rows name shards {included} of a {count}-way split; "
+        f"they must name {wanted}, or that cell runs part of the suite"
+    )
 
 
 def test_the_workflow_asks_the_tool_for_the_count_it_declares() -> None:
