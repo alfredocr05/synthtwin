@@ -1325,8 +1325,10 @@ INVARIANTS = {
     "B4d": (
         "the scale published for the held-back numbers is taken over a "
         "group: the cells it speaks of are nought, or they and the "
-        "column's other numbers each reach the census line -- and its "
-        "mean and its spread stand exactly where those cells do"
+        "column's other numbers each reach the census line -- its mean "
+        "and its spread stand exactly where those cells do, and a "
+        "spread it speaks of is above nought, because a pool of no "
+        "spread publishes the value of every cell in it"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -7522,6 +7524,16 @@ def _pooled_numbers(
     not they are both present; a block that spoke one of them would say
     by its shape what the count is for.
 
+    AND A SPREAD THAT IS WRITTEN IS ABOVE NOUGHT (repair pass of
+    2026-09-21). A pool of no spread holds ONE value in every one of its
+    cells, so its mean is that value and the block hands over exactly
+    what the floor was holding back -- measured at a floor of eleven on
+    200 `blank` beside forty `3` and eight each of `5`, `5.0`, `05` and
+    `5.00`, which published 32 cells at mean 5.0 and spread 0.0 and
+    printed "average 5.0, spread 0.0" on the page a person reads. The
+    producer refuses to write one; this is the half that stops a
+    hand-written description carrying one.
+
     INSIDE A COMPOUND COLUMN'S LABEL HALF the numeric total is the
     column's and counts the numbers of the OTHER half, so it is not a
     population this pool can be subtracted from and the population
@@ -7562,12 +7574,20 @@ def _pooled_numbers(
                 + ("written" if spoken else "absent")
             ),
         )
-    if spread is not None and spread < 0.0:
-        raise _out_of_range(
-            "suppressed_numbers -> spread",
+    # A SPREAD OF NOUGHT IS REFUSED AND NOT ONLY A NEGATIVE ONE (repair
+    # pass of 2026-09-21). The producer never writes one -- a pool of
+    # one value spelled several ways is refused there, for the reason
+    # `taxonomy._pooled_numbers` states -- and this is the loader's half
+    # of that rule, so a HAND-WRITTEN description cannot carry it
+    # either. It is reached only where the mean and the spread are
+    # written, which invariant B4d has already tied to a count above
+    # nought.
+    if spread is not None and spread <= 0.0:
+        raise _broken(
+            "B4d",
             where,
-            f"{spread}",
-            "a number of 0 or more",
+            f"the pooled scale speaks of a spread of {spread}",
+            "a pool that has no spread holds one value in every cell",
         )
     if cells < 1:
         return NO_POOLED_NUMBERS

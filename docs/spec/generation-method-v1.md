@@ -10321,17 +10321,38 @@ the shape ledger entry K-2B-50 names: before G8.3c the twin put a pool
 published at mean 204.5 and spread 2.872281 at 100 and 3.027650, which
 this window refuses, and after it the twin lands on both exactly.
 
-**WHERE `sigma` IS NOUGHT NO WINDOW IS DRAWN and the two obligations
-are left out**, with the reason stated rather than made unmeetable: a
-window of nought width admits one value and nothing else, which no pool
-written in two different spellings of that value can meet. Nothing else
-reaches that state, because a pool of one level never clears the census
-line, so a spread of nought here means one value spelled several ways.
+**`sigma` IS NEVER NOUGHT HERE** since the repair pass of 2026-09-21.
+It used to be a state this window had to excuse — a window of nought
+width admits one value and nothing else — and it is now refused where
+it is made: the producer does not publish a flat pool, because
+publishing one names the value of every cell in it, and invariant B4d
+refuses one in a description the producer did not write. Contract 6.3.3
+carries the measurement. So a published spread is above nought and a
+window can always be drawn.
 
-**THE FILE'S OWN POOL IS WHAT IS MEASURED**, read off the file's own
-description exactly as every other check of this kind reads it: a file
-whose levels all clear the floor has no pool, the gate is closed, and
-both obligations are WITHHELD.
+**THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
+none closes the gate**: both obligations are WITHHELD, as every other
+check of this kind reads a re-described block that says nothing.
+
+**THAT MAKES THIS CHECK VACUOUS TODAY, and the repair pass of
+2026-09-21 measured why rather than papering over it.** The file's own
+block is written by the producer rules of contract 6.3.3, and one of
+them refuses a pool packed as closely as its own values allow, because
+such a pool is NAMED by its mean and its spread. Step 1 of G8.3c above
+spaces the twin's groups EVENLY, which is that arrangement: measured on
+a six-level pool of hundreds and on one of thousands, the twin's own
+pool came back at a looseness of 1.333 and 1.825 against the 2.5 the
+producer asks for. So no twin this product writes publishes the pool it
+was asked to write, and both obligations are withheld on every one.
+
+**READING THE CLOSED GATE AS A MISS WAS TRIED AND WITHDRAWN** in the
+same pass: it states an obligation no conforming twin can meet, which
+is the defect class that pass existed to close. **WHAT CLOSES IT** is
+step 1 choosing positions whose gaps are UNEVEN — spaced so the pool
+the twin writes stands as far clear of its own tightest arrangement as
+the description's pair does — which is a change to this section that
+the pass did not make, and which the landing's report puts to the owner
+beside the other way out.
 
 ## G13. Residuals this method carries
 

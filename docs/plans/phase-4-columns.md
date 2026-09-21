@@ -18718,27 +18718,101 @@ publishes: a refusal a reader could tell apart from nought would itself
 publish the count the floor exists to withhold. Invariant B4d is the
 loader's half of the same question.
 
-**WHAT THE TWO-LEVEL POOL COSTS, AND WHY THE PRODUCER REFUSES IT.** The
-census rule asks whether the pooled COUNT names a group. It does not ask
-whether a mean and a spread name a VALUE, and on a pool of exactly two
-numeric levels whose sizes the published pool pins they do: two
-equations, two unknowns, solved exactly. Measured at a floor of eleven
-on 420 `missing` beside two negative readings of ten rows each — the
-block published a mean of -48 and a spread of 11, and -48 -+ 11 is -59
-and -37, the two values the table held. So the producer publishes the
-scale only where THREE or more held-back levels hold numbers, where the
-same two equations leave a curve of candidate populations rather than a
-point. It costs nothing measured: on that shape the twin's numeric mean
-and spread were the table's own before this landing and after it.
+**WHAT THE PRODUCER REFUSES, AND WHY — REWRITTEN BY THE REPAIR PASS OF
+2026-09-21.** This decision first shipped ONE producer refusal: a pool
+of fewer than three numeric levels. The review of the same day measured
+three things wrong with that, and the contract's section 6.3.3 now
+carries the full statement and the measurements. In short:
+
+1. **THREE LEVELS WAS NOT ENOUGH, and the number is now SIX.** The
+   census rule asks whether the pooled COUNT names a group; it does not
+   ask whether a mean and a spread name a VALUE. On 200 `yes`, thirty
+   `1` and ten each of 44, 46 and 48 at a floor of eleven,
+   `suppressed_levels` over `suppressed_rows` pins the sizes at
+   (10, 10, 10), `n_cells` equal to `suppressed_rows` says all three
+   hold numbers, and a search over whole numbers returns (44, 46, 48)
+   and nothing else. A sweep of twenty-five random whole-number pools at
+   each level count solved 17 of 25 outright at three levels, 1 of 25 at
+   four and at five, and none at six, where the median solution set is
+   118 populations. Six is where the count stops being a name.
+2. **A POOL WIDER THAN THE COLUMN SHOWS IS NOT PUBLISHED.** Method
+   G8.3a step 3 forbids the generator a made-up number wider than the
+   widest the column publishes, so a scale wider than that is an
+   obligation no conforming twin could meet — the description-no-file-
+   satisfies defect, stated by the block written to close another.
+   Measured: 300 `hold`, twenty `7` and five each of 1000000 to 5000000
+   published a mean of 3000000 while its twin's pool stood at 6.68, and
+   `validate` exited 3 on the twin and 0 on the real table; 52 of 120
+   runs of a sixty-shape sweep did that, and none does now.
+3. **A POOL OF NO SPREAD IS NOT PUBLISHED**, because its mean IS the
+   value of every cell it speaks of: four spellings of five are four
+   levels and one number, and the page a person reads printed "32
+   cells, average 5.0, spread 0.0". This one invariant B4d re-asks, so
+   a hand-written description cannot carry it either.
+
+4. **AND THE POOL MUST STAND CLEAR OF THE TIGHTEST ARRANGEMENT ITS OWN
+   VALUES COULD TAKE**, which is the rule the other three do not give.
+   The landing's own reproduction published a spread of
+   2.8722813232690143 — exactly `sqrt((10 * 10 - 1) / 12)`, the
+   smallest a pool of ten distinct whole numbers can have — so its ten
+   held-back values come back by arithmetic as 200 to 209. So does any
+   evenly spaced pool. Measured over sixty real pools: at the tightest
+   arrangement the pool is named outright, at 1.78 times its variance
+   one other pool shares the pair, and at 2.45 times, 28 do. The
+   multiple is 2.5.
+
+**WHAT THAT COSTS, AND IT IS THE WHOLE HEADLINE.** The shape ledger
+K-2B-50 names publishes no scale any more, so **K-2B-50 IS OPEN
+AGAIN**: on it the twin's numeric mean is back at 100 against
+187.083333 and its spread at 3.027650 against 39.033017. What is left
+is the pools loose enough for the pair to name nothing, and on those
+the placement is worth a numeric mean 0.0002 and a spread 0.0651 from
+the table's own, against the 50 and more without it.
+
+**AND THE CHECK IS VACUOUS WHILE THAT STANDS.** The two obligations are
+measured against the checked file's own re-described block, and method
+G8.3c spaces the twin's groups evenly — the tightest arrangement — so
+every twin this product writes publishes no pool and both obligations
+are WITHHELD. Reading the closed gate as a MISS was measured and
+withdrawn: it states an obligation no conforming twin can meet. What
+closes it is G8.3c placing the pool as loosely as the pair allows;
+that is a change to the generator this pass did not make, and the
+report puts it to the owner beside withdrawing the publication.
 
 **WHAT IT STILL LETS A READER NARROW**, recorded rather than waved
-away, and it is the residue section 6.3 already records for the pool
-itself: three numbers over a pool of three levels or more leave a family
-of candidate populations, not one, because neither the held-back levels'
-sizes nor how many of them hold numbers is published. What a reader
-takes is the SCALE of a group at the census line, which is narrower than
-what the twin already gives them -- and that limit, the owner's accepted
-one of 2026-09-18, is WIDENED by this decision. Measured, ledger
-K-2B-19: 55 held-back cells the twin reproduces exactly to 125 of 251,
-with the count of columns rebuilt whole unmoved at 1 of 19. The two move
-together and reversing this decision reverses both.
+away, and the first writing of this paragraph was FALSE: it rested on
+"neither the held-back levels' sizes nor how many of them hold numbers
+is published", and `suppressed_levels` with `suppressed_rows` pins the
+sizes at the top of invariant B4's band while `n_cells` equal to
+`suppressed_rows` says every held-back level is numeric. What is true is
+that three numbers over a pool of six levels or more that stands at
+least two and a half times looser than its own tightest arrangement
+leave a SET of candidate populations rather than a point — tens of them
+in the sweep above. It is not a continuum, and nothing here makes it one
+while the values are whole numbers. What a reader takes is the
+SCALE of a group at the census line, which is no wider than what the
+twin already gives them.
+
+**AND IT COSTS THE OWNER'S ACCEPTED LIMIT NOTHING.** The first writing
+of this decision moved ledger K-2B-19 from 55 held-back cells the twin
+reproduces exactly to 125 of 251 and said so to the owner. With the four
+refusals above in place it is back at 55 of 251, columns rebuilt whole
+unmoved at 1 of 19: the limit the owner accepted on 2026-09-18 stands
+where they accepted it, and there is nothing here to re-accept.
+
+**WHAT THE OWNER HAS TO DECIDE**, because this pass would not decide it
+for them. K-2B-50 is open and the two ways to close it both cost
+something:
+
+- **Place the pool loosely (a change to method G8.3c).** The twin's
+  groups would stand at uneven gaps instead of even ones, far enough
+  apart that a twin's own description publishes its pool and method
+  G12.12's check stops being vacuous. It does NOT bring the ledger's own
+  shape back: that column's pool is named by its pair whatever the twin
+  does, so it stays refused.
+- **Publish the MEAN and not the spread.** One equation over as many
+  unknowns as the pool has levels is never solved, so the looseness rule
+  and the level rule both fall away and the ledger's own shape could be
+  published again. It costs the published spread, which is what method
+  G12.12's window is drawn from, so the window would have to be derived
+  some other way — a landing of its own, with its own review.

@@ -5655,19 +5655,145 @@ _NO_POOLED_SCALE: "dict[str, object]" = {
 }
 
 # HOW MANY HELD-BACK LEVELS MUST HOLD NUMBERS before their scale may be
-# published (plan P4-D301). THREE, and the reason is arithmetic rather
-# than taste. A pool of TWO numeric levels whose sizes the published
-# pool pins -- `suppressed_rows` over `suppressed_levels` with invariant
-# B4's band leaving one split only -- is SOLVED by a mean and a spread:
-# two equations, two unknowns, and the two values come out exactly.
-# Measured at a floor of eleven on 420 `missing` beside two negative
-# readings of ten rows each: the block published a mean of -48 and a
-# spread of 11, and -48 -+ 11 is -59 and -37, which is what the table
-# held. At three levels the same two equations run over three unknown
-# values and leave a curve of candidate populations rather than a point,
-# so nothing is named. The count is of LEVELS and not of cells, because
-# it is the levels a reader would be solving for.
-_POOLED_SCALE_LEVELS = 3
+# published (plan P4-D301, RAISED FROM THREE TO SIX by the repair pass
+# of 2026-09-21). The reason is arithmetic rather than taste, and the
+# number is MEASURED rather than argued.
+#
+# A mean and a spread over a pool are two equations. The values of the
+# held-back levels are the unknowns, and their SIZES are not unknown at
+# all wherever `suppressed_levels` over `suppressed_rows` leaves one
+# split of the floor's band -- which is every pool standing at the top
+# of that band, the commonest shape there is. What protects the values
+# is therefore only that there are more of them than there are
+# equations, and how much protection that is was counted rather than
+# assumed: over twenty-five random pools of DISTINCT WHOLE numbers at
+# each level count, with the sizes given to the reader and the search
+# taken thirty either side of the pool, the whole solution set is
+#
+#   3 levels: 17 of 25 pools SOLVED OUTRIGHT, never more than 2 answers
+#   4 levels:  1 of 25 solved outright, 15 of 25 down to four answers
+#   5 levels:  1 of 25 solved outright, 6 of 25 down to four answers
+#   6 levels:  none solved outright, 2 of 25 down to four, median 118
+#   7 levels:  none solved outright, none below 41, median 252
+#
+# THE THREE-LEVEL RULE THIS REPLACES WAS UNSOUND, and the reproduction
+# is 200 `yes`, 30 `1` and ten each of 44, 46 and 48 at a floor of
+# eleven: three levels over thirty rows with every level under eleven
+# admits the sizes (10, 10, 10) and nothing else, `n_cells` equal to
+# `suppressed_rows` says all three hold numbers, and a search over whole
+# numbers returns (44, 46, 48) and nothing else. Every held-back value
+# named, by a block published to protect them.
+#
+# SIX IS WHERE THE COUNT STOPS BEING A NAME. It is not where the
+# solution set becomes infinite -- no count of levels does that while
+# the values are whole numbers -- and contract 6.3.3 says so in as many
+# words rather than resting the publication on a safety it does not
+# have. The count is of LEVELS and not of cells, because it is the
+# levels a reader would be solving for.
+_POOLED_SCALE_LEVELS = 6
+
+
+# HOW MUCH LOOSER THAN THE TIGHTEST ARRANGEMENT a pool must be before
+# its mean and its spread stop NAMING it (repair pass of 2026-09-21).
+# MEASURED, and the measurement is what withdrew the first writing of
+# this rule. Ten held-back levels of ten rows, the sizes pinned and the
+# mean exact, over sixty real pools of distinct whole numbers: how many
+# OTHER pools share the published pair is
+#
+#   variance at the tightest arrangement (ratio 1.00): ONE pool -- named
+#   ratio 1.78: 2 pools
+#   ratio 2.45: 29 pools;  2.89: 53;  2.96: 20;  3.13: 60
+#
+# A pool sitting at the tightest arrangement its values can take is
+# SOLVED whatever its level count, because the tightest arrangement is
+# unique up to where it starts and the mean says where: the landing's
+# own reproduction -- ten levels of ten rows holding 200 to 209 --
+# published a spread of 2.8722813232690143, which is exactly
+# sqrt((100 - 1) / 12), the smallest a pool of ten distinct whole
+# numbers can have, so every one of its ten held-back values came back
+# by arithmetic. No count of levels closes that, which is why the level
+# rule below is not by itself the answer.
+_POOLED_SCALE_LOOSENESS = 2.5
+
+
+def _tightest_variance(sizes: "list[int]", step: float) -> float:
+    """The smallest population variance a pool of these sizes can have.
+
+    ``sizes`` is how many rows each held-back numeric level covers and
+    ``step`` the closest two of its values could stand. The tightest a
+    pool of distinct values can be packed is at consecutive multiples of
+    ``step``, with the largest group in the middle and the rest falling
+    away either side of it -- which is the arrangement method G8.3c
+    writes, for the same reason -- so this is that arrangement's
+    weighted variance.
+
+    Guarantees: accepts the sizes and a step above nought; returns a
+    variance of nought or more, and nought for one level or none.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    ordered = sorted(sizes, reverse=True)
+    places: "list[int]" = []
+    for rank in range(len(ordered)):
+        reach = (rank + 1) // 2
+        if rank % 2 == 1:
+            places += [reach]
+        else:
+            places += [0 - reach]
+    rows = 0
+    weighted = 0
+    for step_index in range(len(ordered)):
+        rows = rows + ordered[step_index]
+        weighted = weighted + ordered[step_index] * places[step_index]
+    if rows < 1:
+        return 0.0
+    centre = weighted / rows
+    second = 0.0
+    for step_index in range(len(ordered)):
+        away = places[step_index] - centre
+        second = second + ordered[step_index] * away * away
+    return step * step * second / rows
+
+
+def _closest_step(values: "list[float]") -> float:
+    """The closest two DIFFERENT values of a pool stand, or nought.
+
+    A reader solving for the pool's values is solving over a grid, and
+    this is the coarsest grid the pool's own values sit on that this
+    module can read off them. Taking the smallest gap rather than a
+    finer one is the careful direction: a coarser grid makes the
+    tightest arrangement wider, which makes `_pooled_numbers` refuse
+    more often and never less.
+
+    Guarantees: accepts any list; returns the smallest positive
+    difference between two of its values, or nought where it holds
+    fewer than two different ones. Determinism: a fixed function of the
+    multiset. Raises nothing. No I/O of any kind.
+    """
+    ordered = sorted(set(values))
+    closest = 0.0
+    for place in range(1, len(ordered)):
+        gap = ordered[place] - ordered[place - 1]
+        if gap > 0.0 and (closest <= 0.0 or gap < closest):
+            closest = gap
+    return closest
+
+
+def _whole_figures_of(value: float) -> int:
+    """How many figures a number has before its decimal mark, sign aside.
+
+    The count `generation._whole_figures` reads off the ladder, asked of
+    a VALUE instead of a whole number of its last place: 0.5 and -0.5
+    both have the one figure their plain spelling writes before the
+    mark, and 1000000 has seven.
+
+    Guarantees: accepts any finite number; returns 1 or more.
+    Determinism: a fixed function of the value. Raises nothing for a
+    finite number. No I/O of any kind.
+    """
+    size = value
+    if size < 0.0:
+        size = 0.0 - size
+    return len(str(int(size)))
 
 
 def population_moments_of(numbers: list[float]) -> "tuple[float, float]":
@@ -5727,14 +5853,25 @@ def _pooled_numbers(
     given, and no cell is placed: a mean and a spread over a group are
     facts about the group.
 
-    AND THE POOL MUST HOLD THREE NUMERIC LEVELS OR MORE, which is a
-    rule about what a reader can SOLVE rather than about what is
-    counted; `_POOLED_SCALE_LEVELS` states it and measures the two-level
-    shape it closes. The loader cannot re-ask it -- how many of the
-    held-back levels hold numbers is not a published fact, and
-    publishing it would be a fourth number about the pool -- so it is a
-    producer obligation, stated in contract 6.3.3 beside the invariant
-    that is the loader's half.
+    AND THREE FURTHER RULES REFUSE IT, each measured (contract 6.3.3).
+
+    THE POOL MUST HOLD SIX NUMERIC LEVELS OR MORE, which is a rule
+    about what a reader can SOLVE rather than about what is counted;
+    `_POOLED_SCALE_LEVELS` states it and carries the sweep that chose
+    six over the three this landing first shipped. The loader cannot
+    re-ask it -- how many of the held-back levels hold numbers is not a
+    published fact, and publishing it would be a fourth number about the
+    pool -- so it is a producer obligation, stated in contract 6.3.3
+    beside the invariant that is the loader's half.
+
+    THE POOL MUST FIT INSIDE THE WIDTH THE COLUMN SHOWS, wherever the
+    column shows a number at all, because G8.3a step 3 forbids the
+    generator a made-up number wider than that and a scale it may not
+    write is an obligation no file could meet.
+
+    AND THE POOL MUST HAVE A SPREAD, because a pool of none publishes
+    the value of every cell in it. That one the loader DOES re-ask, as
+    invariant B4d, so no hand-written description can carry it either.
 
     THE DISCLOSURE RULE IS ASKED AND NOT ASSERTED. `parsing.
     census_nameable` is asked with the pooled count as the one count it
@@ -5756,8 +5893,10 @@ def _pooled_numbers(
     of any kind.
     """
     pooled: list[float] = []
+    held_sizes: list[int] = []
     numeric = 0
     levels = 0
+    shown = 0
     for label in sorted(counts):
         spellings = spellings_by_folded[label]
         held = counts[label] < settings.small_cell_floor
@@ -5776,13 +5915,88 @@ def _pooled_numbers(
                 pooled += [size]
         if held and mine > 0:
             levels = levels + 1
+            held_sizes += [mine]
+        if held:
+            continue
+        # THE WIDEST NUMBER THIS COLUMN WILL SHOW, read off the spellings
+        # `_levels` will NAME and no others: a spelling the variants
+        # census holds back is counted into its level's commonest
+        # (ruling 6) and never printed, so it is no evidence to a reader
+        # and no rung to the generator.
+        wrote, _withheld = _variants(
+            _absorb_lone_spellings(spellings, settings), settings
+        )
+        for spelling in sorted(wrote):
+            if parsing.classify_number(spelling) != parsing.NUMBER:
+                continue
+            size = parsing.parse_number(spelling)
+            if size is None or not math.isfinite(size):
+                continue
+            figures = _whole_figures_of(size)
+            if figures > shown:
+                shown = figures
     if not pooled or levels < _POOLED_SCALE_LEVELS:
         return dict(_NO_POOLED_SCALE)
     if not parsing.census_nameable(
         [len(pooled)], [numeric], settings.small_cell_floor
     ):
         return dict(_NO_POOLED_SCALE)
+    # A SCALE NO CONFORMING TWIN COULD BE WRITTEN AT IS NOT PUBLISHED
+    # (repair pass of 2026-09-21). Method G8.3a step 3 forbids a made-up
+    # number more figures before the mark than the widest number the
+    # column SHOWS, and G8.3c is held to the same bound. So a pool whose
+    # own numbers are wider than that is a scale the generator is
+    # forbidden to write, and publishing it states an obligation no file
+    # the product can produce could meet -- the description-no-file-
+    # satisfies defect, stated by the very block meant to close another.
+    # MEASURED, at a floor of eleven: 300 `hold` beside twenty `7` and
+    # five each of 1000000 to 5000000 published a mean of 3000000 and a
+    # spread of 1414213.562373095, while its twin's pool stood at 6.68
+    # and 1.434 -- one figure being all `7` allows -- and `validate`
+    # exited 3 on the twin and 0 on the real table. Over a sixty-shape
+    # sweep of a common word beside one published number and three to
+    # six rare numeric levels, twenty-four of the forty-eight that
+    # published a pool did that.
+    #
+    # WHERE THE COLUMN PUBLISHES NO NUMBER AT ALL the bound does not
+    # apply and `shown` is nought: the ladder is then unanchored, the
+    # generator takes its width from the scale itself, and a long tail
+    # of readings beside notes comes back at 7.1047 and 2.0213 against
+    # the table's 7.0741 and 2.0928.
+    reach = 0
+    for size in pooled:
+        figures = _whole_figures_of(size)
+        if figures > reach:
+            reach = figures
+    if shown > 0 and reach > shown:
+        return dict(_NO_POOLED_SCALE)
     middle, spread = population_moments_of(pooled)
+    # A POOL OF NO SPREAD PUBLISHES ITS CELLS' VALUE (repair pass of
+    # 2026-09-21). Every level of a pool is a DIFFERENT folded value,
+    # but different folded values can be the same NUMBER -- `5`, `5.0`,
+    # `05` and `5.00` are four levels and one five -- and there the mean
+    # IS the value of every held-back cell and the spread says so
+    # outright. Measured at a floor of eleven on 200 `blank` beside
+    # forty `3` and eight each of those four spellings: the block
+    # published 32 cells, mean 5.0 and spread 0.0, and the page a person
+    # reads printed "average 5.0, spread 0.0" over thirty-two cells the
+    # floor was holding back. No count of levels reaches past this, so
+    # it is asked after the moments and not before them.
+    if spread <= 0.0:
+        return dict(_NO_POOLED_SCALE)
+    # A POOL AT THE TIGHTEST ARRANGEMENT ITS VALUES CAN TAKE IS NAMED BY
+    # ITS OWN MEAN AND SPREAD (repair pass of 2026-09-21), and no count
+    # of levels closes that. `_POOLED_SCALE_LOOSENESS` carries the
+    # measurement and the landing's own reproduction, which this refuses.
+    # Two equations over many unknowns leave a family ONLY where the
+    # values have room to move; where they are packed as closely as
+    # their own grid allows there is one arrangement and the mean says
+    # where it starts, so every held-back value comes back by
+    # arithmetic.
+    if spread * spread < _POOLED_SCALE_LOOSENESS * _tightest_variance(
+        held_sizes, _closest_step(pooled)
+    ):
+        return dict(_NO_POOLED_SCALE)
     return {
         "n_cells": len(pooled),
         "mean": published(middle),

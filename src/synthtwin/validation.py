@@ -621,16 +621,15 @@ _NOT_CHECKABLE_NO_POOLED_SCALE = (
     "the description publishes no average and no spread for the numbers "
     "among this column's held-back values, so it asks no file for them"
 )
-# The second is a scale of no spread: every cell of the pool holds one
-# value, so a window of nought width would admit that value and nothing
-# else -- which no pool written in two different spellings of it can
-# meet. A check that cannot be met is not a check.
-_NOT_CHECKABLE_POOLED_SCALE_FLAT = (
-    "the description publishes a spread of nought for the numbers among "
-    "this column's held-back values, so every one of them held one "
-    "value and no window can be drawn that a file writing it two ways "
-    "could meet"
-)
+# THERE IS NO SECOND CASE SINCE THE REPAIR PASS OF 2026-09-21. A scale
+# of no spread used to be one: every cell of the pool held one value, a
+# window of nought width would admit that value and nothing else, and a
+# check that cannot be met is not a check. It is now refused where it is
+# made -- the producer does not publish a flat pool, because publishing
+# it names the value of every held-back cell, and invariant B4d refuses
+# one in a hand-written description -- so the state no longer reaches
+# this module and the sentence that excused it has gone with it.
+#
 _NOT_CHECKABLE_NOT_ALL_AT_MIDNIGHT = (
     "the description does not say that every moment of the real column "
     "stood at midnight, so it asks nothing of the time of day a file's "
@@ -14264,9 +14263,14 @@ def _pooled_scale_listings(
     """The pool's two aggregates, where no window can be drawn for them.
 
     ONE OBLIGATION IS CHECKED OR LISTED, NEVER BOTH, and never neither:
-    the two states `_pooled_scale_checks` leaves without a check are the
-    two states named here, so a label column files these two facts on
+    the one state `_pooled_scale_checks` leaves without a check is the
+    one state named here, so a label column files these two facts on
     exactly one census whatever its description says.
+
+    THERE WAS A SECOND STATE UNTIL THE REPAIR PASS OF 2026-09-21 -- a
+    published spread of nought -- and it is now refused by the producer
+    and by invariant B4d rather than excused here. `_POOL_NOT_ANSWERED`
+    says why.
     """
     facts = column.facts
     labelled: "contract.LabelFacts | None" = None
@@ -14284,8 +14288,6 @@ def _pooled_scale_listings(
     why = ""
     if scale.n_cells < 1 or scale.mean is None or scale.spread is None:
         why = _NOT_CHECKABLE_NO_POOLED_SCALE
-    elif scale.spread <= 0.0:
-        why = _NOT_CHECKABLE_POOLED_SCALE_FLAT
     if not why:
         return []
     return [
@@ -14324,25 +14326,40 @@ def _pooled_scale_checks(
     which this window refuses, and the twin after it lands on both
     exactly.
 
-    A SCALE OF NO SPREAD DRAWS NO WINDOW. Where every cell of the pool
-    holds one value the window would admit that value and nothing else,
-    which no pool written in two different spellings of it can meet, so
-    the two checks are left out rather than made unmeetable. Nothing
-    else can reach that state: a pool of one level never clears the
-    census line, so a spread of nought here means one value spelled
-    several ways.
+    A SCALE OF NO SPREAD NEVER REACHES HERE since the repair pass of
+    2026-09-21. It used to draw no window and leave both obligations
+    unchecked; it is now refused by the producer and by invariant B4d,
+    for the disclosure reason `taxonomy._pooled_numbers` states, so a
+    published spread is above nought and a window can always be drawn.
 
-    THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file whose levels
-    all clear the floor has no pool at all -- the gate is closed and
-    both obligations are WITHHELD, exactly as every other check reads a
-    re-described block that says nothing.
+    THE FILE'S OWN POOL IS WHAT IS MEASURED, and a file that publishes
+    none closes the gate: both obligations are WITHHELD, exactly as
+    every other check reads a re-described block that says nothing.
+    **THAT MAKES THIS CHECK VACUOUS TODAY, and the repair pass of
+    2026-09-21 measured why rather than papering over it.** The file's
+    block is written by the producer rules that refuse a pool, and one
+    of those is the looseness rule of `taxonomy._POOLED_SCALE_LOOSENESS`
+    -- a pool packed as closely as its own values allow is NAMED by its
+    mean and its spread, so it may not be published. Method G8.3c
+    spaces the twin's groups evenly, which is that arrangement: measured
+    on the reproduction and on a six-level pool of thousands, the twin's
+    own pool came back at a looseness of 1.333 and 1.825 against the 2.5
+    the producer asks for, so a twin written by this product never
+    publishes the pool it was asked to write.
+
+    Reading the closed gate as a MISS was tried in the same pass and
+    withdrawn: it states an obligation no conforming twin can meet,
+    which is the defect this landing was repaired for in the first
+    place. What closes it is G8.3c placing the pool as LOOSELY as the
+    published pair allows instead of evenly, which is a change to the
+    generator that this pass did not make; the report puts it to the
+    owner beside the other way out. Until then this is a published fact
+    no file is held to, and it says so here rather than in a footnote.
     """
     scale = facts.suppressed_numbers
     middle = scale.mean
     spread = scale.spread
     if scale.n_cells < 1 or middle is None or spread is None:
-        return []
-    if spread <= 0.0:
         return []
     reach = spread / 2.0
     inner = _inner_at(block, "suppressed_numbers")

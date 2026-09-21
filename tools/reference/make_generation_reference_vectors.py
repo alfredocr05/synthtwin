@@ -14767,6 +14767,16 @@ def _pooled_number_scale():
     61.415741278435235.  Rounded onto whole numbers, which is the place
     this column writes at, they are 48, 55, 42 and 61.
 
+    THIS CASE'S DESCRIPTION IS BUILT HERE AND NOT BY THE PRODUCER, as
+    every case in this file is, and the repair pass of 2026-09-21 left
+    it at four held-back levels on purpose. The producer will not WRITE
+    a pooled scale below six numeric levels -- contract 6.3.3 carries
+    the sweep that chose six -- but that is a producer obligation the
+    loader does not re-ask, stated there in as many words, so this is a
+    description the loader accepts and G8.3c is asked exactly what this
+    file says it is asked. What the case freezes is the GENERATOR'S
+    arithmetic, which the repair pass did not touch.
+
     THE ROUNDING IS THE REASON THIS FACT IS APPROXIMATED and not exact,
     and the case is chosen to show it rather than to hide it: the twin's
     own pool comes back with a mean of 49.85 against the published 50

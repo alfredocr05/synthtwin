@@ -192,29 +192,30 @@ def test_the_loader_refuses_a_class_total_that_leaves_one_row() -> None:
 def test_the_anchored_held_back_sentence_warns_about_statistics(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The mean and spread are the table's own, and the report says so.
+    """The sentence that stops a reader trusting this column's numbers.
 
-    RE-TARGETED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301),
-    which CLOSES ledger K-2B-50. This test was written when generating
-    the pooled population from disclosure-safe aggregates was not built:
-    the numeric subset's mean and population spread went from 187.083333
-    and 39.033017 to 100 and 3.027650, both files passed every
-    executable check, and what the repair of the day added was the
-    sentence that stopped a reader trusting the numbers.
+    RE-TARGETED TWICE. It was written when generating the pooled
+    population from disclosure-safe aggregates was not built: the
+    numeric subset's mean and population spread go from 187.083333 and
+    39.033017 to 100 and 3.027650, both files pass every executable
+    check, and what the repair of that day added was the sentence that
+    stopped a reader trusting the numbers.
 
-    That sentence is now the WRONG one on this shape. Contract section
-    6.3.3 publishes the pool's own mean and population spread, method
-    G8.3c places the made-up numbers on them, and the twin's numeric
-    mean and spread ARE the table's -- so the report says instead that
-    an average or a spread over this column's numbers IS about the
-    table, and names what is still not: which made-up number stands for
-    which held-back label.
+    The pooled-scale landing of 2026-09-21 (plan P4-D301) re-targeted it
+    to assert the opposite -- that the twin's numbers ARE the table's --
+    and **the repair pass of the same day put it back**, because the
+    block that made that true published this column's ten held-back
+    values. Its spread, 2.8722813232690143, is exactly the smallest a
+    pool of ten distinct whole numbers can have, so the pair names 200
+    to 209 outright; contract 6.3.3's looseness rule refuses it, ledger
+    K-2B-50 is OPEN again, and the warning sentence is the right one on
+    this shape once more.
     """
     cells = ["alpha"] * 100 + ["100"] * 20
     for value in range(200, 210):
         cells += [str(value)] * 10
     folder = tmp_path / "anchored"
-    _block, written, twin_exit, real_exit = _round_trip(
+    block, written, twin_exit, real_exit = _round_trip(
         folder, cells, ("--smallest-group", "11")
     )
     assert twin_exit == 0 and real_exit == 0
@@ -222,21 +223,25 @@ def test_the_anchored_held_back_sentence_warns_about_statistics(
     twin = _read(written)
     assert round(statistics.fmean(real), 6) == 187.083333
     assert round(statistics.pstdev(real), 6) == 39.033017
-    # THE FIDELITY IS MET EXACTLY, which is ledger K-2B-50's target and
-    # the bound it now stands at: both errors are nought, on this seed
-    # and on seeds 0 and 1 alike.
-    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) == 0
+    # THE DEFECT IS BACK AND MEASURED, which is ledger K-2B-50's own
+    # value: the pool publishes no scale, so the ladder has only the
+    # published `100` to step from.
+    assert block["suppressed_numbers"] == {
+        "n_cells": 0, "mean": None, "spread": None
+    }
+    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) == (
+        87.083333
+    )
     assert round(
         abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6
-    ) == 0
+    ) == 36.005366
     # Both files validate clean, which is why no miss count could ever
-    # have seen this and why only the two numbers can.
+    # see this and why only the two numbers can.
     assert (twin_exit, real_exit) == (0, 0)
     report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert "the twin places them on those two" in report
-    assert "is not a fact about your table" not in report
-    # The three sentences that DO warn about a statistic are still
-    # there, for the three states that still reach them: a pool with no
+    assert "is not a fact about your table" in report
+    # The three sentences that warn about a statistic are all still
+    # there, for the three states that reach them: a pool with no
     # published scale, one the ladder cannot place, and one whose
     # column published a number it cannot step from.
     for sentence, warning in (
@@ -245,7 +250,8 @@ def test_the_anchored_held_back_sentence_warns_about_statistics(
         (generation._HELD_BACK_UNSPELLED_REASON, "not a fact about your table"),
     ):
         assert warning in sentence
-    # ...and the fourth says the opposite, on purpose.
+    # ...and the fourth says the opposite, for the pools that DO publish
+    # a scale, which this shape is not one of.
     assert (
         "IS about your table" in generation._HELD_BACK_SCALED_REASON
     )
