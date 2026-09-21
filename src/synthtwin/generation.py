@@ -20335,8 +20335,11 @@ def _label_content(
     asked: "dict[int, str]" = {}
     numbers_made = 0
     unplaced = False
+    scaled = 0
     if sizes and max([debts[name] for name in _OWED_CLASSES]) > 0:
-        classes, written_as, asked, numbers_made, unplaced = _class_stand_ins(
+        (
+            classes, written_as, asked, numbers_made, unplaced, scaled,
+        ) = _class_stand_ins(
             column, cells, sizes, owing, debts, used, owners, holes, comma,
             short, plan.small_cell_floor,
         )
@@ -20443,7 +20446,14 @@ def _label_content(
                     f"column published"
                 )
             reason = _HELD_BACK_NUMBERS_REASON
-            if unplaced:
+            if scaled >= numbers_made:
+                # EVERY made-up number placed on the published scale,
+                # and not merely some of them: a column where the
+                # placement ran short still has numbers this version
+                # chose the location of, so the older sentence is the
+                # true one there.
+                reason = _HELD_BACK_SCALED_REASON
+            elif unplaced:
                 reason = _HELD_BACK_UNPLACED_REASON
                 if unspellable:
                     reason = _HELD_BACK_UNSPELLED_REASON
@@ -20471,7 +20481,7 @@ def _class_stand_ins(
     decimal_comma: bool,
     short: "list[int] | None",
     floor: int = 1,
-) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
+) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool, int]":
     """The held-back groups that pay a class debt, and what each writes.
 
     TWO WALKS, THE NARROWER FIRST (integration repair of landing 2b.4).
@@ -20602,7 +20612,7 @@ def _class_stand_ins_walked(
     floor: int,
     bounded: bool,
     whole_tier: bool = False,
-) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool]":
+) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool, int]":
     """One walk of `_class_stand_ins`, narrow where ``bounded`` says.
 
     Method G8.3a, in three steps:
@@ -20625,8 +20635,9 @@ def _class_stand_ins_walked(
 
     Returns which class each paying group owes, the spelling each
     group that found one writes, the form each was asked for, how many
-    groups were written as numbers, and whether those numbers had no
-    published number to be placed beside.
+    groups were written as numbers, whether those numbers had no
+    published number to be placed beside, and how many of them the
+    pool's own published scale placed (method G8.3c).
     """
     named: "dict[str, int]" = {}
     census: "dict[str, int]" = {}
@@ -20689,6 +20700,7 @@ def _class_stand_ins_walked(
     counters: "dict[str, int]" = {}
     walked: "dict[str, int]" = {}
     numbers_made = 0
+    scaled = 0
     for name in _OWED_CLASSES:
         reads_as = _owed_reading(name)
         mine = [place for place in range(len(sizes)) if place in classes
@@ -20750,11 +20762,38 @@ def _class_stand_ins_walked(
             )
         order = sorted([(0 - sub[step], mine[step], step)
                         for step in range(len(sub))])
+        # THE POOL'S OWN SCALE, WHERE THE DESCRIPTION PUBLISHES ONE
+        # (method G8.3b; plan P4-D301, ledger K-2B-50). Every group
+        # paying the number class is placed on the published mean and
+        # spread of the held-back numbers, in the order the walk hands
+        # them out, and dressed in whatever form the census settled on
+        # it; every group the placement cannot spell falls through to
+        # the ordinary ladder below, exactly as before.
+        pooled_places: "dict[int, str]" = {}
+        if name == _OWED_NUMBER:
+            scale = _pooled_scale(column)
+            if scale is not None:
+                pooled_places = _pooled_numbers_placed(
+                    ladder,
+                    scale,
+                    [
+                        (sub[triple[2]], triple[1], forms_of[triple[2]])
+                        for triple in order
+                    ],
+                    named, used, owners, holes, decimal_comma, needed,
+                    pool,
+                    _widest_whole_figures(ladder, named, decimal_comma)
+                    if bounded
+                    else 0,
+                )
         for triple in order:
             place = triple[1]
             form = forms_of[triple[2]]
             found = ""
-            if name == _OWED_NUMBER:
+            at_the_scale = name == _OWED_NUMBER and place in pooled_places
+            if at_the_scale:
+                found = pooled_places[place]
+            elif name == _OWED_NUMBER:
                 if form:
                     found = _next_on_ladder(
                         ladder, form, cursor, named, used, owners, holes,
@@ -20823,9 +20862,14 @@ def _class_stand_ins_walked(
             asked[place] = form
             if name == _OWED_NUMBER:
                 numbers_made = numbers_made + 1
+            if at_the_scale:
+                scaled = scaled + 1
     if short is not None:
         short += [missing]
-    return classes, written_as, asked, numbers_made, not ladder.anchored
+    return (
+        classes, written_as, asked, numbers_made, not ladder.anchored,
+        scaled,
+    )
 
 
 def _forms_within_the_unasked_supply(
@@ -22686,6 +22730,27 @@ _HELD_BACK_NUMBERS_REASON = (
     "fact about your table, so an average or a spread computed over "
     "the column's numbers is not a fact about your table either."
 )
+# ...AND WHERE THE POOL'S OWN SCALE PLACED THEM (method G8.3c, plan
+# P4-D301, ledger K-2B-50). The three sentences above each end by
+# telling the person that a statistic over this column's numbers is not
+# a fact about their table, because the made-up numbers' LOCATION was
+# this version's own choice. Where the description publishes the pool's
+# mean and spread that is no longer true, and a report that went on
+# saying it would send a person away from the one number this landing
+# exists to make reliable.
+_HELD_BACK_SCALED_REASON = (
+    "Those labels covered too few rows to publish, so the twin "
+    "keeps how many there were and the rows they covered together, "
+    "but not the labels or the rows of each one. Where "
+    "they were numbers the twin writes numbers in their place, and "
+    "your description publishes the average and the spread of the "
+    "held-back numbers as a group, so the twin places them on those "
+    "two: an average or a spread computed over this column's numbers "
+    "IS about your table, to the nearest place this column writes at. "
+    "What is still not about your table is which made-up number stands "
+    "for which label you held back, and a made-up number can equal one "
+    "your table held back without being worked out from it."
+)
 _HELD_BACK_UNPLACED_REASON = (
     "Those labels covered too few rows to publish, so the twin "
     "keeps how many there were and the rows they covered together, "
@@ -23937,6 +24002,312 @@ def _next_on_ladder(
                 continue
             return candidate
     return ""
+
+
+# HOW FAR ONE POOLED PLACEMENT MAY BE PUSHED off the value the scale
+# asks for before it gives the group up to the ordinary walk. A
+# placement needs one step for each spelling a rule refuses and a few
+# more for collisions with the column's own numbers; the bound is here
+# so a scale every nearby spelling refuses costs a bounded time.
+_POOLED_STEPS = 1 << 10
+
+# THE LARGEST MAGNITUDE, IN UNITS OF THE LAST PLACE, a pooled placement
+# will write. Beyond it the rounding onto whole units is no longer
+# exact and a spelling would say more figures than the value has, so the
+# placement gives the group up to the ordinary walk instead.
+_POOLED_REACH = 1 << 53
+
+
+def _pooled_scale(
+    column: contract.ColumnBlock,
+) -> "contract.PooledNumbers | None":
+    """The published scale of a column's held-back numbers, or None.
+
+    None where the column publishes no levels at all, and None where
+    the block reached the state that says nothing -- no pooled cells,
+    no mean, no spread -- which is what a column whose held-back levels
+    hold no number publishes and what the disclosure rule leaves behind
+    where it refuses to speak.
+    """
+    facts = column.facts
+    if not isinstance(facts, (contract.LabelFacts,)):
+        return None
+    scale = facts.suppressed_numbers
+    if scale.n_cells < 1 or scale.mean is None or scale.spread is None:
+        return None
+    return scale
+
+
+def _pooled_positions(count: int) -> "list[int]":
+    """The centre-outward places of ``count`` groups (method G8.3b).
+
+    Nought, then one above, one below, two above, two below, and on
+    outward. The groups reach this in descending size order, so the
+    LARGEST group of a pool sits nearest the pool's own mean, which is
+    where the most cells of the table sit.
+    """
+    out: "list[int]" = []
+    for rank in range(count):
+        reach = (rank + 1) // 2
+        if rank % 2 == 1:
+            out += [reach]
+        else:
+            out += [0 - reach]
+    return out
+
+
+def _pooled_spacing(
+    sizes: "tuple[int, ...]", positions: "list[int]", spread: float
+) -> "tuple[float, float]":
+    """The centre of the positions and the spacing that reproduces ``spread``.
+
+    Method G8.3b's arithmetic, written out. With ``m`` groups of sizes
+    ``c_1..c_m`` standing at positions ``p_1..p_m`` and covering
+    ``N = sum c_i`` rows between them, the weighted centre is
+    ``C = sum(c_i * p_i) / N`` and the weighted second moment about it
+    is ``S = sum(c_i * (p_i - C) ** 2) / N``. Writing group ``i`` the
+    value ``mu + h * (p_i - C)`` puts the mean of the written cells at
+    ``mu`` for any ``h``, because the offsets cancel by construction,
+    and their population spread at ``h * sqrt(S)``. So the spacing that
+    reproduces the published spread is ``h = spread / sqrt(S)``.
+
+    ``S`` is nought only where every group stands at the same position,
+    which is one group and nothing else; a single group can carry no
+    spread at all and takes the mean itself.
+
+    Guarantees: accepts the sizes, their positions and the published
+    spread; returns the centre and the spacing. Determinism: a fixed
+    function of the three. Raises nothing for a non-empty list. No I/O.
+    """
+    rows = 0
+    weighted = 0
+    for step in range(len(sizes)):
+        rows = rows + sizes[step]
+        weighted = weighted + sizes[step] * positions[step]
+    if rows < 1:
+        return 0.0, 0.0
+    centre = weighted / rows
+    second = 0.0
+    for step in range(len(sizes)):
+        away = positions[step] - centre
+        second = second + sizes[step] * away * away
+    second = second / rows
+    if second <= 0.0 or not math.isfinite(second):
+        return centre, 0.0
+    return centre, spread / math.sqrt(second)
+
+
+def _pooled_spelling(
+    ladder: "_Ladder",
+    wanted: float,
+    asked: str,
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+) -> str:
+    """The spelling nearest ``wanted`` a pooled placement may write, or "".
+
+    The value the scale asks for is rounded to a whole number of the
+    tier's last place, and that spelling is offered first. Where a rule
+    refuses it -- it wears a form the census names while the group was
+    asked for none, it is a spelling the column already uses, it reads
+    as a date, it carries a sign no published number has -- the offer
+    steps one place outward, above then below, until one is accepted or
+    the bound is reached. Stepping rather than giving up keeps the
+    placement at the scale it was asked for: one place is the smallest
+    move there is.
+
+    A POOLED PLACEMENT NEVER BUYS A WHOLE FIGURE. ``widest``, where the
+    caller sets it above nought, is the most figures before the mark
+    any number this column SHOWS has, and no spelling wider than that
+    is offered -- exactly the rule the ordinary walk is held to. A
+    scale whose ends lie outside that width is met as far as the width
+    allows and no further, and the groups it cannot place fall through.
+
+    ``asked`` IS THE FORM THE GROUP OWES THE CENSUS, where it owes one.
+    The scale places the VALUE and the census decides how it is
+    WRITTEN, so the two are settled one after the other: the value is
+    dressed in the form, and a value the form cannot carry is stepped
+    past like any other refusal. A group that owes no form takes the
+    plain spelling, which is what the value reads as.
+    """
+    if not math.isfinite(wanted):
+        return ""
+    # THE PLACES THE GROUP'S OWN FORM WRITES AT, where it owes one, and
+    # THE LADDER'S TIERS otherwise -- the finest count of places first
+    # and the whole numbers last, exactly the tiers `_next_on_ladder`
+    # walks for a number wearing no named form. A tier is taken up only
+    # once the one before it has ended.
+    #
+    # WHY THE TIERS AND NOT ONE COUNT OF PLACES. Measured on a column of
+    # amounts given whose census names `%.%` and whose labels publish no
+    # number: three of its five held-back groups wanted values no
+    # one-place spelling could carry -- one wider than the widest figure
+    # the column shows, one at a place every spelling of which wears the
+    # named form, one below nought where the column holds no negative --
+    # and with a single tier all three fell through to the ordinary
+    # walk, which writes 1, 2 and 3. The pool's mean came back 4.76
+    # against a published 9.68 and the validator missed it. Walking the
+    # whole-number tier after the one-place tier puts them at 9, 4 and
+    # 1, and the mean at 7.12, inside G12.12's window.
+    #
+    # The dressing writes a plain decimal's figures into the form's
+    # figure places in order, so a formed group's plain spelling must be
+    # written at the FORM's places or it is dressed into a different
+    # number; that is why a formed group has one tier and not the
+    # ladder's.
+    tiers = ladder.tiers
+    if asked:
+        tiers = (_form_places(asked, decimal_comma),)
+    for places in tiers:
+        middle = wanted
+        if places > 0:
+            middle = wanted * float(_ten_to(places))
+        if places < 0:
+            middle = wanted / float(_ten_to(0 - places))
+        if not math.isfinite(middle) or abs(middle) > _POOLED_REACH:
+            continue
+        anchor = int(round(middle))
+        # THE WIDTH THE SCALE ASKS FOR, AND ONLY WHERE THE COLUMN
+        # PUBLISHED NO NUMBER OF ITS OWN. Two different things are
+        # called a width bound here and only one of them is evidence
+        # about magnitude:
+        #
+        # * WHERE THE LADDER IS ANCHORED the column published numbers,
+        #   and their own width says what this column's numbers look
+        #   like. A made-up number stays inside it -- that is the rule
+        #   G8.3a step 3 is held to, and a made-up age of three figures
+        #   beside a table of two-figure ages is the defect it closes.
+        # * WHERE IT IS NOT, the only width is the form census's, which
+        #   says how the cells that WORE those forms were written and
+        #   nothing about the held-back ones. A published mean and
+        #   spread do say something about them, outright, so there the
+        #   scale is the better evidence and the width it asks for is
+        #   one the description itself carries.
+        #
+        # Measured on a column of amounts given whose census names `%.%`
+        # and whose labels publish no number, and whose table holds
+        # two-figure amounts the census cannot see: held to the census's
+        # one figure the twin's pool came back at a mean of 7.12 against
+        # a published 9.68 and a spread of 3.09 against 6.63, which
+        # G12.12's window refuses; allowed the scale's own reach it
+        # comes back at 8.65 and 4.72, inside it. Measured on the other
+        # side, 1,200 ages at a floor of twenty, whose ladder IS
+        # anchored: the width bound is what keeps its twin's numbers to
+        # two figures, and its mean and spread errors at 0.2313 and
+        # 0.5225 against the 1.2215 and 1.1947 this landing found.
+        reach_figures = widest
+        if not ladder.anchored and _whole_figures(anchor, places) > (
+            reach_figures
+        ):
+            reach_figures = _whole_figures(anchor, places)
+        for step in range(2 * _POOLED_STEPS):
+            reach = (step + 1) // 2
+            units = anchor + (reach if step % 2 == 0 else -reach)
+            if not _sign_held(units, ladder.signs):
+                continue
+            if reach_figures > 0 and _whole_figures(units, places) > (
+                reach_figures
+            ):
+                continue
+            candidate = _units_spelled(units, places, decimal_comma)
+            form = parsing.census_form(candidate, named)
+            wearing = ""
+            if asked:
+                # ...AND A CANDIDATE THAT ALREADY WEARS THE FORM IS NOT
+                # DRESSED AGAIN, which is the reading `_next_on_ladder`
+                # takes: dressing `9.4` into `%.%` a second time is a
+                # question with no answer, and the group fell through.
+                if form != asked:
+                    candidate = _dressed_in_form(
+                        candidate, asked, named, decimal_comma
+                    )
+                    if not candidate:
+                        continue
+                    wearing = asked
+            elif form in named:
+                continue
+            elif (
+                pool is not None
+                and form
+                and parsing.form_room(form) >= needed
+                and pool[0] < 1
+            ):
+                continue
+            if candidate in used or parsing.folded(candidate) in owners:
+                continue
+            if not _is_a_usable_stand_in(
+                candidate, holes, parsing.NUMBER, decimal_comma, wearing
+            ):
+                continue
+            return candidate
+    return ""
+
+
+def _pooled_numbers_placed(
+    ladder: "_Ladder",
+    scale: "contract.PooledNumbers",
+    groups: "list[tuple[int, int, str]]",
+    named: "dict[str, int]",
+    used: "dict[str, int]",
+    owners: "dict[str, str]",
+    holes: "tuple[str, ...]",
+    decimal_comma: bool,
+    needed: int,
+    pool: "list[int] | None",
+    widest: int,
+) -> "dict[int, str]":
+    """Every made-up number of the pool, placed at the published scale (G8.3b).
+
+    THE DEFECT THIS CLOSES (ledger K-2B-50). Where the floor holds back
+    a column's rare NUMBERS, the ordinary walk of G8.3a has only the
+    numbers that were published to step outward from: a column of 100
+    `alpha`, twenty `100` and ten each of 200 to 209 published one
+    number, and its twin wrote 95 to 105 -- a numeric mean of 100
+    against 187.083333 and a spread of 3.027650 against 39.033017, with
+    nothing missed by either file, because no published fact spoke of
+    the pool at all.
+
+    Section 6.3 of the contract now publishes that pool's own mean and
+    population spread, and this places the made-up numbers on them.
+
+    ``groups`` is the pool's number-owing groups as (size, place, form)
+    in the order the walk hands them out, which is descending size.
+    Every group that finds a spelling is returned by its place; a group
+    the walk refuses is left out, and the caller's ordinary ladder
+    answers for it as before.
+
+    Guarantees: accepts the ladder, the published scale, the groups and
+    the walk's own refusals; returns a spelling for each group it could
+    place, each distinct and each registered in ``used`` and ``owners``.
+    Determinism: a fixed function of the arguments, drawing no random
+    number. Raises nothing. No I/O of any kind.
+    """
+    placed: "dict[int, str]" = {}
+    middle = scale.mean
+    spread = scale.spread
+    if middle is None or spread is None or not groups:
+        return placed
+    sizes = tuple([pair[0] for pair in groups])
+    positions = _pooled_positions(len(groups))
+    centre, spacing = _pooled_spacing(sizes, positions, spread)
+    for step in range(len(groups)):
+        wanted = middle + spacing * (positions[step] - centre)
+        found = _pooled_spelling(
+            ladder, wanted, groups[step][2], named, used, owners, holes,
+            decimal_comma, needed, pool, widest,
+        )
+        if not found:
+            continue
+        used[found] = 1
+        owners[parsing.folded(found)] = found
+        placed[groups[step][1]] = found
+    return placed
 
 
 def _ladder_room(
@@ -36978,12 +37349,145 @@ def _label_supply(facts: contract.LabelFacts) -> int:
     return supply + facts.suppressed_levels
 
 
+def _pooled_written(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    written: "list[str]",
+) -> "list[float]":
+    """The twin's own pool: its numeric cells that no published level holds.
+
+    Read off the finished cells and off the description's own published
+    labels, which is what makes it a RECOUNT and not the generator's
+    bookkeeping: a made-up number that happens to fold onto a published
+    label is that label's cell here, exactly as it will be when the twin
+    is described again.
+    """
+    published: "dict[str, int]" = {}
+    for entry in facts.levels:
+        published[parsing.folded(parsing.trimmed(entry.label))] = 1
+    holes = _hole_spellings(column)
+    found: "list[float]" = []
+    for cell in written:
+        body = parsing.trimmed(cell)
+        if not body or body in holes:
+            continue
+        if parsing.folded(body) in published:
+            continue
+        if parsing.classify_number(body) != parsing.NUMBER:
+            continue
+        size = parsing.parse_number(body)
+        if size is None or not math.isfinite(size):
+            continue
+        found += [float(size)]
+    return found
+
+
+def _pooled_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.LabelFacts,
+    written: "list[str]",
+) -> "list[Approximation]":
+    """The pool's mean and spread, measured on the twin (method G12.12).
+
+    TWO RECORDS AND ALWAYS TWO, on every role that publishes levels:
+    this format has no optional keys and a measurement that appeared
+    only where it was interesting would be a measurement whose ABSENCE
+    speaks. Where the description publishes no scale -- the state a
+    column whose held-back levels hold no number reaches, and the state
+    the disclosure rule leaves behind -- both records say so in their
+    note and carry nought, which is what there is to say.
+
+    The window is G12.12's: half the published spread either side of
+    each of the two numbers. Where the published spread is nought the
+    window would admit one value and nothing else, so the ends are the
+    published value itself and the note says why.
+    """
+    scale = facts.suppressed_numbers
+    middle = scale.mean
+    spread = scale.spread
+    if scale.n_cells < 1 or middle is None or spread is None:
+        # WRITTEN OUT, NOT BUILT FROM A NAME. The key index of G12.1
+        # names every family whose key a report builds from a number,
+        # and a name assembled here would read as one of those families
+        # while being two fixed keys -- so the two keys stand as
+        # themselves and the index needs no entry for them.
+        silent = (
+            "this column publishes no scale for the numbers its floor "
+            "held back"
+        )
+        return [
+            Approximation(
+                column=column.name,
+                fact="suppressed_numbers.mean",
+                published=_figure(0.0),
+                achieved=_figure(0.0),
+                lowest=_bound_figure(0.0),
+                highest=_bound_figure(0.0),
+                inside=True,
+                note=silent,
+                covers_published=True,
+            ),
+            Approximation(
+                column=column.name,
+                fact="suppressed_numbers.spread",
+                published=_figure(0.0),
+                achieved=_figure(0.0),
+                lowest=_bound_figure(0.0),
+                highest=_bound_figure(0.0),
+                inside=True,
+                note=silent,
+                covers_published=True,
+            ),
+        ]
+    pool = _pooled_written(column, facts, written)
+    achieved_mean = 0.0
+    achieved_spread = 0.0
+    if pool:
+        achieved_mean, achieved_spread = taxonomy.population_moments_of(
+            list(pool)
+        )
+    reach = spread / 2.0
+    lowest = spread - reach
+    if lowest < 0.0:
+        lowest = 0.0
+    return [
+        Approximation(
+            column=column.name,
+            fact="suppressed_numbers.mean",
+            published=_figure(middle),
+            achieved=_figure(achieved_mean),
+            lowest=_bound_figure(middle - reach),
+            highest=_bound_figure(middle + reach),
+            inside=_inside(achieved_mean, middle - reach, middle + reach),
+            note=(
+                "the average of the numbers among this column's held-back "
+                "values"
+            ),
+            covers_published=True,
+        ),
+        Approximation(
+            column=column.name,
+            fact="suppressed_numbers.spread",
+            published=_figure(spread),
+            achieved=_figure(achieved_spread),
+            lowest=_bound_figure(lowest),
+            highest=_bound_figure(spread + reach),
+            inside=_inside(achieved_spread, lowest, spread + reach),
+            note=(
+                "how far apart the numbers among this column's held-back "
+                "values lie"
+            ),
+            covers_published=True,
+        ),
+    ]
+
+
 def _label_approximations(
     column: contract.ColumnBlock,
     facts: contract.LabelFacts,
     written: "list[str]",
 ) -> "list[Approximation]":
-    """The one approximated fact of a column of labels (method G12.7).
+    """The approximated facts of a column of labels (G12.7 and G12.12).
 
     The count of different spellings is EXACT wherever the description's
     own spellings supply it, which is the ordinary case, and approximated
@@ -37020,7 +37524,7 @@ def _label_approximations(
             ),
             covers_published=True,
         )
-    ]
+    ] + _pooled_approximations(column, facts, written)
 
 
 def _approximations(

@@ -490,6 +490,10 @@ FIFTH_BRANCH_CASES = (
     "exponent_scaled",
     "grouped_thousands_signed",
     "identifier_unnamed_partners",
+    # THE POOL'S OWN SCALE (method G8.3c, plan P4-D301, ledger K-2B-50).
+    # It comes here for the reason the two above it did: this file has
+    # room under the byte cap and the two newest do not.
+    "pooled_number_scale",
     "truth_values_written",
     "twice_written_filled",
     "twice_written_merged",
@@ -699,6 +703,9 @@ SEEDS = {
     "spaced_decimal_comma": 133,
     "narrow_spaced": 134,
     "thin_spaced": 135,
+    # The pool's own scale (plan P4-D301) takes 280, clear of every
+    # block above it.
+    "pooled_number_scale": 280,
 }
 
 # The cases whose column was declared with --decimal-comma, which the
@@ -1654,6 +1661,17 @@ def test_the_generator_checks_its_own_calendar_and_its_own_digits(
 
 
 CHANGES_THE_CELLS = "changes the cells"
+
+
+def _nothing_placed_at_the_pools_scale(*_arguments):
+    """Method G8.3c withdrawn: no group is placed at the pool's scale.
+
+    What the state before plan P4-D301 was, exactly: the description
+    said how many held-back levels there were and how many rows they
+    covered and nothing about what they were worth, so every one of them
+    fell to the ordinary walk of G8.3a step 3.
+    """
+    return {}
 
 
 def _partners_with_no_unnamed_quota(column, *arguments):
@@ -3294,6 +3312,22 @@ CASE_MUTANTS = {
         "form, and the level of two moves from `6` to `10.0`",
         attribute="next_on_ladder",
         replacement=_next_on_the_ladder_without_the_census,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # THE POOL'S OWN SCALE (method G8.3c, plan P4-D301). The mutant is
+    # the whole of G8.3c withdrawn -- every group handed back to the
+    # ordinary walk of G8.3a step 3 -- because that IS the state this
+    # landing found: the rule did not exist, the ladder was unanchored
+    # on a column publishing no number, and the twin counted upward from
+    # nought.
+    "pooled_number_scale": Mutant(
+        branch="G8.3c, which places the pool's made-up numbers on the "
+        "mean and the population spread contract 6.3.3 publishes for "
+        "them; the mutant withdraws the placement, the unanchored ladder "
+        "of G8.3a step 3 answers instead, and the four held-back levels "
+        "come back as the smallest numbers that walk can write",
+        attribute="pooled_placements",
+        replacement=_nothing_placed_at_the_pools_scale,
         outcome=CHANGES_THE_CELLS,
     ),
     "label_variants": Mutant(

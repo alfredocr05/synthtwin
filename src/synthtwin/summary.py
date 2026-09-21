@@ -878,6 +878,26 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                     f"{_count_of(column['suppressed_rows'])} rows)"
                 )
             ]
+        # ...AND THE SCALE OF THE ONES THAT WERE NUMBERS (plan P4-D301).
+        # A person reading this page is owed every fact the
+        # description carries about the values it will not name, and
+        # this one is the reason a statistic over the twin's numbers
+        # here means something. The line stands only where the block
+        # speaks; where it says nothing there is nothing to print, and
+        # printing a "not published" line would tell a reader which of
+        # the block's several silences it was -- a column with no
+        # held-back numbers at all, or one of the refusals contract
+        # 6.3.3 states, which is what the floor exists to withhold.
+        scale = _map_of(column["suppressed_numbers"])
+        if _count_of(scale["n_cells"]):
+            lines += [
+                (
+                    f"    of those, the ones that were numbers: "
+                    f"{_count_of(scale['n_cells'])} cells, "
+                    f"average {_text_of(scale['mean'])}, "
+                    f"spread {_text_of(scale['spread'])}"
+                )
+            ]
     if role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
         ladder = _map_of(column["percentiles"])
         lines += [

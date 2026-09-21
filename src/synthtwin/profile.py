@@ -702,6 +702,15 @@ _BELOW_THE_FLOOR = "one-group-size-below-the-floor"
 # one every blank group reaches the floor, so this count is written
 # there rather than emptied (contract 5 C5-S13).
 _ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
+# HOW MANY CELLS ONE POOLED AGGREGATE WAS TAKEN OVER (plan P4-D301):
+# nought, or a group at `parsing.census_floor`. Nought is both "the
+# pool holds no number" and "the disclosure rule refused to speak",
+# which is the whole design: a refusal a reader could tell from nought
+# would name the count the floor exists to withhold. It is NOT
+# `_ZERO_OR_AT_THE_FLOOR`, whose line is the settings floor and is one
+# at the shipped default, and a pooled aggregate over one cell IS that
+# cell.
+_POOLED_SCALE_COUNT = "count-of-a-pooled-aggregate-or-nought"
 # A count whose GROUP AND ITS COMPLEMENT are both at the floor, or
 # nothing at all -- written `null`, never nought (landing 2b.6).
 # `n_at_midnight` is the one field of this kind. Nought cannot stand for
@@ -1137,6 +1146,16 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ): _COUNT,
     ("columns", _EACH, "suppressed_levels"): _HELD_BACK,
     ("columns", _EACH, "suppressed_rows"): _HELD_BACK,
+    # THE SCALE OF THE POOLED NUMBERS (plan P4-D301, ledger K-2B-50):
+    # how many cells of the held-back levels read as numbers, and that
+    # group's mean and population spread. Three aggregates over ONE
+    # group, which is why they carry no floor of their own beyond the
+    # count's: a mean over a group at the disclosure line is a fact
+    # about the group.
+    ("columns", _EACH, "suppressed_numbers"): _OBJECT,
+    ("columns", _EACH, "suppressed_numbers", "n_cells"): _POOLED_SCALE_COUNT,
+    ("columns", _EACH, "suppressed_numbers", "mean"): _MAYBE_NUMBER,
+    ("columns", _EACH, "suppressed_numbers", "spread"): _MAYBE_NUMBER,
     ("columns", _EACH, "level_ceiling"): _COUNT,
     # The numeric roles.
     ("columns", _EACH, "percentiles"): _OBJECT,
@@ -1525,6 +1544,7 @@ def _compound_rules() -> "dict[tuple[str, ...], str]":
         "n_distinct_folded",
         "n_present",
         "suppressed_levels",
+        "suppressed_numbers",
         "suppressed_rows",
         "suppressed_spellings",
         "shape_forms",
@@ -2131,6 +2151,14 @@ def _leaf_is_published(
         if value < 0:
             return False
         return value == 0 or context.floor > 1
+    if kind == _POOLED_SCALE_COUNT:
+        # Nought, or a group at the disclosure line. Whether the cells
+        # LEFT OVER once this pool is taken off the column's numbers
+        # are a group too needs that total beside it, so that half is
+        # invariant B4c and is checked with the invariants.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value == 0 or value >= parsing.census_floor(context.floor)
     if kind == _ZERO_OR_AT_THE_FLOOR:
         # A named group, or nothing at all. There is no third answer:
         # a group the floor held back is not written here, it is added

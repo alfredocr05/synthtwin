@@ -1,5 +1,5 @@
 {
-  "case_set": "The 9 cases method section G14.3 adds with the final pass over the close of stage 2: a whole number a column writes two ways held by two strata, by the fill of a grid with no spare point and by the merge onto a whole neighbour (plan P4-D193), the census of marks held at a thousand on a column with refunds (plan P4-D194), and a declared identifier's partners held to the cells its layout census names no layout for (plan P4-D196), and a workbook column's truth values written as them (plan P4-D198), and the headed enumeration of a band's made-up words (plan P4-D234). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json and tests/reference/generation-document-vectors.json, and live in a seventh file only because the sixth stands within a few kilobytes of the provenance manifest's byte cap. Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for. The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason. The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason.",
+  "case_set": "The 10 cases method section G14.3 adds with the final pass over the close of stage 2: a whole number a column writes two ways held by two strata, by the fill of a grid with no spare point and by the merge onto a whole neighbour (plan P4-D193), the census of marks held at a thousand on a column with refunds (plan P4-D194), and a declared identifier's partners held to the cells its layout census names no layout for (plan P4-D196), and a workbook column's truth values written as them (plan P4-D198), and the headed enumeration of a band's made-up words (plan P4-D234). They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json and tests/reference/generation-document-vectors.json, and live in a seventh file only because the sixth stands within a few kilobytes of the provenance manifest's byte cap. Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for. The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason. The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason.",
   "cases": {
     "code_band_words": {
       "cells": [
@@ -789,6 +789,11 @@
         "statistical_type": "categorical",
         "structural_role": "data",
         "suppressed_levels": 2,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 11
       },
       "content": [
@@ -1016,6 +1021,11 @@
         "statistical_type": "categorical",
         "structural_role": "data",
         "suppressed_levels": 2,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0,
+          "spread": null
+        },
         "suppressed_rows": 11
       },
       "content": [
@@ -3253,6 +3263,174 @@
         "4989164670432844878",
         "16397286255010340607",
         "16754686801907319504"
+      ]
+    },
+    "pooled_number_scale": {
+      "cells": [
+        "55",
+        "alpha",
+        "48",
+        "48",
+        "48",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "55",
+        "55",
+        "alpha",
+        "48",
+        "42",
+        "alpha",
+        "42",
+        "48",
+        "55",
+        "55",
+        "42",
+        "alpha",
+        "alpha",
+        "55",
+        "alpha",
+        "alpha",
+        "61",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "level_ceiling": 20,
+        "levels": [
+          {
+            "count": 11,
+            "label": "alpha",
+            "shape_form_cells": 0,
+            "variants": {
+              "alpha": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 5,
+        "n_distinct_folded": 5,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 11,
+        "n_numeric": 20,
+        "n_out_of_range": 0,
+        "n_present": 31,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "categorical",
+        "sentinel_verdicts": [],
+        "shape_forms": {},
+        "statistical_type": "categorical",
+        "structural_role": "data",
+        "suppressed_levels": 4,
+        "suppressed_numbers": {
+          "mean": {
+            "decimal": "50",
+            "exact": "50",
+            "float64": 50.0,
+            "proof": "nearest"
+          },
+          "n_cells": 20,
+          "spread": {
+            "decimal": "5",
+            "exact": "5",
+            "float64": 5.0,
+            "proof": "nearest"
+          }
+        },
+        "suppressed_rows": 20
+      },
+      "content": [
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "alpha",
+        "61",
+        "42",
+        "42",
+        "42",
+        "55",
+        "55",
+        "55",
+        "55",
+        "55",
+        "55",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48",
+        "48"
+      ],
+      "csv_bytes": "55\nalpha\n48\n48\n48\nalpha\nalpha\nalpha\nalpha\n55\n55\nalpha\n48\n42\nalpha\n42\n48\n55\n55\n42\nalpha\nalpha\n55\nalpha\nalpha\n61\n48\n48\n48\n48\n48\n",
+      "float64": [],
+      "why": "the pool's own scale (contract 6.3.3, method G8.3c): a column whose rare values are its NUMBERS publishes none of them, so the ladder of G8.3a step 3 has nothing to step from and counts upward from nought. The block of three aggregates over the pool -- twenty numeric cells, mean 50, population spread 5 -- is what places them instead. G8.3 reads the four sizes off the pool as 10, 6, 3 and 1 and the walk hands them out largest first, so they stand at positions 0, 1, -1 and 2; their weighted centre is a quarter and their weighted second moment forty-seven eightieths, so the spacing is 6.523280730534421 and the four values asked for round onto 48, 55, 42 and 61. The twin's own pool then comes back with a mean of 49.85 against the published 50 and a spread of 5.012733785071775 against the published 5 -- both inside the window G12.12 draws and neither on it, which is why this fact is APPROXIMATED and not exact. This case's mutant withdraws the placement, so the unanchored ladder of G8.3a answers instead and the four levels come back as the smallest numbers it can write. A label column consumes no content word, so every byte here is fixed by published counts.",
+      "word_budget": {
+        "content": 0,
+        "placement": 30
+      },
+      "words": [
+        "18401696946549097536",
+        "13431324444245503186",
+        "14190298344810542440",
+        "14204448997067300180",
+        "15463477407920923930",
+        "7865890162129200934",
+        "6124644207518154147",
+        "4523259033608989358",
+        "13731743617334657962",
+        "358932391078043692",
+        "5879928793655309949",
+        "11994828327876375859",
+        "15387729990630174889",
+        "6432582847386217216",
+        "11944987061551527381",
+        "16679214553027679724",
+        "9810564741604711831",
+        "16221514835350045511",
+        "215590566992780595",
+        "4988676021524900142",
+        "1347793601321864911",
+        "6086114125992611716",
+        "6268168938331911511",
+        "1385000868013749832",
+        "3238228037552682765",
+        "13335025055090762503",
+        "12235926345717634785",
+        "8019352934241834598",
+        "7656189519617838969",
+        "15419864178337109515"
       ]
     },
     "truth_values_written": {

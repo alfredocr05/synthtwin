@@ -867,6 +867,41 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # B4d, A POOLED SCALE TAKEN OVER TOO FEW CELLS (plan
+            # P4-D301, ledger K-2B-50). Section 6.3 publishes the mean
+            # and the population spread of the numbers the floor held
+            # back, and they are safe only because the pool they are
+            # taken over is a group: a mean over three cells is three
+            # people's values averaged, and over one it IS that value.
+            # The census line is asked here as it is of every other
+            # census this format carries.
+            "B4d", "a pooled scale taken over fewer cells than the line",
+            edit(
+                "region",
+                suppressed_numbers={
+                    "n_cells": 3, "mean": 5.0, "spread": 1.0
+                },
+            ),
+        ),
+        Mutation(
+            # B4d, A POOLED SCALE OF NO SPREAD (repair pass of
+            # 2026-09-21). A pool whose spread is nought holds ONE value
+            # in every cell it speaks of, so its mean IS that value and
+            # the block hands over what the floor held back. The
+            # producer refuses to write one -- four spellings of five
+            # are four levels and one number -- and this is the loader's
+            # half, so a hand-written description cannot carry one
+            # either. The count and the census line are untouched here:
+            # only the spread is.
+            "B4d", "a pooled scale whose spread is nought",
+            edit(
+                "region",
+                suppressed_numbers={
+                    "n_cells": 65, "mean": 5.0, "spread": 0.0
+                },
+            ),
+        ),
+        Mutation(
             "B5", "a label published below the floor",
             both(
                 edit_level("region", 3, count=5),

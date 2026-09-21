@@ -490,6 +490,9 @@ LABEL_KEYS = (
     "levels",
     "shape_forms",
     "suppressed_levels",
+    # THE SCALE OF THE NUMBERS THE FLOOR HELD BACK (plan P4-D301,
+    # ledger K-2B-50): one block of three aggregates over the pool.
+    "suppressed_numbers",
     "suppressed_rows",
 )
 
@@ -1318,6 +1321,14 @@ INVARIANTS = {
         "published labels that read that way, leaves exactly one row, "
         "because that row is a held-back label of one -- and a total no "
         "published label reads into is read the same way"
+    ),
+    "B4d": (
+        "the scale published for the held-back numbers is taken over a "
+        "group: the cells it speaks of are nought, or they and the "
+        "column's other numbers each reach the census line -- its mean "
+        "and its spread stand exactly where those cells do, and a "
+        "spread it speaks of is above nought, because a pool of no "
+        "spread publishes the value of every cell in it"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -2223,6 +2234,37 @@ class UnrepresentableFacts:
 
 
 @dataclasses.dataclass(frozen=True)
+class PooledNumbers:
+    """The scale of the numbers the floor held back (6.3, invariant B4d).
+
+    THREE AGGREGATES OVER ONE GROUP and no fourth: how many cells of the
+    held-back levels read as numbers, their mean, and their POPULATION
+    spread -- divided by the count of them, not by one less, because
+    what it describes is the whole of a pool and not a sample of
+    something larger.
+
+    `n_cells` nought is the one state this block has to say nothing
+    with. It is reached both by a column whose held-back levels hold no
+    number at all and by a column where naming the pool would let a
+    reader subtract their way to a row, and the two are deliberately
+    indistinguishable: a refusal that looked different from nought would
+    itself publish that the pool holds numbers and how few.
+
+    `mean` and `spread` are both absent exactly there, which is what the
+    loader holds them to.
+    """
+
+    n_cells: int
+    mean: "float | None"
+    spread: "float | None"
+
+
+# WHAT A LABEL BLOCK CARRIES WHERE NO POOLED SCALE IS PUBLISHED. One
+# value, so that no caller builds a second spelling of the same state.
+NO_POOLED_NUMBERS = PooledNumbers(n_cells=0, mean=None, spread=None)
+
+
+@dataclasses.dataclass(frozen=True)
 class LabelFacts:
     """The published labels of a label column (6.3), and their forms.
 
@@ -2247,6 +2289,7 @@ class LabelFacts:
     suppressed_levels: int
     suppressed_rows: int
     shape_forms: "dict[str, int]"
+    suppressed_numbers: "PooledNumbers"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7458,6 +7501,120 @@ def _spellings_spoken(
     )
 
 
+def _pooled_numbers(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    inside_a_half: bool = False,
+) -> PooledNumbers:
+    """The scale of the held-back numbers, read and held to B4d.
+
+    THE DISCLOSURE QUESTION IS ASKED HERE AND NOT ASSUMED. The block
+    names a group of cells and two aggregates over it, so the rule it
+    has to meet is the one every census of this format meets:
+    `parsing.census_nameable`, with the pooled count as the one count it
+    prints and the column's numeric total as the population a reader
+    subtracts it from. Both sides of that subtraction are then a group
+    or nothing at all -- a pool of one cell would BE that cell's value
+    written under the name `mean`, and a pool leaving one published
+    numeric cell behind hands that cell over the same way.
+
+    THE SECOND HALF OF THE RULE IS THAT SILENCE IS TOTAL. Where the
+    count is nought the mean and the spread are absent, and where it is
+    not they are both present; a block that spoke one of them would say
+    by its shape what the count is for.
+
+    AND A SPREAD THAT IS WRITTEN IS ABOVE NOUGHT (repair pass of
+    2026-09-21). A pool of no spread holds ONE value in every one of its
+    cells, so its mean is that value and the block hands over exactly
+    what the floor was holding back -- measured at a floor of eleven on
+    200 `blank` beside forty `3` and eight each of `5`, `5.0`, `05` and
+    `5.00`, which published 32 cells at mean 5.0 and spread 0.0 and
+    printed "average 5.0, spread 0.0" on the page a person reads. The
+    producer refuses to write one; this is the half that stops a
+    hand-written description carrying one.
+
+    INSIDE A COMPOUND COLUMN'S LABEL HALF the numeric total is the
+    column's and counts the numbers of the OTHER half, so it is not a
+    population this pool can be subtracted from and the population
+    clause is not asked. The count's own line still is.
+
+    Guarantees: accepts the block, where it stands, the floor and
+    whether this is a compound column's half; returns the three values.
+    Raises ProfileError for B4d, and the shape refusals for a value of
+    the wrong kind. No I/O of any kind.
+    """
+    inner = _mapping(
+        mapping["suppressed_numbers"], "suppressed_numbers", where
+    )
+    for key in ("n_cells", "mean", "spread"):
+        if key not in inner:
+            raise _missing(
+                f"suppressed_numbers -> {key}",
+                where,
+                "every block that publishes levels",
+            )
+    cells = _whole(
+        inner["n_cells"], "suppressed_numbers -> n_cells", where, 0
+    )
+    middle = _figure_or_nothing(
+        inner["mean"], "suppressed_numbers -> mean", where
+    )
+    spread = _figure_or_nothing(
+        inner["spread"], "suppressed_numbers -> spread", where
+    )
+    spoken = middle is not None and spread is not None
+    if spoken != (cells > 0) or (middle is None) != (spread is None):
+        raise _broken(
+            "B4d",
+            where,
+            f"the pooled scale speaks of {cells} cell(s)",
+            (
+                "its mean and its spread are "
+                + ("written" if spoken else "absent")
+            ),
+        )
+    # A SPREAD OF NOUGHT IS REFUSED AND NOT ONLY A NEGATIVE ONE (repair
+    # pass of 2026-09-21). The producer never writes one -- a pool of
+    # one value spelled several ways is refused there, for the reason
+    # `taxonomy._pooled_numbers` states -- and this is the loader's half
+    # of that rule, so a HAND-WRITTEN description cannot carry it
+    # either. It is reached only where the mean and the spread are
+    # written, which invariant B4d has already tied to a count above
+    # nought.
+    if spread is not None and spread <= 0.0:
+        raise _broken(
+            "B4d",
+            where,
+            f"the pooled scale speaks of a spread of {spread}",
+            "a pool that has no spread holds one value in every cell",
+        )
+    if cells < 1:
+        return NO_POOLED_NUMBERS
+    population: "list[int]" = []
+    if not inside_a_half and "n_numeric" in mapping:
+        total = _whole(mapping["n_numeric"], "n_numeric", where, 0)
+        if cells > total:
+            raise _broken(
+                "B4d",
+                where,
+                f"the pooled scale speaks of {cells} cell(s)",
+                f"the column counts only {total} number(s) in all",
+            )
+        population = [total]
+    if not parsing.census_nameable([cells], population, floor):
+        raise _broken(
+            "B4d",
+            where,
+            f"the pooled scale speaks of {cells} cell(s)",
+            (
+                "that count, or what it leaves of the column's numbers, "
+                f"is below the census line of {parsing.census_floor(floor)}"
+            ),
+        )
+    return PooledNumbers(n_cells=cells, mean=middle, spread=spread)
+
+
 def _label_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -7487,6 +7644,7 @@ def _label_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
+        suppressed_numbers=_pooled_numbers(mapping, where, floor),
     )
 
 
@@ -7527,6 +7685,7 @@ def _compound_label_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor, False, False),
+        suppressed_numbers=_pooled_numbers(mapping, where, floor, True),
     )
 
 
@@ -7597,6 +7756,7 @@ def _long_tail_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
+        suppressed_numbers=_pooled_numbers(mapping, where, floor),
     )
 
 
@@ -7627,6 +7787,7 @@ def _categorical_facts(
         suppressed_levels=suppressed,
         suppressed_rows=rows,
         shape_forms=_shape_forms(mapping, where, floor),
+        suppressed_numbers=_pooled_numbers(mapping, where, floor),
         level_ceiling=ceiling,
     )
 

@@ -193,6 +193,20 @@ THOUSANDS_MARKS_FACT = "numeric.thousands_marks"
 # beside them. With this key's own listings taken out the frozen
 # baseline must still reproduce character for character.
 WIDE_RUNS_FACT = "numeric.wide_runs"
+# ...AND THE POOL'S OWN SCALE (plan P4-D301, 2026-09-21). Contract
+# section 6.3.3 publishes the average and the spread of the numbers a
+# column's floor held back; every label column of this demonstration
+# holds back WORDS, so the block says nothing on all four of them and
+# the two facts are LISTED rather than checked, one pair per label
+# column. Set aside on the doctrine the keys above follow: with them
+# out the frozen baseline must come back character for character,
+# which is what says nothing else moved in the landing that added
+# them.
+POOLED_SCALE_FACTS = (
+    "label.suppressed_numbers.mean",
+    "label.suppressed_numbers.spread",
+)
+
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     WIDE_RUNS_FACT,
@@ -204,7 +218,7 @@ LISTINGS_ADDED_SINCE = (
     N_AT_MIDNIGHT_FACT,
     NEGATIVE_NOTATIONS_FACT,
     THOUSANDS_MARKS_FACT,
-) + WRITTEN_FORM_FACTS
+) + WRITTEN_FORM_FACTS + POOLED_SCALE_FACTS
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -734,6 +748,26 @@ def test_widening_the_demonstration_lost_no_obligation(
         "this list is the run with the new key's own listings taken "
         "out, so it must reproduce the frozen baseline."
     )
+    # ...and the pool's own scale is listed on the LABEL columns and
+    # nowhere else (plan P4-D301), named rather than counted. Every
+    # label column of this demonstration holds back words, so its block
+    # says nothing and the pair is listed; a run that CHECKED either
+    # here would be holding a column to a scale its description does
+    # not publish.
+    assert sorted(
+        entry
+        for entry in listings
+        if any(fact in entry for fact in POOLED_SCALE_FACTS)
+    ) == [
+        "answer|label.suppressed_numbers.mean|suppressed.numbers.mean",
+        "answer|label.suppressed_numbers.spread|suppressed.numbers.spread",
+        "batch|label.suppressed_numbers.mean|suppressed.numbers.mean",
+        "batch|label.suppressed_numbers.spread|suppressed.numbers.spread",
+        "note|label.suppressed_numbers.mean|suppressed.numbers.mean",
+        "note|label.suppressed_numbers.spread|suppressed.numbers.spread",
+        "region|label.suppressed_numbers.mean|suppressed.numbers.mean",
+        "region|label.suppressed_numbers.spread|suppressed.numbers.spread",
+    ]
     # ...and the four the new key adds are the four it should, named
     # rather than counted: one per numeric-family column.
     assert sorted(
@@ -1317,8 +1351,18 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # "(withheld)": 5}` and now publishes `{"2": 57, "3": 170}`, the five
 # cells at widths too rare to name counted into the commonest width
 # (plan P4-D222, which replaces plan P4-D221's recording).
+# RE-RECORDED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+# ledger K-2B-50), and NO CELL OF THE TWIN MOVED. The four label columns
+# gained ONE key, `suppressed_numbers`, the scale of the numbers the
+# floor held back, and all four publish the state that says nothing,
+# because none of their held-back levels holds a number. MEASURED by the
+# profile golden's own procedure (tests/test_profile_document.py): the
+# description written out again with that one key deleted hashes to the
+# digest this one replaces. The TWIN digest below did not move, which is
+# the other half of the same statement: the generator is handed one more
+# key and writes exactly what it wrote before.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "e387beaf5167a27e509dfe2ccf62ba3850b8e305e07c54e0e37ce89b3cdcde3e"
+    "c0031ee7d2c837e7cb396b8990c939604edc57d3f93ad40084a914a7e257775f"
 )
 
 
@@ -2072,7 +2116,18 @@ GOLDEN_REPORT_SHA256 = (
     # wherever some stratum held the mode's value, whatever its size.
     # The twin's own digest above did NOT move, so not one cell of the
     # twin changed with it.
-    "1a8f88c9ce416df5b116627065f263b557edcfa8aaa318169731aa4cd341d8fe"
+    #
+    # RE-RECORDED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+    # ledger K-2B-50), read as a line-by-line diff against the report
+    # before it: EIGHT LINES WERE ADDED, two facts on each of the four
+    # LABEL columns, and one count moved with them -- 116 approximated
+    # facts measured became 124. Not one other line moved. Contract
+    # 6.3.3 publishes the average and the spread of the numbers a
+    # column's floor held back, and every label column of this
+    # demonstration holds back WORDS, so all eight lines say that this
+    # column publishes no such scale. The twin's own digest above did
+    # NOT move, so not one cell of the twin changed with it.
+    "7b230c895d3ee7b85fb88b7198c22ae6679fae24d31465f1c6ec241983249b12"
 )
 
 
@@ -2763,7 +2818,17 @@ GOLDEN_QUALITY_SHA256 = (
     # the checks -- `holes.by_source.-999` on `reading`, HELD at 13 -- so
     # 532 obligations became 533, 466 HELD became 467, and 164 not
     # checkable became 163. No other line moved and no verdict moved.
-    "08e8fb0972a13a70f386b79e3e49ae0266600a51b819a0953e24a56ea51652e3"
+    # RE-RECORDED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+    # ledger K-2B-50), read as a line-by-line diff: EIGHT OBLIGATIONS
+    # WERE ADDED to the census of facts no file can evidence, two on
+    # each of the four LABEL columns -- the average and the spread of
+    # the numbers a column's floor held back (contract 6.3.3), which
+    # every label column of this demonstration publishes as the state
+    # that says nothing, because all four hold back WORDS. So 163 not
+    # checkable became 171. NO OBLIGATION LEFT the census and no verdict
+    # moved; the description and twin digests above tell which of the
+    # two inputs changed, and it is the description alone.
+    "3104d5a1f6150543dd3a5c30be15b95efe6e807f6acc969fa41d3e5c247640d3"
 )
 
 

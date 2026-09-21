@@ -18678,3 +18678,145 @@ it trades 12 more agreements outside the 0.02 window (597 to 609 of
 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
 Ceilings move in their own commit, never inside a merge.
+
+## Decision P4-D301 — the pooled numbers keep their scale (2026-09-21)
+
+**THE OWNER'S WORDS**, asked which of the carried fidelity failures to
+take now: "Apparently i want this fixed."
+
+**THE FAILURE.** Where a floor holds back a column's rare NUMBERS, the
+pool published how many there were and how many rows they covered and
+nothing about what they were worth, so the generator had only the
+numbers the column PUBLISHED to place its made-up ones beside. Ledger
+entry K-2B-50 measures it at a floor of eleven on 100 `alpha`, twenty
+`100` and ten each of 200 to 209: the twin's numeric mean came back 100
+against 187.083333 and its population spread 3.027650 against
+39.033017, and BOTH files validated with nothing missed, because no
+published fact spoke of the pool at all. The same shape as a long tail
+came back with a mean of 20.46 against 929.5.
+
+**WHAT IS PUBLISHED.** Contract section 6.3.3 adds one block to the
+four label roles: how many cells of the held-back levels read as
+numbers, their mean and their population spread. Its disposition is
+this decision's ruling. The block's own key `suppressed_numbers` is
+STRUCTURAL, carrying no value obligation of its own, and
+`suppressed_numbers.n_cells` is LOADER-ONLY: the loader reads it to ask
+the disclosure rule and it puts nothing on the twin. Its two
+aggregates, `suppressed_numbers.mean` and `suppressed_numbers.spread`,
+are APPROXIMATED,
+under the window generation method G12.12 draws around the two
+aggregates — half the published spread either side of each — because
+the placement rounds every value it writes onto a place the column
+writes at and steps outward wherever a spelling is refused, so the twin
+lands near the scale rather than on it.
+
+**WHY IT IS SAFE, ASKED AND NOT ASSERTED.** The pool is a group by
+construction, and the producer and the loader both ask
+`parsing.census_nameable` with the pooled count as the one count they
+would print and the column's numeric total as the population a reader
+can subtract it from. The pool therefore reaches `parsing.census_floor`
+and so does whatever it leaves of the column's numbers. Where the
+question is answered no the block publishes nought and two nulls, which
+is exactly what a column whose held-back levels hold no number
+publishes: a refusal a reader could tell apart from nought would itself
+publish the count the floor exists to withhold. Invariant B4d is the
+loader's half of the same question.
+
+**WHAT THE PRODUCER REFUSES, AND WHY — REWRITTEN BY THE REPAIR PASS OF
+2026-09-21.** This decision first shipped ONE producer refusal: a pool
+of fewer than three numeric levels. The review of the same day measured
+three things wrong with that, and the contract's section 6.3.3 now
+carries the full statement and the measurements. In short:
+
+1. **THREE LEVELS WAS NOT ENOUGH, and the number is now SIX.** The
+   census rule asks whether the pooled COUNT names a group; it does not
+   ask whether a mean and a spread name a VALUE. On 200 `yes`, thirty
+   `1` and ten each of 44, 46 and 48 at a floor of eleven,
+   `suppressed_levels` over `suppressed_rows` pins the sizes at
+   (10, 10, 10), `n_cells` equal to `suppressed_rows` says all three
+   hold numbers, and a search over whole numbers returns (44, 46, 48)
+   and nothing else. A sweep of twenty-five random whole-number pools at
+   each level count solved 17 of 25 outright at three levels, 1 of 25 at
+   four and at five, and none at six, where the median solution set is
+   118 populations. Six is where the count stops being a name.
+2. **A POOL WIDER THAN THE COLUMN SHOWS IS NOT PUBLISHED.** Method
+   G8.3a step 3 forbids the generator a made-up number wider than the
+   widest the column publishes, so a scale wider than that is an
+   obligation no conforming twin could meet — the description-no-file-
+   satisfies defect, stated by the block written to close another.
+   Measured: 300 `hold`, twenty `7` and five each of 1000000 to 5000000
+   published a mean of 3000000 while its twin's pool stood at 6.68, and
+   `validate` exited 3 on the twin and 0 on the real table; 52 of 120
+   runs of a sixty-shape sweep did that, and none does now.
+3. **A POOL OF NO SPREAD IS NOT PUBLISHED**, because its mean IS the
+   value of every cell it speaks of: four spellings of five are four
+   levels and one number, and the page a person reads printed "32
+   cells, average 5.0, spread 0.0". This one invariant B4d re-asks, so
+   a hand-written description cannot carry it either.
+
+4. **AND THE POOL MUST STAND CLEAR OF THE TIGHTEST ARRANGEMENT ITS OWN
+   VALUES COULD TAKE**, which is the rule the other three do not give.
+   The landing's own reproduction published a spread of
+   2.8722813232690143 — exactly `sqrt((10 * 10 - 1) / 12)`, the
+   smallest a pool of ten distinct whole numbers can have — so its ten
+   held-back values come back by arithmetic as 200 to 209. So does any
+   evenly spaced pool. Measured over sixty real pools: at the tightest
+   arrangement the pool is named outright, at 1.78 times its variance
+   one other pool shares the pair, and at 2.45 times, 28 do. The
+   multiple is 2.5.
+
+**WHAT THAT COSTS, AND IT IS THE WHOLE HEADLINE.** The shape ledger
+K-2B-50 names publishes no scale any more, so **K-2B-50 IS OPEN
+AGAIN**: on it the twin's numeric mean is back at 100 against
+187.083333 and its spread at 3.027650 against 39.033017. What is left
+is the pools loose enough for the pair to name nothing, and on those
+the placement is worth a numeric mean 0.0002 and a spread 0.0651 from
+the table's own, against the 50 and more without it.
+
+**AND THE CHECK IS VACUOUS WHILE THAT STANDS.** The two obligations are
+measured against the checked file's own re-described block, and method
+G8.3c spaces the twin's groups evenly — the tightest arrangement — so
+every twin this product writes publishes no pool and both obligations
+are WITHHELD. Reading the closed gate as a MISS was measured and
+withdrawn: it states an obligation no conforming twin can meet. What
+closes it is G8.3c placing the pool as loosely as the pair allows;
+that is a change to the generator this pass did not make, and the
+report puts it to the owner beside withdrawing the publication.
+
+**WHAT IT STILL LETS A READER NARROW**, recorded rather than waved
+away, and the first writing of this paragraph was FALSE: it rested on
+"neither the held-back levels' sizes nor how many of them hold numbers
+is published", and `suppressed_levels` with `suppressed_rows` pins the
+sizes at the top of invariant B4's band while `n_cells` equal to
+`suppressed_rows` says every held-back level is numeric. What is true is
+that three numbers over a pool of six levels or more that stands at
+least two and a half times looser than its own tightest arrangement
+leave a SET of candidate populations rather than a point — tens of them
+in the sweep above. It is not a continuum, and nothing here makes it one
+while the values are whole numbers. What a reader takes is the
+SCALE of a group at the census line, which is no wider than what the
+twin already gives them.
+
+**AND IT COSTS THE OWNER'S ACCEPTED LIMIT NOTHING.** The first writing
+of this decision moved ledger K-2B-19 from 55 held-back cells the twin
+reproduces exactly to 125 of 251 and said so to the owner. With the four
+refusals above in place it is back at 55 of 251, columns rebuilt whole
+unmoved at 1 of 19: the limit the owner accepted on 2026-09-18 stands
+where they accepted it, and there is nothing here to re-accept.
+
+**WHAT THE OWNER HAS TO DECIDE**, because this pass would not decide it
+for them. K-2B-50 is open and the two ways to close it both cost
+something:
+
+- **Place the pool loosely (a change to method G8.3c).** The twin's
+  groups would stand at uneven gaps instead of even ones, far enough
+  apart that a twin's own description publishes its pool and method
+  G12.12's check stops being vacuous. It does NOT bring the ledger's own
+  shape back: that column's pool is named by its pair whatever the twin
+  does, so it stays refused.
+- **Publish the MEAN and not the spread.** One equation over as many
+  unknowns as the pool has levels is never solved, so the looseness rule
+  and the level rule both fall away and the ledger's own shape could be
+  published again. It costs the published spread, which is what method
+  G12.12's window is drawn from, so the window would have to be derived
+  some other way — a landing of its own, with its own review.

@@ -484,7 +484,19 @@ def test_a_column_read_with_a_decimal_comma_writes_its_numbers_with_one(
 def test_numbers_nothing_published_places_are_named_as_such(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A long tail that published none of its readings says so in the report."""
+    """A long tail that published none of its readings says so in the report.
+
+    RE-TARGETED TWICE AND BACK WHERE IT STARTED. The pooled-scale
+    landing of 2026-09-21 (plan P4-D301) held the OTHER sentence here,
+    because section 6.3.3 then published this column's held-back
+    readings' mean and spread and the twin's readings came back at
+    7.1047 and 2.0213 against the table's 7.0741 and 2.0928. The repair
+    pass of the same day withdrew that publication on this shape: a
+    thousand readings on a tenth-of-a-unit grid are packed as closely as
+    that grid allows, and a pool at its own tightest arrangement is
+    NAMED by its mean and its spread. So the description publishes
+    nothing about where they lie, and the report says so again.
+    """
     cells = _readings_beside_notes(1000, random.Random(1000 * 31 + 1))
     first, second, _written, twin_exit, _real = _round_trip(
         tmp_path / "unplaced", cells, ("--smallest-group", "20"), False, "1"
@@ -492,6 +504,9 @@ def test_numbers_nothing_published_places_are_named_as_such(
     assert first["role"] == "long_tail_labels"
     assert second["n_numeric"] == first["n_numeric"]
     assert twin_exit == 0
+    assert first["suppressed_numbers"] == {
+        "n_cells": 0, "mean": None, "spread": None
+    }
     report = (tmp_path / "unplaced" / "real-twin-report.txt").read_text(
         encoding="utf-8"
     )

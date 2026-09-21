@@ -192,19 +192,30 @@ def test_the_loader_refuses_a_class_total_that_leaves_one_row() -> None:
 def test_the_anchored_held_back_sentence_warns_about_statistics(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The mean and spread move and the report has to say a statistic is not one.
+    """The sentence that stops a reader trusting this column's numbers.
 
-    MEASURED by the review: the numeric subset's mean and population
-    spread go from 187.083333 and 39.033017 to 100 and 3.027650, and both
-    files pass all 99 executable checks. Generating this population from
-    disclosure-safe aggregates is not built; what is built is the
-    sentence that stops a reader trusting the numbers.
+    RE-TARGETED TWICE. It was written when generating the pooled
+    population from disclosure-safe aggregates was not built: the
+    numeric subset's mean and population spread go from 187.083333 and
+    39.033017 to 100 and 3.027650, both files pass every executable
+    check, and what the repair of that day added was the sentence that
+    stopped a reader trusting the numbers.
+
+    The pooled-scale landing of 2026-09-21 (plan P4-D301) re-targeted it
+    to assert the opposite -- that the twin's numbers ARE the table's --
+    and **the repair pass of the same day put it back**, because the
+    block that made that true published this column's ten held-back
+    values. Its spread, 2.8722813232690143, is exactly the smallest a
+    pool of ten distinct whole numbers can have, so the pair names 200
+    to 209 outright; contract 6.3.3's looseness rule refuses it, ledger
+    K-2B-50 is OPEN again, and the warning sentence is the right one on
+    this shape once more.
     """
     cells = ["alpha"] * 100 + ["100"] * 20
     for value in range(200, 210):
         cells += [str(value)] * 10
     folder = tmp_path / "anchored"
-    _block, written, twin_exit, real_exit = _round_trip(
+    block, written, twin_exit, real_exit = _round_trip(
         folder, cells, ("--smallest-group", "11")
     )
     assert twin_exit == 0 and real_exit == 0
@@ -212,26 +223,38 @@ def test_the_anchored_held_back_sentence_warns_about_statistics(
     twin = _read(written)
     assert round(statistics.fmean(real), 6) == 187.083333
     assert round(statistics.pstdev(real), 6) == 39.033017
-    # The fidelity is still unmet; what the repair adds is the warning.
-    assert abs(statistics.fmean(twin) - statistics.fmean(real)) > 50
-    # ...AND IT MAY NOT GET WORSE (round-2 ledger item 1, K-2B-50). A
-    # floor of "more than 50" is a ceiling on nothing: a twin whose mean
-    # error grew to 187 passed this line. The measured errors at
-    # 05e7d89, the same on seeds 4, 0 and 1, are the ledger's OPEN bound.
-    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) <= 87.083333
-    assert round(abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6) <= 36.005366
-    # Both files validate clean, which is why no miss count can see this.
+    # THE DEFECT IS BACK AND MEASURED, which is ledger K-2B-50's own
+    # value: the pool publishes no scale, so the ladder has only the
+    # published `100` to step from.
+    assert block["suppressed_numbers"] == {
+        "n_cells": 0, "mean": None, "spread": None
+    }
+    assert round(abs(statistics.fmean(twin) - statistics.fmean(real)), 6) == (
+        87.083333
+    )
+    assert round(
+        abs(statistics.pstdev(twin) - statistics.pstdev(real)), 6
+    ) == 36.005366
+    # Both files validate clean, which is why no miss count could ever
+    # see this and why only the two numbers can.
     assert (twin_exit, real_exit) == (0, 0)
     report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "is not a fact about your table" in report
-    # All three held-back sentences end by warning about a statistic;
-    # before this repair only the two unanchored ones did.
+    # The three sentences that warn about a statistic are all still
+    # there, for the three states that reach them: a pool with no
+    # published scale, one the ladder cannot place, and one whose
+    # column published a number it cannot step from.
     for sentence, warning in (
         (generation._HELD_BACK_NUMBERS_REASON, "not a fact about your table"),
         (generation._HELD_BACK_UNPLACED_REASON, "means nothing about your table"),
         (generation._HELD_BACK_UNSPELLED_REASON, "not a fact about your table"),
     ):
         assert warning in sentence
+    # ...and the fourth says the opposite, for the pools that DO publish
+    # a scale, which this shape is not one of.
+    assert (
+        "IS about your table" in generation._HELD_BACK_SCALED_REASON
+    )
 
 
 # -- item 4: the published mode (plan P4-D267) ------------------------

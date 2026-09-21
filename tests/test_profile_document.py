@@ -460,8 +460,21 @@ def test_nothing_that_varies_between_runs_is_written(
 # cells at widths too rare to name counted into the commonest width
 # (plan P4-D222, which replaces plan P4-D221's recording). Nothing else
 # moved.
+# RE-RECORDED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+# ledger K-2B-50), and the ONE key added is the whole of the difference.
+# The four label columns -- `region`, `answer`, `batch` and `note` --
+# gained `suppressed_numbers`, the scale of the numbers the floor held
+# back, and every one of them publishes the state that says nothing:
+# `{"n_cells": 0, "mean": null, "spread": null}`, because none of their
+# held-back levels holds a number. MEASURED by this file's own
+# procedure: these bytes with that one key deleted from those four
+# columns hash to
+# 1eb70ad1a43fb80404b1e88a4c161871f09cd5e33315934d203f9f21373a005c,
+# the digest this one replaces. No other key moved, and the twin digest
+# in tests/test_twin_golden.py did not move at all -- the generator is
+# handed one more key and writes exactly what it wrote before.
 GOLDEN_SHA256 = (
-    "1eb70ad1a43fb80404b1e88a4c161871f09cd5e33315934d203f9f21373a005c"
+    "cebcd806b9a3ac3dd1e9b313ce28c66ce87f220fc41594806c2272681587fe85"
 )
 
 
