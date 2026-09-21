@@ -7011,11 +7011,83 @@ def _datetime_content(column):
                     break
         content.append(written)
     content = rebalance_marks(marks, content, holes, column["format"])
+    content = spellings_short_of_the_count(column, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
 
 MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
+def spellings_short_of_the_count(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
+    """G7.9: reach a published distinct count a mark census absorbed out of reach.
+
+    Written from the rule's statement, not from the shipped code.
+
+    Ruling 6 of 2026-09-17 counts a mark below the census line into the
+    commonest mark, so a census a construction reads as an instruction
+    about the CELLS can leave the column fewer different values than
+    `n_distinct_folded` publishes.  Where that happens the construction
+    spends the SHORTFALL -- the published folded count less the
+    different folded spellings the cells hold -- on the permitted marks
+    the census leaves unnamed, taken in the order upper_t, space,
+    lower_t, and at most `census_line(floor) - 1` ranks in all, so the
+    twin described again counts the mark back into the commonest name
+    and publishes the census as it stands.  A rank is spent when its
+    cell is at least eleven characters, wears the commonest named mark,
+    its respelling is not an absent spelling, its respelling is a
+    folded spelling the cells do not already hold, its own folded
+    spelling is worn by another rank, and it is neither of the two END
+    ranks, which are written as the description publishes them.
+
+    The count spent is a function of the published numbers alone; the
+    count the real column held is not published and is not read.
+    """
+    cells = list(cells)
+    if column["format"] not in ("iso-datetime", "iso-mixed"):
+        return cells
+    census = column.get("datetime_separators", {})
+    if WITHHELD in census or not census:
+        return cells
+    spare = [MARK_OF[name] for name in permitted_marks(column) if name not in census]
+    if not spare:
+        return cells
+    worn = {}
+    for cell in cells:
+        key = cell.strip().casefold()
+        worn[key] = worn.get(key, 0) + 1
+    short = column["n_distinct_folded"] - len(worn)
+    if short < 1:
+        return cells
+    budget = census_line(floor) - 1
+    commonest = max(sorted(census), key=lambda name: census[name])
+    wanted = MARK_OF[commonest]
+    absent = {hole.strip().lower() for hole in holes}
+    spent = 0
+    last = len(cells) - 1
+    for mark in spare:
+        for rank, cell in enumerate(cells):
+            if short < 1 or spent >= budget:
+                break
+            if rank == 0 or rank == last:
+                # The two ends are written as the description publishes
+                # them (G7.5), so this pass never respells one.
+                continue
+            if len(cell) < 11 or cell[10] != wanted:
+                continue
+            changed = cell[:10] + mark + cell[11:]
+            if changed.strip().lower() in absent:
+                continue
+            was, becomes = cell.strip().casefold(), changed.strip().casefold()
+            if becomes in worn or worn[was] < 2:
+                continue
+            cells[rank] = changed
+            worn[was] -= 1
+            worn[becomes] = 1
+            short -= 1
+            spent += 1
+        if short < 1 or spent >= budget:
+            break
+    return cells
+
 
 
 def ordinal_space(column):
@@ -22007,6 +22079,53 @@ def _both_fields_disagree():
     }
 
 
+def _date_absorbed_mark():
+    """A mark census that absorbed the spelling the column's count needed (G7.9).
+
+    A hundred and twenty-five moments at midnight on two days, at the
+    case floor of eleven: a hundred and twenty written with a space and
+    five with a `T`.  Ruling 6 of 2026-09-17 counts the five below the
+    line into the commonest mark, so the census publishes
+    `{"space": 125}` while the column publishes THREE different values.
+    The published census read as an instruction about the cells writes
+    125 spaces over two days, which is two different values -- and a
+    column of two values is binary, not a column of dates.  So this is
+    the shape where the shortfall the description itself publishes buys
+    one rank a mark the census leaves unnamed.
+    """
+    rungs = ["2025-01-01 00:00:00"] * 6 + ["2025-01-02 00:00:00"] * 5
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=125, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_numeric=0, n_not_numeric=125, n_out_of_range=0, n_contradictory=0,
+        format="iso-datetime", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest=rungs[0], latest=rungs[10],
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        n_unparsed=0, utc_offsets={"(none)": 125},
+        datetime_separators={"space": 125},
+        all_at_midnight=True, n_at_midnight=125,
+    )
+    return {
+        "why": "G7.9's spend of a mark the census leaves unnamed (plan "
+        "P4-D245, ledger K-2B-51, the owner on 2026-09-21): a column short "
+        "of its published folded distinct count gives the shortfall -- one "
+        "value here, and never the five the real column held, which is not "
+        "published -- to the first permitted mark the census does not name, "
+        "and spends fewer ranks on it than the census could print, so the "
+        "twin described again counts the mark back into the commonest name. "
+        "This case's mutant withdraws the spend, and the twin writes 125 "
+        "spaces over two days: two different values against a published "
+        "three, a twin that reads back as binary rather than as a column of "
+        "dates, and a report saying the twin missed its role, its "
+        "statistical type and its count at midnight while the real table "
+        "missed none.",
+        "column": column,
+        "rows": 125,
+        "identifier_declared": False,
+    }
+
 FIFTH_BRANCH_CASE_BUILDERS = {
     # Made-up words of two characters in the code band (plan P4-D234).
     "code_band_words": _code_band_words,
@@ -22030,6 +22149,11 @@ FIFTH_BRANCH_CASE_BUILDERS = {
     # each one's `case_set` account names all the others.
     "exponent_fitted": _exponent_fitted,
     "exponent_scaled": _exponent_scaled,
+    # G7.9's spend of a mark the census absorbed out of reach (plan
+    # P4-D245, ledger K-2B-51). It comes to THIS file for the reason the
+    # two above did: the eighth and ninth stand past plan P4-D295's
+    # 200000-byte line and this one does not.
+    "date_absorbed_mark": _date_absorbed_mark,
 }
 
 # THE SEVEN CASES OF THE EXTRA REVIEW ROUND OF 2026-09-18, its date pass
@@ -22376,6 +22500,91 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "date_absorbed_mark": (
+        3545155956211708078, 14953683457447593041, 12179609554860036063,
+        16147956605500772540, 17928776434274769870, 15034861070867882581,
+        15789826267497768796, 7925814415469069957, 16678064277384297059,
+        15630163136935738608, 17346014380770636224, 15285867645723989707,
+        7471226277731271526, 15821062140771830310, 4232448459460404065,
+        13253677067831526626, 16726479881963769215, 7442732407021143548,
+        9245538397393892332, 17752558830233817937, 3618022885698789216,
+        9647623351840401872, 930977597344333956, 18100830186991515514,
+        11302567981553364444, 18135323703262040575, 9703137865390204200,
+        17149087702874827756, 14424266673546163802, 2135460888652118734,
+        5656945771142427273, 8439837784645545323, 6222850908630779722,
+        17098330717999973767, 16300585929396606263, 9879127135418392227,
+        4265868689478988424, 3942963028463756914, 11952425730086173874,
+        8941287740467432664, 2630806988829257644, 4867303148740762448,
+        3172770441632725361, 4433986587763623070, 9732563972237880733,
+        13453247451620335152, 11521613762114702194, 9407260845510641259,
+        15326927125823620242, 13886226934097237517, 18186562598739542878,
+        13637758121419898043, 7458065862582010725, 6532668709902711944,
+        13885150777856120891, 7487983677917777326, 10508274406095416007,
+        17124302013828638716, 16231724236185256181, 17510334201051983908,
+        4482222514647192824, 9832747811663030632, 7809246045561461688,
+        13753302515881324297, 10945435451410547015, 16363292267440341680,
+        5773675898061991946, 9737577370191796360, 10586699430030445628,
+        9027217047315105175, 3929701764494843900, 17124666116317832668,
+        12909009162418321448, 9999579730311582001, 1652791535084486661,
+        15875723007054462704, 3167947692078688009, 16131617040718154900,
+        8286768949714321674, 8436548825298985104, 357232153377153090,
+        17847083807163964433, 6450120859212323221, 1056846177980567891,
+        11492386379896500121, 3428117362171958891, 16489073943691197887,
+        6045120539810200825, 13520908680002760546, 8270228119597874467,
+        10075663881428758015, 6788301793405703081, 11822388432472066400,
+        13925324000037903137, 5193044800100502187, 525887170728541382,
+        8599384763000576288, 7772798061146670973, 6412740428479353753,
+        11201296145066056433, 12598617940035418278, 11154290136121723315,
+        9959423040266880487, 4641017660613709608, 16880055290387820450,
+        13809829446101778446, 3274186922007492602, 13816423138010367748,
+        12882860912810078396, 15840204198080841899, 8594665929237345745,
+        12784184567146885924, 7949553869375323336, 4369782092441336849,
+        17815239606050776910, 18435293599841527299, 10925930764562500644,
+        5270064808156220512, 6632598544166065713, 154222997668726189,
+        14680186123797043433, 14163104758367437583, 13918612611355064950,
+        2419089909746251731, 3486387809080759139, 16774229719156170989,
+        4994983119962811162, 14668906266700305128, 4397245294388642324,
+        11341344600036584860, 3810312959096001141, 771652118455380529,
+        14651523526414178165, 7186619433356329791, 2693619491688813583,
+        9641480248616307320, 4780141826562961624, 13061251163294852431,
+        3986925921191818216, 11260257379525665119, 760812883498767110,
+        1938525670728210619, 2254468098265922169, 414864254884780075,
+        14195938038592203673, 3033874640083748106, 4063130074277359818,
+        3312460671804399298, 6255639984701327195, 2120939375016004160,
+        13715064422205244027, 16120006003536116570, 8687835739787810040,
+        15727568939215550478, 8556449123939921221, 17455199410532509237,
+        6360995412071340857, 53046001525263929, 4172698432509400335,
+        6706777861319985448, 9796104523185994004, 778197993478682149,
+        899304299172066808, 12694881798369366114, 15505063902047552530,
+        10312214772506942907, 14715578089664686227, 4985139989332959459,
+        6712368431725221991, 17689521218415407348, 9592096810821967371,
+        8138883573018454719, 3810034954589892929, 7817423755317157017,
+        12948032635741323212, 16682694510713767770, 7505927065737105149,
+        12607234972794955817, 8191328353953847821, 5533578266641118043,
+        15333704142821771868, 13488885725059127377, 14308956989315939927,
+        15257720568511278644, 4055451562323810000, 5427619292949726840,
+        15593341942731938045, 3904781720216267095, 14092580117158010127,
+        11357519492235132329, 12820948326838197400, 5835701705157242045,
+        16676408004250461315, 9569415212165485097, 6559509636158554430,
+        3796796807841586170, 13194637726128624078, 5687393236049596314,
+        5984275959895680626, 12169352125610789388, 11398462676598499513,
+        725318054846451764, 18020842052409761099, 5614785175139277861,
+        16502096328716894652, 11963528021390678405, 12976934622747363432,
+        5882435271732233966, 7386814778903605718, 7155231040777552381,
+        1287026338867611952, 606668149177851883, 12062318772938900371,
+        4830891050426750903, 3624728144743063815, 16246617373591245259,
+        8304148561312768472, 9145184994925496794, 13301843376310878522,
+        7633651645836364331, 6057957320617680806, 6696017177861572069,
+        8036836708061214351, 4739228424448226926, 9457880626544665201,
+        3875880930986374399, 13384034928450264517, 12339472324403914115,
+        13485868492097390595, 235296003920000125, 7096094758658191939,
+        2712519694254429742, 9312267952269250448, 2797100316417026724,
+        17858281758280342955, 8622065956630425632, 2960879257056348187,
+        297820383600626037, 15626368496252848847, 12546841809108409144,
+        10478139192222397576, 16699649360740835671, 10466700663457678236,
+        4437054337438921156, 79603454391896225, 4996934930789161024,
+        4332143349903482071,
+    ),
     "exponent_fitted": (
         14424975820530563457, 15610671806914588064, 11117871264214182582,
         4598625107104034805, 3553724125616827433, 9415263999882945131,

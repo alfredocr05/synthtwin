@@ -5537,6 +5537,73 @@ rather than passing it off as an outcome the description asked for.
   own twin cannot show is an `iso-mixed` column not wholly at midnight,
   which is written wholly as moments (R-P4-12).
 
+### G7.9 Reaching a distinct count a mark census absorbed out of reach
+
+**The defect this closes** (plan P4-D245, ledger K-2B-51; the owner on
+2026-09-21, 'I think we need to fix'). Ruling 6 of the owner's rulings
+of 2026-09-17 counts a written spelling below the census line into the
+COMMONEST spelling, and that ruling stands: it is what keeps a census
+from naming a handful of rows. So a column of 125 moments at midnight
+on two days, 120 of them written with a space between day and clock and
+5 with a `T`, publishes `datetime_separators` of `{"space": 125}` at a
+floor of eleven — beside `n_distinct_folded` of THREE, because the
+column really did hold three different spellings.
+
+A construction that reads that census as an instruction about the CELLS
+writes 125 spaces over two days. That is two different values where the
+description publishes three, and a column of two values is read back as
+BINARY (the taxonomy decides the kind on the count of values before it
+asks whether they are dates). `synthtwin validate` then reported the
+twin missing `axes.role`, `axes.statistical_type` and `midnight.count`
+while the REAL table missed none — the tool telling the person their
+twin was wrong for doing exactly what the description said.
+
+**The rule.** After the marks are allocated (G7.5 step 2) and the
+absent-spelling repair has run, the parsed cells are counted by folded
+spelling. Where a column of dates holds FEWER folded spellings than
+`n_distinct_folded` publishes, the construction may spend ranks on the
+permitted marks (contract D12) the census leaves UNNAMED, in the order
+`upper_t`, `space`, `lower_t`:
+
+1. The number of ranks spent is bounded by the SHORTFALL the
+   description itself publishes — `n_distinct_folded` less the folded
+   spellings the cells hold — and by a budget of `census_floor(floor)`
+   less one ranks in all, whichever binds first.
+2. A rank is spent when its cell is at least eleven characters long, it
+   wears the commonest NAMED mark, its respelling is not a spelling the
+   table declares absent, its respelling is a folded spelling the cells
+   do not already hold, its own folded spelling is still worn by
+   another rank, and it is NEITHER OF THE TWO END RANKS, which are
+   written as the description publishes `earliest` and `latest`. So no
+   spend ever leaves the column one spelling fewer, none buys a
+   spelling twice, and neither published end is respelled.
+3. The pass is skipped on a member whose eleventh character is a digit
+   of the date rather than the mark, and on a census holding a withheld
+   pool, which G7.5 already splits over every permitted mark.
+
+**Why the budget is one below the line.** The twin is held to its
+description by being DESCRIBED AGAIN, and the description of a column
+wearing fewer than `census_floor` cells of a mark counts that mark back
+into the commonest name by ruling 6 — the same absorption that created
+the shortfall. So the published census is met exactly. A spend that
+REACHED the line would publish a count the real column's census
+withheld, and the twin would miss its own mark census instead: measured
+on the shape above, eleven ranks and twelve alike miss `marks.space`
+and `marks.unnamed`, while one through ten miss nothing at all.
+
+**Where the spent ranks come from, and why they name no row.** The
+count spent is a function of the PUBLISHED numbers alone. The count the
+real column held — five, in the shape above — is not published, is not
+read and is not reproduced: the twin writes ONE. So the twin carries no
+number the description does not already carry, and a reader of the
+twin's own description cannot see the mark at all.
+
+**What it does not do.** It buys values; it does not excuse their loss.
+A shortfall the budget cannot close leaves the column exactly where
+G12.5's published envelope and `_kind_notes`' deviation already put it,
+and a twin that holds fewer values than the census can supply is
+reported missing its role as before.
+
 ## G7A. Clock columns (`time_of_day`)
 
 This role was added by Phase 4 and this section was written after its
@@ -9833,8 +9900,29 @@ date, where a day can also be written bare, and nought otherwise, and
 `n_present` cells in the column at all:
 
 ```
-n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + n_unparsed)
+n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + n_unparsed + G)
 ```
+
+`G` is what G7.9 may buy: `census_floor(small_cell_floor) - 1` on a
+column whose census leaves a permitted mark unnamed, and nought on
+every other — nought, that is, on every census holding a withheld pool,
+on every census naming all its member's permitted marks, and on every
+member whose eleventh character is a digit of the date. It is ADDED and
+not multiplied, because G7.9 spends RANKS and each spent rank buys at
+most one more different spelling; multiplying would promise the column
+a spelling of every instant under the spare mark, which G7.9 never
+writes. It was added by the absorbed-mark landing of 2026-09-21 (plan
+P4-D245, ledger K-2B-51): without it a twin that met its published
+count of three exactly was reported by its own generation report as
+landing outside a window of 2 to 2, which is the method telling the
+person a conforming twin deviated. **The VALIDATOR's window does not
+carry `G`** and does not need it: the validation method's clause
+V6.1-A1 holds a file that matches the published count exactly to that
+count whatever the window says, and prints the window beside it for the
+record; and a file G7.9 wrote never holds MORE different values than
+the description publishes. A window one term wider there
+could only excuse a file holding more, which is a check and not a
+lowering.
 
 (`S` counting the pooled marks and `B` were added at landing 2b.3, and
 `C` by the review of 158c811: without it 300 quarters over twelve years,
@@ -10743,7 +10831,18 @@ cannot. Opening a tenth entry point would have moved every other
 committed file's bytes, because each file's `case_set` account names all
 the others. The seventh file now holds eight cases and 176541 bytes.
 
-**All one hundred and ten are required.** The count is taken off the committed
+**THE ABSORBED MARK OF 2026-09-21 ADDS ONE, TO THE SEVENTH FILE** (plan
+P4-D245, ledger K-2B-51, the owner: 'I think we need to fix'):
+`date_absorbed_mark`, G7.9's spend of a mark the census leaves unnamed
+where ruling 6 of 2026-09-17 absorbed the spelling the column's published
+distinct count needed. It goes to the seventh for the reason the two
+exponent cases did -- the eighth and the ninth stand past plan P4-D295's
+200000-byte line and this one does not -- and no earlier case reaches
+the rule with the shortfall it is written for, so the whole of G7.9
+could have been withdrawn with every committed byte unchanged. The
+seventh file now holds nine cases and 197917 bytes.
+
+**All one hundred and eleven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -10758,7 +10857,7 @@ holds eighteen; the fourth,
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
-holds eight; the eighth,
+holds nine; the eighth,
 `tests/reference/generation-branch-vectors-6.json`, holds fourteen; and the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six
 (G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
@@ -10865,6 +10964,7 @@ case passed, which is the failure the count exists to prevent:
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
 | `date_distinct_reached` | G7.3's pass on the count of different values (plan P4-D192): sixty ISO dates over thirty days publishing twelve different days, one more than its pins hold, reached by runs of ranks on one day moving whole onto a neighbour's day inside their gaps. Its mutant withdraws the pass and the twin holds more days |
 | `date_midnight_feasible` | G7.4's feasible spend of the offsets (plan P4-D254): forty-eight moments on two days at local midnight under `Z`, `+01:00` and `-05:00`, sixteen of each, published on the shared clock, whose gaps hold a midnight under one offset and none under the other two. Its mutant makes every offset look feasible, which is the lexical spend it replaces, and the ranks it leaves off midnight are written with a time of day |
+| `date_absorbed_mark` | G7.9's spend of a mark the census leaves unnamed (plan P4-D245, ledger K-2B-51, the owner on 2026-09-21): a hundred and twenty-five moments at midnight on two days at a floor of eleven, a hundred and twenty written with a space and five with a `T`, so ruling 6 of 2026-09-17 counts the five into the commonest mark and the census publishes `{"space": 125}` beside a published three different values. Read as an instruction about the cells that census writes 125 spaces over two days -- two different values, a twin that reads back as binary rather than as a column of dates, and a report saying the twin missed its role, its statistical type and its count at midnight while the real table missed none. The construction gives the SHORTFALL the description publishes, one value here and never the five the table held, to the first permitted mark the census does not name, and spends fewer ranks on it than the census could print, so the twin described again counts the mark back into the commonest name. Its mutant withdraws the spend and the two different values come back |
 | `date_endpoint_ties` | G7.4's hold on the ranks tied at an end (plan P4-D255): forty-eight moments on three days at midnight or noon under `+01:00` and `+02:00`, twenty-four of each, published on the shared clock, several ranks standing on the latest instant. Its mutant holds none of them and the larger offset is published for that end |
 | `date_second_field_class` | G7.3's census key in the width pass (plan P4-D256): sixty month-first dates whose month is eleven on every one of them, so the census names `second-field-padded` alone. Its mutant asks whether either field is below ten, and the twin's dates fall on days counted under a joint word |
 | `date_traded_merge` | The day's width KIND (plan P4-D294): sixty textual dates on three days, five, twelve and forty-three, publishing three different values and a width census of forty-three. Its mutant asks the narrower question -- does the day SHOW the width -- in place of the census's own membership, and the twin's dates move. It was frozen for G7.3's traded merge (plan P4-D258) and no longer reaches it: under a joint word every day counts into the census, so a column of one kind has no gap without a unit of its own kind. See the note below this table |
