@@ -5578,9 +5578,10 @@ permitted marks (contract D12) the census leaves UNNAMED, in the order
    hand made the shortfall too large by exactly that many and the pass
    OVERSHOT — measured on 303 midnight moments over two days beside two
    cells no date reader accepts, where the twin wrote six different
-   values against a published five and missed `distinct.n_distinct` and
-   `distinct.n_distinct_folded`, a column that had missed nothing
-   before this pass existed (the review of 2026-09-21, finding 1).
+   values against a published five, so `synthtwin validate` named
+   `distinct.n_distinct` and `distinct.n_distinct_folded` on a column
+   that had named nothing before this pass existed (the review of
+   2026-09-21, item 1).
 2. A rank is spent when its cell is at least eleven characters long, it
    wears the commonest NAMED mark, its respelling is not a spelling the
    table declares absent, its respelling is a folded spelling the cells
