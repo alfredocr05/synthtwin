@@ -419,7 +419,7 @@ def _oracle_shortfall(module: types.ModuleType) -> typing.Callable[..., object]:
             "datetime_separators": dict(census),
         }
         return _moved_ranks(
-            module.spellings_short_of_the_count(
+            module.marks_bought_for_the_shortfall(
                 column, list(SHORTFALL_CELLS), (), floor
             )
         )
@@ -599,8 +599,9 @@ WITNESS_MUTANTS = {
     ),
     "shortfall_stand_ins_uncounted": (
         "shortfall",
-        'short = column["n_distinct_folded"] - len(worn) - column["n_unparsed"]',
-        'short = column["n_distinct_folded"] - len(worn)',
+        'shortfall = column["n_distinct_folded"] - len(wearers)'
+        ' - column["n_unparsed"]',
+        'shortfall = column["n_distinct_folded"] - len(wearers)',
     ),
     "shortfall_budget_at_the_census_line": (
         "shortfall", "    budget = census_line(floor) - 1\n",
@@ -608,8 +609,8 @@ WITNESS_MUTANTS = {
     ),
     "shortfall_both_ends_open": (
         "shortfall",
-        "            if rank == 0 or rank == last:\n",
-        "            if False:\n",
+        "        for rank in range(1, len(written) - 1)\n",
+        "        for rank in range(len(written))\n",
     ),
     "readings_by_code_first": (
         "readings",

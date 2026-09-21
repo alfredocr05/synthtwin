@@ -2586,7 +2586,7 @@ CASE_MUTANTS = {
         "withdraws the spend, and the twin writes 125 spaces over two days "
         "-- two different values against a published three, a twin that "
         "reads back as binary rather than as a column of dates",
-        attribute="spellings_short_of_the_count",
+        attribute="marks_bought_for_the_shortfall",
         replacement=lambda column, cells, holes, floor=11: list(cells),
         outcome=CHANGES_THE_CELLS,
     ),

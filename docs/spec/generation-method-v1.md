@@ -5594,6 +5594,44 @@ permitted marks (contract D12) the census leaves UNNAMED, in the order
    of the date rather than the mark, and on a census holding a withheld
    pool, which G7.5 already splits over every permitted mark.
 
+**STATED IN FULL, because the three clauses above do not decide the
+pass.** They say which ranks MAY be spent and how many; they leave four
+things a second implementer has to invent, and two conforming programs
+that invented them differently would write different bytes. The
+independence repair of 2026-09-21 completed the statement rather than
+letting the shipped code be the answer, for the reason G2.1's placement
+is stated at that width:
+
+4. **Where the mark sits, and what a respelling is.** On the members
+   this pass runs on, the cell's eleventh character — index ten,
+   counting from nought — is the mark between the day and the clock.
+   A rank's respelling is that cell with that ONE character replaced by
+   the spare mark and every other character of it untouched, which is
+   why a cell shorter than eleven characters is passed over: it carries
+   no mark to replace.
+5. **Which rank takes a spare mark.** Each spare mark in turn, in the
+   order `upper_t`, `space`, `lower_t` stated above, is offered the
+   ranks between the two end ranks in rank order, lowest first, and
+   each rank that meets every clause of item 2 takes it as offered. When a mark's offer reaches the last of
+   those ranks, the next spare mark is offered the same ranks again
+   from the lowest. The pass stops the moment the ranks spent reach the
+   SMALLER of item 1's two bounds — the published shortfall and the
+   budget of `census_floor(floor)` less one — and no further rank is
+   offered anything.
+6. **The clauses of item 2 are asked of the column as it now stands.**
+   A spend changes which folded spellings the cells hold, so the rank
+   offered a mark after it is judged against the column that spend
+   left: a folded spelling one rank has just bought is a spelling the
+   cells already hold, and a rank whose own folded spelling another
+   rank has just left is no longer worn by another rank.
+7. **The commonest NAMED mark on a tie, and a census that names
+   nothing.** Where two names of the census carry the same count, the
+   commonest is the first of them in sorted order — the same tie G7.5
+   steps 3 and 4 settle the same way, on the same census. Where the
+   census names no mark at all, no cell wears the commonest named mark
+   and no rank is ever spent, so the pass leaves such a column exactly
+   as it found it without being told to skip it.
+
 **Why the budget is one below the line.** The twin is held to its
 description by being DESCRIBED AGAIN, and the description of a column
 wearing fewer than `census_floor` cells of a mark counts that mark back
@@ -5626,10 +5664,13 @@ move bytes. Eight columns with the answers worked by hand instead —
 eleven midnight moments over two days, every one written with a space,
 asked at shortfalls of nought and one, at budgets of one and two ranks,
 on a slashed stamp and on a census holding a withheld pool — asked of
-the oracle's `spellings_short_of_the_count` and of the shipped
+the oracle's `marks_bought_for_the_shortfall` and of the shipped
 `_spellings_short_of_the_count` alike, with three mutants (the stand-ins
 left uncounted, the budget raised to the census line, both END ranks
-opened) each turning that witness red.
+opened) each turning that witness red. THE TWO NAMES DIFFER ON PURPOSE:
+the oracle's is what it hands back and the shipped one's is the
+shortfall it closes, so the pairing a reader checks is not asserted by a
+shared name (the independence repair of 2026-09-21, ledger K-2B-42).
 
 **It reasons about the FOLDED count alone**, and on one shape that
 leaves the unfolded count further from its published value than it

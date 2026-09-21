@@ -7186,85 +7186,111 @@ def _datetime_content(column):
                     break
         content.append(written)
     content = rebalance_marks(marks, content, holes, column["format"])
-    content = spellings_short_of_the_count(column, content, holes)
+    content = marks_bought_for_the_shortfall(column, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
 
 MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
-def spellings_short_of_the_count(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
-    """G7.9: reach a published distinct count a mark census absorbed out of reach.
+def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
+    """G7.9: buy the folded spellings a mark census absorbed out of reach.
 
-    Written from the rule's statement, not from the shipped code.
+    WRITTEN FROM THE RULE'S STATEMENT, NOT FROM THE SHIPPED CODE, and
+    rewritten from it a second time by the independence repair of
+    2026-09-21: the first writing shared its counterpart's name and two
+    thirds of its syntax shape, which is a transcription wearing an
+    oracle's hat.  It is named for what it hands back rather than for
+    the shipped function it is compared with, so a reader checking the
+    pairing is not told by the name that the two were written together.
 
     Ruling 6 of 2026-09-17 counts a mark below the census line into the
     commonest mark, so a census a construction reads as an instruction
     about the CELLS can leave the column fewer different values than
-    `n_distinct_folded` publishes.  Where that happens the construction
-    spends the SHORTFALL -- the published folded count less the
-    different folded spellings the cells hold and less the `n_unparsed`
-    stand-ins still to be written, each of which is a folded spelling of
-    its own -- on the permitted marks
-    the census leaves unnamed, taken in the order upper_t, space,
-    lower_t, and at most `census_line(floor) - 1` ranks in all, so the
-    twin described again counts the mark back into the commonest name
-    and publishes the census as it stands.  A rank is spent when its
-    cell is at least eleven characters, wears the commonest named mark,
-    its respelling is not an absent spelling, its respelling is a
-    folded spelling the cells do not already hold, its own folded
-    spelling is worn by another rank, and it is neither of the two END
-    ranks, which are written as the description publishes them.
+    `n_distinct_folded` publishes.  The rule then buys the difference
+    back, and the statement decides the whole of it:
 
-    The count spent is a function of the published numbers alone; the
+    * the pass runs only where the eleventh character of a cell is the
+      mark between the day and the clock (item 4) and the census names
+      marks without pooling any of them (item 3);
+    * the marks it may buy are the permitted ones of contract D12 that
+      census does not name, taken `upper_t`, `space`, `lower_t`;
+    * it may buy the published SHORTFALL -- `n_distinct_folded` less
+      the folded spellings the cells hold, less the `n_unparsed`
+      stand-ins written after this pass, each a spelling of its own --
+      and it may spend `census_floor(floor)` less one ranks, whichever
+      of the two binds first (item 1);
+    * a rank between the two end ranks takes a mark when its cell is
+      long enough to carry one, wears the commonest named mark, and the
+      respelling is neither a spelling the table declares absent nor a
+      folded spelling the column already holds, while the rank's own
+      folded spelling is worn by somebody else (items 2, 4 and 6);
+    * the ranks are offered each mark lowest first, and the whole
+      offering stops on the smaller of the two bounds (item 5).
+
+    The count bought is a function of the published numbers alone: the
     count the real column held is not published and is not read.
     """
-    cells = list(cells)
-    if column["format"] not in ("iso-datetime", "iso-mixed"):
-        return cells
+    written = list(cells)
     census = column.get("datetime_separators", {})
-    if WITHHELD in census or not census:
-        return cells
-    spare = [MARK_OF[name] for name in permitted_marks(column) if name not in census]
-    if not spare:
-        return cells
-    worn = {}
-    for cell in cells:
-        key = cell.strip().casefold()
-        worn[key] = worn.get(key, 0) + 1
-    short = column["n_distinct_folded"] - len(worn) - column["n_unparsed"]
-    if short < 1:
-        return cells
+    # Item 3 and item 7 as ONE question -- may this column be bought for
+    # at all? -- rather than as three doors in a row.  A pooled census
+    # leaves no permitted mark unnamed (G7.5 step 2), and a census naming
+    # nothing has no commonest named mark for a cell to wear.
+    buyable = (
+        column["format"] in ("iso-datetime", "iso-mixed")
+        and bool(census)
+        and WITHHELD not in census
+    )
+    spare = [
+        MARK_OF[name]
+        for name in (permitted_marks(column) if buyable else ())
+        if name not in census
+    ]
+    # Every folded spelling the cells hold, and WHICH RANKS WEAR IT, so
+    # item 2's two spelling clauses are one lookup each and item 6's
+    # "as the column now stands" is kept by moving a rank between lists.
+    wearers = {}
+    for rank, cell in enumerate(written):
+        wearers.setdefault(folded(cell), []).append(rank)
+    shortfall = column["n_distinct_folded"] - len(wearers) - column["n_unparsed"]
     budget = census_line(floor) - 1
-    commonest = max(sorted(census), key=lambda name: census[name])
-    wanted = MARK_OF[commonest]
+    allowance = min(shortfall, budget)
+    if not spare or allowance < 1:
+        return written
+    wanted = MARK_OF[max(sorted(census), key=census.get)]
     absent = {hole.strip().lower() for hole in holes}
-    spent = 0
-    last = len(cells) - 1
-    for mark in spare:
-        for rank, cell in enumerate(cells):
-            if short < 1 or spent >= budget:
-                break
-            if rank == 0 or rank == last:
-                # The two ends are written as the description publishes
-                # them (G7.5), so this pass never respells one.
-                continue
-            if len(cell) < 11 or cell[10] != wanted:
-                continue
-            changed = cell[:10] + mark + cell[11:]
-            if changed.strip().lower() in absent:
-                continue
-            was, becomes = cell.strip().casefold(), changed.strip().casefold()
-            if becomes in worn or worn[was] < 2:
-                continue
-            cells[rank] = changed
-            worn[was] -= 1
-            worn[becomes] = 1
-            short -= 1
-            spent += 1
-        if short < 1 or spent >= budget:
-            break
-    return cells
 
+    def bought(rank, mark):
+        """This rank's respelling, or None where item 2 refuses it."""
+        cell = written[rank]
+        changed = cell[:10] + mark + cell[11:]
+        refused = (
+            len(cell) < 11
+            or cell[10] != wanted
+            or len(wearers[folded(cell)]) < 2
+            or changed.strip().lower() in absent
+            or folded(changed) in wearers
+        )
+        return None if refused else changed
+
+    # Item 5's offering, written out as the one sequence it is: every
+    # spare mark against every rank between the two end ranks.
+    offers = [
+        (mark, rank)
+        for mark in spare
+        for rank in range(1, len(written) - 1)
+    ]
+    for mark, rank in offers:
+        changed = bought(rank, mark)
+        if changed is None:
+            continue
+        wearers[folded(written[rank])].remove(rank)
+        wearers[folded(changed)] = [rank]
+        written[rank] = changed
+        allowance -= 1
+        if allowance < 1:
+            break
+    return written
 
 
 def ordinal_space(column):
