@@ -358,9 +358,105 @@ def _readings_missed(rule: typing.Callable[..., object]) -> "list[str]":
     ]
 
 
+# ------------------------------- G7.9's shortfall, and the stand-ins it counts
+#
+# Eleven moments at midnight on two days, every one written with a space,
+# at a census of `{"space": 11}` that leaves `upper_t` and `lower_t`
+# unnamed. The rule spends `n_distinct_folded` less the folded spellings
+# the cells hold LESS the `n_unparsed` stand-ins still to be written, and
+# at most `census_floor(floor) - 1` ranks, on the spare marks in the order
+# upper_t, space, lower_t, never on the first rank or the last, and never
+# twice on one folded spelling. No frozen case parts the stand-in road
+# from the fallback: the one case that reaches this rule publishes
+# `n_unparsed` of nought, and adding a second would move committed bytes
+# (plan P4-D295). So the term is witnessed here, one call at a time.
+
+SHORTFALL_CELLS = ["2025-01-01 00:00:00"] * 6 + ["2025-01-02 00:00:00"] * 5
+SHORTFALL = (
+    # (n_distinct_folded, n_unparsed, floor, census, member, ranks moved)
+    # A shortfall of one, and one rank spent: the owner's own shape. It
+    # is rank ONE and not rank nought, because the first rank is an end
+    # the description publishes.
+    (3, 0, 11, {"space": 11}, "iso-datetime", ((1, "T"),)),
+    # THE SAME COLUMN WITH ONE STAND-IN. The stand-in is a folded
+    # spelling of its own, so the cells in hand are one short of nothing
+    # and the rule spends nothing.
+    (3, 1, 11, {"space": 11}, "iso-datetime", ()),
+    # A published four against two folded spellings and one stand-in:
+    # a shortfall of one again, and one rank.
+    (4, 1, 11, {"space": 11}, "iso-datetime", ((1, "T"),)),
+    (4, 2, 11, {"space": 11}, "iso-datetime", ()),
+    # THE BUDGET BINDING instead of the shortfall: a floor of three
+    # gives two ranks, one per day, and the shortfall of ten is not
+    # reached. A second rank of the first day would repeat a folded
+    # spelling, and the last rank of the second is an end.
+    (12, 0, 3, {"space": 11}, "iso-datetime", ((1, "T"), (6, "T"))),
+    # A floor of one still publishes a census line of two, so one rank.
+    (12, 0, 1, {"space": 11}, "iso-datetime", ((1, "T"),)),
+    # A slashed stamp: character eleven is a digit, so no rank is spent.
+    (3, 0, 11, {"space": 11}, "month-first-datetime", ()),
+    # A census holding a withheld pool: already split over every
+    # permitted mark, so it leaves none unnamed.
+    (3, 0, 11, {"(withheld)": 11}, "iso-datetime", ()),
+)
+
+
+def _moved_ranks(cells: "list[str]") -> "tuple[tuple[int, str], ...]":
+    """Which ranks came back wearing a mark they did not go in with."""
+    return tuple(
+        (rank, cells[rank][10])
+        for rank in range(len(cells))
+        if cells[rank] != SHORTFALL_CELLS[rank]
+    )
+
+
+def _oracle_shortfall(module: types.ModuleType) -> typing.Callable[..., object]:
+    def spent(folded, unparsed, floor, census, member):
+        column = {
+            "n_distinct_folded": folded,
+            "n_unparsed": unparsed,
+            "format": member,
+            "datetime_separators": dict(census),
+        }
+        return _moved_ranks(
+            module.spellings_short_of_the_count(
+                column, list(SHORTFALL_CELLS), (), floor
+            )
+        )
+    return spent
+
+
+def _generator_shortfall(folded, unparsed, floor, census, member):
+    column = types.SimpleNamespace(n_distinct_folded=folded)
+    facts = types.SimpleNamespace(
+        parser_family=member,
+        datetime_separators=dict(census),
+        n_unparsed=unparsed,
+    )
+    return _moved_ranks(
+        generation._spellings_short_of_the_count(
+            column, facts, list(SHORTFALL_CELLS), (), floor
+        )
+    )
+
+
+def _shortfall_missed(rule: typing.Callable[..., object]) -> "list[str]":
+    return [
+        f"{folded} folded, {unparsed} unparsed, floor {floor}, {census} on"
+        f" {member}: {_asked(rule, folded, unparsed, floor, census, member)!r},"
+        f" the statement gives {want!r}"
+        for folded, unparsed, floor, census, member, want in SHORTFALL
+        if _asked(rule, folded, unparsed, floor, census, member) != want
+    ]
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
+    "shortfall": (
+        lambda module: _shortfall_missed(_oracle_shortfall(module)),
+        lambda: _shortfall_missed(_generator_shortfall),
+    ),
     "division": (
         lambda module: _bins_missed(module.histogram_bin),
         lambda: _bins_missed(parsing.histogram_bin),
@@ -500,6 +596,20 @@ WITNESS_MUTANTS = {
         "readings",
         "return [published] + sorted(candidates, key=moved_then_counts)",
         "return sorted(candidates, key=moved_then_counts) + [published]",
+    ),
+    "shortfall_stand_ins_uncounted": (
+        "shortfall",
+        'short = column["n_distinct_folded"] - len(worn) - column["n_unparsed"]',
+        'short = column["n_distinct_folded"] - len(worn)',
+    ),
+    "shortfall_budget_at_the_census_line": (
+        "shortfall", "    budget = census_line(floor) - 1\n",
+        "    budget = census_line(floor)\n",
+    ),
+    "shortfall_both_ends_open": (
+        "shortfall",
+        "            if rank == 0 or rank == last:\n",
+        "            if False:\n",
     ),
     "readings_by_code_first": (
         "readings",

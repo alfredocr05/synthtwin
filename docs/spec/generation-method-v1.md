@@ -5567,8 +5567,20 @@ permitted marks (contract D12) the census leaves UNNAMED, in the order
 
 1. The number of ranks spent is bounded by the SHORTFALL the
    description itself publishes — `n_distinct_folded` less the folded
-   spellings the cells hold — and by a budget of `census_floor(floor)`
-   less one ranks in all, whichever binds first.
+   spellings the cells hold AND less the `n_unparsed` stand-ins still
+   to be written — and by a budget of `census_floor(floor)` less one
+   ranks in all, whichever binds first. The stand-ins are counted
+   though this pass never sees them: the datetime content builder
+   appends exactly `n_unparsed` of them (G7.2, G10.4) after this pass
+   runs, each a spelling no other cell of the
+   column holds, so the finished column holds that many folded
+   spellings more than the cells in hand. Counting only the cells in
+   hand made the shortfall too large by exactly that many and the pass
+   OVERSHOT — measured on 303 midnight moments over two days beside two
+   cells no date reader accepts, where the twin wrote six different
+   values against a published five and missed `distinct.n_distinct` and
+   `distinct.n_distinct_folded`, a column that had missed nothing
+   before this pass existed (the review of 2026-09-21, finding 1).
 2. A rank is spent when its cell is at least eleven characters long, it
    wears the commonest NAMED mark, its respelling is not a spelling the
    table declares absent, its respelling is a folded spelling the cells
@@ -5603,6 +5615,39 @@ A shortfall the budget cannot close leaves the column exactly where
 G12.5's published envelope and `_kind_notes`' deviation already put it,
 and a twin that holds fewer values than the census can supply is
 reported missing its role as before.
+
+**The stand-in term is witnessed one call at a time**, in
+`tests/test_oracle_rule_witnesses.py`. The one frozen case that reaches
+this rule (`date_absorbed_mark`) publishes `n_unparsed` of nought, so no
+committed vectors file parts the stand-in road from the fallback, and
+plan P4-D295 routes a new case into an existing file, where it would
+move bytes. Eight columns with the answers worked by hand instead —
+eleven midnight moments over two days, every one written with a space,
+asked at shortfalls of nought and one, at budgets of one and two ranks,
+on a slashed stamp and on a census holding a withheld pool — asked of
+the oracle's `spellings_short_of_the_count` and of the shipped
+`_spellings_short_of_the_count` alike, with three mutants (the stand-ins
+left uncounted, the budget raised to the census line, both END ranks
+opened) each turning that witness red.
+
+**It reasons about the FOLDED count alone**, and on one shape that
+leaves the unfolded count further from its published value than it
+found it. A census naming both `upper_t` and `lower_t` writes two
+spellings of every instant that fold to one, so a column of 125
+midnight moments over two days beside five spaces publishes
+`n_distinct` and `n_distinct_folded` of three while the construction
+already writes four different texts for two folded ones. This pass
+sees the folded shortfall of one, spends a rank, and reaches the
+published folded count exactly — taking the unfolded count from four to
+five. Measured on that column: the twin missed `axes.role`,
+`axes.statistical_type` and `midnight.count` before this pass and
+misses `distinct.n_distinct` alone after it, three checks traded for
+one. Holding the unfolded count instead was measured too — a guard that
+spends only where the unfolded count is short as well returns that
+column to its three misses and moves no other shape — so the trade is
+recorded here rather than taken back. The entry K-2B-51 carries the
+same measurement, so its rule is not read as a claim about every column
+of dates.
 
 ## G7A. Clock columns (`time_of_day`)
 
@@ -9903,26 +9948,51 @@ date, where a day can also be written bare, and nought otherwise, and
 n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + n_unparsed + G)
 ```
 
-`G` is what G7.9 may buy: `census_floor(small_cell_floor) - 1` on a
-column whose census leaves a permitted mark unnamed, and nought on
-every other — nought, that is, on every census holding a withheld pool,
-on every census naming all its member's permitted marks, and on every
-member whose eleventh character is a digit of the date. It is ADDED and
-not multiplied, because G7.9 spends RANKS and each spent rank buys at
-most one more different spelling; multiplying would promise the column
-a spelling of every instant under the spare mark, which G7.9 never
-writes. It was added by the absorbed-mark landing of 2026-09-21 (plan
-P4-D245, ledger K-2B-51): without it a twin that met its published
-count of three exactly was reported by its own generation report as
-landing outside a window of 2 to 2, which is the method telling the
-person a conforming twin deviated. **The VALIDATOR's window does not
-carry `G`** and does not need it: the validation method's clause
-V6.1-A1 holds a file that matches the published count exactly to that
-count whatever the window says, and prints the window beside it for the
-record; and a file G7.9 wrote never holds MORE different values than
-the description publishes. A window one term wider there
-could only excuse a file holding more, which is a check and not a
-lowering.
+`G` is what G7.9 may buy, and it is bounded at BOTH ends. It is nought
+unless the column's census leaves a permitted mark unnamed — nought, that
+is, on every census holding a withheld pool, on every census naming all
+its member's permitted marks, and on every member whose eleventh
+character is a digit of the date. Where it is not nought it is
+`census_floor(small_cell_floor) - 1`, the budget of ranks G7.9 may
+spend, but the upper end is raised no further than
+`n_distinct_folded`, and only where the rest of the product falls short
+of that count: G7.9 stops the moment the folded count reaches the
+published one, so the window reaches exactly that count and no further.
+In symbols, with `P` the product of the four terms above plus
+`n_unparsed`, the upper end is `P` where `n_distinct_folded <= P`, and
+`min(n_distinct_folded, P + census_floor(small_cell_floor) - 1)`
+otherwise. `G` is ADDED and not multiplied, because G7.9 spends RANKS
+and each spent rank buys at most one more different spelling;
+multiplying would promise the column a spelling of every instant under
+the spare mark, which G7.9 never writes. It was added by the
+absorbed-mark landing of 2026-09-21 (plan P4-D245, ledger K-2B-51):
+without it a twin that met its published count of three exactly was
+reported by its own generation report as landing outside a window of 2
+to 2, which is the method telling the person a conforming twin
+deviated.
+
+**Adding the whole budget without the second bound was measured and is
+wrong** (the review of 2026-09-21, finding 2). It widened the promise on
+columns G7.9 never touches — a census naming `space` and `upper_t` over
+three days went from a window of 3 to 6 to one of 3 to 16 with the
+twin's bytes unchanged, so an over-count of up to ten would have been
+reported as landing inside the range this method promises — and on a
+census mixing `upper_t` with `lower_t` it made the generation report
+print `inside` for a count `synthtwin validate` reported MISSED, the two
+halves of one run contradicting each other. With the second bound the
+report and the checker agree on that column: the window is 2 to 4, the
+twin holds 5, and both say so.
+
+**The VALIDATOR's window does not carry `G`** and does not need it: the
+validation method's clause V6.1-A1 holds a file that matches the
+published count exactly to that count whatever the window says, and
+prints the window beside it for the record. A window one term wider
+there could only excuse a file holding MORE different values than the
+description publishes, which is a check and not a lowering — and a file
+G7.9 wrote can hold more, on the case-mixed census named above, where
+the pass reaches the published folded count and leaves the unfolded one
+at five against a published three. That file is reported missing
+`distinct.n_distinct`, which is the outcome this clause is for.
 
 (`S` counting the pooled marks and `B` were added at landing 2b.3, and
 `C` by the review of 158c811: without it 300 quarters over twelve years,

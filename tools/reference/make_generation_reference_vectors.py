@@ -7027,7 +7027,9 @@ def spellings_short_of_the_count(column, cells, holes, floor=CASE_SMALL_CELL_FLO
     about the CELLS can leave the column fewer different values than
     `n_distinct_folded` publishes.  Where that happens the construction
     spends the SHORTFALL -- the published folded count less the
-    different folded spellings the cells hold -- on the permitted marks
+    different folded spellings the cells hold and less the `n_unparsed`
+    stand-ins still to be written, each of which is a folded spelling of
+    its own -- on the permitted marks
     the census leaves unnamed, taken in the order upper_t, space,
     lower_t, and at most `census_line(floor) - 1` ranks in all, so the
     twin described again counts the mark back into the commonest name
@@ -7054,7 +7056,7 @@ def spellings_short_of_the_count(column, cells, holes, floor=CASE_SMALL_CELL_FLO
     for cell in cells:
         key = cell.strip().casefold()
         worn[key] = worn.get(key, 0) + 1
-    short = column["n_distinct_folded"] - len(worn)
+    short = column["n_distinct_folded"] - len(worn) - column["n_unparsed"]
     if short < 1:
         return cells
     budget = census_line(floor) - 1

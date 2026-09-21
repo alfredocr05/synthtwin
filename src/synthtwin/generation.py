@@ -16837,7 +16837,18 @@ def _spellings_short_of_the_count(
             folded_worn[key] = folded_worn[key] + 1
         else:
             folded_worn[key] = 1
-    short = column.n_distinct_folded - len(folded_worn)
+    # THE STAND-INS ARE COUNTED THOUGH THIS PASS CANNOT SEE THEM.
+    # `_datetime_content` appends `n_unparsed` stand-ins AFTER this
+    # pass, each a spelling no other cell holds (`_text_spelling`), so
+    # the finished column holds `n_unparsed` folded spellings more
+    # than the cells in hand. Counting only the cells in hand made the
+    # shortfall too large by exactly that many and the pass overshot:
+    # measured on 303 midnight moments over two days beside two cells
+    # no date reader accepts, the twin wrote SIX different values
+    # against a published five and missed `distinct.n_distinct` and
+    # `distinct.n_distinct_folded` -- a column that missed nothing
+    # before this pass existed (skeptic finding 1 of 2026-09-21).
+    short = column.n_distinct_folded - len(folded_worn) - facts.n_unparsed
     if short < 1:
         return fixed
     budget = parsing.census_floor(floor) - 1
@@ -36637,19 +36648,33 @@ def _datetime_approximations(
     reachable = ladder[10] - ladder[0] + 1
     unit = _precision_slack(facts) + 1
     reachable = (reachable + unit - 1) // unit
-    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM. The pass spends
-    # ranks on a mark the census leaves unnamed, one different spelling
-    # each, so the window this method promises reaches exactly that much
-    # further and no further. Measured before it did: a twin that met
-    # its published count of three exactly was reported as landing
-    # outside a range of 2 to 2, which is the method telling the person
-    # their conforming twin deviated.
     highest_count = min(
         len(present),
-        reachable * _spellings_of_a_date(facts)
-        + stand_ins
-        + _marks_spendable(facts, floor),
+        reachable * _spellings_of_a_date(facts) + stand_ins,
     )
+    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
+    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
+    # mark the census leaves unnamed, one different spelling each, and
+    # it stops the moment the folded count reaches `n_distinct_folded`.
+    # So the window reaches that count and no further. Measured before
+    # the term existed: a twin that met its published count of three
+    # exactly was reported as landing outside a range of 2 to 2, which
+    # is the method telling the person their conforming twin deviated.
+    #
+    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
+    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
+    # columns this pass never touches -- a census naming two marks over
+    # three days went from a range of 3 to 6 to one of 3 to 16 with the
+    # twin's bytes unchanged -- and on a census mixing `upper_t` with
+    # `lower_t` it made the report print `inside` for a count
+    # `synthtwin validate` reports MISSED, the two halves of the same
+    # run contradicting each other.
+    spendable = _marks_spendable(facts, floor)
+    if spendable >= 1 and column.n_distinct_folded > highest_count:
+        highest_count = min(
+            len(present),
+            min(highest_count + spendable, column.n_distinct_folded),
+        )
     lowest_count = min(lowest_count, highest_count)
     counted = _recounted(written, holes)
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
