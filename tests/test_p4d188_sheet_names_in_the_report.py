@@ -33,7 +33,27 @@ def _table() -> str:
 
 
 def _report(folder: pathlib.Path, name: str) -> str:
-    return (folder / f"{name}-twin-report.txt").read_text(encoding="utf-8", newline="")
+    """The report's text, byte for byte, with no line ending translated.
+
+    THE BYTES MATTER HERE, because what the sentences below are held to
+    is the file the product wrote, not a copy of it the reading rewrote:
+    a universal-newlines read turns a carriage-return-newline pair into
+    a bare newline, so a report that had drifted to the platform's own
+    endings would still read the same and the assertion would pass over
+    it.
+
+    `Path.read_text(newline="")` says exactly that in one call -- and
+    that keyword reached `Path.read_text` in PYTHON 3.13, while this
+    project's floor is 3.10 (`requires-python` in pyproject.toml, the
+    `tests` matrix of .github/workflows/ci.yml, and the `minimums` job's
+    interpreter). On 3.10, 3.11 and 3.12 the call is a TypeError before
+    the test proves anything, which is how it failed on the six cells of
+    the matrix below 3.13 and in the `minimums` job beside them. Decoding the bytes translates nothing, which is precisely
+    what `newline=""` asks for, and `bytes.decode` has taken an encoding
+    since Python 2. `tests/test_version_reach.py` is the guard that
+    stops the next call of this kind reaching CI.
+    """
+    return (folder / f"{name}-twin-report.txt").read_bytes().decode("utf-8")
 
 
 def test_a_withheld_sheet_name_is_named_in_the_report(tmp_path: pathlib.Path) -> None:

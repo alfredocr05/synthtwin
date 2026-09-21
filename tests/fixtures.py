@@ -73,6 +73,101 @@ REGIONS = ("north", "south", "east", "west")
 LABELS = ("alpha", "beta", "gamma", "delta", "epsilon")
 
 
+# -- what a name and a message may hold on EVERY platform of the matrix --
+#
+# The two helpers below exist because two tests passed on every Linux
+# and macOS cell and failed on every Windows one, and neither failure
+# was about the product. They are kept here, together, because both are
+# the same mistake in two shapes: a test that assumed its own machine's
+# idea of a path.
+
+# The characters Windows will not put in a file or folder name. POSIX
+# accepts all of them but the separator, which is why a name built from
+# a test's own parameter can pass here for years and fail on five cells.
+WINDOWS_FORBIDS = '<>:"/\\|?*'
+# The device names Windows reserves, with or without an extension.
+WINDOWS_RESERVES = (
+    ("CON", "PRN", "AUX", "NUL")
+    + tuple(f"COM{digit}" for digit in range(1, 10))
+    + tuple(f"LPT{digit}" for digit in range(1, 10))
+)
+
+
+def unusable_as_a_folder_name(name: str) -> str:
+    """Why ``name`` cannot be a folder on every platform of the matrix, or ``""``.
+
+    THE REPRODUCTION. `test_a_headed_export_keeps_the_names_its_file_wrote`
+    built its working folder as `f"headed{len(header)}{absent}{len(floor)}"`,
+    and `absent` is a parametrized value -- one of `NA`, `<10` and `437`,
+    because a column of readings written `<10` is exactly what the
+    smallest-group floor exists for. So a third of its cases asked for a
+    folder called `headed15<100`. POSIX makes it without complaint;
+    Windows answers `OSError: [WinError 123] The filename, directory
+    name, or volume label syntax is incorrect`, and fourteen cases went
+    red on every Windows cell of the matrix and nowhere else.
+
+    A value a test was given is not a name a test may use. Pass it
+    through `as_a_folder_name` first, and assert this is empty before
+    the `mkdir`, so the next one fails on the machine that wrote it.
+    """
+    if not name:
+        return "a folder name may not be empty"
+    held = sorted({letter for letter in name if letter in WINDOWS_FORBIDS})
+    if held:
+        return (
+            f"{name!r} holds {', '.join(repr(letter) for letter in held)}, which "
+            "Windows refuses in a file or folder name"
+        )
+    if any(ord(letter) < 32 for letter in name):
+        return f"{name!r} holds a control character"
+    if name[-1] in " .":
+        return f"{name!r} ends in a space or a dot, which Windows strips silently"
+    if name.partition(".")[0].upper() in WINDOWS_RESERVES:
+        return f"{name!r} is one of the device names Windows reserves"
+    return ""
+
+
+def as_a_folder_name(value: str) -> str:
+    """``value`` with every character Windows refuses replaced by a dash.
+
+    The result still reads as the value it came from -- `<10` becomes
+    `-10` -- so a failing case still says which one it was, and it is a
+    name every platform of the matrix can make.
+    """
+    safe = "".join("-" if letter in WINDOWS_FORBIDS else letter for letter in value)
+    return safe.rstrip(" .") or "value"
+
+
+def aside_from_the_path(message: str, *paths: object) -> str:
+    """``message`` with the file paths it legitimately names taken out.
+
+    THE REPRODUCTION. A refusal may name the FILE somebody pointed the
+    command at; it may not name what is written INSIDE that file, and
+    `test_a_checked_workbook_refusal_names_no_sheet` holds it to that by
+    looking for the sheet names in the whole message. On Windows
+    pytest's `tmp_path` sits under
+    `C:\\Users\\runneradmin\\AppData\\Local\\Temp\\...`, and `AppData`
+    CONTAINS `Data`, which is the name of the first sheet. So every
+    Windows cell reported a leaked sheet name in a refusal that had
+    leaked nothing, while the same refusal read clean under
+    `/tmp/pytest-of-...` on Linux and macOS.
+
+    What the test means is "the message APART FROM the path", and that
+    is what this returns. Both spellings of each path are removed, the
+    platform's own and the forward-slash one, because a message may
+    carry either.
+    """
+    out = message
+    for path in paths:
+        spellings = [f"{path}"]
+        if isinstance(path, pathlib.PurePath):
+            spellings += [path.as_posix(), f"{path}".replace("\\", "/")]
+        for spelled in spellings:
+            if spelled:
+                out = out.replace(spelled, "<the file>")
+    return out
+
+
 def write(folder: pathlib.Path, name: str, text: str) -> pathlib.Path:
     """Write ``text`` as a UTF-8 file with newline endings; return its path."""
     target = folder / name

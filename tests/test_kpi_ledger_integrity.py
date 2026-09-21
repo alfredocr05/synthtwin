@@ -636,19 +636,153 @@ def test_an_open_seconds_target_is_never_improved_where_seconds_are_not_judged()
     assert kpi_rules.judge(entry, slow, seconds_count=False).word == kpi_rules.OPEN_HELD
 
 
+# A reference machine that is nobody's: an architecture no vendor
+# ships and a core count that is not this machine's. Every case below
+# is decided against THIS ledger rather than against the committed one,
+# so the answers are the same on every cell of the matrix.
+MADE_UP_LEDGER = {
+    "reference_machine": {
+        "name": "a made-up machine, 4 cores",
+        "platform_machine": "madeup64",
+        "cores": 4,
+        "quiet_load_average_below": 3.0,
+    }
+}
+
+
+def _standing_on(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    runner: bool,
+    architecture: str,
+    cores: int,
+    load: float,
+) -> None:
+    """Make this process look like the machine described, for the policy alone.
+
+    The three things the policy reads are set at their source, not
+    mocked one layer up: the environment a continuous-integration
+    service sets, the architecture and core count `on_reference_machine`
+    compares, and the one-minute load average. So `on_a_runner` and
+    `on_reference_machine` are under test here too, rather than being
+    replaced by their answers.
+    """
+    for name in kpi_rules.CI_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+    if runner:
+        monkeypatch.setenv(kpi_rules.CI_ENVIRONMENT[0], "true")
+    monkeypatch.setattr(kpi_rules.platform, "machine", lambda: architecture)
+    monkeypatch.setattr(kpi_rules.os, "cpu_count", lambda: cores)
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: load)
+
+
 def test_seconds_are_judged_only_on_the_quiet_reference_machine(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: True)
-    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
-    assert kpi_rules.seconds_judged_here(LEDGER) == (True, "")
-    monkeypatch.setattr(kpi_rules, "load_average", lambda: 18.0)
-    judged, why = kpi_rules.seconds_judged_here(LEDGER)
-    assert not judged and "loaded" in why
-    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: False)
-    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
-    judged, why = kpi_rules.seconds_judged_here(LEDGER)
+    """The POLICY, on four made-up machines, with the same answer on every cell.
+
+    WHY THE MACHINES ARE MADE UP. The first version of this test
+    asserted the answer for WHICHEVER MACHINE IT RAN ON: it patched
+    `on_reference_machine` to True and expected `(True, "")`. That is
+    the right answer on the owner's quiet machine and the wrong one
+    everywhere else, because `seconds_judged_here` asks whether this is
+    a runner BEFORE it asks anything else -- so the test went red on all
+    eleven cells of the matrix, including the two, Ubuntu 3.13 and macOS
+    3.14, where nothing else was wrong. A test of a policy that only
+    holds on one machine is not a test of the policy.
+
+    The policy itself is not weakened by a line of this: a number the
+    machine decides is still judged ONLY on the quiet reference machine,
+    and a runner is still never that machine however it reports its own
+    architecture. What changed is that the inputs are constructed, so
+    the four answers below are facts about the rule rather than facts
+    about the hardware the suite happens to be on.
+    """
+    wanted = MADE_UP_LEDGER["reference_machine"]
+
+    # 1. The reference machine, quiet, off CI: the one place seconds count.
+    _standing_on(monkeypatch, runner=False, architecture="madeup64", cores=4, load=0.5)
+    assert kpi_rules.on_reference_machine(MADE_UP_LEDGER) is True
+    assert kpi_rules.seconds_judged_here(MADE_UP_LEDGER) == (True, "")
+
+    # 2. The same machine under load: the number is the load's as much
+    #    as the code's, so it is reported and never failed.
+    _standing_on(monkeypatch, runner=False, architecture="madeup64", cores=4, load=18.0)
+    judged, why = kpi_rules.seconds_judged_here(MADE_UP_LEDGER)
+    assert not judged and "loaded" in why and "18.0" in why
+    assert f"{wanted['quiet_load_average_below']}" in why
+
+    # 3. A RUNNER reporting the reference machine's own architecture and
+    #    core count, and quiet with it. It is still never that machine:
+    #    this is the case the first CI run proved, where a bound of 600
+    #    MB met 703 on a runner and 539 here with no change in the code.
+    _standing_on(monkeypatch, runner=True, architecture="madeup64", cores=4, load=0.5)
+    assert kpi_rules.on_a_runner() is True
+    assert kpi_rules.on_reference_machine(MADE_UP_LEDGER) is False
+    judged, why = kpi_rules.seconds_judged_here(MADE_UP_LEDGER)
+    assert not judged and "continuous-integration runner" in why
+    assert wanted["name"] in why
+
+    # 4. Neither: some other machine, off CI, quiet.
+    _standing_on(monkeypatch, runner=False, architecture="other32", cores=2, load=0.5)
+    judged, why = kpi_rules.seconds_judged_here(MADE_UP_LEDGER)
     assert not judged and "not the reference machine" in why
+
+    # 5. The architecture alone is not enough, and neither is the core
+    #    count alone: both have to match.
+    _standing_on(monkeypatch, runner=False, architecture="madeup64", cores=2, load=0.5)
+    assert kpi_rules.seconds_judged_here(MADE_UP_LEDGER)[0] is False
+    _standing_on(monkeypatch, runner=False, architecture="other32", cores=4, load=0.5)
+    assert kpi_rules.seconds_judged_here(MADE_UP_LEDGER)[0] is False
+
+    # 6. The runner rule comes FIRST: a loaded runner is refused for
+    #    being a runner, not for being loaded, so the reason a reader
+    #    sees names the thing that cannot be fixed by waiting.
+    _standing_on(monkeypatch, runner=True, architecture="other32", cores=2, load=18.0)
+    assert "continuous-integration runner" in kpi_rules.seconds_judged_here(MADE_UP_LEDGER)[1]
+
+
+def test_every_environment_a_runner_sets_is_read_and_an_off_value_is_not_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`on_a_runner`, one variable at a time, and the values that mean "no"."""
+    for name in kpi_rules.CI_ENVIRONMENT:
+        for value in ("", "0", "false", "False"):
+            _standing_on(
+                monkeypatch, runner=False, architecture="madeup64", cores=4, load=0.5
+            )
+            monkeypatch.setenv(name, value)
+            assert kpi_rules.on_a_runner() is False, (name, value)
+        for value in ("1", "true", "TRUE", "yes"):
+            _standing_on(
+                monkeypatch, runner=False, architecture="madeup64", cores=4, load=0.5
+            )
+            monkeypatch.setenv(name, value)
+            assert kpi_rules.on_a_runner() is True, (name, value)
+            assert kpi_rules.seconds_judged_here(MADE_UP_LEDGER)[0] is False
+
+
+@pytest.mark.skipif(
+    not kpi_rules.on_reference_machine(LEDGER),
+    reason="this is not the quiet reference machine the ledger's seconds were stated for",
+)
+def test_the_real_reference_machine_agrees_with_its_own_load_average() -> None:
+    """The one assertion about THIS machine, and it runs nowhere else.
+
+    The four cases above are the policy; this is the policy meeting the
+    hardware. It is kept because the committed ledger's
+    `reference_machine` block is a claim about a real machine, and a
+    block that drifted from it -- a core count changed, a quiet
+    threshold set to a number no machine is ever under -- would leave
+    every `seconds_below` rule silently unjudged everywhere with nothing
+    saying so. Off that machine there is nothing here to check, so this
+    is skipped rather than weakened.
+    """
+    judged, why = kpi_rules.seconds_judged_here(LEDGER)
+    quiet = kpi_rules.load_average() < LEDGER["reference_machine"]["quiet_load_average_below"]
+    assert judged is quiet, (judged, why, kpi_rules.load_average())
+    if not judged:
+        assert "loaded" in why
 
 
 def test_a_kpi_test_judges_every_key_it_measures() -> None:

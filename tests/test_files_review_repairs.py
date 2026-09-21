@@ -26,6 +26,7 @@ import zipfile
 
 import pytest
 
+import fixtures
 from synthtwin import contract, dialect, errors, reading, sheetwriting, workbook
 
 # -- a workbook written by hand ----------------------------------------
@@ -658,6 +659,15 @@ def test_a_checked_workbook_refusal_names_no_sheet(tmp_path: pathlib.Path) -> No
     -- `PERSON-ZEBRA-471` -- twice. The workbook branch drops nothing of
     that request now, for the second table, an unknown sheet and an
     empty one alike.
+
+    EACH LOOK IS AT THE MESSAGE APART FROM THE PATH. A refusal may name
+    the file it was pointed at and may not name what is inside it, and
+    both sit in one string; on Windows pytest's `tmp_path` runs through
+    `AppData`, which holds `Data`, the first sheet's own name, so this
+    test reported a leak on every Windows cell where the refusal had
+    leaked nothing. `fixtures.aside_from_the_path` is what the test
+    always meant, and `test_a_refusal_s_own_path_is_not_a_leaked_sheet_name`
+    below builds that Windows path here and proves it.
     """
     source = tmp_path / "checked.xlsx"
     source.write_bytes(
@@ -666,16 +676,62 @@ def test_a_checked_workbook_refusal_names_no_sheet(tmp_path: pathlib.Path) -> No
     positions = reading.REFUSALS_NAME_POSITIONS
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(source), refusals=positions)
-    assert "ZEBRA" not in f"{raised.value}"
+    assert "ZEBRA" not in fixtures.aside_from_the_path(f"{raised.value}", source)
     assert "sheet number 2" in f"{raised.value}"
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(source), refusals=positions, sheet="Nope")
-    assert "ZEBRA" not in f"{raised.value}" and "Data" not in f"{raised.value}"
+    said = fixtures.aside_from_the_path(f"{raised.value}", source)
+    assert "ZEBRA" not in said and "Data" not in said
     empty = tmp_path / "empty.xlsx"
     empty.write_bytes(_book([("PERSON-ZEBRA-471", "")], ["a"]))
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(empty), refusals=positions)
-    assert "ZEBRA" not in f"{raised.value}"
+    assert "ZEBRA" not in fixtures.aside_from_the_path(f"{raised.value}", empty)
+
+
+# The path a Windows cell of the matrix actually gave the test above,
+# copied out of the run that failed (job 106160150046 of CI run
+# 35541541720). `AppData` is not a choice pytest makes -- it is where
+# `TEMP` points on a GitHub-hosted Windows runner and on most Windows
+# machines -- so this is the shape, not one unlucky path.
+_A_WINDOWS_TEMPORARY_PATH = (
+    "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\pytest-of-runneradmin"
+    "\\pytest-0\\test_a_checked_workbook_refusa0\\checked.xlsx"
+)
+
+
+def test_a_refusal_s_own_path_is_not_a_leaked_sheet_name() -> None:
+    """The Windows shape of that refusal, built HERE, on a machine that is not Windows.
+
+    THIS IS THE RED CHECK for the repair above, and it is the point of
+    the repair: the difference between the platforms was a path, so the
+    path is constructed rather than waited for. The first assertion is
+    the defect -- the sheet name `Data` is findable in the refusal's
+    text, and it is findable only because the path says `AppData`. The
+    second is the repair. The third is the thing the whole test exists
+    for, still caught: a refusal that really does print a sheet name is
+    still reported, with the path taken out or not.
+
+    Before the repair this file's `test_a_checked_workbook_refusal_names_no_sheet`
+    passed here and failed on five Windows cells. After it, the defect
+    it was failing on fails here too.
+    """
+    message = errors.checked_workbook_sheet_not_found(_A_WINDOWS_TEMPORARY_PATH, 2)
+    assert "Data" in message
+    said = fixtures.aside_from_the_path(message, _A_WINDOWS_TEMPORARY_PATH)
+    assert "Data" not in said and "ZEBRA" not in said
+    assert "no sheet by the name given after --sheet" in said
+    leaked = errors.checked_workbook_sheet_not_found(
+        _A_WINDOWS_TEMPORARY_PATH, 2
+    ) + " The sheets are Data and PERSON-ZEBRA-471."
+    still_seen = fixtures.aside_from_the_path(leaked, _A_WINDOWS_TEMPORARY_PATH)
+    assert "ZEBRA" in still_seen and "Data" in still_seen
+    # And a POSIX path, where the defect never showed, reads the same way.
+    posix = "/tmp/pytest-of-alfredo/pytest-0/test_a_checked_workbook_refusa0/checked.xlsx"
+    clean = fixtures.aside_from_the_path(
+        errors.checked_workbook_sheet_not_found(posix, 2), posix
+    )
+    assert "Data" not in clean and "ZEBRA" not in clean
 
 
 # -- item 10 and merge item 3: only a cell's own text is its value -----
