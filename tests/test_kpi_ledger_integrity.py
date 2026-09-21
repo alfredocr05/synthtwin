@@ -232,6 +232,15 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
     value had gained six keys (fortran_d_*, read_floor_facts_differing)
     that caf3079's driver could not emit. Nothing read the note, so
     nothing said so.
+
+    WHAT IT CAUGHT ON THE TREE THAT ADDED IT, recorded here because the
+    ledger's own cap left no room for it: the note ended 'every other
+    value_at is still caf3079's', and that was already untrue when it
+    was written -- K-2B-42 stood at 40cadbc, off the base commit and
+    unnamed. The sentence now says which entries stand off the base and
+    why, and this guard is what holds it to that. A later pass rewrote
+    the note's K-2B-42 sentence and the record of this went with it;
+    it lives here now, where nothing counts the bytes.
     """
     base = LEDGER["base_commit"]
     off_base = {

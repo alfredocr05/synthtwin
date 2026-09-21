@@ -67,6 +67,37 @@ Both spellings and both mutants are in the tables below. A clause whose
 mutant leaves EVERY case here answering as before is not witnessed,
 however many cases reach it.
 
+**THE SAME MEASUREMENT AGAIN, ON G7.9** (the skeptic of the independence
+repair of 2026-09-21, K-2B-42). `marks_bought_for_the_shortfall` was
+rewritten from a statement completed first, and its rule arrived here
+with eight hand-worked rows and three mutants. Sixteen one-clause
+mutants of it were then measured against all 103 oracle cases and those
+eight rows: THIRTEEN were caught and FOUR were not, every one of the
+four a real difference in the cells written --
+
+- item 7's TIE stated the other way round (a census of
+  `{"space": 6, "upper_t": 6}` wants `T` instead of ` `, and buys
+  nothing instead of buying rank one a `t`) -- and nothing but the
+  SHIPPED CODE had ever pinned that clause, which is the one source an
+  oracle may not be written from;
+- item 2's "wears the commonest NAMED mark" dropped (a census of
+  `{"upper_t": 11}` over space-marked cells buys rank one);
+- item 2's "its respelling is not a spelling the table declares absent"
+  dropped (with the first day's respelling declared absent, rank one is
+  bought instead of rank six -- the eight rows all passed no absent
+  spelling at all, so the clause was asked of neither implementation);
+- item 3's member skip dropped, which the slashed-stamp row could not
+  part because contract D12 permits a slashed stamp the SPACE ALONE and
+  its census therefore leaves no mark unnamed in any case.
+
+Four rows and four mutants below close them, and the rows go to the
+SHIPPED function too, so the gap covered the generator as much as the
+oracle: had `_spellings_short_of_the_count` held any of the four wrong,
+tests/test_generation_reference.py and this file would both have been
+green. The mechanism was never in doubt -- dropping item 2's "worn by
+another rank" turns `test_the_generator_says_how_many_numbers_it_proved`
+red on two vectors files -- only its coverage.
+
 **What this file holds.** Each rule's clauses, as a table of inputs and
 the answers the method's statement gives, worked out by hand from the
 statement (contract C6-31f with method G6.7.2; G6.5a; G8.3a step 3;
@@ -373,31 +404,65 @@ def _readings_missed(rule: typing.Callable[..., object]) -> "list[str]":
 
 SHORTFALL_CELLS = ["2025-01-01 00:00:00"] * 6 + ["2025-01-02 00:00:00"] * 5
 SHORTFALL = (
-    # (n_distinct_folded, n_unparsed, floor, census, member, ranks moved)
+    # (n_distinct_folded, n_unparsed, floor, census, member, holes, moved)
     # A shortfall of one, and one rank spent: the owner's own shape. It
     # is rank ONE and not rank nought, because the first rank is an end
     # the description publishes.
-    (3, 0, 11, {"space": 11}, "iso-datetime", ((1, "T"),)),
+    (3, 0, 11, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
     # THE SAME COLUMN WITH ONE STAND-IN. The stand-in is a folded
     # spelling of its own, so the cells in hand are one short of nothing
     # and the rule spends nothing.
-    (3, 1, 11, {"space": 11}, "iso-datetime", ()),
+    (3, 1, 11, {"space": 11}, "iso-datetime", (), ()),
     # A published four against two folded spellings and one stand-in:
     # a shortfall of one again, and one rank.
-    (4, 1, 11, {"space": 11}, "iso-datetime", ((1, "T"),)),
-    (4, 2, 11, {"space": 11}, "iso-datetime", ()),
+    (4, 1, 11, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
+    (4, 2, 11, {"space": 11}, "iso-datetime", (), ()),
     # THE BUDGET BINDING instead of the shortfall: a floor of three
     # gives two ranks, one per day, and the shortfall of ten is not
     # reached. A second rank of the first day would repeat a folded
     # spelling, and the last rank of the second is an end.
-    (12, 0, 3, {"space": 11}, "iso-datetime", ((1, "T"), (6, "T"))),
+    (12, 0, 3, {"space": 11}, "iso-datetime", (), ((1, "T"), (6, "T"))),
     # A floor of one still publishes a census line of two, so one rank.
-    (12, 0, 1, {"space": 11}, "iso-datetime", ((1, "T"),)),
-    # A slashed stamp: character eleven is a digit, so no rank is spent.
-    (3, 0, 11, {"space": 11}, "month-first-datetime", ()),
+    (12, 0, 1, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
+    # A slashed stamp. Item 3 skips it BY MEMBER, and D12 permits it the
+    # space alone, so the census leaves it no mark unnamed either way --
+    # which is why this row parts no road on its own and the one below
+    # it was added. (Until 2026-09-21 the comment here said 'character
+    # eleven is a digit'; the frozen slashed_pool cell
+    # '2024/06/20 13:37' holds the MARK at index ten.)
+    (3, 0, 11, {"space": 11}, "month-first-datetime", (), ()),
     # A census holding a withheld pool: already split over every
     # permitted mark, so it leaves none unnamed.
-    (3, 0, 11, {"(withheld)": 11}, "iso-datetime", ()),
+    (3, 0, 11, {"(withheld)": 11}, "iso-datetime", (), ()),
+    # ---- THE FOUR ROWS OF THE ROUND-3 SKEPTIC (2026-09-21) ----
+    # Each of the four moved cells under a one-clause mutant while
+    # moving no committed byte and none of the eight rows above.
+    #
+    # ITEM 3'S MEMBER SKIP, PARTED. A DATE member is not a slashed
+    # stamp, so D12 permits it all three marks and the row above cannot
+    # tell the skip from the fallback; these cells are eleven characters
+    # and longer, so only the member itself refuses the spend. Both
+    # implementations answer nothing; a member test that admitted
+    # anything but the two ISO datetime members would buy rank one.
+    (3, 0, 11, {"space": 11}, "iso-date", (), ()),
+    # ITEM 7'S TIE. Two names of one count: the commonest is the FIRST
+    # IN SORTED ORDER, so 'space' and not 'upper_t', the cells wear the
+    # mark wanted, and the one spare mark 'lower_t' is bought. Stated
+    # the other way round the column is left exactly as it was -- and
+    # before this row nothing but the shipped code had ever pinned it.
+    (3, 0, 11, {"space": 6, "upper_t": 6}, "iso-datetime", (), ((1, "t"),)),
+    # ITEM 2'S COMMONEST **NAMED** MARK. The census names `upper_t`
+    # alone while every cell wears a space, so no rank wears the
+    # commonest named mark and nothing is bought, though the shortfall
+    # is one and two marks are spare. Without that clause rank one is
+    # respelled with the lower `t`.
+    (3, 0, 11, {"upper_t": 11}, "iso-datetime", (), ()),
+    # ITEM 2'S DECLARED-ABSENT SPELLING. The table declares the first
+    # day's respelling absent, so the six ranks of that day are passed
+    # over and the FIRST rank of the second day is bought instead.
+    # Without that clause rank one is bought and the twin writes a
+    # spelling its own description says the table does not hold.
+    (3, 0, 11, {"space": 11}, "iso-datetime", ("2025-01-01T00:00:00",), ((6, "T"),)),
 )
 
 
@@ -411,7 +476,7 @@ def _moved_ranks(cells: "list[str]") -> "tuple[tuple[int, str], ...]":
 
 
 def _oracle_shortfall(module: types.ModuleType) -> typing.Callable[..., object]:
-    def spent(folded, unparsed, floor, census, member):
+    def spent(folded, unparsed, floor, census, member, holes):
         column = {
             "n_distinct_folded": folded,
             "n_unparsed": unparsed,
@@ -420,13 +485,13 @@ def _oracle_shortfall(module: types.ModuleType) -> typing.Callable[..., object]:
         }
         return _moved_ranks(
             module.marks_bought_for_the_shortfall(
-                column, list(SHORTFALL_CELLS), (), floor
+                column, list(SHORTFALL_CELLS), holes, floor
             )
         )
     return spent
 
 
-def _generator_shortfall(folded, unparsed, floor, census, member):
+def _generator_shortfall(folded, unparsed, floor, census, member, holes):
     column = types.SimpleNamespace(n_distinct_folded=folded)
     facts = types.SimpleNamespace(
         parser_family=member,
@@ -435,7 +500,7 @@ def _generator_shortfall(folded, unparsed, floor, census, member):
     )
     return _moved_ranks(
         generation._spellings_short_of_the_count(
-            column, facts, list(SHORTFALL_CELLS), (), floor
+            column, facts, list(SHORTFALL_CELLS), holes, floor
         )
     )
 
@@ -443,10 +508,11 @@ def _generator_shortfall(folded, unparsed, floor, census, member):
 def _shortfall_missed(rule: typing.Callable[..., object]) -> "list[str]":
     return [
         f"{folded} folded, {unparsed} unparsed, floor {floor}, {census} on"
-        f" {member}: {_asked(rule, folded, unparsed, floor, census, member)!r},"
+        f" {member}, absent {holes}:"
+        f" {_asked(rule, folded, unparsed, floor, census, member, holes)!r},"
         f" the statement gives {want!r}"
-        for folded, unparsed, floor, census, member, want in SHORTFALL
-        if _asked(rule, folded, unparsed, floor, census, member) != want
+        for folded, unparsed, floor, census, member, holes, want in SHORTFALL
+        if _asked(rule, folded, unparsed, floor, census, member, holes) != want
     ]
 
 
@@ -611,6 +677,25 @@ WITNESS_MUTANTS = {
         "shortfall",
         "        for rank in range(1, len(written) - 1)\n",
         "        for rank in range(len(written))\n",
+    ),
+    # The four the round-3 skeptic found witnessed by nothing. Each was
+    # measured to move cells and to leave every committed vectors file
+    # and all eight rows above it unmoved.
+    "shortfall_tie_the_other_way": (
+        "shortfall",
+        "wanted = MARK_OF[max(sorted(census), key=census.get)]",
+        "wanted = MARK_OF[max(reversed(sorted(census)), key=census.get)]",
+    ),
+    "shortfall_any_mark_not_only_the_commonest_named": (
+        "shortfall", "            or cell[10] != wanted\n", "",
+    ),
+    "shortfall_absent_spellings_bought": (
+        "shortfall", "            or changed.strip().lower() in absent\n", "",
+    ),
+    "shortfall_every_member_bought": (
+        "shortfall",
+        '        column["format"] in ("iso-datetime", "iso-mixed")\n',
+        "        True\n",
     ),
     "readings_by_code_first": (
         "readings",

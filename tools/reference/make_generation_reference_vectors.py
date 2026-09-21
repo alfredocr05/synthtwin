@@ -7209,9 +7209,11 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
     `n_distinct_folded` publishes.  The rule then buys the difference
     back, and the statement decides the whole of it:
 
-    * the pass runs only where the eleventh character of a cell is the
-      mark between the day and the clock (item 4) and the census names
-      marks without pooling any of them (item 3);
+    * the pass runs on the two ISO datetime members alone -- the two
+      item 3 names, whose eleventh character is the mark between the
+      day and the clock (item 4), a slashed stamp's sitting at no fixed
+      index and a date member's nowhere -- and only where the census
+      names marks without pooling any of them (item 3);
     * the marks it may buy are the permitted ones of contract D12 that
       census does not name, taken `upper_t`, `space`, `lower_t`;
     * it may buy the published SHORTFALL -- `n_distinct_folded` less
@@ -7229,6 +7231,14 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
 
     The count bought is a function of the published numbers alone: the
     count the real column held is not published and is not read.
+
+    ITEM 2'S PER-RANK CLAUSES ARE THE NESTED `bought`, of five
+    statements, which is one BELOW the six that K-2B-42's driver scores
+    (`tools/measurements/kpi_oracle_similarity.py`, MIN_STATEMENTS).  So
+    this decomposition leaves the driver's scored population at 403 and
+    does not add a 404th function to it: a reader of that entry should
+    know the measured population was shaped by the shape of the code
+    under measurement, deliberately (the repair's skeptic, finding 2).
     """
     written = list(cells)
     census = column.get("datetime_separators", {})

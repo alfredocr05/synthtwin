@@ -5590,9 +5590,24 @@ permitted marks (contract D12) the census leaves UNNAMED, in the order
    written as the description publishes `earliest` and `latest`. So no
    spend ever leaves the column one spelling fewer, none buys a
    spelling twice, and neither published end is respelled.
-3. The pass is skipped on a member whose eleventh character is a digit
-   of the date rather than the mark, and on a census holding a withheld
-   pool, which G7.5 already splits over every permitted mark.
+3. The pass RUNS ON THE TWO ISO DATETIME MEMBERS ALONE — `iso-datetime`
+   and `iso-mixed`, the members contract D12 permits all three marks —
+   and is skipped on every other member, and on a census holding a
+   withheld pool, which G7.5 already splits over every permitted mark.
+   THE SKIP IS BY MEMBER AND NOT BY CHARACTER. A slashed stamp writes
+   its date in fields of no fixed width, so its mark sits at no fixed
+   index: `3/03/2020 13:37` carries it at index nine and
+   `2024/06/20 13:37` — the frozen `slashed_pool` case — at index TEN,
+   where it is the MARK and not a digit. The date members carry no mark
+   at all. Until the independence repair of 2026-09-21 this item read
+   'a member whose eleventh character is a digit of the date rather
+   than the mark', which that frozen cell contradicts; a second
+   implementer reading it literally would not skip
+   `slashed-iso-datetime`. No byte moved when the reason was corrected,
+   because D12 permits a slashed stamp the SPACE ALONE, so a census
+   naming anything leaves it no mark unnamed to buy in any case —
+   which is why the skip could be misstated for a landing without a
+   committed file saying so.
 
 **STATED IN FULL, because the three clauses above do not decide the
 pass.** They say which ranks MAY be spent and how many; they leave four
@@ -5660,14 +5675,27 @@ reported missing its role as before.
 this rule (`date_absorbed_mark`) publishes `n_unparsed` of nought, so no
 committed vectors file parts the stand-in road from the fallback, and
 plan P4-D295 routes a new case into an existing file, where it would
-move bytes. Eight columns with the answers worked by hand instead —
+move bytes. TWELVE columns with the answers worked by hand instead —
 eleven midnight moments over two days, every one written with a space,
 asked at shortfalls of nought and one, at budgets of one and two ranks,
-on a slashed stamp and on a census holding a withheld pool — asked of
-the oracle's `marks_bought_for_the_shortfall` and of the shipped
-`_spellings_short_of_the_count` alike, with three mutants (the stand-ins
+on a slashed stamp, on a date member, on a census holding a withheld
+pool, on a census naming nothing but the mark the cells do NOT wear, on
+a census whose two names tie, and on a table declaring the respelling
+of the first day absent — asked of the oracle's
+`marks_bought_for_the_shortfall` and of the shipped
+`_spellings_short_of_the_count` alike, with seven mutants (the stand-ins
 left uncounted, the budget raised to the census line, both END ranks
-opened) each turning that witness red. THE TWO NAMES DIFFER ON PURPOSE:
+opened, item 7's tie stated backwards, item 2's commonest NAMED mark
+dropped, item 2's declared-absent spelling dropped, item 3's member skip
+dropped) each turning that witness red. THE LAST FOUR ARE THIS
+DOCUMENT'S OWN DEBT: the repair's skeptic measured sixteen one-clause
+mutants of the rewritten function against every frozen case and the
+eight rows then standing, and those four moved cells while moving
+nothing any file or row could see — item 7's tie worst of all, since
+nothing but the shipped code had ever pinned it, which is the one source
+an oracle may not be written from. A clause this document states in full
+and no row parts is a clause the oracle and the generator may both have
+wrong. THE TWO NAMES DIFFER ON PURPOSE:
 the oracle's is what it hands back and the shipped one's is the
 shortfall it closes, so the pairing a reader checks is not asserted by a
 shared name (the independence repair of 2026-09-21, ledger K-2B-42).
