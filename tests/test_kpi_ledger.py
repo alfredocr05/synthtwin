@@ -44,6 +44,7 @@ import time
 
 import pytest
 
+import crosscheck
 import fixtures
 import kpi_rules
 import kpi_shapes as S
@@ -991,7 +992,8 @@ def test_k_2b_46(
     for run in eight:
         spec = run["family_spec"]
         if run["kind"] == "xlsx":
-            real, twin = pandas.read_excel(run["path"]), pandas.read_excel(run["twin"])
+            real = crosscheck.read_excel(run["path"])
+            twin = crosscheck.read_excel(run["twin"])
         else:
             real = pandas.read_csv(run["path"], sep=spec["mark"], encoding="utf-8-sig")
             twin = pandas.read_csv(run["twin"], sep=spec["mark"], encoding="utf-8-sig")

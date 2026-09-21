@@ -36,6 +36,7 @@ import sys
 
 import pytest
 
+import crosscheck
 import workbooks
 from synthtwin import errors, reading, workbook
 
@@ -122,13 +123,13 @@ def test_an_independent_reader_agrees_about_every_published_fact(
     file RIGHT, rather than merely consistently, is made here against a
     library the product cannot reach.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(tmp_path, f"{shape}.xlsx", SHAPES[shape]())
     assert _quiet(["profile", str(path)]) == 0
     block = json.loads(
         (tmp_path / f"{shape}-profile.json").read_text(encoding="utf-8")
     )["source"]["workbook"]
 
+    openpyxl = crosscheck.reader()
     book = openpyxl.load_workbook(path)
     assert block["sheet_count"] == len(book.worksheets)
     # The sheet synthtwin settled on is the first VISIBLE one, which is
@@ -466,8 +467,6 @@ def test_both_readers_see_the_same_columns_and_types_in_the_twin(
     must stay TEXT and a date-formatted column must stay DATE-formatted,
     which is exactly what decides the dtype pandas hands back.
     """
-    pandas = pytest.importorskip("pandas")
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(
         tmp_path, f"{shape}.xlsx", workbooks.study_book(200, 0, shape)
     )
@@ -476,8 +475,8 @@ def test_both_readers_see_the_same_columns_and_types_in_the_twin(
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
     twin = tmp_path / f"{shape}-twin.xlsx"
 
-    source_frame = pandas.read_excel(path)
-    twin_frame = pandas.read_excel(twin)
+    source_frame = crosscheck.read_excel(path)
+    twin_frame = crosscheck.read_excel(twin)
     assert list(twin_frame.columns) == list(source_frame.columns), shape
     assert [f"{one}" for one in twin_frame.dtypes] == [
         f"{one}" for one in source_frame.dtypes
@@ -485,6 +484,7 @@ def test_both_readers_see_the_same_columns_and_types_in_the_twin(
     assert twin_frame.shape == source_frame.shape, shape
 
     # ...and openpyxl, which reads the cell rather than a reading of it.
+    openpyxl = crosscheck.reader()
     source_book = openpyxl.load_workbook(path)
     twin_book = openpyxl.load_workbook(twin)
     assert [one.title for one in twin_book.worksheets] == [
@@ -502,12 +502,12 @@ def test_the_text_code_with_leading_zeros_is_still_text_in_the_twin(
     cells as numbers would hand back a different dtype and the person's
     code would take a different path on the twin than on their table.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(tmp_path, "excel.xlsx", workbooks.study_book(200, 0))
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "excel-profile.json"
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
 
+    openpyxl = crosscheck.reader()
     sheet = openpyxl.load_workbook(tmp_path / "excel-twin.xlsx").worksheets[0]
     names = [one.value for one in sheet[1]]
     place = names.index("record_code") + 1
@@ -520,12 +520,12 @@ def test_a_date_column_keeps_its_format_in_the_twin(
     tmp_path: pathlib.Path,
 ) -> None:
     """A date is a number wearing a format, and the twin wears it too."""
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(tmp_path, "excel.xlsx", workbooks.study_book(200, 0))
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "excel-profile.json"
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
 
+    openpyxl = crosscheck.reader()
     sheet = openpyxl.load_workbook(tmp_path / "excel-twin.xlsx").worksheets[0]
     names = [one.value for one in sheet[1]]
     for name in ("recorded_on", "stamp", "clock", "elapsed"):
@@ -627,14 +627,13 @@ def test_a_workbook_of_several_sheets_keeps_every_sheet(
     each and the twin writes them bare. A sheet that HOLDS cells is the
     test below this one.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(
         tmp_path, "many.xlsx", workbooks.study_book(200, 0, sheets=3)
     )
     assert _quiet(["profile", str(path)]) == 0
     assert _quiet(["generate", str(tmp_path / "many-profile.json"),
                    "--seed", "0"]) == 0
-    book = openpyxl.load_workbook(tmp_path / "many-twin.xlsx")
+    book = crosscheck.reader().load_workbook(tmp_path / "many-twin.xlsx")
     assert len(book.worksheets) == 3
     # The sheet the table came from holds it; the others hold nothing.
     assert book.worksheets[0].max_row > 100
@@ -658,7 +657,6 @@ def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
     """
     import zipfile
 
-    pandas = pytest.importorskip("pandas")
     path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book(30))
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "hidden-profile.json"
@@ -667,13 +665,6 @@ def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
 
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
     twin = tmp_path / "hidden-twin.xlsx"
-
-    # What a reader sees, on the DEFAULT sheet and on the named one.
-    assert pandas.read_excel(twin).shape == pandas.read_excel(path).shape
-    assert (
-        pandas.read_excel(twin, sheet_name="Data").shape
-        == pandas.read_excel(path, sheet_name="Data").shape
-    )
 
     # Both files meet the description, and the twin publishes the same
     # blocks when it is described again.
@@ -710,6 +701,15 @@ def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
     bare = _written(tmp_path, "bare.xlsx", workbooks.hidden_first_book(30, 0))
     found = _verdicts(tmp_path / "bare-check", described, bare)
     assert "workbook.sheet-extents" in found.get("MISSED", []), found
+
+    # LAST, what a reader sees on the DEFAULT sheet and on the named
+    # one. It is last because it is the only part of this that needs a
+    # reader synthtwin does not ship.
+    assert crosscheck.read_excel(twin).shape == crosscheck.read_excel(path).shape
+    assert (
+        crosscheck.read_excel(twin, sheet_name="Data").shape
+        == crosscheck.read_excel(path, sheet_name="Data").shape
+    )
 
 
 def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
@@ -839,7 +839,6 @@ def test_a_defined_table_is_written_over_the_twins_own_rows(
     tmp_path: pathlib.Path,
 ) -> None:
     """A defined table comes back, resized to the twin, neutrally named."""
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(
         tmp_path, "tbl.xlsx", workbooks.study_book(200, 0, table=True)
     )
@@ -847,7 +846,7 @@ def test_a_defined_table_is_written_over_the_twins_own_rows(
     described = tmp_path / "tbl-profile.json"
     assert _block_of(described)["defined_table"] is True
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
-    sheet = openpyxl.load_workbook(tmp_path / "tbl-twin.xlsx").worksheets[0]
+    sheet = crosscheck.reader().load_workbook(tmp_path / "tbl-twin.xlsx").worksheets[0]
     assert len(sheet.tables) == 1
     # The source's table name is never published, so it is never written.
     assert "tblStudy" not in sheet.tables
@@ -858,7 +857,6 @@ def test_both_date_systems_survive_the_twin(
     tmp_path: pathlib.Path, epoch: bool
 ) -> None:
     """The 1904 system shifts every date by 1,462 days, and is published."""
-    openpyxl = pytest.importorskip("openpyxl")
     path = _written(
         tmp_path,
         "epoch.xlsx",
@@ -868,7 +866,7 @@ def test_both_date_systems_survive_the_twin(
     described = tmp_path / "epoch-profile.json"
     assert _block_of(described)["date_system"] == ("1904" if epoch else "1900")
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
-    book = openpyxl.load_workbook(tmp_path / "epoch-twin.xlsx")
+    book = crosscheck.reader().load_workbook(tmp_path / "epoch-twin.xlsx")
     assert (book.epoch.year == 1904) is epoch
 
 
@@ -1048,13 +1046,12 @@ def test_the_rows_above_a_header_reach_both_readers(
     source and 13 from the twin while synthtwin's own row count was 12
     on both.
     """
-    pandas = pytest.importorskip("pandas")
     path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(200))
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "titled-profile.json"
     assert _quiet(["generate", str(described), "--seed", "0"]) == 0
     twin = tmp_path / "titled-twin.xlsx"
-    assert pandas.read_excel(path).shape == pandas.read_excel(twin).shape
+    assert crosscheck.read_excel(path).shape == crosscheck.read_excel(twin).shape
 
 
 def test_validate_reads_the_sheet_the_person_names(

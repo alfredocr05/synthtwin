@@ -43,7 +43,7 @@ import zipfile
 import pytest
 
 from synthtwin import dialect, sheetwriting
-from tests import workbooks
+from tests import crosscheck, workbooks
 
 # The shipped rule, held before any test puts a withdrawn one in its
 # place, so that a mutant of one class does not silence the others.
@@ -168,9 +168,25 @@ def _date_cells(sheet: str) -> "list[str]":
     return out
 
 
-def _run(folder: pathlib.Path, floor: str) -> "tuple[list[str], list[object]]":
-    """Describe, generate and read the twin back with openpyxl."""
-    openpyxl = pytest.importorskip("openpyxl")
+def _values_a_reader_sees(twin: pathlib.Path) -> "list[object]":
+    """The twin's first column as the INDEPENDENT reader hands it back.
+
+    Apart here, and asked for separately, because it is the one step
+    of this file that needs a reader synthtwin does not ship: the
+    cells the WRITER wrote are read out of the package itself by
+    `_run`, and a test that asks only about those must not be skipped
+    because openpyxl is absent.
+    """
+    book = crosscheck.reader().load_workbook(twin)
+    read = book[book.sheetnames[0]]
+    return [
+        row[0].value
+        for row in read.iter_rows(min_row=2, min_col=1, max_col=1)
+    ]
+
+
+def _run(folder: pathlib.Path, floor: str) -> "tuple[list[str], pathlib.Path]":
+    """Describe, generate and validate; hand back the date cells written and the twin."""
     table = folder / "table.xlsx"
     table.write_bytes(_dated_book())
     assert _quiet(
@@ -185,18 +201,12 @@ def _run(folder: pathlib.Path, floor: str) -> "tuple[list[str], list[object]]":
     twin = folder / "table-twin.xlsx"
     with zipfile.ZipFile(twin) as packed:
         sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
-    book = openpyxl.load_workbook(twin)
-    read = book[book.sheetnames[0]]
-    values = [
-        row[0].value
-        for row in read.iter_rows(min_row=2, min_col=1, max_col=1)
-    ]
     for checked in (table, twin):
         assert _quiet(
             ["validate", f"{described}", "--twin", f"{checked}",
              "--out-dir", f"{folder}", "--replace"]
         ) == 0, checked.name
-    return _date_cells(sheet), values
+    return _date_cells(sheet), twin
 
 
 @pytest.mark.parametrize("floor", (_FLOOR_ELEVEN, _FLOOR_TWO))
@@ -213,9 +223,11 @@ def test_a_date_column_gives_a_twin_a_reader_opens(
     withholding -- so publishing the census would have bought nothing
     and cost the disclosure rule.
     """
-    written, values = _run(tmp_path, floor)
+    written, twin = _run(tmp_path, floor)
     assert len(written) == 118, len(written)
     assert [one for one in written if not dialect.sheet_date_is_real(one)] == []
+    # LAST: the independent reader, which is what the defect was about.
+    values = _values_a_reader_sees(twin)
     dates = [one for one in values if isinstance(one, datetime.date)]
     assert len(dates) == 118, len(dates)
     assert len([one for one in values if isinstance(one, str)]) == 2, values[:4]
@@ -232,7 +244,7 @@ def test_the_shape_the_description_publishes_does_not_move(
     ten characters long, four figures, a hyphen, two figures, a hyphen
     and two figures. That is why the twin still meets its description.
     """
-    written, _values = _run(tmp_path, _FLOOR_ELEVEN)
+    written, _twin = _run(tmp_path, _FLOOR_ELEVEN)
     for one in written:
         assert len(one) == 10, one
         assert one[4] == "-" and one[7] == "-", one
@@ -362,7 +374,6 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
     reader can open is never acceptable, so this rule is stated in two
     places on purpose.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     monkeypatch.setattr(dialect, "sheet_date_on_the_calendar", lambda text: text)
     monkeypatch.setattr(
         dialect,
@@ -388,4 +399,4 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
         sheet = packed.read("xl/worksheets/sheet1.xml").decode("utf-8")
     # Not one date cell is written, although the class was handed out.
     assert _date_cells(sheet) == []
-    openpyxl.load_workbook(twin)
+    crosscheck.reader().load_workbook(twin)

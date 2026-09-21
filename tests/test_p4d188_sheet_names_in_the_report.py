@@ -16,8 +16,7 @@ for the twin's sheet names, so the sentence is held to the file.
 
 import pathlib
 
-import pytest
-
+from tests import crosscheck
 from tests.test_files_review_repairs import _book, _cell, _held, _rows, _trip
 
 
@@ -57,21 +56,19 @@ def _report(folder: pathlib.Path, name: str) -> str:
 
 
 def test_a_withheld_sheet_name_is_named_in_the_report(tmp_path: pathlib.Path) -> None:
-    openpyxl = pytest.importorskip("openpyxl")
     strings = ["arm", "score", "Low", "High"]
     folder = tmp_path / "withheld"
     result = _trip(folder, "visits", _book([("Visits", _table())], strings))
     _held(result)
     assert result["document"]["source"]["workbook"]["sheet_names"] == [None]
-    assert openpyxl.load_workbook(result["twin"]).sheetnames == ["Sheet1"]
     report = _report(folder, "visits")
     assert "The sheet holding your table is written under the name Sheet1." in report
     assert "Its own name is withheld from the description" in report
     assert "Visits" not in report
+    assert crosscheck.reader().load_workbook(result["twin"]).sheetnames == ["Sheet1"]
 
 
 def test_a_published_sheet_name_is_named_as_published(tmp_path: pathlib.Path) -> None:
-    openpyxl = pytest.importorskip("openpyxl")
     strings = ["arm", "score", "Low", "High", "note"]
     notes = _rows({1: [_cell("A1", "4", "s")]})
     folder = tmp_path / "published"
@@ -80,10 +77,10 @@ def test_a_published_sheet_name_is_named_as_published(tmp_path: pathlib.Path) ->
     )
     _held(result)
     assert result["document"]["source"]["workbook"]["sheet_names"] == ["Data", None]
-    assert openpyxl.load_workbook(result["twin"]).sheetnames[0] == "Data"
     report = _report(folder, "data")
     assert "The sheet holding your table is written under its own name, Data," in report
     assert "1 other sheet name(s) are withheld the same way" in report
+    assert crosscheck.reader().load_workbook(result["twin"]).sheetnames[0] == "Data"
 
 
 def test_a_delimited_report_carries_no_workbook_paragraph(tmp_path: pathlib.Path) -> None:

@@ -34,6 +34,38 @@ this catches a repeat of the defect it was built for, and the classes
 of defect nearest to it, and it grows a row each time a new one is
 found. Running the suite on 3.10 is the only thing that proves the
 whole of it, and that is what the `minimums` job is for.
+
+AND IT READS EACH FILE AS ITS OWN SYNTAX TREE, WHICH IS THE OTHER
+LIMIT. `ast.parse` is what both readings below are built on, so what
+this guard sees is what the interpreter would RUN. A post-floor
+spelling written inside a STRING is invisible to it. The tree holds
+four such strings today, all of them `Path.walk` (3.12, against a
+floor of 3.10) in the sample modules `tests/test_offline_scan.py`
+hands to the offline import scanner:
+`test_path_walk_on_error_callback_goes_red`,
+`test_a_validated_path_still_obeys_the_callback_slot_rule`,
+`test_a_conditional_receiver_goes_red` and
+`test_a_boolean_receiver_goes_red`. Nothing is broken by that, and
+none of them should be rewritten: those strings are SCANNED by
+another tool and never executed, and `Path.walk` is the exact
+spelling that tool's callback-slot rule exists to catch -- it is the
+one `pathlib.Path` method taking a callable.
+`test_the_reading_recognizes_the_shapes_it_claims_to` below carries
+one more, for the same reason: a guard needs a sample of the thing it
+reports.
+
+THE LIMIT THAT WOULD MATTER is a string of source that IS executed --
+handed to `exec`, `eval` or `compile`, or written to a file that
+something then imports or runs -- because that spelling reaches the
+3.10 cells while this file says nothing. There is no such string in
+the tree: every string constant of `src`, `tests` and
+`tools` was re-read with the two readings below (dedented first,
+which is how the suite writes them) and each hit followed to its
+consumer, and the only consumers are the offline scanner and this
+file's own self-test. Every `spec_from_file_location` in the suite
+loads a committed file under `tools/` or `tests/`, which the folders
+below already cover. Anyone adding an executed source string has to
+prove the floor for it themselves, because this guard cannot.
 """
 
 import ast

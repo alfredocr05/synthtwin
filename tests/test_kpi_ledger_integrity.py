@@ -766,7 +766,9 @@ def test_every_environment_a_runner_sets_is_read_and_an_off_value_is_not_one(
     not kpi_rules.on_reference_machine(LEDGER),
     reason="this is not the quiet reference machine the ledger's seconds were stated for",
 )
-def test_the_real_reference_machine_agrees_with_its_own_load_average() -> None:
+def test_the_real_reference_machine_agrees_with_its_own_load_average(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The one assertion about THIS machine, and it runs nowhere else.
 
     The four cases above are the policy; this is the policy meeting the
@@ -777,10 +779,24 @@ def test_the_real_reference_machine_agrees_with_its_own_load_average() -> None:
     every `seconds_below` rule silently unjudged everywhere with nothing
     saying so. Off that machine there is nothing here to check, so this
     is skipped rather than weakened.
+
+    ONE SAMPLE, JUDGED TWICE. The load average used to be read inside
+    `seconds_judged_here` and again on the line below it, and the two
+    readings were then asserted to agree about being quiet. They are
+    two different moments. A machine that crosses the threshold
+    between them -- another suite starting, an editor indexing --
+    turned this red with nothing wrong, on the one machine it is not
+    skipped on, and a red test nobody can reproduce is worse than no
+    test. THIS machine's load is still what is read, and read from the
+    real `os.getloadavg`; it is read ONCE, and the policy is then made
+    to judge that same number, so the two judgements cannot disagree
+    about anything but the rule they apply.
     """
+    sample = kpi_rules.load_average()
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: sample)
     judged, why = kpi_rules.seconds_judged_here(LEDGER)
-    quiet = kpi_rules.load_average() < LEDGER["reference_machine"]["quiet_load_average_below"]
-    assert judged is quiet, (judged, why, kpi_rules.load_average())
+    quiet = sample < LEDGER["reference_machine"]["quiet_load_average_below"]
+    assert judged is quiet, (judged, why, sample)
     if not judged:
         assert "loaded" in why
 

@@ -49,7 +49,7 @@ from synthtwin import (
     taxonomy,
     validation,
 )
-from tests import fixtures, workbooks
+from tests import crosscheck, fixtures, workbooks
 from tests.test_stage2_round_trip import _exit_of
 
 EVERY_ROLE_SEEDS = (20260811, 1, 2, 3)
@@ -260,7 +260,7 @@ def _critic_shapes() -> "list[tuple[str, list[str], list[list[str]], tuple[str, 
 
 def _read(path: pathlib.Path, delimiter: str) -> "pandas.DataFrame":
     if path.suffix == ".xlsx":
-        return pandas.read_excel(path)
+        return crosscheck.read_excel(path)
     return pandas.read_csv(path, sep=delimiter, encoding="utf-8-sig")
 
 
@@ -275,6 +275,7 @@ def test_the_critic_s_eight_shapes_read_with_the_real_dtypes(
     change that parts any reader's type on a realistic file turns this
     red whether or not it touches a judged pass.
     """
+    runs = []
     for letter, names, rows, flags in _critic_shapes():
         for suffix in (".csv", ".xlsx"):
             folder = tmp_path / f"{letter}{suffix[1:]}"
@@ -304,10 +305,16 @@ def test_the_critic_s_eight_shapes_read_with_the_real_dtypes(
                     "--out-dir", str(folder), "--seed", "4", "--replace",
                 ]
             ) == 0
-            real = _read(table, delimiter)
-            twin = _read(folder / f"real-twin{suffix}", delimiter)
-            assert list(twin.columns) == list(real.columns), (letter, suffix)
-            assert _dtypes(twin) == _dtypes(real), (letter, suffix, floor)
+            runs += [(letter, suffix, table, folder / f"real-twin{suffix}", delimiter)]
+    # EVERY file of the battery is written before any is read back, and
+    # the delimited ones are read first: a missing cross-check reader
+    # then takes the workbook readings alone, never a shape synthtwin
+    # was never asked to build.
+    for letter, suffix, table, made, delimiter in sorted(runs, key=lambda run: run[1]):
+        real = _read(table, delimiter)
+        twin = _read(made, delimiter)
+        assert list(twin.columns) == list(real.columns), (letter, suffix)
+        assert _dtypes(twin) == _dtypes(real), (letter, suffix, floor)
 
 
 # ------------------------------------------------ the judged shapes, round trip
@@ -462,7 +469,6 @@ def test_a_judged_spelling_comes_back_and_both_files_validate(
         assert int((real_frame[names[0]] == spelling).sum()) == published
         assert _dtypes(pandas.read_csv(twin)) == _dtypes(pandas.read_csv(table))
     else:
-        assert _dtypes(pandas.read_excel(twin)) == _dtypes(pandas.read_excel(table))
         # THE SHEET'S CENSUS COUNTS WHAT THE TWIN WRITES (plan P4-D174),
         # and the twin writes a judged cell as the value the sheet held,
         # so no cell of the column is counted `absent`: a census that
@@ -470,6 +476,9 @@ def test_a_judged_spelling_comes_back_and_both_files_validate(
         for block in (described, redescribed):
             classes = block["source"]["workbook"]["columns"][0]["cell_classes"]
             assert classes["absent"] == 0, classes
+        assert _dtypes(crosscheck.read_excel(twin)) == _dtypes(
+            crosscheck.read_excel(table)
+        )
 
 
 # ------------------------------------------------- the judgement not re-fired

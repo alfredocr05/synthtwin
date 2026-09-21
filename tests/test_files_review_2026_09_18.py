@@ -57,7 +57,7 @@ import zipfile
 import pytest
 
 from synthtwin import asking, dialect, errors, reading, sheetwriting, workbook
-from tests import workbooks
+from tests import crosscheck, workbooks
 
 _FLOOR_ELEVEN = "11"
 _FLOOR_FIVE = "5"
@@ -266,7 +266,7 @@ def _book(
 
 def _openpyxl_column(path: pathlib.Path, column: int = 1) -> "list[object]":
     """One column of a workbook as an INDEPENDENT reader hands it back."""
-    openpyxl = pytest.importorskip("openpyxl")
+    openpyxl = crosscheck.reader()
     book = openpyxl.load_workbook(path)
     sheet = book[book.sheetnames[0]]
     out: "list[object]" = []
@@ -277,7 +277,7 @@ def _openpyxl_column(path: pathlib.Path, column: int = 1) -> "list[object]":
 
 
 def _openpyxl_formats(path: pathlib.Path) -> "dict[str, int]":
-    openpyxl = pytest.importorskip("openpyxl")
+    openpyxl = crosscheck.reader()
     book = openpyxl.load_workbook(path)
     sheet = book[book.sheetnames[0]]
     out: "dict[str, int]" = {}
@@ -481,8 +481,6 @@ def test_a_column_wearing_two_codes_of_one_kind_is_refused(
     """
     table = tmp_path / "table.xlsx"
     table.write_bytes(_two_code_book(60, ["0%", "0.0"]))
-    # The independent reader confirms the source really is a mixture.
-    assert _openpyxl_formats(table) == {"0%": 60, "0.0": 60}
     code, said = _quiet(
         ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace",
          "--smallest-group", _FLOOR_FIVE]
@@ -491,6 +489,9 @@ def test_a_column_wearing_two_codes_of_one_kind_is_refused(
     assert "more than one number format of the same kind" in said
     # NO CODE IS NAMED: a custom code can hold somebody's text.
     assert "0.0" not in said.replace(f"{table}", "")
+    # LAST: the independent reader confirms the source really is a
+    # mixture, which is what makes the refusal above the right one.
+    assert _openpyxl_formats(table) == {"0%": 60, "0.0": 60}
 
 
 @pytest.mark.parametrize("odd", [1, 4])
@@ -597,11 +598,6 @@ def test_iso_date_cells_stay_date_cells(
     )[0] == 0
     twin = tmp_path / "table-twin.xlsx"
     wanted = datetime.date if stored_as_text else datetime.datetime
-    held = _openpyxl_column(twin)
-    assert len(held) == 120
-    for value in held:
-        assert isinstance(value, wanted), value
-        assert not isinstance(value, str)
     again = tmp_path / "again"
     again.mkdir()
     for checked in (table, twin):
@@ -609,6 +605,12 @@ def test_iso_date_cells_stay_date_cells(
             ["validate", f"{described}", "--twin", f"{checked}",
              "--out-dir", f"{again}", "--replace"]
         )[0] == 0, checked
+    # LAST: what the independent reader finds in the twin's cells.
+    held = _openpyxl_column(twin)
+    assert len(held) == 120
+    for value in held:
+        assert isinstance(value, wanted), value
+        assert not isinstance(value, str)
 
 
 # -- item 6, the empty inline string -----------------------------------
@@ -654,7 +656,6 @@ def test_an_empty_inline_string_is_an_empty_string(
     """
     table = tmp_path / "table.xlsx"
     table.write_bytes(_inline_book())
-    assert _openpyxl_column(table).count("") == 60
     assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_FIVE) == 0
     described = tmp_path / "table-profile.json"
     census = _document(described)["source"]["workbook"]["columns"][0][
@@ -667,9 +668,6 @@ def test_an_empty_inline_string_is_an_empty_string(
          "--replace", "--seed", "0"]
     )[0] == 0
     twin = tmp_path / "table-twin.xlsx"
-    held = _openpyxl_column(twin)
-    assert held.count("") == 60, held[:8]
-    assert held.count(None) == 0
     again = tmp_path / "again"
     again.mkdir()
     for checked in (table, twin):
@@ -677,6 +675,12 @@ def test_an_empty_inline_string_is_an_empty_string(
             ["validate", f"{described}", "--twin", f"{checked}",
              "--out-dir", f"{again}", "--replace"]
         )[0] == 0, checked
+    # LAST, both readings the defect was measured by: the source
+    # really holds sixty empty strings, and so does the twin.
+    assert _openpyxl_column(table).count("") == 60
+    held = _openpyxl_column(twin)
+    assert held.count("") == 60, held[:8]
+    assert held.count(None) == 0
 
 
 # -- item 7, a refusal that quotes a record ----------------------------
@@ -804,9 +808,6 @@ def test_a_legal_freeze_below_the_table_loads(
         ]
     table = tmp_path / "table.xlsx"
     table.write_bytes(_book(rows, ["General"], "A1:B121", frozen=200))
-    openpyxl = pytest.importorskip("openpyxl")
-    book = openpyxl.load_workbook(table)
-    assert book[book.sheetnames[0]].freeze_panes == "A201"
     assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_FIVE) == 0
     described = tmp_path / "table-profile.json"
     assert _document(described)["source"]["workbook"]["frozen_rows"] == 200
@@ -821,6 +822,10 @@ def test_a_legal_freeze_below_the_table_loads(
             ["validate", f"{described}", "--twin", f"{checked}",
              "--out-dir", f"{again}", "--replace"]
         )[0] == 0, checked
+    # LAST: the layout is one the independent reader accepts, which is
+    # what made the refusal above a defect rather than a judgement.
+    book = crosscheck.reader().load_workbook(table)
+    assert book[book.sheetnames[0]].freeze_panes == "A201"
 
 
 # -- item 10, a package this reader cannot expand ----------------------
@@ -1331,7 +1336,6 @@ def test_a_withheld_date_census_writes_a_twin_a_reader_opens(
     `sheet_iso_date` from `sheet_date_is_real`, or hand the text back
     unchanged from `sheet_date_on_the_calendar` -- and this fails.
     """
-    openpyxl = pytest.importorskip("openpyxl")
     table = tmp_path / "table.xlsx"
     table.write_bytes(_withheld_date_book())
     assert _profiled(tmp_path, table, "--smallest-group", _FLOOR_ELEVEN) == 0
@@ -1350,7 +1354,7 @@ def test_a_withheld_date_census_writes_a_twin_a_reader_opens(
     ]
     assert unreadable == [], unreadable
     # AN INDEPENDENT READER, asked the question the defect was about.
-    book = openpyxl.load_workbook(twin)
+    book = crosscheck.reader().load_workbook(twin)
     sheet_read = book[book.sheetnames[0]]
     values = [
         row[0].value
