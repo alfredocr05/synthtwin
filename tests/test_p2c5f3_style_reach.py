@@ -46,6 +46,9 @@ does apply to it and records the residue in words.
 
 import pathlib
 import random
+import types
+
+import pytest
 
 import fixtures
 from synthtwin import (
@@ -151,8 +154,22 @@ def _styles(twin: generation.Twin) -> "dict[str, int]":
     return counted
 
 
+_DESCRIBED: "list[tuple[str, dict, contract.Profile]]" = []
+
+
 def _battery(folder: pathlib.Path) -> "list[tuple[str, dict, contract.Profile]]":
-    """Every battery description, built once through the real producer."""
+    """Every battery description, built once through the real producer.
+
+    Kept after the first build, the way the sibling identifier battery
+    is: four cases ask for it and the descriptions are a function of
+    the values alone. Nothing here patches the PRODUCER -- the two
+    mutants in this file replace steps of the generator -- so every
+    caller gets the same descriptions it would have built itself, and
+    `contract.load_profile` has already read the file by the time this
+    returns, so the folder of the first caller is not needed again.
+    """
+    if _DESCRIBED:
+        return _DESCRIBED
     built: list[tuple[str, dict, contract.Profile]] = []
     for maker, tag in ((_mixed, "mixed"), (_crowded, "crowded")):
         for seed in range(FAMILY_SIZE):
@@ -162,7 +179,123 @@ def _battery(folder: pathlib.Path) -> "list[tuple[str, dict, contract.Profile]]"
             if "numeric_styles" not in document["columns"][0]:
                 continue
             built = built + [(f"{tag}-{seed}", document, loaded)]
-    return built
+    _DESCRIBED.extend(built)
+    return _DESCRIBED
+
+
+# Every twin of that battery, generated once. THREE CASES BELOW WALK
+# THE SAME 1,920 RUNS and each of them used to generate all of them for
+# itself. The generation is a pure function of the loaded description
+# and the seed, and `generation.Twin` is a frozen dataclass of tuples,
+# so no case can leave a mark on one for the next.
+#
+# THE MUTANT CASES MUST NOT BE ANSWERED FROM HERE: each replaces a step
+# of the generator and then asks what the twins look like, so a kept
+# twin would hand one of them the shipped generator's answer and the
+# red case would read green. They call `generation.generate` directly,
+# and the assertion below is what holds that -- a kept twin is served
+# only while both shipped steps are the ones installed.
+_TWINS: "dict[tuple[str, int], generation.Twin]" = {}
+# The shipped generator, held at import.
+# WHAT COUNTS AS "THE GENERATOR HAS NOT MOVED". Not the one step
+# today's mutants replace -- every name the generator module holds, and
+# every name held by each synthtwin module the generator names. A case
+# added here later that patches some OTHER part of the generator, or
+# part of `parsing` or `taxonomy` below it, must be refused by the cache
+# exactly as today's mutants are; a guard that knew only today's mutants
+# would hand that case the shipped generator's answer and let it read
+# green while its mutation was live. Roughly 2,300 names are watched,
+# by identity, at a measured cost of 0.07 ms a call.
+_MODULES = [generation] + sorted(
+    (
+        held
+        for held in vars(generation).values()
+        if isinstance(held, types.ModuleType)
+        and getattr(held, "__name__", "").startswith("synthtwin")
+    ),
+    key=lambda held: held.__name__,
+)
+_SHIPPED_SURFACE = [
+    (vars(module), name, vars(module)[name])
+    for module in _MODULES
+    for name in sorted(vars(module))
+    if not name.startswith("__")
+]
+
+
+def _the_generator_that_moved() -> "str | None":
+    """The name of the first watched member that is no longer the shipped one."""
+    for held, name, shipped in _SHIPPED_SURFACE:
+        if name not in held or held[name] is not shipped:
+            return name
+    return None
+
+
+def _twin_of(
+    name: str, loaded: contract.Profile, seed: int
+) -> generation.Twin:
+    """One twin of the battery, generated on first ask and kept."""
+    moved = _the_generator_that_moved()
+    assert moved is None, (
+        f"the generator has been replaced at `{moved}`, so a kept twin "
+        "would be the shipped generator's answer to a mutant's question. "
+        "A case that patches the generator calls generation.generate "
+        "directly."
+    )
+    key = (name, seed)
+    if key not in _TWINS:
+        _TWINS[key] = generation.generate(loaded, seed)
+    return _TWINS[key]
+
+
+def test_a_kept_twin_is_the_twin_the_generator_makes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The cache may hand back only what a fresh run would have built.
+
+    Three cases below read the same 1,920 twins out of `_twin_of`
+    instead of generating them three times over. That is sound because
+    generation is a function of the description and the seed -- and
+    this is that soundness asserted rather than argued, on the first
+    case of the battery.
+    """
+    name, _document, loaded = _battery(tmp_path)[0]
+    for seed in SEEDS:
+        assert _twin_of(name, loaded, seed) == generation.generate(
+            loaded, seed
+        ), (name, seed)
+
+
+def test_a_kept_twin_is_never_served_over_a_replaced_generator(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one way a shared twin could make a red case read green.
+
+    Two mutants in this file replace a step of the generator and then
+    ask what the twins look like. If either reached the cache it would
+    be handed the SHIPPED generator's answer and would go green while
+    the mutation was live, which is the hazard every shared fixture
+    carries. The cache refuses instead, for both steps.
+
+    AND NOT ONLY THE STEP TODAY'S MUTANTS REPLACE. A case added here
+    later may patch some other part of the generator, or part of
+    `parsing` or `taxonomy` below it, and the cache has to refuse that
+    one too -- otherwise the new case reads the shipped generator's
+    twins and goes green with its mutation live. The members named
+    below are stand-ins for every one the old guard could not see.
+    """
+    name, _document, loaded = _battery(tmp_path)[0]
+    for holder, member in (
+        (generation, "_reach_sizes"),
+        (generation, "_style_strata"),
+        (generation, "_allocation"),
+        (parsing, "parse_datetime"),
+        (taxonomy, "_matching_date_format"),
+    ):
+        with monkeypatch.context() as patched:
+            patched.setattr(holder, member, lambda *a, **k: None)
+            with pytest.raises(AssertionError):
+                _twin_of(name, loaded, SEEDS[0])
 
 
 def test_the_battery_is_the_size_this_file_claims(
@@ -203,7 +336,7 @@ def test_every_named_style_count_comes_out_exactly(
             if style != contract.WITHHELD
         }
         for seed in SEEDS:
-            built = generation.generate(loaded, seed)
+            built = _twin_of(name, loaded, seed)
             written = _styles(built)
             for style, count in named.items():
                 if written.get(style, 0) >= count:
@@ -250,7 +383,7 @@ def test_the_map_is_not_bought_with_another_exact_count(
     for name, document, loaded in _battery(tmp_path):
         column = document["columns"][0]
         for seed in SEEDS:
-            twin = generation.generate(loaded, seed)
+            twin = _twin_of(name, loaded, seed)
             present = [cell for cell in twin.columns[0] if cell != ""]
             held = [
                 parsing.parse_number(cell)
@@ -285,7 +418,7 @@ def test_every_measured_bound_still_holds_over_the_battery(
     """
     for name, _document, loaded in _battery(tmp_path):
         for seed in SEEDS:
-            twin = generation.generate(loaded, seed)
+            twin = _twin_of(name, loaded, seed)
             outside = [
                 measured
                 for measured in twin.approximations
