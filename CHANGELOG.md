@@ -489,6 +489,35 @@ dead: a census naming one width word over fewer cells than the column
 holds reaches both. Two new frozen cases reach them, each with a mutant
 that moves its cells.
 
+### Fixed: what the owner asked for on 21 September, and what the second CI run found (2026-09-21)
+
+**A pooled column of numbers beside labels now publishes its MEAN and not its spread** (owner, 2026-09-21). The first attempt at this published both, and that was worse than the defect: on the owner's own shape the published spread was exactly the smallest a pool of ten different whole numbers can have, which forces them to be ten consecutive numbers, and the mean then says which ten. The description gave away the ten values the floor was holding back. Publishing the mean alone is one equation over as many unknowns as the pool has levels.
+
+| | before | after |
+|---|---|---|
+| the twin's numeric mean, where the table's is 187.08 | 100 | 187.08 |
+| the reader's smallest number of surviving arrangements, over 72 shapes | 1 | 1,224 |
+| what the validator checks | the mean and the spread | the mean alone |
+
+Four earlier refusals gave way to one counted rule: the published mean must leave the values room to move, counted exactly — how many sets of the pool's own different numbers, on the grid its values stand on, inside the width the column shows, add up to what the mean and the count say. The bound is a thousand. It catches a shape the old rules never saw: six one-figure numbers beside a published one-figure number passed all four and the mean pinned them to sixteen answers. **The cost, stated:** a pool's spread is no longer verified, so a twin whose pooled numbers are too tightly or too widely spread is no longer caught by that check. The twin's pooled spread runs about 2 out on the owner's shape.
+
+**A twin no longer fails a description its own absorbed mark produced.** Ruling 6 counts a mark worn by five rows into the commonest, which is right; what was wrong is that the description then promised three distinct values the twin could not hold, so the tool called the twin wrong for obeying it. A new rule, G7.9, buys back the distinct count within the floor's own budget. The first attempt overshot — a twin that had been clean came back holding six values where five were published and missing two checks — and the repair lands it exactly: five held, nothing missed, the real file clean throughout. One narrower shape, a census mixing upper and lower `t`, still misses one check where it used to miss three.
+
+**The suite costs less, and CI costs far less.** Nothing was deleted, skipped or weakened: the collected set is identical. Three files stopped rebuilding the same corpus for every case — one battery of three walks went from 129 + 119 + 115 seconds to 131 + 0.06 + 0.06 — and the suite is now split five ways in CI with a job that proves the shards are exactly the collected set, no file twice and none missing. One process: 50 min 47 s for 7,174 tests. Heaviest shard: about 13 minutes, against cells that had been costing 1 h 20 m to 3 h.
+
+**The second CI run was red again, on a layer under the first.** Every one of these is a test that could only pass in the arrangement it was written in:
+
+| what CI saw | the cause |
+|---|---|
+| two failures on every cell, including the ones where nothing else failed | two tests asserted the answer for the machine they ran on rather than testing the rule; on a runner the policy answered before their patched answers were read |
+| `TypeError: read_text() got an unexpected keyword 'newline'` on 3.10, 3.11 and 3.12 | that keyword arrived in 3.13 and the floor is 3.10 |
+| seventeen Windows-only failures | the refusal message legitimately names the file, and a Windows temporary path contains `AppData`, which contains `Data` — the sheet name the test was checking had NOT leaked |
+| about 25 failures in the `minimums` cell | openpyxl is not installed there, and the tests failed instead of skipping |
+
+Each carries a guard against the next one: a reader that scans the tree for standard-library spellings newer than the floor, beside the one that already scans for platform-gated calls, and one named skip for the cross-check reader. That skip lands at the point of use — 59 of the 62 cases run synthtwin's whole half first and skip only the second reader, so a regression still turns them red where openpyxl is absent.
+
+**And the oracle was caught copying the code it checks, twice.** `K-2B-42` allows no more than 176 of its functions to score 0.60 or above against their closest shipped function. A landing added one at 0.67 — same name, same shape — and the bound was not moved: the function was rewritten from the method's statement of its rule, which had to be COMPLETED first, because three of its clauses existed only in the shipped code and one frozen case. Its skeptic then found those newly written clauses were witnessed by nothing, and added seven mutants that are now red.
+
 ### Fixed: the first CI run of stages 1, 2 and 2b, and the three defects it found (2026-09-20)
 
 **Every static check passed and every test cell failed** — lint, types,

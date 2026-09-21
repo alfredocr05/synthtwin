@@ -48,10 +48,10 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 7,087 collected, and **54 min 42 s** on the reference machine in one process: 7,037 passed, 49 skipped. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 150 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 133 green, 13 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| suite | 7,174 collected, and **50 min 47 s** on the reference machine in one process: 7,124 passed, 49 skipped. In CI it runs as **five shards**, the heaviest about 13 minutes. Re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 151 KPIs over phases 0-4 and stages 1, 2 and 2b, 29 of them headlines; 136 green, 11 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** The test cells cost 1 h 20 m to 3 h and the `minimums` cell ended at 3 h 00 m 06 s; the workflow declares no `timeout-minutes`, so why it ended there is not known from this repository. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
@@ -146,14 +146,15 @@ cannot get worse unseen.
   sign band given more slots than it has numbers. The known-miss entry
   of the ledger names them.
 - **The largest tables** are measured only to 100,000 rows. Landing 4.
-- **A pooled population of numbers beside labels loses its scale.** On
-  100 `alpha` beside 120 numbers the mean and spread come back 100 and
-  3.03 against 187.08 and 39.03, and BOTH files validate clean, so no
-  miss count sees it (`K-2B-50`). With the owner.
-- **A timestamp column whose absorbed mark leaves a description no file
-  satisfies.** Its twin re-describes as `binary` and misses three checks
-  while the real file misses none (`K-2B-51`). The absorption is ruling
-  6 and is not reopened. With the owner.
+- **A held-back rare value is rebuilt by the twin slightly more often
+  than the owner accepted**: 63 of 251 cells against the 55 accepted on
+  2026-09-18, moved by the mean-only landing (`K-2B-19`). Held at 63.
+  **Waiting on the owner.**
+- **A pool's spread is no longer verified.** The owner chose on
+  2026-09-21 to publish a pooled column's mean and not its spread,
+  because publishing both solved for the held-back values. The twin's
+  pooled mean is now exact and its spread is unchecked, about 2 out
+  (`K-2B-50`, green on the mean). Stated, not hidden.
 
 ## The rules an assistant breaks first here
 
