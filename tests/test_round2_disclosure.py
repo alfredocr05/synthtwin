@@ -42,6 +42,7 @@ import sys
 
 import pytest
 
+import fixtures
 from synthtwin import parsing, reading
 from tests import workbooks
 
@@ -1561,19 +1562,72 @@ def _headed_export(header: str, absent: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-@pytest.mark.parametrize(
-    "header",
-    [
-        "site,2024 total",
-        "site,1st reading",
-        "site,100m time",
-        "site,3-month change",
-        "site,>65 count",
-        "site,5 mg dose",
-        "site,2-4 week",
-    ],
+# The headers and the stand-ins for an absent reading, named once so
+# that the parametrize lists below and
+# `test_the_folder_each_case_asks_for_is_a_name_windows_can_make`
+# cannot drift apart.
+_HEADED_EXPORTS = (
+    "site,2024 total",
+    "site,1st reading",
+    "site,100m time",
+    "site,3-month change",
+    "site,>65 count",
+    "site,5 mg dose",
+    "site,2-4 week",
 )
-@pytest.mark.parametrize("absent", ["NA", "<10", "437"])
+_ABSENT_READINGS = ("NA", "<10", "437")
+
+
+def _working_folder(tmp_path: pathlib.Path, header: str, absent: str, floor: int) -> pathlib.Path:
+    """The folder one case of the headed-export test works in.
+
+    THE VALUE A TEST WAS GIVEN IS NOT A NAME A TEST MAY USE. This used
+    to be `f"headed{len(header)}{absent}{len(floor)}"`, and `absent` is
+    one of `_ABSENT_READINGS` -- including `<10`, which is the whole
+    reason the smallest-group floor exists. That asked for a folder
+    called `headed15<100`: POSIX makes it, Windows answers `OSError:
+    [WinError 123] The filename, directory name, or volume label syntax
+    is incorrect`, and fourteen of this test's forty-two cases went red
+    on every Windows cell of the matrix and on no other cell. The value
+    goes through `fixtures.as_a_folder_name` now, which leaves `-10`, so
+    a failing case still says which one it was.
+    """
+    name = f"headed{len(header)}{fixtures.as_a_folder_name(absent)}{floor}"
+    assert not fixtures.unusable_as_a_folder_name(name), (
+        fixtures.unusable_as_a_folder_name(name)
+        + " -- this test's own working folder cannot be made on every platform "
+        "CI governs, so the cells that cannot make it fail before the test "
+        "proves anything"
+    )
+    return tmp_path / name
+
+
+def test_the_folder_each_case_asks_for_is_a_name_windows_can_make() -> None:
+    """The RED CHECK for the folder name, on a machine that is not Windows.
+
+    Every case of the test below, asked for by name here, so that a
+    parameter added with a colon or a question mark in it fails on the
+    machine that added it rather than five cells away. The first
+    assertion is the defect itself, in the exact spelling the run that
+    found it printed.
+    """
+    assert fixtures.unusable_as_a_folder_name("headed15<100")
+    assert not fixtures.unusable_as_a_folder_name("headed15-100")
+    for header in _HEADED_EXPORTS:
+        for absent in _ABSENT_READINGS:
+            for floor in (0, 2):
+                name = f"headed{len(header)}{fixtures.as_a_folder_name(absent)}{floor}"
+                assert not fixtures.unusable_as_a_folder_name(name), name
+                # And the stand-in still reads as the value it came from,
+                # so a failing case says which one it was. Two headers of
+                # the same length share a folder name, which costs
+                # nothing: `tmp_path` is already a folder of this case's
+                # own, and the name sits inside it.
+                assert fixtures.as_a_folder_name(absent) in name
+
+
+@pytest.mark.parametrize("header", list(_HEADED_EXPORTS))
+@pytest.mark.parametrize("absent", list(_ABSENT_READINGS))
 @pytest.mark.parametrize("floor", [[], ["--smallest-group", _FLOOR_ELEVEN]])
 def test_a_headed_export_keeps_the_names_its_file_wrote(
     tmp_path: pathlib.Path, header: str, absent: str, floor: "list[str]"
@@ -1591,7 +1645,7 @@ def test_a_headed_export_keeps_the_names_its_file_wrote(
     not run unchanged on the real table, and the twin must hold 320
     records, or counts taken on it are wrong.
     """
-    folder = tmp_path / f"headed{len(header)}{absent}{len(floor)}"
+    folder = _working_folder(tmp_path, header, absent, len(floor))
     folder.mkdir(parents=True)
     table = folder / "table.csv"
     table.write_text(

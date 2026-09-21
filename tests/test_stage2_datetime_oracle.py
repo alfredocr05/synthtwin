@@ -350,17 +350,68 @@ def test_the_census_repair_takes_a_repeated_spelling_and_stays_linear() -> None:
         )
 
 
+# A reference machine that is nobody's, so that the four cases below
+# are decided by the POLICY and not by the hardware this runs on. It
+# mirrors `MADE_UP_LEDGER` in `tests/test_kpi_ledger_integrity.py`,
+# which holds the policy's own four cases; this file holds the one
+# place in the suite where a clock hangs on it.
+MADE_UP_LEDGER = {
+    "reference_machine": {
+        "name": "a made-up machine, 4 cores",
+        "platform_machine": "madeup64",
+        "cores": 4,
+        "quiet_load_average_below": 3.0,
+    }
+}
+
+
+def _standing_on(
+    monkeypatch: "pytest.MonkeyPatch",
+    kpi_rules: object,
+    *,
+    runner: bool,
+    architecture: str,
+    cores: int,
+    load: float,
+) -> None:
+    """Make this process look like the machine described, and judge against MADE_UP_LEDGER."""
+    for name in kpi_rules.CI_ENVIRONMENT:  # type: ignore[attr-defined]
+        monkeypatch.delenv(name, raising=False)
+    if runner:
+        monkeypatch.setenv(kpi_rules.CI_ENVIRONMENT[0], "true")  # type: ignore[attr-defined]
+    monkeypatch.setattr(kpi_rules.platform, "machine", lambda: architecture)  # type: ignore[attr-defined]
+    monkeypatch.setattr(kpi_rules.os, "cpu_count", lambda: cores)  # type: ignore[attr-defined]
+    monkeypatch.setattr(kpi_rules, "load_average", lambda: load)
+    monkeypatch.setattr(kpi_rules, "load_ledger", lambda: MADE_UP_LEDGER)
+
+
 def test_the_linear_repairs_budget_follows_the_reference_machine_policy(
     monkeypatch: "pytest.MonkeyPatch",
 ) -> None:
-    """Round-2 ledger item 7, as a check: the 11 s clock, twice.
+    """Round-2 ledger item 7, as a check: the 11 s clock on four made-up machines.
 
-    On a machine whose seconds the ledger does not judge -- here the
-    reference machine under a load average of 18 -- an unchanged repair
-    that the clock says took 11.32 s is REPORTED. On the quiet reference
-    machine the same clock still fails, because that is where the budget
-    is a measurement. Withdrawing the guard makes the first half red:
-    that is the reproduction, and it is how this test goes red again.
+    An unchanged repair that the clock says took 11.32 s is a FAILURE
+    where the ledger judges seconds and a REPORT everywhere else. Where
+    that is depends on the machine, so the machine is constructed:
+    `MADE_UP_LEDGER` above names an architecture no vendor ships, and
+    each case below makes this process look like one machine and asserts
+    what the budget does there. The answers are then the same on every
+    cell of the matrix.
+
+    WHY IT IS FOUR CASES AND NOT TWO. The first version of this test
+    made the process look like the reference machine by patching
+    `on_reference_machine` alone, and left the CI environment untouched
+    -- so on a runner `seconds_judged_here` refused on the runner rule
+    before it ever reached the load average, the second half did not
+    raise, and the test failed on all eleven cells with
+    `DID NOT RAISE`. A runner is one of the four machines the policy has
+    an answer for, and it is the one this suite spends most of its life
+    on, so it is one of the cases.
+
+    THE REPRODUCTION IS STILL HERE. Withdrawing the guard from
+    `test_the_census_repair_takes_a_repeated_spelling_and_stays_linear`
+    -- asserting the 10 s budget unconditionally again -- makes the
+    three reporting cases below red, which is how this test goes red.
     """
     import time
 
@@ -374,14 +425,30 @@ def test_the_linear_repairs_budget_follows_the_reference_machine_policy(
         return real() + (11.0 if counted["n"] % 2 == 0 else 0.0)
 
     monkeypatch.setattr(time, "perf_counter", eleven_seconds)
-    monkeypatch.setattr(kpi_rules, "on_reference_machine", lambda ledger: True)
-    monkeypatch.setattr(kpi_rules, "load_average", lambda: 18.0)
-    test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
 
-    counted["n"] = 0
-    monkeypatch.setattr(kpi_rules, "load_average", lambda: 0.5)
-    with pytest.raises(AssertionError):
-        test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
+    # (what the machine is, and whether the budget is a measurement there)
+    machines = (
+        ("the quiet reference machine", False, "madeup64", 4, 0.5, True),
+        ("the reference machine, loaded", False, "madeup64", 4, 18.0, False),
+        ("a runner reporting the reference machine's own shape", True, "madeup64", 4, 0.5, False),
+        ("some other machine, off CI and quiet", False, "other32", 2, 0.5, False),
+    )
+    for what, runner, architecture, cores, load, judged_here in machines:
+        _standing_on(
+            monkeypatch,
+            kpi_rules,
+            runner=runner,
+            architecture=architecture,
+            cores=cores,
+            load=load,
+        )
+        assert kpi_rules.seconds_judged_here(MADE_UP_LEDGER)[0] is judged_here, what
+        counted["n"] = 0
+        if judged_here:
+            with pytest.raises(AssertionError):
+                test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
+        else:
+            test_the_census_repair_takes_a_repeated_spelling_and_stays_linear()
 
 
 def test_the_census_repair_never_folds_two_values_into_one() -> None:
