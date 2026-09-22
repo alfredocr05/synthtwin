@@ -225,7 +225,10 @@ def test_a_hexadecimal_column_is_one_convention_whatever_one_cell_s_case(
     """
     cells = one_capital_uuid_cells(source_seed)
     layout = "~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~"
-    for floor in (None, 11):
+    # BOTH FLOORS, NAMED (the repair pass of landing 3.1): this read
+    # `(None, 11)` when None meant a floor of one, and ran eleven twice
+    # once the default became 11 (plan P4-D316).
+    for floor in (1, None):
         got = _round_trip(
             tmp_path / f"uuid-{source_seed}-{floor}", cells, floor=floor
         )
@@ -278,7 +281,7 @@ def _describe(values: "list[str]", floor: int) -> dict:
         folder, "thing.csv", fixtures.rows_to_csv(["value", "other"], rows)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         ["value"],
     )

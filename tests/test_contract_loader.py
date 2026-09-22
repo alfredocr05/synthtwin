@@ -121,7 +121,7 @@ def base(tmp_path_factory: pytest.TempPathFactory) -> Document:
     """
     folder = tmp_path_factory.mktemp("contract")
     path = fixtures.write(folder, "table.csv", table_text())
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(
         table,
         taxonomy.Settings(small_cell_floor=11),
@@ -2840,7 +2840,7 @@ def at_a_floor_of_one(tmp_path_factory: pytest.TempPathFactory) -> Document:
     """
     folder = tmp_path_factory.mktemp("midnight-floor-one")
     path = fixtures.write(folder, "stamps.csv", _stamps_partly_at_midnight())
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=1)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=1), [], [], []
     )

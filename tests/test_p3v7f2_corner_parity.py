@@ -929,7 +929,7 @@ def _describe(
         f"{entry.stem}.csv",
         fixtures.single_column_table(NAME, list(entry.values)),
     )
-    read = reading.read_table(str(table))
+    read = reading.read_table(str(table), small_cell_floor=entry.floor)
     document = profile.build_document(
         read,
         taxonomy.Settings(

@@ -83,7 +83,7 @@ def test_every_role_twin_columns_read_with_the_real_dtypes(
         tmp_path, "t.csv", fixtures.every_role_and_joined_table()
     )
     document = profile.build_document(
-        reading.read_table(str(table)),
+        reading.read_table(str(table), small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         ["record_code"],
         [],
@@ -852,7 +852,7 @@ def test_the_report_s_window_counts_no_stand_in_as_a_spelling(
         tmp_path, "t.csv", fixtures.every_role_and_joined_table()
     )
     document = profile.build_document(
-        reading.read_table(str(table)),
+        reading.read_table(str(table), small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         ["record_code"],
         [],
@@ -891,7 +891,7 @@ def test_the_report_s_count_line_counts_cells_with_no_value(
         tmp_path, "t.csv", fixtures.every_role_and_joined_table()
     )
     document = profile.build_document(
-        reading.read_table(str(table)),
+        reading.read_table(str(table), small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         ["record_code"],
         [],

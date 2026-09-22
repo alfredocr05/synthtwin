@@ -689,7 +689,7 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     # became one (owner ruling, plan amendment A-P4-37), at which
     # nothing is held back at all (contract C5-S13).
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
@@ -871,7 +871,7 @@ def test_a_pool_bigger_than_the_forms_left_to_hold_it_is_refused() -> None:
     # C5-S13 before P6 is ever reached -- so the case would be answered
     # by the wrong rule and would stay green with P6 deleted.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
@@ -2497,7 +2497,7 @@ def test_a_wrapper_too_rare_to_publish_leaves_stragglers(
         tmp_path, "rare.csv", fixtures.single_column_table("v", rows)
     )
     document = profile.build_document(
-        reading.read_table(f"{path}"),
+        reading.read_table(f"{path}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )

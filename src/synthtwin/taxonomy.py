@@ -5339,7 +5339,7 @@ def _absorb_lone_spellings(
     same line `_variants` names a spelling at, and the second mapping is
     empty on every level of every raised-floor description.
 
-    AT THE DEFAULT FLOOR NOTHING MOVES. A floor of one holds no spelling
+    AT A FLOOR OF ONE NOTHING MOVES. A floor of one holds no spelling
     back, so every spelling is named and there is nothing to count in:
     a label written fifty different ways at that floor still publishes
     all fifty. Only a raised floor reaches this at all.

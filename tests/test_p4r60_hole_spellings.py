@@ -42,7 +42,8 @@ def _run(folder: pathlib.Path, text: str, stem: str):
     """One table through the real producer, loader, generator and check."""
     path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=FLOOR,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=FLOOR), []

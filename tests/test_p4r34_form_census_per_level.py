@@ -140,7 +140,7 @@ def _column(
         folder, "codes.csv", fixtures.rows_to_csv(["code", "other"], rows_out)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
@@ -365,7 +365,7 @@ def test_the_room_rule_reads_the_distinct_count_the_column_publishes(
         fixtures.rows_to_csv(["code", "other"], [[v, "x"] for v in values]),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
@@ -665,7 +665,7 @@ def test_the_loader_refuses_a_form_count_on_a_label_with_no_form() -> None:
         ),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
@@ -693,7 +693,7 @@ def test_the_key_is_written_by_every_label_role() -> None:
         folder, "roles.csv", fixtures.every_role_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )

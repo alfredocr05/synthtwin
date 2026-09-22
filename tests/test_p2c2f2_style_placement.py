@@ -59,7 +59,7 @@ def _described(
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=SMALL_CELL_FLOOR)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
     )

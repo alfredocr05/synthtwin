@@ -756,7 +756,7 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
         "windows.csv",
         fixtures.rows_to_csv(["c"], [[value] for value in values]),
     )
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), []
     )

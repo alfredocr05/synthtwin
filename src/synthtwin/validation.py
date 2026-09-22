@@ -11260,7 +11260,7 @@ def _mixture_check(
     measured: "dict[str, int] | None",
     order: "tuple[str, ...]",
     population: int,
-    floor: int = 1,
+    floor: int,
     numeric: int = 0,
 ) -> Check:
     """One census of mixed conventions, held as a whole (landing 2b.7).

@@ -244,7 +244,7 @@ def test_a_file_that_keeps_two_of_twelve_published_exponents_is_missed(
         fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(small_cell_floor=11), []
+        reading.read_table(f"{table}", small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
     )
     written = fixtures.write_profile(tmp_path, "real-profile.json", document)
     loaded = contract.load_profile(f"{written}")
@@ -282,7 +282,7 @@ def _document(tmp_path: pathlib.Path, floor: int, cells: "list[str]") -> "dict[s
         fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(small_cell_floor=floor), []
+        reading.read_table(f"{table}", small_cell_floor=floor), taxonomy.Settings(small_cell_floor=floor), []
     )
     assert isinstance(document, dict)
     return document

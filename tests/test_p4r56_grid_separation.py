@@ -724,7 +724,8 @@ def test_a_pooled_width_census_is_not_read_as_a_width(
             rows.append(("%." + str(width) + "f") % (10 + step + width / 100.0))
     path = fixtures.write(tmp_path, "pooled.csv", "v\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=11,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), []

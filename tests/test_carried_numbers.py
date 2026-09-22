@@ -244,7 +244,7 @@ def test_a_compound_column_counts_the_spellings_its_halves_speak_of(
         fixtures.rows_to_csv(["c"], [[value] for value in values]),
     )
     document = profile.build_document(
-        reading.read_table(str(path)),
+        reading.read_table(str(path), small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )

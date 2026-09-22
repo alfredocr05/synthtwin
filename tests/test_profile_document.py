@@ -566,7 +566,8 @@ def test_a_label_below_the_floor_never_appears(tmp_path: pathlib.Path) -> None:
 
 def test_raising_the_floor_withholds_more(tmp_path: pathlib.Path) -> None:
     table = reading.read_table(
-        str(fixtures.write(tmp_path, "t.csv", fixtures.every_role_table()))
+        str(fixtures.write(tmp_path, "t.csv", fixtures.every_role_table())),
+        small_cell_floor=1000,
     )
     strict = taxonomy.Settings(small_cell_floor=1000)
     text = profile.serialize(profile.build_document(table, strict, []))

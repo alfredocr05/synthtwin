@@ -53,7 +53,11 @@ def _matching(values: "list[str]", pattern: str) -> int:
 # ------------------------------------------------------- the ruling's case
 
 
-@pytest.mark.parametrize("floor", [None, 11])
+# BOTH FLOORS, NAMED (the repair pass of landing 3.1): this read
+# `[None, 11]` when None meant a floor of one, and ran eleven twice once
+# the default became 11 (plan P4-D316). One is asked for by name; None
+# is the shipped default.
+@pytest.mark.parametrize("floor", [1, None])
 def test_a_hexadecimal_column_publishes_and_writes_its_prefix(
     floor: "int | None", tmp_path: pathlib.Path
 ) -> None:

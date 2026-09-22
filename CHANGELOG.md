@@ -6,6 +6,39 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
+
+**A description `profile` wrote could be refused by `generate` and
+`validate` as "changed since it was written".** It happened where a
+record was followed by a line holding only spaces and then an empty
+line. The default floor of 11 writes a rare kind of blank line as the
+common kind, and that left two identical blank-line entries after the
+same record, which the reader of descriptions refuses. The two are now
+one entry, as a file written that way reads, and the same order rule is
+checked before a description is written as when it is read (plan
+P4-D319).
+
+| blank-line-heavy test files                           | before     | after   |
+|-------------------------------------------------------|------------|---------|
+| refused by their own reader, 40 seeded files          | 27         | 0       |
+| a record followed by spaces, then an empty line: `profile` / `generate` / `validate` exit codes | 0 / 1 / 1 | 0 / 0 / 0 |
+
+**What the default of 11 costs elsewhere, now held by name** (plan
+P4-D320). The joined-number battery misses 4 above-counts at the
+default against 3 at a floor of one, because the default publishes less
+about each position; the ledger's ceiling moves to 4 in its own commit
+and stays with stage 6. A declared record-number column of 49 rows still
+fails its own check at the default, and one column of the fold-repair
+battery still takes minutes to generate; both are pinned so a repair
+shows. Two carried misses -- a heavy-tailed column's average and one
+record-number layout -- disappear at the default only because it
+withholds more, so they are measured at a floor of one as well.
+
+**Every test and tool that names a floor now reads the table at that
+floor** (plan P4-D321), and a check keeps it so. The `--code` help no
+longer promises every code's count, since the default pools the rare
+ones.
+
 ### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
 
 **A description made without `--smallest-group` no longer names a group

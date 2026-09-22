@@ -739,7 +739,8 @@ def _describe(
         folder, f"{name}.csv", fixtures.single_column_table(name, values)
     )
     table = reading.read_table(
-        str(target), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(target), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=SMALL_CELL_FLOOR,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []

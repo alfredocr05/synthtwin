@@ -250,7 +250,8 @@ def _described(
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(folder, name, text)
     read = reading.read_table(
-        f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC
+        f"{table}", first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=_SMALL_CELL_FLOOR,
     )
     document = profile.build_document(
         read, taxonomy.Settings(small_cell_floor=_SMALL_CELL_FLOOR), []

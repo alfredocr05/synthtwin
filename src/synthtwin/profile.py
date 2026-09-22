@@ -708,8 +708,8 @@ _ZERO_OR_AT_THE_FLOOR = "count-zero-or-at-the-floor"
 # which is the whole design: a refusal a reader could tell from nought
 # would name the count the floor exists to withhold. It is NOT
 # `_ZERO_OR_AT_THE_FLOOR`, whose line is the settings floor and is one
-# at the shipped default, and a pooled aggregate over one cell IS that
-# cell.
+# wherever a person asks for a floor of one, and a pooled aggregate over
+# one cell IS that cell.
 _POOLED_SCALE_COUNT = "count-of-a-pooled-aggregate-or-nought"
 # A count whose GROUP AND ITS COMPLEMENT are both at the floor, or
 # nothing at all -- written `null`, never nought (landing 2b.6).
@@ -2817,9 +2817,9 @@ def _published_form(
     # publishes their kind, their count and their mark, so there is
     # nothing left here for a floor to hold back and no floor at which
     # anything more is published. The branch this replaced returned the
-    # form untouched at a floor of one -- the default -- which is how a
-    # title line naming a person reached the description whole (review
-    # item CODEX-3).
+    # form untouched at a floor of one -- the default then, before plan
+    # P4-D316 made it 11 -- which is how a title line naming a person
+    # reached the description whole (review item CODEX-3).
     return form
 
 

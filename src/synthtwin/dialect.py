@@ -2041,18 +2041,65 @@ def blank_places_disclosed(
     either direction, and `endings_disclosed` takes it off the count it
     publishes so invariant FD2 still holds.
 
+    AND A PLACE WRITTEN IN THE FORM OF THE PLACE BEFORE IT IS ONE PLACE
+    WITH IT (plan P4-D319, the repair pass of landing 3.1). Places are
+    read as runs of blank lines of ONE text, so two places after the same
+    record always hold different texts, and invariant FD4 refuses two
+    that do not. The absorption above could write two: a header and 30
+    records, each followed by one blank line, except that record 17 is
+    followed by a line of three spaces and then a blank line, published
+    `{after: 17, lines: 1, text: ""}` TWICE at the default floor of 11 --
+    the spaced line written as the commonest form beside the blank line
+    that followed it. `profile` wrote the description and `generate` and
+    `validate` refused it as a file changed since it was written; over
+    400 fuzzed files heavy in blank lines, 112 were refused so at the
+    default. So a place the absorption writes in the text of the place
+    before it at the same record is MERGED into that place, its lines
+    added to that place's, exactly as the file written that way would be
+    read -- and the rule is asked again of what that leaves, because the
+    merged place wears a form of its own and there are fewer places,
+    until it moves nothing. Every pass that moves something either
+    merges two places or removes a form, so the walk ends. A list of
+    places the first pass leaves unmerged is published exactly as the
+    rule before this paragraph published it.
+
     Guarantees: accepts the places in file order and the settings floor;
     returns those places at a floor of one, none at all where they
     number fewer than the line, and otherwise those places with every
     form worn by fewer places than the line written as the commonest
-    form. Determinism: a fixed function of the two. Raises nothing. No
-    I/O of any kind.
+    form, places then standing at one record in one text merged, until
+    the rule moves nothing -- so what it returns it returns unchanged
+    when asked again, and no two places it returns break
+    `blank_place_follows`. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
     """
     if floor <= 1:
         return list(places)
     line = parsing.census_floor(floor)
-    if len(places) < line:
-        return []
+    told = list(places)
+    while True:
+        if len(told) < line:
+            return []
+        absorbed = _blank_forms_absorbed(told, line)
+        if absorbed == told:
+            return told
+        told = absorbed
+
+
+def _blank_forms_absorbed(
+    places: "list[BlankPlace]", line: int
+) -> "list[BlankPlace]":
+    """One pass of `blank_places_disclosed`: absorb the rare forms, then merge.
+
+    Every place wearing a form fewer places than ``line`` wear is
+    written in the commonest form, the earliest in the file on a tie;
+    then a place standing at the record of the place before it, in that
+    place's text, is merged into it with its lines added (plan P4-D319).
+
+    Guarantees: accepts at least one place in file order and the census
+    line; returns places in file order. Determinism: a fixed function of
+    the two. Raises nothing. No I/O of any kind.
+    """
     worn: "dict[tuple[int, str], int]" = {}
     order: "list[tuple[int, str]]" = []
     for place in places:
@@ -2068,17 +2115,48 @@ def blank_places_disclosed(
     told: "list[BlankPlace]" = []
     for place in places:
         form = (place.lines, place.text)
-        if worn[form] >= line:
-            told += [place]
-        else:
-            told += [
-                BlankPlace(
-                    after=place.after,
-                    lines=commonest[0],
-                    text=commonest[1],
-                )
-            ]
+        written = place
+        if worn[form] < line:
+            written = BlankPlace(
+                after=place.after, lines=commonest[0], text=commonest[1]
+            )
+        last = len(told) - 1
+        if (
+            last >= 0
+            and told[last].after == written.after
+            and told[last].text == written.text
+        ):
+            told[last] = BlankPlace(
+                after=written.after,
+                lines=told[last].lines + written.lines,
+                text=written.text,
+            )
+            continue
+        told += [written]
     return told
+
+
+def blank_place_follows(before: BlankPlace, place: BlankPlace) -> bool:
+    """Whether one blank place may stand next after another in a file's form.
+
+    THE ONE ORDER QUESTION, asked by the producer, the loader and the
+    publication guard alike (plan P4-D319). A file's blank places are
+    read in file order as runs of blank lines of one text, so a place
+    stands after no fewer records than the place before it, and a place
+    after the SAME number of records holds a different text -- two runs
+    of one text at one record are one run. Invariant FD4 refused a
+    description breaking this in the loader's own words while the
+    producer and the guard asked something weaker, and at a raised
+    floor the producer published two places of one text after record 17
+    and the loader refused its own file.
+
+    Guarantees: accepts two places; returns True where ``place`` may
+    follow ``before``. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if place.after != before.after:
+        return place.after > before.after
+    return place.text != before.text
 
 
 def blank_lines_withheld(places: "list[BlankPlace]", floor: int) -> int:
@@ -2174,12 +2252,26 @@ def blank_places_broken(places: "list[BlankPlace]", floor: int) -> str:
     places are published only where there are at least as many as the
     census line, `parsing.census_floor`, and every form is worn by that
     many places. Returns an empty string for places the rule leaves as
-    they stand, which at a floor of one is every list of places.
+    they stand, which at a floor of one is every list of places in file
+    order.
+
+    AND THE PLACES STAND IN FILE ORDER, asked first and at every floor
+    (plan P4-D319): each place follows the one before it by
+    `blank_place_follows`, the question the loader's own FD4 clause
+    asks. The publication guard reaches the loader's rule only through
+    this function, so where this asked less than the loader, `profile`
+    could write a description the loader then refused.
 
     Guarantees: accepts the published places in file order and the
     settings floor; returns text. Determinism: a fixed function of the
     two. Raises nothing. No I/O of any kind.
     """
+    for index in range(1, len(places)):
+        if not blank_place_follows(places[index - 1], places[index]):
+            return (
+                f"a blank place after {places[index].after} records does "
+                f"not follow the one before it in file order"
+            )
     if blank_places_disclosed(list(places), floor) == list(places):
         return ""
     line = parsing.census_floor(floor)

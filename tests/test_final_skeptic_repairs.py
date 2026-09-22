@@ -51,7 +51,7 @@ def _described(
     size = len(columns[names[0]])
     rows = [[columns[name][index] for name in names] for index in range(size)]
     path = fixtures.write(folder, "t.csv", fixtures.rows_to_csv(names, rows))
-    table = reading.read_table(str(path), first_row=reading.FIRST_ROW_AUTOMATIC)
+    table = reading.read_table(str(path), first_row=reading.FIRST_ROW_AUTOMATIC, small_cell_floor=floor)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), [], codes
     )

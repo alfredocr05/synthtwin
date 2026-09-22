@@ -61,7 +61,7 @@ def _described(
     # (contract C5-S13) -- so a case about pooling has to say the floor
     # it means. Eleven is the floor these cases were written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
@@ -1802,7 +1802,7 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
         declared_missing_values=("group-1",), small_cell_floor=11
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), settings, []
+        reading.read_table(f"{table}", small_cell_floor=11), settings, []
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     described = contract.load_profile(f"{written}")

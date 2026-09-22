@@ -908,7 +908,7 @@ def test_a_number_keeps_its_own_length_where_no_shape_packs_the_counts(
     assert isinstance(facts, contract.TextFacts)
     groups = generation._groups_of(facts.n_distinct_by_occurrences)
     lengths, _counts, kinds, _bands, carriers, _notes = generation._text_plan(
-        column, facts, groups
+        column, facts, groups, floor=profile.settings.small_cell_floor
     )
     numbered = [
         lengths[place] for place in range(len(groups))

@@ -72,7 +72,7 @@ def _document(values: "list[str]", floor: int) -> dict:
         folder, "thing.csv", fixtures.rows_to_csv(["value", "other"], rows)
     )
     return profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )

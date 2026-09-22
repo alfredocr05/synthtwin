@@ -404,7 +404,7 @@ def test_k_p4_20(record_property) -> None:
 
 
 def test_k_p4_22(record_property, every_role: "dict", every_role_twins: "dict") -> None:
-    """Clause 3 at the SHIPPED floor: published values held by one row, and the twin writing them."""
+    """Clause 3 at a floor of 1 and at 11: published values held by one row, and the twin writing them."""
     value = {}
     for floor in (1, 11):
         described = every_role[floor]

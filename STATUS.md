@@ -123,8 +123,9 @@ Useful options:
 - `--missing-value -999` — "in my table, `-999` means missing"
 - `--keep-value -999` — "no, `-999` is real data here"
 - `--code procedure_code` — "this column is a coding system": every code
-  is kept exactly as written, with how many rows carried it, and no
-  average is published over it
+  that at least the smallest group of rows share is kept exactly as
+  written, with how many rows carried it; rarer codes are counted
+  together, and no average is published over it
 - `--identifier record_id` — "this column is a record number": nothing
   of it is published at all
 - `--answers my-table-questions.json` — the questions file from an

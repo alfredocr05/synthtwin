@@ -388,7 +388,7 @@ def _describe(
 ) -> contract.ColumnBlock:
     path = fixtures.write(folder, f"{name}.csv", "value\n" + "\n".join(cells) + "\n")
     document = profile.build_document(
-        reading.read_table(str(path), first_row=reading.FIRST_ROW_AUTOMATIC),
+        reading.read_table(str(path), first_row=reading.FIRST_ROW_AUTOMATIC, small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
         forced_measurements=forced or [],

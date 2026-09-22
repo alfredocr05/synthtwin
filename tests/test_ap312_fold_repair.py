@@ -388,6 +388,77 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
 
+# -- a known limit at the default floor (plan P4-D320) -----------------
+
+
+class _PastTheBound(Exception):
+    """Raised by the counting stand-in once a column has used its passes."""
+
+
+# HOW MANY WHOLE LAYOUTS ONE COLUMN IS ALLOWED HERE before this pin calls
+# it the known limit: case 112 lays itself out 8 times at a floor of one.
+_PASSES = 32
+
+
+def test_case_112_is_still_the_known_limit_at_the_default(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """KNOWN LIMIT, HELD STRICTLY (plan P4-D320): case 112 at the default floor.
+
+    Battery case 112 is 65 cells of eight spellings, among them `$LWVKEF`
+    and `$lwvkef`, `219E999` and `219e999`, and `84E999` with and without
+    a trailing space. At a floor of one its twin is laid out 8 times --
+    `generation._laid_identifiers` called 8 times -- and generates in
+    about half a second. At the default of 11 its class counts and one
+    layout are pooled, the fold repair of G9.3 finds no layout it can
+    accept, and it lays the column out 4,516 times, reading 47,349,727
+    layout fillings: 269 s on the reference machine (446 s under a
+    profiler), found by landing 3.1's builder and not repaired there.
+
+    This pin counts the passes and stops the walk at `_PASSES`, so it
+    costs seconds, not minutes: at a floor of one the twin is built
+    inside the bound, and at the default the bound is passed. A repair
+    that brings the default inside the bound turns this red, and the
+    limit is then struck from the plan with it.
+    """
+    values = _a_column(112)
+    for floor, inside in ((1, True), (None, False)):
+        folder = tmp_path / f"floor-{floor}"
+        folder.mkdir()
+        lines = ["key"] + ['"' + value.replace('"', '""') + '"' for value in values]
+        path = fixtures.write(folder, "c.csv", "\n".join(lines) + "\n")
+        settings = (
+            taxonomy.Settings()
+            if floor is None
+            else taxonomy.Settings(small_cell_floor=floor)
+        )
+        table = reading.read_table(
+            str(path), small_cell_floor=settings.small_cell_floor
+        )
+        document = profile.build_document(table, settings, ["key"])
+        loaded = contract.load_profile(
+            str(fixtures.write_profile(folder, "c-profile.json", document))
+        )
+        assert loaded.columns[0].role == "identifier"
+        passes = [0]
+        laid = generation._laid_identifiers
+
+        def counted(*given: object, **named: object) -> object:
+            passes[0] = passes[0] + 1
+            if passes[0] > _PASSES:
+                raise _PastTheBound()
+            return laid(*given, **named)
+
+        monkeypatch.setattr(generation, "_laid_identifiers", counted)
+        try:
+            generation.generate(loaded, 0)
+            finished = True
+        except _PastTheBound:
+            finished = False
+        monkeypatch.setattr(generation, "_laid_identifiers", laid)
+        assert finished == inside, (floor, passes[0])
+
+
 # -- helpers -----------------------------------------------------------
 
 

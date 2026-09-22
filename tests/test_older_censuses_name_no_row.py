@@ -348,7 +348,7 @@ def _built_at(tmp_path: pathlib.Path, floor: int) -> "dict[str, object]":
         fixtures.rows_to_csv(["value"], [[cell] for cell in _moments(suffix="Z")]),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), taxonomy.Settings(small_cell_floor=floor), []
+        reading.read_table(f"{table}", small_cell_floor=floor), taxonomy.Settings(small_cell_floor=floor), []
     )
     assert isinstance(document, dict)
     return document

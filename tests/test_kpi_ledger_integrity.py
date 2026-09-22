@@ -477,7 +477,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 275,000 from 250,000 for stage 3's new entries (landing 3.1, 2026-09-22).
+    # 275,000 from 250,000, authorized for stage 3 (landing 3.1, 2026-09-22).
+    # The ledger stood at 249,792 bytes when the stage began, 208 under the
+    # old cap, and stage 3 adds its gate entries -- the extremes, the
+    # population floor, the calendar facts of 3b -- beside re-measurements
+    # of the entries its floor moves. Landing 3.1 itself added no entry:
+    # its bytes are K-P4-20's new value and the notes of the ceilings and
+    # re-measurements its repair pass recorded. The cap is still a cap; the
+    # prose is trimmed before it is raised again.
     assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 275_000
 
 

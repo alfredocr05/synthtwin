@@ -2912,9 +2912,9 @@
    "phase_stage": "Phase 4 (A-P4-37), baseline for STATE landing 3",
    "category": "PRIVACY",
    "headline": true,
-   "name": "Clause 3 at the SHIPPED floor of 1: published values held by one row, and the twin writing them",
+   "name": "Clause 3 at a floor of 1 (the shipped default until 2026-09-22) and at 11: published values held by one row, and the twin writing them",
    "status": "OPEN",
-   "rule": "at the default settings, published levels held by one row, published ends (earliest/latest, numeric min/max) held by one row, and such levels the twin writes must not rise; target 0 at floor 1. Floor 11 is recorded beside it",
+   "rule": "at a floor of 1 (the shipped default when this was recorded; the default is 11 since plan P4-D316, and the measurement asks both floors by name), published levels held by one row, published ends (earliest/latest, numeric min/max) held by one row, and such levels the twin writes must not rise; target 0 at floor 1. Floor 11 is recorded beside it",
    "rule_kind": "at_most",
    "expected": {
     "levels_of_one_f1": 147,
@@ -4110,7 +4110,7 @@
    "headline": true,
    "name": "Record-number prefixes are written, so starts-with and pattern code runs unchanged",
    "status": "GREEN",
-   "rule": "twin pattern matches == real == 800 on each shape, at default floor and floor 11",
+   "rule": "twin pattern matches == real == 800 on each shape, at a floor of 1 and at the default floor of 11 (the two-floor cases ask [1, None]: None meant 1 until plan P4-D316 made the default 11, and the pair then ran 11 twice)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0

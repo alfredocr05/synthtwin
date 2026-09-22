@@ -7511,7 +7511,7 @@ def test_a_one_column_description_files_no_blank_line_rule_it_cannot_miss(
 
     folder = tmp_path / "default-floor"
     folder.mkdir()
-    table = reading.read_table(str(fixtures.write(folder, "t.csv", text)))
+    table = reading.read_table(str(fixtures.write(folder, "t.csv", text)), small_cell_floor=1)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=1), [], [], []
     )

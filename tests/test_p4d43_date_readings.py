@@ -759,7 +759,7 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     # verdict is published outright (contract C5-S13). Eleven is the
     # floor this case was written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )

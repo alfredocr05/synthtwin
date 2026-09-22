@@ -100,7 +100,7 @@ def _described(folder: pathlib.Path, floor: int) -> dict:
         folder, "witness.csv", fixtures.every_withholding_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -778,7 +778,7 @@ def _deviating(folder: pathlib.Path, floor: int) -> "tuple[str, int]":
     ]
     table = fixtures.write(folder, "t.csv", fixtures.rows_to_csv(header, rows))
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )

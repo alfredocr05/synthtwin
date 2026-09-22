@@ -4963,12 +4963,15 @@ def _dialect_rules(
             f"the file is named as '{source.encoding}'",
             f"the record of a byte-order mark says {form.byte_order_mark}",
         )
-    previous_after = -1
-    previous_text = ""
+    # THE ORDER IS ASKED IN THE PRODUCER'S OWN WORDS (plan P4-D319):
+    # `dialect.blank_place_follows` is the one question the producer's
+    # absorption, the publication guard and this clause all ask, so a
+    # description the producer writes is never one this clause refuses.
+    before: "dialect.BlankPlace | None" = None
     for place in form.blank_lines:
         spaces_only = all(character in " \t" for character in place.text)
-        out_of_order = place.after < previous_after or (
-            place.after == previous_after and place.text == previous_text
+        out_of_order = before is not None and not dialect.blank_place_follows(
+            before, place
         )
         inside_one_column = width == 1 and place.after < n_rows
         if not spaces_only or out_of_order or place.after > n_rows or inside_one_column:
@@ -4977,8 +4980,7 @@ def _dialect_rules(
                 f"blank lines are placed after {place.after} records",
                 f"the table has {n_rows} records and {width} columns",
             )
-        previous_after = place.after
-        previous_text = place.text
+        before = place
     if len(form.blank_lines) > dialect.MAXIMUM_BLANK_PLACES or len(
         form.line_endings
     ) > dialect.MAXIMUM_ENDING_RUNS:
@@ -5139,8 +5141,8 @@ def _dialect_rules(
     # the point of it: a line before the table is free text somebody
     # wrote, a floor governs how many rows share a value, and one line
     # of prose is not a group of rows -- so the old rule let the whole
-    # line through at a floor of one, which is the default (review item
-    # CODEX-3). What a description may carry now is the line's SHAPE,
+    # line through at a floor of one, which was the default then (review
+    # item CODEX-3; plan P4-D316 made the default 11). What a description may carry now is the line's SHAPE,
     # and the check that no text rode in with it is that the twin's own
     # neutral line is read back as the very shape published.
     held_text = False
@@ -6031,7 +6033,7 @@ def _judged_spellings(
     rounding -- the producer next door (`taxonomy._judged_totals`) now
     pools until that remainder is nought or reaches the floor, and
     `synthtwin generate` refuses any description that says otherwise,
-    hand-written or not. At the DEFAULT floor of one nothing moves:
+    hand-written or not. At a floor of one nothing moves:
     `parsing.census_floor(1)` is two, which is the line this part
     already asked.
 

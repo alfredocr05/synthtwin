@@ -13,7 +13,10 @@ each rebuilt here from its plan statement with a committed seed:
   on one value than the published mode count (a carrier stratum above
   mode_count, 2b.1);
 - heavy tail: 2,000 Pareto charges of shape 1.1, whose twin misses the
-  published mean (stage 3, deferred by the owner).
+  published mean (stage 3, deferred by the owner) -- at a floor of one;
+  at the default of 11 the histogram and the mode are withheld and the
+  mean comes back, so both floors are measured (landing 3.1's repair
+  pass).
 
 The carried residue of the integration of 2026-09-19, each rebuilt from
 its plan statement and added to the battery with the same rule:
@@ -27,17 +30,28 @@ its plan statement and added to the battery with the same rule:
   floors 1 and 11, seeds 4, 0 and 1;
 - record layout: a declared record number of ten `(-6)`, four `(-71)` and
   one `8xEa` at the default floor, whose twin misses its `(-%)` layout
-  (plan P4-D298), seeds 4, 0 and 1;
+  (plan P4-D298), seeds 4, 0 and 1 -- at a floor of one, the default
+  when this was written; at 11 the layouts of four and one cells are
+  withheld and nothing is missed, so both floors are measured;
 - band split: twelve negatives once each, a zero and 1 to 10 forty times
   each, where G5.2 gives a sign band more strata than it has points
   (plan P4-D274's named limit); the number of different values the twin
   falls short of the published count, summed over seeds 7 and 4 at
   floors 1 and 11 (the report authorizes it, so no MISSED is counted);
-- read floor: a table with trailing blank lines read at the default
-  floor of one and described at eleven, which `profile.build_document`
-  accepts and describes differently from the same table read at eleven
-  (its docstring states the rule and nothing checks it): HOW MANY
-  PUBLISHED FACTS MOVE, which is 4, beside the boolean it used to be.
+- read floor: a table with trailing blank lines read at a floor of one
+  and described at eleven, which `profile.build_document` accepted and
+  described differently from the same table read at eleven (its
+  docstring states the rule and nothing checked it): HOW MANY PUBLISHED
+  FACTS MOVE, which was 4, beside the boolean it used to be. CLOSED BY
+  LANDING 3.1's GUARD (plan P4-D317): the publication guard now asks the
+  file's blank places at the description's floor, so `build_document`
+  REFUSES the table read at one, and a refused description publishes no
+  fact at all -- the driver records that refusal (it crashed on it, the
+  repair pass of that landing found) and counts nought facts moving;
+- declared layout at the default: the 49-row declared identifier of
+  plan P4-D182 at the shipped default of 11, whose twin misses
+  `layout_forms.%%%` because its pooled groups' made-up spellings read
+  as hexadecimal (plan P4-D320), seeds 1, 4 and 7.
 - Fortran `D` exponent: 400 cells of the form `4.60D+03` at a floor of
   eleven, carried by the changelog's ceiling list and measured by
   nothing. The column is read as free text (0 of 400 numeric), so the
@@ -136,7 +150,8 @@ import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import workbooks  # noqa: E402
 from synthtwin import (  # noqa: E402
-    contract, generation, parsing, profile, reading, rendering, taxonomy, validation,
+    contract, errors, generation, parsing, profile, reading, rendering, taxonomy,
+    validation,
 )
 
 kpi_rules.guard_this_tree()
@@ -218,6 +233,21 @@ with tempfile.TemporaryDirectory() as folder:
             details += [f"heavy tail s{seed}: {found}"]
     value.update(heavy_tail_missed_checks=missed_checks, heavy_tail_missed_runs=missed_runs,
                  heavy_tail_runs=runs)
+    # AND AT A FLOOR OF ONE, where the carried miss still stands (the
+    # repair pass of landing 3.1). At the default of 11 the charges'
+    # histogram and mode are withheld and the twin's mean comes back, so
+    # the key above fell from 2 to 0 by the default withholding more, not
+    # by a repair; the miss the tail landing owns is watched here.
+    described = kpi_shapes.describe(home / "heavy-one", "charge",
+                                    column_text("charge", charges), 1)
+    floor_one_checks = 0
+    for seed in (3, 11):
+        twin = generation.generate(described.loaded, seed)
+        found = kpi_shapes.missed(kpi_shapes.measure(described, rendering.twin_csv(twin), f"t{seed}.csv"))
+        floor_one_checks += len(found)
+        if found:
+            details += [f"heavy tail f1 s{seed}: {found}"]
+    value.update(heavy_tail_missed_checks_floor_one=floor_one_checks)
 
     def repeated(pairs):
         return [text for text, times in pairs for _copy in range(times)]
@@ -249,6 +279,28 @@ with tempfile.TemporaryDirectory() as folder:
     value.update(record_layout_missed_checks=missed_over(
         "layout", "record", repeated([("(-6)", 10), ("(-71)", 4), ("8xEa", 1)]),
         (None,), (4, 0, 1), ["record"]))
+    # ...and at a floor of one, where P4-D298's miss still stands: the
+    # default of 11 withholds the layouts of four and one cells, so the
+    # key above fell from 3 to 0 by withholding, not by a repair.
+    value.update(record_layout_missed_checks_floor_one=missed_over(
+        "layout", "record", repeated([("(-6)", 10), ("(-71)", 4), ("8xEa", 1)]),
+        (1,), (4, 0, 1), ["record"]))
+    # THE DECLARED IDENTIFIER OF P4-D182 AT THE DEFAULT (plan P4-D320,
+    # the repair pass of landing 3.1): its pooled groups are written
+    # `A0`, `A1` and `0e0`, which read as hexadecimal and rename every
+    # layout, so its twin misses `layout_forms.%%%` on every seed. Held
+    # here so it can neither spread nor be repaired unseen.
+    review = ([f"N_{index}" for index in range(13)] + ["no!!"] * 5 + ["x-y"] * 8
+              + ["913"] * 12 + ["-3"] * 11)
+    declared_checks = 0
+    described = kpi_shapes.describe(home / "declared-layout", "value",
+                                    column_text("value", review), None, ["value"])
+    for seed in (1, 4, 7):
+        found = kpi_shapes.missed(kpi_shapes.measure(
+            described, kpi_shapes.twin_text(described, seed), f"t{seed}.csv"))
+        declared_checks += len(found)
+        details.append(f"declared layout default s{seed}: {found}")
+    value.update(declared_layout_default_missed_checks=declared_checks)
 
     band = [str(-index) for index in range(1, 13)] + ["0"] + repeated(
         [(str(index), 40) for index in range(1, 11)])
@@ -318,12 +370,28 @@ with tempfile.TemporaryDirectory() as folder:
     blank_tail.write_text("site\n" + "\n".join(["north"] * 30 + ["south"] * 30) + "\n\n\n\n",
                           encoding="utf-8", newline="\n")
     settings = taxonomy.Settings(small_cell_floor=11)
-    documents = [
-        profile.build_document(
-            reading.read_table(str(blank_tail), small_cell_floor=read_at), settings, [], [], []
-        )
-        for read_at in (1, 11)
-    ]
+    # THE MISMATCHED READ IS REFUSED NOW (plan P4-D317). Read at one, the
+    # table's trailing blank lines are one blank place, which a
+    # description at eleven may not publish, and the publication guard
+    # refuses the document. A refused description publishes nothing, so
+    # it is counted as publishing exactly what the matched read does --
+    # nought facts moving -- and the refusal itself is written into the
+    # details, which is what this driver crashed on before the repair
+    # pass of landing 3.1.
+    documents = []
+    for read_at in (11, 1):
+        try:
+            documents += [
+                profile.build_document(
+                    reading.read_table(str(blank_tail), small_cell_floor=read_at),
+                    settings, [], [], [],
+                )
+            ]
+        except errors.ProfileError as refused:
+            details.append(f"read floor: build_document refuses the table read at {read_at} "
+                           f"and described at 11: {str(refused)[:160]}")
+            documents += [documents[0]]
+    documents.reverse()
 
     def leaves(node, path=""):
         """Every published fact of a description, as path -> value."""

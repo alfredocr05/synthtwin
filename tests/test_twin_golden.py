@@ -861,7 +861,7 @@ def test_widening_the_demonstration_lost_no_obligation(
 def _described_narrow(folder: pathlib.Path) -> contract.Profile:
     """The demonstration as it stood BEFORE the joined column joined."""
     path = fixtures.write(folder, "narrow.csv", fixtures.every_role_table())
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), ["record_code"]
     )
@@ -912,7 +912,7 @@ def description(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     table_path = fixtures.write(
         folder, "table.csv", fixtures.every_role_and_joined_table()
     )
-    table = reading.read_table(str(table_path))
+    table = reading.read_table(str(table_path), small_cell_floor=11)
     document = profile.build_document(
         table,
         taxonomy.Settings(small_cell_floor=11),

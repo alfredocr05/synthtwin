@@ -37,8 +37,9 @@ SEEDS = ("1", "4", "7")
 # review column publishes `{"%%%": 12, "(withheld)": 21}`, and its twin
 # then MISSES `%%%` at exit 3 on every seed: the made-up spellings of the
 # pooled groups (`A0`, `A1`, `0e0`) read as hexadecimal, which renames
-# every layout of the twin. That is a defect of the default recorded in
-# plan P4-D316, not this packing's, and it is not repaired here.
+# every layout of the twin. That is a defect of the default, not this
+# packing's; it is held, not repaired, by the strict xfail at the end of
+# this file (plan P4-D320).
 _DECLARED = ("--identifier", "value", "--smallest-group", "1")
 
 
@@ -126,3 +127,41 @@ def test_the_first_packing_alone_leaves_the_review_column_short(
     )
     assert second["layout_forms"] != first["layout_forms"]
     assert twin_exit == 3
+
+
+# THE DEFAULT, HELD (plan P4-D320). What a person meets who declares this
+# column and names no floor: the twin misses `layout_forms.%%%` at exit 3
+# on every seed, because the pooled groups' made-up spellings read as
+# hexadecimal. The test states what SHOULD hold and is expected to fail
+# for exactly that reason; `strict` makes a repair turn it red (XPASS),
+# and a shape that no longer publishes the census the defect was measured
+# on fails outright rather than being counted as the expected failure.
+_DEFAULT_CENSUS = {"%%%": 12, "(withheld)": 21}
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "plan P4-D320: at the default floor the pooled groups are written "
+        "A0, A1 and 0e0, which read as hexadecimal and rename every layout, "
+        "so the twin misses layout_forms.%%% at exit 3"
+    ),
+)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_review_column_keeps_its_layout_census_at_the_default(
+    tmp_path: pathlib.Path, seed: str
+) -> None:
+    """The review column, declared and described at the default floor."""
+    first, _second, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / f"default-{seed}",
+        _review_column(),
+        ("--identifier", "value"),
+        seed=seed,
+    )
+    if first["layout_forms"] != _DEFAULT_CENSUS or real_exit != 0:
+        pytest.fail(
+            "the shape the P4-D320 miss was measured on moved: "
+            f"{first['layout_forms']}, the real table's exit {real_exit}"
+        )
+    assert twin_exit == 0

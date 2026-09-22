@@ -125,7 +125,8 @@ def _described(
         folder, f"{name}.csv", header + "\n" + "\n".join(rows) + "\n"
     )
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=floor,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), []
@@ -762,7 +763,8 @@ def test_the_plain_page_names_the_edges_of_a_nested_block(
     )
     document = profile.build_document(
         reading.read_table(
-            str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+            str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+            small_cell_floor=1,
         ),
         taxonomy.Settings(small_cell_floor=1),
         [],
@@ -1409,8 +1411,13 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     path = fixtures.write(
         tmp_path, "constant.csv", fixtures.single_column_table("bp", rows)
     )
+    shipped = taxonomy.Settings()
     document = profile.build_document(
-        reading.read_table(f"{path}"), taxonomy.Settings(), [], [], ["bp"]
+        reading.read_table(f"{path}", small_cell_floor=shipped.small_cell_floor),
+        shipped,
+        [],
+        [],
+        ["bp"],
     )
     loaded = contract.load_profile(
         str(fixtures.write_profile(tmp_path, "constant-p.json", document))
@@ -1425,10 +1432,25 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     # so the repair is about the scale and not about the role. Its census
     # is withheld whole at the default floor of 11 (plan P4-D316): 120
     # different values over the bins leave every bin under eleven, and
-    # the census is all or nothing. At a floor of one it is published.
+    # the census is all or nothing.
     second = block["parts"][1]
     assert second["percentiles"]["min"] < second["percentiles"]["max"]
     assert second["value_histogram"] == {}, second["value_histogram"]
+    # So the census it still NAMES is asked where it is published: read
+    # and described at a floor of one, the varying position counts its
+    # values into bins while the constant one beside it names none (the
+    # repair pass of landing 3.1 restored this half, which the default
+    # had withheld whole).
+    at_one = profile.build_document(
+        reading.read_table(f"{path}", small_cell_floor=1),
+        taxonomy.Settings(small_cell_floor=1),
+        [],
+        [],
+        ["bp"],
+    )["columns"][0]
+    assert at_one["role"] == "joined_numbers", at_one["role"]
+    assert at_one["parts"][1]["value_histogram"], at_one["parts"][1]
+    assert at_one["parts"][0]["empty_bins"] == [], at_one["parts"][0]
     # ...and a twin of it still comes back, which is what the joined
     # role's own fixture found when this did not hold: the loader
     # refused the description outright.
@@ -1442,7 +1464,7 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     # hide the census at 120 and no witness would see it.
     for floor, census in ((1, {"0": 120}), (120, {"0": 120}), (121, {})):
         built = profile.build_document(
-            reading.read_table(f"{path}"),
+            reading.read_table(f"{path}", small_cell_floor=floor),
             taxonomy.Settings(small_cell_floor=floor),
             [],
             [],

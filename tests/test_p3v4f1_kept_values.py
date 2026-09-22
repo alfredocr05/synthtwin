@@ -241,7 +241,8 @@ def _described(
     """One table through the real producer and the strict loader."""
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(
-        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=_FLOOR,
     )
     document = profile.build_document(
         table,

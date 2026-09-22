@@ -528,7 +528,7 @@ def test_the_role_names_and_the_type_test_agree_column_by_column() -> None:
         folder, "every.csv", fixtures.every_role_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         ["record_code"],
     )

@@ -19052,8 +19052,8 @@ pushes one pooled group a long way — is the next pass's work.
 ## Stage 3 — decisions P4-D316 to P4-D339 (2026-09-22)
 
 Stage 3's landings take their numbers from this block. P4-D316 to
-P4-D318 are landing 3.1's; P4-D319 to P4-D339 are reserved for the
-stage's other landings.
+P4-D318 are landing 3.1's and P4-D319 to P4-D321 its repair pass's;
+P4-D322 to P4-D339 are reserved for the stage's other landings.
 
 ### P4-D316 The default smallest group is 11
 
@@ -19071,8 +19071,11 @@ because every module that needs it already imports `parsing` and
 `contract.DEFAULT_SMALL_CELL_FLOOR`, `cli._SMALLEST_GROUP` and the floor
 parameters of `reading.read_table`, `reading._read_authoritatively`,
 `reading._read_workbook_table`, `dialect.survey` and `dialect.settle`
-read it, and no module gains an import. Every sentence that stated the
-default was rewritten: the `--smallest-group` and `--missing-value` help,
+read it, and no module gains an import. The sentences that stated the
+default were rewritten -- not every one, as this said until its repair
+pass: five comments and docstrings in `contract`, `profile` and
+`taxonomy` and the `--code` help still assumed a default of one, and
+P4-D321 rewrote them -- the `--smallest-group` and `--missing-value` help,
 `errors.floor_not_positive`, the three pages' lowered-floor section
 (which said a description holds nothing back unless asked), the
 questions file's code choice (which said "because you asked for groups
@@ -19120,7 +19123,8 @@ one and name the defect beside it. The in-suite pin of K-P4-06 is
 measured at a floor of one, its ceilings' floor; the ledger's driver
 measures the default, and on `3f6cd9f` it reads 609 agreements outside
 the window, as recorded, and 4 rows-above counts missed against the
-ceiling of 3 -- worse by one, and left for the owner to rule on.
+ceiling of 3 -- worse by one, and left for the owner to rule on. (Its
+cause was measured and the ceiling moved in the repair pass: P4-D320.)
 
 ### P4-D317 The floor holes
 
@@ -19162,3 +19166,119 @@ the old code and seen red.
 - **Written-form extremes stay published**, as an accepted limit.
 - **A column's real average and spread stay published**, and the tail
   carries the outer cells' mean and mean-square distance.
+
+## The repair pass of landing 3.1 — decisions P4-D319 to P4-D321 (2026-09-22)
+
+Its skeptic returned LAND_WITH_REPAIRS: three blocking items, two high,
+two medium and three low, beside one recorded for information (small
+published counts on the every-role table, which the tail landing owns).
+Each of the ten is closed below or held by name.
+
+### P4-D319 Two places of one form at one record are one place
+
+**The defect** (blocking; it predates landing 3.1, which made every
+default run meet it). `dialect.blank_places_disclosed` writes a blank
+place whose form fewer places wear than the census line in the
+commonest form (P4-D311), and did not ask what that left. A header and
+30 records, each followed by one blank line, except that record 17 is
+followed by a line of three spaces and then the blank line, published
+`{after: 17, lines: 1, text: ""}` TWICE at the default. Places are read
+as runs of ONE text, so invariant FD4 refuses two of one text at one
+record, and `generate` and `validate` refused the producer's own file
+as one changed since it was written. The skeptic's fuzz of 400
+blank-line-heavy files: 112 refused at the default, 0 at a floor of one.
+
+**The rule.** A place the absorption writes in the text of the place
+before it at the same record is MERGED into it, its lines added -- which
+is how the file written that way would be read -- and the rule is asked
+again of what that leaves, since the merged place wears a form of its
+own and there are fewer places, until it moves nothing. Every pass that
+moves something merges two places or removes a form, so it ends; a list
+the first pass leaves unmerged is published exactly as before. The
+skeptic's file publishes thirty places of one line, one of its
+thirty-one lines withheld.
+
+**The same question on every side.** `dialect.blank_place_follows` is
+the one order question: the producer's merge, the loader's FD4 clause
+and `dialect.blank_places_broken` -- which the publication guard asks --
+all ask it, at every floor, so `profile` can no longer write what the
+loader refuses. Measured with the rule's first step alone, as it stood:
+7,471 of 12,000 seeded place lists at floors 2 to 20 broke the order,
+and 27 of 40 seeded files were refused by their own loader; with the
+rule, none. `tests/test_stage3_default_floor.py` holds the skeptic's
+file end to end at the default, the fixed point on those 12,000 lists,
+the guard's order at a floor of one and at the default, and the forty
+files through the producer, the loader, the generator and the
+validator; withdrawing the merge, the second asking or the guard's
+order each turns them red.
+
+### P4-D320 What the default of 11 costs elsewhere, held by name
+
+None of these is a defect of landing 3.1's code, which changed no
+generator line; each is the default withholding more, or a generator
+path that ran at a raised floor only when somebody asked.
+
+- **K-P4-06, 4 rows-above counts missed against the ceiling of 3.** At
+  11 the battery's positions publish no value histogram and no mode and
+  an absorbed width census, every bin and value being held by fewer
+  than eleven cells, and the generator builds them from less. Measured
+  one column at a time, forty seeds: 609 and 3 at a floor of one, as
+  recorded; 609 and 4 at 11, the fourth being column 9 at seed 29,
+  positions 1 and 4, 23 rows above against 22. The ceiling moves to 4
+  in its own commit, the entry stays with stage 6's pairing walk, and
+  the in-suite pin runs both floors.
+- **The declared identifier of P4-D182 misses `layout_forms.%%%` at the
+  default** (exit 3 on every seed): its pooled groups are written `A0`,
+  `A1` and `0e0`, which read as hexadecimal and rename every layout.
+  Not repaired: the fix is a change to G9.6's made-up spellings, with a
+  method clause and an oracle. Held three ways -- a strict xfail at the
+  default in `tests/test_p4d182_layout_packing.py`; the disposition
+  registry's battery back at the default with this one line held by
+  EQUALITY, so a repair turns it red; and K-2B-47's
+  `declared_layout_default_missed_checks`, 3 over three seeds.
+- **Fold-repair battery case 112 is a known limit at the default.** At a
+  floor of one its column is laid out 8 times and generates in about
+  half a second; at 11 its class counts and one layout are pooled, the
+  fold repair finds no layout it accepts, and it is laid out 4,516
+  times, reading 47,349,727 layout fillings -- 269 s on the reference
+  machine. `test_case_112_is_still_the_known_limit_at_the_default`
+  stops the walk after 32 layouts, so it costs seconds, and goes red
+  when a repair brings the default inside that bound.
+- **Carried misses the default now hides.** K-2B-47's heavy tail (the
+  mean of 2,000 Pareto charges) and P4-D298's record layout fall from 2
+  and 3 missed verdicts to 0 at 11, because the charges' histogram and
+  mode and the rarer layouts are withheld; both still miss at a floor
+  of one and are now measured there too. K-2B-05's four flipped
+  verdicts fall to 0 the same way and the entry stays OPEN. The read
+  floor's four moving facts fall to 0 for a different reason: P4-D317's
+  guard refuses a table read at one and described at eleven, so the
+  driver records that refusal (it crashed on it) and the bound is 0.
+
+### P4-D321 The floor reaches every read, and every floor parameter
+
+- **Tests and tools.** Fifty-eight test functions and three functions
+  of tool drivers built `taxonomy.Settings(small_cell_floor=...)` and
+  read the table at the default -- the hole P4-D317 closed in
+  `tests/kpi_shapes.py` alone. Each of their 62 reads passes the floor
+  now, and
+  `tests/test_stage3_default_floor.py` asks the question of `tests/` and
+  `tools/`: in a scope that names a floor, every call of a package
+  function whose floor parameter has a default passes one.
+- **Every floor parameter.** The literal-default check asked
+  `small_cell_floor` alone, so `reading._read_workbook_table`'s `floor`
+  back at 1 went unseen. It asks every parameter named for a floor now.
+  Seventeen `floor=0` and `floor=1` defaults in `generation` and
+  `validation` that every caller passes are gone, or name
+  `parsing.DEFAULT_SMALL_CELL_FLOOR` where an earlier parameter's
+  default keeps one; `parsing.census_names_one_row`'s line stays.
+- **The mutation gaps.** The zero-row check at the default (a survey
+  hard-coded at a floor of one survived), the loader's and the guard's
+  leading and trailing empty-row counts (each could be dropped), and
+  the literal default above each have a test that goes red.
+- **Tests that lost a half.** Three tests written `[None, 11]` when None
+  meant a floor of one ran eleven twice; they ask `[1, None]`. The
+  one-number histogram test asserts again, at a floor of one, that the
+  varying position keeps its census.
+- **Wording.** The five sentences P4-D316 missed, the `--code` help --
+  which promised every code's count where the default pools the rarer
+  ones -- and ledger K-P4-22's name, which said the shipped floor is 1.

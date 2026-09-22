@@ -88,7 +88,7 @@ def _table(folder: pathlib.Path) -> pathlib.Path:
 def _described(folder: pathlib.Path, floor: int) -> pathlib.Path:
     """Describe the table at ``floor`` with the real producer."""
     table_path = _table(folder)
-    table = reading.read_table(f"{table_path}")
+    table = reading.read_table(f"{table_path}", small_cell_floor=floor)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), []
     )

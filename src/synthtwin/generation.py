@@ -4111,7 +4111,7 @@ def _spelling_allocation(
     places: "list[int]",
     parsed: int,
     default: str,
-    floor: int = 0,
+    floor: int,
 ) -> "list[str]":
     """One written form per rank, spread over the ranks that can show it.
 
@@ -4270,7 +4270,7 @@ def _width_allocation(
     facts: contract.DatetimeFacts,
     fields: "list[tuple[int, int]]",
     parsed: int,
-    floor: int = 0,
+    floor: int,
 ) -> "list[str]":
     """Which joint width convention every rank writes (2b.6, P4-D132).
 
@@ -4313,7 +4313,7 @@ def _name_allocation(
     facts: contract.DatetimeFacts,
     fields: "list[tuple[int, int]]",
     parsed: int,
-    floor: int = 0,
+    floor: int,
 ) -> "list[str]":
     """Which joint month-name style every rank writes (2b.6, P4-D133).
 
@@ -4409,7 +4409,7 @@ def _cell_spellings(
     ordinals: "list[int]",
     offsets: "list[str]",
     parsed: int,
-    floor: int = 0,
+    floor: int,
 ) -> "list[_DateStyle]":
     """How every rank of a column of dates is spelled (landing 2b.6).
 
@@ -14767,7 +14767,7 @@ def _number_cells(
     facts: contract.NumericFacts,
     layout: "_NumericLayout",
     values: "list[float]",
-    floor: int = 1,
+    floor: int,
 ) -> "tuple[list[str], list[Deviation]]":
     """Write every cell that reads as a number (method G6.4, G6.6).
 
@@ -15595,7 +15595,7 @@ def _mark_places(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
     groupable: "list[bool]",
-    floor: int = 1,
+    floor: int,
     holds: "list[float] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Which mark each grouped cell wears (landing 2b.7, G6.1).
@@ -17341,7 +17341,7 @@ def _midnight_count_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     cells: "list[str]",
-    floor: int = 0,
+    floor: int,
 ) -> "list[Deviation]":
     """Name a column partly at midnight whose twin reaches another count.
 
@@ -20480,7 +20480,7 @@ def _class_stand_ins(
     holes: "tuple[str, ...]",
     decimal_comma: bool,
     short: "list[int] | None",
-    floor: int = 1,
+    floor: int,
 ) -> "tuple[dict[int, str], dict[int, str], dict[int, str], int, bool, int]":
     """The held-back groups that pay a class debt, and what each writes.
 
@@ -25460,7 +25460,7 @@ def _identifier_cells(
     column: contract.ColumnBlock,
     groups: "tuple[int, ...]",
     holes: "tuple[str, ...]" = (),
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a declared column of record numbers (G9.6).
 
@@ -25776,7 +25776,7 @@ def _identifier_cells_as_read(
     column: contract.ColumnBlock,
     groups: "tuple[int, ...]",
     holes: "tuple[str, ...]" = (),
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a record number, against ONE reading of its counts.
 
@@ -29227,7 +29227,7 @@ def _text_cells(
     long_tail_line: int = 0,
     holes: "tuple[str, ...]" = (),
     truths: int = 0,
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
 
@@ -29655,7 +29655,7 @@ def _text_plan(
     line: int = 0,
     truths: int = 0,
     truth: "dict[int, str] | None" = None,
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> "tuple[list[int], list[int], list[int], list[int], tuple[int, int], list[Deviation]]":
     """The whole shape of a column of free text, settled in ONE allocation.
 
@@ -33384,7 +33384,7 @@ def _clock_needs_room(name: str, wanted: int, room: int) -> str:
 def _whole_number_room(
     column: contract.ColumnBlock,
     facts: contract.IdentifierFacts,
-    floor: int = 1,
+    floor: int,
 ) -> None:
     """Refuse record numbers no length range can write outside the figures.
 
@@ -34338,7 +34338,7 @@ def _present_of(
 
 
 def _alphabet_notes(
-    column: contract.ColumnBlock, written: "list[str]", floor: int = 1
+    column: contract.ColumnBlock, written: "list[str]", floor: int
 ) -> "list[Deviation]":
     """Name either alphabet count the written column did not reach.
 
@@ -35174,7 +35174,7 @@ def _class_notes(
     column: contract.ColumnBlock,
     written: "list[str]",
     short_of_supply: bool = False,
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> "list[Deviation]":
     """Name any of the four class counts the written column did not reach.
 
@@ -37513,7 +37513,7 @@ def _datetime_approximations(
     facts: contract.DatetimeFacts,
     written: "list[str]",
     holes: "tuple[str, ...]",
-    floor: int = 1,
+    floor: int,
 ) -> "list[Approximation]":
     """The two approximated families of a column of dates (G12.4, G12.5)."""
     present = _present_of(written, holes)

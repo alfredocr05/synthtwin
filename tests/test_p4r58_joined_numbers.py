@@ -54,7 +54,8 @@ def _described(folder: pathlib.Path):
     rows = _readings()
     path = fixtures.write(folder, "bp.csv", "bp\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=FLOOR,
     )
     document = profile.build_document(
         table,

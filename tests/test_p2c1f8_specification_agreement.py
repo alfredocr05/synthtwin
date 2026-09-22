@@ -114,7 +114,7 @@ def _described(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
     document = profile.build_document(
-        reading.read_table(str(path)),
+        reading.read_table(str(path), small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )

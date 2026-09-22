@@ -83,7 +83,11 @@ def _opening(values: "list[str]", prefix: str) -> int:
         ("site-codes", _site_codes, r"ABC-\d{4}", "ABC-"),
     ],
 )
-@pytest.mark.parametrize("floor", [None, 11])
+# BOTH FLOORS, NAMED (the repair pass of landing 3.1): this read
+# `[None, 11]` when None meant a floor of one, and ran eleven twice once
+# the default became 11 (plan P4-D316). One is asked for by name; None
+# is the shipped default.
+@pytest.mark.parametrize("floor", [1, None])
 def test_a_prefix_every_cell_shares_is_published_and_written(
     name: str,
     build: object,

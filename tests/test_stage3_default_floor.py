@@ -23,6 +23,19 @@ held here by a check that was put back to the old code and seen red:
   and its counts of empty records were held to the census line by the
   producer alone. The loader (FD4, FD5) and the publication guard now
   ask the producer's own rule from their side.
+
+THE REPAIR PASS (plans P4-D319 and P4-D321), each part put back to the
+old code and seen red:
+
+* the producer published two blank places of one text after one record
+  at a raised floor, which FD4 refuses, so the loader refused the
+  producer's own file; the places are merged, and one order question is
+  asked on every side (section 3);
+* sixty-one functions in the tests and tools read at the default beside
+  a floor of their own, and the literal-default check asked one name of
+  floor parameter only (section 1b and the check above it);
+* the zero-row check at the default and the leading and trailing counts
+  of empty records had no test that could fail (sections 2c and 2d).
 """
 
 from __future__ import annotations
@@ -68,11 +81,20 @@ def test_the_default_smallest_group_is_eleven_wherever_it_is_read() -> None:
         assert found.default == 11, function.__name__
 
 
-def _functions() -> "list[tuple[str, ast.FunctionDef]]":
-    """Every function of the package, with the module it is in."""
+def _functions(
+    replaced: "dict[str, str] | None" = None,
+) -> "list[tuple[str, ast.FunctionDef]]":
+    """Every function of the package, with the module it is in.
+
+    ``replaced`` maps a module's name to text read in place of its file,
+    which is how a red check below puts old code back.
+    """
     found: "list[tuple[str, ast.FunctionDef]]" = []
     for path in sorted(_SOURCE.glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        if replaced and path.stem in replaced:
+            text = replaced[path.stem]
+        tree = ast.parse(text)
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
                 found += [(path.stem, node)]
@@ -105,22 +127,6 @@ def _defaulted_floors(
     return found
 
 
-def test_no_smallest_group_parameter_defaults_to_a_number_of_its_own() -> None:
-    """A `small_cell_floor` parameter's default is the one default.
-
-    Four of them defaulted to the literal 1 (`reading.read_table`,
-    `reading._read_authoritatively`, `dialect.survey`, `dialect.settle`),
-    so a caller that left the floor out read a file at a floor nobody
-    had chosen since 2026-09-22.
-    """
-    wrong = []
-    for module, node in _functions():
-        for _place, name, default in _defaulted_floors(node):
-            if name == "small_cell_floor" and default != "parsing.DEFAULT_SMALL_CELL_FLOOR":
-                wrong += [f"{module}.{node.name}({name}={default})"]
-    assert not wrong, wrong
-
-
 # `parsing.census_names_one_row` takes a LINE, not the person's floor:
 # left out, it asks at the line of two, which is what every caller
 # written before that argument asked, and only the readings whose S13
@@ -128,6 +134,45 @@ def test_no_smallest_group_parameter_defaults_to_a_number_of_its_own() -> None:
 # which). It is the one function whose floor default is meant to be
 # used.
 _A_LINE_NOT_A_FLOOR = {("parsing", "census_names_one_row")}
+
+
+def _literal_floor_defaults(replaced: "dict[str, str] | None" = None) -> "list[str]":
+    """Every floor parameter whose default is a number of its own."""
+    wrong: "list[str]" = []
+    for module, node in _functions(replaced):
+        if (module, node.name) in _A_LINE_NOT_A_FLOOR:
+            continue
+        for _place, name, default in _defaulted_floors(node):
+            if default != "parsing.DEFAULT_SMALL_CELL_FLOOR":
+                wrong += [f"{module}.{node.name}({name}={default})"]
+    return wrong
+
+
+def test_no_floor_parameter_defaults_to_a_number_of_its_own() -> None:
+    """EVERY parameter named for a floor defaults to the one default, or to nothing.
+
+    Four `small_cell_floor` parameters defaulted to the literal 1
+    (`reading.read_table`, `reading._read_authoritatively`,
+    `dialect.survey`, `dialect.settle`), so a caller that left the floor
+    out read a file at a floor nobody had chosen since 2026-09-22. The
+    check asked that one name only, and `reading._read_workbook_table`'s
+    `floor` defaulted back to 1 went unseen (the repair pass of landing
+    3.1, mutation E20), beside seventeen `floor=0` and `floor=1`
+    defaults in `generation` and `validation` that every caller passes.
+    Those are gone where the signature allows it and name the default
+    where an earlier parameter's default keeps one.
+    """
+    assert _literal_floor_defaults() == []
+
+
+def test_the_literal_default_check_is_not_vacuous() -> None:
+    """RED CHECK: the workbook reader's floor defaulted back to 1 (E20)."""
+    source = (_SOURCE / "reading.py").read_text(encoding="utf-8")
+    shipped = "    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,\n) -> Table:"
+    assert source.count(shipped) == 1
+    old = source.replace(shipped, "    floor: int = 1,\n) -> Table:")
+    found = _literal_floor_defaults({"reading": old})
+    assert found == ["reading._read_workbook_table(floor=1)"], found
 
 
 def _omissions(replaced: "dict[str, str] | None" = None) -> "list[str]":
@@ -219,6 +264,175 @@ def test_the_call_check_is_not_vacuous() -> None:
     found = _omissions({"validation": old_quiet})
     assert len(found) == 1, found
     assert "calls dialect.settle without small_cell_floor" in found[0]
+
+
+# -- 1b. the same hole in the tests and the tools ----------------------
+#
+# THE KPI SHAPES WERE ONE OF SIXTY-TWO (the repair pass of landing 3.1).
+# `tests/kpi_shapes.describe` read a table at the default and described
+# it at the floor it was asked for, and P4-D317 closed that one site;
+# sixty-one test helpers and three tool drivers did the same, each
+# building `taxonomy.Settings(small_cell_floor=...)` and calling
+# `reading.read_table` with no floor -- since the default became 11, a
+# floor-one description in any of them carried a file's form read at
+# eleven. The package check above could not see them: it reads `src`.
+# This one reads `tests` and `tools`, and asks the narrower question the
+# hole is made of: in a function (or a script's top level) that names a
+# floor for a description, every call of a package function whose floor
+# parameter has a default passes a floor too. A call at the default in a
+# scope that names none reads and describes at the same floor, and is
+# left alone.
+
+_CALLERS = (
+    sorted((fixtures.REPO_ROOT / "tests").glob("*.py"))
+    + sorted((fixtures.REPO_ROOT / "tools").rglob("*.py"))
+)
+_PACKAGE_MODULES = {path.stem for path in _SOURCE.glob("*.py")}
+
+
+def _package_defaults() -> "dict[str, dict[str, tuple[int | None, str]]]":
+    """Module -> function -> (position, name) of each defaulted floor."""
+    found: "dict[str, dict[str, tuple[int | None, str]]]" = {}
+    for module, node in _functions():
+        if (module, node.name) in _A_LINE_NOT_A_FLOOR:
+            continue
+        for place, name, _default in _defaulted_floors(node):
+            found.setdefault(module, {})[node.name] = (place, name)
+    return found
+
+
+def _names_a_floor(scope: "list[ast.AST]") -> bool:
+    """Whether a scope builds settings with a floor of its own."""
+    for top in scope:
+        for node in ast.walk(top):
+            if not isinstance(node, ast.Call):
+                continue
+            called = node.func
+            name = (
+                called.attr
+                if isinstance(called, ast.Attribute)
+                else called.id if isinstance(called, ast.Name) else ""
+            )
+            if name == "Settings" and any(
+                keyword.arg == "small_cell_floor" for keyword in node.keywords
+            ):
+                return True
+    return False
+
+
+def _scopes(tree: ast.Module) -> "list[tuple[str, list[ast.AST]]]":
+    """Each function of a file, and the file's own top level, as scopes."""
+    scopes: "list[tuple[str, list[ast.AST]]]" = [
+        (
+            "(top level)",
+            [
+                statement
+                for statement in tree.body
+                if not isinstance(
+                    statement,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+                )
+            ],
+        )
+    ]
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            scopes += [(node.name, [node])]
+    return scopes
+
+
+def _reads_at_another_floor(
+    replaced: "dict[str, str] | None" = None,
+) -> "list[str]":
+    """Every call in tests and tools that reads at the default beside a floor.
+
+    ``replaced`` maps a file's path relative to the repository to text
+    read in place of it, which is how the red check puts old code back.
+    """
+    defaults = _package_defaults()
+    found: "list[str]" = []
+    for path in _CALLERS:
+        where = path.relative_to(fixtures.REPO_ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        if replaced and where in replaced:
+            text = replaced[where]
+        tree = ast.parse(text)
+        # A bare name is a package function only where the file imports
+        # it from the package under that name.
+        imported: "dict[str, str]" = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and (
+                node.module.startswith("synthtwin.")
+            ):
+                module = node.module.split(".", 1)[1]
+                for alias in node.names:
+                    imported[alias.asname or alias.name] = module
+        for scope_name, scope in _scopes(tree):
+            if not _names_a_floor(scope):
+                continue
+            for top in scope:
+                for node in ast.walk(top):
+                    if not isinstance(node, ast.Call):
+                        continue
+                    called = node.func
+                    if isinstance(called, ast.Attribute) and isinstance(
+                        called.value, ast.Name
+                    ):
+                        module, function = called.value.id, called.attr
+                    elif isinstance(called, ast.Name) and called.id in imported:
+                        module, function = imported[called.id], called.id
+                    else:
+                        continue
+                    if module not in _PACKAGE_MODULES:
+                        continue
+                    if function not in defaults.get(module, {}):
+                        continue
+                    place, name = defaults[module][function]
+                    passed = (
+                        any(keyword.arg in (name, None) for keyword in node.keywords)
+                        or (place is not None and len(node.args) > place)
+                        or any(isinstance(given, ast.Starred) for given in node.args)
+                    )
+                    if not passed:
+                        found += [
+                            f"{where}:{node.lineno} ({scope_name}) calls "
+                            f"{module}.{function} without {name}"
+                        ]
+    return sorted(set(found))
+
+
+def test_no_test_or_tool_reads_at_the_default_beside_a_floor_of_its_own() -> None:
+    """The hole P4-D317 closed in `kpi_shapes`, asked of every test and tool."""
+    assert _reads_at_another_floor() == []
+
+
+def test_the_test_and_tool_check_is_not_vacuous() -> None:
+    """RED CHECK: the KPI shapes' old read, and one of the sixty-one, put back."""
+    shapes = (fixtures.REPO_ROOT / "tests" / "kpi_shapes.py").read_text(
+        encoding="utf-8"
+    )
+    passed = "            small_cell_floor=settings.small_cell_floor,\n"
+    assert shapes.count(passed) == 1
+    found = _reads_at_another_floor(
+        {"tests/kpi_shapes.py": shapes.replace(passed, "")}
+    )
+    assert len(found) == 1, found
+    assert "tests/kpi_shapes.py" in found[0] and "(describe)" in found[0]
+    assert "reading.read_table without small_cell_floor" in found[0]
+    loader = (fixtures.REPO_ROOT / "tests" / "test_contract_loader.py").read_text(
+        encoding="utf-8"
+    )
+    passed = "    table = reading.read_table(str(path), small_cell_floor=1)\n"
+    assert loader.count(passed) == 1
+    found = _reads_at_another_floor(
+        {
+            "tests/test_contract_loader.py": loader.replace(
+                passed, "    table = reading.read_table(str(path))\n"
+            )
+        }
+    )
+    assert len(found) == 1, found
+    assert "(at_a_floor_of_one)" in found[0]
 
 
 # -- 2a. the retry after a broken trailing-delimiter guess ---------------
@@ -441,17 +655,29 @@ def _absent_in_each_column(count: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+@pytest.mark.parametrize("which", ["leading", "interior", "trailing"])
 def test_the_loader_refuses_an_empty_row_count_below_the_line(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, which: str
 ) -> None:
-    """FD5: `empty_rows.interior 1` counts one record of the table."""
+    """FD5: `empty_rows.interior 1` counts one record of the table.
+
+    EACH OF THE THREE COUNTS, not the interior one alone (the repair pass
+    of landing 3.1): the loader's FD5 loop cut to the interior count and
+    the guard's `leading` or `trailing` rule put back to a plain count
+    each survived every test while only `interior` was asked (mutations
+    E21, E22 and E19 of that landing's review). A leading or trailing
+    count of one names the first or the last record as surely.
+    """
     document = _document_at(tmp_path, _absent_in_each_column(120))
-    document["source"]["dialect"]["empty_rows"]["interior"] = 1
+    document["source"]["dialect"]["empty_rows"][which] = 1
     with pytest.raises(errors.ProfileError) as refused:
         _loaded(tmp_path, document)
     said = f"{refused.value}"
     assert "FD5" in said and "the line is 11" in said
     _guard_refuses(document, "empty_rows")
+    with pytest.raises(errors.ProfileError) as guarded:
+        profile.check_publication(document)
+    assert which in f"{guarded.value}", f"{guarded.value}"
 
 
 def test_a_floor_of_one_still_keeps_the_files_form(tmp_path: pathlib.Path) -> None:
@@ -470,3 +696,251 @@ def test_a_floor_of_one_still_keeps_the_files_form(tmp_path: pathlib.Path) -> No
     assert form["empty_rows"]["interior"] == 1
     profile.check_publication(document)
     _loaded(tmp_path, document)
+
+
+# -- 2d. the zero-row check at the default -------------------------------
+
+
+def test_a_zero_row_check_at_the_default_reads_empty_records_at_the_default(
+    tmp_path: pathlib.Path,
+) -> None:
+    """P4-D317 at the SHIPPED floor, which the floor-one test above cannot see.
+
+    Three records holding nothing are a count below the census line of
+    11, so a file read at the default publishes nought of them -- the
+    count the zero-row description itself publishes -- and the only rule
+    such a file breaks is `bytes.zero-row-form`, which asks for a header
+    and nothing else. Read at a floor of one the same three records are
+    counted, and `bytes.empty-rows` is missed as well. With
+    `_surveyed_quietly` settling at a floor of one whatever the
+    description's (mutation E6 of the repair pass of landing 3.1), the
+    default-floor half misses `bytes.empty-rows` too, and only the check
+    that reads the text of the call went red before this test.
+    """
+    for floor, missed in (
+        (None, ["bytes.zero-row-form"]),
+        (1, ["bytes.empty-rows", "bytes.zero-row-form"]),
+    ):
+        folder = tmp_path / f"floor-{floor}"
+        described = S.describe(folder, "t", "a,b\n1,2\n3,4\n", floor=floor)
+        zero = fixtures.zero_rows(described.loaded)
+        assert zero.source.dialect.empty_rows_interior == 0
+        checked = fixtures.write(folder, "checked.csv", "a,b\n,\n,\n,\n")
+        outcome = validation.measure(zero, f"{checked}")
+        found = sorted(
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        )
+        assert found == missed, (floor, found)
+
+
+# -- 3. two places of one form at one record (plan P4-D319) --------------
+
+
+def _double_spaced(record: int = 17) -> str:
+    """The skeptic's shape: 30 records each followed by a blank line.
+
+    Record ``record`` is followed by a line of three spaces and THEN the
+    blank line, so its place is two runs of different text.
+    """
+    lines = ["id,site,value"]
+    for index in range(1, 31):
+        lines += [f"{index},{'north' if index % 2 else 'south'},{index * 3}"]
+        lines += ["   ", ""] if index == record else [""]
+    return "\n".join(lines) + "\n"
+
+
+def _places(*triples: "tuple[int, int, str]") -> "list[dialect.BlankPlace]":
+    return [
+        dialect.BlankPlace(after=after, lines=lines, text=text)
+        for after, lines, text in triples
+    ]
+
+
+def test_an_absorbed_place_is_merged_into_the_place_it_joins() -> None:
+    """P4-D319: the rare spaced line takes the commonest form, and joins its neighbour.
+
+    Derived from the rule, place by place. Thirty places of one blank
+    line and one of three spaces after record 17, just before the blank
+    line after record 17: the spaced form is worn by one place, fewer
+    than 11, so it is written as the commonest form `(1, "")`. Two places
+    of one text then stand after record 17, and a file written that way
+    reads as ONE place of two lines -- so they are merged. That place
+    wears `(2, "")`, a form of one place, and the rule asked again writes
+    it as the commonest, one line. Thirty places of one line remain;
+    one line of the file's thirty-one is withheld. Before P4-D319 the
+    rule stopped after its first step and published `(17, 1, "")`
+    twice, which invariant FD4 refuses.
+    """
+    places = [(index, 1, "") for index in range(1, 17)]
+    places += [(17, 1, "   "), (17, 1, "")]
+    places += [(index, 1, "") for index in range(18, 31)]
+    found = _places(*places)
+    told = dialect.blank_places_disclosed(found, 11)
+    assert told == _places(*[(index, 1, "") for index in range(1, 31)])
+    assert dialect.blank_lines_withheld(found, 11) == 1
+    assert dialect.blank_places_broken(told, 11) == ""
+    # ...and where the merged form is one the line allows, it stays
+    # merged: eleven places of two lines beside it keep `(17, 2, "")`.
+    places = [(index, 1, "") for index in range(1, 12)]
+    places += [(index, 2, "") for index in range(12, 17)]
+    places += [(17, 1, "   "), (17, 1, "")]
+    places += [(index, 2, "") for index in range(18, 24)]
+    told = dialect.blank_places_disclosed(_places(*places), 11)
+    assert _places((17, 2, "")) == [place for place in told if place.after == 17]
+    assert dialect.blank_places_broken(told, 11) == ""
+    # ...and at a floor of one nothing moves at all.
+    assert dialect.blank_places_disclosed(found, 1) == found
+
+
+def test_the_rule_is_a_fixed_point_the_loader_accepts() -> None:
+    """Seeded: whatever the producer publishes, the loader's own question accepts.
+
+    3,000 lists of places a file can hold -- in file order, runs of one
+    text at one record -- at floors 2, 5, 11 and 20. What the rule
+    returns, it returns unchanged when asked again; no two places it
+    returns break `dialect.blank_place_follows`; the loader's question,
+    `blank_places_broken`, finds nothing; and the lines it withholds are
+    the difference between the two lists. Measured with the rule's
+    first step alone, as it stood before P4-D319: 7,471 of the 12,000
+    broke the order.
+    """
+    import random
+
+    draw = random.Random(20260922)
+    texts = ["", "", "", " ", "  ", "\t"]
+    for trial in range(3000):
+        places: "list[dialect.BlankPlace]" = []
+        after = 0
+        for _place in range(draw.randrange(0, 40)):
+            if not places or draw.random() < 0.7:
+                after = after + draw.randrange(1, 4)
+            text = draw.choice(texts)
+            if places and places[-1].after == after and places[-1].text == text:
+                continue
+            places += [
+                dialect.BlankPlace(
+                    after=after, lines=draw.choice([1, 1, 1, 2, 3]), text=text
+                )
+            ]
+        for floor in (2, 5, 11, 20):
+            told = dialect.blank_places_disclosed(places, floor)
+            assert dialect.blank_places_disclosed(told, floor) == told, (trial, floor)
+            assert all(
+                dialect.blank_place_follows(told[index - 1], told[index])
+                for index in range(1, len(told))
+            ), (trial, floor, told)
+            assert dialect.blank_places_broken(told, floor) == "", (trial, floor)
+            kept = sum(place.lines for place in told)
+            held = sum(place.lines for place in places)
+            assert dialect.blank_lines_withheld(places, floor) == held - kept
+
+
+def test_the_guard_and_the_loader_ask_the_same_order(
+    tmp_path: pathlib.Path,
+) -> None:
+    """P4-D319: two places of one text at one record are refused on both sides.
+
+    AT A FLOOR OF ONE TOO, where the census line is not asked: the order
+    is a fact about how a file is read, not a disclosure rule. The guard
+    reaches the loader's rule only through `dialect.blank_places_broken`,
+    which asked no order before this, so `profile` could write what the
+    loader then refused as a file changed since it was written.
+    """
+    for floor, places in (
+        (1, [{"after": 57, "lines": 1, "text": ""}] * 2),
+        (
+            None,
+            [{"after": index * 5, "lines": 1, "text": ""} for index in range(1, 12)]
+            + [{"after": 55, "lines": 1, "text": ""}],
+        ),
+    ):
+        folder = tmp_path / f"floor-{floor}"
+        document = _with_blank_places(
+            _document_at(folder, _numbers(120), floor=floor), places
+        )
+        with pytest.raises(errors.ProfileError) as refused:
+            _loaded(folder, document)
+        assert "FD4" in f"{refused.value}"
+        _guard_refuses(document, "blank_lines")
+    assert "file order" in dialect.blank_places_broken(
+        _places((57, 1, ""), (57, 1, "")), 1
+    )
+
+
+def test_the_double_spaced_file_round_trips_at_the_default(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The skeptic's minimal shape through the command line, at the default.
+
+    `profile`, `generate` and `validate` each exit 0 -- before P4-D319
+    `generate` and `validate` exited 1, refusing the producer's own
+    description as a file changed since it was written -- and the real
+    table validates against it too. The description publishes the
+    thirty places the rule above derives, one per record.
+    """
+    from tests.test_stage2_round_trip import _exit_of
+
+    table = fixtures.write(tmp_path, "t.csv", _double_spaced())
+    assert _exit_of(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    written = tmp_path / "t-profile.json"
+    places = contract.load_profile(f"{written}").source.dialect.blank_lines
+    assert [(place.after, place.lines, place.text) for place in places] == [
+        (index, 1, "") for index in range(1, 31)
+    ]
+    assert _exit_of(["generate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    assert _exit_of(["validate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    (tmp_path / "real").mkdir()
+    assert _exit_of(
+        ["validate", f"{written}", "--twin", f"{table}", "--out-dir",
+         f"{tmp_path / 'real'}", "--replace"]
+    ) == 0
+
+
+def _blank_heavy(draw: "object", columns: int) -> str:
+    """One seeded file heavy in blank lines, the skeptic's fuzz recipe."""
+    import random
+
+    assert isinstance(draw, random.Random)
+    out = ["h" + ",h".join(str(column) for column in range(columns))]
+    for index in range(draw.randrange(15, 120)):
+        cells = [str(index)] + [
+            str(draw.randrange(0, 20)) if draw.random() > 0.05 else ""
+            for _column in range(columns - 1)
+        ]
+        out += [",".join(cells)]
+        if draw.random() < draw.choice([0.12, 0.5, 1.0]):
+            out += [
+                draw.choice(["", "", "", "", " ", "  ", "\t"])
+                for _line in range(draw.choice([1, 1, 1, 2, 3]))
+            ]
+    return "\n".join(out) + "\n"
+
+
+def test_blank_heavy_files_describe_load_and_generate_at_the_default(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Seeded fuzz, small enough for the suite: forty files at the default.
+
+    Each is described by the real producer, loaded by the real loader and
+    built into a twin, and the twin's blank lines are measured against
+    the description. Measured with the rule's first step alone, as it
+    stood before P4-D319, on this recipe and seed: 27 of the 40
+    descriptions were refused by their own loader under FD4.
+    """
+    import random
+
+    draw = random.Random(7)
+    for trial in range(40):
+        text = _blank_heavy(draw, draw.choice([2, 3, 4]))
+        described = S.describe(tmp_path / f"{trial}", "t", text)
+        twin = S.twin_text(described, trial)
+        outcome = S.measure(described, twin, "twin.csv")
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+            and check.subcheck.startswith("bytes.")
+        ]
+        assert missed == [], (trial, missed)

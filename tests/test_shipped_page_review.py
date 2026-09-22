@@ -207,7 +207,7 @@ def _run(folder: pathlib.Path, floor: int) -> Run:
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(folder, "table.csv", _table_text())
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -289,7 +289,7 @@ def witness(tmp_path_factory: pytest.TempPathFactory) -> Witness:
         folder, "witness.csv", fixtures.single_column_table("when", days)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=DEFAULT_FLOOR),
         taxonomy.Settings(small_cell_floor=DEFAULT_FLOOR),
         [],
     )
@@ -1371,7 +1371,7 @@ def test_the_withheld_paragraph_counts_the_lines_it_talks_about(
     ]
     table = fixtures.write(tmp_path, "t.csv", fixtures.rows_to_csv(header, rows))
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=DEFAULT_FLOOR),
         taxonomy.Settings(small_cell_floor=DEFAULT_FLOOR),
         [],
     )
