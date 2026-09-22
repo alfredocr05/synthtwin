@@ -2337,11 +2337,11 @@
    "headline": false,
    "name": "Three- and four-number cells: pair agreements and rows-above counts",
    "status": "OPEN",
-   "rule": "no worse than 609 outside and 3 missed (measured on the integrated tree of 2026-09-19); target <= 550 and 0",
+   "rule": "no worse than 609 outside and 4 missed at the shipped default floor of 11 (609 and 3 at a floor of one, measured on the integrated tree of 2026-09-19); target <= 550 and 0",
    "rule_kind": "at_most",
    "expected": {
     "agreements_outside": 609,
-    "above_counts_missed": 3,
+    "above_counts_missed": 4,
     "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
@@ -2375,7 +2375,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and on this battery it trades 12 more agreements outside the 0.02 window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6). Ceilings move in their own commit, never inside a merge."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and on this battery it trades 12 more agreements outside the 0.02 window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6). Ceilings move in their own commit, never inside a merge. CEILING MOVED 2026-09-22, 3 to 4 above-counts missed, in its own commit: the owner's decision of that day made the default floor 11 (plan P4-D316), and the driver describes at the default. At 11 the battery's positions publish no value histogram and no mode and an absorbed width census, every bin and value being held by fewer than eleven cells; the generator builds them from less, and column 9 misses one more rows-above count (seed 29, positions 1 and 4: 23 against 22). Measured one column at a time on 13fa831, forty seeds: at a floor of one 609 and 3, as recorded; at 11 609 and 4. Landing 3.1 changed no generator code, so this is the default withholding more and not a defect of that landing (plan P4-D320). The entry belongs to stage 6, whose pairing walk (G6B.4) owns the target of 550 and 0; the in-suite pin now measures both floors."
   },
   {
    "id": "K-P4-07",

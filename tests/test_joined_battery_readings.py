@@ -73,6 +73,8 @@ from __future__ import annotations
 import pathlib
 import random
 
+import pytest
+
 import fixtures
 import joined_battery
 import kpi_rules
@@ -102,8 +104,9 @@ MISSED_CEILING = BATTERY["expected"]["above_counts_missed"]
 PAIRS = BATTERY["value_at"]["value"]["pairs"]
 
 # THE PIN THIS FILE KEEPS, and the three columns it is taken over.
-# Measured on the tree of this commit, one column at a time, forty seeds
-# each (`(pairs, outside, missed)` per column, 94.6 s for all twelve):
+# Measured at a floor of one -- the default then -- on the tree of the
+# commit that chose them, one column at a time, forty seeds each
+# (`(pairs, outside, missed)` per column, 94.6 s for all twelve):
 #
 #     0: 120  14  1     4: 120  40  0     8: 120  39  0
 #     1: 240  40  0     5: 240  38  0     9: 240 117  0
@@ -125,6 +128,32 @@ PINNED_CEILINGS = {
     9: (240, 117, 0),
     11: (240, 63, 2),
 }
+
+# AND AT THE SHIPPED DEFAULT, WHICH IS WHAT THE LEDGER'S DRIVER MEASURES
+# (plan P4-D316; the repair pass of landing 3.1). The figures above are a
+# floor of one, where every histogram bin, mode and width of a position is
+# published; at the default of 11 the positions publish none of those
+# (every bin and value is held by fewer than eleven cells), the generator
+# builds them from less, and the whole battery reads 609 outside and 4
+# missed. Measured one column at a time on 13fa831, forty seeds each:
+#
+#     0: 120  14  1     4: 120  40  0     8: 120  39  0
+#     1: 240  42  0     5: 240  38  0     9: 240 117  1
+#     2: 120  40  0     6: 120  37  0    10: 120  33  0
+#     3: 240  48  0     7: 240  98  0    11: 240  63  2
+#
+# The fourth miss is column 9's, seed 29, positions 1 and 4: 23 rows
+# above against 22 published. So the three pinned columns still hold
+# every above-count the battery misses, at both floors, and the pin
+# below runs at both. The whole battery at a floor of one, measured the
+# same way, is the figure K-P4-06 recorded before the default moved:
+FLOOR_ONE_BATTERY = (2160, 609, 3)
+PINNED_CEILINGS_AT_THE_DEFAULT = {
+    0: (120, 14, 1),
+    9: (240, 117, 1),
+    11: (240, 63, 2),
+}
+_PINS = {1: PINNED_CEILINGS, None: PINNED_CEILINGS_AT_THE_DEFAULT}
 
 # Battery column 9 and the seed its witness is taken at.
 FOURTH_COLUMN = 9
@@ -228,8 +257,17 @@ def test_a_saturated_position_holds_every_number_it_publishes(
     )
 
 
-def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
+@pytest.mark.parametrize("floor", [1, None])
+def test_the_battery_of_three_and_four_positions_keeps_its_figures(
+    floor: "int | None",
+) -> None:
     """Three battery columns, forty seeds, 600 pairs: each at its own ceiling.
+
+    AT BOTH FLOORS (the repair pass of landing 3.1). The pin was moved to
+    a floor of one when the default became 11, while the ledger's driver
+    measured the default, so the suite could not see the figure the
+    ledger holds. A floor of one is asked for by name; None is the
+    shipped default, whose ceilings are `PINNED_CEILINGS_AT_THE_DEFAULT`.
 
     WHY THREE COLUMNS AND NOT TWELVE. This test ran all twelve over a
     `concurrent.futures.ProcessPoolExecutor`, and the suite is
@@ -283,18 +321,20 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures() -> None:
     there.
     """
     kpi_rules.guard_this_tree()
+    ceilings = _PINS[floor]
     measured = {
-        case: joined_battery.one_column(case) for case in PINNED_COLUMNS
+        case: joined_battery.one_column(case, floor) for case in PINNED_COLUMNS
     }
     assert {case: count[0] for case, count in measured.items()} == {
-        case: ceiling[0] for case, ceiling in PINNED_CEILINGS.items()
+        case: ceiling[0] for case, ceiling in ceilings.items()
     }, measured
     worse = [
-        f"column {case}: {measured[case][1]} outside and {measured[case][2]} missed, "
-        f"against the ceiling {PINNED_CEILINGS[case][1]} and {PINNED_CEILINGS[case][2]}"
+        f"column {case} at floor {floor}: {measured[case][1]} outside and "
+        f"{measured[case][2]} missed, against the ceiling {ceilings[case][1]} "
+        f"and {ceilings[case][2]}"
         for case in PINNED_COLUMNS
-        if measured[case][1] > PINNED_CEILINGS[case][1]
-        or measured[case][2] > PINNED_CEILINGS[case][2]
+        if measured[case][1] > ceilings[case][1]
+        or measured[case][2] > ceilings[case][2]
     ]
     assert not worse, "; ".join(worse)
 
@@ -317,14 +357,22 @@ def test_the_pin_is_derived_from_the_whole_batterys_ceiling() -> None:
       with the new misses in another column turns this red, and the pin
       must then be re-chosen rather than quietly left behind.
     """
-    assert sorted(PINNED_CEILINGS) == sorted(PINNED_COLUMNS)
-    assert sum(ceiling[0] for ceiling in PINNED_CEILINGS.values()) <= PAIRS
-    assert sum(ceiling[1] for ceiling in PINNED_CEILINGS.values()) <= OUTSIDE_CEILING
-    assert sum(ceiling[2] for ceiling in PINNED_CEILINGS.values()) == MISSED_CEILING, (
-        "the pin no longer holds every above-count the battery misses: "
-        f"{PINNED_CEILINGS} against K-P4-06's {MISSED_CEILING}"
-    )
-    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 609, 3), (
+    # THE LEDGER'S CEILING IS THE DEFAULT'S (plan P4-D316): its driver
+    # describes at the shipped default, so the default pin is the one
+    # derived from it, and the floor-one pin from the floor-one battery
+    # recorded beside it.
+    for pin, whole in (
+        (PINNED_CEILINGS_AT_THE_DEFAULT, (PAIRS, OUTSIDE_CEILING, MISSED_CEILING)),
+        (PINNED_CEILINGS, FLOOR_ONE_BATTERY),
+    ):
+        assert sorted(pin) == sorted(PINNED_COLUMNS)
+        assert sum(ceiling[0] for ceiling in pin.values()) <= whole[0]
+        assert sum(ceiling[1] for ceiling in pin.values()) <= whole[1]
+        assert sum(ceiling[2] for ceiling in pin.values()) == whole[2], (
+            "the pin no longer holds every above-count the battery misses: "
+            f"{pin} against {whole}"
+        )
+    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 609, 4), (
         "K-P4-06's ceiling moved; re-derive the pin above, then this line"
     )
 

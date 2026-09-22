@@ -59,26 +59,36 @@ def battery_rows() -> "list[list[str]]":
     return shapes
 
 
-# THE FLOOR THE PINNED CEILINGS WERE MEASURED AT (plan P4-D316). Every
-# per-column figure in `tests/test_joined_battery_readings.py` was taken
-# at a floor of one, the default until 2026-09-22, where every above-count
-# and agreement of a position pair is published. The ledger's own driver
-# (`tools/measurements/kpi_joined_battery.py`) measures the SHIPPED
-# default, and what K-P4-06 reads there is reported with the landing.
+# THE FLOOR THE OTHER READINGS OF THIS BATTERY'S SHAPES ARE TAKEN AT (plan
+# P4-D316): a floor of one, the default until 2026-09-22, where every
+# histogram bin, mode and width of a position is published. The pin of
+# K-P4-06 itself is taken at BOTH floors (`one_column`'s ``floor``), and
+# the ledger's own driver (`tools/measurements/kpi_joined_battery.py`)
+# measures the SHIPPED default, which ``None`` names here.
 BATTERY_FLOOR = 1
 
 
-def described(rows: "list[str]", folder: pathlib.Path) -> contract.Profile:
-    """One battery column through the real producer and the real loader."""
+def described(
+    rows: "list[str]", folder: pathlib.Path, floor: "int | None" = BATTERY_FLOOR
+) -> contract.Profile:
+    """One battery column through the real producer and the real loader.
+
+    ``floor`` None is the shipped default, read and described alike.
+    """
     fixtures.write(folder, "battery.csv", "reading\n" + "\n".join(rows) + "\n")
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
     table = reading.read_table(
         str(folder / "battery.csv"),
         first_row=reading.FIRST_ROW_AUTOMATIC,
-        small_cell_floor=BATTERY_FLOOR,
+        small_cell_floor=settings.small_cell_floor,
     )
     document = profile.build_document(
         table,
-        taxonomy.Settings(small_cell_floor=BATTERY_FLOOR),
+        settings,
         [],
         None,
         ["reading"],
@@ -128,11 +138,14 @@ def pair_scores(
     return scores
 
 
-def one_column(case: int) -> "tuple[int, int, int]":
+def one_column(
+    case: int, floor: "int | None" = BATTERY_FLOOR
+) -> "tuple[int, int, int]":
     """Pairs, agreements outside the window, and above-counts missed.
 
-    One battery column over all forty seeds, built from the recipe here
-    rather than received, and about 6.5 s for a three-position column
+    One battery column over all forty seeds, described at ``floor`` (None
+    is the shipped default), built from the recipe here rather than
+    received, and about 6.5 s for a three-position column
     and 9 s for a four-position one on the reference machine.
 
     IT USED TO RETURN THE PATH IT IMPORTED SYNTHTWIN FROM as well, so
@@ -150,7 +163,17 @@ def one_column(case: int) -> "tuple[int, int, int]":
     outside = 0
     missed = 0
     with tempfile.TemporaryDirectory() as folder:
-        loaded = described(rows, pathlib.Path(folder))
+        loaded = described(rows, pathlib.Path(folder), floor)
+        # THE FLOOR ASKED IS THE FLOOR DESCRIBED AT, or the two halves of
+        # the pin would measure one floor twice (the repair pass of
+        # landing 3.1): at-most ceilings cannot see a default half that
+        # quietly ran at a floor of one, whose figures are lower.
+        wanted = parsing.DEFAULT_SMALL_CELL_FLOOR if floor is None else floor
+        if loaded.settings.small_cell_floor != wanted:
+            raise AssertionError(
+                f"battery column {case} was described at "
+                f"{loaded.settings.small_cell_floor}, not at {wanted}"
+            )
         facts = loaded.columns[0].facts
         if not isinstance(facts, contract.JoinedFacts):
             raise AssertionError(
