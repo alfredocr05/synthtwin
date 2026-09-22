@@ -39,6 +39,15 @@ floor** (plan P4-D321), and a check keeps it so. The `--code` help no
 longer promises every code's count, since the default pools the rare
 ones.
 
+**The KPI ledger.** `K-P4-06`, `K-2B-05`, `K-2B-47`, `K-2B-49`,
+`K-2B-50` and `K-2B-51` are re-measured on f521955, the repair's own
+commit, and written in. `K-2B-47` gains three keys -- the declared
+identifier's miss at the default, and the heavy tail and the record
+layout at a floor of one -- and holds the read-floor hole closed at
+nought. `K-2B-05` reaches its target of no flipped verdicts only
+because the default withholds more, so it stays open, and its note says
+so.
+
 ### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
 
 **A description made without `--smallest-group` no longer names a group

@@ -164,12 +164,14 @@ def test_a_report_only_key_is_a_bound_its_own_shape_already_saturates() -> None:
 
     An entry says a key is REPORT-ONLY when its shape cannot produce a
     larger value, so the bound records a ceiling rather than leaving
-    room to fall: `read_floor_unchecked` is `int(a != b)` against at most
-    1, and `fortran_d_cells_respelled` is 1,200 of 1,200 cells. Both are
-    therefore named in `expected` AND recorded AT their bound. A key
-    whose bound leaves slack can turn red and is a measured bound, not a
-    report-only indicator, and saying otherwise in the ledger is what
-    this fails on.
+    room to fall: `fortran_d_cells_respelled` is 1,200 of 1,200 cells,
+    and `read_floor_unchecked` was `int(a != b)` against at most 1 until
+    landing 3.1's guard refused the document that made it 1 (plan
+    P4-D320) -- at 0 it is a measured bound like any other, and it is
+    not declared report-only any more. Such a key is named in `expected`
+    AND recorded AT its bound. A key whose bound leaves slack can turn
+    red and is a measured bound, not a report-only indicator, and saying
+    otherwise in the ledger is what this fails on.
     """
     listed = _report_only_bounds()
     assert listed, "no entry declares a report-only key; this guard has nothing to hold"
