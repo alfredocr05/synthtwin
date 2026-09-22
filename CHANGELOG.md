@@ -6,6 +6,16 @@ exists).
 
 ## [Unreleased]
 
+### Changed: the owner accepted the twin rebuilding 63 held-back cells, not 55 (2026-09-22)
+
+The mean-only landing of 21 September moved `K-2B-19` from 55 to 63 of
+251 held-back cells that the twin writes exactly as the table held them,
+with one column of nineteen still rebuilt whole. The owner accepted the
+new ceiling: "just showing that the value exists is not an issue; what
+matters is not showing the relation in a descriptive file." Nothing in
+the code moved. The ledger entry records the decision, and the state
+page no longer lists it as waiting.
+
 ### Changed: stage 2 is closed, and the twin writes each column the way the source wrote it (2026-09-15 to 2026-09-18)
 
 **Until this stage, code that ran on the twin could still fail on the

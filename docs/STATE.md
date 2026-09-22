@@ -100,8 +100,10 @@ ones.
   record's text is ever published.
 - **Accepted limits, 2026-09-18** (plan: "Owner decisions of
   2026-09-18"): real record numbers can reach the twin when a declared
-  identifier has little spare room; held-back rare values can be rebuilt;
-  an autofilter can still make an ambiguous first row the header; a
+  identifier has little spare room; held-back rare values can be rebuilt
+  (63 of 251 cells, `K-2B-19`, accepted again on 2026-09-22: "just
+  showing that the value exists is not an issue; what matters is not
+  showing the relation in a descriptive file"); an autofilter can still make an ambiguous first row the header; a
   workbook date cell naming no day is read; free text's "one cell is a
   number" and a pooled label's one missing cell stay published.
   **Judge any such question by its effect on the owner's code and
@@ -146,10 +148,6 @@ cannot get worse unseen.
   sign band given more slots than it has numbers. The known-miss entry
   of the ledger names them.
 - **The largest tables** are measured only to 100,000 rows. Landing 4.
-- **A held-back rare value is rebuilt by the twin slightly more often
-  than the owner accepted**: 63 of 251 cells against the 55 accepted on
-  2026-09-18, moved by the mean-only landing (`K-2B-19`). Held at 63.
-  **Waiting on the owner.**
 - **A pool's spread is no longer verified.** The owner chose on
   2026-09-21 to publish a pooled column's mean and not its spread,
   because publishing both solved for the held-back values. The twin's

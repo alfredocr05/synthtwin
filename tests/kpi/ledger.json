@@ -4245,7 +4245,7 @@
    "key_kinds": {
     "columns_measured": "at_least"
    },
-   "status_note": "ACCEPTED by the owner, 2026-09-18: \"Rare values: ok. Fine\" (plan P4-D268). Widened 2026-09-21 by the pooled-scale landing and put back by the repair pass of the same day: the value stands where the owner accepted it. MOVED AGAIN 2026-09-21 by the owner's decision (plan P4-D302): 55 to 63 of 251, one column of nineteen, and THIS NEEDS THE OWNER'S ACCEPTANCE"
+   "status_note": "ACCEPTED by the owner, 2026-09-18: \"Rare values: ok. Fine\" (plan P4-D268). Widened 2026-09-21 by the pooled-scale landing and put back by the repair pass of the same day: the value stands where the owner accepted it. MOVED AGAIN 2026-09-21 by the owner's decision (plan P4-D302): 55 to 63 of 251, one column of nineteen. ACCEPTED AT 63 by the owner on 2026-09-22: \"it's ok. What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue\""
   },
   {
    "id": "K-2B-20",
