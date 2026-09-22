@@ -104,7 +104,11 @@ def _twin_of(folder: pathlib.Path, name: str, text: str) -> "list[list[str]]":
 
 
 def _twin_declaring(
-    folder: pathlib.Path, name: str, text: str, missing: str
+    folder: pathlib.Path,
+    name: str,
+    text: str,
+    missing: str,
+    flags: "tuple[str, ...]" = (),
 ) -> "list[list[str]]":
     """`_twin_of`, with one spelling declared absent across the table."""
     table = folder / f"{name}.csv"
@@ -119,6 +123,7 @@ def _twin_declaring(
             "--missing-value",
             missing,
         ]
+        + list(flags)
     )
     _run(
         [
@@ -335,6 +340,9 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
             [[stamp, "2025-01-01 00:00:00"] for stamp in stamps],
         ),
         "2025-01-01 00:00:00",
+        # FLOOR ONE (plan P4-D316): the reviewer's ten and ten marks are
+        # each below the default floor of 11, which withholds the census.
+        ("--smallest-group", "1"),
     )
     written = [row[0] for row in rows[1:]]
     assert "2025-01-01 00:00:00" not in written

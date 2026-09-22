@@ -7178,9 +7178,19 @@ ZERO_ROW_PREDICATES = ("zero-rows-headered", "zero-rows-headerless")
 # excused, and the coverage is checked in both directions: a site with
 # no case is red, and a case naming a site the predicate does not file
 # is red too.
-def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str | bytes]]":
-    """Every registered edit of one conforming zero-row file."""
+def _zero_row_edits(
+    text: str, names: "list[str]", floor: int
+) -> "list[tuple[str, str, str | bytes]]":
+    """Every registered edit of one conforming zero-row file.
+
+    AT THE DESCRIPTION'S OWN FLOOR (plan P4-D317). A record of nothing
+    is a count the rule publishes only from `parsing.census_floor` of
+    them, so the edit writes that many; and a headed file of no rows
+    holds at most one blank place, which no floor above one publishes,
+    so `bytes.blank-lines` is not filed there (V3.4) and has no edit.
+    """
     joined = ",".join(names)
+    nothing = parsing.census_floor(floor) if floor > 1 else 1
     built: list[tuple[str, str, str | bytes]] = [
         ("zero-byte-order-mark", "bytes.byte-order-mark", "﻿" + text),
         (
@@ -7237,7 +7247,7 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             # A HEADERLESS ZERO-ROW FILE IS ZERO BYTES, so the one
             # structural thing it can get wrong is writing the names.
             ("zero-header-written", "header.presence", joined + "\n"),
-            ("zero-record-of-nothing", "bytes.empty-rows", ",\n"),
+            ("zero-record-of-nothing", "bytes.empty-rows", ",\n" * nothing),
             # ...and its line ending rules are missed by a line ending
             # it does not have. Until plan P4-D86 the conforming file
             # itself missed its terminal newline: a description cut down
@@ -7267,11 +7277,15 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             "bytes.written-names",
             ",".join(names[: len(names) - 1] + [""]) + "\n",
         ),
-        ("zero-blank-line", "bytes.blank-lines", text + "\n"),
+    ] + (
+        [("zero-blank-line", "bytes.blank-lines", text + "\n")]
+        if floor <= 1
+        else []
+    ) + [
         (
             "zero-record-of-nothing",
             "bytes.empty-rows",
-            text + ",".join("" for _name in names) + "\n",
+            text + (",".join("" for _name in names) + "\n") * nothing,
         ),
         (
             "zero-dropped-name",
@@ -7378,7 +7392,9 @@ def test_every_site_of_every_zero_row_predicate_can_be_made_to_miss(
         names = [column.name for column in described.columns]
         filed = {site.subcheck for site in sites}
         covered: set[str] = set()
-        for edit, subcheck, made in _zero_row_edits(text, names):
+        for edit, subcheck, made in _zero_row_edits(
+            text, names, described.settings.small_cell_floor
+        ):
             assert subcheck in filed, (
                 f"{label}: the edit {edit} names {subcheck}, which this "
                 f"predicate does not file at all"

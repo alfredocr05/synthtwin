@@ -124,6 +124,12 @@ def _beside_the_layouts(twin: generation.Twin) -> "list[str]":
     return kept
 
 
+# FLOOR ONE (plan P4-D316). This file's columns are small, and the counts
+# the generator is held to here are published only at a floor that names
+# groups of one and two; the default of 11 withholds or absorbs them.
+_FLOOR_ONE = 1
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> "tuple[dict, contract.Profile]":
@@ -131,8 +137,8 @@ def _described(
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("code", values)
     )
-    table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), ["code"])
+    table = reading.read_table(str(path), small_cell_floor=_FLOOR_ONE)
+    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), ["code"])
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return document, contract.load_profile(str(target))
 

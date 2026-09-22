@@ -6,6 +6,49 @@ exists).
 
 ## [Unreleased]
 
+### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
+
+**A description made without `--smallest-group` no longer names a group
+of fewer than eleven rows.** The owner returned the default to 11, the
+value it had before 25 August and the same number as the line under
+which every page says a description names small groups. A smaller
+number is still accepted and still alarms the screen and every page.
+The number is written once, in `parsing`, and every module reads it
+from there (plan P4-D316).
+
+| on the every-role table (240 rows, 14 columns)   | floor 1, the old default | floor 11, the default now |
+|--------------------------------------------------|--------------------------|---------------------------|
+| labels published                                 | 192                      | 9                         |
+| labels held by one row                           | 147                      | 0                         |
+| labels held by fewer than eleven rows            | 183                      | 0 (183 pooled, 224 rows)  |
+| numeric columns publishing a histogram           | 4                        | 1                         |
+| description size                                 | 100,210 bytes            | 50,517 bytes              |
+| facts the twin's own report names as unmet       | 4                        | 4                         |
+| subchecks the twin misses                        | 0                        | 0                         |
+
+The histogram is all or nothing, so a bell-shaped column with thin
+outer bins loses it until the tail landing re-anchors it. Exact minima
+and maxima are still published; that is the tail landing's too.
+
+**Three places read a file at the wrong floor, and one rule lived in
+the producer alone** (plan P4-D317). The survey's second walk after a
+broken trailing-delimiter guess, the quality check of a zero-row
+description, and the test suite's shape describer each read a file at
+the default whatever floor was asked. Blank lines, blank lines counted
+past the cap and counts of empty records were held to the disclosure
+rule by the producer alone. A hand-edited description that names one of them below
+the line is now refused by the loader and by the guard that runs before
+a description is written.
+
+**Found and not repaired, with the numbers** (plan P4-D316): at the new
+default the twin of the 49-row declared-identifier column of plan
+P4-D182 fails its own check, because the made-up spellings of its
+pooled groups read as hexadecimal; one column of the fold-repair battery
+takes 269 seconds to generate against under one second at a floor of
+one; and a whole-number column whose rarer width is pooled names
+`field_widths` in its twin's report. The tests that measure those
+mechanisms now ask for a floor of one and say why.
+
 ### Changed: the owner accepted the twin rebuilding 63 held-back cells, not 55 (2026-09-22)
 
 The mean-only landing of 21 September moved `K-2B-19` from 55 to 63 of

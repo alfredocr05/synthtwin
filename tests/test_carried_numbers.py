@@ -272,8 +272,14 @@ def test_the_mode_note_the_every_role_twin_carries_speaks_plainly(
     to reads as the type name `str`. The guard keeps its strength; the
     sentence changed.
     """
+    # FLOOR ONE (plan P4-D316): the mode this note is about is one held
+    # by fewer than eleven cells, which the default floor withholds.
     described = _described(
-        tmp_path, _every_role_text(), ["record_code"], [fixtures.JOINED_COLUMN]
+        tmp_path,
+        _every_role_text(),
+        ["record_code"],
+        [fixtures.JOINED_COLUMN],
+        floor=1,
     )
     twin = generation.generate(described, 7)
     notes = [

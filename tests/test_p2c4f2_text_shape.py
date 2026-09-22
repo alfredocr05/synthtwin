@@ -94,6 +94,12 @@ REVIEW_SOURCE = ["a b"] + ["x"] * 5 + ["!!"] * 6
 SHORT_NUMBER_SOURCE = ["7"] + ["ab"] * 5 + ["-3"] * 6
 
 
+# FLOOR ONE (plan P4-D316). This file's columns are small, and the counts
+# the generator is held to here are published only at a floor that names
+# groups of one and two; the default of 11 withholds or absorbs them.
+_FLOOR_ONE = 1
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]"
 ) -> contract.Profile:
@@ -106,8 +112,8 @@ def _described(
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("value", values)
     )
-    table = reading.read_table(str(path))
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    table = reading.read_table(str(path), small_cell_floor=_FLOOR_ONE)
+    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), [])
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
 

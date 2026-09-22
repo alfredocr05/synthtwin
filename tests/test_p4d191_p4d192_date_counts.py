@@ -193,4 +193,14 @@ def test_a_withheld_count_at_midnight_stays_withheld(
     assert _column(result["document"], "visit")["n_at_midnight"] is None
     assert _column(result["again"], "visit")["n_at_midnight"] is None
     twin = (tmp_path / "visits-twin.csv").read_text(encoding="utf-8").splitlines()
-    assert sum(1 for line in twin if " 00:00," in line) < 2
+    # WITHHELD MEANS BELOW THE LINE THE COUNT IS PUBLISHED AT (contract
+    # D15): the larger of two and the description's floor, which is the
+    # default of 11 here since plan P4-D316 -- it was two while the
+    # default was 1.
+    from synthtwin import parsing
+
+    line = max(
+        parsing.MIDNIGHT_DISCLOSURE_FLOOR,
+        result["document"]["settings"]["small_cell_floor"],
+    )
+    assert sum(1 for line_text in twin if " 00:00," in line_text) < line

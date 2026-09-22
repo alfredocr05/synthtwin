@@ -49,6 +49,7 @@ def _described(
     text: str,
     declared: "list[str] | None" = None,
     measured: "list[str] | None" = None,
+    floor: "int | None" = None,
 ) -> contract.Profile:
     """Write a table, describe it with the producer, load the description.
 
@@ -56,13 +57,19 @@ def _described(
     numbers in one cell is NOT the joined role, so a fixture that holds
     one and does not declare it has the column and not the role -- which
     is how this file's every-role text kept claiming a completeness it
-    did not have (review item P4-A2-R4-F1).
+    did not have (review item P4-A2-R4-F1). `floor` None is the shipped
+    default; a test that needs every small count published passes 1.
     """
     path = fixtures.write(folder, "table.csv", text)
-    table = reading.read_table(str(path))
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    table = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
     document = profile.build_document(
         table,
-        taxonomy.Settings(),
+        settings,
         declared if declared else [],
         [],
         measured if measured else [],
@@ -1078,7 +1085,24 @@ def test_a_column_that_meets_every_fact_names_no_deviation(
     # spread, is the ordinary case: every published fact is met, so the
     # report has nothing to name. A report that named something here
     # would teach a reader to ignore it.
+    #
+    # AT THE DEFAULT FLOOR THE COLUMN HAS TO WEAR ONE WIDTH to be that
+    # case (plan P4-D316). 1000 to 60000 write nine cells four figures
+    # wide, fewer than the smallest group of 11, so the width census
+    # counts them into the commonest width (ruling 6 of 2026-09-17)
+    # while the exact smallest value, 1000, keeps its four figures: the
+    # twin cannot meet both and names `field_widths`, a report-only
+    # fact. That is the default's cost until the tail landing withdraws
+    # the exact ends, and it is pinned here so it cannot spread unseen.
     values = [f"{index * 1000}" for index in range(1, 61)]
+    (tmp_path / "mixed").mkdir()
+    mixed = _described(
+        tmp_path / "mixed", fixtures.single_column_table("measured", values)
+    )
+    assert [one.fact for one in generation.generate(mixed, 3).deviations] == [
+        "field_widths"
+    ]
+    values = [f"{index * 1000}" for index in range(10, 70)]
     described = _described(
         tmp_path, fixtures.single_column_table("measured", values)
     )
@@ -1526,8 +1550,10 @@ def test_a_feasible_alphabet_count_is_packed_exactly_by_whole_groups(
     folder = tmp_path / "packed"
     folder.mkdir(parents=True, exist_ok=True)
     values = ["11", "11", "22", "22", "AB", "AB", "AB"]
+    # FLOOR ONE: seven cells publish their class counts only at a floor
+    # that names groups of two and three, and the packing is the point.
     described = _described(
-        folder, fixtures.single_column_table("code", values), ["code"]
+        folder, fixtures.single_column_table("code", values), ["code"], floor=1
     )
     facts = _block(described, "code").facts
     assert isinstance(facts, contract.IdentifierFacts)
@@ -1656,8 +1682,10 @@ def test_free_text_meets_its_class_and_alphabet_counts_by_whole_groups(
     values = ["11", "11", "22", "22", "ttt", "ttt", "ttt"]
     for index in range(18):
         values = values + [f"w{index:02d}", f"w{index:02d}"]
+    # FLOOR ONE: groups of two and three publish their counts only at a
+    # floor that names them, and the packing is the point.
     described = _described(
-        folder, fixtures.single_column_table("comment", values)
+        folder, fixtures.single_column_table("comment", values), floor=1
     )
     column = _block(described, "comment")
     facts = column.facts
@@ -1889,10 +1917,25 @@ def test_a_sign_count_no_packing_reaches_is_named(
 def test_a_one_row_table_still_produces_a_twin(
     tmp_path: pathlib.Path,
 ) -> None:
+    # AT THE DEFAULT FLOOR the one value is a group of one, below the
+    # smallest group of 11: it is counted absent and withheld, the
+    # column is described as empty, and the twin still has its one row,
+    # with the cell empty (plan P4-D316). Refusing such a table is the
+    # population floor's work, not this landing's.
     described = _one_column(tmp_path / "one", "only", ["7"])
     built = generation.generate(described, 11)
     assert built.n_rows == 1
     assert len(built.rows) == 1
+    assert _block(described, "only").role == "empty"
+    assert len(_present(_cells(built, "only"))) == 0
+    # At a floor of one the value is published and the twin holds it.
+    folder = tmp_path / "one-at-one"
+    folder.mkdir()
+    lowered = _described(
+        folder, fixtures.single_column_table("only", ["7"]), floor=1
+    )
+    built = generation.generate(lowered, 11)
+    assert built.n_rows == 1
     assert len(_present(_cells(built, "only"))) == 1
 
 

@@ -1160,7 +1160,9 @@ def _noon_days(count: int) -> "list[str]":
     return [(start + datetime.timedelta(days=step)).isoformat() for step in range(count)]
 
 
-def _described(folder: pathlib.Path, cells: "list[str]") -> "dict[str, object]":
+def _described(
+    folder: pathlib.Path, cells: "list[str]", flags: "tuple[str, ...]" = ()
+) -> "dict[str, object]":
     """Describe a one-column table and hand back the column block."""
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
@@ -1169,7 +1171,10 @@ def _described(folder: pathlib.Path, cells: "list[str]") -> "dict[str, object]":
         encoding="utf-8",
         newline="",
     )
-    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"]) == 0
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace"]
+        + list(flags)
+    ) == 0
     loaded = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
     block: "dict[str, object]" = loaded["columns"][0]
     return block
@@ -1239,11 +1244,18 @@ def test_a_group_of_one_on_either_side_is_never_published(
     cells = [cell for cell in cells if not _at_midnight(cell)]
     for place in range(count):
         cells[place] = cells[place][:11] + "00:00:00"
-    block = _described(tmp_path / f"group-of-{count}", cells)
+    # The line is the larger of two and the floor (contract D15): at a
+    # floor of one a group of two is published and a group of one is
+    # not; at the default of 11 (plan P4-D316) neither is.
+    block = _described(
+        tmp_path / f"group-of-{count}", cells, ("--smallest-group", "1")
+    )
     if count == 1:
         assert block["n_at_midnight"] is None
     else:
         assert block["n_at_midnight"] == 2
+    shipped = _described(tmp_path / f"group-of-{count}-default", cells)
+    assert shipped["n_at_midnight"] is None
 
 
 @pytest.mark.parametrize("seed", ["5", "4"])

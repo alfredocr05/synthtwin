@@ -19048,3 +19048,115 @@ oracle's mirror of step 4 is held up by no committed byte. The rule is
 held by `tests/test_pooled_number_scale.py` and its mutation checks
 instead, and a frozen case that reaches step 4 — a column whose census
 pushes one pooled group a long way — is the next pass's work.
+
+## Stage 3 — decisions P4-D316 to P4-D339 (2026-09-22)
+
+Stage 3's landings take their numbers from this block. P4-D316 to
+P4-D318 are landing 3.1's; P4-D319 to P4-D339 are reserved for the
+stage's other landings.
+
+### P4-D316 The default smallest group is 11
+
+**The decision** (owner, 2026-09-22). The smallest group a run uses when
+nobody asks for another is 11: the value it held before amendment
+A-P4-37, and the same number as `contract.SMALL_GROUP_NOTICE_LINE`, which
+stays. `--smallest-group` below 11 stays legal and keeps its
+lowered-floor alarm. It reverses P4-D20's default of 1, which the twin's
+definition of 2026-09-12 already contradicted: a published value held by
+one row reveals that row's value.
+
+**What moved.** The number is written once, `parsing.DEFAULT_SMALL_CELL_FLOOR`,
+because every module that needs it already imports `parsing` and
+`parsing` imports nothing; `taxonomy.Settings`,
+`contract.DEFAULT_SMALL_CELL_FLOOR`, `cli._SMALLEST_GROUP` and the floor
+parameters of `reading.read_table`, `reading._read_authoritatively`,
+`reading._read_workbook_table`, `dialect.survey` and `dialect.settle`
+read it, and no module gains an import. Every sentence that stated the
+default was rewritten: the `--smallest-group` and `--missing-value` help,
+`errors.floor_not_positive`, the three pages' lowered-floor section
+(which said a description holds nothing back unless asked), the
+questions file's code choice (which said "because you asked for groups
+of N", untrue where nobody asked), the published remarks that promised
+every spelling on the `--code` route, README, SECURITY, STATUS, the
+charter and contract 2.3, 4.3a and 4.4. `asking._shape_of` lost its
+default floor of 1.
+
+**What it costs, measured** on the every-role table, floor 1 against 11:
+published labels 192 to 9; labels held by one row 147 to 0; the 183
+labels under eleven rows pooled, 224 rows; the value histogram on one
+numeric column of four, because it is all or nothing and a bell-shaped
+column's outer bins are thin -- until the tail landing re-anchors it; the
+description 100,210 bytes to 50,517; the twin's own report names four
+unmet facts at either floor and the twin misses no subcheck at either.
+Exact minima and maxima are still published; that is the tail
+landing's.
+
+**What it exposed, and is not repaired here.** Three generator paths ran
+at a raised floor only when somebody asked, and now run by default:
+
+- the 49-row declared identifier of P4-D182 publishes
+  `{"%%%": 12, "(withheld)": 21}`, and its twin writes the pooled groups
+  as `A0`, `A1` and `0e0`, which read as hexadecimal and rename every
+  layout, so the twin MISSES `layout_forms.%%%` at exit 3 on every seed.
+  On P2-C5-F2's battery of 200 declared identifiers the share of twins
+  missing their own description is unchanged -- 50 at a floor of one
+  and 50 at eleven -- but three generations took over five seconds at
+  eleven against none at one;
+- one column of A-P3-12's fold-repair battery (case 112) takes 269
+  seconds to generate at eleven against under one at one, in
+  `_layout_stepped`;
+- a whole-number column whose rarer width is held by fewer than eleven
+  cells publishes its width census counted into the commonest width
+  while its exact smallest value keeps the rarer one, so the twin names
+  `field_widths` (report-only). The tail landing, which withdraws the
+  exact ends, is where that one closes.
+
+**The suite.** The tests the change turned red were re-derived by one
+rule: a test whose subject is a floor-one mechanism -- a packing, a
+census of groups of one to ten, a lone blank line -- asks for a floor of
+one and says so; a test about the default is re-derived at 11 from the
+rule it states. The tests of the three paths above ask for a floor of
+one and name the defect beside it. The in-suite pin of K-P4-06 is
+measured at a floor of one, its ceilings' floor; the ledger's driver
+measures the default.
+
+### P4-D317 The floor holes
+
+Four places read or checked a file's form at a floor other than the
+description's, each measured before it closed:
+
+1. `dialect.survey` walks the file again after a broken
+   trailing-delimiter guess, and that walk dropped `small_cell_floor`:
+   asked at a floor of one, a file whose retry held one blank line
+   published none.
+2. `validation._surveyed_quietly` settled a zero-row checked file at no
+   floor. Read at the description's floor, a headed file of no rows
+   holds at most one blank place, which no raised floor publishes, so
+   `bytes.blank-lines` is not filed there (V3.4, the one-column rule's
+   reasoning) and a blank line is `bytes.zero-row-form`'s to miss.
+3. `tests/kpi_shapes.describe` read a table at the default and described
+   it at the floor asked.
+4. Blank places, the blank lines counted past the cap and the three
+   counts of empty records were held to the census line by the producer
+   alone: a hand-edited `{after: 57, lines: 1}` at a floor of eleven
+   loaded. The loader now asks the producer's own rule from its side
+   (`dialect.blank_places_broken`, `blank_spread_broken`,
+   `row_count_broken`, under FD4 and FD5), and so does the publication
+   guard (`profile._FORM_PLACES`, `_FORM_COUNT`). Contract 4.3a words the
+   clauses against the census line, not asked at a floor of one.
+
+`tests/test_stage3_default_floor.py` holds each, and an AST check asks
+every call of every function whose floor parameter has a default to pass
+it; `parsing.census_names_one_row`, whose floor is a line and not the
+person's, is the one exception and says why. Each guard was put back to
+the old code and seen red.
+
+### P4-D318 The owner's other decisions of 2026-09-22, recorded
+
+- **K-2B-19 is accepted at 63 of 251** held-back cells the twin writes
+  as the table held them. The owner: "it's ok. What matters is not show
+  the relation in a descriptive file, just showing that the value exist
+  is not an issue."
+- **Written-form extremes stay published**, as an accepted limit.
+- **A column's real average and spread stay published**, and the tail
+  carries the outer cells' mean and mean-square distance.

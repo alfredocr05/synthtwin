@@ -146,8 +146,13 @@ def test_eight_levels_over_twelve_rows_is_reached(
 
 
 def test_the_floor_of_one_still_moves_nothing(tmp_path: pathlib.Path) -> None:
-    """At the default floor nothing is held back, so nothing is counted out."""
-    result = _round_trip(tmp_path, {"site": _clinical_sites()})
+    """At a floor of one nothing is held back, so nothing is counted out.
+
+    It was the default floor until plan P4-D316, and is asked for here.
+    """
+    result = _round_trip(
+        tmp_path, {"site": _clinical_sites()}, ("--smallest-group", "1")
+    )
     column = _column(result, "site")
     assert column["n_missing"] == 0
     assert _blank_cells(result, "site") == 0
@@ -196,11 +201,16 @@ def test_no_variants_census_carries_a_count_of_one(
                 assert "1" not in level["variants_withheld"], floor
 
 
-def test_the_default_floor_keeps_every_spelling(
+def test_a_floor_of_one_keeps_every_spelling(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A floor of one holds no spelling back, so none is counted in."""
-    result = _round_trip(tmp_path, {"arm": _arms()})
+    """A floor of one holds no spelling back, so none is counted in.
+
+    It was the default floor until plan P4-D316, and is asked for here;
+    at the default of 11 the lone `f` is counted into the commonest, as
+    `test_a_lone_spelling_is_counted_into_the_commonest` measures.
+    """
+    result = _round_trip(tmp_path, {"arm": _arms()}, ("--smallest-group", "1"))
     column = _column(result, "arm")
     levels = {level["label"]: level for level in column["levels"]}
     assert levels["f"]["variants"] == {"F": 490, "f": 1}

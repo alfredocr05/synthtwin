@@ -80,6 +80,9 @@ from tests.test_final_review_labels import _round_trip
 from tests.test_stage2_round_trip import _exit_of
 
 FLOOR = ("--smallest-group", "11")
+# A floor of one is no longer the default (plan P4-D316): a test about
+# what a floor of one keeps asks for it.
+FLOOR_ONE = ("--smallest-group", "1")
 
 
 def _column(result: dict, name: str = "value") -> dict:
@@ -477,13 +480,13 @@ def test_a_spelling_of_two_rows_is_absorbed_as_well(
     _both_pass(result)
 
 
-def test_at_the_default_floor_every_spelling_is_still_named(
+def test_at_a_floor_of_one_every_spelling_is_still_named(
     tmp_path: pathlib.Path,
 ) -> None:
     """A floor of one holds nothing back, so nothing is counted in."""
     cells = ["F"] * 490 + ["M"] * 500 + ["f"]
     random.Random(11).shuffle(cells)
-    result = _round_trip(tmp_path, {"value": cells})
+    result = _round_trip(tmp_path, {"value": cells}, FLOOR_ONE)
     block = _column(result)
     assert block["n_distinct"] == 3
 
@@ -929,10 +932,10 @@ def test_a_run_below_the_line_is_read_as_well_as_a_total() -> None:
     assert dialect.endings_disclosed(even, 11) == even
 
 
-def test_at_the_default_floor_a_file_keeps_its_own_form(
+def test_at_a_floor_of_one_a_file_keeps_its_own_form(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A floor of one is a run in which nothing was asked of synthtwin.
+    """A floor of one keeps the file's own form (the gate of 2026-09-18).
 
     At that same floor the column censuses beside these three publish a
     level covering ONE row, so holding the file's form to a stricter
@@ -955,7 +958,7 @@ def test_at_the_default_floor_a_file_keeps_its_own_form(
     assert dialect.blank_places_disclosed(one_place, 11) == []
     assert dialect.row_count_disclosed(1, 11) == 0
 
-    folder = tmp_path / "default"
+    folder = tmp_path / "floor-one"
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
     table.write_bytes(
@@ -971,6 +974,7 @@ def test_at_the_default_floor_a_file_keeps_its_own_form(
             "profile", str(table), "--out-dir", str(folder), "--replace",
             "--identifier", "record",
         ]
+        + list(FLOOR_ONE)
     ) == 0
     document = json.loads(
         (folder / "real-profile.json").read_text(encoding="utf-8")

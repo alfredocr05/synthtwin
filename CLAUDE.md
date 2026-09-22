@@ -189,9 +189,10 @@ though it existed:
   table never has to leave the environment that already holds it and
   never has to reach an assistant. What it does NOT buy is a finding
   about anybody's obligations. The six files above carry facts
-  computed from real data, and at the default floor of one a column
-  whose role publishes values names every one of them with the rows
-  that held it, while the roles that publish none still publish counts
+  computed from real data, and at the default floor of eleven a column
+  whose role publishes values names every value eleven or more rows
+  held, with how many did - at a floor lowered to one, every one of
+  them - while the roles that publish none still publish counts
   and shapes measured from real cells - so whether a privacy rule, an
   institution's own rules, or a study's approval is satisfied is a
   question for the people who set

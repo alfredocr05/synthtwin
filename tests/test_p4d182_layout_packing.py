@@ -31,6 +31,16 @@ from tests.test_stage2_round_trip import _round_trip
 
 SEEDS = ("1", "4", "7")
 
+# A FLOOR OF ONE (plan P4-D316): the census this packing answers --
+# `{"%%%": 12, "&-&": 8, "@_%": 10, "@_%%": 3}` -- is published only at a
+# floor that names groups of three to ten. At the default of 11 the
+# review column publishes `{"%%%": 12, "(withheld)": 21}`, and its twin
+# then MISSES `%%%` at exit 3 on every seed: the made-up spellings of the
+# pooled groups (`A0`, `A1`, `0e0`) read as hexadecimal, which renames
+# every layout of the twin. That is a defect of the default recorded in
+# plan P4-D316, not this packing's, and it is not repaired here.
+_DECLARED = ("--identifier", "value", "--smallest-group", "1")
+
 
 def _review_column() -> "list[str]":
     """The declared-identifier column of the disposition registry battery."""
@@ -83,7 +93,7 @@ def test_the_layout_census_comes_back_exactly(
         first, second, _written, twin_exit, real_exit = _round_trip(
             tmp_path / f"{name}-{seed}",
             cells,
-            ("--identifier", "value"),
+            _DECLARED,
             seed=seed,
         )
         assert first["role"] == "identifier"
@@ -112,7 +122,7 @@ def test_the_first_packing_alone_leaves_the_review_column_short(
     """The vacuity floor: without the packing the defect is still there."""
     monkeypatch.setattr(generation, "_layout_packed", lambda *_a: None)
     first, second, _written, twin_exit, _real = _round_trip(
-        tmp_path / "withdrawn", _review_column(), ("--identifier", "value")
+        tmp_path / "withdrawn", _review_column(), _DECLARED
     )
     assert second["layout_forms"] != first["layout_forms"]
     assert twin_exit == 3

@@ -163,6 +163,12 @@ _BOUNDARIES = (
 # -- one whole run, as the three commands build one --------------------
 
 
+# FLOOR ONE (plan P4-D316). The corner is a count of record numbers held
+# once each, and the census that pins it is published only at a floor
+# that names groups of one; the default of 11 withholds it.
+_FLOOR_ONE = 1
+
+
 def _describe(
     folder: pathlib.Path, values: "list[str]", stem: str
 ) -> contract.Profile:
@@ -170,8 +176,10 @@ def _describe(
     table = fixtures.write(
         folder, f"{stem}.csv", fixtures.single_column_table(_NAME, values)
     )
-    read = reading.read_table(str(table))
-    document = profile.build_document(read, taxonomy.Settings(), [_NAME])
+    read = reading.read_table(str(table), small_cell_floor=_FLOOR_ONE)
+    document = profile.build_document(
+        read, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), [_NAME]
+    )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
 

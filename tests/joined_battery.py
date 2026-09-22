@@ -59,14 +59,29 @@ def battery_rows() -> "list[list[str]]":
     return shapes
 
 
+# THE FLOOR THE PINNED CEILINGS WERE MEASURED AT (plan P4-D316). Every
+# per-column figure in `tests/test_joined_battery_readings.py` was taken
+# at a floor of one, the default until 2026-09-22, where every above-count
+# and agreement of a position pair is published. The ledger's own driver
+# (`tools/measurements/kpi_joined_battery.py`) measures the SHIPPED
+# default, and what K-P4-06 reads there is reported with the landing.
+BATTERY_FLOOR = 1
+
+
 def described(rows: "list[str]", folder: pathlib.Path) -> contract.Profile:
     """One battery column through the real producer and the real loader."""
     fixtures.write(folder, "battery.csv", "reading\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(folder / "battery.csv"), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(folder / "battery.csv"),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=BATTERY_FLOOR,
     )
     document = profile.build_document(
-        table, taxonomy.Settings(), [], None, ["reading"]
+        table,
+        taxonomy.Settings(small_cell_floor=BATTERY_FLOOR),
+        [],
+        None,
+        ["reading"],
     )
     return contract.load_profile(
         str(fixtures.write_profile(folder, "battery-p.json", document))

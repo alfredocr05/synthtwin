@@ -1509,17 +1509,20 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
     usual = contract.SMALL_GROUP_NOTICE_LINE
+    # THE DEFAULT IS NAMED AS THE DEFAULT (plan P4-D316), for the reason
+    # `rendering._lowered_floor_lines` gives.
+    default = contract.DEFAULT_SMALL_CELL_FLOOR
     lines = [
         (
             "  THIS PROFILE NAMES GROUPS AS SMALL AS "
             f"{floor} ROW(S)."
         ),
         "",
-        "  A profile leaves nothing out for being a small group unless it",
-        f"  is asked to. Leaving out a value unless {usual} rows share it",
-        f"  is what --smallest-group {usual} does, and this profile was not",
-        f"  made that way: it names values that as few as {floor} row(s)",
-        "  share, and says how many rows that is.",
+        f"  By default a profile leaves out a value unless {default} rows",
+        "  share it, counting it into a total that names none of them.",
+        f"  This profile was made with a smallest group of {floor}: it names",
+        f"  values that as few as {floor} row(s) share, and says how many",
+        "  rows that is.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the

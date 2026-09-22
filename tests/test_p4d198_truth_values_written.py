@@ -67,11 +67,18 @@ def test_the_twin_writes_as_many_truth_values_as_the_census_counts(
     tmp_path: pathlib.Path, truths: "list[bool]"
 ) -> None:
     """Mutation: with `_truth_words` choosing nothing, every shape exits 3 on
-    `workbook.cell-classes` at the default floor.
+    `workbook.cell-classes` at a floor of one.
+
+    FLOOR ONE (plan P4-D316): a census of two truth values is published
+    only at a floor that names a group of two; the default of 11 holds
+    the whole census back.
     """
     data = _flags(300, truths, 505)
     for seed in (4, 11):
-        result = _trip(tmp_path / f"s{seed}", "flags", data, seed=seed)
+        result = _trip(
+            tmp_path / f"s{seed}", "flags", data, ("--smallest-group", "1"),
+            seed=seed,
+        )
         column = result["document"]["columns"][0]
         census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
         assert column["role"] == "free_text", column["role"]

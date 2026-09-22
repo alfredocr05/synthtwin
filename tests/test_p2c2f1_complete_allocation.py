@@ -69,6 +69,12 @@ EXACT_COUNTS = (
 )
 
 
+# FLOOR ONE (plan P4-D316). This file's columns are small, and the counts
+# the generator is held to here are published only at a floor that names
+# groups of one and two; the default of 11 withholds or absorbs them.
+_FLOOR_ONE = 1
+
+
 def _described(
     folder: pathlib.Path, values: "list[str]", name: str = "value",
     declared: "list[str] | None" = None,
@@ -77,9 +83,9 @@ def _described(
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table(name, values)
     )
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=_FLOOR_ONE)
     document = profile.build_document(
-        table, taxonomy.Settings(), declared if declared else []
+        table, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), declared if declared else []
     )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))

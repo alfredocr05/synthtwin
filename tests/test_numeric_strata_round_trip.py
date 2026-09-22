@@ -34,12 +34,24 @@ import re
 
 import pytest
 
-from synthtwin import contract, generation, profile, reading, rendering, taxonomy
+from synthtwin import contract, generation, parsing, profile, reading, rendering, taxonomy
 from synthtwin import validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _round_trip
 
 SEEDS = ("1", "7", "23")
+
+# THE FLOOR THESE SHAPES ARE DESCRIBED AT, the shipped default (11 since
+# plan P4-D316). Where a column's commonest number is held by fewer cells
+# than it, the mode pair is withheld and the withheld pair proves no
+# number was held by `FLOOR` cells, so G5.2a's cap is `FLOOR - 1`
+# (`test_a_pair_the_floor_withheld_caps_every_number_under_the_floor`).
+FLOOR = parsing.DEFAULT_SMALL_CELL_FLOOR
+
+
+def _cap(mode: "float | None", mode_count: int) -> int:
+    """The most cells one twin number may hold, from the published pair."""
+    return mode_count if mode is not None else FLOOR - 1
 
 
 def _one_figure_gaussian(draw: random.Random, rows: int) -> "list[str]":
@@ -320,18 +332,28 @@ def test_the_numeric_facts_come_back_from_the_twin(
         short = CARRIED_SHORT.get((name, rows, seed), 0)
         assert (twin_exit == 0) == (short == 0), (name, rows, seed, twin_exit)
         assert real_exit == 0, (name, rows, seed, "the real table missed")
-        assert first["mode_count"] == real_most
+        # THE MODE PAIR IS PUBLISHED WHERE THE COMMONEST NUMBER REACHES
+        # THE FLOOR, and withheld whole below it.
+        if real_most >= FLOOR:
+            assert first["mode_count"] == real_most
+        else:
+            assert first["mode"] is None and first["mode_count"] == 0
         held = collections.Counter(_number(cell) for cell in written)
         assert None not in held, (name, seed, "a cell that is not a number")
-        # NO NUMBER OF THE TWIN HELD BY MORE CELLS THAN ANY REAL NUMBER.
-        assert max(held.values()) <= first["mode_count"], (
+        # NO NUMBER OF THE TWIN HELD BY MORE CELLS THAN ANY REAL NUMBER
+        # -- the published count, or under the floor where it is withheld.
+        cap = _cap(first["mode"], first["mode_count"])
+        assert max(held.values()) <= cap, (
             name,
             rows,
             seed,
             max(held.values()),
-            first["mode_count"],
+            cap,
         )
-        assert second["mode_count"] <= first["mode_count"]
+        if first["mode"] is None:
+            assert second["mode"] is None, (name, rows, seed)
+        else:
+            assert second["mode_count"] <= first["mode_count"]
         # THE COUNT OF DIFFERENT NUMBERS AND THE FRACTION WIDTHS, EXACTLY.
         extra = CARRIED_EXTRA.get((name, rows), 0)
         assert second["n_distinct_values"] == first["n_distinct_values"] - short + extra, (
@@ -546,8 +568,10 @@ def test_no_stratum_holds_more_cells_than_the_published_count(
     layout, _notes, _content = generation._numeric_layout(
         column, facts, None, _loaded.settings.small_cell_floor
     )
-    assert facts.mode is not None
-    assert max(layout.sizes) <= facts.mode_count, (
+    # The published count, or under the floor where the pair is withheld
+    # (the three-figure column's commonest number is held by fewer than
+    # the default floor of 11 cells).
+    assert max(layout.sizes) <= _cap(facts.mode, facts.mode_count), (
         sorted(layout.sizes, reverse=True)[:5],
         facts.mode_count,
     )
@@ -740,7 +764,9 @@ def test_a_heavy_tail_window_is_no_longer_vacuous(tmp_path: pathlib.Path) -> Non
         column, loaded.n_rows, loaded.settings.small_cell_floor
     )
     assert plan.layout is not None
-    assert max(plan.layout.sizes) <= facts.mode_count
+    # The published count of three at a floor of one; under the default
+    # floor of 11 the pair is withheld and the cap is ten (plan P4-D316).
+    assert max(plan.layout.sizes) <= _cap(facts.mode, facts.mode_count)
     for seed in (1, 2):
         twin = generation.generate(loaded, seed)
         own = {

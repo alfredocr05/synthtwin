@@ -1673,8 +1673,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"only the values wearing no marker are described that way; "
             f"as codes, no average is published at all, and the codes "
             f"themselves are published under the smallest-group size in "
-            f"force -- at the default of one, every one of them, with "
-            f"the rows that carried it. synthtwin has described the "
+            f"force -- at the default of 11, every code that 11 or more "
+            f"rows carried, with the rows that carried it. synthtwin "
+            f"has described the "
             f"unmarked values as numbers and the marked ones as labels, "
             f"and has not guessed further. If they are measurements, "
             f"run the command again with --measurement and this "
@@ -1940,8 +1941,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "different thing. Run the command again with --identifier "
             "NAME to say these are record numbers, and no value of "
             "this column is published at all; with --code NAME to say "
-            "they are a coding system, and each spelling is published "
-            "with how many rows carried it; or with --measurement NAME "
+            "they are a coding system, and each spelling a "
+            "smallest-group's worth of rows share is published with "
+            "how many rows carried it; or with --measurement NAME "
             "to say the number inside is a quantity after all, and the "
             "column is described as numbers wearing that address. NAME "
             "is this column's name"
@@ -2164,7 +2166,9 @@ class Settings:
     `contradictory_declarations`, called by both.
     """
 
-    small_cell_floor: int = 1
+    # THE SMALLEST GROUP, read from the one place its default is written
+    # (`parsing.DEFAULT_SMALL_CELL_FLOOR`, 11 since plan P4-D316).
+    small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR
     # How different a column's values have to be before synthtwin SAYS
     # SO. This decides no role. Nothing decides the identifier role but
     # the person who owns the table, so this threshold governs one thing
@@ -8875,8 +8879,9 @@ def _value_histogram(cells: _Cells, numbers: "list[float]") -> dict[str, int]:
     # -- a description whose own twin fails its quality report, which
     # is the one thing this product may not do. So a column that cannot
     # publish EVERY bin publishes none, the disclosure question stays
-    # simple, and at the default floor of one nothing pools and every
-    # column gets its shape.
+    # simple, and at a floor of one nothing pools and every column gets
+    # its shape. At the default of 11 (plan P4-D316) a column with any
+    # bin under eleven rows publishes none.
     for place in sorted(counts):
         if counts[place] < cells.settings.small_cell_floor:
             return {}
@@ -9268,7 +9273,7 @@ def _census_floor(settings: Settings) -> int:
     clause 3, as the Codex review of landing 2b.2 applied it; plan
     P4-D65.1). A published count of one names an individual outright:
     the reader who knows how every other cell was written can tell how
-    that cell was. `small_cell_floor` defaults to one, so a census
+    that cell was. `small_cell_floor` may be lowered to one, so a census
     governed by it alone publishes exactly that count, and the review
     measured the disclosure at a floor of eleven as well -- the pooled
     remainder carried it there.
@@ -10113,7 +10118,7 @@ def _offset_counts(
 
     AND NO COUNT IT PRINTS NAMES A ROW (plans P4-D220 and P4-D222). It
     named an offset where its count reached the settings floor, so at the
-    default floor of one a single row written at `+01:00` beside 399 at
+    then default floor of one a single row written at `+01:00` beside 399 at
     `Z` was published by name, and at a floor of eleven the pool beside
     `Z` was that one row. `parsing.absorbed_census` decides it now, over
     the values that read as a date, with the offsets as an open
@@ -10848,7 +10853,7 @@ def _floored_census(
     WHAT IT REPLACES AND WHY (review of 158c811, item 1). This census
     used to take `_offset_counts`' rule: a name published where its count
     reached the smallest group size, the rest pooled under `(withheld)`.
-    At the default size of one that published a count of one outright,
+    At the then default size of one that published a count of one outright,
     and at any size it pooled into a key that named the one form left:
     400 moments at noon, one of them written with a lower-case `z`,
     published `{"lower": 1, "upper": 399}` by default and
@@ -14164,7 +14169,7 @@ def _decide(
     # WHY THE COLUMN NEEDS A ROLE OF ITS OWN, measured before it was
     # built. Such a column declines to `long_tail_labels` today, and
     # that decline is wrong in BOTH directions. On a 300-row column of
-    # 222 readings beside two markers: at the default floor of one
+    # 222 readings beside two markers: at the then default floor of one
     # every reading clears the line and is published as its own LEVEL,
     # 177 of them, so the description carries the readings themselves;
     # at a floor of eleven the levels fall to two and the twin holds NO
@@ -14815,9 +14820,10 @@ def _floor_clearing_non_numeric(cells: _Cells) -> "tuple[str, ...]":
     ways that repeat often enough to name", and neither half of that
     survives the floor alone:
 
-    * **A spelling has to REPEAT**, which at the default floor of one
-      it need not (amendment A-P4-37 lowered the floor to 1, four
-      amendments after A-P4-1 wrote this trigger against it). Without
+    * **A spelling has to REPEAT**, which at a floor of one it need
+      not (amendment A-P4-37 lowered the default floor to 1, four
+      amendments after A-P4-1 wrote this trigger against it; plan
+      P4-D316 returned it to 11). Without
       this, a column of a hundred numbers beside a hundred ALL
       DIFFERENT words would have every word counted as a "way that
       repeats", and the sentence would call a hundred one-off
@@ -15874,8 +15880,8 @@ def profile_column(
     # the label rules.
     #
     # THE GATE IS CHEAP. No level below the floor means no pool at all,
-    # and at the default floor of one there is no such level, so no
-    # ordinary run is charged for a second reading.
+    # and at a floor of one there is no such level, so no run at that
+    # floor is charged for a second reading.
     judged_over_levels = False
     if (
         present

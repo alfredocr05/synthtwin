@@ -1786,6 +1786,13 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
     usual = contract.SMALL_GROUP_NOTICE_LINE
+    # THE DEFAULT IS NAMED AS THE DEFAULT (plan P4-D316). This read "a
+    # description holds nothing back for being a small group unless it
+    # is asked to", which was true while the default was 1. It is 11
+    # since 2026-09-22, and a description below it was either made with
+    # a smaller --smallest-group or made before that day at the old
+    # default, so the sentence names the floor and not who chose it.
+    default = contract.DEFAULT_SMALL_CELL_FLOOR
     lines = [
         _RULE,
         (
@@ -1794,11 +1801,11 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
         _RULE,
         "",
         (
-            f"A description holds nothing back for being a small group "
-            f"unless it is asked to. Pooling everything under {usual} rows"
+            f"By default a description pools every group under {default} "
+            f"rows into a"
         ),
-        f"is what --smallest-group {usual} does, and this description was",
-        f"not made that way: it names values as few as {floor} row(s)",
+        "count that names none of them. This description was made with",
+        f"a smallest group of {floor}: it names values as few as {floor} row(s)",
         "shared, together with how many rows that is -- and the twin",
         "beside this report was built to hold those counts exactly, so",
         "the twin carries them and so does this page.",

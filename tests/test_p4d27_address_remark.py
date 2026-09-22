@@ -54,15 +54,21 @@ def _described(
     identifiers: "list[str] | None" = None,
     codes: "list[str] | None" = None,
     measurements: "list[str] | None" = None,
+    floor: "int | None" = None,
 ) -> dict:
     """One column, described the way `synthtwin profile` describes it."""
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
         folder, "thing.csv", fixtures.single_column_table(name, values)
     )
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
     return profile.build_document(
-        reading.read_table(f"{table}"),
-        taxonomy.Settings(),
+        reading.read_table(f"{table}", small_cell_floor=settings.small_cell_floor),
+        settings,
         [] if identifiers is None else identifiers,
         forced_codes=codes,
         forced_measurements=measurements,
@@ -125,7 +131,13 @@ def test_the_sentence_names_all_three_routes_and_what_each_one_does() -> None:
     for flag in ("--identifier", "--code", "--measurement"):
         assert flag in said, flag
     assert "no value of this column is published at all" in said
-    assert "each spelling is published with how many rows carried it" in said
+    # WHAT THE --code ROUTE PUBLISHES IS HELD TO THE FLOOR (plan P4-D316):
+    # the sentence said every spelling while the default was 1, and at
+    # the default of 11 it publishes the spellings eleven rows share.
+    assert (
+        "each spelling a smallest-group's worth of rows share is published "
+        "with how many rows carried it"
+    ) in said
     assert "described as numbers wearing that address" in said
 
 
@@ -141,9 +153,16 @@ def test_each_named_route_does_what_the_sentence_says() -> None:
     assert declared["role"] == taxonomy.ROLE_IDENTIFIER
     assert "levels" not in declared and "mean" not in declared
 
+    # THE --code ROUTE PUBLISHES THE SPELLINGS ENOUGH ROWS SHARE (plan
+    # P4-D316): at the default floor of 11 every one of these 400
+    # addresses is one row's, so all 400 are counted into the pool and
+    # none is named; at a floor of one each is named with its count.
     coded = _described(values, codes=["email"])["columns"][0]
     assert coded["role"] == taxonomy.ROLE_LONG_TAIL
-    assert coded["levels"], "the --code route must publish the spellings"
+    assert coded["levels"] == []
+    assert (coded["suppressed_levels"], coded["suppressed_rows"]) == (400, 400)
+    lowered = _described(values, codes=["email"], floor=1)["columns"][0]
+    assert lowered["levels"], "the --code route must publish the spellings"
 
     measured = _described(values, measurements=["email"])["columns"][0]
     assert measured["role"] == taxonomy.ROLE_AFFIXED

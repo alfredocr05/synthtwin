@@ -159,7 +159,11 @@ def test_a_column_of_decimals_says_nothing() -> None:
 
 
 def test_the_fewest_cells_the_map_names_are_enough_to_say_it() -> None:
-    """Two at the default floor, which is the line the census asks.
+    """Eleven at the default floor, which is the line the census asks.
+
+    The line is `parsing.census_floor` of the floor: two while the
+    default was 1, eleven since plan P4-D316. Ten padded cells are
+    counted into the commonest form at the default and say nothing.
 
     THIS TEST SAID ONE UNTIL THE OWNER'S RULINGS OF 2026-09-17 (plan
     P4-D221, and P4-D222 for the count the map keeps). Its reasoning was
@@ -171,17 +175,20 @@ def test_the_fewest_cells_the_map_names_are_enough_to_say_it() -> None:
     table it was to anybody holding the column. So the remark now speaks
     with the map's OWN count and only where the map names the form.
     """
-    values = ["00100"] * 2 + [f"{1000 + number}" for number in range(248)]
+    values = ["00100"] * 11 + [f"{1000 + number}" for number in range(239)]
     said = _padded_remark(_described(values))
     assert said is not None
-    assert "2 of this column's values" in said
+    assert "11 of this column's values" in said
+    fewer = ["00100"] * 10 + [f"{1000 + number}" for number in range(240)]
+    assert _padded_remark(_described(fewer)) is None
 
 
 def test_a_padded_count_the_map_does_not_name_says_nothing() -> None:
     """One padded cell of two hundred and fifty names that one row.
 
-    The line at the default floor is two (`parsing.census_floor`), so a
-    lone padded cell is counted into the commonest form -- the map
+    The line at the default floor is eleven (`parsing.census_floor`, and
+    two at a floor of one), so a lone padded cell is counted into the
+    commonest form -- the map
     publishes `{"plain": 250}` -- and no sentence prints a count the map
     does not hold. Withdrawing the map's condition from the producer
     turns this red and prints `1 of this column's values`.

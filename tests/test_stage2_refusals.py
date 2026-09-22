@@ -71,8 +71,11 @@ def test_a_padded_cell_holding_a_comma_withholds_the_mark(tmp_path: pathlib.Path
 
 def test_the_proving_cells_must_reach_the_smallest_group(tmp_path: pathlib.Path) -> None:
     cells = [f"{1000 + place * 7:,}" for place in range(8)] + [f"{place}" for place in range(40)]
-    assert _mark(tmp_path / "at-one", cells) == ","
+    # Eight proving cells: named at a floor of one, withheld at nine and
+    # at the default of 11 (plan P4-D316).
+    assert _mark(tmp_path / "at-one", cells, "--smallest-group", "1") == ","
     assert _mark(tmp_path / "at-nine", cells, "--smallest-group", "9") == ""
+    assert _mark(tmp_path / "at-default", cells) == ""
 
 
 def test_bare_cells_that_outnumber_the_grouped_withhold_the_mark(tmp_path: pathlib.Path) -> None:

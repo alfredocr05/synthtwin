@@ -393,10 +393,21 @@ def test_a_zero_filled_width_comes_back_zero_filled(
     published = got["source"]["layout_forms"]
     assert sum(published.values()) == len(cells)
     assert all(key[:1] == "!" for key in published), published
-    for depth in range(1, 4):
-        opens = [cell for cell in cells if cell[:depth] == "0" * depth]
-        written = [cell for cell in got["cells"] if cell[:depth] == "0" * depth]
-        assert len(opens) == len(written), (depth, len(opens), len(written))
+    # THE DEPTHS OWED ARE THE DEPTHS THE CENSUS NAMES (plan P4-D126), and
+    # at the default floor of 11 (plan P4-D316) a depth fewer than eleven
+    # cells wear -- three noughts, on 8 and 7 of 800 at these seeds -- is
+    # counted one nought shallower, so the twin writes it shallower. So
+    # the twin's cells are counted by exact fill depth and held to the
+    # published count at each depth.
+    owed: "dict[int, int]" = {}
+    for key, count in published.items():
+        depth = len(key) - len(key.lstrip("!"))
+        owed[depth] = owed.get(depth, 0) + count
+    wrote: "dict[int, int]" = {}
+    for cell in got["cells"]:
+        depth = len(cell) - len(cell.lstrip("0"))
+        wrote[depth] = wrote.get(depth, 0) + 1
+    assert wrote == owed, (wrote, owed)
     assert got["twin_exit"] == 0 and got["real_exit"] == 0
 
 

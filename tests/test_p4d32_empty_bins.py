@@ -1421,11 +1421,14 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     assert first["value_histogram"] == {"0": 120}, first["value_histogram"]
     assert first["empty_bins"] == [], first["empty_bins"]
     assert loaded.columns[0].facts.parts[0].empty_bins == ()
-    # ...and the SECOND position, which does vary, still names its own
-    # empty bins if it has any -- so the repair is about the scale and
-    # not about the role.
+    # ...and the SECOND position, which does vary, still has a scale --
+    # so the repair is about the scale and not about the role. Its census
+    # is withheld whole at the default floor of 11 (plan P4-D316): 120
+    # different values over the bins leave every bin under eleven, and
+    # the census is all or nothing. At a floor of one it is published.
     second = block["parts"][1]
-    assert second["value_histogram"], second["value_histogram"]
+    assert second["percentiles"]["min"] < second["percentiles"]["max"]
+    assert second["value_histogram"] == {}, second["value_histogram"]
     # ...and a twin of it still comes back, which is what the joined
     # role's own fixture found when this did not hold: the loader
     # refused the description outright.

@@ -122,16 +122,16 @@ rows share it -- but it does contain the
 smallest and largest values of your numeric and date columns, the points
 in between that describe their shape, and, for each label, the exact
 spellings your file used for it together with how many rows wrote it
-that way. **By default that includes labels only one row held.** A twin
-is not a twin if a rare finding never reaches it, so synthtwin names
-every value and says how many rows shared it. What a named rare value
-tells anybody is that somebody in your table had it -- synthtwin
-publishes nothing that crosses two columns, so it says nothing about
-who, or about anything else that person's row holds. If your review
-board or a data-use agreement needs groups kept above a size,
-`--smallest-group 11` pools everything under eleven rows and the whole
-workflow runs on the result. What each setting costs is written out
-under the options below. It is
+that way. **By default no label fewer than eleven rows held is named**:
+synthtwin pools every group under eleven rows into a count that names
+none of them, so a label rarer than that does not reach your twin by
+name. `--smallest-group` lowers the number -- down to 1, where
+every value is named together with how many rows shared it -- and the
+whole workflow runs on the result. What a named rare value tells
+anybody is that somebody in your table had it -- synthtwin publishes
+nothing that crosses two columns, so it says nothing about who, or
+about anything else that person's row holds. What each setting costs
+is written out under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the questions file,
@@ -182,7 +182,7 @@ synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
 synthtwin profile my-table.csv --code vaccine_code
 synthtwin profile my-table.csv --measurement blood_pressure
-synthtwin profile my-table.csv --smallest-group 11
+synthtwin profile my-table.csv --smallest-group 20
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
@@ -283,17 +283,17 @@ keyboard -- a script, a pipeline, CI -- it never stops: it names those
 columns on screen, says what it assumed, and prints the `--code` line
 that corrects it.
 
-**`--smallest-group`, and what raising it does.** It changes how many
-rows a group needs before the profile names it. **The default is 1,
-which holds nothing back**: every value your table holds is named,
-together with how many rows shared it, so a rare finding reaches your
-twin. Any whole number of 1 or more is accepted end to end: `profile`, `generate` and `validate` all run
-on the file it produces. Raising it publishes less -- `--smallest-group
-11` pools every group under eleven rows, which is what a review board or
-a data-use agreement usually means by a small-cell rule. **At the
-default of 1 the profile publishes small groups and their counts**, and
-that is worth reading slowly, because the count is the disclosure rather
-than a route to one. At a smallest group size of two, the profile names values that
+**`--smallest-group`, and what lowering it does.** It changes how many
+rows a group needs before the profile names it. **The default is 11**:
+no group named anywhere in the profile covers fewer than eleven rows,
+so a value fewer than eleven rows share is pooled into a count that
+names none of them, and does not reach your twin by name. Any
+whole number of 1 or more is accepted end to end: `profile`, `generate`
+and `validate` all run on the file it produces. Raising it publishes
+less. Lowering it publishes more, and **below 11 the profile publishes
+small groups and their counts**, which is worth reading slowly, because
+the count is the disclosure rather than a route to one. At a smallest
+group size of two, the profile names values that
 two rows shared and says that two rows shared them; at one, it names a
 value one row held and says that one row held it. If one row of your
 table is one person, somebody who already knows one true thing about

@@ -1196,11 +1196,11 @@ def floor_not_positive(given: str) -> str:
     return (
         f"The smallest group size must be a whole number of 1 or more, "
         f"but {given} was given. Give a whole number, or leave the "
-        f"option out altogether to use the default of 1: every value "
-        f"your table holds is then named in the profile, together with "
-        f"how many rows shared it. Raise it -- for instance to 11 -- "
-        f"where no group named in the profile may be small enough to "
-        f"point at one person."
+        f"option out altogether to use the default of "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR}: no group named in the "
+        f"profile then covers fewer than "
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} rows, so none is small "
+        f"enough to point at one person."
     )
 
 

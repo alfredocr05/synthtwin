@@ -40,6 +40,15 @@ from synthtwin import asking
 ROWS = 120
 SITES = ("North", "South", "East", "West")
 
+# A FLOOR OF ONE, FOR A SHAPE WHOSE POINT IS A LONE FEATURE (plan
+# P4-D316). The default smallest group is 11 since 2026-09-22, and at it
+# the disclosure rule withholds a lone blank line, a handful of empty
+# records, runs of line endings shorter than the line and a spelling
+# fewer than eleven rows share (plan P4-D290, ruling 6 of 2026-09-17).
+# A shape built to show that such a feature round-trips is asked at the
+# floor that still publishes it, and says so where it is used.
+_FLOOR_ONE = ("--smallest-group", "1")
+
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process and return its exit code."""
@@ -163,12 +172,26 @@ def test_excel_csv_utf8_on_windows(tmp_path: pathlib.Path) -> None:
     result = _round_trip(tmp_path, data)
     twin = result["twin"]
     assert twin[:3] == b"\xef\xbb\xbf"
+    # AT THE DEFAULT FLOOR THE TWO EMPTY RECORDS ARE A COUNT BELOW THE
+    # LINE (plan P4-D290, the default 11 since P4-D316): published as
+    # nought, which describes the file as though those two records held
+    # values, so the twin writes as many records and line endings as
+    # the file and none of them empty. Both files still validate.
     assert twin.count(b"\r\n") == data.count(b"\r\n")
-    assert twin.endswith(b"\r\n,,,,,\r\n,,,,,\r\n")
+    assert not twin.endswith(b",,,,,\r\n")
     assert result["form"]["empty_rows"] == {
-        "interior": 0, "leading": 0, "trailing": 2
+        "interior": 0, "leading": 0, "trailing": 0
     }
     _held(result)
+    # At a floor of one the delimiter-only rows are published and come
+    # back, which is the shape this exporter writes.
+    lowered = _round_trip(tmp_path / "floor-one", data, _FLOOR_ONE)
+    assert lowered["twin"].count(b"\r\n") == data.count(b"\r\n")
+    assert lowered["twin"].endswith(b"\r\n,,,,,\r\n,,,,,\r\n")
+    assert lowered["form"]["empty_rows"] == {
+        "interior": 0, "leading": 0, "trailing": 2
+    }
+    _held(lowered)
 
 
 def test_european_excel_semicolon_with_a_separator_line(
@@ -431,7 +454,18 @@ def test_a_sort_column_holding_a_cell_of_spaces_publishes_no_order(
     rows = sorted(_people(22), key=lambda row: row[0])
     rows[0] = ["   "] + rows[0][1:]
     data = ("\n".join(["record_id,age,arm,site,reading"] + _lines(rows)) + "\n").encode()
+    # AT THE DEFAULT FLOOR THE PREMISE OF THIS TEST'S NAME HOLDS AGAIN
+    # (plan P4-D316). The spelling `"   "` is held by ONE cell, below the
+    # smallest group of 11, so it is counted absent without being named;
+    # the twin writes that cell empty, which no published order holds
+    # (FD7), and the order is not published.
     result = _round_trip(tmp_path, data)
+    assert result["form"]["row_order"] is None
+    assert result["twin_form"]["row_order"] is None
+    assert b"\n   ," not in result["twin"]
+    _held(result)
+    # At a floor of one landing 2b.8's reading stands, as below.
+    result = _round_trip(tmp_path / "floor-one", data, _FLOOR_ONE)
     # MERGED WITH LANDING 2b.8 (the integration of landings 2b.6 to
     # 2b.10, 2026-09-16), AND THE PREMISE MOVED. The order was dropped
     # because the twin wrote the cell of spaces EMPTY. Landing 2b.8 keeps
@@ -613,7 +647,12 @@ def test_comma_space_and_an_unquoted_inner_quote(tmp_path: pathlib.Path) -> None
     bare = ["record_id,size"]
     for index in range(ROWS):
         bare += [f'S{draw.randint(1, 99999):05d},Cyst {draw.randint(1, 9)}" wide']
-    second = _round_trip(tmp_path / "bare", ("\n".join(bare) + "\n").encode())
+    # FLOOR ONE: the inner quote is in labels some of which fewer than
+    # eleven rows carry, and a held-back label is written as a neutral
+    # stand-in holding no quote (plan P4-D316).
+    second = _round_trip(
+        tmp_path / "bare", ("\n".join(bare) + "\n").encode(), _FLOOR_ONE
+    )
     assert second["twin"].count(b'"') == second["real"].count(b'"')
     _held(second)
 
@@ -673,7 +712,8 @@ def test_space_only_blank_lines_in_a_comma_space_file(
         body += f"{SITES[index % 4]}, {'A' if index % 2 else 'B'}\r\n"
         if index in (10, 40, 70):
             body += "   \n"
-    result = _round_trip(tmp_path, body.encode())
+    # FLOOR ONE: three blank places are fewer than the default line.
+    result = _round_trip(tmp_path, body.encode(), _FLOOR_ONE)
     assert result["form"]["initial_space"] is True
     places = result["form"]["blank_lines"]
     assert [place["text"] for place in places] == ["   ", "   ", "   "], places
@@ -703,13 +743,14 @@ def test_a_blank_line_is_compared_by_its_own_spelling(
     spaced = ("\n".join(lines[:2] + ["   "] + lines[2:]) + "\n").encode()
     tabbed = ("\n".join(lines[:2] + ["\t"] + lines[2:]) + "\n").encode()
 
-    described = _describe(tmp_path / "spaced", spaced)
+    # FLOOR ONE: one blank place is fewer than the default line.
+    described = _describe(tmp_path / "spaced", spaced, _FLOOR_ONE)
     missed = _missed(tmp_path / "spaced-tabbed", described, tabbed)
     assert "bytes.blank-lines" in missed, missed
 
     # ...and the file it WAS described from still holds, so the check
     # tightened without becoming unmeetable.
-    result = _round_trip(tmp_path / "round", spaced)
+    result = _round_trip(tmp_path / "round", spaced, _FLOOR_ONE)
     assert result["form"]["blank_lines"] == [
         {"after": 1, "lines": 1, "text": "   "}
     ], result["form"]["blank_lines"]
@@ -762,7 +803,8 @@ def test_a_hand_edited_file(tmp_path: pathlib.Path) -> None:
     text += "\n\n   \n" + "\n".join(_lines(rows[40:])) + "\n\n"
     text = text.rstrip("\n")
     data = text.encode()
-    result = _round_trip(tmp_path, data)
+    # FLOOR ONE: two blank places are fewer than the default line.
+    result = _round_trip(tmp_path, data, _FLOOR_ONE)
     twin = result["twin"]
     assert not twin.endswith(b"\n")
     lines = twin.split(b"\n")
@@ -968,8 +1010,10 @@ def test_the_report_says_the_records_of_nothing_move(
     folder.mkdir()
     real = folder / "real.csv"
     real.write_bytes(("\n".join([header] + lines) + "\n").encode())
+    # FLOOR ONE: one empty record is a count below the default line.
     assert _exit_of(
         ["profile", str(real), "--out-dir", str(folder), "--replace"]
+        + list(_FLOOR_ONE)
     ) == 0
     described = folder / "real-profile.json"
     assert _exit_of(
@@ -1382,7 +1426,10 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
 
     lines = plain.split(b"\n")
     gapped = b"\n".join(lines[:10] + [b""] + lines[10:])
-    spaced = _describe(tmp_path / "gapped", gapped)
+    # FLOOR ONE here and for `nothing` below: one blank place and one
+    # empty record are below the default line, and a rule can miss only
+    # what is published.
+    spaced = _describe(tmp_path / "gapped", gapped, _FLOOR_ONE)
     assert "bytes.blank-lines" in _missed(tmp_path / "gapped-plain", spaced, plain)
 
     trailing = b"\n".join([line + b"," for line in lines[:-1]]) + b"\n"
@@ -1467,7 +1514,9 @@ def test_each_rule_of_the_written_form_can_miss(tmp_path: pathlib.Path) -> None:
 
     emptied = [[""] * 5 if index == 7 else row for index, row in enumerate(rows)]
     nothing = _describe(
-        tmp_path / "nothing", ("\n".join([header] + _lines(emptied)) + "\n").encode()
+        tmp_path / "nothing",
+        ("\n".join([header] + _lines(emptied)) + "\n").encode(),
+        _FLOOR_ONE,
     )
     assert "bytes.empty-rows" in _missed(tmp_path / "nothing-plain", nothing, plain)
 
@@ -1538,7 +1587,9 @@ def test_line_endings_that_change_kind_past_the_cap(tmp_path: pathlib.Path) -> N
     for index in range(ROWS):
         text += _lines([rows[index]])[0] + ("\r\n" if index % 3 == 0 else "\n")
     data = text.encode()
-    result = _round_trip(tmp_path, data)
+    # FLOOR ONE: every run is one or two lines long, below the default
+    # line, which collapses the file to one run of its commonest ending.
+    result = _round_trip(tmp_path, data, _FLOOR_ONE)
     assert result["form"]["line_endings"] == []
     assert result["form"]["line_endings_spread"] == [
         {"ending": "lf", "lines": ROWS + 1 - 40}, {"ending": "crlf", "lines": 40},
@@ -1558,7 +1609,8 @@ def test_a_sorted_excel_table_with_empty_records_below_it(
         body += [f"P{index + 1:04d},{draw.randint(18, 90)},{draw.choice('AB')},{draw.choice(SITES)}"]
     body += [",,,"] * 5
     data = b"\xef\xbb\xbf" + ("\r\n".join(body) + "\r\n").encode()
-    result = _round_trip(tmp_path, data)
+    # FLOOR ONE: five empty records are a count below the default line.
+    result = _round_trip(tmp_path, data, _FLOOR_ONE)
     assert result["form"]["row_order"] == {
         "collation": "text", "column": 1, "direction": "ascending",
     }
@@ -1575,7 +1627,8 @@ def test_a_sorted_table_with_an_empty_record_inside(tmp_path: pathlib.Path) -> N
     rows = sorted(_people(36), key=lambda row: row[0])
     body = ["record_id,age,arm,site,reading"] + _lines(rows[:60]) + [",,,,"] + _lines(rows[60:])
     data = ("\n".join(body) + "\n").encode()
-    result = _round_trip(tmp_path, data)
+    # FLOOR ONE: one empty record is a count below the default line.
+    result = _round_trip(tmp_path, data, _FLOOR_ONE)
     assert result["form"]["row_order"]["column"] == 1
     assert result["form"]["empty_rows"] == {"interior": 1, "leading": 0, "trailing": 0}
     records = _records(result["twin"], "utf-8")[1:]
@@ -1789,7 +1842,9 @@ def test_a_comma_space_guess_the_file_breaks_is_walked_again(
         note = "   indented" if index == 420 else " plain"
         body += [f"S{draw.randint(10000, 99999)},{note}, {draw.choice(SITES)}"]
     data = ("\n".join(body) + "\n").encode()
-    result = _round_trip(tmp_path, data)
+    # FLOOR ONE: the indented note is one row's, and a label fewer than
+    # eleven rows carry is written as a neutral stand-in at the default.
+    result = _round_trip(tmp_path, data, _FLOOR_ONE)
     assert result["form"]["initial_space"] is False
     assert result["twin"].count(b",   indented,") == 1
     _held(result)
@@ -1839,7 +1894,10 @@ def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
     text = header + "\n"
     for index in range(ROWS):
         text += _lines([rows[index]])[0] + ("\r\n" if index % 3 == 0 else "\n")
-    counted = _describe(tmp_path / "counted-endings", text.encode())
+    # FLOOR ONE for the counted endings and the ordered empty records:
+    # runs of one or two lines and three empty records are below the
+    # default line. The counted blank lines clear it as they stand.
+    counted = _describe(tmp_path / "counted-endings", text.encode(), _FLOOR_ONE)
     assert "bytes.line-endings" in _missed(tmp_path / "counted-endings-plain", counted, plain)
     fewer = text.replace("\r\n", "\n", 1).encode()
     assert "bytes.line-endings" in _missed(tmp_path / "counted-endings-fewer", counted, fewer)
@@ -1850,7 +1908,7 @@ def test_the_counted_forms_can_miss(tmp_path: pathlib.Path) -> None:
 
     in_order = sorted(rows, key=lambda row: row[0])
     below = ("\n".join([header] + _lines(in_order) + [",,,,"] * 3) + "\n")
-    ordered = _describe(tmp_path / "ordered-empties", below.encode())
+    ordered = _describe(tmp_path / "ordered-empties", below.encode(), _FLOOR_ONE)
     shuffled = ("\n".join([header] + _lines(rows) + [",,,,"] * 3) + "\n").encode()
     assert "rows.order" in _missed(tmp_path / "ordered-empties-shuffled", ordered, shuffled)
 

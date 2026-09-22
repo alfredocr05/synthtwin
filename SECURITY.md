@@ -116,14 +116,16 @@ The layers:
 
 Stated here so that no reader has to discover them independently:
 
-- **THE SMALL-CELL FLOOR DEFAULTS TO ONE, and that is a decision
-  rather than an oversight** (owner ruling 2026-09-03). At a floor of
-  one every distinct value of a label-published column is published as
-  its own level, with its count. On a 300-row column of readings that
-  is 177 of them. The owner's reasoning, recorded in their words:
-  knowing that a piece of information is present is not the privacy
-  question; the privacy question is knowing that EVERYTHING is present,
-  and whose row it is.
+- **THE SMALL-CELL FLOOR DEFAULTS TO ELEVEN, AND A PERSON MAY LOWER IT
+  TO ONE** (owner, 2026-09-22, returning the default to the value it
+  held before 2026-08-25; plan P4-D316). At the default no group named
+  in a description covers fewer than eleven rows. At a floor of one
+  every distinct value of a label-published column is published as its
+  own level, with its count: on a 300-row column of readings that is
+  177 of them. The owner's reasoning for letting a person lower it
+  (ruling 2026-09-03), recorded in their words: knowing that a piece of
+  information is present is not the privacy question; the privacy
+  question is knowing that EVERYTHING is present, and whose row it is.
 
   **The structure that carries that reasoning** is worth stating,
   because it is what makes the floor defensible and it is not a claim
@@ -143,13 +145,14 @@ Stated here so that no reader has to discover them independently:
   and it is the only one; it does not reach across columns. Second, a
   value that is unique in the world identifies a person by itself
   wherever a reader already knows who holds it, and the floor is what
-  a person raises when their table has such values. The owner's ruling
-  of 2026-08-31 that a rare finding must reach the twin is the other
-  half of that trade and is recorded with it.
+  keeps such a value out of a description; lowering it lets it in. The
+  owner's ruling of 2026-08-31 that a rare finding must reach the twin
+  is the other half of that trade and is recorded with it.
 
-  Raising the floor is one setting, `--smallest-group`, and it changes
-  what is published rather than what the twin is for. A person whose
-  table needs it should raise it.
+  The floor is one setting, `--smallest-group`, and it changes what is
+  published rather than what the twin is for. A run that lowers it
+  below eleven says so on the screen before any file is written and on
+  the face of every page it writes.
 
   **THE SAME RULING COVERS A PERCENTILE LADDER** (owner, 2026-09-03,
   extending the above). Describing a column's numbers puts some of
@@ -282,16 +285,16 @@ Stated here so that no reader has to discover them independently:
   table, but it is not anonymous: it publishes labels that at least
   `small_cell_floor` rows share, the smallest and largest values of
   numeric columns and the points between them, and counts about groups
-  nobody is named in. **`small_cell_floor` is 1 by default** (owner
-  ruling 2026-08-25), so by default it publishes every label the table
-  holds together with how many rows shared it - including a label one
-  row held. What that discloses is that somebody in the table had that
-  value: this version publishes nothing that crosses two columns, so it
-  says nothing about who, or about anything else in that person's row.
-  Where your review board or a data-use agreement requires that no
-  published group can point at one person, `--smallest-group 11` pools
-  everything below eleven rows and the whole workflow runs on the
-  result. Handle it under your
+  nobody is named in. **`small_cell_floor` is 11 by default** (owner,
+  2026-09-22), so by default it publishes a label only where at least
+  eleven rows share it, with how many rows did, and pools the rest into
+  a count that names none of them. `--smallest-group` lowers it, down to
+  1, where it publishes every label the table holds together with how
+  many rows shared it - a label one row held included - and the whole
+  workflow runs on the result. What a named label discloses is that
+  somebody in the table had that value: this version publishes nothing
+  that crosses two columns, so it says nothing about who, or about
+  anything else in that person's row. Handle it under your
   institution's rules for real-derived material - together with the
   plain-language summary beside it, the twin, the twin's report and the
   quality report, per the entry above. Profile version 4 widened what it
@@ -649,8 +652,8 @@ Stated here so that no reader has to discover them independently:
     cell text, and it carries no value. It is floor-governed like the
     offset map: a mark is named only where its count reaches the
     smallest group size, and the rest are pooled under `(withheld)`. At
-    the default size of one a name can stand for a single row's
-    spelling, which is the posture the offset map already has.
+    a size of one, the default until 2026-09-22, a name could stand for
+    a single row's spelling, which was the posture the offset map had.
 
     **A limit, stated plainly** (the stage 2 audit, 2026-09-14). The
     marks are a closed list of three, and the offsets are not, so the

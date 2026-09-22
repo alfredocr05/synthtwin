@@ -47,15 +47,26 @@ from synthtwin import (
 
 
 def _document(
-    folder: pathlib.Path, name: str, values: "list[str]"
+    folder: pathlib.Path,
+    name: str,
+    values: "list[str]",
+    floor: "int | None" = None,
 ) -> "dict[str, object]":
-    """One single-column table, described the way `profile` describes it."""
+    """One single-column table, described the way `profile` describes it.
+
+    ``floor`` None is the shipped default (11 since plan P4-D316).
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(
         folder, f"{name}.csv", fixtures.single_column_table(name, values)
     )
-    read = reading.read_table(f"{table}")
-    return profile.build_document(read, taxonomy.Settings(), [])
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    read = reading.read_table(f"{table}", small_cell_floor=settings.small_cell_floor)
+    return profile.build_document(read, settings, [])
 
 
 def _loaded(
@@ -419,8 +430,13 @@ def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
     assert "which is the reading that came closest" in said
     # ...and the same column with a SPACE between the currency and the
     # number IS read, which is what says the guard is about the flush
-    # letters and not about the set.
-    spaced = [f"$ {index}" for index in range(1, 99)] + ["EUR 99", "EUR 100"]
+    # letters and not about the set. ELEVEN euro cells, so the second
+    # wrapper of the set reaches the default floor of 11 (plan P4-D316);
+    # two of them, as this was written at a floor of one, are a wrapper
+    # below the line and the set is not read at all.
+    spaced = [f"$ {index}" for index in range(1, 90)] + [
+        f"EUR {index}" for index in range(90, 101)
+    ]
     apart = _document(tmp_path / "two-spaced", "price", spaced)
     assert apart["columns"][0]["role"] == "affixed_number", (
         apart["columns"][0]["role"]
@@ -1665,17 +1681,20 @@ def test_the_question_counts_only_numbers_wearing_a_word(
     ]
     assert spoken and "17 of this column's values" in spoken[0], spoken
 
+    # ELEVEN of each, so both reach the default floor of 11 (plan
+    # P4-D316); ten of each, as this was written at a floor of one, is a
+    # marker below the line that no remark may count.
     symboled = _document(
         tmp_path / "symboled",
         "assay",
-        base + ["10.50 H"] * 10 + ["<0.50"] * 10,
+        base + ["10.50 H"] * 11 + ["<0.50"] * 11,
     )["columns"][0]
     spoken = [
         remark
         for remark in symboled["remarks"]
         if "cannot tell from the values alone" in remark
     ]
-    assert spoken and "10 of this column's values" in spoken[0], spoken
+    assert spoken and "11 of this column's values" in spoken[0], spoken
 
 
 def test_neither_question_promises_what_the_floor_can_take_away() -> None:
@@ -2283,8 +2302,11 @@ def test_the_twin_writes_each_wrapper_from_its_own_numbers(
         + [f"{round(draw.uniform(13, 15), 1)} H" for _index in range(60)]
         + [f"{round(draw.uniform(4, 5), 1)} L" for _index in range(60)]
     )
+    # FLOOR ONE (plan P4-D316): each flagged reading is a label held by
+    # two or three rows, which the default of 11 pools and writes as a
+    # neutral stand-in; the flag's placement is what is under test.
     loaded = _loaded(
-        tmp_path, _document(tmp_path, "hgb", values), "hgb"
+        tmp_path, _document(tmp_path, "hgb", values, floor=1), "hgb"
     )
     for seed in (0, 3, 11):
         twin = generation.generate(loaded, seed)

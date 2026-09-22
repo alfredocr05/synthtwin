@@ -4855,7 +4855,12 @@ def _degenerate_report(
         _byte_checks(
             description,
             data,
-            _surveyed_quietly(data, headed, description.source.encoding),
+            _surveyed_quietly(
+                data,
+                headed,
+                description.source.encoding,
+                description.settings.small_cell_floor,
+            ),
             False,
         )
         + [_zero_row_form(description, data, text, headed)]
@@ -5579,20 +5584,25 @@ def _bare_form(form: dialect.Dialect, data: bytes) -> dialect.Dialect:
 
 
 def _surveyed_quietly(
-    data: bytes, headed: bool, published: str
+    data: bytes, headed: bool, published: str, floor: int
 ) -> "dialect.Survey | None":
     """The survey of a file the reader refused, or None where it has none.
 
     The zero-row form's conforming file is one the reader refuses for
     holding no rows, and its bytes still have a written form. It is read
     in the description's encoding where it can be, as the reader reads
-    every checked file.
+    every checked file -- and at the description's own floor, as the
+    reader reads it too (plan P4-D317): the form's line rules are asked
+    at that floor, so a survey at any other one reads a form no
+    description at the checked floor publishes.
     """
     if not data:
         return None
     try:
         text, encoding, marked = dialect.decoded_as(data, "", published)
-        return dialect.settle(text, encoding, marked, not headed, "")
+        return dialect.settle(
+            text, encoding, marked, not headed, "", small_cell_floor=floor
+        )
     except errors.ProfileError:
         return None
 
@@ -5859,7 +5869,15 @@ def _byte_checks(
         }
     if description.n_rows == 0:
         unfiled = unfiled | {"bytes.short-rows", "bytes.trailing-delimiter"}
-        if not headed:
+        # AND A HEADED FILE OF NO ROWS AT A RAISED FLOOR (plan P4-D317,
+        # V3.4, the one-column rule's reasoning below). Every blank line
+        # of such a file stands after its header and before any record,
+        # which is ONE place, and a place is published only from
+        # `census_floor` of them -- so since the zero-row check reads the
+        # checked file at the description's own floor, both sides say "no
+        # blank lines" whatever the file holds, and a blank line there is
+        # `bytes.zero-row-form`'s to miss. At a floor of one it is filed.
+        if not headed or description.settings.small_cell_floor > 1:
             unfiled = unfiled | {"bytes.blank-lines"}
     if description.n_columns < 2:
         # One column: no record of nothing, no cell left out at the end

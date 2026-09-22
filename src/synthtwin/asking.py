@@ -526,7 +526,13 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
     * at a smallest-group size of eleven a categorical column withholds
       its rare levels, and the code choice promised that every value is
       kept exactly as written -- which is the whole point of that
-      answer, and not true above the default floor.
+      answer, and not true above a floor of one.
+
+    AND IT DOES NOT SAY WHO CHOSE THE FLOOR (plan P4-D316). It read
+    "because you asked for groups of 11", which was true while the
+    default was 1 and every floor above it had been typed. The default
+    is 11 since 2026-09-22, so most runs at that floor asked for nothing,
+    and the sentence now names the rule rather than a request.
 
     A choice that overstates what it buys is worse than no choice: the
     person is deciding on this sentence, and it is the only part of the
@@ -570,7 +576,7 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
                 f"every value that at least {floor} rows share, exactly "
                 f"as written and with the number of rows that carried "
                 f"it; rarer ones counted together and never named, "
-                f"because you asked for groups of {floor}"
+                f"because no group of fewer than {floor} rows is named"
             )
         return (
             "every value exactly as written, with the number of rows "
@@ -1150,7 +1156,7 @@ def _sayable(count: int, population: int, floor: int) -> str:
 def _shape_of(
     reason: str,
     present: "list[str]",
-    floor: int = 1,
+    floor: int,
     mark: str = "",
     remainder: int = 0,
 ) -> str:
@@ -1163,9 +1169,14 @@ def _shape_of(
     -- and no value of the table. A count of how many cells carry a
     leading zero is a count and not a value; a width is a width.
 
-    Guarantees: accepts a reason and the present cells; returns one
-    sentence. Determinism: a fixed function of both. Raises nothing.
-    No I/O. **No cell of the column appears in what it returns.**
+    THE FLOOR HAS NO DEFAULT (plan P4-D317). It was 1, so a caller that
+    left it out would have counted at a floor of one whatever the person
+    asked for; the one caller passes the settings floor.
+
+    Guarantees: accepts a reason, the present cells and the settings
+    floor; returns one sentence. Determinism: a fixed function of those.
+    Raises nothing. No I/O. **No cell of the column appears in what it
+    returns.**
     """
     if reason == BECAUSE_PADDED:
         padded = 0

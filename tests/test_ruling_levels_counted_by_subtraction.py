@@ -196,16 +196,16 @@ def test_a_pool_that_reaches_the_line_stands(tmp_path: pathlib.Path) -> None:
 
 
 def test_a_floor_of_one_moves_not_one_byte(tmp_path: pathlib.Path) -> None:
-    """At the default floor no level is below it, so there is no pool.
+    """At a floor of one no level is below it, so there is no pool.
 
-    The gate in front of the pass asks that before anything else, so the
-    ordinary run does not pay for a second reading and cannot lose a
-    cell. The same column at a floor of one publishes all three levels
-    and holds every row.
+    The gate in front of the pass asks that before anything else, so a
+    run at a floor of one -- the default until plan P4-D316, asked for
+    here since -- does not pay for a second reading and cannot lose a
+    cell. The column publishes all three levels and holds every row.
     """
     cells = ["F"] * 480 + ["M"] * 519 + ["U"]
     random.Random(5).shuffle(cells)
-    result = _round_trip(tmp_path, {"value": cells})
+    result = _round_trip(tmp_path, {"value": cells}, ("--smallest-group", "1"))
     column = _column(result)
     assert [level["label"] for level in column["levels"]] == ["m", "f", "u"]
     assert (column["n_present"], column["n_missing"]) == (1000, 0)

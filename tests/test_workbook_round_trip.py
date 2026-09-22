@@ -379,10 +379,19 @@ def test_a_realistic_workbook_is_described_generated_and_described_again(
     ):
         assert second[key] == first[key], f"{shape}/{n_rows}: {key}"
     for index in range(len(first["columns"])):
-        assert (
-            second["columns"][index]["cell_classes"]
-            == first["columns"][index]["cell_classes"]
-        ), f"{shape}/{n_rows}: column {index} cell classes"
+        # EVERY CLASS COUNT THE SOURCE PUBLISHES COMES BACK. A count the
+        # source withholds (`null`) owes the twin nothing, and at the
+        # default floor of 11 (plan P4-D316) a 200-row sheet withholds
+        # whole censuses whose small classes a floor of one named; the
+        # twin's own census of such a column may then be published.
+        published = first["columns"][index]["cell_classes"]
+        found = second["columns"][index]["cell_classes"]
+        for kind in sorted(published):
+            if published[kind] is None:
+                continue
+            assert found[kind] == published[kind], (
+                f"{shape}/{n_rows}: column {index} cell classes", kind
+            )
         assert (
             second["columns"][index]["format_code"]
             == first["columns"][index]["format_code"]

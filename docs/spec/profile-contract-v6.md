@@ -253,7 +253,7 @@ disposed individually, in the disposition matrix.
 | **absent** | a cell counted as holding no value. Every absent cell is counted in one of the six absence classes C6-N3 fixes — five of them naming a reason a cell was read as holding no value, the sixth being the remainder the floor pools — and `n_missing` counts them |
 | **raw identity** | a present cell's text exactly as the file spells it. `n_distinct` counts raw identities — except on the four roles that publish a level list, where it counts the spellings the block SPEAKS OF (plan P4-D276): the difference between it and a level's `variants` census counted the spellings the absorption took away, and while that absorption reached one-row spellings alone the difference was a count of one |
 | **folded identity** | a present cell's text after trimming and a Unicode `casefold()`. `n_distinct_folded` counts folded identities, and every published label is a folded identity |
-| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 1 is what `synthtwin profile` writes when nobody asks for another (owner ruling 2026-08-25). The settings section states the range, and what each floor gives up |
+| **the floor** | `settings.small_cell_floor`, the smallest number of rows a published group may cover. Its value is in the document and the document is the only place it is fixed: it is at least 1, and 11 is what `synthtwin profile` writes when nobody asks for another (owner, 2026-09-22; plan P4-D316). The settings section states the range, and what each floor gives up |
 | **withheld** | held back by the floor and pooled into a counted remainder, never named |
 | **the ladder** | the fixed eleven rungs `min`, `p01`, `p05`, `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max`, in that order |
 
@@ -758,12 +758,12 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null`, and empty where the places number fewer than max(2, `small_cell_floor`), because a place is a RECORD POSITION and a handful of them are a handful of records (plan P4-D290: one blank line after record 57 of 120 published `{after: 57, lines: 1}`) — that withholding applies only where the floor is ABOVE ONE, so a run in which nothing was asked of synthtwin keeps the file's form exactly as the source wrote it (P4-D290 as amended 2026-09-18). A place also publishes a FORM -- how many lines stood there and what each holds -- and a form worn by fewer places than that same line is published as the COMMONEST form instead, a tie going to the form standing earliest in the file (plan P4-D311, ruling 6 of 2026-09-17 read on a file's own blank lines: eleven ordinary blank lines beside one holding a single space after record 57 published `{after: 57, lines: 1, text: " "}`, naming the sole record beside that spelling, and eleven runs of one beside three lines after record 57 published `{after: 57, lines: 3}` the same way). The lines a published place does not keep -- those of a withheld place, and the difference where a run was absorbed into a longer or a shorter one -- leave `line_endings` with them, which then collapses to one run, because FD2 has the endings account for every line the description keeps. WHAT THAT COSTS THE CHECK, STATED (plan P4-D314): `synthtwin validate` reads the checked file by this same rule, so the two sides of `bytes.blank-lines` meet AFTER the absorption and a file differing from the description only in a rare blank line's spelling or run length is reported HELD -- measured at a floor of eleven on twelve ordinary places, where a twelfth holding one space, a tab or three lines was MISSED at exit 3 before P4-D311 and is HELD at exit 0 after it, while a place that MOVES is still MISSED. The obligation cannot see what this field is forbidden to publish; the check's own sentence says so, on both sides, wherever the floor is above one |
-| `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records |
+| `blank_lines` | array of objects `{after, lines, text}` | at most 64 | blank lines standing after `after` data records, `lines` of them, each holding `text` (nothing, or only spaces and tabs); empty where `blank_lines_spread` is not `null`, and empty where the places number fewer than the census line, max(2, `small_cell_floor`), because a place is a RECORD POSITION and a handful of them are a handful of records (plan P4-D290: one blank line after record 57 of 120 published `{after: 57, lines: 1}`). The census line is the floor itself at the default of 11 and at every floor of two or more; at a floor of one, which a person has to ask for and at which the column censuses beside this one publish a level covering one row, the line is not asked and the file's form is kept exactly as the source wrote it (P4-D290 as amended 2026-09-18). The loader asks the same line (FD4, plan P4-D317), so a hand-edited description publishing fewer places than it is refused. A place also publishes a FORM -- how many lines stood there and what each holds -- and a form worn by fewer places than that same line is published as the COMMONEST form instead, a tie going to the form standing earliest in the file (plan P4-D311, ruling 6 of 2026-09-17 read on a file's own blank lines: eleven ordinary blank lines beside one holding a single space after record 57 published `{after: 57, lines: 1, text: " "}`, naming the sole record beside that spelling, and eleven runs of one beside three lines after record 57 published `{after: 57, lines: 3}` the same way). The lines a published place does not keep -- those of a withheld place, and the difference where a run was absorbed into a longer or a shorter one -- leave `line_endings` with them, which then collapses to one run, because FD2 has the endings account for every line the description keeps. WHAT THAT COSTS THE CHECK, STATED (plan P4-D314): `synthtwin validate` reads the checked file by this same rule, so the two sides of `bytes.blank-lines` meet AFTER the absorption and a file differing from the description only in a rare blank line's spelling or run length is reported HELD -- measured at a floor of eleven on twelve ordinary places, where a twelfth holding one space, a tab or three lines was MISSED at exit 3 before P4-D311 and is HELD at exit 0 after it, while a place that MOVES is still MISSED. The obligation cannot see what this field is forbidden to publish; the check's own sentence says so, on both sides, wherever the floor is above one |
+| `blank_lines_spread` | `null` or object `{first, last, lines, text}` | more than 64 `lines` | past the cap of 64 places, the blank lines counted in their place: `lines` of them in all, the first after `first` data records and the last after `last`, `text` what the most of them hold; the twin writes them evenly between those two places, the k-th of n after `first + k * (last - first) // (n - 1)` records. Published only where the places number at least the census line, as `blank_lines` is, so `lines` reaches that line too, and the loader refuses a count below it (FD4, plan P4-D317) |
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and, WHERE THE FLOOR IS ABOVE ONE, a count below max(2, `small_cell_floor`) is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`; gated on a raised floor by the amendment of 2026-09-18, because at a floor of one the column censuses beside it publish a level covering one row) |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and a count below the census line, max(2, `small_cell_floor`), is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`). The line is the floor itself at the default of 11 and at every floor of two or more, and is not asked at a floor of one, at which the column censuses beside it publish a level covering one row (the amendment of 2026-09-18). The loader asks the same line of each of the three counts (FD5, plan P4-D317) |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -771,9 +771,9 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `header_rows` | array of arrays of strings | none, or two | the rows under the column names that DESCRIBE those columns, one cell per column, published only where the person declared them with `--metadata-rows` or in the questions file (`settings.forced_metadata_rows`, FD9, plan P4-D81). Undeclared, such rows are records of the table and are described as data |
 | `header_rows_quoting` | string | a quoting rule | how those rows' cells are quoted |
 | `initial_space` | boolean | — | one space follows every delimiter (`"a", "b"`) |
-| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D290, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests apply only where the floor is above one. AND BOTH ARE ASKED OF THE RECORDS' OWN ENDINGS TOO, once the lines the description publishes above the table -- the separator hint, the preamble's runs, the header, the rows of column descriptions -- are taken off the front (round 2 of the review, the disclosure pass, item 7): ten title lines, a header and record 1 written with a bare newline against 119 records written with a carriage return and a newline published `[{lf: 12}, {crlf: 119}]`, and 12 less 11 is that one record |
+| `line_endings` | array of objects `{ending, lines}` | `lf`, `crlf`, `cr`, `crcrlf`; at most 64 | the line endings of every line in file order, as runs; empty where `line_endings_spread` is not. Where any ending is written by fewer lines than max(2, `small_cell_floor`), OR ANY RUN IS SHORTER THAN THAT, the whole file is published as ONE run of the commonest ending (plan P4-D290, ruling 6 of 2026-09-17 read on a file's own spelling): the runs together say exactly where each ending changed, so changing record 57's ending alone to CRLF published `[{lf: 57}, {crlf: 1}, {lf: 63}]`, which is that record's position, and giving lines 0 to 20 CRLF endings as well left the run of ONE standing until the RUNS were read too (amended 2026-09-18). Both tests are asked at the census line, which is the floor itself at the default of 11 and at every floor of two or more, and neither is asked at a floor of one. AND BOTH ARE ASKED OF THE RECORDS' OWN ENDINGS TOO, once the lines the description publishes above the table -- the separator hint, the preamble's runs, the header, the rows of column descriptions -- are taken off the front (round 2 of the review, the disclosure pass, item 7): ten title lines, a header and record 1 written with a bare newline against 119 records written with a carriage return and a newline published `[{lf: 12}, {crlf: 119}]`, and 12 less 11 is that one record |
 | `line_endings_spread` | array of objects `{ending, lines}` | two or more endings, in the order above | past the cap of 64 runs, how many lines end each way, in place of the runs; the twin ends every line with the commonest ending (the earlier on a tie) except the rarer ones' lines, each rarer ending taking its c lines at the middles of c equal stretches of the file, the next free line where one is taken |
-| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, this version's default floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
+| `preamble` | array of objects `{kind, lines, mark}` | at most 16 runs | the lines before the header or first record, as RUNS OF ONE SHAPE and never as their text. `kind` is `blank`, `comment` or `text`; `lines` is how many such lines stand together; `mark` is the punctuation a comment line began with (`# `) or the spaces and tabs a blank line held, and is empty for a line of text; it holds no quote character and not the table's own delimiter, because the twin writes it and the line the twin writes has to stay one record (plan P4-D83). NO TEXT of such a line is published at any smallest group, a floor of one included (plan P4-D80). The twin writes a neutral line of the same shape in each one's place |
 | `preamble_withheld` | boolean | — | one of those lines held text, so the twin carries a stand-in of the same shape rather than the line. True exactly when some run's `kind` is not `blank` |
 | `row_order` | `null` or object `{collation, column, direction}` | `number`, `text`, `decimal_comma`; `ascending`, `descending` | the leftmost column the rows are sorted by, and the grammar its cells are read under. `decimal_comma` is published only for a column named in `settings.forced_decimal_commas`: such a column writes `0,5` and `10,0`, which the ordinary number grammar reads as no number at all, so the column fell to `text` — where `10,0` sorts before `9,9` — and a table genuinely sorted by it published no order, or one its twin then wrote out of order (review item CODEX-9). The grammar is published here rather than left to be re-derived, so the generator and the validator both read it off the description instead of being told the declaration a second time |
 | `separator_line` | boolean | — | an Excel `sep=` line comes first |
@@ -784,13 +784,17 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 **Invariants FD1-FD13** (`contract.INVARIANTS`): FD1 one column form per
 column; FD2 the line endings account for every line the file holds, in
 runs that each end their lines one way, or past the cap on runs and in
-their place as counts of two or more endings in listed order, and above a floor of one no ending's total, no run's length and neither of those over the records alone falls under the smallest group size or under two; FD3 a mark only on UTF-8 or
+their place as counts of two or more endings in listed order, and no ending's total, no run's length and neither of those over the records alone falls under the census line -- the smallest group size and never under two, not asked at a floor of one; FD3 a mark only on UTF-8 or
 UTF-16, and always on UTF-16; FD4 blank lines in file order, within the
 table, spaces and tabs only, and in a one-column table only after its
 last record, within their caps, and blank lines published counted only
 past that cap, in place of places, within the table, in two or more
-columns; FD5 records holding nothing only in a table of two or more
-columns with no row sequence, no more than any column's absent cells; FD6 a row-sequence column has every
+columns, and the places, the places wearing each form of them and the
+lines counted in their place each reaching the census line (plan
+P4-D317); FD5 records holding nothing only in a table of two or more
+columns with no row sequence, no more than any column's absent cells,
+and each of their three counts nought or at the census line (plan
+P4-D317); FD6 a row-sequence column has every
 cell present; FD7 the sort column is a column, not the row sequence, holding no
 empty cell and no absent cell the twin writes empty outside the records
 holding nothing, in three or more rows (the order is read over the
@@ -829,8 +833,8 @@ GROUP (plan P4-D80). Such a line is free text somebody wrote above
 their table -- `Extract for unit 7`, `# exported for Dr Vance` -- and
 the twin definition's third clause says the description reveals nothing
 about any individual. The rule this replaced published the line whole
-at a smallest group of one, which is this version's DEFAULT: a floor
-governs how many rows share a value, and one line of prose is not a
+at a smallest group of one, which was this version's DEFAULT until
+2026-09-22: a floor governs how many rows share a value, and one line of prose is not a
 group of rows at all, so the floor was never a defence for it. Review
 item CODEX-3 measured a person's name travelling through that branch
 into the description and into the twin.
@@ -1483,12 +1487,17 @@ of them at all. That rule is stated with them in 4.4.
 #### The floor, its minimum, and what a floor of one means
 
 **The smallest permitted `small_cell_floor` is ONE** (owner ruling
-2026-08-14; plan amendment A-P3-11), **AND SINCE 2026-08-25 IT IS ALSO
-THE DEFAULT** (owner ruling; plan P4-D20). The floor `synthtwin
-profile` writes when nobody asks for another is 1, so nothing is held
-back unless somebody asks for it to be.
+2026-08-14; plan amendment A-P3-11). **THE DEFAULT IS 11** (owner,
+2026-09-22; plan P4-D316): the floor `synthtwin profile` writes when
+nobody asks for another is 11, the value it held before 2026-08-25 and
+the same number as the line under which the readable files say a
+description names small groups (`contract.SMALL_GROUP_NOTICE_LINE`), so a description
+nobody lowered names no group of fewer than eleven rows. From
+2026-08-25 to 2026-09-22 the default was 1 (plan P4-D20), and a
+description made in that time carries 1 and is read as one made under a
+lowered floor.
 
-**THE RULING AND ITS REASON, in the owner's terms.** synthtwin
+**WHY A FLOOR OF ONE IS PERMITTED, in the owner's terms.** synthtwin
 publishes no structure between columns — section 4.6's eight reserved
 names are all empty, and invariant S12 keeps them that way — so a
 description says what each column holds ONE COLUMN AT A TIME and never
@@ -1498,14 +1507,16 @@ their other columns, not which row they are. The owner ruled that this
 is the disclosure the tool is for, that a rare finding must reach the
 twin or the twin is not one, and that the pooling be available to
 anybody whose review board asks for it rather than imposed on
-everybody. **What is given up is stated below unchanged**, and
-`--smallest-group 11` restores every word of it.
+everybody. That was the reasoning for the default of 1; on 2026-09-22
+the owner returned the default to 11 and kept the floor of one
+available to anybody who asks for it. **What a lowered floor gives up
+is stated below unchanged.**
 
 **WHAT THE RULING DOES NOT REACH, named so nobody reads it wider than
 it is.** It is a ruling about MARGINAL publication. Were a later
 version to publish anything that crosses two columns, the argument
-above would not carry to it, and the default would have to be decided
-again on its own facts. It was once also the smallest a loader
+above would not carry to it, and the floor would have to be decided
+again on its own facts. Eleven was once also the smallest a loader
 would accept, and under that rule `synthtwin profile --smallest-group
 2` accepted the number, wrote the description, and told the person to
 hand that file to `synthtwin generate` — which then refused it and
@@ -2271,8 +2282,8 @@ with a short piece of text beside it.
 > column's average, spread and ends; as labels, only the values wearing
 > no marker are described that way; as codes, no average is published
 > at all, and the codes themselves are published under the
-> smallest-group size in force — at the default of one, every one of
-> them, with the rows that carried it. synthtwin has
+> smallest-group size in force — at the default of 11, every code that
+> 11 or more rows carried, with the rows that carried it. synthtwin has
 > described the unmarked values as numbers and the marked ones as
 > labels, and has not guessed further. If they are measurements, run
 > the command again with --measurement and this column's name, and
@@ -2903,7 +2914,8 @@ passed — and on no other column. It carries no argument: see below.
 > each a different thing. Run the command again with --identifier NAME
 > to say these are record numbers, and no value of this column is
 > published at all; with --code NAME to say they are a coding system,
-> and each spelling is published with how many rows carried it; or
+> and each spelling a smallest-group's worth of rows share is published
+> with how many rows carried it; or
 > with --measurement NAME to say the number inside is a quantity after
 > all, and the column is described as numbers wearing that address.
 > NAME is this column's name
@@ -3814,7 +3826,7 @@ size). Measured at a floor of eleven: twenty `-999` beside one
 of the second spelling gave two, five and ten the same way. The
 producer pools the named spellings until the difference is nought or
 reaches the line, and this loader refuses any description — written by
-hand or not — that says otherwise. At the default floor of one nothing
+hand or not — that says otherwise. At a floor of one nothing
 moves, because `census_floor(1)` is two, which is the line this part
 asked when it was written.
 
@@ -5159,7 +5171,7 @@ below two. **A `(withheld)` count stands ALONE**: it is the whole map,
 whose one count is the total D2 already publishes, and it is admitted at
 any size and at any floor. **Amended by plan P4-D220 and again by plan
 P4-D222 (stage 2 closed by the owner rulings of 2026-09-17).** The rule
-named an offset at the settings floor, so at the default floor of one a
+named an offset at the settings floor, so at the then default floor of one a
 row written at `+01:00` beside 399 at `Z` was named, and at a floor of
 eleven the pool beside `Z` was that one row. P4-D220 folded a pool below
 the line into the smallest named offset, and one `Z` among `+01:00` and
@@ -8633,7 +8645,7 @@ form no generator writes.
 **P2 (the floor, both ways).** Every value under a style NAME is at
 least max(2, `small_cell_floor`) (amended by plan P4-D221, citing the
 owner rulings of 2026-09-17; it read `small_cell_floor`, and at the
-default floor of one a style used by one cell was named). `(withheld)`
+then default floor of one a style used by one cell was named). `(withheld)`
 appears only when the pooled remainder is at least 1, and **only
 alone** (plan P4-D222, citing the owner rulings of 2026-09-17): a map
 whose one key is `(withheld)` restates the numeric count, and it stands
@@ -8767,8 +8779,8 @@ and nothing for the census, and 780 `1097.001,01` beside 20
 **C6-88 (the census floor).** Both are floored PER CONVENTION at max(2,
 `small_cell_floor`), never at one. A published count of one names an
 individual outright — the reader who knows how every other cell was
-written can tell how that cell was — and `small_cell_floor` defaults to
-one. What falls below is pooled under `(withheld)`, which names no
+written can tell how that cell was — and `small_cell_floor` may be
+lowered to one. What falls below is pooled under `(withheld)`, which names no
 convention here because these censuses have four and eight possible
 keys; a pool that is itself below the floor would name its own cells, so
 such a census publishes `{"(unavailable)": 0}` and no number at all. At
@@ -9179,7 +9191,7 @@ boundary falling INSIDE a gap between two rungs.
 **Measured before the class was chosen**, because a fact the twin
 cannot meet, published as one it must, is a defect this format has paid
 for before: eighty generation runs over forty described columns at the
-default floor, thirty-six of them missing at least one named width, the
+then default floor of one, thirty-six of them missing at least one named width, the
 widest gap seventy-one cells. A check here would call the shipped
 generator's own twin broken on nearly half the columns it is handed.
 

@@ -56,15 +56,30 @@ def _oracle():
 SEED = 7
 
 
-def _described(folder: pathlib.Path, rows: "list[str]", stem: str = "code"):
-    """One column through the real producer and loader."""
+def _described(
+    folder: pathlib.Path,
+    rows: "list[str]",
+    stem: str = "code",
+    floor: "int | None" = None,
+):
+    """One column through the real producer and loader.
+
+    ``floor`` None is the shipped default (11 since plan P4-D316).
+    """
     path = fixtures.write(
         folder, f"{stem}.csv", "code\n" + "\n".join(rows) + "\n"
     )
-    table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    table = reading.read_table(
+        str(path),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=settings.small_cell_floor,
+    )
+    document = profile.build_document(table, settings, [])
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return document, contract.load_profile(str(written))
 
@@ -166,7 +181,10 @@ def test_the_grid_walk_is_what_keeps_them_apart(
     the missing spelling with a figure no source cell had.
     """
     rows = _crowded_code_column()
-    _document, described = _described(tmp_path, rows)
+    # FLOOR ONE (plan P4-D316): the counts that pin this witness --
+    # measured with the walk withdrawn at 105 numbers and one `0294.0` --
+    # were taken where every published count of the column is named.
+    _document, described = _described(tmp_path, rows, floor=1)
     monkeypatch.setattr(  # type: ignore[attr-defined]
         generation,
         "_apart_enough",

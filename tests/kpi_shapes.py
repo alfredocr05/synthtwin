@@ -86,8 +86,16 @@ def describe(
         if floor is None
         else taxonomy.Settings(small_cell_floor=floor)
     )
+    # READ AT THE FLOOR IT IS DESCRIBED AT (plan P4-D317). The reader
+    # asks the file's line rules at its own floor, so a table read at one
+    # floor and described at another publishes a form no description at
+    # the described floor would.
     document = profile.build_document(
-        reading.read_table(str(table), first_row=first_row),
+        reading.read_table(
+            str(table),
+            first_row=first_row,
+            small_cell_floor=settings.small_cell_floor,
+        ),
         settings,
         declared or [],
         codes or [],

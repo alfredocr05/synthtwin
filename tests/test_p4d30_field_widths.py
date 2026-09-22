@@ -127,16 +127,30 @@ def _uneven_signed_rows() -> "list[str]":
 
 
 def _described(
-    folder: pathlib.Path, name: str, header: str, rows: "list[str]"
+    folder: pathlib.Path,
+    name: str,
+    header: str,
+    rows: "list[str]",
+    floor: "int | None" = None,
 ) -> "tuple[dict, contract.Profile]":
-    """The real reader, the real producer and the real loader."""
+    """The real reader, the real producer and the real loader.
+
+    ``floor`` None is the shipped default (11 since plan P4-D316).
+    """
     path = fixtures.write(
         folder, f"{name}.csv", header + "\n" + "\n".join(rows) + "\n"
     )
-    table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    table = reading.read_table(
+        str(path),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=settings.small_cell_floor,
+    )
+    document = profile.build_document(table, settings, [])
     loaded = contract.load_profile(
         str(fixtures.write_profile(folder, f"{name}-profile.json", document))
     )
@@ -342,8 +356,9 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
     a two-figure field. No move of a VALUE repairs a cell COUNT, so this column misses
     -- and the point of this test is that it is not silent about it.
     """
+    # FLOOR ONE (plan P4-D316): widths held by six and thirteen cells.
     document, loaded = _described(
-        tmp_path, "signed", "reading", _uneven_signed_rows()
+        tmp_path, "signed", "reading", _uneven_signed_rows(), floor=1
     )
     assert document["columns"][0]["field_widths"] == {"1": 6, "2": 13}
     for seed in SEEDS:
@@ -403,8 +418,10 @@ def test_a_padded_count_the_strata_cannot_hold_is_named_on_both_pages(
     page and MISSED on the quality page, and the width census stays
     REPORT-ONLY and listed.
     """
+    # FLOOR ONE (plan P4-D316): a padded count of nine.
     document, loaded = _described(
-        tmp_path, "signed", "reading", _eight_eight_nine_signed_rows()
+        tmp_path, "signed", "reading", _eight_eight_nine_signed_rows(),
+        floor=1,
     )
     assert document["columns"][0]["field_widths"] == {"1": 8, "2": 17}
     assert document["columns"][0]["pad_widths"] == {"2": 9}

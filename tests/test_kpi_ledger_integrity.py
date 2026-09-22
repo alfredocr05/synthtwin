@@ -477,7 +477,8 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 250_000
+    # 275,000 from 250,000 for stage 3's new entries (landing 3.1, 2026-09-22).
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 275_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

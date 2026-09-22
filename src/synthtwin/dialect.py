@@ -336,7 +336,7 @@ SHEET_COLUMN_KEYS = (
 # nothing about any individual. The first writing held each count to the
 # floor on its own, and a review measured two ways through it: a column
 # of sixty numbers, thirty-nine texts and one boolean published the
-# boolean's count of 1 at the default floor, and at a floor of five
+# boolean's count of 1 at a floor of one, and at a floor of five
 # published `60, 39, null` with every other class `0` -- so 100 - 60 - 39
 # rebuilt the count the floor had held back.
 #
@@ -1895,21 +1895,22 @@ def endings_disclosed(
     around a rare ending: their positions are what says where the
     withheld line stood.
 
-    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
-    A floor of one is a run in which the person has asked synthtwin for
-    no protection at all, and at that same floor the column censuses
-    beside this one publish a level covering ONE row -- so holding a
-    file's own form to a stricter standard than the product holds its
-    own column contents to, on the path where nothing was asked, took a
-    file's lone blank line, its lone empty record and its trailing blank
-    line out of the twin for nothing. **Measured** at the default floor,
-    on a header and 120 records: a single blank line after record 57, a
-    single bare-comma record and a single trailing blank line were all
-    kept before this rule was written, all three were dropped after it,
-    and the very same run published the level `("south", 1)` on a column
-    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
-    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
-    floor's own value and unit stay the owner's deferred question.
+    AT A FLOOR OF ONE NOTHING MOVES (the repair pass of 2026-09-18). The
+    line is the census line, `parsing.census_floor`, which is the floor
+    itself at the default of 11 (plan P4-D316) and at every floor of two
+    or more. A floor of one is one a person has to type, and at that
+    floor the column censuses beside this one publish a level covering
+    ONE row -- so holding a file's own form to a stricter standard than
+    the product holds its own column contents to took a file's lone
+    blank line, its lone empty record and its trailing blank line out of
+    the twin for nothing. **Measured** at a floor of one, then the
+    default, on a header and 120 records: a single blank line after
+    record 57, a single bare-comma record and a single trailing blank
+    line were all kept before this rule was written, all three were
+    dropped after it, and the very same run published the level
+    `("south", 1)` on a column of 239 `NORTH` and one `SOUTH`. So this
+    rule is gated on a floor above one, exactly as
+    `taxonomy._absorb_lone_spellings` is.
 
     Guarantees: accepts the runs in file order, the settings floor and
     how many lines are withheld from the published form; returns those
@@ -1986,21 +1987,22 @@ def blank_places_disclosed(
     those blank lines in the twin, which is the price of not naming the
     records they stand beside.
 
-    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
-    A floor of one is a run in which the person has asked synthtwin for
-    no protection at all, and at that same floor the column censuses
-    beside this one publish a level covering ONE row -- so holding a
-    file's own form to a stricter standard than the product holds its
-    own column contents to, on the path where nothing was asked, took a
-    file's lone blank line, its lone empty record and its trailing blank
-    line out of the twin for nothing. **Measured** at the default floor,
-    on a header and 120 records: a single blank line after record 57, a
-    single bare-comma record and a single trailing blank line were all
-    kept before this rule was written, all three were dropped after it,
-    and the very same run published the level `("south", 1)` on a column
-    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
-    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
-    floor's own value and unit stay the owner's deferred question.
+    AT A FLOOR OF ONE NOTHING MOVES (the repair pass of 2026-09-18). The
+    line is the census line, `parsing.census_floor`, which is the floor
+    itself at the default of 11 (plan P4-D316) and at every floor of two
+    or more. A floor of one is one a person has to type, and at that
+    floor the column censuses beside this one publish a level covering
+    ONE row -- so holding a file's own form to a stricter standard than
+    the product holds its own column contents to took a file's lone
+    blank line, its lone empty record and its trailing blank line out of
+    the twin for nothing. **Measured** at a floor of one, then the
+    default, on a header and 120 records: a single blank line after
+    record 57, a single bare-comma record and a single trailing blank
+    line were all kept before this rule was written, all three were
+    dropped after it, and the very same run published the level
+    `("south", 1)` on a column of 239 `NORTH` and one `SOUTH`. So this
+    rule is gated on a floor above one, exactly as
+    `taxonomy._absorb_lone_spellings` is.
 
     AND COUNTING THE PLACES TOGETHER READ ONLY HALF OF WHAT THEY SAY
     (plan P4-D311, review item 4 of the files review of 2026-09-18). A
@@ -2123,21 +2125,22 @@ def row_count_disclosed(count: int, floor: int) -> int:
     empty row there and the file described again says nought too, so the
     file passes its own description.
 
-    AT THE DEFAULT FLOOR NOTHING MOVES (the repair pass of 2026-09-18).
-    A floor of one is a run in which the person has asked synthtwin for
-    no protection at all, and at that same floor the column censuses
-    beside this one publish a level covering ONE row -- so holding a
-    file's own form to a stricter standard than the product holds its
-    own column contents to, on the path where nothing was asked, took a
-    file's lone blank line, its lone empty record and its trailing blank
-    line out of the twin for nothing. **Measured** at the default floor,
-    on a header and 120 records: a single blank line after record 57, a
-    single bare-comma record and a single trailing blank line were all
-    kept before this rule was written, all three were dropped after it,
-    and the very same run published the level `("south", 1)` on a column
-    of 239 `NORTH` and one `SOUTH`. So this rule is gated on a RAISED
-    floor, exactly as `taxonomy._absorb_lone_spellings` is, and the
-    floor's own value and unit stay the owner's deferred question.
+    AT A FLOOR OF ONE NOTHING MOVES (the repair pass of 2026-09-18). The
+    line is the census line, `parsing.census_floor`, which is the floor
+    itself at the default of 11 (plan P4-D316) and at every floor of two
+    or more. A floor of one is one a person has to type, and at that
+    floor the column censuses beside this one publish a level covering
+    ONE row -- so holding a file's own form to a stricter standard than
+    the product holds its own column contents to took a file's lone
+    blank line, its lone empty record and its trailing blank line out of
+    the twin for nothing. **Measured** at a floor of one, then the
+    default, on a header and 120 records: a single blank line after
+    record 57, a single bare-comma record and a single trailing blank
+    line were all kept before this rule was written, all three were
+    dropped after it, and the very same run published the level
+    `("south", 1)` on a column of 239 `NORTH` and one `SOUTH`. So this
+    rule is gated on a floor above one, exactly as
+    `taxonomy._absorb_lone_spellings` is.
 
     Guarantees: accepts a count of empty rows and the settings floor;
     returns that count at a floor of one or where it reaches the line,
@@ -2149,6 +2152,91 @@ def row_count_disclosed(count: int, floor: int) -> int:
     if count >= parsing.census_floor(floor):
         return count
     return 0
+
+
+# -- the same three rules, read from the loader's side (plan P4-D317) ----
+#
+# THE PRODUCER WAS THE ONLY PLACE THESE RULES LIVED. `survey` applies
+# `blank_places_disclosed` and `row_count_disclosed` to what it
+# publishes, and nothing refused a description that published a lone
+# blank place, a form worn by one place or an empty-row count of one: a
+# hand-edited description carrying `{after: 57, lines: 1}` at a floor of
+# eleven loaded, and so did `empty_rows.interior 1`. Each check below
+# asks the producer's own rule whether it would change what is
+# published, so the two cannot part: a published form the rule leaves
+# exactly as it stands is one the producer could have written.
+
+
+def blank_places_broken(places: "list[BlankPlace]", floor: int) -> str:
+    """What published blank places break of the disclosure rule, or nothing.
+
+    The loader's half of `blank_places_disclosed` (plan P4-D317): the
+    places are published only where there are at least as many as the
+    census line, `parsing.census_floor`, and every form is worn by that
+    many places. Returns an empty string for places the rule leaves as
+    they stand, which at a floor of one is every list of places.
+
+    Guarantees: accepts the published places in file order and the
+    settings floor; returns text. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    if blank_places_disclosed(list(places), floor) == list(places):
+        return ""
+    line = parsing.census_floor(floor)
+    if len(places) < line:
+        return (
+            f"blank lines are published in {len(places)} place(s), and "
+            f"the line is {line}"
+        )
+    return (
+        f"a form of blank line is worn by fewer places than the line, "
+        f"which is {line}"
+    )
+
+
+def blank_spread_broken(spread: "BlankSpread | None", floor: int) -> str:
+    """What a published count of blank lines breaks of the rule, or nothing.
+
+    The producer counts the blank lines only past the cap on places, and
+    only once `blank_places_disclosed` has kept the places, which it
+    does only where they number at least the census line. The places are
+    not published beside the count, so what the loader can ask of the
+    count is the necessary half: a count that reaches the line (plan
+    P4-D317). Returns an empty string for no count, and at a floor of
+    one.
+
+    Guarantees: accepts the published count or `None` and the settings
+    floor; returns text. Determinism: a fixed function of the two.
+    Raises nothing. No I/O of any kind.
+    """
+    if spread is None or floor <= 1:
+        return ""
+    line = parsing.census_floor(floor)
+    if spread.lines >= line:
+        return ""
+    return (
+        f"{spread.lines} blank lines are published counted, and the "
+        f"line is {line}"
+    )
+
+
+def row_count_broken(count: int, floor: int) -> str:
+    """What a published count of empty rows breaks of the rule, or nothing.
+
+    The loader's half of `row_count_disclosed` (plan P4-D317): nought,
+    or at least the census line. Returns an empty string for a count the
+    rule leaves as it stands, which at a floor of one is every count.
+
+    Guarantees: accepts one published count and the settings floor;
+    returns text. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if row_count_disclosed(count, floor) == count:
+        return ""
+    return (
+        f"{count} empty row(s) are published, and the line is "
+        f"{parsing.census_floor(floor)}"
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4096,7 +4184,7 @@ def survey(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
-    small_cell_floor: int = 1,
+    small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> Survey:
     """Walk a table's decoded text once: its records and its written form.
 
@@ -4398,6 +4486,11 @@ def survey(
                 decimal_comma_columns,
                 metadata_rows_confirmed,
                 declared_delimiter,
+                # THE PERSON'S FLOOR TRAVELS WITH THE RETRY (plan
+                # P4-D317). Left out, this walk published the file's
+                # form at the default whatever floor the first walk was
+                # asked at.
+                small_cell_floor,
             )
         raise errors.ProfileError(
             errors.ragged_rows(
@@ -4748,7 +4841,7 @@ def settle(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
-    small_cell_floor: int = 1,
+    small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> Survey:
     """The survey of a table, with every guess about its writing checked.
 

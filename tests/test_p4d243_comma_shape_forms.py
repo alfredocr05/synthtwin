@@ -200,7 +200,17 @@ def test_an_undeclared_german_amount_column_is_written(
     for cell in cells:
         form = parsing.shape_form(cell)
         worn[form] = (worn[form] if form in worn else 0) + 1
-    assert worn == block["shape_forms"], cells[:3]
+    # EVERY NAMED FORM AT ITS COUNT, AND THE POOL AS MANY CELLS WEARING NO
+    # NAMED FORM (plan P4-D316). At the default floor of 11 the nine
+    # amounts under a hundred (`%%,%%`) are a form fewer than eleven
+    # cells wear, pooled as `(withheld)`, and the twin writes that many
+    # neutral stand-ins wearing no named form.
+    published = dict(block["shape_forms"])
+    pooled = published.pop("(withheld)", 0)
+    for form, count in published.items():
+        assert worn.get(form, 0) == count, (form, cells[:3])
+    unnamed = sum(count for form, count in worn.items() if form not in published)
+    assert unnamed == pooled, (worn, block["shape_forms"])
     for side, target in (("twin", folder / "real-twin.csv"), ("real", table)):
         checked = folder / side
         checked.mkdir()

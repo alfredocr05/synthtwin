@@ -1623,19 +1623,25 @@ def _described(
     text: str,
     declared: "list[str] | None" = None,
     measured: "list[str] | None" = None,
+    floor: "int | None" = None,
 ) -> contract.Profile:
     """Write a table, describe it with the REAL producer, load it back.
 
     `measured` carries `--measurement`, which the JOINED role requires:
     an undeclared column of two numbers in one cell is not that role,
     by design (plan P4-D23), so it cannot reach this battery without
-    one (review item P4-A2-R2-F1).
+    one (review item P4-A2-R2-F1). `floor` None is the shipped default.
     """
     path = fixtures.write(folder, "table.csv", text)
-    table = reading.read_table(str(path))
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    table = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
     document = profile.build_document(
         table,
-        taxonomy.Settings(),
+        settings,
         declared if declared else [],
         [],
         measured if measured else [],
@@ -1773,6 +1779,12 @@ def battery(
                     + ["-3"] * 11,
                 ),
                 ["code"],
+                # A FLOOR OF ONE (plan P4-D316): this column carries the
+                # layout census plan P4-D182 packs, which only a floor
+                # naming groups of three to ten publishes. At the default
+                # its twin misses `layout_forms.%%%`, a defect of the
+                # default recorded in P4-D316 and not repaired here.
+                floor=1,
             ),
         ),
         (

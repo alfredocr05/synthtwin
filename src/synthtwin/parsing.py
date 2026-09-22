@@ -848,12 +848,27 @@ WIDE_RUNS = (
     WIDE_CANONICAL,
     WIDE_RESPELLED,
 )
+
+# THE SMALLEST GROUP A RUN USES WHEN NOBODY ASKS FOR ANOTHER, and the one
+# place the number is written (owner, 2026-09-22; plan P4-D316). It is 11,
+# the value it held before amendment A-P4-37 and the same number as the
+# notice line (`contract.SMALL_GROUP_NOTICE_LINE`), so a run nobody
+# lowered names no group of fewer than eleven rows. It lives in this
+# module because every module that needs it -- the taxonomy's settings,
+# the loader, the reader, the file's written form and the command line
+# -- already imports this one and this one imports nothing, so no module
+# gains an edge in the import graph by reading it. `--smallest-group`
+# below it stays legal and keeps its lowered-floor alarm.
+DEFAULT_SMALL_CELL_FLOOR = 11
+
+
 def census_floor(floor: int) -> int:
     """The smallest count a spelling census publishes: two, or the floor.
 
     NEVER ONE, WHATEVER THE SETTINGS FLOOR (owner twin definition,
     clause 3; plan P4-D65.1). A published count of one names an
-    individual outright, and the settings floor defaults to one.
+    individual outright, and a person may lower the settings floor to
+    one with `--smallest-group 1`.
 
     ONE STATEMENT OF THE RULE, read by the producer, the loader and the
     checker alike (plan P4-D140). It lives in this module because it is
@@ -5406,7 +5421,7 @@ MISSING_CLASSES = (
 #
 # One is not a group. A count of one names the one person who holds the
 # value, and a count leaving exactly one off midnight names the one
-# person who does not -- and at the default smallest group size of one
+# person who does not -- and at the then default smallest group size of one
 # both used to be published. Measured on 400 moments a day apart at
 # noon, described once as they stood and once with a single row moved to
 # midnight: the two descriptions differed in `n_at_midnight: 0 -> 1` and
@@ -5619,7 +5634,7 @@ def absorbed_census(
     `census_floor` (plans P4-D220, P4-D221 and P4-D222; stage 2 closed by
     the owner rulings of 2026-09-17). Until P4-D220 each named a count
     where it reached the settings floor and pooled the rest under
-    `(withheld)`, so at the default floor of one 400 moments with one `t`
+    `(withheld)`, so at the then default floor of one 400 moments with one `t`
     published `{"lower_t": 1, "upper_t": 399}` and at a floor of eleven
     `{"upper_t": 399, "(withheld)": 1}`: both name the row.
 

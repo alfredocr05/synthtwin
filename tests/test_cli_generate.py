@@ -46,6 +46,7 @@ import pytest
 import fixtures
 from synthtwin import (
     cli,
+    parsing,
     profile,
     reading,
     rendering,
@@ -877,6 +878,7 @@ def test_the_parsers_own_words_match_the_modules_that_own_them() -> None:
     assert cli._FIRST_ROW_NAMES == reading.FIRST_ROW_NAMES
     assert cli._FIRST_ROW_DATA == reading.FIRST_ROW_DATA
     assert cli._SMALLEST_GROUP == taxonomy.Settings().small_cell_floor
+    assert cli._SMALLEST_GROUP == parsing.DEFAULT_SMALL_CELL_FLOOR
 
 
 # ---------------------------------------------------------------------

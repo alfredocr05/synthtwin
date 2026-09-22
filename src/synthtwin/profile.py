@@ -723,6 +723,17 @@ _POOLED_SCALE_COUNT = "count-of-a-pooled-aggregate-or-nought"
 # sides at the floor, and the floor never below two -- is invariant D15,
 # checked with the invariants where the floor is in hand.
 _BOTH_SIDES_OR_UNAVAILABLE = "count-on-both-sides-or-unavailable"
+# THE FILE'S OWN FORM, HELD TO THE LINE IT IS PRODUCED AT (plan
+# P4-D317). The producer withholds blank places that number fewer than
+# the census line, writes a form fewer places wear as the commonest, and
+# publishes an empty-row count only where it is nought or reaches the
+# line (plan P4-D290), and this guard accepted any count and any list of
+# places, so the rule lived in the producer alone. `_FORM_PLACES` is the
+# list of blank places, asked as a whole; `_FORM_COUNT` is a count of
+# records or lines of the file, nought or at the census line. Neither is
+# asked at a floor of one, where the producer does not ask them either.
+_FORM_PLACES = "blank-places-at-the-census-line"
+_FORM_COUNT = "count-of-the-files-lines-zero-or-at-the-census-line"
 # One of the three stand-in numbers this package judges, written as
 # itself. The only path is the declaration records' `built_in_numbers`,
 # which carries members of this package's own published vocabulary and
@@ -982,7 +993,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "trailing_blank_columns"): _COUNT,
     ("source", "workbook", "trailing_blank_rows"): _COUNT,
     ("source", "dialect"): _OBJECT,
-    ("source", "dialect", "blank_lines"): _ARRAY,
+    ("source", "dialect", "blank_lines"): _FORM_PLACES,
     ("source", "dialect", "blank_lines", _EACH): _OBJECT,
     ("source", "dialect", "blank_lines", _EACH, "after"): _COUNT,
     ("source", "dialect", "blank_lines", _EACH, "lines"): _COUNT,
@@ -991,7 +1002,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "blank_lines_spread"): _MAYBE_OBJECT,
     ("source", "dialect", "blank_lines_spread", "first"): _COUNT,
     ("source", "dialect", "blank_lines_spread", "last"): _COUNT,
-    ("source", "dialect", "blank_lines_spread", "lines"): _COUNT,
+    ("source", "dialect", "blank_lines_spread", "lines"): _FORM_COUNT,
     ("source", "dialect", "blank_lines_spread", "text"): _BLANK_LINE,
     ("source", "dialect", "byte_order_mark"): _FLAG,
     ("source", "dialect", "columns"): _ARRAY,
@@ -1007,9 +1018,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "dialect", "columns", _EACH, "sequence_start"): _MAYBE_NUMBER,
     ("source", "dialect", "delimiter"): _WORD,
     ("source", "dialect", "empty_rows"): _OBJECT,
-    ("source", "dialect", "empty_rows", "interior"): _COUNT,
-    ("source", "dialect", "empty_rows", "leading"): _COUNT,
-    ("source", "dialect", "empty_rows", "trailing"): _COUNT,
+    ("source", "dialect", "empty_rows", "interior"): _FORM_COUNT,
+    ("source", "dialect", "empty_rows", "leading"): _FORM_COUNT,
+    ("source", "dialect", "empty_rows", "trailing"): _FORM_COUNT,
     ("source", "dialect", "end_of_file_mark"): _FLAG,
     ("source", "dialect", "escape"): _WORD,
     ("source", "dialect", "final_line_ending"): _FLAG,
@@ -2160,6 +2171,18 @@ def _leaf_is_published(
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         return value == 0 or value >= parsing.census_floor(context.floor)
+    if kind == _FORM_COUNT:
+        # A count of the file's own records or lines (plan P4-D317):
+        # nought, or at the census line wherever the floor is asked.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if value < 0:
+            return False
+        return (
+            value == 0
+            or context.floor <= 1
+            or value >= parsing.census_floor(context.floor)
+        )
     if kind == _ZERO_OR_AT_THE_FLOOR:
         # A named group, or nothing at all. There is no third answer:
         # a group the floor held back is not written here, it is added
@@ -2373,6 +2396,32 @@ def _is_layout_form(value: object) -> bool:
     return parsing.is_a_layout_form(value)
 
 
+def _places_are_published(places: "list[object]", floor: int) -> bool:
+    """Whether a list of blank places is one the producer could write.
+
+    Asked of the producer's own rule, `dialect.blank_places_broken`, so
+    the guard and the loader say it at the same reach (plan P4-D317).
+    Each place has already been held to its own rules by the walk; one
+    missing a key of its three is refused here, because the rule cannot
+    be asked of it.
+    """
+    read: "list[dialect.BlankPlace]" = []
+    for place in places:
+        if not isinstance(place, dict):
+            return False
+        after = place["after"] if "after" in place else None
+        lines = place["lines"] if "lines" in place else None
+        text = place["text"] if "text" in place else None
+        if (
+            not isinstance(after, int)
+            or not isinstance(lines, int)
+            or not isinstance(text, str)
+        ):
+            return False
+        read += [dialect.BlankPlace(after=after, lines=lines, text=text)]
+    return not dialect.blank_places_broken(read, floor)
+
+
 def _check_word(
     value: object, path: "tuple[str, ...]"
 ) -> None:
@@ -2444,6 +2493,14 @@ def _check_published(
             raise _refuse(path)
         for item in node:
             _check_published(item, path + (_EACH,), "", context)
+        return
+    if kind == _FORM_PLACES:
+        if not isinstance(node, list):
+            raise _refuse(path)
+        for item in node:
+            _check_published(item, path + (_EACH,), "", context)
+        if not _places_are_published(node, context.floor):
+            raise _refuse(path)
         return
     if kind == _WORD:
         _check_word(node, path)
@@ -2925,7 +2982,7 @@ def build_document(
       own lines and a workbook's number formats to the floor it is
       given (plans P4-D283 and P4-D290), and this function publishes
       the form the reader settled without asking the floor again. A
-      table read at the default floor of one and described here at
+      table read at a floor of one and described here at
       eleven publishes its line facts as a floor of one would -- a run
       of trailing blank lines at one place, which the floor-eleven rule
       withholds -- and is a description `synthtwin profile` never

@@ -349,21 +349,27 @@ def test_the_twin_is_measured_in_the_spelling_it_was_described_in(
         _quantities(), ["weight"]
     )
     twin = generation.generate(loaded, 5)
-    # ONE DEVIATION IS EXPECTED SINCE PLAN P4-D267 (Codex item 4 of the
-    # extra round of 2026-09-18), and it is a fact about this column
-    # rather than about the declaration: the published mode is a number
-    # no stratum of the twin holds, and the report says so instead of
-    # dropping it in silence. The test beside this one proves the
-    # declaration does not change it -- the same numbers written with
-    # points give up exactly the same things.
-    assert [deviation.fact for deviation in twin.deviations] == ["mode"], (
+    # NO DEVIATION AT THE DEFAULT FLOOR. Plan P4-D267 made the report
+    # name the published mode where no stratum of the twin holds it, and
+    # at a floor of one this column's mode was published and named; at
+    # the default of 11 (plan P4-D316) the commonest number is held by
+    # fewer than eleven cells, so no mode is published and there is
+    # nothing to give up.
+    assert [deviation.fact for deviation in twin.deviations] == [], (
         "the twin's own report says it gave something up that this "
         f"column does not: {[(d.fact, d.achieved) for d in twin.deviations]}"
     )
-    assert len(twin.approximations) == 15, (
+    assert _document["columns"][0]["mode"] is None
+    # AS MANY APPROXIMATED FACTS AS THE SAME NUMBERS WRITTEN WITH POINTS
+    # NAME, and more than the two the blind report named.
+    _two, plain, _f2, _t2 = _described(
+        [cell.replace(",", ".") for cell in _quantities()]
+    )
+    named = len(generation.generate(plain, 5).approximations)
+    assert len(twin.approximations) == named > 2, (
         f"{len(twin.approximations)} approximated facts were named; a "
-        "column of the same numbers written with points names 15, and "
-        "the declaration must not change what the report can see"
+        f"column of the same numbers written with points names {named}, "
+        "and the declaration must not change what the report can see"
     )
     cells = [cell for cell in twin.columns[0] if cell]
     assert all("," in cell for cell in cells), (

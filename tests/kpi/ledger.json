@@ -2840,16 +2840,16 @@
   },
   {
    "id": "K-P4-20",
-   "phase_stage": "Phase 4 (A-P4-37)",
+   "phase_stage": "Stage 3 landing 3.1 (P4-D316; was A-P4-37)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "The default smallest group is 1 (nothing held back unless asked)",
+   "name": "The default smallest group is 11 (no group under eleven rows named unless a lower floor is asked for)",
    "status": "GREEN",
-   "rule": "Settings().small_cell_floor == DEFAULT_SMALL_CELL_FLOOR == 1",
+   "rule": "Settings().small_cell_floor == DEFAULT_SMALL_CELL_FLOOR == parsing.DEFAULT_SMALL_CELL_FLOOR == 11",
    "rule_kind": "exact",
    "expected": {
-    "settings_default": 1,
-    "contract_default": 1,
+    "settings_default": 11,
+    "contract_default": 11,
     "pinned_nodes_failing": 0
    },
    "tier": "FAST",
@@ -2861,7 +2861,7 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "synthtwin defaults",
-   "evidence": "1 (was 11)",
+   "evidence": "11 (was 1 from A-P4-37, 2026-08-25, to P4-D316, 2026-09-22). The value_at below is caf3079's and RED against this rule, because the default was 1 there; it is re-measured on the landing's own commit and recorded in the commit after it.",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",

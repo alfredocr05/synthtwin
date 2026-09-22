@@ -13,11 +13,19 @@ A3_CELLS = [f"{-1000000 + 25 * i:,}".replace(",", ".") for i in range(41)] + [
 ] * 10
 
 
+# FLOOR ONE (plan P4-D316): these witnesses were measured with every
+# group named -- five cells of each grouped label, ten of the declared
+# `-999,000` -- and the default of 11 withholds all of them.
+_FLOOR_ONE = 1
+
+
 def _described(folder, cells, missing=()):
     table = fixtures.write(folder, "t.csv", fixtures.single_column_table("v", cells))
     document = profile.build_document(
-        reading.read_table(f"{table}"),
-        taxonomy.Settings(declared_missing_values=tuple(missing)),
+        reading.read_table(f"{table}", small_cell_floor=_FLOOR_ONE),
+        taxonomy.Settings(
+            declared_missing_values=tuple(missing), small_cell_floor=_FLOOR_ONE
+        ),
         [],
         [],
         [],

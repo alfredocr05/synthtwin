@@ -405,9 +405,12 @@ def test_a_conforming_file_is_not_told_it_lost_a_layout_it_holds(
         return path
 
     table = write("real.csv", real)
+    # AT A FLOOR OF ONE, as the checked file's own description below is
+    # (plan P4-D316): the published two is a layout at the census line of
+    # two, which the default floor of 11 pools.
     assert _exit_of(
         ["profile", str(table), "--out-dir", str(tmp_path), "--replace",
-         "--identifier", "value"]
+         "--identifier", "value", "--smallest-group", "1"]
     ) == 0
     import json
 

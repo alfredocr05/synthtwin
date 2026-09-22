@@ -504,10 +504,12 @@ def test_a_case_only_respelling_never_turns_moments_into_two_values(
         + ["2025-01-02t00:00:00"]
         + ["2025-01-01t00:00:00"] * 4
     )
+    # FLOOR ONE (plan P4-D316): ten cells whose separators are counts of
+    # one to four, which only a floor below eleven names.
     first, second, _written, twin_exit, _real = _round_trip(
         tmp_path / "case",
         cells,
-        ("--missing-value", "2025-01-01t00:00:00"),
+        ("--missing-value", "2025-01-01t00:00:00", "--smallest-group", "1"),
         False,
         seed=seed,
     )

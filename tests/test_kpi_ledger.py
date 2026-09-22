@@ -397,7 +397,7 @@ def test_k_p4_17(record_property, tmp_path: pathlib.Path) -> None:
 
 
 def test_k_p4_20(record_property) -> None:
-    """The shipped smallest group is 1: nothing is held back unless asked."""
+    """The shipped smallest group is 11: no group under eleven rows is named unless asked."""
     _kpi(record_property, "K-P4-20",
          {"settings_default": taxonomy.Settings().small_cell_floor,
           "contract_default": contract.DEFAULT_SMALL_CELL_FLOOR})

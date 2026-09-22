@@ -46,6 +46,7 @@ from synthtwin import (
     contract,
     errors,
     generation,
+    parsing,
     profile,
     quality,
     reading,
@@ -64,16 +65,12 @@ _LOWERED = (2, 1)
 
 _DEFAULT = taxonomy.Settings().small_cell_floor
 
-# ELEVEN IS NO LONGER THE DEFAULT (owner ruling, plan amendment
-# A-P4-37): the default floor is 1, and at 1 nothing is held back at
-# all. Eleven is still the protective floor a review board or a
-# data-use agreement asks for -- it is the number `--smallest-group`'s
-# own help names as the one to raise to -- so it is still the floor a
-# lowered floor is lowered FROM, and it is the floor every scenario in
-# this file was written against. The tests below whose subject is what
-# a description WITHHOLDS therefore say eleven out loud, rather than
-# inheriting a default that now withholds nothing and would leave them
-# comparing a description with itself.
+# ELEVEN, SAID OUT LOUD. It was not the default from 2026-08-25 (plan
+# amendment A-P4-37) to 2026-09-22, when the owner returned the default
+# to 11 (plan P4-D316). It is the floor a lowered floor is lowered FROM
+# and the floor every scenario in this file was written against, so the
+# tests below whose subject is what a description WITHHOLDS say eleven
+# rather than inherit a default that could move again.
 _STRICT = 11
 
 
@@ -282,11 +279,13 @@ def test_the_two_defaults_cannot_drift(tmp_path: pathlib.Path) -> None:
     """The reports compare against the producer's own default.
 
     `contract.DEFAULT_SMALL_CELL_FLOOR` exists because the generation
-    and validation paths may not import the profiler's taxonomy. Two
-    modules holding one number is the arrangement; this is the
-    comparison that keeps it honest.
+    and validation paths may not import the profiler's taxonomy. Both
+    read the one place the number is written, `parsing`, since plan
+    P4-D316; this is the comparison that keeps them reading it, and the
+    number itself is the owner's of 2026-09-22.
     """
     assert contract.DEFAULT_SMALL_CELL_FLOOR == _DEFAULT
+    assert _DEFAULT == parsing.DEFAULT_SMALL_CELL_FLOOR == 11
 
 
 # -- 3. the cost is visible, one file at a time -----------------------

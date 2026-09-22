@@ -600,20 +600,21 @@ def test_a_second_spelling_that_reaches_the_floor_is_published(
     assert (read["twin_exit"], read["real_exit"]) == (0, 0)
 
 
-def test_the_default_floor_reads_the_judged_remainder_as_it_always_did(
+def test_a_floor_of_one_reads_the_judged_remainder_as_it_always_did(
     tmp_path: pathlib.Path,
 ) -> None:
     """Finding 3's raised line moves NOTHING at a floor of one.
 
     `parsing.census_floor(1)` is two, which is the line
     `census_names_one_row` already asked, so the same table describes
-    identically at the default floor: both spellings named, the
-    remainder nought. Measured on `05e7d89` and here alike.
+    identically at a floor of one -- the default until plan P4-D316, and
+    asked for here since: both spellings named, the remainder nought.
+    Measured on `05e7d89` and here alike.
     """
     read = _round_trip(
-        tmp_path / "default",
+        tmp_path / "floor-one",
         _judged_pair(2),
-        ["--measurement", "reading"],
+        ["--measurement", "reading", "--smallest-group", "1"],
     )
     block = _reading_block(read["document"])
     assert block["missing_by_source"] == {"-999": 20, "-999.0": 2}
@@ -1482,9 +1483,15 @@ def test_the_joint_guard_is_what_holds_finding_one_shut(
     folder.mkdir(parents=True)
     table = folder / "table.csv"
     table.write_text(_noon_and_one_midnight(), encoding="utf-8", newline="")
+    # AT A FLOOR OF ONE, where the guard bites (plan P4-D316): at the
+    # default of 11 the one midnight moment is too few to publish for its
+    # size already, whichever reading of the silence is asked.
     assert (
         _quiet(
-            ["profile", f"{table}", "--out-dir", f"{folder}", "--replace"]
+            [
+                "profile", f"{table}", "--out-dir", f"{folder}", "--replace",
+                "--smallest-group", "1",
+            ]
         )
         == 0
     )

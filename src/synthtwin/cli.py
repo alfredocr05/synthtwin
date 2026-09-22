@@ -51,12 +51,13 @@ would cross both of those lines at once.
 
 One consequence of that rule looks like an oversight and is not. The
 parser's own vocabulary -- the three choices for `--first-row`, the
-default smallest group -- is written out below as constants instead of
-being read off `reading` and `taxonomy`, because the parser is built
-BEFORE any command word has been read: it may not start the reader, and
-`taxonomy` belongs to the `profile` branch. The suite checks each
-constant against the module that owns the value, so the two cannot
-drift apart in silence.
+default smallest group -- is held below as constants instead of being
+read off `reading` and `taxonomy`, because the parser is built BEFORE
+any command word has been read: it may not start the reader, and
+`taxonomy` belongs to the `profile` branch. The default smallest group
+is read from `parsing`, where it is written once for every module; the
+suite checks each constant against the module that owns the value, so
+the two cannot drift apart in silence.
 
 THE DISPLAY BOUNDARY. A path or a value can carry an escape sequence,
 and a terminal obeys one instead of printing it: a path containing the
@@ -104,20 +105,23 @@ _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 # been read, so it may not start the table reader (plan P2-D1) and may
 # not reach into the `profile` branch's taxonomy. Each of these is the
 # same value the module that owns it holds, and the suite compares them
-# so a change in one place cannot pass unnoticed in the other.
+# so a change in one place cannot pass unnoticed in the other. The
+# smallest group is not written out: it is read from
+# `parsing.DEFAULT_SMALL_CELL_FLOOR`, the one place its default is
+# written (plan P4-D316), which this module imports already.
 _FIRST_ROW_AUTOMATIC = "auto"
 _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
-_SMALLEST_GROUP = 1
+_SMALLEST_GROUP = parsing.DEFAULT_SMALL_CELL_FLOOR
 
 # THE LINE UNDER WHICH A NAMED GROUP CAN POINT AT ONE PERSON, mirrored
 # here from `_NOTICE_LINE` for the reason
 # `_SMALLEST_GROUP` is mirrored: the command line is built before any
 # command word is read (plan P2-D1), and the suite compares the two so
-# they cannot drift. It is NOT the default and stopped being it on
-# 2026-08-25 (plan A-P4-37): the default is what a run writes when
-# nobody asks, and this is a fact about people that did not move when
-# the default did.
+# they cannot drift. It is the same number as the default again since
+# 2026-09-22 (plan P4-D316), but it is a different fact: the default is
+# what a run writes when nobody asks, and this is a fact about people
+# that does not move when the default does.
 _NOTICE_LINE = 11
 
 # THE HELP FOR `--missing-value`, HELD AS A CONSTANT BECAUSE IT IS A
@@ -139,8 +143,8 @@ _MISSING_VALUE_HELP = (
     "described. READ THIS BEFORE YOU TYPE A WORD HERE: the word "
     "itself is written into the description, spelled exactly as "
     "your table spells it, in the block describing each column "
-    "where enough rows hold it -- and by default one row is "
-    "enough -- and that "
+    "where enough rows hold it -- by default at least "
+    f"{_SMALLEST_GROUP} -- and that "
     "column publishes any values at all -- so a diagnosis, a "
     "code or an identifier named here travels in the description "
     "and in the summary beside it. Below that many rows the "
@@ -619,15 +623,17 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
-            "of the profile. THE DEFAULT IS 1, WHICH LEAVES NOTHING OUT: "
-            "every value your table holds is named, together with how many "
-            "rows shared it, so a rare value reaches the twin. Raise it -- "
-            "for instance --smallest-group 11 -- where a review board or a "
-            "data-use agreement requires that no group named anywhere in "
-            "the profile can point at one person; the profile then pools "
-            "everything below that number and every file the run makes says "
-            "on its face that it was built that way "
-            "(default: 1)"
+            "of the profile and counted into a pooled remainder instead of "
+            f"being named. THE DEFAULT IS {_SMALLEST_GROUP}: no group named "
+            "anywhere in the profile covers fewer than "
+            f"{_SMALLEST_GROUP} rows, so a value that fewer rows share is "
+            "not named and does not reach the twin by name. A smaller "
+            "number is let through -- --smallest-group 1 names every value "
+            "your table holds, together with how many rows shared it -- "
+            "and then the screen and every file the run makes say on their "
+            "face that the profile names groups small enough to point at "
+            "one person "
+            f"(default: {_SMALLEST_GROUP})"
         ),
     )
     parser.add_argument(
@@ -1638,12 +1644,12 @@ def _how_to_repeat(
 
 
 def _lowered_floor_warning(given: int) -> str:
-    """The warning shown when `--smallest-group` is under the default.
+    """The warning shown when `--smallest-group` is under the notice line.
 
     Guarantees:
 
     - Inputs: the number the person typed, already known to be below
-      `taxonomy.Settings().small_cell_floor` and at least 1.
+      `_NOTICE_LINE` (the default, 11) and at least 1.
     - Determinism: a fixed function of that number.
     - Errors raised: none.
     - Boundary: no value of the table reaches it. It names a count and
@@ -1669,11 +1675,12 @@ def _lowered_floor_warning(given: int) -> str:
     WHEN THIS IS SHOWN CHANGED ON 2026-08-25 (plan A-P4-37). It used to
     be shown whenever the floor was under the default, which was the
     same thing as somebody having typed `--smallest-group`. The default
-    is 1 now, so that test would never fire again. It is shown when the
-    person TYPED a floor under `_NOTICE_LINE` -- a choice they made and
-    should see priced. A default run says the same facts on the written
-    pages, which are the files that travel, and does not alarm the
-    screen about a setting nobody chose.
+    was 1 from then until 2026-09-22, so that test would never have
+    fired. It is shown when the person TYPED a floor under
+    `_NOTICE_LINE` -- a choice they made and should see priced. The
+    default is 11 again since 2026-09-22 (plan P4-D316), the same number
+    as `_NOTICE_LINE`, so a run that names no floor is never alarmed,
+    and a run that types one below it always is.
     """
     # At a floor of one a published group can be a single row, which is
     # the whole of the disclosure said in one sentence -- so it is said,

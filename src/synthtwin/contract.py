@@ -225,25 +225,26 @@ DECLARATION_KEYS = (
 # description made with a LOWER one can be recognized and said out loud
 # on the face of every file built from it.
 #
-# It is the same number `taxonomy.Settings` defaults to. The two are
-# written in two modules because the generation and validation paths may
-# not import the profiler's taxonomy at all, and the suite compares them
-# so a change in one cannot pass unnoticed in the other.
-DEFAULT_SMALL_CELL_FLOOR = 1
+# It is the same number `taxonomy.Settings` defaults to, and both read it
+# from `parsing.DEFAULT_SMALL_CELL_FLOOR`, the one place it is written
+# (plan P4-D316): the loader does not import the profiler's taxonomy, and
+# every module that needs the number already imports `parsing`. It is 11
+# since 2026-09-22, the same number as the notice line below.
+DEFAULT_SMALL_CELL_FLOOR = parsing.DEFAULT_SMALL_CELL_FLOOR
 
-# THE NUMBER BELOW WHICH A PUBLISHED GROUP CAN POINT AT ONE PERSON, and
-# it is NOT the default any more (plan amendment A-P4-37). Until
-# 2026-08-25 these were one number, and every page that discloses what a
-# description carries asked "is the floor below the default?". The owner
-# ruled the default to 1, which made that question always false and
-# silently took the disclosure off every page -- the pages went quiet
-# exactly when they had the most to say.
+# THE NUMBER BELOW WHICH A PUBLISHED GROUP CAN POINT AT ONE PERSON. From
+# 2026-08-25 to 2026-09-22 it was not the default (plan amendment
+# A-P4-37): the owner had ruled the default to 1, which made "is the
+# floor below the default?" always false and would have taken the
+# disclosure off every page -- the pages would have gone quiet exactly
+# when they had the most to say. The owner returned the default to 11 on
+# 2026-09-22 (plan P4-D316), so the two numbers agree again.
 #
-# They are two different facts and now have two names. The DEFAULT is
+# They are still two different facts with two names. The DEFAULT is
 # what `synthtwin profile` writes when nobody asks for another. This is
 # the line under which a group is small enough that naming it says
-# something about a person, which is a fact about people and did not
-# move when the default did. Every page that tells a reader what a
+# something about a person, which is a fact about people and does not
+# move when the default does. Every page that tells a reader what a
 # description contains asks about THIS one.
 SMALL_GROUP_NOTICE_LINE = 11
 
@@ -1029,16 +1030,22 @@ INVARIANTS = {
         "blank lines stand in file order after no more records than the "
         "table has, hold nothing but spaces and tabs, and stand inside a "
         "one-column table nowhere but after its last record; neither the "
-        "blank places nor the runs of line endings pass their caps; and "
+        "blank places nor the runs of line endings pass their caps; "
         "blank lines published counted stand in place of places, only "
         "past that cap, in a table of two or more columns, from a first "
         "place no later than the last and the last no later than the "
-        "table's end, holding nothing but spaces and tabs"
+        "table's end, holding nothing but spaces and tabs; and the census "
+        "line -- the smallest group size, never under two, and not asked "
+        "at a smallest group size of one -- is reached by the number of "
+        "blank places, by the places wearing each form of them, and by "
+        "the blank lines published counted"
     ),
     "FD5": (
         "records holding nothing are published only in a table of two or "
         "more columns with no row sequence, and no more of them than any "
-        "column has absent cells"
+        "column has absent cells; and each of their three counts is "
+        "nought or reaches the census line -- the smallest group size, "
+        "never under two, and not asked at a smallest group size of one"
     ),
     "FD6": (
         "a column published as the row sequence has every cell present, "
@@ -4994,8 +5001,42 @@ def _dialect_rules(
             f"{counted_blanks.lines} blank lines are published counted, from after {counted_blanks.first} records to after {counted_blanks.last}",
             f"counts stand in place of places, only past the cap on places, in file order within a table of {n_rows} records and two or more columns",
         )
+    # ...AND NO PLACE, FORM OR COUNT OF THEM POINTS AT A RECORD (plan
+    # P4-D317; the rule is plan P4-D290's and P4-D311's). The producer
+    # withholds places that number fewer than the census line and writes
+    # a form fewer places wear as the commonest, and until this clause
+    # nothing refused a description that did not: a hand-edited
+    # `{after: 57, lines: 1}` loaded at a floor of eleven. The dialect
+    # module asks the producer's own rule from this side.
+    trouble = dialect.blank_places_broken(list(form.blank_lines), floor)
+    if not trouble:
+        trouble = dialect.blank_spread_broken(form.blank_lines_spread, floor)
+    if trouble:
+        raise _broken(
+            "FD4", where,
+            trouble,
+            "blank places, each form of them and the lines counted in "
+            "their place each reach the smallest group size, and never "
+            "under two",
+        )
     sequences = [column.sequence_start >= 0 for column in form.columns]
     empties = form.empty_rows_leading + form.empty_rows_interior + form.empty_rows_trailing
+    # EVERY COUNT OF EMPTY RECORDS IS NOUGHT OR A GROUP (plan P4-D317;
+    # the rule is plan P4-D290's): an empty record is a record of the
+    # table, and `empty_rows.interior 1` names one.
+    for counted in (
+        form.empty_rows_leading,
+        form.empty_rows_interior,
+        form.empty_rows_trailing,
+    ):
+        trouble = dialect.row_count_broken(counted, floor)
+        if trouble:
+            raise _broken(
+                "FD5", where,
+                trouble,
+                "each count of records holding nothing is nought or "
+                "reaches the smallest group size, and never under two",
+            )
     if empties:
         fewest = min([column.n_missing for column in columns]) if columns else 0
         if (

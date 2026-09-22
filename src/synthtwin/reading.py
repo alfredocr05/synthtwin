@@ -1332,7 +1332,7 @@ def _read_authoritatively(
     decimal_comma_columns: "tuple[str, ...]" = (),
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
-    small_cell_floor: int = 1,
+    small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> _Reading:
     """Survey the file, hold it to the standard reader; refuse in plain words.
 
@@ -1870,7 +1870,7 @@ def _read_workbook_table(
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
     published_header: int = 0,
-    floor: int = 1,
+    floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> Table:
     """One sheet of a workbook, as a table of text (plan P4-D77).
 
@@ -2084,7 +2084,7 @@ def read_table(
     metadata_rows_confirmed: bool = False,
     declared_delimiter: str = "",
     published_header: int = 0,
-    small_cell_floor: int = 1,
+    small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
 
@@ -2096,13 +2096,15 @@ def read_table(
     delimited file (plan P4-D290): the written form carries counts and
     positions of its own lines, and those are held to the one disclosure
     rule like every other count synthtwin publishes. Left out, it is the
-    default floor of one. The workbook question is then asked at the
-    smallest line a census ever uses; the delimited file's line rules are
-    NOT asked at all, because the repair pass of 2026-09-18 gated them on
-    a raised floor (plan P4-D290, amendment b). A caller describing a
-    table at a raised floor passes that floor here, as `synthtwin
-    profile` and the validator both do, or the form it reads is one no
-    description at that floor publishes.
+    default floor (`parsing.DEFAULT_SMALL_CELL_FLOOR`, 11 since plan
+    P4-D316), and both questions are asked at it. At a floor of one the
+    workbook question is asked at the smallest line a census ever uses,
+    and the delimited file's line rules are NOT asked at all, because the
+    repair pass of 2026-09-18 gated them on a floor above one (plan
+    P4-D290, amendment b). A caller describing a table at any floor but
+    the default passes that floor here, as `synthtwin profile` and the
+    validator both do, or the form it reads is one no description at
+    that floor publishes.
 
     ``published_header`` is the validator's alone: the row a workbook
     description puts its names on, which settles a checked workbook's
