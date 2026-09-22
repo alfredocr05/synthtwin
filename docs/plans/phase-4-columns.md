@@ -19118,7 +19118,9 @@ one and says so; a test about the default is re-derived at 11 from the
 rule it states. The tests of the three paths above ask for a floor of
 one and name the defect beside it. The in-suite pin of K-P4-06 is
 measured at a floor of one, its ceilings' floor; the ledger's driver
-measures the default.
+measures the default, and on `3f6cd9f` it reads 609 agreements outside
+the window, as recorded, and 4 rows-above counts missed against the
+ceiling of 3 -- worse by one, and left for the owner to rule on.
 
 ### P4-D317 The floor holes
 

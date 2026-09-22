@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. EIGHT ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; and K-2B-42 on 4668107, this merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. NINE ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; and K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316). Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -2861,15 +2861,15 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "synthtwin defaults",
-   "evidence": "11 (was 1 from A-P4-37, 2026-08-25, to P4-D316, 2026-09-22). The value_at below is caf3079's and RED against this rule, because the default was 1 there; it is re-measured on the landing's own commit and recorded in the commit after it.",
+   "evidence": "11 (was 1 from A-P4-37, 2026-08-25, to P4-D316, 2026-09-22), measured on the landing's own commit",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "3f6cd9f",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
-     "contract_default": 1,
+     "contract_default": 11,
      "pinned_nodes_failing": 0,
-     "settings_default": 1
+     "settings_default": 11
     }
    },
    "nodes_min_collected": 1

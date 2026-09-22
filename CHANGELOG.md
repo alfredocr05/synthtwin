@@ -49,6 +49,15 @@ one; and a whole-number column whose rarer width is pooled names
 `field_widths` in its twin's report. The tests that measure those
 mechanisms now ask for a floor of one and say why.
 
+**The KPI ledger.** `K-P4-20` pins the default at 11 and is re-measured
+on `3f6cd9f`, the landing's own commit. The fast tier of the runner
+reads no drop there (120 green, 9 open and 4 accepted limits held). The
+joined-number battery's driver, measured at the new default on the same
+commit, reads `K-P4-06` WORSE: 609 agreements outside the window, as
+recorded, and 4 rows-above counts missed against a ceiling of 3. The
+in-suite pin of that battery is measured at a floor of one, where its
+ceilings were taken.
+
 ### Changed: the owner accepted the twin rebuilding 63 held-back cells, not 55 (2026-09-22)
 
 The mean-only landing of 21 September moved `K-2B-19` from 55 to 63 of
