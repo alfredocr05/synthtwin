@@ -479,6 +479,18 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 300,000 from 275,000, AUTHORIZED BY THE ORCHESTRATOR FOR STAGE 3'S
+    # GATE (2026-09-23). The ledger stood at 274,933 bytes with 67 to
+    # spare, and what spent the last raise is stage 3's TWELVE entries --
+    # `K-S3-01` to `K-S3-12`: the default floor and the floor holes, the
+    # population floor and the person rule, the numeric tail, the date
+    # and clock tails, the sentences and the counts of one to ten left
+    # standing. The two this landing adds are `K-S3-13`, the gate
+    # itself, and `K-S3-14`, the owner's accepted limit that the
+    # disclosure floor counts ROWS and not people (plan P4-D348). A
+    # MEASUREMENT IS NEVER TRIMMED TO FIT: the cap moves, and the prose
+    # is trimmed before it moves again.
+    #
     # 275,000 from 250,000, authorized for stage 3 (landing 3.1, 2026-09-22).
     # The ledger stood at 249,792 bytes when the stage began, 208 under the
     # old cap, and stage 3 adds its gate entries -- the extremes, the
@@ -487,7 +499,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 275_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 300_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

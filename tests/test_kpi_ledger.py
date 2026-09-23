@@ -1368,3 +1368,32 @@ def test_k_s3_12(record_property, tmp_path: pathlib.Path) -> None:
             "floored_sentence_complements_1_to_10": complements,
         },
     )
+
+
+def test_k_s3_14(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D348: the disclosure floor counts ROWS, so a value can be one person's.
+
+    THE OWNER'S ACCEPTED LIMIT OF 2026-09-23, measured rather than
+    argued. On a repeated-measures table a value held by twelve visits
+    of ONE patient clears a floor of eleven and is published with its
+    count. Two numbers come back: how many published VALUES fewer than
+    eleven of the table's PEOPLE hold, and how many of those have their
+    ROWS at the floor -- which is the class the ruling is about, the
+    rest being ordinary ladder rungs a handful of rows hold either way.
+
+    The people are recomputed from the table the description was built
+    from, because no key of the description publishes them: that is the
+    same rule the population floor's own note follows (contract NF59).
+    """
+    import test_stage3_gate as gate
+
+    below, limited, shapes = gate.people_limit(tmp_path)
+    _kpi(
+        record_property,
+        "K-S3-14",
+        {
+            "values_fewer_people_hold_than_the_floor": below,
+            "and_whose_rows_reach_the_floor": limited,
+            "shapes": shapes,
+        },
+    )

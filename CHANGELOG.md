@@ -6,6 +6,85 @@ exists).
 
 ## [Unreleased]
 
+### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
+
+**A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS
+PLAN NAMES.** Stage 3's gate is "no published number is held by fewer
+than the floor, and a one-row table is refused". Pieces of it were held
+in three places -- the tail rule's own guard, the sentence-argument
+guard and the population floor's tests -- and nothing walked a whole
+description and asked the gate's own question, so a landing that
+published something NEW would have landed outside all three.
+`tests/test_stage3_gate.py` is that walk.
+
+**THE CLASSIFICATION IS CLOSED, and that is what makes the gate
+survive a landing nobody foresaw.** 323 of `profile.PUBLICATION_RULES`'
+669 stated paths can carry a number, and every one of them is in
+exactly one of ten classes -- GROUP, POOLED, SETTLED, DISTINCT,
+WRITTEN_FORM, VALUE, STRUCTURAL, WORD_BY_COUNT, SENTENCE, INDEX --
+resolved through the three mirrors the rules table is built with, so
+one decision is written once. **A path with no class fails the test.**
+
+| the class | what the gate asks of it |
+|---|---|
+| GROUP | nought or at the line, and so is every complement against a population `GATE_POPULATIONS` names; a census asked whole, through `parsing.census_nameable` |
+| VALUE | names no outer cell the tail rule withholds, unless `parsing.tail_may_list` admits it -- asked of the column, never of a list of paths |
+| SENTENCE | every whole-number argument obeys `taxonomy.ARGUMENT_BINDINGS` |
+| WORD_BY_COUNT | a non-default word stands only where the census line of the column's own cells wear it |
+| SETTLED, WRITTEN_FORM | exempt BY NAME, each with the entry that settled it |
+| POOLED, DISTINCT, STRUCTURAL, INDEX | exempt, with the reason written beside the class |
+
+At a floor of eleven the walk puts **12,724 published numbers** of the
+battery into those classes: VALUE 4,817, INDEX 1,997, SETTLED 1,895,
+GROUP 1,706, STRUCTURAL 1,616, POOLED 310, DISTINCT 294, WRITTEN_FORM
+89, beside the sentence arguments and the two words a count moves. The
+battery is sixty-seven tables at each of floors 1, 5 and 11: the forty-six
+seeded shapes of `tests/stage3_battery.py`, every role with its joined
+column, the four realistic families as delimited text AND as workbooks,
+three bounded clinical scales, two heavy tails, a sparse block, a
+repeated-measures table with a declared identifier, a blank-line-heavy
+file, and tables at 99, 100, 999 and 1,000 rows. **0 breaches**, and
+the refusal half beside it: a one-row table, a 99-row table and 500
+rows of 99 people refused through `cli.main` with nothing written; 100
+and 999 rows carrying the notice on every written page; 1,000 carrying
+none. Ledger `K-S3-13`.
+
+**FIVE MUTATIONS, EACH A TEST OF ITS OWN**, because a guard that passes
+is not a guard: a level count re-published at 1; a sentence argument one
+greater than the key it restates; the column's exact minimum put back
+into `percentiles.min`; a tail listing three values one row holds
+apiece; and `parsing.POPULATION_FLOOR` halved. Each turns the gate red.
+
+**WHAT THE GATE FOUND WHILE IT WAS BEING BUILT**, each recorded where it
+belongs rather than worked around: a band read by VALUE rather than by
+position called a boundary rung a leak on `two_readings_fit`, where five
+rows hold 3.2 at the sorted positions 9 to 13 and the ladder publishes
+the thirteenth; a second back-solve written here reported
+`boundary + mean_distance` over a TWELVE-row tail as a disclosure when
+the mean of twelve unequal distances names no row, so the gate asks the
+tail-leak driver's own walk instead; reading a census's complement off
+`n_present` called the withheld `thousands_marks` of 1,199 grouped
+prices a breach of a word rule W holds at 1,199 cells; and splitting a
+table's text on its delimiter turned `"1,234.56"` into two cells.
+
+**THE LIMIT THE OWNER ACCEPTED TODAY (plan P4-D348): the disclosure
+floor counts ROWS, not people.** On a repeated-measures table a value
+held by twelve visits of ONE patient clears a floor of eleven and is
+published with its count. It is not changed here; it is MEASURED, and
+held at a ceiling by `K-S3-14`: over three seeded repeated-measures
+shapes, **177** published values are held by fewer than eleven of the
+table's PEOPLE and **68** of those stand on eleven rows or more -- the
+rest being ordinary ladder rungs a handful of rows hold either way. It
+concentrates where plan P4-D340 said it would: 12 patients over 1,196
+visits leave 66 of the 68, the worst a rung of 65.0 on 11 rows of 5
+people. The POPULATION floor beside it does count people, so the two
+halves of stage 3 count different units on purpose.
+
+**The KPI ledger's cap is 300,000 bytes, from 275,000**, authorized by
+the orchestrator. The ledger stood at 274,933 with 67 to spare, and
+what spent the last raise is stage 3's twelve entries `K-S3-01` to
+`K-S3-12`. No measurement was trimmed to fit.
+
 ### Stage 3's close: one listing rule, and six sentences that were not true (2026-09-23)
 
 **ONE RULE DECIDES WHICH TAIL MAY LIST ITS VALUES, and every role asks

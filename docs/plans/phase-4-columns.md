@@ -20536,3 +20536,38 @@ fragment or a count whose complement against `n_present` is nought or
 reaches the line; and the same warning built from 899 grouped cells of
 900 renders character for character alike, which a sentence carrying a
 count of its column could not.
+
+### P4-D348 The disclosure floor counts rows, not people
+
+**The owner's accepted limit of 2026-09-23.** On a repeated-measures
+table a value held by twelve visits of ONE patient clears a floor of
+eleven and is published with its count. The floor synthtwin applies to
+every published count and every published value counts ROWS. It is not
+changed by this decision; it is measured by it.
+
+**Why it is a limit and not a defect.** The other half of stage 3 --
+the POPULATION floor of P4-D340 and P4-D341 -- already counts PEOPLE:
+a table of 500 visits over 99 patients is refused, and a declared
+identifier that repeats moves the whole population count into people.
+So the two halves of stage 3 count different units on purpose. What
+this decision records is that the disclosure floor was NOT moved with
+it, and what that leaves standing.
+
+**Measured** (`tests/test_stage3_gate.py::people_limit`, three
+repeated-measures shapes at a floor of eleven, seeded and neutral):
+177 published values are held by fewer than eleven of the table's
+PEOPLE, and 68 of those have their ROWS at the floor or above -- which
+is the class this ruling is about, the rest being ordinary ladder rungs
+a handful of rows hold either way (owner decision 3, the ladder kept).
+The plan's own cited case is where it concentrates: 12 patients over
+1,196 visits leaves 66 of the 68, the worst standing on 11 rows of 5
+people.
+
+**Held at a ceiling** by ledger entry `K-S3-14`, so the number cannot
+widen while nobody is looking, and NOT closed here: counting the
+disclosure floor in people would change what every column of every
+repeated-measures table publishes, which is a landing and not a clause.
+
+**Where it is stated:** this decision, `K-S3-14`, `docs/STATE.md`'s
+decision list, and the head of `tests/test_stage3_gate.py`, which is
+the file that would otherwise be read as claiming the gate closes it.

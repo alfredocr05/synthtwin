@@ -257,6 +257,11 @@ SECONDS = {
     "tests/test_stage2_judged_provenance.py": 5.11,
     "tests/test_stage2_nested_grouping_loss.py": 0.72,
     "tests/test_stage2_refusals.py": 0.36,
+    # THE STAGE-3 GATE: the battery is described once per floor in a
+    # module-scoped fixture and every case walks those documents, so
+    # almost all of these seconds are the three fixtures rather than the
+    # twenty-seven cases. Measured on this tree at 20.5 s.
+    "tests/test_stage3_gate.py": 20.5,
     # The tail rule of stage 3 (landing 3.3): forty-five cases over ten
     # shapes, each a whole run through the product.
     "tests/test_stage3_tail_rule.py": 52.0,

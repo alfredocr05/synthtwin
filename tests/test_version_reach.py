@@ -240,13 +240,21 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # once: if what it loads is a committed file of the folders, move this
 # number and say so.
 #
+# 28 AT STAGE 3'S GATE (2026-09-23), not 27: `tests/test_stage3_gate.py`
+# loads `tools/measurements/kpi_stage3_tail_leak.py` through
+# `_tail_leak_driver`, so the gate asks the BACK-SOLVE that driver
+# already holds instead of growing a second one of its own. What it
+# loads is a committed file under tools/, which this guard reads
+# directly, so the floor holds for it as it does for the other
+# twenty-seven.
+#
 # 27 AT THE INTEGRATION OF 2026-09-21, not 26: `tests/test_ci_shards.py`
 # arrived with the suite-time landing and loads `tools/ci/shards.py`
 # through `_load_tool`, so the split's own prover can be tested without
 # putting tools/ on the path. What it loads is a committed file under
 # tools/, which this guard reads directly -- `_files()` walks it -- so
 # the floor holds for it the way it holds for the other twenty-six.
-FILES_LOADED_AS_MODULES = 27
+FILES_LOADED_AS_MODULES = 28
 
 
 def _files() -> "list[pathlib.Path]":

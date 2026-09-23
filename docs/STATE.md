@@ -111,7 +111,12 @@ ones.
   decimal-comma warning back on 1,199 grouped prices beside one bare
   cell; an autofilter can still make an ambiguous first row the header; a
   workbook date cell naming no day is read; free text's "one cell is a
-  number" and a pooled label's one missing cell stay published.
+  number" and a pooled label's one missing cell stay published; and
+  **the disclosure floor counts ROWS, not people** (2026-09-23, plan
+  P4-D348), so a value held by twelve visits of one patient is
+  published with its count -- 68 such values over three seeded
+  repeated-measures shapes, held there by `K-S3-14`, while the
+  POPULATION floor beside it does count people.
   **Judge any such question by its effect on the owner's code and
   results; if there is none, do not spend time on it.**
 - **Asking the person is part of the product** (A-P4-56, A-P4-58).
