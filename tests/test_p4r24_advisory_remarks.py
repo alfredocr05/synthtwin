@@ -401,13 +401,22 @@ def test_the_clock_count_is_the_readings_own_count(monkeypatch) -> None:
     Two places computing one quantity is the shape four of six items
     in review round P4-G3-R1 took. Replacing the one function moves the
     sentence, which is what says the sentence reads it.
+
+    THE REPLACEMENT IS A GROUP, and since stage 3 landing 3.5 it has to
+    be. This clause is one of the thirteen sentence positions no key of
+    the block covers, so the floor is asked of it here (plan P4-D334):
+    a reach below `parsing.census_floor` is written as the fragment
+    "fewer than 11" and the digits never appear. Thirty-seven is above
+    the line and is not the reach the column really has, which is what
+    this test needs it to be -- the point is that the sentence reads
+    `clock_reach` and not that it reads a small number.
     """
     values = _declined_with_clocks()
-    monkeypatch.setattr(taxonomy, "clock_reach", lambda _cells: 7)
+    monkeypatch.setattr(taxonomy, "clock_reach", lambda _cells: 37)
     block = _described(values, name="taken_at")["columns"][0]
     said = _said(block, CLOCK_CLAUSE)
     assert said is not None
-    assert "7 of these values read as a clock time" in said
+    assert "37 of these values read as a clock time" in said
 
 
 # -- NF29 argument 9: the recoverable-distribution advice --------------

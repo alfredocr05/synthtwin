@@ -27,7 +27,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import cli, errors, profile, reading, taxonomy
+from synthtwin import cli, errors, parsing, profile, reading, taxonomy
 
 # The floor this file describes at, stated rather than inherited. The
 # mutations below all turn on something being WITHHELD -- the pooled
@@ -557,7 +557,35 @@ def test_every_enumerated_form_writes_and_rewrites_the_same_words() -> None:
         arguments = _plausible_arguments(form)
         written = taxonomy.note(form, arguments)
         assert f"{written}" == taxonomy.rendered(form, arguments)
-        assert len(f"{written}") > 20, f"{form} writes nothing readable"
+        # THE TWO FORMS WHOSE WHOLE TEXT IS A HANDFUL OF WORDS, and
+        # they are that short on purpose. Neither fragment stands on
+        # its own: each goes INSIDE another sentence in the place of a
+        # count the floor will not let that sentence print (plan
+        # P4-D334), so a length written for whole sentences would ask
+        # them for words they may not say. Both exact renderings are
+        # pinned in tests/test_p4d334_sentence_arguments.py.
+        #
+        # EACH FLOOR IS THE FORM'S OWN SHORTEST LEGAL RENDERING, not a
+        # number copied off a run. NF59's argument is the census line,
+        # which `parsing.census_floor` never returns below 2, so
+        # "fewer than 2" -- twelve characters -- is the shortest it can
+        # ever write. NF60 takes no argument at all, so its rendering
+        # is its whole text and there is nothing shorter it could say.
+        least = 21
+        if form == taxonomy.SAID_FEWER_THAN_THE_LINE:
+            # AND THE ARGUMENT IS ONE THE PRODUCER COULD WRITE. The
+            # floor below is only honest about a rendering that can
+            # exist: this position is the census line, and a walk that
+            # handed it `1` measured "fewer than 1", which the contract
+            # says is never built.
+            assert arguments[0] >= parsing.census_floor(1), (
+                "said_fewer_than_the_line's argument is the census line, "
+                "which parsing.census_floor never returns below two"
+            )
+            least = len(f"fewer than {parsing.census_floor(1)}")
+        if form == taxonomy.SAID_SOME_BUT_NOT_ALL:
+            least = len("some but not all")
+        assert len(f"{written}") >= least, f"{form} writes nothing readable"
 
 
 def test_the_enumeration_and_the_arity_table_are_one_thing() -> None:
@@ -637,6 +665,14 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         return (120, taxonomy.NOTE_UNIT_PEOPLE)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
+    if form == taxonomy.SAID_FEWER_THAN_THE_LINE:
+        # THE CENSUS LINE, WHICH IS NEVER 1. The walk below would give
+        # this position `1 + place` -- one -- and "fewer than 1" is a
+        # rendering the contract says can never be built: the argument
+        # is the line, and `parsing.census_floor` returns the larger of
+        # two and the smallest group size. A form measured at an
+        # argument its producer cannot write is a form nobody measured.
+        return (parsing.census_floor(1),)
     # The two affixed forms take the fourth argument class at two of
     # their positions: an affix spelling, which the grammar admits only
     # there and only under the binding the guard checks. Every other

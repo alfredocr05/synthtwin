@@ -5448,6 +5448,18 @@ def _floored_cap(
     `floor((longest - 1) * (numbers - 1) / 100)` reaches it -- no number
     of the column was held by more than `floor - 1` cells. Otherwise
     ``bound`` itself, nought meaning none.
+
+    AND ONLY WHERE THE PAIR CAN HAVE BEEN WITHHELD FOR BEING SMALL
+    (stage 3 landing 3.5, plan P4-D335). The producer withholds the
+    pair on TWO grounds now: a count below the floor, and a count whose
+    COMPLEMENT against the numbers the statistics used is a group below
+    the line -- the heap of 395 zeros among 400. So a withheld pair
+    proves "fewer than `floor` cells" only where the description itself
+    rules the heap out, which it does exactly when some other bound is
+    already at or below `numbers - line`: a count above that line is
+    the heap reading and this one proves nothing. Without this clause
+    the generator would cap a heap column's widest stratum at ten
+    cells and write a column that is not a heap at all.
     """
     if floor < 3:
         return bound
@@ -5456,9 +5468,10 @@ def _floored_cap(
         proven = max(proven, -((-numbers) // distinct))
     if proven >= floor:
         return bound
+    line = parsing.census_floor(floor)
+    if bound <= 0 or bound > numbers - line:
+        return bound
     held = floor - 1
-    if bound <= 0:
-        return held
     return min(bound, held)
 
 

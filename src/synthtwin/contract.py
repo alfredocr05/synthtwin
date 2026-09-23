@@ -1419,6 +1419,10 @@ INVARIANTS = {
         "values that write a clock"
     ),
     "GS1": (
+        "a column names the mark between its thousands only where the "
+        "forms map leaves room for at least the smallest group size of "
+        "the cells the writer groups -- the cells written plain, with a "
+        "leading plus or with a point, and the remainder it withheld; "
         "a column groups its thousands with a point only where it writes "
         "its decimals with a comma, and never with a comma there; a space, "
         "an apostrophe, a right single quotation mark, a no-break space, a "
@@ -1558,8 +1562,10 @@ INVARIANTS = {
     "Q18": (
         "the commonest number of a column and the count of cells that "
         "held it are published together or not at all, and where they "
-        "are published at least two cells held it and no more cells "
-        "than the column has numbers"
+        "are published at least two cells held it, no more cells than "
+        "the column has numbers, and what is left of the values the "
+        "statistics used is either nothing or at least the smallest "
+        "group size"
     ),
     "Q16": (
         "the weight of a column's tails is given when four or more "
@@ -8972,13 +8978,15 @@ def _stands_at_midnight(
             f"the dates are published at '{resolution}' on the '{clock}' "
             f"clock",
         )
-    least = floor
-    if least < parsing.MIDNIGHT_DISCLOSURE_FLOOR:
-        # THE SAME FLOOR THE COUNT IS HELD TO (landing 2b.6). Saying
-        # "every value" of a column of one value is a count of one said
-        # in words, and D15 would refuse the count beside it, so the two
-        # are held to one number rather than left to contradict.
-        least = parsing.MIDNIGHT_DISCLOSURE_FLOOR
+    # THE SAME FLOOR THE COUNT IS HELD TO (landing 2b.6). Saying "every
+    # value" of a column of one value is a count of one said in words,
+    # and D15 would refuse the count beside it, so the two are held to
+    # one number rather than left to contradict. Since stage 3 landing
+    # 3.5 that number is named rather than rebuilt: `census_floor` IS
+    # the larger of two and the settings floor (rule W, plan P4-D335),
+    # and the producer's `_midnight_count` reads the same function, so
+    # a third spelling of it here could only drift.
+    least = parsing.census_floor(floor)
     if parsed < least:
         raise _broken(
             "D14",
@@ -9646,6 +9654,14 @@ def _numeric_facts(
     # of 800 padded wide keys publishing `canonical` was refused by this
     # loader on room of nought, so the description its own producer
     # writes could not be read back.
+    # THE CENSUS FLOOR ON BOTH WORDS (rule W, plan P4-D335). WR1 and
+    # NS1 each held their word to the SETTINGS floor, so at a floor of
+    # one a single cell moved a word that names the form of the cells
+    # it is about. `parsing.census_floor` is the one statement of
+    # "never one, whatever the floor" and the producer reads it; these
+    # read it too, so a description this producer writes is one this
+    # loader takes.
+    word_floor = _census_floor(frame.floor)
     if wide != parsing.WIDE_NONE:
         point_free_room = 0
         if parsing.STYLE_PLAIN in styles:
@@ -9656,19 +9672,19 @@ def _numeric_facts(
             point_free_room = point_free_room + styles[parsing.STYLE_LEADING_ZERO]
         if WITHHELD in styles:
             point_free_room = point_free_room + styles[WITHHELD]
-        if point_free_room < 1 or point_free_room < frame.floor:
+        if point_free_room < 1 or point_free_room < word_floor:
             raise _broken(
                 "WR1",
                 where,
                 f"the wide runs of figures are said to be '{wide}'",
                 f"the forms map leaves room for {point_free_room} point-free "
-                f"cell(s) and the smallest group size is {frame.floor}",
+                f"cell(s) and the smallest group size is {word_floor}",
             )
     # INVARIANT NS1 (landing 2b.2). A notation is a majority of the
     # negative cells that reached the floor, so a column naming one holds
     # at least that many negatives -- and at least one, whatever the floor.
     if negative != parsing.NEGATIVE_MINUS and (
-        n_negative < 1 or n_negative < frame.floor
+        n_negative < 1 or n_negative < word_floor
     ):
         raise _broken(
             "NS1",
@@ -9779,6 +9795,16 @@ def _numeric_facts(
     # pair is published the count is at least two -- one cell is not a
     # mode, every value ties there -- and no more than the numeric
     # cells the block holds.
+    #
+    # AND WHAT IS LEFT OF THE NUMBERS IS NOTHING OR A GROUP (stage 3
+    # landing 3.5, plan P4-D335). The count was floored on one side
+    # only, and a heap publishes the other: 395 zeros among 400 numbers
+    # published `mode_count: 395` beside `n_used_in_statistics: 400`,
+    # and the five cells that are not the heap are a group no key of
+    # this block would be allowed to name. `parsing.census_nameable` is
+    # the one statement of that rule and the producer withholds the
+    # pair on it, so this reads the same rule rather than a second
+    # copy of it.
     mode = _figure_or_nothing(mapping["mode"], "mode", where)
     mode_count = _whole(mapping["mode_count"], "mode_count", where, 0)
     if (mode is None) != (mode_count == 0):
@@ -9803,6 +9829,15 @@ def _numeric_facts(
                 where,
                 f"{mode_count} cells held the commonest number",
                 f"{n_numeric} values read as a number",
+            )
+        if not parsing.census_nameable([mode_count], [used], frame.floor):
+            raise _broken(
+                "Q18",
+                where,
+                f"{mode_count} of the {used} values the statistics used "
+                f"held the commonest number",
+                f"what is left of them is nought or at least "
+                f"{_census_floor(frame.floor)}",
             )
     # INVARIANT Q17. A block cannot hold more different numbers than it
     # holds numeric CELLS, and a block whose statistics used a value
@@ -12955,9 +12990,23 @@ def _group_marks_agree(
     predicate rather than listing roles here is what made that last
     change a change in one place.
 
+    AND A MARK IS A WORD ONE GROUP OF CELLS MOVES (rule W of the
+    stage-3 count inventory, plan P4-D335). Its two siblings are held
+    to a floor here -- NS1 for the negatives' notation, WR1 for the
+    wide runs -- and the mark was held to none: the mark census beside
+    it can be `{}` wherever the disclosure rule refused to print it, so
+    1,200 grouped prices with one written bare published the mark with
+    no count anywhere to hold it up. A cell wearing a mark is a cell in
+    a form the writer groups, so the forms map's room for those forms
+    -- plain, a leading plus, a decimal, and whatever it pooled -- is
+    what a column naming a mark claims at least the census floor of.
+    The padded and exponent forms are not counted: this package's own
+    reader refuses a mark inside either.
+
     Guarantees: accepts every column and the settings; returns nothing.
     Raises ProfileError for GS1. No I/O of any kind.
     """
+    mark_floor = _census_floor(settings.small_cell_floor)
     for column in columns:
         facts = column.facts
         blocks: "list[NumericFacts]" = []
@@ -13033,6 +13082,28 @@ def _group_marks_agree(
                     "only a column declared to write its decimals with a "
                     "comma groups with a point",
                 )
+            if mark != "":
+                groupable_room = 0
+                for form in (
+                    parsing.STYLE_PLAIN,
+                    parsing.STYLE_LEADING_PLUS,
+                    parsing.STYLE_DECIMAL,
+                    WITHHELD,
+                ):
+                    if form in block.numeric_styles:
+                        groupable_room = (
+                            groupable_room + block.numeric_styles[form]
+                        )
+                if groupable_room < 1 or groupable_room < mark_floor:
+                    raise _broken(
+                        "GS1",
+                        f"in the block for the column named '{column.name}'",
+                        f"the column groups its thousands with "
+                        f"'{parsing.visible(mark)}'",
+                        f"the forms map leaves room for {groupable_room} "
+                        f"cell(s) the writer groups and the smallest group "
+                        f"size is {mark_floor}",
+                    )
             # TM1's LAST CLAUSE, asked after GS1 so a mark no reading
             # publishes is refused for that before it is refused for
             # being uncounted (the carried refusal test of landing 2b.2).

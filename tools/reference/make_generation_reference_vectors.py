@@ -1016,6 +1016,13 @@ def floored_cap(bound, floor, numeric, distinct, longest):
     It binds unless the description proves a number held by ``floor`` cells:
     ``ceil(numeric / distinct)``, or ``floor((longest - 1) * (numeric - 1) /
     100)`` for a run of ``longest`` equal rungs.  Nought still means no bound.
+
+    G5.2a-2: the term also needs the HEAP reading closed.  A pair is
+    withheld either because the count is under the floor or because
+    ``numeric - count`` is a group below the census line ``L`` -- the larger
+    of two and the floor -- so the small reading is proved only where the
+    other terms already put the cap at or below ``numeric - L``.  A cap of
+    nought rules nothing out and is left alone.
     """
     if floor < 3:
         return bound
@@ -1024,8 +1031,10 @@ def floored_cap(bound, floor, numeric, distinct, longest):
         proven = max(proven, -(-numeric // distinct))
     if proven >= floor:
         return bound
-    held = floor - 1
-    return held if bound <= 0 else min(bound, held)
+    line = floor if floor > 2 else 2
+    if bound <= 0 or bound > numeric - line:
+        return bound
+    return min(bound, floor - 1)
 
 
 def band_allotment(

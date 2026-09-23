@@ -170,6 +170,79 @@ how meeting a published count exactly can force a twin row to match a
 real one used an 11-row table -- a table synthtwin now refuses. It is
 stated at 100 rows.
 
+### Changed: no sentence of a description carries a count its keys withhold (stage 3, 2026-09-22)
+
+**A count in a key was held to the smallest group size; the same count
+in a sentence was held to nothing.** A column with one grouped cell in
+four hundred read "1 of this column's values are written with a comma
+inside the number" -- a count of one, naming one row, in the plain
+prose part of the description. Over 56 descriptions at a smallest group
+size of eleven there were 252 sentences and 145 of them carried
+numbers: 9 printed a count no key of the block beside them published at
+all, and 38 more restated a count the key itself published below that
+line.
+
+Every argument of every sentence is now bound to what it is. Most of
+them restate a count the block already publishes, and those are checked
+against it, so the key's own rule covers the sentence. Thirteen do not
+restate anything: they are the sentence's own count -- how far a
+reading got, how many cells wore a mark -- and those now say "fewer
+than 11" where the group is too small to name. The description is
+refused before it is written if any sentence breaks either rule.
+
+Three more changes came with it. The words a count moves -- how the
+negatives were written, the mark between thousands, whether wide runs
+of figures are their own values' text -- are held to the same line as
+the counts, so one cell can no longer move a word about a whole column.
+The commonest number and its count are withheld where the cells that
+are NOT the commonest number are too few to name: 395 zeros among 400
+values used to publish 395 beside 400, which names the other five.
+And the counts this release deliberately leaves published -- how many
+cells were not numbers, out of range, contradictory, unparsed, zero or
+negative -- are now held at a ceiling in the KPI ledger, so they cannot
+quietly grow.
+
+Why those last ones stay: flooring them made code developed on the twin
+run clean where the real table raises, in 7 of 7 shapes measured, and
+the count could still be worked out from the published count of missing
+cells. This is a reversible call and goes to the owner.
+
+| a column of 400 values | before | after |
+|---|---|---|
+| one grouped cell, in the remark | "1 of this column's values..." | "fewer than 11 of this column's values..." |
+| a reading that reached 4 cells, in the remark | "4 of its values are numbers wearing..." | "Fewer than 11 of its values are numbers wearing..." |
+| 395 zeros: commonest number | `mode 0.0`, `mode_count 395` | both withheld |
+| one bracketed negative, `--smallest-group 1` | `negative_form: brackets` | `negative_form: minus` |
+| one grouped cell, `--smallest-group 1` | `group_separator: ","` | `group_separator: ""` |
+| cells that were not numbers | published | published (unchanged, and held at a ceiling) |
+
+**And a sentence may not hand back the cells it does NOT count.** A
+count is a disclosure from either end. A column of 1,200 prices with
+1,199 of them written `1,795` and one written plain said "1199 of this
+column's values are written with a comma inside the number" beside a
+published row count of 1,200 -- and 1,200 less 1,199 is the one cell,
+named exactly as a key holding 1 would name it. This is the shape the
+tool already refuses in its key censuses, in prose. Four sentence
+counts are counts of cells bearing one spelling, and each of those is
+now held to the cells it leaves over as well as to itself: below the
+line either way, the sentence is not written. Where the sentence is one
+a column cannot lose -- the line that says how the column was read --
+it is written without the number at all.
+
+| a column whose small group is on the OTHER side | before | after |
+|---|---|---|
+| 1,199 grouped prices, 1 written plain | "1199 of this column's values are written with a comma..." | the remark is not written |
+| 390 dates, 10 cells no reading fits | "390 read as dates written as 2024-03-17" | "some but not all read as dates written as 2024-03-17" |
+| 59 cells wearing ` mg`, 1 wearing ` MG` | "59 of its values are numbers wearing one shared piece of text" | the remark is not written |
+
+**What the first row costs, said plainly:** that column loses its
+decimal-comma warning, which is a warning about 1,199 cells that may
+each be a thousand times their real size. One ungrouped cell withdraws
+it. The warning is worth keeping and the subtraction is not acceptable,
+so whether such a remark should be kept with no count in it -- the way
+the read-as line now is -- goes to the owner rather than being decided
+here.
+
 ### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
 
 **A description `profile` wrote could be refused by `generate` and

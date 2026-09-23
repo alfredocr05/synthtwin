@@ -1326,6 +1326,39 @@ the twin described again at that floor published a mode pair the real
 column had withheld; with it, 30 twins of five such shapes at 1,000 to
 4,000 rows held none more than 10 times.
 
+**G5.2a-2. THE FLOOR TERM STANDS ONLY WHERE THE HEAP READING IS
+CLOSED** (stage 3 landing 3.5, 2026-09-22; profile contract Q18). The
+profiler withholds the mode pair on TWO grounds since that landing. The
+first is the one above: the commonest number is held by fewer than `F`
+cells, or by one. The second is that its count leaves a GROUP below the
+line on the other side -- `census_nameable([mode_count],
+[n_used_in_statistics])` fails because `K - mode_count` is between one
+and `L - 1`, with `L` the census line, the larger of two and `F`. A
+heap is exactly that shape: 395 zeros among 400 numbers published
+`mode_count: 395` beside `n_used_in_statistics: 400`, and the five
+cells that are not the heap are a group no key of the block would be
+allowed to name.
+
+So a withheld pair proves "fewer than `F` cells" only where the rest of
+the description already rules the heap out, and it rules it out exactly
+when the other terms put the cap at or below `K - L`:
+
+```
+Cap = min(K - n_distinct_values + 1,
+          floor((r + 1) * (K - 1) / 100) + 2)     where the pair is withheld
+    = min(Cap, F - 1)   only where F >= 3, ceil(K / n_distinct_values) < F
+                        AND Cap <= K - L
+```
+
+Nought still means no bound, and a `Cap` of nought is not lowered to
+`F - 1` either: nothing else bounds the column, so nothing rules the
+heap out. Without this clause the generator would cap a heap column's
+widest stratum at `F - 1` and write a column that is not a heap,
+because the very fact that withheld the pair is the fact the old
+reading took for its opposite. The validator's own reading of a
+withheld pair is the same clause, written from it (validation method
+V6.2's stratum window).
+
 The three parts that follow `Over` never stop a run growing: a run
 beside a one-rank transition always has a smaller side of one, so on a
 ladder that moves continuously the same run takes neighbour after

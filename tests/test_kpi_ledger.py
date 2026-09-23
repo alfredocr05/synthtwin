@@ -52,6 +52,7 @@ from synthtwin import (
     contract,
     generation,
     parsing,
+    profile,
     rendering,
     taxonomy,
 )
@@ -1252,3 +1253,110 @@ def test_k_s6_01(record_property, tmp_path: pathlib.Path) -> None:
           "death_rate_gap_lost": round(abs(measured["twin"][1] - measured["real"][1]), 3),
           "real_rank_correlation": round(measured["real"][0], 3),
           "twin_rank_correlation": round(measured["twin"][0], 3)})
+
+
+# -- Stage 3 landing 3.5 ----------------------------------------------------
+
+
+_STRUCTURAL_COUNTS = (
+    ("profile_version",),
+    ("n_columns",),
+    ("columns", "[]", "position"),
+    ("columns", "[]", "n_parts"),
+    ("columns", "[]", "level_ceiling"),
+    ("source", "dialect", "row_order", "column"),
+    ("source", "dialect", "written_names", "[]", "position"),
+)
+
+
+def _count_leaves(node: object, path: "tuple[str, ...]" = ()):
+    """Every leaf the publication rules call a `count`, with its path."""
+    rules = profile.PUBLICATION_RULES
+    if path not in rules:
+        return
+    kind = rules[path]
+    if kind == profile._MAYBE_OBJECT:
+        if node is None:
+            return
+        kind = profile._OBJECT
+    if kind == profile._OBJECT:
+        free = path + (profile._ANY_KEY,)
+        for name in sorted(node):
+            yield from _count_leaves(
+                node[name], free if free in rules else path + (name,)
+            )
+        return
+    if kind == profile._ARRAY:
+        for item in node:
+            yield from _count_leaves(item, path + (profile._EACH,))
+        return
+    if kind == profile._COUNT:
+        yield (path, node)
+
+
+def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D332: the counts of one to ten this tool still publishes, held at a ceiling.
+
+    The orchestrator's call of 2026-09-22, reversible and to be put to
+    the owner: the odd-kind counts, the sign counts and the pair counts
+    stay published, because flooring them broke goal 1 in 7 of 7 probed
+    shapes and the count still reached the reader through `n_missing`.
+    This entry is what stops that widening unseen -- it counts every
+    unfloored count leaf below the census line over the 46 seeded
+    shapes of the stage-3 battery, and it may not rise.
+
+    Beside it, the landing's own claim, ASKED BOTH WAYS. A floored
+    sentence argument -- one of the thirteen positions no key of the
+    block covers -- may not stand below the line, and it may not stand
+    so close to the population its binding names that the reader takes
+    the remainder off by subtraction. THE SECOND NUMBER IS WHY THE
+    BATTERY GREW THREE SHAPES: the forty-three plant one to ten cells
+    OF the counted kind and never one to ten of the kind the count
+    does not count, so this walk reported nought over them while a
+    sixty-row affixed column reached the exposure in one call. Both
+    numbers are nought and stay nought.
+    """
+    import stage3_battery
+    import test_p4d334_sentence_arguments as bound
+
+    line = parsing.census_floor(11)
+    below = 0
+    unbound = 0
+    complements = 0
+    for name in sorted(stage3_battery.SHAPES):
+        document = stage3_battery.described(tmp_path, name, 11)
+        for path, value in _count_leaves(document):
+            if path[:1] == ("settings",) or path in _STRUCTURAL_COUNTS:
+                continue
+            if isinstance(value, int) and not isinstance(value, bool):
+                if 0 < value < line:
+                    below = below + 1
+        for _where, note, block in bound._sentences(document):
+            for form, place, argument in bound._positions(
+                note.form, note.arguments, line
+            ):
+                binding = taxonomy.argument_binding(form, place)
+                if binding[:1] != (taxonomy.BIND_FLOORED,):
+                    continue
+                if isinstance(argument, tuple):
+                    continue
+                if 0 < argument < line:
+                    unbound = unbound + 1
+                # THE COMPLEMENT IS MEASURED AGAINST `n_present`
+                # WHETHER OR NOT THE BINDING NAMES IT. The rule holds
+                # the four positions whose remainder no key publishes;
+                # this number asks the question of all thirteen, so a
+                # fourteenth arriving unbound is seen here rather than
+                # only where somebody already suspected it.
+                total = bound._key(block, "n_present")
+                if total is not None and 0 < total - argument < line:
+                    complements = complements + 1
+    _kpi(
+        record_property,
+        "K-S3-01",
+        {
+            "count_leaves_1_to_10": below,
+            "floored_sentence_arguments_1_to_10": unbound,
+            "floored_sentence_complements_1_to_10": complements,
+        },
+    )

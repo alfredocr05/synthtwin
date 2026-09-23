@@ -3879,6 +3879,15 @@ def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     # the pair exactly there -- wherever the description does not itself
     # prove such a number, by the fewest cells the commonest number can
     # hold or by the cells a run of equal rungs forces onto one number.
+    #
+    # UNLESS THE HEAP READING IS STILL OPEN (stage 3 landing 3.5, plan
+    # P4-D335). The pair is withheld on a second ground now -- a count
+    # whose complement against the numbers the statistics used is a
+    # group below the line, which is what a heap of 395 among 400 is --
+    # so the floor proves the small reading only where some other bound
+    # already puts the count at or below `numbers - line`. This mirror
+    # is written from the method clause and not from the generator,
+    # which this module may not import.
     if floor < 3:
         return bound
     proven = 0
@@ -3886,9 +3895,10 @@ def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
         proven = max(proven, -((-numbers) // facts.n_distinct_values))
     if proven >= floor:
         return bound
+    line = parsing.census_floor(floor)
+    if bound <= 0 or bound > numbers - line:
+        return bound
     held = floor - 1
-    if bound <= 0:
-        return held
     return min(bound, held)
 
 

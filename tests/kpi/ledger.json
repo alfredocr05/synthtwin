@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. FOURTEEN ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and K-P4-06, K-2B-05, K-2B-47, K-2B-49, K-2B-50 and K-2B-51 on f521955, 2026-09-22, that landing's repair pass, where K-P4-06's ceiling moved to the default's 4 in its own commit and the known-miss driver, which crashed on the landing's own guard, was re-measured with the slow tier (plan P4-D320); and K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit, the entry that landing added -- its value could not have been taken on any earlier tree, because the population floor is what that landing built (plans P4-D340 and P4-D341); and K-S3-02 on da4cafb, 2026-09-23, that landing's repair pass, which added route two to the person rule and the four label shapes its battery was missing, so the value moved from 25 columns and 0 false positives to 33 and 4, with a second true positive for the categorical subject column. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. THIRTEEN ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and K-P4-06, K-2B-05, K-2B-47, K-2B-49, K-2B-50 and K-2B-51 on f521955, 2026-09-22, that landing's repair pass, where K-P4-06's ceiling moved to the default's 4 in its own commit and the known-miss driver, which crashed on the landing's own guard, was re-measured with the slow tier (plan P4-D320); and K-S3-01 on 3587709, 2026-09-23 -- the commit before this one, which cannot hold its own hash; the two trees differ only in this sentence, and the landing stamped the same way at 1f4dd83 -- the REPAIR PASS of stage 3 landing 3.5: the entry arrived on baec6d2 and counts what its own seeded battery publishes, so it could not have been taken on any earlier tree, and the repair pass armed the complement clause and grew that battery by the three shapes that can see it -- so its ceiling and both of its nought numbers are measured on the repair's tree and not on the landing's (plan P4-D332). Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -370,8 +370,7 @@
    },
    "key_kinds": {
     "suite_seconds": "seconds_below"
-   },
-   "status_note": "THE SECONDS WERE NOT RE-TAKEN ON LANDING 3.2 OR ITS REPAIR PASS, and this entry's recorded 3,085.8 s therefore stands for an older tree. Stage 3 landing 3.2 raised about eighty test files' tables from 20-60 rows to the population floor of 100, and its repair pass added cases again, so the suite is expected to have grown. WHAT IS KNOWN, from five-shard sums on this machine, which are not the single-process number this entry measures and are taken under other builders' load: the previous landing summed 4,197.2 s for 7,186 collected, and landing 3.2 summed 5,224.2 s for 7,240 -- +24.5 per cent of cost for +54 cases. Scaled onto the recorded single-process figure that is near 3,840 s: still inside the 4,500 s cap, with the headroom cut from about 31 per cent to about 15 per cent. THE COLLECTED COUNT, which is judged everywhere and bounds from below, is met and then some. The next run on a quiet reference machine re-stamps this entry: `kpi_run.py --slow --only K-P0-10`"
+   }
   },
   {
    "id": "K-P1-01",
@@ -3668,9 +3667,9 @@
    "phase_stage": "Stage 2b.1 repair",
    "category": "PRIVACY",
    "headline": false,
-   "name": "A withheld mode stays withheld: at floor 11 no twin number is held 11 times",
+   "name": "A withheld mode stays withheld: at floor 11 no twin number is held 11 times, WHERE THE DESCRIPTION RULES THE HEAP OUT",
    "status": "GREEN",
-   "rule": "twin max count per value <= 10; re-described mode stays withheld",
+   "rule": "on a column whose description withholds the mode because the mode's own count is below the floor: twin max count per value <= 10. On a column whose mode is withheld by the SECOND ground -- method G5.2a-2, plan P4-D335, where the cells that are not the commonest value are too few to name -- the twin reproduces the heap and the cap does not apply. Both ways: the re-described mode stays withheld",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -3692,7 +3691,8 @@
     "value": {
      "pinned_nodes_failing": 0
     }
-   }
+   },
+   "status_note": "QUALIFIED by the repair pass of stage 3 landing 3.5, which is the landing that created the second ground. G5.2a-2 (plan P4-D335) withholds the mode where the COMPLEMENT of the commonest value is too few to name: 395 zeros among 400 published 395 beside 400 and named the other five. Measured as a full round trip at floor 11 on such a heap: described -> mode None and mode_count 0; generate -> the twin's widest value count is ('0', 395); re-described -> mode None. Clause 2 holds and the cap does not, and it should not: G5.2a-2's whole intent is that the twin reproduces the heap, which is goal 1. The cap proves the small reading only where the description already rules the heap out, and this entry's pinned node measures exactly that case (uniform_three_figures and whole_hundreds). The rule text was left behind when the ground was added, and the ledger is the regression mechanism, so it is moved here rather than in a comment. The pinned node is unchanged."
   },
   {
    "id": "K-2B-04",
@@ -5690,48 +5690,42 @@
   },
   {
    "id": "K-S3-01",
-   "phase_stage": "Stage 3, landing 3.2 (the population floor)",
+   "phase_stage": "Stage 3 landing 3.5 (P4-D332, P4-D334)",
    "category": "PRIVACY",
    "headline": true,
-   "name": "The population floor: what `synthtwin profile` refuses, notices and passes in silence",
-   "status": "GREEN",
-   "rule": "over a fixed battery of 13 sizes and person shapes, driven through cli.main: exactly 4 are REFUSED (under 100 in rows or in people), exactly 6 run with the table-wide NOTICE (100 to 999) and exactly 3 run SILENT (1,000 or more), and 0 refused runs leave a file behind. The band of each case is read off the description's own publication note, not off the screen, so a notice printed and not published would fail here",
-   "rule_kind": "exact",
+   "name": "Counts of one to ten LEFT AS IS, and no floored sentence argument among them -- nor any whose complement is one",
+   "status": "OPEN",
+   "rule": "over the 46 seeded shapes of tests/stage3_battery.py at floor 11: the unfloored `count` leaves holding 1..10 (settings and structural counts excluded) must not rise; the FLOORED sentence arguments -- the thirteen positions no key of the block covers -- holding 1..10 must stay nought; and the floored arguments whose COMPLEMENT against the block's published n_present holds 1..10 must stay nought, asked of all thirteen positions and not only of the four whose binding names that population; target 0 for all three",
+   "rule_kind": "at_most",
    "expected": {
-    "cases": 13,
-    "refused": 4,
-    "noticed": 6,
-    "silent": 3,
-    "files_written_after_a_refusal": 0,
-    "pinned_nodes_failing": 0
+    "count_leaves_1_to_10": 65,
+    "floored_sentence_arguments_1_to_10": 0,
+    "floored_sentence_complements_1_to_10": 0
    },
    "tier": "FAST",
    "source": "pytest",
-   "nodes": [
-    "tests/test_p4d341_population_floor.py::test_the_refusal_names_the_count_the_line_and_what_to_do",
-    "tests/test_p4d341_population_floor.py::test_the_twin_table_carries_no_trace_of_the_notice",
-    "tests/test_p4d341_population_floor.py::test_an_answer_at_the_terminal_can_refuse_the_run",
-    "tests/test_p4d341_population_floor.py::test_build_document_still_describes_a_five_row_table",
-    "tests/test_p4d341_population_floor.py::test_validate_still_checks_a_fifty_row_file"
-   ],
-   "nodes_min_collected": 5,
+   "nodes": [],
    "test": "tests/test_kpi_ledger.py::test_k_s3_01",
    "driver": null,
-   "pin_strength": "EXACT",
-   "measured_on": "kpi_shapes.POPULATION_BATTERY: the two ends of each band and one step outside it, counted in rows (1, 50, 99, 100, 500, 999, 1,000 and 1,500 rows with every subject_id different) and counted in people (500 rows over 99 and over 100 subjects, 1,200 over 300, 4,000 over 1,000, and 500 rows whose declared identifier never repeats and so counts in rows). Every case is a whole `synthtwin profile` run in this process",
-   "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, which is the only tree it could have been measured on: neither the population floor nor the person question exists before it. MEASURED on the landing that added it. The four refusals are 1, 50 and 99 rows and 500 rows over 99 people; the six notices are 100, 500 and 999 rows, 500 rows over 100 people, 1,200 rows over 300 people and 500 rows whose declared identifier never repeats (counted in rows, 500); the three silent runs are 1,000 and 1,500 rows and 4,000 rows over 1,000 people. No refused run left anything beside the table it was pointed at. The pinned nodes hold the halves a count cannot: that the refusal says the count, the line and what to do; that the twin's TABLE is byte-identical with the notice and without it; that the gate after the on-screen answers refuses before anything is written; and that `build_document` and `synthtwin validate` still take a five-row and a fifty-row file, which is what keeps the floor the COMMAND's",
+   "pin_strength": "NONE",
+   "measured_on": "tests/stage3_battery.py, 46 seeded shapes, seed 20260922, floor 11",
+   "evidence": "65 count leaves at 1..10 across the battery, the largest families n_left_out_of_statistics 8, n_distinct and n_distinct_folded 5 each, n_unparsed 5, n_not_numeric 4, n_negative 4; of those, the DISTINCT and written-form leaves are exempt by class (contract 12.2) and the odd-kind, sign and pair counts are P4-D332's own call. THE CEILING MOVED 64 -> 65 BECAUSE THE BATTERY GREW, not because the tool publishes more: the three complement shapes add exactly one leaf at 1..10, affixed_all_but_one_spelling's n_distinct_by_occurrences of 1, which is a DISTINCT leaf and exempt by the same class as the five above. Floored sentence arguments below the line: 0, where the same battery carried 8 before this landing (the comma remark's 1, the date reach's 3, the affix reach's 4 and 6). Floored arguments whose complement is 1..10: 0, and the number can be reached -- the same walk over the same three shapes with the four populations taken back out of taxonomy.ARGUMENT_BINDINGS reports 4 (1199 beside n_present 1200, 390 beside 400 twice, 59 beside 60), which is the mutation that says this number measures something",
    "value_at": {
-    "commit": "52b9eee",
+    "commit": "3587709",
     "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
-     "cases": 13,
-     "refused": 4,
-     "noticed": 6,
-     "silent": 3,
-     "files_written_after_a_refusal": 0
+     "count_leaves_1_to_10": 65,
+     "floored_sentence_arguments_1_to_10": 0,
+     "floored_sentence_complements_1_to_10": 0
     }
-   }
+   },
+   "target": {
+    "count_leaves_1_to_10": 0
+   },
+   "target_stage": "none set: P4-D332 is the orchestrator's call of 2026-09-22, reversible, and goes to the owner on the board. Flooring these counts broke goal 1 in 7 of 7 probed shapes and the count still reached the reader through n_missing",
+   "status_note": "LEFT AS IS by P4-D332, extending the owner's K-2B-28 and K-2B-48 acceptances under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 65 so that a later landing cannot widen the exposure without moving this number and saying why. THE THIRD NUMBER IS ASKED OF ALL THIRTEEN FLOORED POSITIONS while the rule arms four, so a battery shape whose complement is a competing reading's count -- the class P4-D332 leaves published in a key beside the sentence -- would raise it. That is a decision to record here, not automatically a defect: what the ceiling forbids is the number moving while nobody is looking.",
+   "nodes_min_collected": 0
   },
   {
    "id": "K-S3-02",

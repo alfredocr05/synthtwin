@@ -1876,16 +1876,221 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 59 forms and 98 argument positions.
-Of those, 84 are whole numbers, 5 are package words, 4 are nested
+**The census.** The table holds 60 forms and 97 argument positions.
+Of those, 71 are whole numbers, 4 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
+
+**Thirteen of the seventeen nested positions carry a whole number
+instead, and which of the two they carry is decided by the floor.**
+They are the thirteen the binding table of C6-143 marks FLOORED: the
+positions where the sentence IS the publication, because no key of the
+block beside it carries that count. Each of them holds the count's own
+digits where the count is nought or reaches the smallest group size,
+`said_fewer_than_the_line` (NF59) where it is below it, and
+`said_some_but_not_all` (NF60) where it reaches the line but leaves a
+group below it against the population C6-143 names beside it. A
+consumer reading these positions therefore accepts either class there,
+which is why the census counts them as nested: a reader who admitted
+only whole numbers would refuse a document this producer writes at any
+floor.
 
 **This paragraph stated the count twice and the two disagreed** — 56
 whole numbers in one sentence and 53 in the next, which sum to 65 and
 62 against the same total. It was written that way before this phase
 and no guard compared them, which is the same silence that let four
 whole forms ship undefined. It states the count ONCE now.
+
+**C6-143 (the argument bindings, closed over every position).** A
+sentence may not carry a count a key withholds. Every published count
+of a column block is held to the smallest group size; a count written
+into a SENTENCE was held to nothing, and the two are the same
+disclosure. Measured over 56 descriptions at a floor of eleven before
+this rule existed: 252 sentences and 145 of them carrying whole
+numbers. NINE of those arguments printed a count no key of the block
+beside them published at all — the floored positions of the table
+below, and what this rule closes — and 38 more restated a count the key
+itself published below the line, which is a question about the KEY and
+is answered where the key is (P4-D332). THE SECOND NUMBER READ 29 UNTIL
+THE REPAIR PASS of landing 3.5: the run this paragraph cites records 29
+only under a rule-M prototype nobody built, and 38 for the tool as
+shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
+class over a committed battery, so it is a number a reader can run.
+
+So every argument position of every form is bound to WHAT IT IS, and
+the table below is closed over all 97 of them exactly as the form table
+is closed over the 60 forms. A position nobody bound is a number a
+sentence may print that no rule governs, and a producer that adds one
+is a producer this contract does not describe. The bindings are these:
+
+- **key**, **sum**, **difference** — the argument equals that key of the
+  column block the sentence belongs to, or that sum or difference of
+  its keys. The key's own floor rule therefore governs the sentence
+  too, and nothing further is asked here.
+- **document key** — a key of the description itself rather than of a
+  column: `n_rows`, and nothing else.
+- **main wrapper** — `n_affixed` less the count of every named wrapper:
+  the cells wearing the wrapper the block publishes as its main one.
+- **setting** — a threshold of the run: the smallest group size, a
+  category ceiling, a detection line, the census line. It names no row.
+- **levels at the line** — how many levels reached the long-tail line,
+  which is the length of a list the block publishes.
+- **vocabulary** — a place in one of this package's own closed lists.
+- **structural** — a column number.
+- **value (tail rule)** — a VALUE of the column said a second way. The
+  time-band remark reads the two ends as calendar days; those days are
+  whatever the block publishes in place of its ends, so the stage-3
+  tail rule governs them and no count rule can.
+- **floored** — THE THIRTEEN POSITIONS WHERE THE SENTENCE IS THE
+  PUBLICATION. No key of the block carries these counts, so the floor
+  is asked here: the argument is nought, or reaches the census line
+  with nothing left below that line against the populations named
+  beside it, or carries NF59 `said_fewer_than_the_line` in the
+  number's place, or — where it reaches the line and a population
+  named beside it leaves a group below the line — carries NF60
+  `said_some_but_not_all`, which names no number at all.
+- **package word**, **nested form**, **bound affix** — the three
+  argument classes of C6-119 that are not whole numbers at all.
+
+**Which floored positions name a population, and why it is a fact
+rather than a choice** (plan P4-D333, corrected by the repair pass of
+landing 3.5). FOUR OF THE THIRTEEN name `n_present`: both counts of
+`remark_commas_read_as_thousands`, argument 6 of
+`remark_no_reading_fits`, and argument 1 of `said_read_as_dates`. Each
+of the four counts the cells bearing ONE SPELLING — of a number, or of
+an affix — so what it does not count is a spelling-census group, which
+C6-137 `census_nameable` withholds in the same block. The sentence
+handed that group straight back by subtraction, and the shapes are
+measured ones: 1,199 comma-grouped prices beside one bare cell printed
+1199 next to a published `n_present` of 1,200, which is the exact
+disclosure `census_nameable` was written for; 390 dates beside ten
+free-text cells printed 390 next to 400; 59 cells wearing ` mg` beside
+one wearing ` MG` printed 59 next to 60.
+
+**The other nine name none, and that is P4-D332's call rather than an
+omission.** At those nine the complement is the count of cells a
+competing READING did not reach, which is the same class of number as
+`n_not_numeric`, `n_out_of_range` and `n_unparsed`: counts this version
+leaves published, because flooring them makes code developed on the
+twin run clean where the real table raises — and which the block
+publishes in a key beside the sentence, so flooring the sentence would
+withhold nothing. That is the orchestrator's call P4-D332, recorded
+with its measurement and held at a ceiling by the KPI ledger rather
+than argued here.
+
+**THE PARAGRAPH ABOVE READ "no binding names a population" AND GAVE A
+REASON THAT WAS FALSE OF FOUR POSITIONS.** It said every floored
+position's complement is a competing reading's count. For the comma
+remark, the affix reach and the date reach it is a spelling census
+group the same block withholds, which is why those four are armed here
+and why the sentence that cannot be withdrawn now has NF60 to say.
+
+| form | argument | bound to |
+|---|---|---|
+| `evidence_clock_times` | 1 | difference `n_present` less `n_unparsed` |
+| `evidence_clock_times` | 2 | package word |
+| `evidence_clock_times` | 3 | key `n_unparsed` |
+| `evidence_counts_things` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `evidence_dates` | 1 | difference `n_present` less `n_unparsed` |
+| `evidence_dates` | 2 | key `n_present` |
+| `evidence_dates` | 3 | package word |
+| `evidence_long_tail_of_labels` | 1 | key `n_distinct_folded` |
+| `evidence_long_tail_of_labels` | 2 | setting (category ceiling) |
+| `evidence_long_tail_of_labels` | 3 | document key `n_rows` |
+| `evidence_long_tail_of_labels` | 4 | setting (long-tail line) |
+| `evidence_long_tail_of_labels` | 5 | levels at the line |
+| `evidence_no_reading_fits` | 1 | nested form |
+| `evidence_no_reading_fits` | 2 | nested form |
+| `evidence_no_reading_fits` | 3 | key `n_distinct_folded` |
+| `evidence_no_reading_fits` | 4 | setting (category ceiling) |
+| `evidence_no_reading_fits` | 5 | document key `n_rows` |
+| `evidence_numbers_joined_in_one_cell` | 1 | key `n_joined` |
+| `evidence_numbers_joined_in_one_cell` | 2 | key `n_parts` |
+| `evidence_numbers_joined_in_one_cell` | 3 | bound affix |
+| `evidence_numbers_none_holdable` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `evidence_numbers_none_holdable` | 2 | key `n_present` |
+| `evidence_numbers_none_holdable` | 3 | key `n_numeric` |
+| `evidence_numbers_wearing_one_affix` | 1 | bound affix |
+| `evidence_numbers_wearing_one_affix` | 2 | bound affix |
+| `evidence_numbers_wearing_one_affix` | 3 | main wrapper |
+| `evidence_numbers_with_a_few_labels` | 1 | key `n_numeric_cells` |
+| `evidence_numbers_with_a_few_labels` | 2 | key `n_label_cells` |
+| `evidence_numbers_with_a_few_labels` | 3 | key `labels.n_distinct_folded` |
+| `evidence_numbers_with_a_few_labels` | 4 | document key `n_rows` |
+| `evidence_numbers_with_labels` | 1 | key `n_numeric_cells` |
+| `evidence_numbers_with_labels` | 2 | key `n_label_cells` |
+| `evidence_numbers_with_labels` | 3 | setting (compound line) |
+| `evidence_numbers_with_labels` | 4 | document key `n_rows` |
+| `evidence_one_value` | 1 | key `n_present` |
+| `evidence_set_of_categories` | 1 | key `n_distinct_folded` |
+| `evidence_set_of_categories` | 2 | setting (category ceiling) |
+| `evidence_set_of_categories` | 3 | document key `n_rows` |
+| `evidence_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `evidence_written_as_numbers` | 2 | key `n_present` |
+| `header_names_shown_by_a_column` | 1 | structural |
+| `labels_pooled_below_the_floor` | 1 | key `suppressed_levels` |
+| `labels_pooled_below_the_floor` | 2 | setting (smallest group size) |
+| `labels_pooled_below_the_floor` | 3 | key `suppressed_rows` |
+| `one_of_two_labels_below_the_floor` | 1 | key `suppressed_levels` |
+| `one_of_two_labels_below_the_floor` | 2 | setting (smallest group size) |
+| `one_value_below_the_floor` | 1 | setting (smallest group size) |
+| `remark_a_label_is_a_built_in_stand_in` | 1 | vocabulary |
+| `remark_a_letter_against_the_digits` | 1 | floored |
+| `remark_affixed_numbers_may_be_codes` | 1 | bound affix |
+| `remark_affixed_numbers_may_be_codes` | 2 | bound affix |
+| `remark_affixed_numbers_may_be_codes` | 3 | main wrapper |
+| `remark_close_to_the_category_line` | 1 | key `n_distinct_folded` |
+| `remark_close_to_the_category_line` | 2 | setting (category ceiling) |
+| `remark_close_to_the_numeric_line` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `remark_close_to_the_numeric_line` | 2 | key `n_present` |
+| `remark_close_to_the_numeric_line` | 3 | setting (strict reading line) |
+| `remark_commas_read_as_thousands` | 1 | floored against `n_present` |
+| `remark_commas_read_as_thousands` | 2 | floored against `n_present` |
+| `remark_dates_also_read_as_numbers` | 1 | difference `n_present` less `n_unparsed` |
+| `remark_dates_also_read_as_numbers` | 2 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `remark_every_number_is_different` | 1 | difference `n_present` less `n_distinct` |
+| `remark_every_value_is_different` | 1 | difference `n_present` less `n_distinct` |
+| `remark_no_reading_fits` | 1 | nested form |
+| `remark_no_reading_fits` | 2 | nested form |
+| `remark_no_reading_fits` | 3 | setting (strict reading line) |
+| `remark_no_reading_fits` | 4 | key `n_distinct_folded` |
+| `remark_no_reading_fits` | 5 | setting (category ceiling) |
+| `remark_no_reading_fits` | 6 | floored against `n_present` |
+| `remark_no_reading_fits` | 7 | floored |
+| `remark_no_reading_fits` | 8 | floored |
+| `remark_no_reading_fits` | 9 | floored |
+| `remark_padded_numbers_may_be_codes` | 1 | key `numeric_styles.leading_zero` |
+| `remark_rare_sentinels_unnamed` | 1 | key `n_sentinel_candidates_unpublished` |
+| `remark_slashed_dates_read_against_your_declaration` | 1 | floored |
+| `remark_slashed_dates_read_against_your_declaration` | 2 | floored |
+| `remark_slashed_dates_read_against_your_declaration` | 3 | floored |
+| `remark_slashed_dates_read_against_your_declaration` | 4 | floored |
+| `remark_slashed_dates_read_against_your_declaration` | 5 | package word |
+| `remark_some_values_are_not_numbers` | 1 | key `n_not_numeric` |
+| `remark_too_few_holdable_numbers` | 1 | key `n_numeric` |
+| `remark_too_few_holdable_numbers` | 2 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `remark_two_readings_both_fit` | 1 | floored |
+| `remark_values_contradictory` | 1 | key `n_contradictory` |
+| `remark_values_out_of_range` | 1 | key `n_out_of_range` |
+| `remark_whole_numbers_could_be_times` | 1 | vocabulary |
+| `remark_whole_numbers_could_be_times` | 2 | value (tail rule) |
+| `remark_whole_numbers_could_be_times` | 3 | value (tail rule) |
+| `remark_whole_numbers_could_be_times` | 4 | value (tail rule) |
+| `remark_whole_numbers_could_be_times` | 5 | value (tail rule) |
+| `remark_whole_numbers_could_be_times` | 6 | value (tail rule) |
+| `remark_whole_numbers_could_be_times` | 7 | value (tail rule) |
+| `said_fewer_than_the_line` | 1 | setting (census line) |
+| `said_read_as_dates` | 1 | floored against `n_present` |
+| `said_read_as_dates` | 2 | package word |
+| `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `said_written_as_numbers` | 2 | key `n_present` |
+
+**Two of those 97 positions are stated here and emitted by no producer
+this version ships**: argument 1 of `remark_every_number_is_different`
+and of `remark_every_value_is_different`, which
+`tests/test_p4d27_note_grammar_matches_the_code.py` carries as named
+arity mismatches. They are bound all the same, because a binding column
+with holes in it could not be compared with the producer's table.
 
 **Notation.** «*k*» marks where argument *k* is written into the
 rendering. Renderings are given character for character, including the
@@ -2214,6 +2419,10 @@ identically whatever word sits at position 2.
 > totals are 4.5.1's and 14.8's, which the disposition guard binds
 > to `taxonomy.NOTE_ARITY` in both directions.
 
+**Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
+census line, or carries NF59 `said_fewer_than_the_line` in the
+number's place.
+
 **NF19. `remark_values_out_of_range`** — arity 1. Argument 1:
 out-of-range cells.
 
@@ -2359,6 +2568,9 @@ address is NF50's sentence and not this one, and a wrapper carrying no
 letter raises no question at all — `<0.5` is a detection limit, `$98`
 is money, and neither is a coding system.
 
+**Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
+census line, or carries NF59 in the number's place.
+
 **NF55. `remark_a_letter_against_the_digits` — the flush-letter
 decline** — arity 1. Argument 1: how many present cells hold a number
 with a word or letter beside it, counted as NF54 counts it.
@@ -2387,6 +2599,9 @@ under that declaration rule 9 read the column and there is no decline
 to speak about, nor where `--code` was given, for the reason NF50
 gives. A column carrying NF50 never carries this sentence, because an
 address is refused before this question is asked.
+
+**Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
+census line, or carries NF59 in the number's place.
 
 **NF56. `remark_brackets_around_the_affix` — brackets around a number
 and its text together** — arity 0. Carried on an `affixed_number` column
@@ -2502,6 +2717,10 @@ clause is advisory and routes nothing: it is written exactly when the
 arithmetic makes it TRUE rather than hopeful, and where the arithmetic
 does not hold no advice fires and nothing implies one declaration would
 suffice.
+
+**Arguments 6 to 9 are FLOORED** (C6-143): each is nought, or reaches
+the census line, or carries NF59 in the number's place -- and at
+argument 6 the fragment is capitalised, because it opens a sentence.
 
 **NF30. `remark_some_values_are_not_numbers`** — arity 1. Argument 1:
 unparsed cells.
@@ -2675,6 +2894,17 @@ the first with ONE space between the first clause's closing full stop
 and the second clause's opening capital, and no other punctuation,
 conjunction or joining word is added. Where it does not appear, the
 sentence is the first clause alone.
+
+**All four counts are FLOORED** (C6-143), and the two pairs are not
+floored the same way. Arguments 3 and 4 carry NF59 below the census
+line -- and at the default smallest group size that is their ORDINARY
+reading, because a cell only one reading accepts is a cell the other
+leaves unparsed, so a column with eleven of them on the losing side
+falls below the parse line and is not described as dates at all.
+Arguments 1 and 2 never carry NF59: this rendering COMPARES them to
+choose which of its three sentences to write, so a fragment standing in
+either would settle the sentence by a number nobody may print. Where
+either reach is below the line, no such remark is written.
 
 **NF37. `remark_a_label_is_a_built_in_stand_in`** — arity 1. Argument 1:
 which built-in stand-in number, given as its one-based position in this
@@ -2940,6 +3170,9 @@ way here is wrong by a factor of a thousand, and every statistic
 published about it is wrong by that factor. A sentence that hedged
 would be a sentence a reader could pass over.
 
+**Both counts are FLOORED** (C6-143): each is nought, or reaches the
+census line, or carries NF59 in the number's place.
+
 **NF50. `remark_an_address_is_not_a_quantity`** — arity 0. Carried on
 the column the affixed-number rule declined BECAUSE its winning affix
 pair is an electronic address — every other test of that role having
@@ -3204,7 +3437,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 59 in section 4.5.1 |
+| NG14 | the form is one of the 60 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3267,6 +3500,90 @@ withholds.
 > one asks which reading is right: run the command again with
 > --first-row names if that row holds the column names, or leave it as
 > it is if it is the first record.
+
+**NF59. `said_fewer_than_the_line` — the fragment that stands where a
+count may not** — arity 1. Argument 1: the census line, which is the
+larger of two and the smallest group size in force (stage 3 landing
+3.5, plan P4-D334).
+
+> fewer than «1»
+
+It NEVER STANDS ON ITS OWN. Like `said_written_as_numbers` and
+`said_read_as_dates` it is written into another form's argument, and it
+is written there by the producer in the place of a whole number: the
+thirteen FLOORED positions of the binding table (C6-143), where the
+sentence carries a count no key of the block publishes. Its own
+argument is a setting of the run and not a count of any table, which is
+what makes the fragment sayable where the number it replaces is not.
+
+**Where it starts a sentence it is capitalised**, and only there: NF29
+argument 6 stands immediately after a full stop, and the first letter
+of the fragment is written in upper case so that the sentence does not
+begin in the middle of itself. Nothing else about the rendering
+changes, and a whole number standing at that position is written as its
+own digits, which have no case.
+
+**Where the line is two, the sentence is not written at all.** At a
+smallest group size of one or two the line is two, and "fewer than 2"
+beside a clause asserting that such cells exist is a count of one said
+in words -- which `census_floor` exists to refuse at every floor a
+person may ask for. A remark whose floored count falls there is
+withdrawn instead. The one sentence that cannot be withdrawn is a
+column's own detection evidence, which every block must carry, so the
+fragment stands there at every line.
+
+**At a line above two the fragment says strictly less than the digits
+that stood there before this landing. At a line of two it says exactly
+as much**, and that is stated rather than claimed away: the fragment
+stands only where the count is one or more, so "fewer than 2" is one
+said in other words. It is the price of the one sentence a block may
+not lose, and it is no more than the digits said before. Measured at
+`--smallest-group 1`: 399 free-text cells beside one date write "fewer
+than 2 read as dates" in their evidence, while the remark that repeats
+the same count is withdrawn.
+
+**NF60. `said_some_but_not_all` — the fragment that names no number at
+all** — arity 0 (stage 3 landing 3.5, repair pass, plan P4-D334.1).
+
+> some but not all
+
+It stands at one of the thirteen FLOORED positions of C6-143, in the
+same place NF59 stands, AND IN THE CASE NF59 CANNOT SPEAK TO: the count
+reaches the census line, and the population C6-143 names beside that
+position leaves a group of one to the line less one over. The digits
+are refused there because the reader subtracts them from the published
+population and is handed back a group no key names. NF59 is refused there too,
+and for a plainer reason: "fewer than 11" is FALSE of a count of 1,199.
+
+**Its arity is nought, and that is the whole control.** A form with no
+argument carries no count, so there is no line it can contradict and no
+key it can disagree with. What it says is what the clause around it
+already asserts — that the group is not empty, and that it is not the
+whole column — so it adds no number to the document.
+
+**Where it starts a sentence it is capitalised**, on NF59's rule and
+for NF59's reason: NF29 argument 6 stands immediately after a full
+stop.
+
+**It is written only where the sentence cannot be withdrawn.** A remark
+whose floored count falls in this case is not written at all, on the
+same rule that withdraws a remark whose count is below the line. The
+one sentence a block may not lose is its detection evidence, so that is
+where this fragment stands. The cost of the withdrawal is real and is
+recorded rather than argued away: 1,199 comma-grouped prices beside one
+bare cell lose the decimal-comma warning entirely, and what buys that
+is the one cell a reader would otherwise take off the published
+`n_present`.
+
+**The producer and this document have to agree about it, or an ordinary
+table becomes an internal fault.** Before the repair pass the producer
+wrote the DIGITS at this position whenever the sentence could not be
+withdrawn, while the guard refused exactly that — so the first binding
+to name a population would have turned 390 dates beside ten words into
+a refusal reading "this is a fault in synthtwin itself". Both halves
+now write and accept NF60 there.
+
+---
 
 ## 5. The column block
 
@@ -5738,9 +6055,9 @@ consumer off the role name.
 | `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
-| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach `small_cell_floor` AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
-| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach `small_cell_floor` and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2) | EXACT-OBSERVABLE (plan P4-D41) |
-| `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than `small_cell_floor` were written; `"canonical"` where at least that many were and FEWER than the census floor max(2, `small_cell_floor`) of them are anything but the figures their own values write; `"respelled"` where at least that many were and at least the census floor of them are not. THE LINE BETWEEN THE LAST TWO WORDS IS THE CENSUS FLOOR AND NOT ONE (plan P4-D140, the final Codex review's first BLOCKER): measured with the line at one, 800 canonical keys at a floor of eleven published `"canonical"` and the same column with ONE key respelled into its binary64 neighbour published `"respelled"`, both loading, so a reader who knew the other 799 cells read the last one's spelling off the word. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
+| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach the census floor max(2, `small_cell_floor`) AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. That line read the SETTINGS floor until rule W of the stage-3 count inventory (plan P4-D335): one grouped cell among 400 at a floor of one published the mark and named that cell's spelling. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
+| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach the census floor max(2, `small_cell_floor`) and outnumber every other negative cell together, and `minus` otherwise (NS1; landing 2b.2, the line raised from the settings floor to the census floor by rule W of the stage-3 count inventory, plan P4-D335) | EXACT-OBSERVABLE (plan P4-D41) |
+| `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than the census floor max(2, `small_cell_floor`) were written — that line read the SETTINGS floor until rule W of the stage-3 count inventory (plan P4-D335), where one wide run among 799 charge amounts at a floor of one published `canonical` and named the form of exactly one cell; `"canonical"` where at least that many were and FEWER than the census floor max(2, `small_cell_floor`) of them are anything but the figures their own values write; `"respelled"` where at least that many were and at least the census floor of them are not. THE LINE BETWEEN THE LAST TWO WORDS IS THE CENSUS FLOOR AND NOT ONE (plan P4-D140, the final Codex review's first BLOCKER): measured with the line at one, 800 canonical keys at a floor of eleven published `"canonical"` and the same column with ONE key respelled into its binary64 neighbour published `"respelled"`, both loading, so a reader who knew the other 799 cells read the last one's spelling off the word. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
 | `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. Both halves are the disclosure rule every census of this section is held to, stated once as `parsing.census_nameable` (plan P4-D140): every printed count reaches the census floor, and so does every complement a reader can take from a total, or it is nought. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
 | `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is pooled, and a pool that is itself below the floor makes the whole census unavailable; so does a census whose printed counts leave of the column's negatives a remainder neither nought nor at the census floor (P4-D140), which every negative wearing exactly one notation makes nought by construction. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule — ONE rule, asked of each cell once for both keys, so a declared decimal comma that proves a point for the one proves it for the other (plan P4-D141) — and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell names no mark, but it IS counted by the disclosure rule: the census is published only where its counts, its remainder, and what it leaves of the groupable cells AND of every number of the column each reach the census floor or are nought (plan P4-D140; measured without the groupable clause, 1,200 grouped prices at a floor of eleven with one rewritten bare published `{",": 1199}` beside a row count of 1,200). Where the rule refuses, and wherever a cell refuses `group_separator` its mark, the census is `{}` — the state a column in which no cell proves a mark reaches, so nought and a count below the floor are one published state — and never `{"(unavailable)": 0}`. Where the column publishes a mark of its own, a non-empty census names that mark. `{}` on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
@@ -5941,6 +6258,20 @@ spelling count over the same cells.
 `2 <= mode_count <= n_numeric`: one cell is not a mode, and no more
 cells can hold the commonest number than read as a number at all.
 
+**AND WHAT IS LEFT OF THE VALUES THE STATISTICS USED IS NOUGHT OR A
+GROUP** (stage 3 landing 3.5, plan P4-D335): `n_used_in_statistics`
+less `mode_count` is 0 or at least the census floor max(2,
+`small_cell_floor`), which is `census_nameable([mode_count],
+[n_used_in_statistics])` and the same rule every spelling census
+asks. The count was floored on ONE side only, and a heap publishes
+the other: 395 zeros among 400 numbers published `mode_count: 395`
+beside `n_used_in_statistics: 400`, and the five cells that are not
+the heap are a group no key of that block would be allowed to name.
+The pair is withheld WHOLE where it fails, and not the count alone,
+for the reason the floor already withheld it whole: a value published
+without its count says "this was the commonest number", which is the
+same fact in fewer words.
+
 **Invariant Q19 (`percentiles_between` never goes down).**
 `percentiles_between` names exactly the ninety percents from 1 to 99
 that `percentiles` does not name, each holding a number or `null`; and
@@ -5955,7 +6286,17 @@ four universal cell-census counts answer for the cells on that role as
 on every other.
 
 **Invariant GS1 (the mark between thousands and the decimal mark)**
-(the stage 2 audit, 2026-09-14). `group_separator` is `"."` only on a
+(the stage 2 audit, 2026-09-14, amended by plan P4-D335). A mark other
+than `""` is named only where the forms map leaves room for at least
+the CENSUS FLOOR — max(2, `small_cell_floor`) — of the cells the
+writer groups: the counts of `numeric_styles` for `plain`,
+`leading_plus` and `decimal`, plus its `(withheld)` remainder. The
+padded and exponent forms are not counted, because this package's own
+reader refuses a mark inside either. Its two siblings were each held
+to a floor here — NS1 for the notation, WR1 for the wide runs — and
+the mark was held to none, so 1,200 grouped prices with one written
+bare published the mark beside a census that had pooled the count
+away. `group_separator` is `"."` only on a
 column named in `settings.forced_decimal_commas` that the declaration
 reaches, and is never `","` there. The declaration reaches a column's
 own numbers and the numeric partition of a `numbers_with_labels`
@@ -5968,9 +6309,15 @@ under either (landing 2b.2): `1 234,56` publishes a space. A position of a
 `joined_numbers` column is read from figures and one point alone, so its
 block carries `""` and no other mark.
 
-**Invariant NS1 (a notation needs negatives)** (landing 2b.2).
-`negative_form` other than `"minus"` only where `n_negative` is at least
-`small_cell_floor` and at least one.
+**Invariant NS1 (a notation needs negatives)** (landing 2b.2,
+amended by plan P4-D335). `negative_form` other than `"minus"` only
+where `n_negative` is at least the CENSUS FLOOR — max(2,
+`small_cell_floor`) — and never one. It is a WORD MOVED BY A
+COUNT, like `wide_runs` and `group_separator` beside it: the
+notation names the form of the cells it is about, so a word one
+cell moves tells a reader who knows how every other negative was
+written what that cell wrote. Measured at a settings floor of one:
+one accounting bracket among 400 published `brackets`.
 
 **Invariant DP1 (signed decimals at the census floor, in the room, and
 never pooled)** (landing 2b.2, amended by landing 2b.7). `decimal_plus`
@@ -10706,7 +11053,7 @@ as those keys' own published meanings have them.
 | Q11 | `n_zero <= n_numeric` | yes |
 | Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)` | yes |
 | Q17 | `n_distinct_values <= n_numeric`, and `n_distinct_values >= 1` wherever `n_used_in_statistics > 0` | yes |
-| Q18 | `mode` is `null` exactly when `mode_count` is 0, and where `mode` is a number `2 <= mode_count <= n_numeric` | yes |
+| Q18 | `mode` is `null` exactly when `mode_count` is 0, and where `mode` is a number `2 <= mode_count <= n_numeric` and `n_used_in_statistics - mode_count` is 0 or at least max(2, `small_cell_floor`) (plan P4-D335: the count was floored on one side and a heap of 395 among 400 named the other five) | yes |
 | Q19 | `percentiles_between` names exactly the ninety percents `percentiles` does not, each a number or `null`, and the hundred and one rungs of the named ladder and this one in percent order, `null`s passed over, never go down | yes |
 
 **Q5, Q6 and Q7 all turn on "every parsed value is identical".** The
@@ -10721,14 +11068,14 @@ supplied a different test would refuse different files.
 
 | id | statement | loader? |
 |---|---|---|
-| GS1 | `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and so may the block nested in an `affixed_number` column the declaration reaches (landing 2b.16, plan P4-D106; the loader asks `a_decimal_comma_reaches` and no list of roles, which is what made that a change in one place), while a block nested in a `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0, U+202F and U+2009 may stand under either; a position of a `joined_numbers` column carries `""` | yes |
+| GS1 | `group_separator` names a mark other than `""` only where the counts of `numeric_styles` for `plain`, `leading_plus` and `decimal` plus its `(withheld)` remainder leave room for at least max(2, `small_cell_floor`) cells, the CENSUS FLOOR (plan P4-D335, rule W: the mark is a word one group of cells moves, and its two siblings NS1 and WR1 were each held to a floor here while it was held to none); `group_separator` is `"."` only on a column named in `settings.forced_decimal_commas` that the declaration reaches, and never `","` there; the numeric partition of a `numbers_with_labels` column the declaration reaches may carry `"."`, and so may the block nested in an `affixed_number` column the declaration reaches (landing 2b.16, plan P4-D106; the loader asks `a_decimal_comma_reaches` and no list of roles, which is what made that a change in one place), while a block nested in a `joined_numbers` column never does; a space, `"'"`, U+2019, U+00A0, U+202F and U+2009 may stand under either; a position of a `joined_numbers` column carries `""` | yes |
 
 #### NS1, DP1 and WR1 — `negative_form`, `decimal_plus` and `wide_runs`, on every numeric block
 
 | id | statement | loader? |
 |---|---|---|
-| NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(1, `small_cell_floor`) | yes |
-| WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(1, `small_cell_floor`) cells (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
+| NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(2, `small_cell_floor`), the CENSUS FLOOR (rule W of the stage-3 count inventory, plan P4-D335: the word names the form of the cells it is about, so one cell moving it tells a reader who knows every other cell what that cell wrote) | yes |
+| WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(2, `small_cell_floor`) cells, the CENSUS FLOOR since plan P4-D335 (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
 | DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder, and where that count is named what `+` leaves of it is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
 | NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
 | TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
@@ -10930,7 +11277,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 59 the note grammar enumerates |
+| NG14 | for every form: one of the 60 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12082,7 +12429,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 59 closed forms: 98 argument positions, of which 84 are whole numbers, 5 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 60 closed forms: 97 argument positions, of which 71 are whole numbers, 4 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -13132,10 +13479,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 59 forms
+### 14.8 The note grammar — 60 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 98 argument positions: 84 whole numbers, 5 package words, 4
+argument. 97 argument positions: 71 whole numbers, 4 package words, 17
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -13198,7 +13545,8 @@ nested forms, 5 bound affix strings.
 | NG56 | `remark_brackets_around_the_affix` | 0 |
 | NG57 | `remark_a_minus_after_the_figures` | 0 |
 | NG58 | `header_names_could_not_be_told` | 0 |
-| NG59 | `population_under_a_thousand` | 2 |
+| NG59 | `said_fewer_than_the_line` | 1 |
+| NG60 | `said_some_but_not_all` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
