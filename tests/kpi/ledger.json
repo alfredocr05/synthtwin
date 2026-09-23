@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 33 ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-47, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01, K-S3-11 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 33 ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND TWO STAND OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-S3-11, whose `edge_pinned` that tree drives to nought, and K-2B-47, which gains `read_floor_refused`.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -2376,7 +2376,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved three times: to 609 and 4 on 2026-09-22 with the default floor of 11 (plans P4-D316, P4-D320), which was the default withholding more and not a defect; DOWN to 556 and 1 at the integration of stage 3's five landings, where the numeric tail rule stopped the ladder running to the published extremes; and UP to 579 and 3 on 2026-09-23 for plan P4-D346's listing rule, where a position whose tail names a value ONE row of it holds says its SHAPE instead and the strata beyond that boundary take the shape's values (columns 0, 5 and 11 fall, 7 and 9 rise, and the above-counts missed move from column 0 to columns 7 and 11). A ceiling that comes down is still a ceiling, and one that goes back up is reported as one."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved three times: to 609 and 4 on 2026-09-22 with the default floor of 11 (P4-D316, P4-D320), the default withholding more and not a defect; DOWN to 556 and 1 at stage 3's integration, where the numeric tail rule stopped the ladder running to the published extremes; and UP to 579 and 3 on 2026-09-23 for P4-D346's listing rule, where a position whose tail names a value ONE row holds says its SHAPE instead (columns 0, 5 and 11 fall, 7 and 9 rise, and the misses move from column 0 to 7 and 11). A ceiling that goes back up is reported as one."
   },
   {
    "id": "K-P4-07",
@@ -5322,7 +5322,7 @@
    "headline": false,
    "name": "Carried fidelity misses and the carried residue: the known-miss battery",
    "status": "OPEN",
-   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the read floor as HOW MANY published facts move when build_document is handed a table read at a lower floor (4 until landing 3.1's guard refused that table, plan P4-D317; held at 0 since, with read_floor_unchecked), P4-D182's declared identifier at the default floor as MISSED verdicts (plan P4-D320), the heavy tail and P4-D298's layout at a floor of one as well as at the default, and the Fortran D exponent's MISSED verdicts (0) over a shape that keeps its size (fortran_d_runs >= 3 and fortran_d_cells >= 400, so a driver cut to one seed or a shorter column cannot hold the bound over less evidence); target 0. FOUR KINDS OF NUMBER, kept apart since the round-2 ledger pass (item 11) and its repair pass: the keys above are MEASURED REGRESSION BOUNDS; fortran_d_runs and fortran_d_cells are THE SIZE OF THE SHAPE the bound was taken over, at_least bounds so a ceiling cannot be held over less evidence; fortran_d_cells_respelled is REPORT-ONLY, already at the largest value its shape can produce, so it cannot turn red and only its target of 0 moves it (read_floor_unchecked was too, until the refusal met its target); and the two generator passes the oracle does not mirror are COVERAGE TRACKED ELSEWHERE, by K-P4-23's uncovered, not by this entry. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
+   "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the read floor as HOW MANY published facts move when build_document is handed a table read at a lower floor (4 until landing 3.1's guard refused that table, plan P4-D317; held at 0 since, with read_floor_unchecked, and read_floor_refused beside them at exactly 1 where that guard stopped the low-floor read: both counts are nought by construction whenever it refuses, so without a key saying which state the nought means neither could fail again), P4-D182's declared identifier at the default floor as MISSED verdicts (plan P4-D320), the heavy tail and P4-D298's layout at a floor of one as well as at the default, and the Fortran D exponent's MISSED verdicts (0) over a shape that keeps its size (fortran_d_runs >= 3 and fortran_d_cells >= 400, so a driver cut to one seed or a shorter column cannot hold the bound over less evidence); target 0. FOUR KINDS OF NUMBER, kept apart since the round-2 ledger pass (item 11) and its repair pass: the keys above are MEASURED REGRESSION BOUNDS; fortran_d_runs and fortran_d_cells are THE SIZE OF THE SHAPE the bound was taken over, at_least bounds so a ceiling cannot be held over less evidence; fortran_d_cells_respelled is REPORT-ONLY, already at the largest value its shape can produce, so it cannot turn red and only its target of 0 moves it (read_floor_unchecked was too, until the refusal met its target); and the two generator passes the oracle does not mirror are COVERAGE TRACKED ELSEWHERE, by K-P4-23's uncovered, not by this entry. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
    "rule_kind": "at_most",
    "expected": {
     "dose_missed_checks": 15,
@@ -5342,7 +5342,8 @@
     "fortran_d_cells": 400,
     "fortran_d_runs": 3,
     "pinned_nodes_failing": 0,
-    "fortran_d_cells_respelled": 1200
+    "fortran_d_cells_respelled": 1200,
+    "read_floor_refused": 1
    },
    "report_only": [
     "fortran_d_cells_respelled"
@@ -5366,28 +5367,29 @@
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
    "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every key at or below the ceiling it carried and five of them BETTER: the band split holds all 23 numbers where it was 4 short, `dose` misses its distinct-value count on 15 of 18 runs where it missed 18, the heavy tail's mean and spread are met at BOTH floors where they missed 2 apiece, and the record layout's three misses are gone at the default (they stand at a floor of one, recorded beside them). Each of the five is the numeric tail rule: the rows beyond each boundary stand on their own grid points now, so a column keeps numbers the straight run to a published extreme used to cost it. WHAT STILL MISSES, each reproduced here: the date joint word's `widths.padded` (3), the date remainder's widths (6), the declared record number's `forms.published.%%%` at the default (3), and the Fortran `D` exponent, read as free text so every cell is a stand-in and NOTHING misses. A table read at one floor and described at another is refused (plan P4-D317), so both read-floor keys are nought by construction.",
    "value_at": {
-    "commit": "1fc2ec1",
+    "commit": "a3c0cd1",
     "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi, with pinned_nodes_failing from its own pinned nodes",
     "value": {
-     "dose_missed_checks": 15,
-     "heavy_tail_missed_checks": 0,
-     "percent_missed_checks": 0,
-     "temperature_over_mode_runs": 0,
+     "band_split_distinct_short": 0,
      "date_joint_word_missed_checks": 3,
      "date_remainder_missed_checks": 6,
+     "declared_layout_default_missed_checks": 3,
+     "dose_missed_checks": 15,
+     "fortran_d_cells": 400,
+     "fortran_d_cells_respelled": 1200,
+     "fortran_d_missed_checks": 0,
+     "fortran_d_runs": 3,
+     "heavy_tail_missed_checks": 0,
+     "heavy_tail_missed_checks_floor_one": 0,
+     "percent_missed_checks": 0,
+     "pinned_nodes_failing": 0,
+     "read_floor_facts_differing": 0,
+     "read_floor_refused": 1,
+     "read_floor_unchecked": 0,
      "record_layout_missed_checks": 0,
      "record_layout_missed_checks_floor_one": 3,
-     "heavy_tail_missed_checks_floor_one": 0,
-     "declared_layout_default_missed_checks": 3,
-     "band_split_distinct_short": 0,
-     "read_floor_facts_differing": 0,
-     "read_floor_unchecked": 0,
-     "fortran_d_missed_checks": 0,
-     "fortran_d_cells": 400,
-     "fortran_d_runs": 3,
-     "pinned_nodes_failing": 0,
-     "fortran_d_cells_respelled": 1200
+     "temperature_over_mode_runs": 0
     }
    },
    "target_stage": "stage 3 (the carried fidelity items); the residue of 2026-09-19 needs no ruling and has no stage set",
@@ -5412,10 +5414,11 @@
    "key_kinds": {
     "fortran_d_runs": "at_least",
     "fortran_d_cells": "at_least",
-    "pinned_nodes_failing": "exact"
+    "pinned_nodes_failing": "exact",
+    "read_floor_refused": "exact"
    },
    "nodes_min_collected": 6,
-   "status_note": "BOUNDS MOVED 2026-09-22, the repair pass of landing 3.1 (plan P4-D320): read_floor_facts_differing 4 to 0 and read_floor_unchecked 1 to 0, because P4-D317's publication guard refuses a table read at a lower floor than it is described at, so the hole this measured is closed and must stay closed; read_floor_unchecked is no longer report-only. Three keys added, each at its measured value: the declared identifier's default-floor miss, and the heavy tail and the record layout at a floor of one, where the misses the default now hides still stand. heavy_tail_missed_checks and record_layout_missed_checks keep their ceilings of 2 and 3: their fall to 0 is the default withholding more, and is not taken as a repair."
+   "status_note": "BOUNDS MOVED 2026-09-22, the repair pass of landing 3.1 (plan P4-D320): read_floor_facts_differing 4 to 0 and read_floor_unchecked 1 to 0, because P4-D317's publication guard refuses a table read at a lower floor than it is described at, so the hole this measured is closed and must stay closed; read_floor_unchecked is no longer report-only. Three keys added, each at its measured value: the declared identifier's default-floor miss, and the heavy tail and the record layout at a floor of one, where the misses the default now hides still stand. heavy_tail_missed_checks and record_layout_missed_checks keep their ceilings of 2 and 3: their fall to 0 is the default withholding more, and is not taken as a repair. AND A THIRD READ-FLOOR KEY, 2026-09-23 (plan P4-D346): read_floor_refused, exact 1, the structured marker the refusal never had. It fails if P4-D317's guard ever stops refusing."
   },
   {
    "id": "K-2B-48",
@@ -6077,7 +6080,7 @@
    "headline": true,
    "name": "Nothing a date or clock column publishes names one of its outer cells",
    "status": "GREEN",
-   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance leave exactly one multiset of distances, or exactly one count for some distance. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` (the owner's ruling of 2026-09-22 publishes them, existence only and never a count), nor is a member's fixed example; a tail may list them only where the ruling's own premise holds (plan P4-D342). `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- the landing's stated residual, whose three levers are the owner's to choose; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's own guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, publish less, plan P4-D329), and the two must not be read as one rule: each defaults to the answer that cannot flatter the landing.",
+   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance leave exactly one multiset of distances, or exactly one count for some distance. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` where the LISTING RULE admits them -- `taxonomy.tail_may_list` asked of the column's own cells beyond that boundary -- or where the tail holds at most `TAIL_SETTLED_VALUES` values, which its rows and two distances settle anyway (P4-D342, P4-D346). THE EXEMPTION WAS MEMBERSHIP UNTIL P4-D346, so this could not go non-zero on a drifted listing rule. A member's fixed example is not counted either. `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- a ceiling at NOUGHT since P4-D346, which moves such a boundary inward until a second multiset fits; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, P4-D329): each defaults to the answer that cannot flatter the landing.",
    "rule_kind": "at_most",
    "expected": {
     "literal": 0,
@@ -6087,7 +6090,7 @@
     "listed": 12,
     "window": 2,
     "equality_only": 2,
-    "edge_pinned": 4,
+    "edge_pinned": 0,
     "unsearched": 35
    },
    "key_kinds": {
@@ -6102,14 +6105,14 @@
    "driver": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
-   "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every number of this battery reads exactly as it read on the date and clock landing's own tree: the numeric tail rule touches no column of it. 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails the published facts settle by the plain back-solve, and 0 checkable obligations missed on any twin or any real table. 12 tails over 8 of the cases list which values they hold rather than publish their two distances: seven of quarters and months, every listed value held by 3 to 14 cells over columns of 117 to 120 different values, and five of the forty-cell heap of the `0001-01-01` two common systems write for no date. The tightest shape-drawn tail leaves a reader 2 different multisets to choose between, on a column of quarters at 400 rows; that same tail carries a distance the construction window does not reach (root-mean-square 2.2763607319179844 quarters against a window of 2.3159525823376357 to 2.467976720090587), so the real table meets that one obligation by equality alone, and a months column at 1,500 rows carries the second. `edge_pinned` is 4, one side each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4; plan P4-D343 works through the arithmetic that settles one of them, and the same tails printed those eleven values IN THE CLEAR before P4-D342. `unsearched` is 35, every one a tail counted in seconds whose sums run past what an exhaustive walk can enumerate. MUTATION for `literal` on the clock role: with each tail's boundary put back to the column's own end the repaired driver reads 4 per clock case and 12 over three of them, against 0 as the landing shipped it.",
+   "evidence": "ON THE TREE THAT CLOSED STAGE 3 (P4-D346). 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails settled by the plain back-solve, 0 checkable obligations missed -- and the exemption that lets `literal` read 0 is the listing rule's own conditions now, not membership, so the number can fail on a rule that moves. MUTATION: with `tail_may_list` forced open the driver reads 22, 11, 22 and 11 leaked values on the four clock cases of 900 rows, against 0 as this tree ships it. 12 tails over 8 cases list their values: seven of quarters and months, each held by 3 to 14 cells, and five of the `0001-01-01` heap. `edge_pinned` IS 0 against 4 on the merged tree: the four sides that carried it -- one each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4 -- move their boundary inward until a second multiset fits, 11 rows a side becoming 15 or 17 of 900, and the walk must PROVE the tail settled inside its budget or nothing moves. `window` is still 2, `unsearched` 35 and `equality_only` 2.",
    "value_at": {
-    "commit": "1fc2ec1",
+    "commit": "a3c0cd1",
     "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi on the merged tree",
+    "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
     "value": {
      "cases": 105,
-     "edge_pinned": 4,
+     "edge_pinned": 0,
      "equality_only": 2,
      "listed": 12,
      "literal": 0,
