@@ -730,7 +730,7 @@ EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
-# Three fragments that appear inside a longer sentence rather than on
+# Four fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
 # arguments of the sentences that carry them, so the whole sentence is
 # still rebuilt from enumerated parts.
@@ -745,6 +745,18 @@ SAID_READ_AS_DATES = "said_read_as_dates"
 # anybody's rows, so the sentence says the SHAPE of the number and
 # never the number.
 SAID_FEWER_THAN_THE_LINE = "said_fewer_than_the_line"
+# THE FOURTH FRAGMENT, and it is the other half of the same privacy
+# control (stage 3 landing 3.5 repair pass, plan P4-D334.1). NF59 says
+# "one or more, and below the line". This one says the opposite shape:
+# the count REACHES the line, and what it leaves over against the
+# population its binding names does NOT -- so the digits would publish
+# that group by subtraction, and "fewer than 11" would be false of a
+# count of 1,199. A remark standing there is withdrawn; the one
+# sentence a block may not lose says this instead. It names no number
+# at all, so there is nothing to subtract from anything, and its arity
+# is nought for that reason: an argument here would be a count, and a
+# count is what it exists not to say.
+SAID_SOME_BUT_NOT_ALL = "said_some_but_not_all"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
@@ -930,6 +942,12 @@ NOTE_ARITY: "dict[str, int]" = {
     # is the census floor the run was given rather than any count of
     # the column, which is what makes this fragment sayable at all.
     SAID_FEWER_THAN_THE_LINE: 1,
+    # NO ARGUMENT AT ALL (contract NF60). It stands where even the line
+    # may not be said, because the count that would stand there reaches
+    # the line and the reader would take the withheld remainder off the
+    # population beside it. Nought arguments is the whole of the
+    # control: a form with no argument can carry no count.
+    SAID_SOME_BUT_NOT_ALL: 0,
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
@@ -1022,12 +1040,19 @@ NOTE_FORMS = tuple(sorted(NOTE_ARITY))
 #
 # WHY IT EXISTS AT ALL. A count in a sentence and a count in a key are
 # the same disclosure, and only the key was ever held to the floor.
-# Measured over 56 descriptions at a floor of eleven: 252 sentences
-# and 145 of them carrying whole numbers, of which NINE printed a count
-# no key of the block beside them published at all -- the floored
-# positions this table names -- and 29 more restated a count the key
-# itself published below the line, which is P4-D332's territory and
-# not this table's. The rule
+# Measured over 56 descriptions at a floor of eleven (the design's own
+# `guard_measure.txt`): 252 sentences and 145 of them carrying whole
+# numbers, of which NINE printed a count no key of the block beside
+# them published at all -- the floored positions this table names --
+# and 38 more restated a count the key itself published below the line,
+# which is P4-D332's territory and not this table's. THE SECOND NUMBER
+# READ 29 UNTIL THE REPAIR PASS, which is what the same run records
+# only after a rule-M prototype nobody built; 38 is what the run
+# records for the shipped tool.
+# `tests/test_p4d334_sentence_arguments.py::test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
+# re-measures the same class over the committed battery, so the number
+# is one a reader can run rather than one they must take on trust. The
+# rule
 # this table makes checkable is one sentence long -- A SENTENCE MAY NOT
 # CARRY A COUNT A KEY WITHHOLDS -- and it is P4-D221's padded-remark
 # rule ("a count the map does not name is a count no sentence prints")
@@ -1062,8 +1087,18 @@ NOTE_FORMS = tuple(sorted(NOTE_ARITY))
 #   these to the tail's own boundaries.
 # * `floored` -- THE THIRTEEN POSITIONS THAT ARE THE PUBLICATION. No
 #   key of the block carries these counts, so the floor has to be asked
-#   at the sentence: each is nought, or reaches `parsing.census_floor`,
-#   or carries `said_fewer_than_the_line` in the number's place.
+#   at the sentence: each is nought, or reaches `parsing.census_floor`
+#   with no group left over against the POPULATION its binding names,
+#   or carries `said_fewer_than_the_line` in the number's place, or --
+#   where it reaches the line and the population leaves a group below
+#   it -- `said_some_but_not_all`. FOUR OF THE THIRTEEN NAME A
+#   POPULATION, and which four is a fact about what their complement
+#   IS rather than a choice: at those four the cells the count does not
+#   count are a SPELLING or AFFIX census group, which `census_nameable`
+#   withholds in the same block, so the subtraction hands back a group
+#   no key published. At the other nine the complement is the count of
+#   cells a competing reading did not reach, which is the class of
+#   number P4-D332 leaves published in a key of its own.
 # * `word`, `nested` and `affix` -- the three argument classes that are
 #   not whole numbers at all (contract C6-119 classes 2, 3 and 4).
 #
@@ -1103,6 +1138,15 @@ BINDING_KINDS = (
 # once because four forms restate the same sum and a sum spelled out
 # four times is a sum that disagrees with itself.
 _NUMERIC_LOOKING = ("n_numeric", "n_out_of_range", "n_contradictory")
+
+# THE POPULATION A FLOORED COUNT IS COUNTED AGAINST, written once
+# because four positions name it and a population spelled out four
+# times is a population that disagrees with itself. It is the block's
+# present cells, which every block publishes, so a reader holding the
+# sentence and the block can always do the subtraction -- which is
+# exactly why the four positions whose remainder no key publishes have
+# to name it (contract C6-143, the complement clause).
+_AGAINST_THE_PRESENT_CELLS = ("n_present",)
 
 ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (NOTE_ONE_VALUE_BELOW_FLOOR, 0): (BIND_SETTING, "smallest group size"),
@@ -1144,7 +1188,16 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (EVIDENCE_NO_READING_FITS, 4): (BIND_DOCUMENT, "n_rows"),
     (SAID_WRITTEN_AS_NUMBERS, 0): (BIND_SUM, _NUMERIC_LOOKING),
     (SAID_WRITTEN_AS_NUMBERS, 1): (BIND_KEY, "n_present"),
-    (SAID_READ_AS_DATES, 0): (BIND_FLOORED,),
+    # THE DATE READING'S REACH, AND IT NAMES THE POPULATION (repair of
+    # stage 3 landing 3.5). What this count does NOT count is the cells
+    # no date format read, and on an unsettled column no key publishes
+    # them: 390 ISO dates beside ten free-text cells printed 390 next
+    # to a published `n_present` of 400, and ten is what the reader
+    # took off it. This is the one floored position that stands inside
+    # a sentence a block may not lose, so where the remainder falls
+    # below the line the reach is written `said_some_but_not_all`
+    # rather than withdrawn.
+    (SAID_READ_AS_DATES, 0): (BIND_FLOORED, _AGAINST_THE_PRESENT_CELLS),
     (SAID_READ_AS_DATES, 1): (BIND_WORD,),
     (SAID_FEWER_THAN_THE_LINE, 0): (BIND_SETTING, "census line"),
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
@@ -1173,11 +1226,14 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
         "n_unparsed",
     ),
     (REMARK_DATES_ALSO_NUMBERS, 1): (BIND_SUM, _NUMERIC_LOOKING),
-    # THE TWO READINGS' REACHES. They are floored like the other
-    # eleven and, like them, name no population (plan P4-D333): what a
-    # reader takes off the present cells here is the count of cells one
+    # THE TWO READINGS' REACHES. They are floored, and they are among
+    # the NINE that name no population (plan P4-D333): what a reader
+    # takes off the present cells here is the count of cells one
     # reading did not parse, which is the class of number P4-D332
-    # leaves published. What they never carry is the FRAGMENT -- this
+    # leaves published -- and publishes, in this block, as `n_unparsed`
+    # beside them. Binding a population here would floor a count the
+    # key next to it states outright, which is P4-D332's question and
+    # not this table's. What they never carry is the FRAGMENT -- this
     # rendering compares them to choose which of its three sentences to
     # write, so a fragment standing in either would settle the sentence
     # by a number nobody may print, and a reach below the line
@@ -1196,7 +1252,15 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_NO_READING_FITS, 2): (BIND_SETTING, "strict reading line"),
     (REMARK_NO_READING_FITS, 3): (BIND_KEY, "n_distinct_folded"),
     (REMARK_NO_READING_FITS, 4): (BIND_SETTING, "category ceiling"),
-    (REMARK_NO_READING_FITS, 5): (BIND_FLOORED,),
+    # THE AFFIX READING'S REACH, AND IT NAMES THE POPULATION for the
+    # same reason the date reach does: what it does not count is the
+    # cells wearing no affix, which on a column described as free text
+    # is a spelling group `census_nameable` withholds. Measured on a
+    # sixty-row column at the default floor: 59 printed beside a
+    # published `n_present` of 60. Arguments 7, 8 and 9 stay unbound --
+    # a stand-in removal, a clock reach and a recoverable-distribution
+    # count, each of which the block publishes a key for.
+    (REMARK_NO_READING_FITS, 5): (BIND_FLOORED, _AGAINST_THE_PRESENT_CELLS),
     (REMARK_NO_READING_FITS, 6): (BIND_FLOORED,),
     (REMARK_NO_READING_FITS, 7): (BIND_FLOORED,),
     (REMARK_NO_READING_FITS, 8): (BIND_FLOORED,),
@@ -1205,8 +1269,18 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_NEAR_NUMERIC_LINE, 1): (BIND_KEY, "n_present"),
     (REMARK_NEAR_NUMERIC_LINE, 2): (BIND_SETTING, "strict reading line"),
     (REMARK_PADDED_NUMBERS, 0): (BIND_KEY, "numeric_styles.leading_zero"),
-    (REMARK_GROUP_COMMAS, 0): (BIND_FLOORED,),
-    (REMARK_GROUP_COMMAS, 1): (BIND_FLOORED,),
+    # THE COMMA REMARK'S TWO COUNTS, AND THIS IS THE REPOSITORY'S OWN
+    # PRECEDENT. `parsing.census_nameable`'s docstring records the
+    # shape that made the rule: 1,200 grouped prices at a floor of
+    # eleven, one of them rewritten bare, published {",": 1199} beside
+    # a row count of 1,200, and the one ungrouped cell was read off by
+    # subtraction. The key census was corrected and the SENTENCE went
+    # on printing 1199 beside a published `n_present` of 1,200 -- the
+    # same subtraction, in prose. Both counts are cells bearing one
+    # spelling of a number, so both complements are spelling-census
+    # groups and both name the population.
+    (REMARK_GROUP_COMMAS, 0): (BIND_FLOORED, _AGAINST_THE_PRESENT_CELLS),
+    (REMARK_GROUP_COMMAS, 1): (BIND_FLOORED, _AGAINST_THE_PRESENT_CELLS),
     (REMARK_LABEL_IS_A_STAND_IN, 0): (BIND_VOCABULARY,),
     (REMARK_EPOCH_BAND, 0): (BIND_VOCABULARY,),
     (REMARK_EPOCH_BAND, 1): (BIND_VALUE,),
@@ -1596,11 +1670,24 @@ def _fewer_than_the_line(line: int, opening: bool) -> str:
     return f"fewer than {line}"
 
 
+def _some_but_not_all(opening: bool) -> str:
+    """NF60's words, written once, in the one case or the other.
+
+    Both cases are written HERE for the reason `_fewer_than_the_line`
+    gives: where the fragment opens a sentence, capitalising it is a
+    rule about the SENTENCE, and making the second case out of the
+    first by moving a letter would make it a rule about text.
+    """
+    if opening:
+        return "Some but not all"
+    return "some but not all"
+
+
 def _count_said_opening(arguments: "tuple[object, ...]", place: int) -> str:
     """`_count_said` where the count OPENS a sentence, so it is capitalised.
 
-    Only the fragment moves: a number's digits have no case, which is
-    why this reads as one branch rather than as a rule about text.
+    Only the fragments move: a number's digits have no case, which is
+    why this reads as branches rather than as a rule about text.
     """
     argument = arguments[place]
     if not isinstance(argument, tuple):
@@ -1608,6 +1695,8 @@ def _count_said_opening(arguments: "tuple[object, ...]", place: int) -> str:
     parts = argument[1]
     if not isinstance(parts, tuple):
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    if argument[0] == SAID_SOME_BUT_NOT_ALL:
+        return _some_but_not_all(True)
     return _fewer_than_the_line(_whole(parts, 0), True)
 
 
@@ -1812,6 +1901,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # reader may be told about a group the floor will not name, and
         # the line itself is the setting the run was given.
         return _fewer_than_the_line(_whole(arguments, 0), False)
+    if form == SAID_SOME_BUT_NOT_ALL:
+        # THE WHOLE OF THIS FRAGMENT'S WORDS (contract NF60). It says
+        # two things and no more: the group is not empty, and it is not
+        # the whole column. Both are already asserted by the clause it
+        # stands in -- a sentence that says these cells were read one
+        # way and those were not -- so the fragment adds no count to
+        # the document at all, which is why it may stand where even
+        # NF59 may not.
+        return _some_but_not_all(False)
     if form == SAID_READ_AS_DATES:
         if not _count_is_named(arguments, 0):
             return "none of them reads as a date in any form synthtwin knows"
@@ -16523,9 +16621,18 @@ def _floored_stands(
       which would decide the sentence by the number it withholds. And
       a count that reaches the line but leaves a group below it
       against a population its BINDING names, where printing the count
-      would publish the remainder by subtraction. No binding names a
-      population today, for the reason contract C6-143 gives, so that
-      third case is the general rule standing ready for one that does.
+      would publish the remainder by subtraction. FOUR OF THE THIRTEEN
+      NAME ONE (contract C6-143): the comma remark's two counts, the
+      affix reading's reach and the date reading's reach, whose
+      complements are spelling or affix census groups the block's own
+      keys withhold.
+
+    What "no sentence" means next is `_arguments_at_the_line`'s to
+    decide, and it is not the same in the two cases: a remark is
+    withdrawn, and the one sentence a block may not lose is written
+    with `said_fewer_than_the_line` where the count is below the line
+    and `said_some_but_not_all` where it reaches it. The second is
+    there because the first would be FALSE of a count of 1,199.
 
     Guarantees: accepts a form, a zero-based position, the count, the
     census line and the block's present cells; returns one of the
@@ -16560,8 +16667,16 @@ def _sentence_at_the_line(
     Walks the form's own arguments and the arguments of every fragment
     nested in them, because a count carried by a fragment is a count
     the sentence prints. ``may_drop`` is false for the one sentence a
-    column must carry -- its detection evidence -- so the fragment
-    stands there at every line.
+    column must carry -- its detection evidence -- so a fragment
+    stands there at every line: `said_fewer_than_the_line` where the
+    count is below the line, and `said_some_but_not_all` where it
+    reaches the line but leaves a group below it against the
+    population its binding names. THE SECOND IS NOT A REWORDING OF THE
+    FIRST. "fewer than 11" is false of 1,199, and writing the digits
+    instead is what `profile._floored_argument_is_bound` refuses -- so
+    before the repair pass an ordinary table with 390 dates beside ten
+    words became an internal fault the moment a binding named a
+    population.
 
     AND AT A LINE OF TWO THAT IS NOT LESS THAN THE DIGIT, which is
     stated rather than claimed away. The fragment stands only where
@@ -16620,10 +16735,22 @@ def _arguments_at_the_line(
         stands = _floored_stands(form, place, argument, line, n_present)
         if stands == _STANDS_NOWHERE and may_drop:
             return None
-        if stands == _STANDS_AS_WRITTEN or (
-            stands == _STANDS_NOWHERE and argument >= line
-        ):
+        if stands == _STANDS_AS_WRITTEN:
             written += [argument]
+            continue
+        if stands == _STANDS_NOWHERE and argument >= line:
+            # THE ONE SENTENCE A BLOCK MAY NOT LOSE, AT A COUNT THAT
+            # REACHES THE LINE. This is the complement case: the count
+            # is large and the group it leaves over against its
+            # population is not. The digits stood here until the
+            # repair pass, which made the producer write exactly what
+            # `profile._floored_argument_is_bound` refuses -- so the
+            # first binding to name a population turned an ordinary
+            # table into an internal fault instead of a description.
+            # NF59 cannot stand here either: "fewer than 11" is false
+            # of 1,199. NF60 is what is left that is true, and it
+            # names no number at all.
+            written += [(SAID_SOME_BUT_NOT_ALL, ())]
             continue
         written += [(SAID_FEWER_THAN_THE_LINE, (line,))]
     return tuple(written)
@@ -16648,7 +16775,18 @@ def sentences_at_the_line(
     sentence that said so in other words would be the same disclosure
     with a longer sentence in front of it. The detection evidence is
     never withdrawn -- a column block must say how it was read -- so
-    its floored counts take the fragment.
+    its floored counts take a fragment.
+
+    THAT RULE COSTS A WARNING, and the cost is stated rather than
+    claimed away. The comma remark of 1,199 grouped prices beside one
+    bare cell is withdrawn here: it was a load-bearing warning about
+    1,199 cells that may be a thousand times their real size, and what
+    withdraws it is the single ungrouped cell a reader would otherwise
+    take off the published `n_present`. Keeping the warning and
+    printing no count is what `said_some_but_not_all` does for the
+    sentence that cannot be withdrawn; extending it to remarks is an
+    owner-sized question about what a description is FOR, and is on
+    the board rather than taken here.
 
     Guarantees: accepts a column's detection evidence, its remarks, its
     present cells and the settings; returns the evidence and the

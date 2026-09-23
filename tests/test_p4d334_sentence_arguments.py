@@ -6,11 +6,16 @@ A count written into a SENTENCE was held to nothing, and the two are
 the same disclosure: "1 of this column's values are written with a
 comma inside the number" names one row exactly as a key holding 1
 would. Measured over 56 descriptions at a floor of eleven before the
-binding table existed: 252 sentences and 145 of them carrying whole
-numbers, of which NINE printed a count no key of the block beside them
-published at all and 29 more restated a count the key itself published
-below the line. The nine are what the fragment replaces; the 29 are
-P4-D332's keys, left standing and held at a ceiling by K-S3-01.
+binding table existed (the design's own `guard_measure.txt`): 252
+sentences and 145 of them carrying whole numbers, of which NINE printed
+a count no key of the block beside them published at all and 38 more
+restated a count the key itself published below the line. The nine are
+what the fragment replaces; the 38 are P4-D332's keys, left standing
+and held at a ceiling by K-S3-01 and by
+`test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
+below. THE SECOND NUMBER READ 29 UNTIL THE REPAIR PASS: that same run
+records 29 only under a rule-M prototype this landing did not build,
+and 38 is what it records for the tool as shipped.
 
 THE RULE, AND WHY IT IS A TABLE. `taxonomy.ARGUMENT_BINDINGS` binds
 every argument position of every form to what it IS -- a key of the
@@ -22,7 +27,20 @@ position must equal what it is bound to, so the key's own floor rule
 governs the sentence and nothing more has to be asked. A floored one
 is nought, or reaches `parsing.census_floor` with no group left over
 against the populations its binding names, or carries the fragment
-`said_fewer_than_the_line` in the number's place.
+`said_fewer_than_the_line` in the number's place -- or, where it
+reaches the line and the population leaves a group below it,
+`said_some_but_not_all`, which names no number at all.
+
+FOUR OF THE THIRTEEN NAME A POPULATION (the repair pass). The two
+counts of the comma remark, the affix reading's reach and the date
+reading's reach are counts of cells bearing one SPELLING, so what each
+does not count is a spelling or affix census group that
+`parsing.census_nameable` withholds in the same block -- and the
+sentence handed it back by subtraction: 1,199 beside a published
+`n_present` of 1,200, 390 beside 400, 59 beside 60. The other nine's
+complement is the count of cells a competing reading did not reach,
+which the block publishes as a key of its own and P4-D332 leaves
+standing.
 
 THE CHECK HERE IS A SECOND IMPLEMENTATION, not a call into the one it
 checks. `profile._arguments_are_bound` refuses a document; this file
@@ -98,7 +116,18 @@ def _positions(
             and isinstance(argument[0], str)
             and isinstance(argument[1], tuple)
         )
-        if nested and argument[0] != taxonomy.SAID_FEWER_THAN_THE_LINE:
+        # THE TWO FRAGMENTS ARE POSITIONS, NOT SENTENCES TO WALK INTO.
+        # Each stands in the place of a count, so what this walk has to
+        # report is the position it stands AT. Walking into
+        # `said_fewer_than_the_line` would ask about the line, which is
+        # a setting and exempt; walking into `said_some_but_not_all`
+        # would ask about nothing at all, because its arity is nought
+        # -- and the position would then go unreported, which is how a
+        # second implementation comes to agree by looking away.
+        if nested and argument[0] not in (
+            taxonomy.SAID_FEWER_THAN_THE_LINE,
+            taxonomy.SAID_SOME_BUT_NOT_ALL,
+        ):
             found += _positions(argument[0], argument[1], line)
             continue
         found += [(form, place, argument)]
@@ -132,6 +161,12 @@ def _unaccounted(
             kind = binding[0]
             if kind == taxonomy.BIND_FLOORED:
                 if isinstance(argument, tuple):
+                    if argument == (taxonomy.SAID_SOME_BUT_NOT_ALL, ()):
+                        # NOTHING TO CHECK, and that is the point of
+                        # it: a form with no argument carries no count,
+                        # so there is no line it could contradict and
+                        # no key it could disagree with.
+                        continue
                     if argument != (
                         taxonomy.SAID_FEWER_THAN_THE_LINE,
                         (line,),
@@ -291,6 +326,268 @@ def test_where_the_line_is_two_the_remark_is_withdrawn(
     assert "fewer than 2" not in remarks
 
 
+# -- the complement, and the fragment that names no number -------------
+
+
+def test_the_second_fragment_says_some_but_not_all_and_nothing_else() -> None:
+    """NF60's whole rendering, pinned character for character.
+
+    Nought arguments, because an argument here would be a count and a
+    count is what it exists not to say.
+    """
+    assert taxonomy.NOTE_ARITY[taxonomy.SAID_SOME_BUT_NOT_ALL] == 0
+    assert (
+        taxonomy.rendered(taxonomy.SAID_SOME_BUT_NOT_ALL, ())
+        == "some but not all"
+    )
+    # AND CAPITALISED WHERE IT OPENS A SENTENCE, on NF59's rule. NF29
+    # argument 6 stands immediately after a full stop. The producer
+    # withdraws that remark rather than writing the fragment there --
+    # a remark CAN be withdrawn -- so the branch is asked of the
+    # grammar directly, which is the only way to ask it at all.
+    opened = taxonomy.rendered(
+        taxonomy.REMARK_NO_READING_FITS,
+        (
+            (taxonomy.SAID_WRITTEN_AS_NUMBERS, (0, 400)),
+            (taxonomy.SAID_READ_AS_DATES, (0, "iso-date")),
+            99,
+            400,
+            40,
+            (taxonomy.SAID_SOME_BUT_NOT_ALL, ()),
+            0,
+            0,
+            0,
+        ),
+    )
+    assert "again. Some but not all of its values are numbers wearing" in opened
+
+
+def test_neither_fragment_stands_at_a_position_that_is_not_floored(
+    tmp_path: pathlib.Path,
+) -> None:
+    """MUTATION: put a fragment where a whole sentence belongs.
+
+    Both fragments RENDER at a nested position -- `_said` asks the
+    grammar for the text and gets it -- so nothing upstream refuses
+    them and the guard has to. A sentence that used one anywhere but a
+    floored position would be saying "fewer than eleven", or "some but
+    not all", about something that is not a count.
+    """
+    document = _documented(tmp_path, "numeric_one_out_of_range")
+    block = document["columns"][0]
+    kept = list(block["remarks"])
+    dates = (taxonomy.SAID_READ_AS_DATES, (0, "iso-date"))
+    numbers = (
+        taxonomy.SAID_WRITTEN_AS_NUMBERS,
+        (
+            block["n_numeric"]
+            + block["n_out_of_range"]
+            + block["n_contradictory"],
+            block["n_present"],
+        ),
+    )
+    folded = block["n_distinct_folded"]
+
+    def remark_carrying(first: object) -> object:
+        """NF29 with every other argument legal, so only `first` can refuse it."""
+        return taxonomy.note(
+            taxonomy.REMARK_NO_READING_FITS,
+            (first, dates, 99, folded, 40, 0, 0, 0, 0),
+        )
+
+    # THE CONTROL: the same remark carrying a real nested sentence at
+    # argument 1 is published, so what refuses below is the fragment
+    # standing there and not some other argument of this remark.
+    block["remarks"] = kept + [remark_carrying(numbers)]
+    profile.check_publication(document)
+    for fragment in (
+        (taxonomy.SAID_FEWER_THAN_THE_LINE, (11,)),
+        (taxonomy.SAID_SOME_BUT_NOT_ALL, ()),
+    ):
+        assert taxonomy.rendered(fragment[0], fragment[1])
+        block["remarks"] = kept + [remark_carrying(fragment)]
+        with pytest.raises(errors.ProfileError):
+            profile.check_publication(document)
+
+
+def test_the_second_implementation_reports_the_place_a_fragment_stands_at(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A walk that steps INTO a fragment reports nothing about it.
+
+    `_positions` is this file's own walk, and the whole of its value is
+    that it reports the position a count would have stood at. NF60
+    takes no argument, so a walk that recursed into it would yield
+    nothing at all for that position -- and the gate above, and
+    `K-S3-01`, would both go quiet about exactly the case the repair
+    pass added. MUTATION: recurse into either fragment and this turns
+    red while every other test here stays green.
+    """
+    document = battery.described(tmp_path, "dates_beside_ten_words", 11)
+    evidence = document["columns"][0]["detection_evidence"]
+    walked = _positions(evidence.form, evidence.arguments, 11)
+    assert (
+        taxonomy.SAID_READ_AS_DATES,
+        0,
+        (taxonomy.SAID_SOME_BUT_NOT_ALL, ()),
+    ) in walked
+    below = battery.described(tmp_path, "free_text_affix_reach", 11)
+    remark = [
+        note
+        for note in below["columns"][0]["remarks"]
+        if note.form == taxonomy.REMARK_NO_READING_FITS
+    ][0]
+    assert (
+        taxonomy.REMARK_NO_READING_FITS,
+        5,
+        (taxonomy.SAID_FEWER_THAN_THE_LINE, (11,)),
+    ) in _positions(remark.form, remark.arguments, 11)
+
+
+@pytest.mark.parametrize("floor", FLOORS)
+def test_no_floored_count_of_the_battery_hands_back_its_complement(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """THE OTHER HALF OF THE GATE, over all 46 shapes at three floors.
+
+    The gate above asks whether a floored count is itself too small to
+    print. This asks the question the other way round: whether the
+    cells it does NOT count are too few to name, because a reader
+    holding the sentence and the block subtracts one from the other.
+    Three of the shapes plant that remainder at one to ten -- 1,199
+    grouped prices beside one bare cell, 390 dates beside ten words,
+    59 cells wearing ` mg` beside one wearing ` MG` -- and each
+    reproduces a real exposure: the first is the repository's own
+    precedent, recorded in `parsing.census_nameable`'s docstring.
+
+    IT ASKS ALL THIRTEEN POSITIONS, not only the four the rule arms.
+    At the other nine the complement is a count the block publishes in
+    a key beside the sentence, so a shape that raises this number is a
+    P4-D332 decision somebody takes and records -- which is exactly
+    what a number nobody can reach silently is for.
+    """
+    folder = tmp_path / f"complement-{floor}"
+    folder.mkdir()
+    line = parsing.census_floor(floor)
+    handed_back: "list[str]" = []
+    for name in sorted(battery.SHAPES):
+        document = battery.described(folder, name, floor)
+        for where, sentence, block in _sentences(document):
+            total = _key(block, "n_present")
+            if total is None:
+                continue
+            for form, place, argument in _positions(
+                sentence.form, sentence.arguments, line
+            ):
+                if taxonomy.argument_binding(form, place)[:1] != (
+                    taxonomy.BIND_FLOORED,
+                ):
+                    continue
+                if isinstance(argument, tuple):
+                    continue
+                if 0 < total - argument < line:
+                    handed_back += [
+                        f"{name}: {where} {form} argument {place + 1} = "
+                        f"{argument} beside n_present {total} hands back "
+                        f"{total - argument}"
+                    ]
+    assert not handed_back, "\n".join(handed_back)
+
+
+def test_the_sentence_a_block_cannot_lose_says_less_instead_of_the_digits(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The producer and the guard agree about the undroppable sentence.
+
+    390 dates beside ten free-text cells. The column is described as
+    free text, so its evidence nests `said_read_as_dates`, whose count
+    is a floored position bound to `n_present`: 390 beside 400 hands
+    back the ten. The evidence cannot be withdrawn -- a block must say
+    how it was read -- and NF59 cannot stand there either, because
+    "fewer than 11" is false of 390. So NF60 stands there, and the
+    shipped guard accepts the shipped producer's own document.
+
+    MUTATION: make `taxonomy._arguments_at_the_line` write the digits
+    at a `_STANDS_NOWHERE` position that reaches the line -- which is
+    what it did before the repair pass -- and
+    `profile.check_publication` raises ProfileError on this ordinary
+    table, reporting "a fault in synthtwin itself".
+    """
+    document = battery.described(tmp_path, "dates_beside_ten_words", 11)
+    profile.check_publication(document)
+    block = document["columns"][0]
+    said = f"{block['detection_evidence']}"
+    assert "some but not all read as dates" in said
+    assert "390" not in said
+    nested = block["detection_evidence"].arguments[1]
+    assert nested[0] == taxonomy.SAID_READ_AS_DATES
+    assert nested[1][0] == (taxonomy.SAID_SOME_BUT_NOT_ALL, ())
+
+
+def test_a_remark_whose_complement_falls_below_the_line_is_withdrawn(
+    tmp_path: pathlib.Path,
+) -> None:
+    """1,199 grouped prices beside one bare cell: the comma remark goes.
+
+    A remark CAN be withdrawn, and the rule of `sentences_at_the_line`
+    is that one which cannot be written is withdrawn rather than
+    reworded. THE COST IS REAL AND IS STATED IN THE CHANGELOG: this is
+    a load-bearing warning about 1,199 cells that may be a thousand
+    times their real size, and one ungrouped cell withdraws it. What
+    it buys is that no reader takes 1,200 - 1,199 off the block.
+    """
+    document = battery.described(
+        tmp_path, "numeric_all_but_one_grouped_comma", 11
+    )
+    profile.check_publication(document)
+    block = document["columns"][0]
+    assert block["n_present"] == 1200
+    for remark in block["remarks"]:
+        assert remark.form != taxonomy.REMARK_GROUP_COMMAS
+        assert "1199" not in f"{remark}"
+
+
+def test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """P4-D332's own class, re-measurable rather than quoted.
+
+    The measurement that asked for the binding table counted three
+    quantities over 56 descriptions at a floor of eleven, and only one
+    of them -- the NINE this guard closes -- can be re-run from
+    anything in the repository. The 38 beside it is a count of
+    sentences restating a key the block published BELOW the line, and
+    P4-D332 leaves those keys standing, so nothing here would ever
+    turn red if that class doubled.
+
+    This counts the same class over the committed battery: an argument
+    bound to a key, a sum or a difference of keys whose value is one to
+    ten. It is a CEILING and not a target, on exactly K-S3-01's
+    reasoning -- the keys are published on purpose, and what may not
+    happen is the number growing while nobody is looking.
+    """
+    line = parsing.census_floor(11)
+    keys = (taxonomy.BIND_KEY, taxonomy.BIND_SUM, taxonomy.BIND_DIFFERENCE)
+    restating = 0
+    for name in sorted(battery.SHAPES):
+        document = battery.described(tmp_path, name, 11)
+        for _where, sentence, _block in _sentences(document):
+            for form, place, argument in _positions(
+                sentence.form, sentence.arguments, line
+            ):
+                if isinstance(argument, bool) or not isinstance(argument, int):
+                    continue
+                bound = taxonomy.argument_binding(form, place)[:1]
+                if bound and bound[0] in keys and 0 < argument < line:
+                    restating = restating + 1
+    assert restating <= 20, (
+        "more sentences now restate a key the block published below the "
+        f"line than the {restating} this landing measured; P4-D332 leaves "
+        "those keys standing, so a rise is a decision to record rather "
+        "than a defect to hide"
+    )
+
+
 # -- the mutations -----------------------------------------------------
 
 
@@ -365,43 +662,89 @@ def test_a_fragment_carrying_another_number_is_refused(
 
 
 def test_a_floored_count_leaving_a_group_below_the_line_is_refused(
-    tmp_path: pathlib.Path, monkeypatch
+    tmp_path: pathlib.Path,
 ) -> None:
-    """The third clause of the floored rule, asked of a binding that names one.
+    """The third clause of the floored rule, asked of a SHIPPED binding.
 
     A floored count that REACHES the line still may not leave a group
-    below it against a population a reader can subtract from. No
-    binding names a population today -- every floored position's
-    complement is the count of cells a competing reading did not reach,
-    which P4-D332 leaves published -- so the clause is exercised here
-    by binding one, which is what the date and clock tail landing will
-    do when it moves NF51's arguments onto the published boundaries.
+    below it against the population its binding names. Four positions
+    name one since the repair pass, so the clause is asked of a real
+    binding here rather than of one the test invents -- which is what
+    it did while none was armed, and is why a battery of 43 shapes
+    could report the class closed while a sixty-row affixed column
+    reached the exposure in one call.
 
-    MUTATION: take the population back out of the binding and this
-    turns green, which is what says the clause is what refuses.
+    MUTATION: take the population back out of
+    `(REMARK_GROUP_COMMAS, 0)` and this turns green, which is what says
+    the clause is what refuses.
     """
     document = _documented(tmp_path, "numeric_one_out_of_range")
     block = document["columns"][0]
-    bound = dict(taxonomy.ARGUMENT_BINDINGS)
-    bound[(taxonomy.REMARK_TWO_READINGS_FIT, 0)] = (
+    kept = list(block["remarks"])
+    # THE CONTROL FIRST: the same count leaving NOTHING over is
+    # published, so what the refusal below rests on is the remainder
+    # and not the size of the count.
+    block["remarks"] = kept + [
+        taxonomy.note(taxonomy.REMARK_GROUP_COMMAS, (block["n_present"], 0))
+    ]
+    profile.check_publication(document)
+    block["remarks"] = kept + [
+        taxonomy.note(
+            taxonomy.REMARK_GROUP_COMMAS, (block["n_present"] - 3, 0)
+        )
+    ]
+    with pytest.raises(errors.ProfileError):
+        profile.check_publication(document)
+
+
+def test_the_population_is_the_one_the_binding_names_and_not_every_key(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The nine unarmed positions are unarmed, and that is a decision.
+
+    A floored count whose binding names no population is NOT refused
+    for leaving a group below the line, because at those nine the
+    complement is the count of cells a competing reading did not reach
+    -- which the block publishes as a key of its own, and which
+    P4-D332's call leaves standing and holds at a ceiling. Written
+    down so that arming a tenth is a change somebody makes on purpose
+    rather than a rule that quietly already covered it.
+    """
+    document = _documented(tmp_path, "numeric_one_out_of_range")
+    block = document["columns"][0]
+    assert taxonomy.argument_binding(taxonomy.REMARK_TWO_READINGS_FIT, 0) == (
         taxonomy.BIND_FLOORED,
-        ("n_present",),
-    )
-    monkeypatch.setattr(taxonomy, "ARGUMENT_BINDINGS", bound)
-    monkeypatch.setattr(
-        taxonomy,
-        "argument_binding",
-        lambda form, place: bound[(form, place)]
-        if (form, place) in bound
-        else (),
     )
     block["remarks"] = list(block["remarks"]) + [
         taxonomy.note(
             taxonomy.REMARK_TWO_READINGS_FIT, (block["n_present"] - 3,)
         )
     ]
-    with pytest.raises(errors.ProfileError):
-        profile.check_publication(document)
+    profile.check_publication(document)
+
+
+def test_exactly_four_floored_positions_name_a_population() -> None:
+    """Which four, and the reason is a fact about their complement.
+
+    Each of the four counts cells bearing ONE SPELLING of a number or
+    of an affix, so what it does not count is a spelling-census group
+    `parsing.census_nameable` withholds in the same block. The other
+    nine count how far a competing READING got, and the block
+    publishes the cells it did not reach.
+    """
+    armed = {
+        place
+        for place in taxonomy.FLOORED_POSITIONS
+        if len(taxonomy.ARGUMENT_BINDINGS[place]) > 1
+    }
+    assert armed == {
+        (taxonomy.REMARK_GROUP_COMMAS, 0),
+        (taxonomy.REMARK_GROUP_COMMAS, 1),
+        (taxonomy.REMARK_NO_READING_FITS, 5),
+        (taxonomy.SAID_READ_AS_DATES, 0),
+    }
+    for place in armed:
+        assert taxonomy.ARGUMENT_BINDINGS[place][1] == ("n_present",)
 
 
 def test_an_argument_position_nobody_bound_is_refused(

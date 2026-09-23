@@ -1855,7 +1855,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 59 forms and 97 argument positions.
+**The census.** The table holds 60 forms and 97 argument positions.
 Of those, 71 are whole numbers, 4 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -1866,10 +1866,13 @@ They are the thirteen the binding table of C6-143 marks FLOORED: the
 positions where the sentence IS the publication, because no key of the
 block beside it carries that count. Each of them holds the count's own
 digits where the count is nought or reaches the smallest group size,
-and `said_fewer_than_the_line` (NF59) where it is below it. A consumer
-reading these positions therefore accepts either class there, which is
-why the census counts them as nested: a reader who admitted only whole
-numbers would refuse a document this producer writes at any floor.
+`said_fewer_than_the_line` (NF59) where it is below it, and
+`said_some_but_not_all` (NF60) where it reaches the line but leaves a
+group below it against the population C6-143 names beside it. A
+consumer reading these positions therefore accepts either class there,
+which is why the census counts them as nested: a reader who admitted
+only whole numbers would refuse a document this producer writes at any
+floor.
 
 **This paragraph stated the count twice and the two disagreed** — 56
 whole numbers in one sentence and 53 in the next, which sum to 65 and
@@ -1885,13 +1888,17 @@ disclosure. Measured over 56 descriptions at a floor of eleven before
 this rule existed: 252 sentences and 145 of them carrying whole
 numbers. NINE of those arguments printed a count no key of the block
 beside them published at all — the floored positions of the table
-below, and what this rule closes — and 29 more restated a count the key
+below, and what this rule closes — and 38 more restated a count the key
 itself published below the line, which is a question about the KEY and
-is answered where the key is (P4-D332).
+is answered where the key is (P4-D332). THE SECOND NUMBER READ 29 UNTIL
+THE REPAIR PASS of landing 3.5: the run this paragraph cites records 29
+only under a rule-M prototype nobody built, and 38 for the tool as
+shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
+class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 97 of them exactly as the form table
-is closed over the 59 forms. A position nobody bound is a number a
+is closed over the 60 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -1918,26 +1925,44 @@ is a producer this contract does not describe. The bindings are these:
   is asked here: the argument is nought, or reaches the census line
   with nothing left below that line against the populations named
   beside it, or carries NF59 `said_fewer_than_the_line` in the
-  number's place.
+  number's place, or — where it reaches the line and a population
+  named beside it leaves a group below the line — carries NF60
+  `said_some_but_not_all`, which names no number at all.
 - **package word**, **nested form**, **bound affix** — the three
   argument classes of C6-119 that are not whole numbers at all.
 
-**What a floored position's complement is NOT held to, stated rather
-than left to be discovered** (plan P4-D333). The rule above says "with
-nothing left below that line against the populations named beside it",
-and NO BINDING NAMES A POPULATION in this version. Every floored
-position's complement is the count of cells a competing reading did not
-reach, which is the same class of number as `n_not_numeric`,
-`n_out_of_range` and `n_unparsed`: counts this version leaves
-published, because flooring them makes code developed on the twin run
-clean where the real table raises. That is the orchestrator's call
-P4-D332, recorded with its measurement and held at a ceiling by the KPI
-ledger rather than argued here. The clause stands in the rule for the
-bindings that will name one -- the date and clock tail landing moves
-NF51's arguments onto the published boundaries -- and a guard whose
-third clause nothing exercised would not be one, so
-`tests/test_p4d334_sentence_arguments.py` binds a population of its own
-and asks it.
+**Which floored positions name a population, and why it is a fact
+rather than a choice** (plan P4-D333, corrected by the repair pass of
+landing 3.5). FOUR OF THE THIRTEEN name `n_present`: both counts of
+`remark_commas_read_as_thousands`, argument 6 of
+`remark_no_reading_fits`, and argument 1 of `said_read_as_dates`. Each
+of the four counts the cells bearing ONE SPELLING — of a number, or of
+an affix — so what it does not count is a spelling-census group, which
+C6-137 `census_nameable` withholds in the same block. The sentence
+handed that group straight back by subtraction, and the shapes are
+measured ones: 1,199 comma-grouped prices beside one bare cell printed
+1199 next to a published `n_present` of 1,200, which is the exact
+disclosure `census_nameable` was written for; 390 dates beside ten
+free-text cells printed 390 next to 400; 59 cells wearing ` mg` beside
+one wearing ` MG` printed 59 next to 60.
+
+**The other nine name none, and that is P4-D332's call rather than an
+omission.** At those nine the complement is the count of cells a
+competing READING did not reach, which is the same class of number as
+`n_not_numeric`, `n_out_of_range` and `n_unparsed`: counts this version
+leaves published, because flooring them makes code developed on the
+twin run clean where the real table raises — and which the block
+publishes in a key beside the sentence, so flooring the sentence would
+withhold nothing. That is the orchestrator's call P4-D332, recorded
+with its measurement and held at a ceiling by the KPI ledger rather
+than argued here.
+
+**THE PARAGRAPH ABOVE READ "no binding names a population" AND GAVE A
+REASON THAT WAS FALSE OF FOUR POSITIONS.** It said every floored
+position's complement is a competing reading's count. For the comma
+remark, the affix reach and the date reach it is a spelling census
+group the same block withholds, which is why those four are armed here
+and why the sentence that cannot be withdrawn now has NF60 to say.
 
 | form | argument | bound to |
 |---|---|---|
@@ -1998,8 +2023,8 @@ and asks it.
 | `remark_close_to_the_numeric_line` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
 | `remark_close_to_the_numeric_line` | 2 | key `n_present` |
 | `remark_close_to_the_numeric_line` | 3 | setting (strict reading line) |
-| `remark_commas_read_as_thousands` | 1 | floored |
-| `remark_commas_read_as_thousands` | 2 | floored |
+| `remark_commas_read_as_thousands` | 1 | floored against `n_present` |
+| `remark_commas_read_as_thousands` | 2 | floored against `n_present` |
 | `remark_dates_also_read_as_numbers` | 1 | difference `n_present` less `n_unparsed` |
 | `remark_dates_also_read_as_numbers` | 2 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
 | `remark_every_number_is_different` | 1 | difference `n_present` less `n_distinct` |
@@ -2009,7 +2034,7 @@ and asks it.
 | `remark_no_reading_fits` | 3 | setting (strict reading line) |
 | `remark_no_reading_fits` | 4 | key `n_distinct_folded` |
 | `remark_no_reading_fits` | 5 | setting (category ceiling) |
-| `remark_no_reading_fits` | 6 | floored |
+| `remark_no_reading_fits` | 6 | floored against `n_present` |
 | `remark_no_reading_fits` | 7 | floored |
 | `remark_no_reading_fits` | 8 | floored |
 | `remark_no_reading_fits` | 9 | floored |
@@ -2034,7 +2059,7 @@ and asks it.
 | `remark_whole_numbers_could_be_times` | 6 | value (tail rule) |
 | `remark_whole_numbers_could_be_times` | 7 | value (tail rule) |
 | `said_fewer_than_the_line` | 1 | setting (census line) |
-| `said_read_as_dates` | 1 | floored |
+| `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
 | `said_written_as_numbers` | 2 | key `n_present` |
@@ -3369,7 +3394,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 59 in section 4.5.1 |
+| NG14 | the form is one of the 60 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3473,6 +3498,47 @@ not lose, and it is no more than the digits said before. Measured at
 `--smallest-group 1`: 399 free-text cells beside one date write "fewer
 than 2 read as dates" in their evidence, while the remark that repeats
 the same count is withdrawn.
+
+**NF60. `said_some_but_not_all` — the fragment that names no number at
+all** — arity 0 (stage 3 landing 3.5, repair pass, plan P4-D334.1).
+
+> some but not all
+
+It stands at one of the thirteen FLOORED positions of C6-143, in the
+same place NF59 stands, AND IN THE CASE NF59 CANNOT SPEAK TO: the count
+reaches the census line, and the population C6-143 names beside that
+position leaves a group of one to the line less one over. The digits
+are refused there because the reader subtracts them from the published
+population and is handed back a group no key names. NF59 is refused there too,
+and for a plainer reason: "fewer than 11" is FALSE of a count of 1,199.
+
+**Its arity is nought, and that is the whole control.** A form with no
+argument carries no count, so there is no line it can contradict and no
+key it can disagree with. What it says is what the clause around it
+already asserts — that the group is not empty, and that it is not the
+whole column — so it adds no number to the document.
+
+**Where it starts a sentence it is capitalised**, on NF59's rule and
+for NF59's reason: NF29 argument 6 stands immediately after a full
+stop.
+
+**It is written only where the sentence cannot be withdrawn.** A remark
+whose floored count falls in this case is not written at all, on the
+same rule that withdraws a remark whose count is below the line. The
+one sentence a block may not lose is its detection evidence, so that is
+where this fragment stands. The cost of the withdrawal is real and is
+recorded rather than argued away: 1,199 comma-grouped prices beside one
+bare cell lose the decimal-comma warning entirely, and what buys that
+is the one cell a reader would otherwise take off the published
+`n_present`.
+
+**The producer and this document have to agree about it, or an ordinary
+table becomes an internal fault.** Before the repair pass the producer
+wrote the DIGITS at this position whenever the sentence could not be
+withdrawn, while the guard refused exactly that — so the first binding
+to name a population would have turned 390 dates beside ten words into
+a refusal reading "this is a fault in synthtwin itself". Both halves
+now write and accept NF60 there.
 
 ---
 
@@ -11167,7 +11233,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 59 the note grammar enumerates |
+| NG14 | for every form: one of the 60 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12319,7 +12385,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 59 closed forms: 97 argument positions, of which 71 are whole numbers, 4 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 60 closed forms: 97 argument positions, of which 71 are whole numbers, 4 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -13369,7 +13435,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 59 forms
+### 14.8 The note grammar — 60 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 97 argument positions: 71 whole numbers, 4 package words, 17
@@ -13436,6 +13502,7 @@ nested forms, 5 bound affix strings.
 | NG57 | `remark_a_minus_after_the_figures` | 0 |
 | NG58 | `header_names_could_not_be_told` | 0 |
 | NG59 | `said_fewer_than_the_line` | 1 |
+| NG60 | `said_some_but_not_all` | 0 |
 
 **The package-word vocabulary — 24**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

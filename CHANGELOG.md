@@ -15,7 +15,7 @@ inside the number" -- a count of one, naming one row, in the plain
 prose part of the description. Over 56 descriptions at a smallest group
 size of eleven there were 252 sentences and 145 of them carried
 numbers: 9 printed a count no key of the block beside them published at
-all, and 29 more restated a count the key itself published below that
+all, and 38 more restated a count the key itself published below that
 line.
 
 Every argument of every sentence is now bound to what it is. Most of
@@ -51,6 +51,33 @@ cells. This is a reversible call and goes to the owner.
 | one bracketed negative, `--smallest-group 1` | `negative_form: brackets` | `negative_form: minus` |
 | one grouped cell, `--smallest-group 1` | `group_separator: ","` | `group_separator: ""` |
 | cells that were not numbers | published | published (unchanged, and held at a ceiling) |
+
+**And a sentence may not hand back the cells it does NOT count.** A
+count is a disclosure from either end. A column of 1,200 prices with
+1,199 of them written `1,795` and one written plain said "1199 of this
+column's values are written with a comma inside the number" beside a
+published row count of 1,200 -- and 1,200 less 1,199 is the one cell,
+named exactly as a key holding 1 would name it. This is the shape the
+tool already refuses in its key censuses, in prose. Four sentence
+counts are counts of cells bearing one spelling, and each of those is
+now held to the cells it leaves over as well as to itself: below the
+line either way, the sentence is not written. Where the sentence is one
+a column cannot lose -- the line that says how the column was read --
+it is written without the number at all.
+
+| a column whose small group is on the OTHER side | before | after |
+|---|---|---|
+| 1,199 grouped prices, 1 written plain | "1199 of this column's values are written with a comma..." | the remark is not written |
+| 390 dates, 10 cells no reading fits | "390 read as dates written as 2024-03-17" | "some but not all read as dates written as 2024-03-17" |
+| 59 cells wearing ` mg`, 1 wearing ` MG` | "59 of its values are numbers wearing one shared piece of text" | the remark is not written |
+
+**What the first row costs, said plainly:** that column loses its
+decimal-comma warning, which is a warning about 1,199 cells that may
+each be a thousand times their real size. One ungrouped cell withdraws
+it. The warning is worth keeping and the subtraction is not acceptable,
+so whether such a remark should be kept with no count in it -- the way
+the read-as line now is -- goes to the owner rather than being decided
+here.
 
 ### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
 

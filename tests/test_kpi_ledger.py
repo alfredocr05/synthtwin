@@ -1137,12 +1137,19 @@ def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
     stay published, because flooring them broke goal 1 in 7 of 7 probed
     shapes and the count still reached the reader through `n_missing`.
     This entry is what stops that widening unseen -- it counts every
-    unfloored count leaf below the census line over the 43 seeded
+    unfloored count leaf below the census line over the 46 seeded
     shapes of the stage-3 battery, and it may not rise.
 
-    Beside it, the landing's own claim: no FLOORED sentence argument --
-    one of the thirteen positions no key of the block covers -- stands
-    below the line. That number is nought and stays nought.
+    Beside it, the landing's own claim, ASKED BOTH WAYS. A floored
+    sentence argument -- one of the thirteen positions no key of the
+    block covers -- may not stand below the line, and it may not stand
+    so close to the population its binding names that the reader takes
+    the remainder off by subtraction. THE SECOND NUMBER IS WHY THE
+    BATTERY GREW THREE SHAPES: the forty-three plant one to ten cells
+    OF the counted kind and never one to ten of the kind the count
+    does not count, so this walk reported nought over them while a
+    sixty-row affixed column reached the exposure in one call. Both
+    numbers are nought and stay nought.
     """
     import stage3_battery
     import test_p4d334_sentence_arguments as bound
@@ -1150,6 +1157,7 @@ def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
     line = parsing.census_floor(11)
     below = 0
     unbound = 0
+    complements = 0
     for name in sorted(stage3_battery.SHAPES):
         document = stage3_battery.described(tmp_path, name, 11)
         for path, value in _count_leaves(document):
@@ -1158,7 +1166,7 @@ def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
             if isinstance(value, int) and not isinstance(value, bool):
                 if 0 < value < line:
                     below = below + 1
-        for _where, note, _block in bound._sentences(document):
+        for _where, note, block in bound._sentences(document):
             for form, place, argument in bound._positions(
                 note.form, note.arguments, line
             ):
@@ -1169,11 +1177,21 @@ def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
                     continue
                 if 0 < argument < line:
                     unbound = unbound + 1
+                # THE COMPLEMENT IS MEASURED AGAINST `n_present`
+                # WHETHER OR NOT THE BINDING NAMES IT. The rule holds
+                # the four positions whose remainder no key publishes;
+                # this number asks the question of all thirteen, so a
+                # fourteenth arriving unbound is seen here rather than
+                # only where somebody already suspected it.
+                total = bound._key(block, "n_present")
+                if total is not None and 0 < total - argument < line:
+                    complements = complements + 1
     _kpi(
         record_property,
         "K-S3-01",
         {
             "count_leaves_1_to_10": below,
             "floored_sentence_arguments_1_to_10": unbound,
+            "floored_sentence_complements_1_to_10": complements,
         },
     )

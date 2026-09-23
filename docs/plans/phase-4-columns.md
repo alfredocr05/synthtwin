@@ -19342,20 +19342,79 @@ holds the two equal in a third direction.
 **The measurement that asked for it** (the design's own
 `guard_measure.txt`, 56 documents). At a floor of eleven: 252
 sentences, 145 carrying whole numbers, NINE arguments printing a count
-no key of the block published at all, and 29 more restating a count the
+no key of the block published at all, and 38 more restating a count the
 key itself published below the line. The walk flags the first kind, and
 flagged 3 at a floor of one and 7 at five. The second kind is not this
 decision's to close: the key publishes those counts and P4-D332 is the
 call that leaves them published.
 
-**What a floored position's complement is NOT held to.** No binding
-names a population. Every floored position's complement is the count of
-cells a competing reading did not reach, which is the class of number
-P4-D332 leaves published. The rule keeps its complement clause for the
-bindings that will name one -- the date and clock tail landing moves
-NF51's arguments onto the published boundaries -- and the landing's own
-test binds a population and asks it, so the clause is not a branch
-nothing exercises.
+**THE SECOND NUMBER READ 29 IN SEVEN PLACES AND THE RUN SAYS 38.** 29
+is what the same `guard_measure.txt` records on its NEXT line, under a
+rule-M prototype this landing did not build; the design's own prose
+table carried the 29 across and the landing carried it into the
+contract, the plan, the changelog, two docstrings and a test. The
+repair pass states 38, which is the shipped tool's number, and adds
+`tests/test_p4d334_sentence_arguments.py::test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
+so the class is re-measurable from the repository rather than quoted
+from a file outside it: 20 such arguments over the committed 46-shape
+battery at the default floor, held as a ceiling on P4-D332's own
+reasoning. THE GROUP-CLASS SPLIT IS NOT STATED ANYWHERE, so it is not
+claimed: commit ce20f83's own message says "38 restating a key below
+the line, 29 of them GROUP-class" and no artifact in this repository or
+in the design output records that split.
+
+**Which floored positions name a population** (corrected by the repair
+pass; the paragraph here said "no binding names a population" and gave
+a reason that was false of four of them). FOUR of the thirteen name
+`n_present`: NF44's two counts, NF29 argument 6 and NF18's date reach.
+Each counts the cells bearing ONE SPELLING -- of a number or of an
+affix -- so what it does not count is a spelling-census group
+`census_nameable` withholds in the same block, and the sentence handed
+it back by subtraction. Measured: 1,199 comma-grouped prices beside one
+bare cell printed 1199 next to a published `n_present` of 1,200, which
+is the exact shape `census_nameable`'s own docstring records as the
+reason it exists; 390 dates beside ten free-text cells printed 390 next
+to 400; 59 cells wearing ` mg` beside one wearing ` MG` printed 59 next
+to 60. The other NINE name none, and that is P4-D332's call rather than
+an omission: there the complement is the count of cells a competing
+reading did not reach, and the block publishes it in a key beside the
+sentence -- NF36's flagship shape publishes `n_unparsed` = 5 next to
+the reaches of 3,995 -- so flooring the sentence would withhold
+nothing.
+
+**What arming it costs, measured.** A remark is withdrawn: the
+1,199-price shape loses its decimal-comma warning entirely, which is a
+load-bearing warning about 1,199 cells that may be a thousand times
+their real size, withdrawn by one ungrouped cell. The alternative is
+the subtraction. Keeping such a warning and printing no count -- what
+NF60 does for the sentence that cannot be withdrawn -- is an
+owner-sized question about what a description is FOR, and goes to the
+board rather than being taken here.
+
+### P4-D334.1 The fragment `said_some_but_not_all`, and the clash it closes
+
+**The defect.** `taxonomy._arguments_at_the_line` wrote the DIGITS
+wherever a floored count stood nowhere and could not be withdrawn,
+while `profile._floored_argument_is_bound` refuses exactly that. The
+two halves agreed only because no binding named a population; the first
+one to do so turned an ordinary table -- 390 ISO dates beside ten
+free-text cells at the default floor -- into a ProfileError reading
+"this is a fault in synthtwin itself: no table causes it".
+
+**The decision.** A 60th form, arity 0, rendering "some but not all"
+(capitalised where it opens a sentence, on NF59's rule). It stands
+where the count REACHES the line and the population named beside it
+leaves a group below the line, and only where the sentence cannot be
+withdrawn. NF59 cannot stand there: "fewer than 11" is false of 1,199.
+Arity nought is the whole control -- a form with no argument carries no
+count, so there is no line it can contradict and no key it can
+disagree with, and what it says is what the clause around it already
+asserts.
+
+**Mutation.** Take the four populations back out of
+`taxonomy.ARGUMENT_BINDINGS` and the three complement shapes of the
+battery print 1199 beside 1,200, 390 beside 400 and 59 beside 60
+again, and `K-S3-01`'s third number reads 4 instead of nought.
 
 ### P4-D334 The fragment `said_fewer_than_the_line`
 
@@ -19382,7 +19441,9 @@ contradiction counts, NF54, NF55 and NF29 arguments 6 to 9 — the
 thirteen FLOORED positions. NF36's two reaches never carry it, because
 the rendering compares them to choose which of its three sentences to
 write; where either reach is itself below the line that remark is
-withdrawn instead.
+withdrawn instead. Where a count REACHES the line and its population
+leaves a group below it, NF59 is false and NF60 stands instead
+(P4-D334.1).
 
 **What it costs, measured.** At the default floor NF36's second clause
 reads "fewer than 11 ... and fewer than 11" on every shape that can

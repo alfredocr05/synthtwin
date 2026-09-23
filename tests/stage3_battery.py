@@ -1,12 +1,23 @@
 """The stage-3 count battery: one seeded shape per count that can sit below the floor.
 
 WHY IT LIVES IN THE TEST TREE. The inventory of stage 3's count design
-was measured on these forty-three tables, and a measurement nobody can
+was measured on these forty-six tables, and a measurement nobody can
 re-run is a number somebody will one day have to take on trust. Every
 table is built here from `random.Random(20260922)` and nothing is read
 from any real data: each shape writes in a small group -- one to ten cells
 -- of the kind one published count counts, so that a rule which starts
 naming such a group turns a test red rather than going unnoticed.
+
+AND THREE OF THEM PLANT THE SMALL GROUP ON THE OTHER SIDE (the repair
+pass of landing 3.5). The forty-three above are built "one per count
+that can sit below the floor" -- they plant one to ten cells OF the
+kind a count counts. That is half the exposure: a sentence printing
+1,199 beside a published row count of 1,200 hands back the one cell it
+does NOT count, and forty-three shapes that never plant such a cell
+report the class closed. `numeric_all_but_one_grouped_comma`,
+`dates_beside_ten_words` and `affixed_all_but_one_spelling` plant the
+COMPLEMENT at one to ten, so the second measurement of `K-S3-01` has
+something to see.
 
 The shapes are NEUTRAL in the sense plan D13 fixes: the values are
 drawn from a fixed seed, no table enters the repository, and no shape
@@ -345,6 +356,61 @@ def near_category_line(rng):
     labels = [f"L{i:02d}" for i in range(40)]
     cells = [labels[i % 40] for i in range(400)]
     return cells, {}
+
+
+# -- the three shapes that plant the COMPLEMENT small ------------------
+#
+# Each of these is a real reproduction rather than an invented shape.
+# The first is the repository's own precedent, written out in
+# `parsing.census_nameable`'s docstring. The second and third are the
+# two the stage-3 skeptic's sweep reached, one through the date
+# reading's reach and one through the affix reading's.
+
+
+@shape
+def numeric_all_but_one_grouped_comma(rng):
+    """1,199 comma-grouped prices beside one bare cell.
+
+    `parsing.census_nameable` was written for exactly this table: the
+    KEY census used to publish {",": 1199} beside a row count of 1,200
+    and the one ungrouped cell was read off by subtraction. The key
+    was corrected and the SENTENCE went on printing 1199 beside a
+    published `n_present` of 1,200, which is the same subtraction in
+    prose.
+    """
+    cells = [f"{rng.randint(1, 9)},{rng.randint(100, 999)}" for _ in range(1199)]
+    return cells + ["743"], {}
+
+
+@shape
+def dates_beside_ten_words(rng):
+    """390 dates beside ten free-text cells: the reach of a reading, floored.
+
+    No reading settles this column, so it is described as free text and
+    its evidence nests `said_read_as_dates`. That fragment's count is
+    the date reading's reach; the ten cells it does not count are a
+    group no key of this block publishes.
+    """
+    start = datetime.date(2020, 1, 1)
+    cells = [
+        (start + datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+        for i in range(390)
+    ]
+    return cells + [f"note {i}" for i in range(10)], {}
+
+
+@shape
+def affixed_all_but_one_spelling(rng):
+    """59 cells wearing ` mg` beside one wearing ` MG`.
+
+    The affix reading gets to 59 of the 60 present cells and the
+    competing-readings remark prints that reach. The one cell wearing
+    the other spelling is what a reader takes off the published
+    `n_present`, and it is a spelling-census group `census_nameable`
+    withholds in the same block.
+    """
+    cells = [f"{rng.randint(1, 90)} mg" for _ in range(59)]
+    return cells + [f"{rng.randint(1, 90)} MG"], {}
 
 
 

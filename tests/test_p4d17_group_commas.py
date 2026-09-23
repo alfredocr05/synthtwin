@@ -157,11 +157,22 @@ def test_a_column_that_settles_it_is_told_so_outright() -> None:
     reason sitting in every cell. The sentence now stops saying
     "nothing settles it" and says the file has settled it.
     """
+    # ELEVEN PROOF CELLS, NOT TEN, AND THE ELEVEN IS DERIVED FROM THE
+    # RULE. Both counts of this remark are FLOORED arguments bound to
+    # `n_present` since the repair pass of landing 3.5, so neither may
+    # leave a group of one to ten over: 245 ambiguous cells printed
+    # beside a published row count of 255 handed a reader the ten proof
+    # cells, and the whole remark is withdrawn at that shape. Eleven is
+    # the smallest proof group the census line admits -- 256 less 245
+    # is exactly the line -- so this is the shape at which the sentence
+    # can still be written at all. The withdrawal itself is asserted in
+    # tests/test_p4d334_sentence_arguments.py.
     values = [f"{number / 1000:.3f}".replace(".", ",") for number in
               range(800, 3000, 9)]
     values = values + [f"{number}.000".replace(".", ",") for number in
-                       range(1000, 1010)]
+                       range(1000, 1011)]
     document = _described(values)
+    assert document["columns"][0]["n_present"] == 256
     said = _comma_remark(document)
     assert said is not None, document["columns"][0]["remarks"]
     assert "CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA" in said

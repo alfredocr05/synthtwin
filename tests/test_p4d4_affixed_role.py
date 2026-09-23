@@ -405,7 +405,7 @@ def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
 ) -> None:
     """The reviewer's scenario, and what P4-D36's guard costs.
 
-    Ninety-eight cells wearing one wrapper and two wearing another. No
+    Eighty-nine cells wearing one wrapper and eleven wearing another. No
     single wrapper clears the line, so this column declines and its
     owner is owed the count the closest reading reached.
 
@@ -417,14 +417,27 @@ def test_a_column_of_two_pairs_says_how_far_the_affix_reading_got(
     text here as it was before, so nothing anybody had is lost, and the
     sentence saying how far the reading got is still owed and still
     given.
+
+    THE SECOND WRAPPER WAS TWO CELLS AND IS ELEVEN, AND THAT IS THE
+    RULE AND NOT THE OUTPUT. The reach is a FLOORED sentence argument
+    bound to `n_present` since the repair pass of landing 3.5, so it
+    may not leave a group of one to ten over: 98 printed beside a
+    published row count of 100 handed a reader the two euro cells, and
+    the remark is withdrawn at that shape. Eleven is the smallest
+    second group the census line admits, so it is the shape at which
+    this sentence is still owed AND may still be written. The
+    withdrawal itself is asserted in
+    tests/test_p4d334_sentence_arguments.py over the battery's own
+    ` mg`/` MG` column.
     """
-    values = [f"${index}" for index in range(1, 99)]
-    values = values + ["EUR99", "EUR100"]
+    values = [f"${index}" for index in range(1, 90)]
+    values = values + [f"EUR{index}" for index in range(200, 211)]
     document = _document(tmp_path / "two-pairs", "price", values)
     column = document["columns"][0]
     assert column["role"] == "free_text", column["role"]
+    assert column["n_present"] == 100
     said = " ".join(column["remarks"])
-    assert "98 of its values are numbers wearing one shared piece of text" in (
+    assert "89 of its values are numbers wearing one shared piece of text" in (
         said
     ), said
     assert "which is the reading that came closest" in said

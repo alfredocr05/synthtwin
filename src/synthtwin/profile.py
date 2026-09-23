@@ -2690,6 +2690,30 @@ def _is_the_fragment(argument: object, line: int) -> bool:
     return isinstance(parts, tuple) and parts == (line,)
 
 
+def _says_no_count(argument: object) -> bool:
+    """Whether this argument is `said_some_but_not_all`, which names none.
+
+    THE SECOND THING A FLOORED POSITION MAY CARRY INSTEAD OF DIGITS
+    (contract NF60). `_is_the_fragment` above answers the small case:
+    the count is one or more and below the line, and the reader is
+    told the shape of the number. This answers the COMPLEMENT case: the
+    count reaches the line and what it leaves over against its
+    population does not, so the digits would publish that remainder by
+    subtraction -- and NF59 cannot stand there either, because "fewer
+    than 11" is false of a count of 1,199.
+
+    It is accepted AT ANY FLOORED POSITION AND AT ANY LINE, and there
+    is nothing to check about it: a form with no argument carries no
+    number, so there is no line it could contradict and no key it
+    could disagree with. That is the whole reason it exists.
+    """
+    if not isinstance(argument, tuple) or len(argument) != 2:
+        return False
+    if argument[0] != taxonomy.SAID_SOME_BUT_NOT_ALL:
+        return False
+    return isinstance(argument[1], tuple) and argument[1] == ()
+
+
 def _floored_argument_is_bound(
     value: int,
     binding: "tuple[object, ...]",
@@ -2697,7 +2721,25 @@ def _floored_argument_is_bound(
     line: int,
     path: "tuple[str, ...]",
 ) -> None:
-    """One floored position: nought, or a group, with no group left over."""
+    """One floored position: nought, or a group, with no group left over.
+
+    THE THIRD CLAUSE IS WHAT THE POPULATION IS FOR. A count that
+    reaches the line is still refused where the population its binding
+    names leaves a group of one to ten over, because a reader holding
+    the sentence and the block does that subtraction in their head:
+    1,199 comma-grouped prices printed beside a published `n_present`
+    of 1,200 hands back the one bare cell. Four of the thirteen floored
+    positions name a population, and `taxonomy.ARGUMENT_BINDINGS` says
+    which and why.
+
+    The producer does not reach this refusal, and that is a property
+    rather than luck: `taxonomy._floored_stands` asks the same question
+    one step earlier and writes `said_some_but_not_all` -- which
+    `_says_no_count` accepts above -- where the sentence may not be
+    withdrawn. Before the repair pass it wrote the digits instead, so
+    the first binding to name a population turned an ordinary table
+    into an internal fault here.
+    """
     if value == 0:
         return
     if value < line:
@@ -2738,7 +2780,7 @@ def _one_argument_is_bound(
         raise _refuse(path)
     kind = binding[0]
     if kind == taxonomy.BIND_FLOORED:
-        if _is_the_fragment(value, line):
+        if _is_the_fragment(value, line) or _says_no_count(value):
             return
         if isinstance(value, bool) or not isinstance(value, int):
             raise _refuse(path)
@@ -2850,12 +2892,16 @@ def _arguments_of_one_form_are_bound(
         # "fewer than 3" standing in a document whose smallest group is
         # eleven was accepted by the first writing of this walk.
         if nested and isinstance(argument, tuple) and not floored:
-            if argument[0] == taxonomy.SAID_FEWER_THAN_THE_LINE:
-                # AND THE FRAGMENT STANDS NOWHERE ELSE. It is the
-                # answer to one question -- what a sentence says in
+            if argument[0] in (
+                taxonomy.SAID_FEWER_THAN_THE_LINE,
+                taxonomy.SAID_SOME_BUT_NOT_ALL,
+            ):
+                # AND NEITHER FRAGMENT STANDS ANYWHERE ELSE. Each is
+                # the answer to one question -- what a sentence says in
                 # place of a count it may not print -- and a sentence
-                # that used it anywhere else would be saying "fewer
-                # than eleven" about something that is not a count.
+                # that used one anywhere else would be saying "fewer
+                # than eleven", or "some but not all", about something
+                # that is not a count.
                 raise _refuse(("columns", _EACH, "sentence argument"))
             _arguments_of_one_form_are_bound(
                 f"{argument[0]}", tuple(argument[1]), block, document, line
@@ -2873,12 +2919,19 @@ def _arguments_are_bound(document: "dict[str, object]") -> None:
     withholds. Every published count of a column block is held to the
     smallest group size; a count written into a SENTENCE was held to
     nothing, and the two are the same disclosure. Measured over 56
-    descriptions at a floor of eleven before this guard existed: 252
-    sentences and 145 of them carrying whole numbers, of which NINE
-    printed a count no key of the block published at all and 29 more
-    restated a count the key itself published below the line. This
-    guard closes the nine; the other 29 are P4-D332's, which leaves
-    those keys standing and holds their number at a ceiling.
+    descriptions at a floor of eleven before this guard existed (the
+    design's own `guard_measure.txt`): 252 sentences and 145 of them
+    carrying whole numbers, of which NINE printed a count no key of the
+    block published at all and 38 more restated a count the key itself
+    published below the line. This guard closes the nine; the other 38
+    are P4-D332's, which leaves those keys standing and holds their
+    number at a ceiling. THE SECOND NUMBER READ 29 UNTIL THE REPAIR
+    PASS, and 29 is what that same run records only under a rule-M
+    prototype this landing did not build; 38 is what it records for the
+    tool as shipped.
+    `tests/test_p4d334_sentence_arguments.py::test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
+    re-measures the class over the committed battery, so the number is
+    one a reader can run rather than one they must trust.
 
     HOW IT IS CHECKED, and why it is a table rather than a rule per
     remark. `taxonomy.ARGUMENT_BINDINGS` binds every argument position
@@ -2891,7 +2944,9 @@ def _arguments_are_bound(document: "dict[str, object]") -> None:
     rule governs the sentence; a floored one is nought, or reaches
     `parsing.census_floor` with no group left over against the
     populations its binding names, or carries the fragment
-    `said_fewer_than_the_line`. This is plan P4-D221's padded-remark
+    `said_fewer_than_the_line`, or -- where it reaches the line and
+    the population leaves a group below it -- `said_some_but_not_all`,
+    which names no number at all. This is plan P4-D221's padded-remark
     rule -- "a count the map does not name is a count no sentence
     prints" -- made general instead of written once per remark.
 
