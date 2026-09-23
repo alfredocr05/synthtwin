@@ -19447,3 +19447,9 @@ and check their twin through `generate` and `validate`, which the
 floor does not govern. A description written that way says the
 population was counted in rows, which is what a caller who never ran
 the gate did.
+
+**The two ledger entries are stamped on the landing's own commit**,
+`52b9eee`, and recorded in the commit after it -- the route K-P4-20
+took on 2026-09-22. Neither value could have been taken on any earlier
+tree, because the population floor and the person question are what
+this landing built.

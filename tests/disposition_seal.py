@@ -2063,6 +2063,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "6271e268b06b0b58",
         "62c61db596af40da",
         "62f5483727d55f61",
+        "62f8922dd663dad4",
         "6300daaca85b1eca",
         "632156e886b47ce4",
         "633693dc45b41d3b",
@@ -9372,7 +9373,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
 COUNTED: "dict[str, int]" = {
     "docs/plans/phase-2-generator.md": 174,
     "docs/plans/phase-3-product.md": 702,
-    "docs/plans/phase-4-columns.md": 3034,
+    "docs/plans/phase-4-columns.md": 3035,
     "docs/spec/profile-contract-v4.md": 966,
     "docs/spec/profile-contract-v5.md": 319,
     "docs/spec/profile-contract-v6.md": 2860,

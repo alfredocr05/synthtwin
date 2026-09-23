@@ -6,6 +6,16 @@ exists).
 
 ## [Unreleased]
 
+### Recorded: landing 3.2's two KPIs against its own commit (stage 3, 2026-09-22)
+
+`K-S3-01` and `K-S3-02` are re-measured on `52b9eee`, the commit that
+built them: the population floor's thirteen-case battery reads 4
+refused, 6 noticed, 3 silent and 0 files written after a refusal, and
+the person question reads 0 false positives over 25 columns with the
+one `subject_id` column asked about. The measurement note names both
+beside the twelve entries already standing off `caf3079`, so
+`tests/test_kpi_ledger_integrity.py` holds the note and that set equal.
+
 ### Added: synthtwin will not describe a table of fewer than 100, and says so from 100 to 999 (stage 3, 2026-09-22)
 
 **`synthtwin profile` now refuses a table that is too small to describe
