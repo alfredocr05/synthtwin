@@ -1,41 +1,45 @@
-"""K-P3-03: a numeric twin's spread is too wide, and why, held both ways.
+"""K-P3-03: a numeric twin's spread was too wide, and is not now.
 
-THE DEFECT. Method G5.3 reads the hundred-and-one-rung ladder as a
-straight line between each pair of neighbours, INCLUDING the two outer
-segments: from `p01` down to the exact published minimum and from `p99`
-up to the exact published maximum. The real column reaches those
-extremes only with its last few cells, so the straight line spreads the
-outer one per cent at each end too far out, and every bell-shaped
-numeric twin measured comes out with a standard deviation 1.4 to 3.7
-per cent wider than the published one, at 5,000 rows and above,
-whatever the quality report says (a triangular or clipped column 0.2
-to 0.8 per cent, a uniform one none). Twenty `gauss(50, 10)` columns
-at 20,000 rows miss `moments.std` on 19 and exit 3; at 5,000 rows, and
-on coarsely
-rounded columns at any size, the same excess is reported as held,
-because the window is wide there. Measured, shape by shape, by
-`tools/measurements/k_p3_03_spread.py`.
+THE DEFECT, AND IT IS CLOSED (stage 3, landing 3.3). Method G5.3 read
+the hundred-and-one-rung ladder as a straight line between each pair of
+neighbours, INCLUDING the two outer segments: from `p01` down to the
+exact published minimum and from `p99` up to the exact published
+maximum. The real column reaches those extremes only with its last few
+cells, so the straight line spread the outer one per cent at each end
+too far out, and every bell-shaped numeric twin measured came out with
+a standard deviation 1.4 to 3.7 per cent wider than the published one,
+at 5,000 rows and above, whatever the quality report said (a triangular
+or clipped column 0.2 to 0.8 per cent, a uniform one none). Twenty
+`gauss(50, 10)` columns at 20,000 rows missed `moments.std` on 19 and
+exited 3; at 5,000 rows, and on coarsely rounded columns at any size,
+the same excess was reported as held, because the window is wide there.
+Measured, shape by shape, by `tools/measurements/k_p3_03_spread.py`.
 
-WHOSE IT IS. It is a within-column method defect of stage 2, in G5.3,
-and NOT the heavy-tail mean and spread the owner deferred to stage 3:
-these columns are light-tailed. It can be mended from published facts
-alone -- one power per column bending the two outer segments, solved
-from the published spread, keeps every published rung and meets the
-spread exactly (the second test below) -- but the G12.3 window is drawn
-from the SAME straight reading (the third test), so mending G5.3 alone
-would turn a faithful twin into a miss on 20 columns of 20. Any repair
-is G5.3 and G12.3 together, and it moves the bytes of every numeric
-twin. The orchestrator deferred it to stage 3 on 2026-09-18, under the
-owner's principle of 2026-09-17 ("build after the machinery of stage
-3"); the owner may reverse that (the plan's owner decisions of
-2026-09-18, and the ledger's K-P3-03).
+WHAT CLOSED IT is not the bend this file used to argue for. The tail
+rule of contract 6.7a withholds the rungs that read the outermost
+values and publishes each end as a GROUP instead -- how many rows lie
+beyond the boundary, and how far from it they lie on average and in
+root mean square -- so the generator no longer has a straight run out
+to an extreme to spread cells along: it places those rows where the
+group's own two moments say (method G5.3b). Measured here at the same
+seeds: 0.08 to 0.18 per cent on the four normal columns at 5,000 rows
+against 1.4 to 2.2 before, 0.11 to 0.13 at 20,000 against 3.1, and the
+driver's twenty `gauss(50, 10)` columns miss nothing at either size.
 
-WHAT IS PINNED, so that a correct repair stays green and a worse twin
-turns red: the twin's spread against the published one, on BOTH sides;
-the fact that the straight reading of the published rungs is what is
-too wide; the fact that the published facts fix a bend that meets the
-spread; and the coupling of the window to the generator's own reading.
-No verdict count is pinned: it moves with G12.3.
+WHAT IS STILL OPEN IS THE COARSE GRID. A lab value written to ONE
+figure still comes out 3.0 per cent wide (3.2 before): its tail rows
+have few grid points to stand on, and the rule may not invent one. That
+is the limit `WIDEST_ROUNDED` holds, and it is held as a spread because
+the half unit G12.2 grants such a column makes its window admit
+anything.
+
+WHAT IS PINNED, so that a regression turns red: the twin's spread
+against the published one, on BOTH sides and at three shapes; the fact
+that a STRAIGHT reading of the published rungs is still the wide one,
+so the twin's own narrowness is the tail rule's doing and not the
+ladder's; where the ladder's two outermost rungs now come from; and
+the coupling of the window to the generator's own reading. No verdict
+count is pinned: it moves with G12.3.
 
 Every table is built by seeded neutral code at runtime (plan D13).
 """
@@ -49,15 +53,16 @@ from synthtwin import taxonomy, validation
 from tests import fixtures
 
 # THE WIDEST A TWIN'S SPREAD STANDS FROM THE PUBLISHED ONE, either way,
-# in per cent, each the measured largest on e53d5f4 rounded up to the
-# next tenth: 2.154 on the four normal columns at 5,000 rows, 3.055 on
-# the two at 20,000 rows, 3.207 on the one-figure lab column at 5,000
-# rows. A repair brings the measured value toward nought and leaves
-# these green; a twin pushed further out or pulled further in turns
-# them red.
-WIDEST_NORMAL = 2.2
-WIDEST_LARGE = 3.1
-WIDEST_ROUNDED = 3.3
+# in per cent, each the measured largest on this landing's own tree
+# rounded up to the next tenth: 0.179 on the four normal columns at
+# 5,000 rows, 0.129 on the two at 20,000 rows, 3.006 on the one-figure
+# lab column at 5,000 rows. They stood at 2.154, 3.055 and 3.207 on
+# e53d5f4, where the outer ladder segment ran straight out to a
+# published extreme. A twin pushed further out or pulled further in
+# turns them red.
+WIDEST_NORMAL = 0.2
+WIDEST_LARGE = 0.2
+WIDEST_ROUNDED = 3.1
 # The largest power the bend is looked for below. Measured on the four
 # normal columns at 5,000 rows it is 2.8 to 5.8.
 STEEPEST = 16.0
@@ -239,43 +244,72 @@ def test_a_normal_twin_at_five_thousand_rows_stands_within_its_band(
 def test_the_published_facts_fix_a_bend_that_meets_the_published_spread(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The repair needs nothing the description does not publish.
+    """The repair needed nothing the description does not publish.
 
-    On each of the four normal columns at 5,000 rows, from the loaded
-    description ALONE: the straight reading is more than one per cent
-    too wide; one power, found from the published spread, bends the two
-    outer segments so the reading's spread is the published one to a
-    millionth, keeping the published minimum, `p01`, `p99` and maximum
-    as the segments' ends, and leaving the mean nearer the published
-    one than the straight reading does. So G5.3's straight outer tail is
-    a choice the published facts can correct, not a shape they fail to
-    publish.
+    THE BEND WAS THE ARGUMENT AND THE TAIL RULE IS THE REPAIR. This
+    test used to solve one power per column, bending the two outer
+    segments until the ladder's own spread was the published one, to
+    show that the excess could be mended from published facts alone.
+    Stage 3 mends it at the source instead, so what is held here now is
+    the same argument re-stated against what shipped, on each of the
+    four normal columns at 5,000 rows from the loaded description
+    ALONE:
+
+    1. the ladder's two outermost rungs are DERIVED (method G5.3b) --
+       `min` and `max` are withheld by the tail rule and `p01` and
+       `p99` are still the published rungs, so the segments' ends are
+       the tail groups' own, and `contract.tail_ladder` is where every
+       consumer reads them;
+    2. a STRAIGHT reading of that ladder is still more than one per
+       cent too wide, which is what a bend would have had to correct;
+    3. the twin is nevertheless within a quarter of a per cent of the
+       published spread, because the rows beyond each boundary are
+       placed by what the group states about them and not by spreading
+       cells along that outer segment;
+    4. and one power still exists that would have met the published
+       spread from the ladder alone, between 1 and STEEPEST, keeping
+       every published rung -- so the facts were sufficient, which is
+       what the deferral of 2026-09-18 turned on.
     """
     cells = _table("normal", 5000, 4)
     loaded = _described(tmp_path, cells)
-    for column in loaded.columns:
+    twin = generation.generate(loaded, 0)
+    for index, column in enumerate(loaded.columns):
         facts = _facts(column)
         assert facts.std is not None and facts.mean is not None
         rungs = generation._merged_rungs(facts)
         assert rungs is not None
         named = facts.percentiles.rungs
-        # The ends are the published minimum, `p01`, `p99` and maximum.
-        assert (rungs[0], rungs[1], rungs[99], rungs[100]) == (
-            named[0],
-            named[1],
-            named[-2],
-            named[-1],
+        # 1. `p01` and `p99` are published; the two ends are derived.
+        assert (rungs[1], rungs[99]) == (named[1], named[-2]), column.name
+        assert (named[0], named[-1]) == (None, None), column.name
+        derived = contract.tail_ladder(facts)
+        assert derived is not None
+        assert (rungs[0], rungs[100]) == (
+            derived[0],
+            derived[len(derived) - 1],
         ), column.name
+        # 2. The straight reading of it is still the wide one.
         assert _ladder(rungs)[1] > 1.01 * facts.std, column.name
+        # 3. And the twin is not that reading.
+        written = taxonomy.spread_of([float(one) for one in twin.columns[index]])
+        assert written is not None
+        assert abs(written / facts.std - 1) <= 0.0025, column.name
+        # 4. The bend the published facts fix, unchanged: the power
+        # exists, it meets the spread to a millionth, and it leaves the
+        # mean no further from the published one than straight.
         bend = _bend_meeting(rungs, facts.std)
         mean, spread = _ladder(rungs, bend)
         assert 1.0 < bend < STEEPEST, column.name
         assert abs(spread / facts.std - 1) <= 1e-6, (column.name, bend)
-        # The bend brings the mean NEARER the published one than the
-        # straight reading stands (measured 0.0007-0.0028 of a spread
-        # off straight, 0.0003-0.0011 bent), never further from it.
-        straight = abs(_ladder(rungs)[0] - facts.mean)
-        assert abs(mean - facts.mean) <= straight, (column.name, bend)
+        # AND IT MOVES THE MEAN BY ALMOST NOTHING, which is all that is
+        # claimed of it now. The bend used to bring the mean NEARER the
+        # published one than the straight reading stood, because the
+        # segments it bent ran out to an extreme; the tail rule already
+        # holds those rows where the group says, so bending them again
+        # moves the mean a little the other way -- measured on c0,
+        # 0.00042 of a unit off straight and 0.00061 bent, both under a
+        # thousandth of the published spread.
         assert abs(mean - facts.mean) <= 0.002 * facts.std, (column.name, bend)
 
 

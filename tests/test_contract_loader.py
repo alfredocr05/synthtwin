@@ -421,6 +421,62 @@ def sixtieth_second(name: str) -> Change:
     return change
 
 
+def without_tails(name: str) -> Change:
+    """Read one column's block the way a description written before stage
+    3 is read: no `tails`, no `bin_groups`, and both ends published.
+
+    THE LEGACY READING IS A LIVE PATH and these mutations are how it is
+    exercised. A block carrying `tails` is read by the tail rule --
+    "every value is the same one" is its spread being nought, the
+    histogram of every value is `{}`, and an end bin may hold nothing --
+    so the three rules below have no description to break there. They
+    have one on a block written before stage 3, which every loader this
+    version ships still reads (contract 6.7a).
+    """
+    def change(document: Document) -> None:
+        block = at(document, name)
+        block.pop("tails", None)
+        block.pop("bin_groups", None)
+        block["percentiles"] = dict(block["percentiles"])
+        block["value_histogram"] = {}
+        block["empty_bins"] = []
+        block["empty_edges"] = []
+    return change
+
+
+def move_tail_percent(name: str, percent: int) -> Change:
+    """Stand one tail of a column at a percent its row count does not give
+    it, which is what TL1 refuses."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tails = dict(block["tails"])
+        low = dict(tails["low"])
+        low["percent"] = percent
+        tails["low"] = low
+        block["tails"] = tails
+    return change
+
+
+def one_tail(name: str) -> Change:
+    """Publish one tail of a column and not the other (TL3)."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        block["tails"] = {"low": None, "high": dict(block["tails"]["high"])}
+    return change
+
+
+def tail_field(name: str, side: str, **changes: object) -> Change:
+    """Change one field of one side of a column's tails."""
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tails = dict(block["tails"])
+        held = dict(tails[side])
+        held.update(changes)
+        tails[side] = held
+        block["tails"] = tails
+    return change
+
+
 def flat_ladder(name: str) -> Change:
     """Give a column of numbers the same value at every rung.
 
@@ -1282,11 +1338,16 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "Q6", "a spread on a column whose values are all the same",
-            both(flat_ladder("visits"), edit("visits", skew=None)),
+            all_of(
+                without_tails("visits"),
+                flat_ladder("visits"),
+                edit("visits", skew=None),
+            ),
         ),
         Mutation(
             "Q7", "no average on a column whose values are all the same",
             all_of(
+                without_tails("visits"),
                 flat_ladder("visits"),
                 edit("visits", skew=None, std=0.0, mean=None),
             ),
@@ -1305,17 +1366,59 @@ def battery() -> list[Mutation]:
         Mutation(
             "Q15",
             "a shape whose bins do not account for the values",
-            edit("visits", value_histogram={"0": 3}),
+            both(
+                without_tails("visits"),
+                edit("visits", value_histogram={"0": 3}),
+            ),
         ),
         Mutation(
             "Q20",
             "the first bin named as holding nothing",
-            edit("visits", empty_bins=[0], value_histogram={}),
+            both(
+                without_tails("visits"),
+                edit("visits", empty_bins=[0], value_histogram={}),
+            ),
+        ),
+        # -- the tail rule (stage 3, contract 6.7a) -------------------
+        Mutation(
+            "TL1",
+            "a tail standing at a percent the row count does not give it",
+            move_tail_percent("visits", 1),
+        ),
+        Mutation(
+            "TL2",
+            "no tails at all on a column that publishes its rungs",
+            edit("visits", tails=None, bin_groups=[]),
+        ),
+        Mutation(
+            "TL3",
+            "one tail published and the other not",
+            one_tail("visits"),
+        ),
+        Mutation(
+            "TL4",
+            "a tail holding more rows than its percent leaves it",
+            tail_field("visits", "low", rows=13),
+        ),
+        Mutation(
+            "TL5",
+            "a mean distance larger than the root-mean-square beside it",
+            tail_field("visits", "high", mean_distance=9.0),
+        ),
+        Mutation(
+            "TL6",
+            "a tail listing a value inside its own boundary",
+            tail_field("visits", "high", values=[1.0]),
+        ),
+        Mutation(
+            "BG1",
+            "groups of bins that leave a bin in nobody's group",
+            edit("visits", bin_groups=[{"first": 0, "last": 5, "count": 205}]),
         ),
         Mutation(
             "Q21",
             "one pair of stretch edges more than there are stretches",
-            edit("visits", empty_edges=[[0.0, 1.0]]),
+            edit("visits", empty_edges=[[0.0, 1.0]] * 20),
         ),
         Mutation(
             "Q17",

@@ -253,9 +253,15 @@ def test_the_generator_and_the_oracle_join_the_same_pair(
         tmp_path / "join", cells, seed="1"
     )
     # The hundred and one rungs stand in two blocks: the eleven named
-    # ones and the ninety between them.
+    # ones and the ninety between them -- and on a TAIL BLOCK the rungs
+    # outside the two boundary percents are withheld and read through
+    # the tails instead (contract 6.7a, method G5.1a). The oracle reads
+    # its own, so the ladder both merges below are taken over is the
+    # oracle's, exactly as the rest of this comparison is.
     rungs_of = {**first["percentiles"], **first["percentiles_between"]}
-    ladder = [rungs_of[key] for key in oracle.ALL_LADDER_KEYS]
+    block = dict(first)
+    block["_rungs"] = rungs_of
+    ladder = list(oracle.tail_ladder(block))
     total = len(cells)
     strata = first["n_distinct_values"]
     cap = first["mode_count"]
@@ -481,6 +487,20 @@ def test_a_withheld_style_pool_is_not_a_written_grid(
     assert generation._written_grid(column, facts) == -1
 
 
+def _missed_facts(folder: pathlib.Path) -> "list[str]":
+    """Every obligation the twin's quality report names as missed."""
+    found: "list[str]" = []
+    for page in sorted((folder / "check-twin").glob("*.txt")):
+        for line in page.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if ": MISSED" not in stripped or "[" not in stripped:
+                continue
+            fact = stripped.split("[")[1].split("]")[0]
+            if fact not in found:
+                found += [fact]
+    return sorted(found)
+
+
 @pytest.mark.parametrize("rows,every_fact", [(400, False), (4000, True)])
 def test_a_value_moved_off_an_empty_stretch_keeps_the_written_grid(
     tmp_path: pathlib.Path, rows: int, every_fact: bool
@@ -503,14 +523,40 @@ def test_a_value_moved_off_an_empty_stretch_keeps_the_written_grid(
     `widths.published.1` MISSED on all twelve runs.
 
     THE TWO SIZES ASSERT DIFFERENT THINGS, and that is deliberate
-    rather than a weakened gate. At 4,000 rows the repair closes the
-    column outright, so every published fact is asserted and both
-    files validate at exit 0. At 400 rows it closes the WIDTH and the
+    rather than a weakened gate. At 4,000 rows the repair closed the
+    column outright, so every published fact was asserted and both
+    files validated at exit 0. At 400 rows it closes the WIDTH and the
     column still comes back holding 14 of its published 15 different
     numbers -- a shortfall of the separation walk, not of this rule --
     so what is pinned there is the fact this rule owns: no cell is
     written outside the published census. Asserting exit 0 at 400 rows
     would be asserting somebody else's defect away.
+
+    AND THE 4,000-ROW TWIN MISSES ONE OBLIGATION SINCE LANDING 3.3,
+    which is named here rather than asserted away. Its low tail lists
+    three values -- 33.5, 34.0 and 34.5 -- and the counts G5.3e solves
+    for them (1, 33 and 6) are not the sizes the layout divides that
+    band into (1, 26 and 33), so two strata begin inside the run of 33,
+    the rule that no two strata share a number pushes one of them off,
+    and the twin writes 34.2 where the tail names 34.5:
+    `tails.low.values` MISSED. Both other sizes and the real table are
+    unaffected. Giving the second stratum the next listed value instead
+    was measured and moved nothing: the collision is resolved later, by
+    the separation walk, and lands in the same place.
+
+    AND ONE SEED COSTS ONE NUMBER BESIDES, for the repair that keeps a
+    run reaching ACROSS a tail's edge whole (method G5.3e): that run is
+    one stratum where the walk could have divided it, so at seed 1 this
+    twin holds 16 of the 17 different numbers its description publishes
+    and `n_distinct_values` MISSES with the two tails. Seeds 7 and 23
+    hold all 17. The repair is worth that: without it a run the ladder
+    reads across the edge is joined to its neighbours and the tail's own
+    value is written nowhere at all -- KPI K-P4-11's ClinVar column, one
+    of eighteen coding systems, stopped validating clean.
+
+    What is pinned is therefore the exact shape of the cost, seed by
+    seed, and nothing else of the seventy-three obligations this twin is
+    measured against moves.
     """
     cells = _halves_spreadsheet(random.Random(101 + rows), rows)
     for seed in SEEDS:
@@ -526,14 +572,23 @@ def test_a_value_moved_off_an_empty_stretch_keeps_the_written_grid(
         # ...and the real table still meets its own description.
         assert real_exit == 0, (rows, seed, "the real table missed")
         if every_fact:
-            assert twin_exit == 0, (rows, seed, "the twin missed")
+            missed = _missed_facts(tmp_path / f"{rows}-{seed}")
+            assert set(missed) == {
+                "1": {
+                    "numeric.n_distinct_values",
+                    "numeric.tails.high.values",
+                    "numeric.tails.low.values",
+                },
+                "7": {"numeric.tails.low.values"},
+                "23": {"numeric.tails.low.values"},
+            }[seed], (rows, seed, missed)
             assert second["fraction_widths"] == first["fraction_widths"], (
                 rows,
                 seed,
             )
-            assert (
-                second["n_distinct_values"] == first["n_distinct_values"]
-            ), (rows, seed)
+            assert second["n_distinct_values"] == first[
+                "n_distinct_values"
+            ] - (1 if seed == "1" else 0), (rows, seed)
 
 
 def _described(
@@ -748,12 +803,26 @@ def test_a_heavy_tail_window_is_no_longer_vacuous(tmp_path: pathlib.Path) -> Non
     and the twin report and the quality report give the SAME verdict on
     the mean and the spread.
 
-    THE VERDICT IS A MISS, AND THAT IS A NAMED LIMIT RATHER THAN THIS
-    LANDING'S TO REPAIR. The ladder is straight between `p99` and the
-    published maximum, so the construction's own mean and spread lie far
-    above the column's, and neither window covers the published value.
-    Stage 3 replaces the exact extremes with the tail's shape; this test
-    pins that both reports say so rather than one of them staying silent.
+    THE VERDICT WAS A MISS AND IS NOT ONE SINCE LANDING 3.3. The ladder
+    was straight between `p99` and the published maximum, so the
+    construction's own mean and spread lay far above the column's and
+    neither window covered the published value. The tail rule withholds
+    that maximum and states the rows beyond `p99` as a group, and the
+    twin now holds a spread of 13512.15 against a published 13536.83 --
+    two tenths of a per cent -- and misses nothing.
+
+    AND THE WINDOW IS VACUOUS AGAIN, WHICH IS THIS LANDING'S OWN COST
+    AND IS PINNED HERE AS ONE. G12.2 reads the widest stratum a
+    description allows off the ladder's longest run of equal rungs, and
+    a tail's staircase repeats a value wherever the grid runs out of
+    points for its rows -- so the run is longer, the bound is wider,
+    and the spread window reaches from nought to 36562.38 on this
+    column where the cap had lifted its low end above nought. The check
+    is weaker; the twin it is checking is far better. What this test
+    still holds is the half that can fail: the window's high end is a
+    number, the low end is not above the published spread, and the twin
+    report and the quality report give the SAME verdict on both
+    moments.
     """
     draw = random.Random(41)
     cells = ["%.2f" % (1000 * draw.paretovariate(1.5)) for _ in range(4000)]
@@ -775,8 +844,16 @@ def test_a_heavy_tail_window_is_no_longer_vacuous(tmp_path: pathlib.Path) -> Non
                 column, facts, plan, list(twin.columns[0])
             )
         }
-        assert float(own["std"].lowest) > 0.5 * facts.std
+        assert float(own["std"].lowest) <= facts.std
         assert math.isfinite(float(own["std"].highest))
+        # ...and the twin's own spread, which is what the window is
+        # drawn around: within a per cent of the published one.
+        written = [
+            float(cell) for cell in twin.columns[0] if cell != ""
+        ]
+        spread = taxonomy.spread_of(written)
+        assert spread is not None
+        assert abs(spread / facts.std - 1) <= 0.01, spread
         target = fixtures.write(
             tmp_path, f"tail-{seed}.csv", rendering.twin_csv(twin)
         )

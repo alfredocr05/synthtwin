@@ -1565,12 +1565,21 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     # outside it. A hole is no value (`_present_of`), and the validator
     # has read this same twin as AUTHORIZED-DEVIATION at 104 against
     # 106 on both trees; the report's window now agrees with it.
-    assert "n_distinct_values" in named, sorted(named)
+    # AND THE SHORTFALL THAT WAS REAL IS GONE (stage 3, landing 3.3).
+    # The twin held 104 different values against a published 106 and
+    # named `n_distinct_values` as a deviation; the tail rule places the
+    # rows beyond each boundary on their own grid points (method G5.3b)
+    # and the twin now holds all 106, so there is nothing left to name
+    # -- on a column the same walk used to leave two short. What the
+    # test is about is unchanged and is asserted the other way round:
+    # NOTHING is named, the counts are recounted exactly, and the three
+    # distinctness obligations are HELD rather than authorized.
     column = described.columns[0]
     real = len({value for value in values if value != "-999"})
     held = len({cell for cell in twin.columns[0] if cell not in ("", "-999")})
     assert (column.n_distinct, column.n_distinct_folded) == (real, real)
-    assert held < real, (held, real)
+    assert held == real, (held, real)
+    assert named == set(), sorted(named)
     windows = {
         record.fact: record
         for record in twin.approximations
@@ -1579,7 +1588,6 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     for fact in ("n_distinct", "n_distinct_folded"):
         window = windows[fact]
         assert (window.published, window.achieved) == (f"{real}", f"{held}")
-        assert (window.lowest, window.highest) == (f"{held}", f"{real}")
         assert window.inside, fact
         assert fact not in named, (fact, sorted(named))
     twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
@@ -1599,7 +1607,7 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         "distinct.n_distinct_folded",
         "distinct.n_distinct_values",
     ):
-        assert verdicts[subcheck].verdict == validation.AUTHORIZED_DEVIATION
+        assert verdicts[subcheck].verdict == validation.HELD, subcheck
         assert verdicts[subcheck].achieved == f"{held}", subcheck
 
 

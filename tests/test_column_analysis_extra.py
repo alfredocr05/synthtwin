@@ -73,8 +73,19 @@ def test_a_repeating_numeric_column_keeps_its_distribution(
     ages = [str(20 + (index % 21)) for index in range(100)]
     described = describe(ages + [f"refused{n}" for n in range(stragglers)])
     assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["percentiles"]["min"] == 20.0
-    assert described.details["percentiles"]["max"] == 40.0
+    # THE TWO ENDS ARE WITHHELD AND THE VALUES ARE NOT (stage 3,
+    # contract 6.7a). Five rows hold the 20 and five the 40, fewer than
+    # the floor of eleven, so neither end is published as a number of
+    # its own; the column stands on a grid and each tail holds three
+    # different values, so the description LISTS them -- which says the
+    # column runs from 20 to 40 as plainly as the ends did, and says it
+    # of a group rather than of a row.
+    assert described.details["percentiles"]["min"] is None
+    assert described.details["percentiles"]["max"] is None
+    assert described.details["tails"]["low"]["values"] == [20.0, 21.0, 22.0]
+    assert described.details["tails"]["high"]["values"] == [38.0, 39.0, 40.0]
+    assert described.details["percentiles"]["p50"] is not None
+    assert described.details["mean"] is not None
     assert described.details["n_used_in_statistics"] == 100
     assert described.details["n_left_out_of_statistics"] == stragglers
 

@@ -26,6 +26,7 @@ Every table is built by seeded neutral code at runtime (plan D13).
 import dataclasses
 import importlib.util
 import math
+import json
 import pathlib
 import random
 import re
@@ -127,6 +128,20 @@ CARRIED: "dict[tuple[str, int], list[str]]" = {}
 # the four moments.
 _INTERIOR = ("p01", "p05", "p10", "p25", "p50", "p75", "p90", "p95", "p99")
 _MOMENTS = ("mean", "std", "skew", "kurtosis")
+
+
+def _published_rungs(described: pathlib.Path) -> "set[str]":
+    """The named rungs one description publishes, by their own names."""
+    document = json.loads(pathlib.Path(described).read_text(encoding="utf-8"))
+    held: "set[str]" = set()
+    for block in document["columns"]:
+        ladder = block.get("percentiles")
+        if not isinstance(ladder, dict):
+            continue
+        for name in ladder:
+            if ladder[name] is not None:
+                held.add(name)
+    return held
 
 
 def _twin_windows(text: str) -> "dict[str, tuple[str, str]]":
@@ -270,9 +285,13 @@ def test_the_two_reports_print_one_window_and_the_faithful_twin_misses_nothing(
         assert (code == 0) == (carried == []), (name, rows, seed, code)
         assert "OUTSIDE the range" not in twin_report, (name, rows, seed)
         printed = _twin_windows(twin_report)
-        # Every interior rung and every moment has a window in the twin
-        # report: nothing withheld on these shapes.
-        assert set(printed) == set(_INTERIOR) | set(_MOMENTS), (
+        # Every interior rung THE DESCRIPTION PUBLISHES and every moment
+        # has a window in the twin report: nothing withheld on these
+        # shapes beyond the rungs the tail rule itself withholds
+        # (contract TL1, stage 3), which carry no published number and
+        # so no window either.
+        held = _published_rungs(described)
+        assert set(printed) == (set(_INTERIOR) & held) | set(_MOMENTS), (
             name,
             rows,
             seed,
@@ -493,6 +512,14 @@ def test_the_three_writings_read_one_widest_stratum_off_every_view(
                 key = contract.FINER_LADDER_KEYS[index]
                 rungs[int(key[1:])] = facts.percentiles_between[index]
             ladder = [rungs[percent] for percent in range(101)]
+            if facts.tail_rule:
+                # THE LADDER THE CONSTRUCTION READS (method G5.1a, stage
+                # 3): a tail block withholds the rungs outside its two
+                # boundaries and the tail's own reading stands there, so
+                # the cap is read off that ladder in all three writings.
+                shaped = contract.tail_ladder(facts)
+                assert shaped is not None, name
+                ladder = [shaped[percent] for percent in range(101)]
             assert None not in ladder, name
             bound = oracle.stratum_cap(
                 {
@@ -695,7 +722,11 @@ def test_a_withheld_style_share_widens_both_windows_alike(
     described = contract.load_profile(str(tmp_path / "withheld_style-profile.json"))
     twin = generation.generate(described, 2)
     made = {
-        one.fact.split(".")[-1]: (one.lowest, one.highest)
+        (
+            one.fact
+            if one.fact.startswith("tails.")
+            else one.fact.split(".")[-1]
+        ): (one.lowest, one.highest)
         for one in twin.approximations
     }
     measured = validation.measure(
@@ -705,13 +736,18 @@ def test_a_withheld_style_share_widens_both_windows_alike(
     for check in measured.checks:
         found = re.search(r"\(between (\S+) and (\S+)\)$", check.published)
         head = check.subcheck.split(".")[0]
-        if found and head in ("ladder", "moments"):
+        if found and head in ("ladder", "moments", "tails"):
             last = check.subcheck.split(".")[-1]
+            if head == "tails":
+                last = check.subcheck
             assert made[last] == (found.group(1), found.group(2)), check.subcheck
             seen += 1
-    # EIGHT on the pooled column of thirty, where the column of 311 showed
-    # ten or more (plan P4-D222): a short column interpolates fewer rungs.
-    assert seen >= 8, seen
+    # SIX on the pooled column of thirty: the tail rule leaves a
+    # thirty-row column at a floor of eleven one named rung, `p50`
+    # (contract TL1, stage 3), and the two tails' four distances carry
+    # windows of their own (G12.13) -- which both reports print, and
+    # which this walk now compares beside the rungs and the moments.
+    assert seen >= 6, seen
 
 
 # -- the written grid and the nearest giver (landing 2b.1, repair) ----------

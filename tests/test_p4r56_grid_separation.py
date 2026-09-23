@@ -84,6 +84,32 @@ def _described(
     return document, contract.load_profile(str(written))
 
 
+def _pinned_ends(described) -> "tuple[float, float]":
+    """The two ends this walk may never move, wherever they now live.
+
+    A block written before stage 3 publishes them as `percentiles.min`
+    and `percentiles.max`. A block under the TAIL RULE of contract 6.7a
+    (landing 3.3) publishes neither: both of those rungs read the
+    outermost values, so both are withheld, and the two ends the
+    generator pins are instead DERIVED from what the tail group states
+    -- method G5.3b -- and handed to every consumer by
+    `contract.tail_ladder`. The claim of the tests below is unchanged
+    either way: whatever the description settles as the smallest and
+    the largest number of the twin, the separation walk hands it back
+    untouched.
+    """
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return (ladder[0], ladder[len(ladder) - 1])
+    low = facts.percentiles.minimum
+    high = facts.percentiles.maximum
+    assert low is not None and high is not None
+    return (low, high)
+
+
 # The witness the residual was opened on: 240 cells of `NNN.N`, 99
 # different values, integer parts 250 to 348. Two strata land six
 # hundredths apart where the real values near there are more than a
@@ -204,10 +230,12 @@ def test_nothing_published_is_traded_for_the_separation(
 ) -> None:
     """The three things the walk may never move.
 
-    The two pinned ends hold the published smallest and largest and are
-    EXACT; the zero stratum holds a published count of zeros; and no
-    candidate may cross into another sign band, because the counts of
-    negative and positive cells are published too.
+    The two pinned ends are EXACT -- the smallest and the largest number
+    the description settles on, read through `_pinned_ends` because a
+    tail block derives them rather than publishing them; the zero
+    stratum holds a published count of zeros; and no candidate may cross
+    into another sign band, because the counts of negative and positive
+    cells are published too.
     """
     rows = (
         [f"-{4 + step % 7}.{step % 9}" for step in range(60)]
@@ -224,8 +252,7 @@ def test_nothing_published_is_traded_for_the_separation(
     numbers = [float(cell) for cell in cells]
     assert sum(1 for one in numbers if one < 0) == published["n_negative"]
     assert sum(1 for one in numbers if one == 0) == published["n_zero"]
-    assert min(numbers) == published["percentiles"]["min"]
-    assert max(numbers) == published["percentiles"]["max"]
+    assert (min(numbers), max(numbers)) == _pinned_ends(described)
 
 
 def test_a_grid_finer_than_a_double_can_step_is_no_grid_at_all() -> None:
@@ -775,15 +802,13 @@ def test_the_pinned_ends_claim_their_text_before_anything_moves(
     """
     rows = [f"{4 + step % 6}.{step % 9}" for step in range(80)] + ["9.9"] * 8
     random.Random(2).shuffle(rows)
-    document, described = _described(tmp_path, rows, stem="ends")
-    published = document["columns"][0]
+    _document, described = _described(tmp_path, rows, stem="ends")
     cells = [
         cell for cell in generation.generate(described, SEED).columns[0]
         if cell != ""
     ]
     numbers = [float(cell) for cell in cells]
-    assert max(numbers) == published["percentiles"]["max"]
-    assert min(numbers) == published["percentiles"]["min"]
+    assert (min(numbers), max(numbers)) == _pinned_ends(described)
     widest = max(len(row.split(".")[0]) for row in rows)
     assert not [
         cell for cell in cells if len(cell.split(".")[0].lstrip("-")) > widest

@@ -68,7 +68,7 @@ spelling reaches the 3.10 cells while this file says nothing about it.
 The tree holds THIRTEEN such calls. They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a fourteenth cannot arrive unread.
+holds the tree to that list, so a sixteenth cannot arrive unread.
 Every one of them runs a COMMITTED FILE of `tools/`, which the folders
 below already read:
 
@@ -81,8 +81,10 @@ below already read:
   edits -- were re-read with both readings below on 2026-09-21 and
   hold no post-floor spelling.
 - `runpy.run_path` runs the same kind of committed file: twice in
-  `tests/`, in the two stage-2 oracle tests, and nine times in
-  `tools/`.
+  `tests/`, in the two stage-2 oracle tests, and eleven times in
+  `tools/` -- one for the provenance guard's own runner and one for
+  each entry point of the generation vectors, the last two being the
+  tenth and eleventh, which stage 3's tail rule added (landing 3.3).
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -221,6 +223,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tools/reference/make_generation_branch_vectors_5.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_6.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_7.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_8.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_9.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")

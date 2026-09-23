@@ -1130,6 +1130,29 @@ its size. Closing it would reverse A-P3-5 clause 1, which bought the
 weaker question deliberately, and that is an owner decision and not a
 repair.
 
+**V2.4-A11 The COUNT of a column's values is a third published fact
+that decides whether a measurement exists at all, and a ladder rung or
+a tail fact may go quiet beside it MISSING. THIS LOWERS NO OBLIGATION**
+(stage 3, landing 3.3; contract 6.7a, invariants TL1 and TL4). A2
+widened A1's last clause from the role alone to the published facts
+that decide whether the measurement exists; the tail rule adds one of
+exactly that shape. A column's two boundary percents are a function of
+how many values it holds and of the smallest group, and of nothing
+else: a file of a different count describes ITSELF with its ladder and
+its tails at a different percent, so at the percent this description
+names it publishes nothing, and V5.1 then forbids the report to state a
+number there. The run is not silent about the reason:
+`counts.n_used_in_statistics` is a published fact of its own and MISSES
+in the same report, which is the sentence a reader acts on. Measured on
+the every-role fixture with one cell of a column overwritten by `-999`:
+227 values published against 226 read, `counts.n_used_in_statistics`
+MISSED, and `ladder.p05`, `ladder.p95` and that column's four tail
+distances withheld under the disclosure gate while its role stands HELD
+and right. **No check stops being made, no verdict changes and no
+obligation is lowered:** which obligations exist is still a function of
+the description alone, and every silence still stands beside a MISSED
+check of the same column that says why.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds

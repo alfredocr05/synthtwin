@@ -136,7 +136,8 @@ import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import workbooks  # noqa: E402
 from synthtwin import (  # noqa: E402
-    contract, generation, parsing, profile, reading, rendering, taxonomy, validation,
+    contract, errors, generation, parsing, profile, reading, rendering, taxonomy,
+    validation,
 )
 
 kpi_rules.guard_this_tree()
@@ -318,12 +319,30 @@ with tempfile.TemporaryDirectory() as folder:
     blank_tail.write_text("site\n" + "\n".join(["north"] * 30 + ["south"] * 30) + "\n\n\n\n",
                           encoding="utf-8", newline="\n")
     settings = taxonomy.Settings(small_cell_floor=11)
-    documents = [
-        profile.build_document(
-            reading.read_table(str(blank_tail), small_cell_floor=read_at), settings, [], [], []
-        )
-        for read_at in (1, 11)
-    ]
+    # A TABLE READ AT ONE FLOOR AND DESCRIBED AT ANOTHER IS NOW REFUSED
+    # (plan P4-D317, stage 3 landing 3.1), and that refusal is the
+    # measurement here rather than a crash: this driver built both
+    # descriptions to count the facts that move between them, and the
+    # product stopped the one that reads a table at a floor of one and
+    # describes it at eleven -- the blank-line places such a read
+    # publishes are below the describing floor. The residue is recorded
+    # as REFUSED, which is what "unchecked" became.
+    documents = []
+    refused = ""
+    for read_at in (1, 11):
+        try:
+            documents += [
+                profile.build_document(
+                    reading.read_table(str(blank_tail), small_cell_floor=read_at),
+                    settings,
+                    [],
+                    [],
+                    [],
+                )
+            ]
+        except errors.ProfileError as stopped:
+            refused = f"read at {read_at}: {type(stopped).__name__}"
+            break
 
     def leaves(node, path=""):
         """Every published fact of a description, as path -> value."""
@@ -336,22 +355,34 @@ with tempfile.TemporaryDirectory() as folder:
         else:
             yield path, node
 
-    read_at_one = dict(leaves(documents[0]))
-    read_at_eleven = dict(leaves(documents[1]))
+    read_at_one = dict(leaves(documents[0])) if documents else {}
+    read_at_eleven = dict(leaves(documents[1])) if len(documents) > 1 else {}
     differing = sorted(
         key for key in set(read_at_one) | set(read_at_eleven)
         if read_at_one.get(key, "(absent)") != read_at_eleven.get(key, "(absent)")
     )
+    if refused:
+        # The description the two were to be compared through was never
+        # written, so no published fact of it can differ from another.
+        differing = []
     # THE FACTS, NOT THE BOOLEAN (round-2 ledger item 11). This key was
     # int(documents[0] != documents[1]) against a bound of at most 1, so
     # no description this defect could produce would ever fail it. The
     # COUNT of facts that move can rise; the boolean is kept beside it as
     # the report-only indicator it always was.
-    value.update(read_floor_facts_differing=len(differing),
-                 read_floor_unchecked=int(documents[0] != documents[1]))
+    value.update(
+        read_floor_facts_differing=len(differing),
+        read_floor_unchecked=0
+        if refused or len(documents) < 2
+        else int(documents[0] != documents[1]),
+    )
     details.append(
-        f"read floor: described at 11, read at 1 and at 11 differ in {len(differing)} "
-        f"published facts: {differing}"
+        f"read floor: described at 11, {refused} -- no description was written"
+        if refused
+        else (
+            f"read floor: described at 11, read at 1 and at 11 differ in "
+            f"{len(differing)} published facts: {differing}"
+        )
     )
 
     # The Fortran `D` exponent, carried by the changelog's ceiling list

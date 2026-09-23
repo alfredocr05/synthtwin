@@ -633,20 +633,24 @@ def test_the_width_censuses_leave_no_one_to_subtract(
         if "5" in block["field_widths"]:  # type: ignore[operator]
             assert unpadded == 0 or unpadded >= floor, block
         # THE TWIN OF THE CODES WITH ONE `12345` MISSES ITS MEAN, and says
-        # so (measured at the merge of this repair into the integration).
-        # That one far value is the column's maximum: the real mean is
-        # 485.57 and the twin, spreading the top rung's stretch between
-        # 999 and 12345, holds 528.4 to 530.7 on seeds 0 to 7, outside a
-        # window (497.1 to 580.3) that does not reach the published value.
-        # This branch passed it on the window alone; the integration's
-        # V6.1-A2 no longer takes such a window as a pass, and it is right
-        # not to. It is the tail defect of STATE landing 3, not a census
-        # this test is about, so the miss is pinned to the mean alone.
-        if label == "with" and not plus:
-            assert run["twin_exit"] == 3, run["twin_missed"]
-            assert set(run["twin_missed"]) == {"moments.mean"}, run["twin_missed"]
-        else:
-            assert run["twin_exit"] == 0, run["twin_missed"]
+        # THE TWIN OF THE CODES WITH ONE `12345` MISSED ITS MEAN, and
+        # meets it since landing 3.3 (this line was `twin_exit == 3`
+        # with `moments.mean` missed). That one far value is the
+        # column's maximum: the real mean is 485.57 and the twin,
+        # spreading the top rung's stretch between 999 and 12345, held
+        # 528.4 to 530.7 on seeds 0 to 7, outside a window (497.1 to
+        # 580.3) that does not reach the published value. It was the
+        # tail defect of STATE landing 3, not a census this test is
+        # about, and the miss was pinned to the mean alone.
+        #
+        # The tail rule of contract 6.7a closes it at the source: ONE
+        # row holds that maximum, far fewer than the floor asks, so the
+        # rung is not published at all and the twin is told about those
+        # rows as a group -- how many, and how far beyond the boundary
+        # they lie -- instead of being handed a straight run up to a
+        # value it then spread cells along. Every case here now meets
+        # every obligation, on the twin and on the real table alike.
+        assert run["twin_exit"] == 0, run["twin_missed"]
         assert run["real_exit"] == 0, run["real_missed"]
         if label == "with":
             # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of

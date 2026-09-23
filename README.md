@@ -119,10 +119,14 @@ table, and it never contains a value from a column you named with
 `--identifier` or a line of free text -- apart from the text every
 value of such a column opens with, like `REC` or `ABC-`, where enough
 rows share it -- but it does contain the
-smallest and largest values of your numeric and date columns, the points
-in between that describe their shape, and, for each label, the exact
+steps that describe the shape of your numeric and date columns, and,
+for each label, the exact
 spellings your file used for it together with how many rows wrote it
-that way. **By default no label fewer than eleven rows held is named**:
+that way. **Since stage 3 a numeric column's smallest and largest values are
+not among them** (unless at least eleven rows share one): its ladder
+stops short of both ends, and what stands there instead is how many
+rows lie beyond each end and how far from it they lie on average.
+**By default no label fewer than eleven rows held is named**:
 synthtwin pools every group under eleven rows into a count that names
 none of them, so a label rarer than that does not reach your twin by
 name. `--smallest-group` lowers the number -- down to 1, where

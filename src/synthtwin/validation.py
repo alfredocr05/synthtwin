@@ -345,6 +345,9 @@ ENVELOPE_NUMERIC_RUNGS = (
     "two-sided rung envelope"
 )
 ENVELOPE_MOMENTS = "docs/spec/generation-method-v1.md G12.3"
+# THE WINDOW ON A TAIL'S TWO DISTANCES (stage 3, plan P4-D321), drawn from
+# G5.6's rank form over the one ladder the construction reads.
+ENVELOPE_TAILS = "docs/spec/generation-method-v1.md G12.13"
 ENVELOPE_DATETIME_RUNGS = "docs/spec/generation-method-v1.md G12.4"
 ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # The clock role's two, cited and never restated. Both point at the
@@ -486,6 +489,18 @@ INPUT_SIDE_ENTRIES = (
     ("document", "columns"),
     ("document", "source"),
     ("numeric", "n_rows"),
+    # THE PLACE OF EACH TAIL (stage 3, contract 6.7a, TL1 and TL4). The
+    # percent and the rows follow from the count of values and the
+    # smallest group size, and the loader refuses a description whose
+    # own do not: they put nothing on the written file, and a file of
+    # the same count of values re-describes them identically, so a
+    # check here would repeat `counts.n_used_in_statistics` under
+    # another name.
+    ("numeric", "tails"),
+    ("numeric", "tails.low.percent"),
+    ("numeric", "tails.high.percent"),
+    ("numeric", "tails.low.rows"),
+    ("numeric", "tails.high.rows"),
     ("label", "level_ceiling"),
     # THE POOL'S OWN SCALE, on the same terms (contract 6.3.3, plan
     # P4-D302). The container key carries no VALUE obligation -- its
@@ -698,6 +713,31 @@ _NOT_CHECKABLE_MODE = (
     "A file whose "
     "commonest number differs, or whose count of it differs, misses no "
     "obligation this description makes"
+)
+# THE TAIL RULE'S THREE LISTINGS (stage 3, plan P4-D321). A rung the rule
+# withholds is named and never compared: a null against a null cannot
+# fail on a twin of the same size, and a check that cannot fail is the
+# vacuity V3.4 refuses by name.
+_WITHHELD_BY_THE_TAIL_RULE = (
+    "the description withholds this rung by its tail rule: the rung "
+    "would read one of the rows beyond the tail's boundary, and those "
+    "rows are described by the tail's shape -- how many there are and "
+    "how far they lie from the boundary -- and never one by one "
+    "(contract TL1, generation method G5.3b)"
+)
+_NOT_CHECKABLE_BIN_GROUPS = (
+    "the description records how many of the real column's numbers fall "
+    "in each group of bins between its two tails, and the twin follows "
+    "its ladder without being held to that census: the cells are "
+    "allotted to values by the runs of the published ladder, not by the "
+    "groups. A file whose numbers fall in different groups misses no "
+    "obligation this description makes"
+)
+_NOT_CHECKABLE_TAIL_HISTOGRAM = (
+    "a column described by its tails publishes no census of every bin at "
+    "all: the bins divide the stretch between its two boundary rungs and "
+    "the shape is published as groups of them, which is the line beside "
+    "this one. There is nothing here for a file to be held to"
 )
 _NOT_CHECKABLE_HISTOGRAM = (
     "the description records the SHAPE of the real column's numbers -- "
@@ -1077,8 +1117,11 @@ _MET_OUTSIDE_ITS_WINDOW = (
 # missed obligation is printed with what the file was found to hold.
 #
 # So the found value is shown, or the line says why it is not. Below
-# are the two reasons there are, each written as the rule that keeps
-# the value back and what a person can do about it.
+# are the three reasons there are, each written as the rule that keeps
+# the value back and what a person can do about it. The third arrived
+# with stage 3's tail rule (landing 3.3): a published END is checked
+# ONE-SIDED, and the value it is checked against is the file's own
+# smallest or largest -- which may be one row's.
 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE = (
     "      what this file holds here is NOT SHOWN, and this is why: it",
     "      is text written in the file itself, and no text read out of",
@@ -1087,6 +1130,19 @@ _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE = (
     "      does not hold that file. The comparison above was made in",
     "      full and the verdict is its outcome; only the measured side",
     "      is kept back. Open the file itself to read what stands here.",
+)
+
+_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE = (
+    "      the file's own extreme is NOT SHOWN here, and this is why:",
+    "      it is the smallest or largest number the file holds, which",
+    "      may be one row's value, and no such value is printed in this",
+    "      report under any verdict -- which is what lets one report be",
+    "      handed to a person who does not hold that file. What was",
+    "      compared is whether the file reaches past the published end,",
+    "      and the verdict above is that comparison's outcome. To read",
+    "      the file's own extreme, describe the file itself with",
+    "      `synthtwin profile` and read what that description",
+    "      publishes.",
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
@@ -3734,7 +3790,14 @@ def _filled_ladder(
 
     Written from G5.1 and never from the generator, which this module
     may not import (V1.4).
+
+    A TAIL BLOCK'S LADDER IS THE ONE THE DESCRIPTION'S READER BUILDS
+    (method G5.1a, G5.3b to G5.3e): `contract.tail_ladder`, a reading of
+    the published facts both the construction and this module take, so
+    the windows are drawn through the ladder the twin was placed on.
     """
+    if facts.tail_rule:
+        return contract.tail_ladder(facts)
     named: "dict[int, float | None]" = {}
     for index in range(len(contract.LADDER_PERCENTS)):
         named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
@@ -3785,6 +3848,11 @@ def _ladder_read(
     a number between two adjacent rungs. Determinism: a fixed function
     of the three. Raises nothing. No I/O of any kind.
     """
+    # INSIDE A TAIL THE TAIL'S OWN READING RULES (method G5.3b, G5.3e).
+    if isinstance(ladder, contract.ShapedLadder):
+        found = contract.tail_read(ladder, numerator, denominator)
+        if found is not None:
+            return found
     scaled = 100 * numerator
     step = scaled // denominator
     last = len(ladder) - 2
@@ -3852,7 +3920,15 @@ def _stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     filled = _filled_ladder(facts)
     bound = counted
     longest = 0
-    if filled is not None and numbers >= 2:
+    # A MADE-UP LADDER BOUNDS NO STRATUM (stage 3, method G5.3c and
+    # G5.3d): a block publishing only its moments, or nothing at all, is
+    # read through a straight ramp built from those facts, and a ramp
+    # has no plateau because the construction has none. The generator
+    # reads the same rule off the same block.
+    made_up = facts.tail_rule and (
+        facts.tails is None or facts.tails.low is None
+    )
+    if filled is not None and numbers >= 2 and not made_up:
         longest = 1
         run = 1
         for place in range(1, 101):
@@ -10352,6 +10428,33 @@ def _position_styles(
 _LADDER_ENDS = ("ladder.min", "ladder.max")
 
 
+def _is_a_ladder_end(subcheck: str) -> bool:
+    """Whether the ladder walk's check is one of the two ends.
+
+    A HEAPED END CARRIES ITS OWN WORDING (stage 3, contract 6.7a). The
+    tail rule withholds both ends unless a group of rows shares one,
+    and where one is published the walk files it as
+    `ladder.max (heaped end, one-sided)` rather than `ladder.max`. A
+    skip that matched the bare name let that one through, and the
+    position's largest value was then named twice -- beside
+    `ends.number 2 max (heaped, one-sided)` -- which is the very defect
+    the skip exists to prevent. What settles it is the name before the
+    parenthesis, so a further wording for the same rung is skipped too.
+    It is read by SLICING and not by splitting, because the offline
+    audit refuses a method call on a value it cannot trace.
+
+    Guarantees: accepts one subcheck name; answers whether it names an
+    end of a position's ladder. Determinism: a function of the text.
+    Raises nothing. No I/O of any kind.
+    """
+    for end in _LADDER_ENDS:
+        if subcheck == end:
+            return True
+        if subcheck[: len(end) + 2] == f"{end} (":
+            return True
+    return False
+
+
 def _joined_number_checks(
     column: contract.ColumnBlock,
     facts: contract.JoinedFacts,
@@ -10405,7 +10508,7 @@ def _joined_number_checks(
             # `ends.number 1 min` and `number 1 ladder.min` for one
             # published value -- which is the defect this residual is
             # an instance of, made a second time by its own repair.
-            if check.subcheck in _LADDER_ENDS:
+            if _is_a_ladder_end(check.subcheck):
                 continue
             fact = check.fact
             head = "numeric."
@@ -10447,7 +10550,30 @@ def _joined_part_checks(
                 if isinstance(key, str):
                     inner[key] = seen[key]
         rungs = _inner_at(inner, "percentiles") if inner else None
-        for end in ("min", "max"):
+        # A TAIL BLOCK'S ENDS: checked only where published -- a heaped
+        # end -- and then one-sided and silent, the check the plain
+        # numeric role takes (stage 3; the skeptic's B7).
+        if numbers.tail_rule:
+            for index, end in ((0, "min"), (10, "max")):
+                heaped = numbers.percentiles.rungs[index]
+                if heaped is None:
+                    continue
+                found = _heaped_end_check(
+                    name, end, heaped, inner, index == 0
+                )
+                checks += [
+                    Check(
+                        found.column,
+                        f"joined.parts[{place}].{end}",
+                        f"ends.number {place + 1} {end} (heaped, one-sided)",
+                        found.verdict,
+                        found.published,
+                        found.achieved,
+                        found.citation,
+                        found.note,
+                    )
+                ]
+        for end in ("min", "max") if not numbers.tail_rule else ():
             published = numbers.percentiles.rungs[
                 0 if end == "min" else len(numbers.percentiles.rungs) - 1
             ]
@@ -11717,6 +11843,8 @@ def _ladder_checks(
     floor: int,
 ) -> "list[Check]":
     """The eleven rungs: the two ends exact, the nine interior in windows."""
+    if facts.tail_rule:
+        return _tail_block_checks(column, facts, block, floor)
     name = column.name
     measured = _inner_at(block, "percentiles")
     published = facts.percentiles
@@ -11788,6 +11916,374 @@ def _ladder_checks(
             )
         ]
     return checks
+
+
+def _tail_withheld(facts: contract.NumericFacts) -> "list[int]":
+    """The named percents a tail block withholds by its rule (TL1)."""
+    tails = facts.tails
+    withheld: "list[int]" = []
+    for index in range(len(contract.LADDER_PERCENTS)):
+        percent = contract.LADDER_PERCENTS[index]
+        if facts.percentiles.rungs[index] is not None:
+            continue
+        if tails is None or tails.low is None or tails.high is None:
+            withheld += [percent]
+        elif percent < tails.low.percent or percent > tails.high.percent:
+            withheld += [percent]
+    return withheld
+
+
+def _tail_block_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    floor: int,
+) -> "list[Check]":
+    """A tail block's ladder: its published rungs, its ends, its tails.
+
+    THE RUNGS INSIDE THE TWO BOUNDARIES are held to G12.2's window, drawn
+    through the tail ladder. A rung the rule withholds is LISTED
+    (`_numeric_listings`) and never compared. An END IS CHECKED ONLY
+    WHERE IT IS PUBLISHED -- a heaped end, held by at least a tail's own
+    rows -- and then one-sided and silent (`_heaped_end_check`): no cell
+    of the file beyond it, and the file's own extreme never printed. And
+    each tail's two distances are held to G12.13 (`_tail_checks`).
+    """
+    name = column.name
+    measured = _inner_at(block, "percentiles")
+    published = facts.percentiles
+    checks: "list[Check]" = []
+    withheld = _tail_withheld(facts)
+    for index, key in ((0, "min"), (len(_LADDER_KEYS) - 1, "max")):
+        end = published.rungs[index]
+        if end is not None:
+            checks += [
+                _heaped_end_check(name, key, end, block, index == 0)
+            ]
+    ladder = _filled_ladder(facts)
+    if ladder is None:
+        return checks
+    numbers = _numeric_cells(facts)
+    reach = 100 * (_window_stratum(facts, floor) + 2)
+    whole = 100 * numbers
+    half = _half_unit(facts)
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        percent = contract.LADDER_PERCENTS[index]
+        expected = published.rungs[index]
+        if percent in withheld or expected is None:
+            continue
+        key = _LADDER_KEYS[index]
+        found = None if measured is None else _number_at(measured, key)
+        checks += [
+            _within(
+                name,
+                "numeric.percentiles",
+                f"ladder.{key}",
+                _shown_number(expected),
+                found,
+                (
+                    _ladder_read(ladder, max(0, percent * numbers - reach), whole)
+                    - half,
+                    _ladder_read(
+                        ladder, min(whole, percent * numbers + reach), whole
+                    )
+                    + half,
+                ),
+                ENVELOPE_NUMERIC_RUNGS,
+                expected,
+            )
+        ]
+    return checks + _tail_checks(column, facts, block, floor, ladder)
+
+
+def _heaped_end_check(
+    name: str,
+    key: str,
+    end: float,
+    block: "dict[str, object]",
+    low: bool,
+) -> Check:
+    """A published (heaped) end, one-sided and silent (method G5.6a).
+
+    The end is a population value -- a tail's own number of rows or more
+    held it -- so the file is asked whether any of its cells lies BEYOND
+    it, and never shown what its own extreme is: that may be one row's
+    value. Read off the file's own description: its end where that is
+    published, else the outermost value its tail lists, else the bound a
+    tail's root-mean-square distance puts on its extreme (no row set's
+    largest distance is below its root-mean-square), which settles
+    "beyond" where it reaches past the end and cannot clear a file
+    otherwise. None where the file publishes no tail at all.
+    """
+    measured = _inner_at(block, "percentiles")
+    found = None if measured is None else _number_at(measured, key)
+    held: "bool | None" = None
+    if found is not None:
+        held = found >= end if low else found <= end
+    else:
+        side = _file_tail(block, "low" if low else "high")
+        if side is not None:
+            listed = side[3]
+            if listed:
+                outermost = listed[0] if low else listed[len(listed) - 1]
+                held = outermost >= end if low else outermost <= end
+            else:
+                boundary = side[0]
+                if boundary is not None:
+                    reach = side[2]
+                    held = (
+                        boundary - reach >= end if low else boundary + reach <= end
+                    )
+    return _silent(
+        name,
+        f"numeric.percentiles.{key}",
+        f"ladder.{key} (heaped end, one-sided)",
+        _shown_number(end),
+        held,
+        _NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
+    )
+
+
+def _file_tail(
+    block: "dict[str, object]", side: str
+) -> "tuple[float | None, float, float, tuple[float, ...], int] | None":
+    """One side of the file's own tail: boundary, mean and root-mean-square
+    distance, listed values and percent -- or None where it publishes none."""
+    if "tails" not in block:
+        return None
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return None
+    found = tails[side]
+    if not isinstance(found, dict):
+        return None
+    percent = found["percent"] if "percent" in found else None
+    mean = found["mean_distance"] if "mean_distance" in found else None
+    root = found["rms_distance"] if "rms_distance" in found else None
+    listed = found["values"] if "values" in found else None
+    if (
+        isinstance(percent, bool)
+        or not isinstance(percent, int)
+        or not isinstance(mean, (int, float))
+        or not isinstance(root, (int, float))
+        or not isinstance(listed, list)
+    ):
+        return None
+    values: "list[float]" = []
+    for entry in listed:
+        if isinstance(entry, (int, float)) and not isinstance(entry, bool):
+            values += [float(entry)]
+    return (
+        _file_rung(block, percent),
+        float(mean),
+        float(root),
+        tuple(values),
+        percent,
+    )
+
+
+def _file_rung(block: "dict[str, object]", percent: int) -> "float | None":
+    """The file's own rung at one percent, from either half of its ladder."""
+    for index in range(len(contract.LADDER_PERCENTS)):
+        if contract.LADDER_PERCENTS[index] == percent:
+            named = _inner_at(block, "percentiles")
+            return None if named is None else _number_at(named, _LADDER_KEYS[index])
+    finer = _inner_at(block, "percentiles_between")
+    if finer is None:
+        return None
+    return _number_at(finer, f"p{percent:02d}")
+
+
+def _tail_window(
+    facts: contract.NumericFacts,
+    floor: int,
+    ladder: "tuple[float, ...]",
+    side: contract.TailSide,
+    low: bool,
+) -> "tuple[tuple[float, float], tuple[float, float]]":
+    """G12.13: the windows a file's two distances of one tail stand in.
+
+    With `K` the numbers, `g` the widest stratum both reports read and
+    `d = (g + 2) / K`, every cell at rank `i` lies in
+    `[Ladder(i/(K-1) - d) - half, Ladder(i/(K-1) + d) + half]` (G5.6's
+    rank form, read through the tail ladder), and the file's own
+    boundary rung, a type-7 reading at `h = (K - 1) P / 100`, lies
+    between the lower end at rank `floor(h)` and the upper end at rank
+    `ceil(h)`. Each tail row's distance from that boundary is therefore
+    at least the gap between the nearer two ends, held at nought, and at
+    most the gap between the further two; the mean distance lies between
+    the means of those, and the root-mean-square between the roots of
+    the means of their squares.
+    """
+    count = _numeric_cells(facts)
+    widest = _window_stratum(facts, floor)
+    half = _half_unit(facts)
+    denominator = count * (count - 1) if count > 1 else 1
+    span = (widest + 2) * (count - 1)
+
+    lows: "dict[int, float]" = {}
+    highs: "dict[int, float]" = {}
+    steps = (count - 1) * side.percent
+    lower = steps // 100
+    upper = -((-steps) // 100)
+    if low:
+        ranks = list(range(upper))
+    else:
+        ranks = list(range(lower + 1, count))
+    for rank in ranks + [lower, upper]:
+        middle = rank * count
+        lows[rank] = (
+            _ladder_read(ladder, max(0, middle - span), denominator) - half
+        )
+        highs[rank] = (
+            _ladder_read(ladder, min(denominator, middle + span), denominator)
+            + half
+        )
+    near: "list[float]" = []
+    far: "list[float]" = []
+    for rank in ranks:
+        if low:
+            near += [max(0.0, lows[lower] - highs[rank])]
+            far += [max(0.0, highs[upper] - lows[rank])]
+        else:
+            near += [max(0.0, lows[rank] - highs[upper])]
+            far += [max(0.0, highs[rank] - lows[lower])]
+    rows = max(1, len(ranks))
+    return (
+        (_window_mean(near, rows), _window_mean(far, rows)),
+        (_window_root(near, rows), _window_root(far, rows)),
+    )
+
+
+def _window_mean(distances: "list[float]", rows: int) -> float:
+    """The mean of one window's distances, without leaving the format.
+
+    EACH DISTANCE IS DIVIDED BEFORE ANYTHING IS ADDED. A column reaching
+    across the binary64 range has window ends whose difference is an
+    infinity, and a running total of such distances overflows where
+    their mean does not -- `math.fsum` raises `OverflowError` on the
+    intermediate sum, out of `synthtwin validate` (the skeptic's break
+    4). An infinity here is carried and the caller lists the fact
+    rather than checking it.
+    """
+    return math.fsum([distance / rows for distance in distances])
+
+
+def _window_root(distances: "list[float]", rows: int) -> float:
+    """The root-mean-square of one window's distances, scaled first.
+
+    The square of a distance near the top of the range has nowhere to
+    go, so every distance is divided by the largest of them before it
+    is squared and the root is scaled back afterwards -- the same care
+    `taxonomy._moments` takes with a column's own spread.
+    """
+    largest = 0.0
+    for distance in distances:
+        largest = max(largest, abs(distance))
+    if not largest > 0.0 or not math.isfinite(largest):
+        return largest
+    scaled = math.fsum(
+        [(distance / largest) * (distance / largest) / rows
+         for distance in distances]
+    )
+    return largest * math.sqrt(scaled)
+
+
+def _tail_checks(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    block: "dict[str, object]",
+    floor: int,
+    ladder: "tuple[float, ...]",
+) -> "list[Check]":
+    """Each tail's two distances, and a listed tail's values (G12.13).
+
+    READ AT THE PUBLISHED PERCENT. The percent and the rows follow from
+    the count of values (contract TL1, TL4), so a file of the same count
+    re-describes its tail at the same percent, and its distances are
+    compared there; a file whose own tail stands elsewhere has no
+    distance at the published percent in its description, and the check
+    is withheld. HELD where the file's number equals the published one
+    (V6.1-A1), otherwise inside G12.13's window. A LISTED tail's values
+    are exact: the file's tail lists the same values, or -- where the
+    list is short enough that the file would list its own -- misses.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return []
+    checks: "list[Check]" = []
+    for name, side, low in (
+        ("low", tails.low, True),
+        ("high", tails.high, False),
+    ):
+        found = _file_tail(block, name)
+        if found is not None and found[4] != side.percent:
+            found = None
+        mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
+        # A WINDOW WHOSE OWN ENDS ARE NOT NUMBERS IS A CENSUS LINE AND
+        # NOT A CHECK (the shape G12.3's moments already take). A column
+        # reaching across the binary64 range has such a window, and a
+        # comparison against it would admit every file there is.
+        if not _finite_window(mean_window) or not _finite_window(root_window):
+            continue
+        for key, published, measured, window in (
+            (
+                "mean_distance",
+                side.mean_distance,
+                None if found is None else found[1],
+                mean_window,
+            ),
+            (
+                "rms_distance",
+                side.rms_distance,
+                None if found is None else found[2],
+                root_window,
+            ),
+        ):
+            checks += [
+                _within(
+                    column.name,
+                    f"numeric.tails.{name}.{key}",
+                    f"tails.{name}.{key}",
+                    _shown_number(published),
+                    measured,
+                    window,
+                    ENVELOPE_TAILS,
+                    published,
+                )
+            ]
+        if side.values:
+            wanted = _shown_values(side.values)
+            listed: "str | None" = None
+            if found is not None:
+                if found[3]:
+                    listed = _shown_values(found[3])
+                elif len(side.values) <= taxonomy.TAIL_VALUES_MOST:
+                    listed = "values the description does not list"
+            checks += [
+                _exact(
+                    column.name,
+                    f"numeric.tails.{name}.values",
+                    f"tails.{name}.values",
+                    wanted,
+                    listed,
+                )
+            ]
+    return checks
+
+
+def _finite_window(window: "tuple[float, float]") -> bool:
+    """Whether both ends of a window are numbers this format holds."""
+    return math.isfinite(window[0]) and math.isfinite(window[1])
+
+
+def _shown_values(values: "tuple[float, ...]") -> str:
+    """A listed tail's values, as the report prints them."""
+    shown = ""
+    for value in values:
+        text = _shown_number(value)
+        shown = text if not shown else f"{shown}, {text}"
+    return shown
 
 
 def _rung_end(
@@ -17791,7 +18287,40 @@ def _numeric_listings(
     and listed by another (review item P4-G6-R4-F1).
     """
     listings: list[Listing] = []
-    if facts.value_histogram:
+    # THE TAIL RULE'S LISTINGS (stage 3): each rung it withholds, the
+    # place of the two tails, and the histogram's groups.
+    if facts.tail_rule:
+        for index in range(len(contract.LADDER_PERCENTS)):
+            if contract.LADDER_PERCENTS[index] in _tail_withheld(facts):
+                key = _LADDER_KEYS[index]
+                listings += [
+                    Listing(
+                        column.name,
+                        # A WITHHELD RUNG NAMES THE FIELD ITS CHECK
+                        # WOULD HAVE NAMED. The two ends are registered
+                        # as fields of their own -- `percentiles.min`
+                        # and `percentiles.max` -- and the ninety-nine
+                        # between them under `percentiles` itself, so
+                        # withholding an end is the same obligation
+                        # going quiet rather than another one appearing,
+                        # and no subcheck binds two registry facts
+                        # (contract 9, entry table V3.1).
+                        f"numeric.percentiles.{key}"
+                        if key in ("min", "max")
+                        else "numeric.percentiles",
+                        f"ladder.{key}",
+                        _WITHHELD_BY_THE_TAIL_RULE,
+                    )
+                ]
+        listings += [
+            Listing(
+                column.name,
+                "numeric.bin_groups",
+                "",
+                _NOT_CHECKABLE_BIN_GROUPS,
+            )
+        ]
+    if facts.value_histogram or facts.tail_rule:
         # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
         # published fact that appears in no check and no listing is
         # one a reader cannot tell was never measured, which is the
@@ -17801,7 +18330,9 @@ def _numeric_listings(
                 column.name,
                 "numeric.value_histogram",
                 "",
-                _NOT_CHECKABLE_HISTOGRAM,
+                _NOT_CHECKABLE_TAIL_HISTOGRAM
+                if facts.tail_rule
+                else _NOT_CHECKABLE_HISTOGRAM,
             )
         ]
     # AND THE COUNT OF DIFFERENT NUMBERS DOES NOT HANG OFF THE

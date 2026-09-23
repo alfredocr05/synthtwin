@@ -3881,6 +3881,15 @@ largest. They are the two rungs the generator pins by fixed rule, and
 they are EXACT-OBSERVABLE while the nine interior rungs are
 APPROXIMATED (section 9).
 
+**L2 IS READ ON A BLOCK WITHOUT `tails` AND ON A HEAPED END** (stage 3,
+section 6.7a). On a block that carries `tails` the two ends are
+published only where at least max(`small_cell_floor`, 3) rows held the
+value -- a HEAPED end, a value of a group -- and they are then the
+smallest and the largest exactly as here, checked ONE-SIDED: no cell of
+a file beyond them. Where they are withheld they carry no obligation at
+all and the tail facts of 6.7a carry what the description says about
+those rows.
+
 **Invariant L3 (null rungs).** A `percentiles` rung may be `null`, and
 means the exact rung is not a finite binary64 value. No producible
 profile is known to reach this — every interpolated rung lies between
@@ -3892,6 +3901,15 @@ place is fixed by `docs/spec/generation-method-v1.md` G5.1**, so a null
 rung is one rule and not two: the loader accepts it here, the method
 says what is written for it there, and neither document leaves it to an
 implementation. `date_percentiles` rungs are never null.
+
+**A NULL RUNG OUTSIDE A TAIL'S BOUNDARY MEANS SOMETHING ELSE** (stage
+3, section 6.7a). On a block carrying `tails`, a rung outside
+`[tails.low.percent, tails.high.percent]` is null BY RULE -- the rung
+would read one of the outermost rows, and those rows are described by
+the tail facts and never one by one (TL1) -- and the value written in
+its place is the tail reading of
+`docs/spec/generation-method-v1.md` G5.3b rather than G5.1's fill. A
+null rung INSIDE the two boundaries keeps the meaning above.
 
 ---
 
@@ -5714,6 +5732,68 @@ roles — this format has no optional keys — and every key not listed
 here or in section 5.1 is FORBIDDEN on them (section 6.11). A `count`
 block carries thirty-two keys: these and `number_spellings`, which is
 that role's alone and forbidden on `continuous` (section 7.13).
+
+### 6.7a The tail rule: `tails` and `bin_groups` (stage 3)
+
+**A block carries these two keys or neither, and that is this format's
+one exception to "no optional keys."** A block written before stage 3
+carries neither and is read exactly as it always was, so every
+description already written still loads and its twin does not move. A
+block that carries `tails` carries `bin_groups` too, is a TAIL BLOCK,
+and is read by the rules below. Nothing else about the block's key set
+changes.
+
+| key | JSON type | range | meaning | disposition |
+|---|---|---|---|---|
+| `tails` | object or `null` | TL1 to TL6 | `null` on a block of fewer values than a tail's own rows; otherwise `low` and `high`, each `null` where only the moments are published, and otherwise an object naming the boundary percent, the rows beyond it, and how far from it they lie | the leaves below carry the classes |
+| `tails.low.percent`, `tails.high.percent` | whole number | 1 to 99 | the percent the published ladder stops at on that side | LOADER-ONLY: it follows from the count of values and the smallest group size, and the loader holds the description to it |
+| `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
+| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0 | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
+| `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0 | TL5 | the root-mean-square of the same distances, computed exactly and rounded once | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
+| `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block whose values stand on a grid, the tail's own different values, ascending, WITHOUT how many rows hold each; `[]` elsewhere | EXACT-OBSERVABLE: a file's own tail at that percent lists the same values |
+| `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
+
+**Why the two ends are not published.** A `min` or a `max` is one row's
+value wherever one row holds it, and the rungs beside them read the
+next rows in. The rule withholds every rung whose type-7 reading
+touches one of the outermost max(`small_cell_floor`, 3) values, on each
+side, and publishes instead what those rows look like as a GROUP: how
+many there are, how far from the last published rung they lie on
+average, and the root-mean-square of that distance. Measured over
+sixteen shapes at a floor of eleven, the numbers a description
+published that equalled a value fewer than eleven rows held went from
+13 to 46 per shape to none.
+
+| id | statement | loader? |
+|---|---|---|
+| TL1 | with `tails` published and both sides objects, every rung outside `[low.percent, high.percent]` is `null` except an end at least max(`small_cell_floor`, 3) rows held, the two boundary rungs hold numbers, `1 <= low.percent <= 50 <= high.percent <= 99`, and each percent is the smallest whole percent whose type-7 reading leaves at least max(`small_cell_floor`, 3) values strictly outside it | yes |
+| TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
+| TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
+| TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
+| TL5 | `mean_distance` and `rms_distance` are numbers of nought or more, and the mean is no larger than the root-mean-square | yes |
+| TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
+| BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
+
+**The tail facts are computed exactly** (`docs/spec/generation-method-v1.md`
+G5.3b states what reads them): every value and the boundary rung as
+whole numbers of one shared power of two, the two sums exact, and each
+result rounded to binary64 once -- the mean as a quotient and the
+root-mean-square by the exact integer square root, with the tie rule
+of the quotient.
+
+**A LISTED TAIL, and the owner's ruling it rests on** (2026-09-22). On
+a block whose values stand on a grid -- `integer_valued`, or one
+published fraction width -- a tail of few different values is published
+BY THOSE VALUES, without how many rows hold each. The owner ruled it
+for bounded scales: "we don't need to be worried about the tails ...
+many people will be there and there is no big deal in knowing that it's
+there." Without it the smooth reading of G5.3b rounded onto such a grid
+wrote values the scale does not have -- 11 on a pain score of 0 to 10 --
+and never wrote the scale's own end. A tail is also listed where its
+rows, its two distances, its boundary, the grid and the sign counts
+would otherwise leave one answer for its end (plan P4-D324): the
+description would then name that end in all but name, and naming it
+outright at least says so.
 
 **THE NUMERAL WAS STALE AGAIN, AND IS CORRECTED AGAIN** (landing 2b.18
 part 2). It read "twenty-six" while `contract.NUMERIC_KEYS` held
@@ -7884,9 +7964,10 @@ shape from the values would claim a date (`2023-02-12` is three whole
 numbers joined by `-`), a clock time (`09:30` is two joined by `:`),
 and — past any rule order that could save those two — a laboratory code
 (`1923-1`) and a drug code (`00052-0052-52`), which are CODES.
-Claiming those would publish the smallest and largest of their parts,
-which are fragments of real codes. So the full reading of this section
-is the person's to ask for, with `--measurement`.
+Claiming those would describe each of their parts as a quantity --
+publishing its ladder, its two groups of outer rows and any end enough
+rows share, all of them fragments of real codes. So the full reading of
+this section is the person's to ask for, with `--measurement`.
 
 **The one shape read without the declaration** is rule 12 of section
 5.2's order, tested last before `free_text`, so it claims only a column
@@ -10652,15 +10733,15 @@ as those keys' own published meanings have them.
 | Q1 | the per-column `n_rows` equals the document's `n_rows`; the key appears ONLY on `count`, `continuous` and `affixed_number`, and is forbidden on every other role | yes |
 | Q2 | `n_used_in_statistics == n_numeric`, and `n_left_out_of_statistics == n_present - n_numeric` | yes |
 | Q3 | `n_numeric >= 1` | yes |
-| Q4 | `std` is `null` exactly when `n_used_in_statistics < 2` or `std_unrepresentable` is true; the two are different facts, so a reader never guesses which a `null` is | yes |
-| Q5 | `skew` is `null` when `n_used_in_statistics < 3`, and when every parsed value is identical; it is a number otherwise | yes |
+| Q4 | `std` is `null` exactly when `n_used_in_statistics < 2` or `std_unrepresentable` is true; the two are different facts, so a reader never guesses which a `null` is. On a tail block below its own floor (TL2) every moment is `null` and this row is not asked | yes |
+| Q5 | `skew` is `null` when `n_used_in_statistics < 3`, and when every parsed value is identical; it is a number otherwise. On a tail block below its own floor (TL2) it is `null` and this row is not asked | yes |
 | Q6 | where every parsed value is identical and `n_used_in_statistics >= 2`, `std` is `0.0` and `std_unrepresentable` is false | yes |
 | Q7 | where every parsed value is identical the exact mean is that value and this format holds it, so a `null` there is refused; `mean` is `null` only when the exact mean is not a finite binary64 value, and that general clause refuses no document, a loader holding no values to recompute a mean from | yes, in the identical-value direction |
 | Q8 | the twin's integer rule is routed by the published `integer_valued`, never by whether the role name is `count`; a `continuous` column may publish `integer_valued: true` and its twin cells are whole numbers | reading — it binds the consumer, and no document is refused for it |
 | Q9 | `numeric_share == (n_numeric + n_out_of_range + n_contradictory) / n_present`, a share of the present cells, and `0.0` where `n_present` is 0 — which Q3 forbids on these roles | yes |
 | Q10 | `n_negative_unrepresentable <= n_out_of_range` and `n_negative_unrepresentable <= n_negative` | yes |
 | Q11 | `n_zero <= n_numeric` | yes |
-| Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)` | yes |
+| Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)`. On a tail block below its own floor (TL2) it is `null` and this row is not asked | yes |
 | Q17 | `n_distinct_values <= n_numeric`, and `n_distinct_values >= 1` wherever `n_used_in_statistics > 0` | yes |
 | Q18 | `mode` is `null` exactly when `mode_count` is 0, and where `mode` is a number `2 <= mode_count <= n_numeric` | yes |
 | Q19 | `percentiles_between` names exactly the ninety percents `percentiles` does not, each a number or `null`, and the hundred and one rungs of the named ladder and this one in percent order, `null`s passed over, never go down | yes |
@@ -10672,6 +10753,13 @@ reading NOT identical, so a `null` `skew` at `n_used_in_statistics >=
 3` is refused there as on any column whose endpoints differ. It is the
 only route to these three rows from a parsed document, and a reader who
 supplied a different test would refuse different files.
+
+**ON A TAIL BLOCK THE TEST IS `std == 0.0`** (stage 3, section 6.7a).
+The two ends are usually withheld there, so "identical" cannot be read
+off them; the spread is nought exactly where every value the statistics
+used is one value, and `std_unrepresentable` false beside it. A block
+below its own floor publishes no spread and none of these three rows is
+asked of it.
 
 #### GS1 — `group_separator`, on every numeric block
 
@@ -11060,6 +11148,9 @@ reproduces the recorded spellings there as on any other column.
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | EXACT-OBSERVABLE |
 | `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
+| `tails` | LOADER-ONLY: the container carries no obligation of its own, each leaf below it is disposed on its own line, and invariants TL1 to TL6 are what the loader holds the block to |
+| `tails.low.mean_distance`, `tails.low.rms_distance`, `tails.high.mean_distance`, `tails.high.rms_distance` | APPROXIMATED, inside the window `docs/spec/generation-method-v1.md` G12.13 draws from G5.6's rank form over the tail ladder, and HELD where the file's own number equals the published one, as `docs/spec/validation-method-v1.md` has it for every approximated fact. The file's tail is read AT THE PUBLISHED PERCENT; where the file's own tail stands elsewhere the comparison is withheld rather than made at another percent |
+| `tails.low.values`, `tails.high.values` | EXACT-OBSERVABLE: the generator writes a listed tail on those values and on no others, each at least once (G5.3e), so a file's own tail at that percent lists the same values. Empty on every tail the rule does not list, where there is nothing to check |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
 | `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: FEWER than max(2, `small_cell_floor`) point-free cells of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — may be anything but the figures their own values write, which is the same line the producer draws between `"canonical"` and `"respelled"` (plan P4-D140), so that the real table still meets its own description where one of its keys is respelled, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
@@ -11069,6 +11160,8 @@ reproduces the recorded spellings there as on any other column.
 | `field_widths` | REPORT-ONLY, and 7.10 carries the measurement the class was chosen on. Unlike `pad_widths`, a named width here is a fact about the VALUE and not only about the spelling — an unpadded cell is exactly as wide as its value — so it can be met only by the value-construction stage, and that stage places values by the ladder. `docs/spec/generation-method-v1.md` G6.6 takes the census as a constraint on the figure count of each stratum's value, within the half unit G5.4's integer rule already spends; where a width has no such value to reach it, the twin's report names the shortfall with the count it reached and `synthtwin validate` LISTS the census rather than holding the file to it |
 | `empty_bins` | REPORT-ONLY, and 7.11 carries the measurement the class was chosen on. The value stage READS it — `docs/spec/generation-method-v1.md` G6.7 moves any stratum that landed in a named stretch to the nearer of the two values `empty_edges` names for that stretch, and no further past it than one bin — and on the two-cluster columns it was built against that took the cells landing in a named stretch from 4–6 of 300 to none at forty seeds of forty. It is not exact because a column whose other published facts leave no room beside a stretch cannot always be moved out of it: 119 of 1600 runs over forty described columns still wrote one such cell, and each is named in the twin's own report while `synthtwin validate` LISTS the fact rather than holding the file to it |
 | `empty_edges` | REPORT-ONLY, and 7.11a carries the measurement. It is the fact the value stage actually walks from: `empty_bins` names bins, and a bin is a thirty-second of the column's reach, so the empty bins lie strictly INSIDE the stretch the source really leaves empty and a cell moved to a bin edge was still in the source's own gap. The pairs name the two real values each stretch lies between. Measured over three two-cluster witnesses at forty seeds each: cells inside a source's own gap fell from one per column per seed, 15.7–23.0 units from a real value, to NONE — 0 of 12,000 on each. It is REPORT-ONLY for the same reason `empty_bins` is, and the shortfall it can still have is the one the bins carry at residual R-P4-140 |
+| `tails.low.percent`, `tails.high.percent`, `tails.low.rows`, `tails.high.rows` | LOADER-ONLY, and section 6.7a carries the reason: each follows from `n_used_in_statistics` and the smallest group size alone, TL1 and TL4 hold the description to both, and a file of the same count of values re-describes them identically -- so a check here would repeat `n_used_in_statistics` under another name. `synthtwin validate` LISTS them |
+| `bin_groups` | REPORT-ONLY, for the reason `value_histogram` is: the twin's cells are allotted to values by the runs of the published ladder and not by a census of bins, so meeting a group's count exactly would mean the allotment following the census. It is what makes a histogram survive a raised floor at all -- the all-or-nothing census vanishes on every non-uniform shape at a floor of eleven and these groups do not |
 | `n_rows` (echo) | LOADER-ONLY |
 
 A mutant that collapses the nine interior rungs onto the endpoints
@@ -11125,11 +11218,16 @@ now a bare delegation.
 | `percentiles.min`, `percentiles.max` | as on `count` and `continuous` above |
 | `percentiles` interior rungs | as on `count` and `continuous` above |
 | `mean`, `std`, `skew` | as on `count` and `continuous` above |
+| `tails` | as on `count` and `continuous` above |
+| `tails.low.mean_distance`, `tails.low.rms_distance`, `tails.high.mean_distance`, `tails.high.rms_distance` | as on `count` and `continuous` above |
+| `tails.low.values`, `tails.high.values` | as on `count` and `continuous` above |
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | as on `count` and `continuous` above |
 | `integer_valued` | as on `count` and `continuous` above |
 | `numeric_styles`, `fraction_widths`, `pad_widths` | as on `count` and `continuous` above |
 | `field_widths` | as on `count` and `continuous` above |
 | `empty_bins`, `empty_edges` | as on `count` and `continuous` above |
+| `tails.low.percent`, `tails.high.percent`, `tails.low.rows`, `tails.high.rows` | as on `count` and `continuous` above |
+| `bin_groups` | as on `count` and `continuous` above |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above |
 | `wide_runs` | as on `count` and `continuous` above |
 | `n_rows` (echo) | as on `count` and `continuous` above |
@@ -11824,8 +11922,9 @@ version 5 document reads "version 5":
 > value that fewer rows share can be named; without the --identifier
 > you gave, a column of record numbers is described like any other
 > column; without the --code you gave, a column of codes is described
-> as measurements, so its smallest and largest values — which are real
-> codes — are published and its twin loses any leading zeros; without
+> as measurements, so its values are described by a ladder and by the
+> two groups beyond it, and an end a group of rows shares — which is a
+> real code — is published; its twin loses any leading zeros; without
 > the --measurement you gave, a column of readings written as two
 > numbers in one cell, such as a blood pressure, is described as text
 > and its twin holds no readings at all; without the --decimal-comma

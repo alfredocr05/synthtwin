@@ -102,28 +102,36 @@ MISSED_CEILING = BATTERY["expected"]["above_counts_missed"]
 PAIRS = BATTERY["value_at"]["value"]["pairs"]
 
 # THE PIN THIS FILE KEEPS, and the three columns it is taken over.
-# Measured on the tree of this commit, one column at a time, forty seeds
-# each (`(pairs, outside, missed)` per column, 94.6 s for all twelve):
+# RE-MEASURED AT STAGE 3, LANDING 3.3 (the numeric tail), one column at
+# a time, forty seeds each (`(pairs, outside, missed)` per column,
+# 120.6 s for all twelve on a loaded machine):
 #
-#     0: 120  14  1     4: 120  40  0     8: 120  39  0
-#     1: 240  40  0     5: 240  38  0     9: 240 117  0
-#     2: 120  40  0     6: 120  37  0    10: 120  33  0
-#     3: 240  51  0     7: 240  97  0    11: 240  63  2
+#     0: 120  14  0     4: 120  40  0     8: 120  37  0
+#     1: 240  42  0     5: 240  42  1     9: 240  60  1
+#     2: 120  40  0     6: 120  38  0    10: 120  30  0
+#     3: 240  40  0     7: 240 117  3    11: 240  67  0
 #
-# Columns 0, 9 and 11 are the pin: 0 is a three-position column and 9
-# and 11 are four-position ones, they hold ALL THREE of the battery's
-# missed above-counts (1 in column 0, 2 in column 11), and 9 and 11 are
-# the two columns G6.5a's push moved (9 from 110 and 6 to 117 and 0, 11
-# from 68 and 0 to 63 and 2). Withdrawing that push therefore turns this
-# pin red on the missed count -- 6 in column 9 against its ceiling of 0
-# -- which is the regression the whole battery reports as 7 missed.
-# 24.6 s of the battery's 94.6.
+# The tail rule moved every one of them: the rows beyond each position's
+# two boundary rungs are described by two moments now, so a pair's
+# agreement is measured against a ladder that no longer runs to the
+# published extremes. The whole battery's own driver reads 556 outside
+# and ONE missed above-count against the 609 and 3 it read before, and
+# the ledger records those; the twelve columns walked ONE AT A TIME sum
+# to 567 and 5, as they summed to 612 against 609 before this landing --
+# the battery's walk is not the twelve walks added up, which is a
+# property of the driver and not of this landing.
+#
+# Columns 0, 9 and 11 are still the pin: 0 is a three-position column
+# and 9 and 11 are four-position ones, and column 9 holds the one missed
+# above-count the ledger's own driver counts. What the pin caught before
+# it still catches: with `_pushed_apart` returning its arguments
+# unchanged the same column goes red.
 PINNED_COLUMNS = (0, 9, 11)
 PINNED_CEILINGS = {
     # column: (pairs, agreements outside the window, above-counts missed)
-    0: (120, 14, 1),
-    9: (240, 117, 0),
-    11: (240, 63, 2),
+    0: (120, 14, 0),
+    9: (240, 60, 1),
+    11: (240, 67, 0),
 }
 
 # Battery column 9 and the seed its witness is taken at.
@@ -324,7 +332,7 @@ def test_the_pin_is_derived_from_the_whole_batterys_ceiling() -> None:
         "the pin no longer holds every above-count the battery misses: "
         f"{PINNED_CEILINGS} against K-P4-06's {MISSED_CEILING}"
     )
-    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 609, 3), (
+    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 556, 1), (
         "K-P4-06's ceiling moved; re-derive the pin above, then this line"
     )
 

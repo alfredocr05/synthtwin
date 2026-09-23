@@ -13,6 +13,7 @@ value here comes from any real table.
 """
 
 import collections
+import math
 import pathlib
 import random
 
@@ -39,6 +40,22 @@ def _absorbed_notation_cells() -> "list[str]":
     return cells + ["-12.25"]
 
 
+def _boundary_rung(block: "dict", percent: int) -> float:
+    """The rung one of a tail block's two boundary percents names.
+
+    The eleven-rung ladder where the percent is one of its own and the
+    finer ladder otherwise, which is where the tail rule's boundary
+    usually lands (contract 6.7a).
+    """
+    names = {
+        1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+        75: "p75", 90: "p90", 95: "p95", 99: "p99",
+    }
+    if percent in names:
+        return block["percentiles"][names[percent]]
+    return block["percentiles_between"][f"p{percent:02d}"]
+
+
 @pytest.mark.parametrize("seed", ["4", "1", "2", "3"])
 def test_an_absorbed_notation_leaves_the_twin_every_number(
     tmp_path: pathlib.Path, seed: str
@@ -54,6 +71,19 @@ def test_an_absorbed_notation_leaves_the_twin_every_number(
     The twin wrote 400 different spellings of 399 different numbers and
     `validate` MISSED `distinct.n_distinct_values` on it while the real
     table passed.
+
+    THE TAIL RULE MOVED WHERE THOSE STRATA LAND (stage 3, landing 3.3).
+    The eleven bracketed cells and the lone `-12.25` are the twelve rows
+    beyond the low boundary, so the stretch of empty bins now REACHES
+    bin 0 and no `empty_edges` pair is published for it: its lower
+    neighbour would be a tail value (contract 7.11a as amended), and
+    G6.7a walks such a stretch to its own BIN edges instead. The four
+    strata the stretch holds therefore stop at the first bin the
+    description says holds somebody, on the four hundredths above that
+    bin's lower edge, instead of reaching the grid's own 100.00 -- and
+    the twin writes 384 of the grid's 388 points beside them. The count
+    this test was built for is untouched: 400 numbers, 400 spellings,
+    none of them led by a nought.
     """
     block, written, twin_exit, real_exit = _round_trip(
         tmp_path / "absorbed", _absorbed_notation_cells(),
@@ -67,13 +97,46 @@ def test_an_absorbed_notation_leaves_the_twin_every_number(
     assert len(numbers) == 400, [n for n, k in numbers.items() if k > 1]
     # ...and not one number is written a second way to make up the count.
     assert not [cell for cell in written if cell[:1] == "0"], written
-    # The positive band takes every point of its grid, in order.
+    # The positive band holds one number per positive cell, each on the
+    # column's own hundredth, and none of them in a stretch the
+    # description says is empty.
     positive = sorted(
         value for value in numbers if value is not None and value > 0
     )
-    assert positive == [
-        float(f"{100 + index * 0.01:.2f}") for index in range(388)
-    ]
+    assert len(positive) == 388
+    assert [value for value in positive if value != round(value, 2)] == []
+    tails = block["tails"]
+    low = _boundary_rung(block, tails["low"]["percent"])
+    high = _boundary_rung(block, tails["high"]["percent"])
+    assert block["empty_edges"] == []
+    assert [
+        value
+        for value in positive
+        if parsing.scale_bin(value, low, high) in block["empty_bins"]
+    ] == []
+    # The four strata that stretch pushed up stand on the four
+    # hundredths above the first held bin's lower edge (G6.7a), and
+    # every other value is a point of the source's own grid.
+    edge = low + (high - low) * (
+        max(block["empty_bins"]) + 1
+    ) / parsing.HISTOGRAM_BINS
+    pushed = [(math.ceil(edge * 100) + step) / 100 for step in range(4)]
+    assert [value for value in positive if value < 100.0] == pushed
+    grid = {float(f"{100 + index * 0.01:.2f}") for index in range(388)}
+    # ...AND THE DERIVED HIGH END, which is off the source's grid by
+    # construction and not by accident (stage 3, method G5.3b). The
+    # column's largest value is held by ONE row, so the tail rule
+    # publishes no maximum at all and the twin's top cell is derived
+    # from what the high tail states -- moved OUTWARD from the boundary
+    # and placed on the column's own hundredths, which is a hundredth
+    # the source never wrote. It is the only value above the grid, it
+    # is a hundredth, and it stands above every point of the grid: a
+    # cell inside the source's range would be a value of the table, and
+    # that is what this landing stops publishing.
+    top = max(positive)
+    assert sorted(set(positive) - grid) == pushed + [top]
+    assert top == round(top, 2)
+    assert top > max(grid)
     assert twin_exit == 0
     assert real_exit == 0
 
@@ -162,14 +225,31 @@ def _point_free_tenths_cells() -> "list[str]":
     Every tenth of the range is written at least once, so the published
     ends hold exactly the column's thirty-four numbers; 0 is written once,
     1 twelve times and 2 once, fourteen point-free cells.
+
+    THE TWO TAILS ARE LISTED ONES, and that is what changed for stage 3
+    (landing 3.3). The twelve smallest rows hold `-0.5` and `-0.4` and
+    the twelve largest hold `2.6`, `2.7` and `2.8`, so both tails are
+    few-valued on this column's tenth grid and the description publishes
+    the values themselves (contract 6.7a): the ends of the twin are the
+    ends of the column, and the thirty-four points between them are the
+    thirty-four numbers, which is the standing this witness needs. The
+    column that was written here before carried `2.8` once and `-0.2`
+    eleven times; its twelve largest rows then held NINE different
+    values, no high end was published, the derived end reached 3.0 and
+    the grid it left had thirty-six points for thirty-four numbers --
+    room enough for the ordinary walks to answer, so the fill under test
+    stopped being the one statement that does. The six cells the change
+    needed came off `-0.2`, which is neither a tail nor point-free, so
+    the census this test reads is the same: fourteen plain and
+    eighty-eight decimal of one hundred and two.
     """
     counts = {
-        "-0.5": 1, "-0.4": 14, "-0.3": 11, "-0.2": 11, "-0.1": 1,
+        "-0.5": 1, "-0.4": 14, "-0.3": 11, "-0.2": 5, "-0.1": 1,
         "0": 1, "0.1": 1, "0.2": 1, "0.3": 1, "0.4": 1, "0.5": 1,
         "0.6": 1, "0.7": 1, "0.8": 8, "0.9": 1, "1": 12, "1.1": 1,
         "1.2": 1, "1.3": 1, "1.4": 1, "1.5": 4, "1.6": 12, "1.7": 1,
         "1.8": 1, "1.9": 1, "2": 1, "2.1": 1, "2.2": 1, "2.3": 1,
-        "2.4": 1, "2.5": 1, "2.6": 1, "2.7": 4, "2.8": 1,
+        "2.4": 1, "2.5": 1, "2.6": 1, "2.7": 4, "2.8": 7,
     }
     return [text for text in counts for _copy in range(counts[text])]
 
@@ -193,6 +273,8 @@ def test_the_column_wide_fill_holds_a_point_free_grid_alone(
     assert block["numeric_styles"] == {
         "plain": 1 + 12 + 1, "decimal": 102 - 14,
     }
+    assert block["tails"]["low"]["values"] == [-0.5, -0.4]
+    assert block["tails"]["high"]["values"] == [2.6, 2.7, 2.8]
     numbers = collections.Counter(parsing.parse_number(cell) for cell in written)
     assert sorted(numbers) == [(index - 5) / 10 for index in range(34)]
     assert twin_exit == 0
@@ -207,7 +289,8 @@ def test_the_column_wide_fill_is_what_holds_it(
     Before this test existed the fill could be withdrawn with every test
     and every committed byte unchanged. Withdrawn here, the twin holds
     thirty-three numbers against thirty-four, and validate names it while
-    the real table passes -- measured at seeds 4, 7, 1 and 0 alike.
+    the real table passes -- measured at seeds 4, 7, 1 and 0 alike,
+    before stage 3 and again on the listed-tail witness above.
     """
     monkeypatch.setattr(generation, "_saturated_integers", lambda *arguments: None)
     _block, written, twin_exit, real_exit = _round_trip(

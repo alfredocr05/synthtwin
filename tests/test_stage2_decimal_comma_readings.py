@@ -60,9 +60,14 @@ def test_a2_twin_report_counts_labels_as_labels(tmp_path):
     mean = [a for a in twin.approximations if a.fact == "mean"]
     # Re-pinned at landing 2b.1's stratum cap, which holds no value in
     # more cells than the published mode_count and so moves this mean
-    # from 3101.313 to 3046.82675. What the test is about is unchanged:
-    # the labels beside these numbers are not counted as numbers.
-    assert mean and abs(float(mean[0].achieved) - 3046.82675) < 1e-6
+    # from 3101.313 to 3046.82675, and again at landing 3.3's tail rule,
+    # which describes the rows beyond each boundary as a group and
+    # places them from what that group states -- 3053.92, nearer the
+    # published 3091.75 than either. What the test is about is
+    # unchanged: the labels beside these numbers are not counted as
+    # numbers, and the average the report names is the average of the
+    # NUMBERS.
+    assert mean and abs(float(mean[0].achieved) - 3053.92) < 1e-6
     assert mean[0].inside
 
 

@@ -791,6 +791,14 @@ _BIN = "histogram-bin-number"
 # nobody. Filing both under one word would hide the ONE fact in this
 # document the floor does not reach.
 _EMPTY_BIN = "histogram-bin-number-holding-nothing"
+# THE TWO KINDS THE TAIL RULE ADDS (stage 3, plan P4-D321), neither of
+# them a count of rows and so neither held to the floor: the boundary
+# percent of a tail, a whole number from 1 to 99 that follows from the
+# row count and the floor alone (contract L4), and a bin's number where
+# a group of bins begins or ends (contract BG1). A counts gate that
+# floored them would read "bin 3" as a group of three.
+_TAIL_PERCENT = "tail-boundary-percent"
+_BIN_INDEX = "histogram-bin-number-of-a-group"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -1300,6 +1308,36 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "empty_edges"): _ARRAY,
     ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH): _ARRAY,
     ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
+    # THE TAIL FACTS (stage 3, plan P4-D321, contract L4 and T1 to T4):
+    # null below the block floor, two nulls where only the moments are
+    # published, otherwise per side the boundary percent, the rows
+    # beyond it, their mean and root-mean-square distance from it, and on
+    # a listed grid tail its values.
+    ("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,
+    ("columns", _EACH, "parts", _EACH, "tails", "low"): _MAYBE_OBJECT,
+    ("columns", _EACH, "parts", _EACH, "tails", "high"): _MAYBE_OBJECT,
+    **{
+        ("columns", _EACH, "parts", _EACH, "tails", side, leaf): kind
+        for side in ("low", "high")
+        for leaf, kind in (
+            ("percent", _TAIL_PERCENT),
+            ("rows", _FLOOR_COUNT),
+            ("mean_distance", _NUMBER),
+            ("rms_distance", _NUMBER),
+            ("values", _ARRAY),
+        )
+    },
+    **{
+        ("columns", _EACH, "parts", _EACH, "tails", side, "values", _EACH): _NUMBER
+        for side in ("low", "high")
+    },
+    # ...and the histogram of a tail block, in groups of at least the
+    # floor between the two boundary rungs (contract BG1).
+    ("columns", _EACH, "parts", _EACH, "bin_groups"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "first"): _BIN_INDEX,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "last"): _BIN_INDEX,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "count"): _FLOOR_COUNT,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -1415,6 +1453,36 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "empty_edges"): _ARRAY,
     ("columns", _EACH, "empty_edges", _EACH): _ARRAY,
     ("columns", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
+    # THE TAIL FACTS (stage 3, plan P4-D321, contract L4 and T1 to T4):
+    # null below the block floor, two nulls where only the moments are
+    # published, otherwise per side the boundary percent, the rows
+    # beyond it, their mean and root-mean-square distance from it, and on
+    # a listed grid tail its values.
+    ("columns", _EACH, "tails"): _MAYBE_OBJECT,
+    ("columns", _EACH, "tails", "low"): _MAYBE_OBJECT,
+    ("columns", _EACH, "tails", "high"): _MAYBE_OBJECT,
+    **{
+        ("columns", _EACH, "tails", side, leaf): kind
+        for side in ("low", "high")
+        for leaf, kind in (
+            ("percent", _TAIL_PERCENT),
+            ("rows", _FLOOR_COUNT),
+            ("mean_distance", _NUMBER),
+            ("rms_distance", _NUMBER),
+            ("values", _ARRAY),
+        )
+    },
+    **{
+        ("columns", _EACH, "tails", side, "values", _EACH): _NUMBER
+        for side in ("low", "high")
+    },
+    # ...and the histogram of a tail block, in groups of at least the
+    # floor between the two boundary rungs (contract BG1).
+    ("columns", _EACH, "bin_groups"): _ARRAY,
+    ("columns", _EACH, "bin_groups", _EACH): _OBJECT,
+    ("columns", _EACH, "bin_groups", _EACH, "first"): _BIN_INDEX,
+    ("columns", _EACH, "bin_groups", _EACH, "last"): _BIN_INDEX,
+    ("columns", _EACH, "bin_groups", _EACH, "count"): _FLOOR_COUNT,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -2322,6 +2390,14 @@ def _leaf_is_published(
         if value != "0" and value[:1] == "0":
             return False
         return 0 <= int(value) < parsing.HISTOGRAM_BINS
+    if kind == _BIN_INDEX:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < parsing.HISTOGRAM_BINS
+    if kind == _TAIL_PERCENT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value <= 99
     if kind == _EMPTY_BIN:
         # A BIN NUMBER, WRITTEN AS A NUMBER AND NOT AS A KEY. It stands
         # in a list rather than at the key of a mapping, so the

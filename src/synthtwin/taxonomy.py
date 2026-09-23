@@ -9959,6 +9959,514 @@ def _wide_runs(cells: _Cells, styles: "dict[str, int]") -> str:
     return parsing.WIDE_CANONICAL
 
 
+# -- THE TAIL RULE (stage 3, plans P4-D321 to P4-D327) -------------------
+#
+# A numeric block used to publish its exact smallest and largest values,
+# and every rung whose type-7 reading touched them: at the default floor
+# of eleven that was 13 to 46 published numbers per shape equal to a
+# value fewer than eleven rows held. The outer cells on each side are now
+# described by their SHAPE -- how many rows, how far from the boundary
+# rung on average, and the root-mean-square of that distance -- and the
+# rungs that would read them are withheld (contract L4, method G5.3b).
+
+# HOW MANY DIFFERENT VALUES A GRID TAIL MAY HOLD AND STILL BE PUBLISHED
+# BY THEM (owner 2026-09-22: on a bounded scale "many people will be there
+# and there is no big deal in knowing that it's there"). A tail of a
+# pain score, a Likert item, a surgical risk grade or an age in whole
+# years holds
+# a handful of values each held by several rows, and G5.3b's smooth shape
+# rounded onto such a grid wrote values the scale does not have (11 on a
+# pain score of 0 to 10) and never wrote its real end. Set by
+# measurement, plan P4-D324.
+TAIL_VALUES_MOST = 6
+
+# ...AND THE TAIL IS ALSO LISTED WHERE THE DESCRIPTION WOULD OTHERWISE
+# SOLVE FOR ITS END. On a grid every distance is `c + k u` with `c` fixed
+# by the published boundary, so `rows * mean_distance` and
+# `rows * rms_distance ** 2` give the sum of the `k` and of their squares
+# exactly; where only one largest `k` fits those sums, the withheld end
+# is published in all but name (the skeptic's back-solve, plan P4-D324).
+# The check is an exact search over whole parts, bounded here: past these
+# sizes the tail spans too many units for one answer to fit, and the
+# search is not run.
+TAIL_LATTICE_REACH = 24
+TAIL_LATTICE_WORK = 400000
+
+
+def _rung_name(percent: int) -> "tuple[str, str]":
+    """Which published key holds the rung at ``percent``: block and name."""
+    for label, num, den in LADDER:
+        if num * 100 == percent * den:
+            return "percentiles", label
+    return "percentiles_between", f"p{percent:02d}"
+
+
+def _tail_positions(
+    count: int, percent: int, side: str
+) -> "tuple[int, int]":
+    """The first and last sorted position of one tail's rows.
+
+    Low: every position below `h = (count - 1) percent / 100`, so the
+    rows `0 .. ceil(h) - 1`. High: every position above `h`, so the rows
+    `floor(h) + 1 .. count - 1`. A rung at `h` reads positions
+    `floor(h)` and `ceil(h)`, and neither is a tail row.
+    """
+    steps = (count - 1) * percent
+    if side == "low":
+        return 0, -((-steps) // 100) - 1
+    return steps // 100 + 1, count - 1
+
+
+def _tail_distances(
+    ordered: "list[float]", first: int, last: int, boundary: float, side: str
+) -> "tuple[float, float] | None":
+    """The mean and the root-mean-square distance of one tail's rows.
+
+    Every distance `a = boundary - x` (low) or `x - boundary` (high) is
+    computed EXACTLY: each value and the boundary are whole numbers of one
+    shared power of two, the two sums are whole numbers, and each result
+    is rounded to binary64 once -- the mean by `_rounded_ratio` and the
+    root-mean-square by `_rounded_root`, the exact integer square root
+    with the tie rule of the quotient beside it. `math.fsum` would be
+    exact for a sum of floats, and a squared distance is not one. None
+    where either result is larger than binary64 can hold, which only a
+    column reaching across the whole range can be.
+    """
+    rows = last - first + 1
+    sign = 1 if side == "high" else -1
+    parts = [_parts(boundary)] + [
+        _parts(ordered[place]) for place in range(first, last + 1)
+    ]
+    smallest = min([exponent for _digits, exponent in parts])
+    scaled = [digits << (exponent - smallest) for digits, exponent in parts]
+    anchor = scaled[0]
+    total = 0
+    squares = 0
+    for value in scaled[1:]:
+        distance = sign * (value - anchor)
+        total = total + distance
+        squares = squares + distance * distance
+    base = smallest - SIGNIFICAND_BITS
+    top, bottom = _over_two(total, rows, base)
+    square_top, square_bottom = _over_two(squares, rows, base + base)
+    largest = LARGEST_FINITE_SIGNIFICAND << LARGEST_FINITE_EXPONENT
+    if top > largest * bottom or _root_beyond_binary64(
+        square_top, square_bottom
+    ):
+        return None
+    mean = _rounded_ratio(top, bottom)
+    root = _rounded_root(square_top, square_bottom)
+    return (
+        0.0 if mean == 0.0 else mean,
+        0.0 if root == 0.0 else root,
+    )
+
+
+def _tail_grid(details: "dict[str, object]", count: int) -> int:
+    """The published grid of a block, in figures after the point, or -1.
+
+    `0` where `integer_valued` is published true; the one width a
+    `fraction_widths` census names where it and the NAMED point-free
+    style counts cover every numeric cell (G5.2a's written grid); -1
+    otherwise. Read off the published facts, because the question it
+    answers is what a READER of the description can take the column's
+    values to stand on.
+    """
+    if details["integer_valued"] is True:
+        return 0
+    census = details["fraction_widths"]
+    styles = details["numeric_styles"]
+    if not isinstance(census, dict) or not isinstance(styles, dict):
+        return -1
+    if len(census) != 1:
+        return -1
+    point_free = 0
+    for style in (
+        parsing.STYLE_PLAIN,
+        parsing.STYLE_LEADING_ZERO,
+        parsing.STYLE_LEADING_PLUS,
+    ):
+        if style in styles:
+            point_free = point_free + styles[style]
+    for figures in census:
+        if not parsing.is_digit_text(figures) or int(figures) <= 0:
+            return -1
+        if census[figures] + point_free != count:
+            return -1
+        return int(figures)
+    return -1
+
+
+def _grid_scaled(value: float, figures: int) -> "tuple[int, int] | None":
+    """``value`` times `10 ** figures`, exactly, as a pair of whole numbers.
+
+    None where the value is not finite or too large for a grid count to be
+    exact: past `2 ** 40` grid units a binary64 cannot tell two grid
+    points apart reliably, and no bounded scale reaches there.
+    """
+    if not math.isfinite(value):
+        return None
+    scale = 1
+    for _step in range(figures):
+        scale = scale * 10
+    digits, exponent = _parts(value)
+    top, bottom = _over_two(digits * scale, 1, exponent - SIGNIFICAND_BITS)
+    if abs(top) >= bottom * (1 << 40):
+        return None
+    return top, bottom
+
+
+def _grid_step(value: float, figures: int) -> "int | None":
+    """``value`` as a whole number of grid units, or None off the grid."""
+    scaled = _grid_scaled(value, figures)
+    if scaled is None:
+        return None
+    top, bottom = scaled
+    whole, rest = divmod(top, bottom)
+    if rest + rest > bottom:
+        whole = whole + 1
+    if abs(top - whole * bottom) * 1024 > bottom:
+        return None
+    return whole
+
+
+def _grid_home(boundary: float, figures: int, side: str) -> "int | None":
+    """The grid point at or inside a boundary rung, in grid units.
+
+    At or below it for the low tail and at or above it for the high one:
+    every tail value lies at or beyond it, so each tail distance is the
+    boundary's own offset from it plus a whole number of units.
+    """
+    scaled = _grid_scaled(boundary, figures)
+    if scaled is None:
+        return None
+    top, bottom = scaled
+    below = top // bottom
+    if side == "low" or below * bottom == top:
+        return below
+    return below + 1
+
+
+def _lattice_pins(parts: "list[int]", rows: int, cap: int) -> bool:
+    """Whether a tail's sums leave one largest part (plan P4-D324).
+
+    ``parts`` are the tail's distances in whole grid units past the grid
+    point at or inside the boundary, ``rows`` how many there are, and
+    ``cap`` the largest part the sign counts allow (negative for none).
+    The published facts give the count and the two sums exactly; this
+    asks whether some OTHER set of at most ``rows`` whole parts of one or
+    more, each at most ``cap``, has the same two sums and a different
+    largest part. Where none has, the description names the tail's end.
+
+    The search keeps, for each count of parts and each sum, the set of
+    sums of squares reachable (a whole number used as a set of bits),
+    taking parts one size at a time from one upward. It is bounded by
+    `TAIL_LATTICE_REACH` and `TAIL_LATTICE_WORK`; past either the tail
+    spans too many units for one answer to fit and False is returned.
+
+    Guarantees: accepts whole parts of nought or more, a row count and a
+    cap; returns a truth value. Determinism: a fixed function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    total = 0
+    squares = 0
+    for part in parts:
+        total = total + part
+        squares = squares + part * part
+    if total == 0:
+        return False
+    reach = min(_root_of(squares), total)
+    if cap >= 0:
+        reach = min(reach, cap)
+    counted = min(rows, total)
+    if reach > TAIL_LATTICE_REACH or reach * counted * total > TAIL_LATTICE_WORK:
+        return False
+    table = [[0] * (total + 1) for _count in range(counted + 1)]
+    table[0][0] = 1
+    ends = 0
+    for size in range(1, reach + 1):
+        square = size * size
+        for used in range(1, counted + 1):
+            before = table[used - 1]
+            after = table[used]
+            for sum_so_far in range(size, total + 1):
+                if before[sum_so_far - size]:
+                    after[sum_so_far] = after[sum_so_far] | (
+                        before[sum_so_far - size] << square
+                    )
+        rest = total - size
+        left = squares - square
+        if rest < 0 or left < 0:
+            continue
+        for used in range(counted):
+            if (table[used][rest] >> left) & 1:
+                ends = ends + 1
+                break
+        if ends > 1:
+            return False
+    return ends == 1
+
+
+def _listed_tail(
+    ordered: "list[float]",
+    first: int,
+    last: int,
+    boundary: float,
+    side: str,
+    figures: int,
+    no_negative: bool,
+    no_positive: bool,
+) -> "list[float]":
+    """The tail's own values, where the tail is published by them (G5.3e).
+
+    Only on a block with a published grid (``figures`` of nought or
+    more). The tail is LISTED where it holds at most `TAIL_VALUES_MOST`
+    different values, or where its rows, its two distances, its boundary,
+    the grid and the sign counts would solve for its end
+    (`_lattice_pins`). The list is the tail's different values in
+    ascending order and carries no count; the empty list says the tail
+    is described by its shape alone.
+    """
+    if figures < 0:
+        return []
+    seen: "list[float]" = []
+    for place in range(first, last + 1):
+        if not seen or ordered[place] != seen[len(seen) - 1]:
+            seen += [ordered[place]]
+    if len(seen) <= TAIL_VALUES_MOST:
+        return seen
+    # THE GRID POINT AT OR INSIDE THE BOUNDARY: the parts are counted
+    # from it, so a boundary between two grid points adds the same
+    # offset to every distance and nothing to the question.
+    home = _grid_home(boundary, figures, side)
+    steps: "list[int]" = []
+    for place in range(first, last + 1):
+        found = _grid_step(ordered[place], figures)
+        if home is None or found is None:
+            return []
+        steps += [found]
+    if home is None:
+        return []
+    if side == "low":
+        parts = [home - step for step in steps]
+        cap = home if no_negative else -1
+    else:
+        parts = [step - home for step in steps]
+        cap = -home if no_positive else -1
+    if min(parts) < 0:
+        return []
+    if _lattice_pins(parts, last - first + 1, cap):
+        return seen
+    return []
+
+
+def _tail_bins(
+    interior: "list[float]", lowest: float, highest: float, units: int
+) -> "tuple[list[dict[str, int]], list[int], list[list[float]]]":
+    """The histogram of a tail block, between its two boundary rungs.
+
+    Thirty-two equal bins over `[lowest, highest]` by contract C6-31f's
+    arithmetic, counting the interior rows only -- every one of which
+    lies on the scale, since the first interior row is at or above the
+    low boundary rung and the last at or below the high one. Returns:
+
+    - the GROUPS, left to right, each closing once it holds ``units``
+      rows, a short last group joining the one before, as
+      `{"first": bin, "last": bin, "count": rows}`; none where the
+      interior holds fewer than ``units`` rows;
+    - the bins holding no interior row, at any floor (plan P4-D32's
+      reasoning, unchanged); the end bins may be among them now;
+    - the real edges of each run of empty bins with an occupied bin on
+      BOTH sides -- two interior values (plan P4-D325). A run touching an
+      end bin has a tail value for a neighbour, and that is withheld.
+
+    Nothing where the scale has no width.
+    """
+    if not interior or not highest > lowest:
+        return [], [], []
+    reach = highest - lowest
+    if not math.isfinite(reach):
+        return [], [], []
+    counts = [0] * parsing.HISTOGRAM_BINS
+    for value in interior:
+        place = parsing.histogram_bin(value, lowest, highest)
+        counts[place] = counts[place] + 1
+    groups: "list[dict[str, int]]" = []
+    start = 0
+    held = 0
+    for place in range(parsing.HISTOGRAM_BINS):
+        held = held + counts[place]
+        if held >= units:
+            groups += [{"first": start, "last": place, "count": held}]
+            start = place + 1
+            held = 0
+    if held > 0 or start < parsing.HISTOGRAM_BINS:
+        if groups:
+            closing = groups[len(groups) - 1]
+            groups = groups[: len(groups) - 1] + [
+                {
+                    "first": closing["first"],
+                    "last": parsing.HISTOGRAM_BINS - 1,
+                    "count": closing["count"] + held,
+                }
+            ]
+    empty = [
+        place for place in range(parsing.HISTOGRAM_BINS) if counts[place] == 0
+    ]
+    edges: "list[list[float]]" = []
+    for run in _bin_runs(empty):
+        if run[0] == 0 or run[1] == parsing.HISTOGRAM_BINS - 1:
+            continue
+        below = None
+        above = None
+        for value in interior:
+            place = parsing.histogram_bin(value, lowest, highest)
+            if place < run[0]:
+                below = value
+            if place > run[1] and above is None:
+                above = value
+        if below is None or above is None or not above > below:
+            continue
+        edges += [[below, above]]
+    return groups, empty, edges
+
+
+def _withheld_ladder(details: "dict[str, object]") -> "dict[str, object]":
+    """Every rung of a block null, both halves."""
+    withheld = dict(details)
+    withheld["percentiles"] = {name: None for name in LADDER_NAMES}
+    withheld["percentiles_between"] = {
+        name: None for name in FINER_LADDER_NAMES
+    }
+    withheld["value_histogram"] = {}
+    withheld["empty_bins"] = []
+    withheld["empty_edges"] = []
+    withheld["bin_groups"] = []
+    return withheld
+
+
+def _numeric_tails(
+    cells: _Cells, details: "dict[str, object]"
+) -> "dict[str, object]":
+    """A numeric block under the tail rule (contract L4, method G5.3b).
+
+    THE BLOCK POPULATION FLOOR FIRST. With `units = tail_units(floor)`
+    and `n` the values the statistics used:
+
+    - `n` below `units`: no rung, no moment, no histogram, `tails: null`
+      -- the block holds a group smaller than the floor, and every
+      distribution fact of it would describe that group;
+    - `n` below `2 units + 1`: the four moments and nothing else, every
+      rung null, `tails: {"low": null, "high": null}` -- no rung clears
+      both tails at once;
+    - otherwise each side's boundary is `tail_percent(n, units)`, every
+      rung outside the two is null except an end held by `units` rows
+      or more (a HEAPED end, a population value and published exactly),
+      and each side publishes its percent, its rows, the rows' mean and
+      root-mean-square distance from the boundary rung, and, on a grid
+      where the tail holds few values or its facts would solve for its
+      end, the tail's own values (`_listed_tail`).
+
+    The histogram moves onto the scale between the two boundary rungs
+    (`_tail_bins`), and `value_histogram` is `{}` on every tail block.
+    """
+    ordered = sorted(cells.numbers)
+    count = len(ordered)
+    units = parsing.tail_units(cells.settings.small_cell_floor)
+    shaped = dict(details)
+    shaped["bin_groups"] = []
+    if count == 0:
+        shaped["tails"] = None
+        return shaped
+    if count < units:
+        withheld = _withheld_ladder(shaped)
+        for key in ("mean", "std", "skew", "kurtosis"):
+            withheld[key] = None
+        withheld["std_unrepresentable"] = False
+        withheld["tails"] = None
+        return withheld
+    percent = parsing.tail_percent(count, units)
+    moments_only = _withheld_ladder(shaped)
+    moments_only["tails"] = {"low": None, "high": None}
+    if percent is None:
+        return moments_only
+    high_percent = 100 - percent
+    ladder = details["percentiles"]
+    finer = details["percentiles_between"]
+    if not isinstance(ladder, dict) or not isinstance(finer, dict):
+        return moments_only
+    found: "dict[int, float]" = {}
+    for side_percent in (percent, high_percent):
+        where, name = _rung_name(side_percent)
+        value = ladder[name] if where == "percentiles" else finer[name]
+        if not isinstance(value, float):
+            return moments_only
+        found[side_percent] = value
+    low_first, low_last = _tail_positions(count, percent, "low")
+    high_first, high_last = _tail_positions(count, high_percent, "high")
+    low = _tail_distances(ordered, low_first, low_last, found[percent], "low")
+    high = _tail_distances(
+        ordered, high_first, high_last, found[high_percent], "high"
+    )
+    if low is None or high is None:
+        return moments_only
+    heaped_low = len([v for v in ordered if v == ordered[0]]) >= units
+    heaped_high = len([v for v in ordered if v == ordered[count - 1]]) >= units
+    rungs: "dict[str, float | None]" = {}
+    for label, num, den in LADDER:
+        held = ladder[label]
+        at = (100 * num) // den
+        if at < percent and not (at == 0 and heaped_low):
+            held = None
+        if at > high_percent and not (at == 100 and heaped_high):
+            held = None
+        rungs[label] = held
+    between: "dict[str, float | None]" = {}
+    for label, num, den in FINER_LADDER:
+        at = (100 * num) // den
+        between[label] = (
+            None if at < percent or at > high_percent else finer[label]
+        )
+    figures = _tail_grid(details, count)
+    no_negative = cells.n_negative == 0
+    no_positive = len([v for v in ordered if v > 0.0]) == 0
+    sides: "dict[str, object]" = {}
+    for side, first, last, side_percent, distances in (
+        ("low", low_first, low_last, percent, low),
+        ("high", high_first, high_last, high_percent, high),
+    ):
+        sides[side] = {
+            "percent": side_percent,
+            "rows": last - first + 1,
+            "mean_distance": distances[0],
+            "rms_distance": distances[1],
+            "values": _listed_tail(
+                ordered,
+                first,
+                last,
+                found[side_percent],
+                side,
+                figures,
+                no_negative,
+                no_positive,
+            ),
+        }
+    groups, empty, edges = _tail_bins(
+        ordered[low_last + 1 : high_first],
+        found[percent],
+        found[high_percent],
+        units,
+    )
+    shaped["percentiles"] = rungs
+    shaped["percentiles_between"] = between
+    shaped["value_histogram"] = {}
+    shaped["empty_bins"] = empty
+    shaped["empty_edges"] = edges
+    shaped["bin_groups"] = groups
+    shaped["tails"] = sides
+    return shaped
+
+
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
     numbers = cells.numbers
@@ -10104,7 +10612,10 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     moments = _moments(numbers)
     for key in sorted(moments):
         details[key] = moments[key]
-    return details
+    # AND UNDER THE TAIL RULE (stage 3, plan P4-D321): the outer rows on
+    # each side are described by their shape, and the rungs that would
+    # read them are withheld.
+    return _numeric_tails(cells, details)
 
 
 def _offset_counts(

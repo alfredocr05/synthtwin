@@ -29,6 +29,7 @@ import tempfile
 
 import fixtures
 import pytest
+import tail_rule
 
 from synthtwin import (
     contract,
@@ -156,16 +157,33 @@ def test_declared_it_reads_each_number_separately() -> None:
 
 
 def test_each_position_publishes_its_own_range() -> None:
-    """The first number's ladder is a ladder of first numbers."""
+    """The first number's ladder is a ladder of first numbers.
+
+    A POSITION IS DESCRIBED UNDER THE TAIL RULE LIKE ANY OTHER COLUMN
+    OF NUMBERS (contract 6.7a, landing 3.3): the two end rungs used to
+    carry that position's smallest and largest reading and now carry
+    nothing, because too few rows hold either of them. What the
+    description states about those rows instead is the GROUP beyond
+    each boundary, and that group is worked out here from the
+    position's own numbers by `tests/tail_rule.py` -- which is the same
+    claim said of more rows: a ladder of first numbers, not of second
+    ones, and not of whole cells.
+    """
     values = _readings()
     document, _folder = _described(values)
     block = document["columns"][0]
     for place in range(2):
-        real = [_part(cell, place) for cell in values]
-        rungs = block["parts"][place]["percentiles"]
-        assert rungs["min"] == min(real)
-        assert rungs["max"] == max(real)
-        assert abs(block["parts"][place]["mean"] - statistics.fmean(real)) < 0.5
+        real = [float(_part(cell, place)) for cell in values]
+        part = block["parts"][place]
+        assert part["percentiles"]["min"] is None
+        assert part["percentiles"]["max"] is None
+        assert part["percentiles"]["p50"] == float(tail_rule.rung_at(real, 50))
+        for low in (True, False):
+            side = part["tails"]["low" if low else "high"]
+            assert tail_rule.stated(side) == tail_rule.expected(
+                part, real, low=low
+            ), (place, low)
+        assert abs(part["mean"] - statistics.fmean(real)) < 0.5
 
 
 def test_no_whole_cell_of_the_table_is_published() -> None:
@@ -560,6 +578,16 @@ def test_every_fact_this_role_publishes_is_checked() -> None:
 
     Every key the role adds is named here, so a key added later without
     a check turns this red.
+
+    WHAT A POSITION PUBLISHES ABOUT ITS ENDS CHANGED IN LANDING 3.3 and
+    the owed list moves with it. Under the tail rule (contract 6.7a) a
+    position of different readings publishes neither `min` nor `max` --
+    both rungs read the outermost values -- so there is no end left to
+    check and naming one here would ask for a check on nothing. What it
+    publishes instead is a GROUP beyond each boundary, three facts a
+    side, and all six are owed a check at each position. An end a
+    position does HEAP is published and checked one-sidedly, which
+    these readings do not have.
     """
     outcome = _measured(_readings())
     checked = {check.fact for check in outcome.checks}
@@ -572,13 +600,13 @@ def test_every_fact_this_role_publishes_is_checked() -> None:
         "joined.part_min_widths[1]",
         "joined.part_above[0]",
         "joined.part_agreements[0]",
-        "joined.parts[0].min",
-        "joined.parts[0].max",
         "joined.parts[0].integer_valued",
-        "joined.parts[1].min",
-        "joined.parts[1].max",
         "joined.parts[1].integer_valued",
     }
+    for place in (0, 1):
+        for side in ("low", "high"):
+            for key in ("mean_distance", "rms_distance", "values"):
+                owed = owed | {f"joined.parts[{place}].tails.{side}.{key}"}
     missing = sorted(owed - checked)
     assert missing == [], f"these facts are published and unchecked: {missing}"
 

@@ -484,8 +484,19 @@ def test_a_rung_that_holds_nothing_loads_and_generates(
     twin = generation.generate(loaded, 0)
     written = [float(cell) for cell in twin.columns[0] if cell != ""]
 
-    assert min(written) == 1.0
-    assert max(written) == 40.0
+    # THE TWO ENDS ARE THE LADDER'S, AND THIS COLUMN'S ARE DERIVED. The
+    # tail rule of contract 6.7a withholds `min` and `max` on forty
+    # different numbers at a floor of eleven, so the twin is pinned to
+    # the ends `contract.tail_ladder` reads out of the tail facts
+    # (method G5.3b) rather than to 1 and 40. What this test is about is
+    # unchanged: a null rung loads, generates and pins nothing of its
+    # own.
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None
+    assert min(written) == ladder[0]
+    assert max(written) == ladder[len(ladder) - 1]
 
 
 def test_the_method_no_longer_calls_a_null_rung_a_refusal() -> None:

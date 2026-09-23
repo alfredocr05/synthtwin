@@ -474,8 +474,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # digest in tests/test_twin_golden.py did not move at all -- none of
 # this demonstration's columns publishes a pooled scale, so nothing
 # placed any of its made-up numbers before or after.
+# AND RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
+# numeric block of the demonstration now carries `tails` and
+# `bin_groups`, its two ends are withheld unless a group of eleven rows
+# holds one, and the rungs whose type-7 reading would touch one of the
+# outermost eleven values are null (contract 6.7a). The difference was
+# read before it was recorded: the ladder keys that moved are the ones
+# outside the two boundary percents, the four columns that publish a
+# histogram now publish it between those boundaries, and no key of any
+# other role moved at all.
 GOLDEN_SHA256 = (
-    "d77dedf9a06f2e79a1f951333ef6ef10969f8b433b79bbb5d8cdc22b582ec0bc"
+    "a7333756ad3962977152a47854e407473e32848f0f12c284b466883a4e6eaee2"
 )
 
 
@@ -515,14 +524,22 @@ def test_published_numbers_are_exact_not_rounded_to_a_fixed_width(
     # exactly as computed.
     text = profile.serialize(_demo_document(tmp_path))
     assert "1e+15" not in text
-    values = [str(1000000000000000 + step) for step in range(10)]
+    # FORTY ROWS AND NOT TEN (stage 3, landing 3.3): ten rows are fewer
+    # than one tail's own, and a block that small publishes no rung at
+    # all to ask this question of (contract 6.7a, TL2). Forty publish a
+    # ladder whose middle rungs are these very numbers.
+    values = [str(1000000000000000 + step) for step in range(40)]
     table = reading.read_table(
         str(fixtures.write(tmp_path, "big.csv", fixtures.single_column_table("v", values)))
     )
     document = profile.build_document(table, SETTINGS, [])
-    ladder = document["columns"][0]["percentiles"]
-    assert ladder["min"] == 1000000000000000.0
-    assert ladder["max"] == 1000000000000009.0
+    block = document["columns"][0]
+    # The two ENDS are withheld by the tail rule; the rungs between the
+    # two boundaries are these numbers and are written in full.
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["p50"] == 1000000000000019.5
+    assert "1e+15" not in profile.serialize(document)
+    assert "1000000000000019.5" in profile.serialize(document)
 
 
 def test_no_not_a_number_can_reach_the_file(tmp_path: pathlib.Path) -> None:

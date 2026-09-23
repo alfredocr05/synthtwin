@@ -19052,8 +19052,9 @@ pushes one pooled group a long way — is the next pass's work.
 ## Stage 3 — decisions P4-D316 to P4-D339 (2026-09-22)
 
 Stage 3's landings take their numbers from this block. P4-D316 to
-P4-D318 are landing 3.1's; P4-D319 to P4-D339 are reserved for the
-stage's other landings.
+P4-D318 are landing 3.1's and P4-D321 to P4-D327 are landing 3.3's, the
+numeric tail; P4-D319, P4-D320 and P4-D328 to P4-D339 are reserved for
+the stage's other landings.
 
 ### P4-D316 The default smallest group is 11
 
@@ -19162,3 +19163,278 @@ the old code and seen red.
 - **Written-form extremes stay published**, as an accepted limit.
 - **A column's real average and spread stay published**, and the tail
   carries the outer cells' mean and mean-square distance.
+
+### P4-D321 The numeric tail (landing 3.3)
+
+**The decision.** A numeric block stops publishing its smallest and
+largest values, and every rung whose type-7 reading touches one of the
+outermost `max(small_cell_floor, 3)` values on its side. What stands
+there instead, per side, is the tail as a GROUP: the boundary percent
+the ladder stops at, how many rows lie beyond it, their MEAN DISTANCE
+from the boundary rung and the ROOT-MEAN-SQUARE of that distance. The
+keys are `tails` and `bin_groups`, the contract states them at 6.7a
+with invariants TL1 to TL6 and BG1, and
+`docs/spec/generation-method-v1.md` G5.1a to G5.3e, G5.5a, G5.6a,
+G6.7a and G12.13 state what reads them.
+
+**Why.** The twin's definition of 2026-09-12 binds: "the description
+needed to build that population reveals nothing about any individual",
+and a published minimum is one row's value. Measured over sixteen
+shapes at a floor of eleven, the numbers a description published that
+equalled a value fewer than eleven rows held went from **13 to 46 per
+shape to none**, and at a floor of one, where the leak set is a minimum
+or a maximum one row holds, from 9 to 19 per shape to none.
+
+**What it buys beside the disclosure.** The straight segment from the
+last interior rung to an exact extreme was also the twin's widest
+error: `K-P3-03` measured the spread of twenty normal columns 1.07 to
+3.83 per cent too wide, and 19 of 20 twins missed their own spread
+check at 20,000 rows. With the tail's shape read instead, the spread is
+within ±0.15 per cent and nothing is missed.
+
+**Dispositions.** The container key `tails` is LOADER-ONLY: it carries
+no obligation of its own, and each leaf below it is disposed on its own
+terms. `tails.low.percent`, `tails.high.percent`,
+`tails.low.rows` and `tails.high.rows` are LOADER-ONLY: each follows
+from `n_used_in_statistics` and the smallest group size, the loader
+holds the description to both (TL1, TL4), and a file of the same count
+of values re-describes them identically, so a check would repeat
+`counts.n_used_in_statistics`. `tails.low.mean_distance`,
+`tails.high.mean_distance`, `tails.low.rms_distance` and
+`tails.high.rms_distance` are APPROXIMATED, inside the window G12.13
+draws from G5.6's rank form over the tail ladder; the validator reads
+a file's tail AT THE PUBLISHED PERCENT and withholds the comparison
+where the file's own tail stands elsewhere. `tails.low.values` and
+`tails.high.values` are EXACT-OBSERVABLE: the generator writes the
+tail on those values and no others, so a file's own tail lists the
+same ones. `bin_groups` is REPORT-ONLY, for the reason
+`value_histogram` is: the twin's cells are allotted to values by the
+runs of the published ladder and not by a census of bins.
+`percentiles.min` and `percentiles.max` stay EXACT-OBSERVABLE where
+they are published, and a tail block publishes them only where at
+least `max(small_cell_floor, 3)` rows held the value; the check is
+then ONE-SIDED and silent -- no cell of the file beyond the end, and
+the file's own extreme never printed.
+
+**What it costs, stated.** A twin's range is now derived, so the twin
+no longer holds the real extreme: measured over the sixteen shapes,
+between 0 and 3 real cells per shape fall outside the twin's range
+(K-S3-05 holds the ceiling). Nothing else of the block moves: 0 MISSED
+on every twin and every real table of the battery, at floors 1 and 11.
+
+### P4-D322 The tail reading and its derived end
+
+**The decision.** The rows beyond a boundary are read through a
+two-parameter shape fitted to the two published distances -- a mixture
+of two adjacent whole powers, built from `+ - * /` and `sqrt` alone in
+a fixed order (G5.3b) -- and the pinned stratum holds a DERIVED END:
+the fitted end moved outward where the fitted power says the tail is at
+least as long as an exponential one, held inside the furthest one row
+of `m` can stand with that mean and root-mean-square, placed on the
+column's grid and held to the sign counts (G5.5a).
+
+**The root-mean-square and not the mean square** (the skeptic of
+2026-09-22, break 4). A mean square is the square of a column's unit,
+so on a p-value column reaching 1e-300 it underflows to nought while
+the mean distance does not, and on values near 5e160 it overflows: the
+prototype crashed with `ZeroDivisionError` on the first and
+`OverflowError` on the second, on tables the shipped tool describes,
+generates and validates today. The root-mean-square is in the column's
+own unit, is computed by the exact integer square root and rounded
+once, and the reading forms `r = (rms / d1) * (rms / d1)` where it
+needs the ratio. G14.3's required cases now include both ends of the
+binary64 range and a subnormal one.
+
+**The outward move** (the skeptic's break 6). A shape fitted to two
+moments ends inside the real extreme of a light tail, and code that
+reads a range from the twin then meets real rows outside it: 16 real
+cells of a 20,000-row normal column, 5 at 5,000 rows, 4 on a lognormal
+and 3 on a Pareto. Where the fitted power is 2 or more the pinned end
+stands at the larger of the fitted end and `d1 * H(rows)`, the harmonic
+sum, which is where the largest of `rows` draws of an exponential tail
+of that mean is expected. It is a function of published facts alone, so
+it discloses nothing, and it is held inside the tail's own bound.
+
+### P4-D323 The block population floor
+
+**The decision.** A numeric block of fewer values than
+`max(small_cell_floor, 3)` publishes no rung, no moment and no
+histogram: `tails: null`, and its twin's values are the made-up ramp of
+G5.3d, one grid step apart on their own sign bands, so the column keeps
+its type, its sign counts and its count of different numbers and claims
+nothing else. A block of fewer than `2 max(small_cell_floor, 3) + 1`
+publishes its four moments and no rung (`tails: {low: null, high:
+null}`), and its twin reads the moment ladder of G5.3c -- the uniform
+stretch with that mean and that spread.
+
+**Why three, whatever the floor.** Two published moments over one or
+two rows solve for those rows exactly, so a tail always spans at least
+three units: at a floor of one a 101-row column's `p01` tail is ONE
+row, and `min = b - d1` exactly. At the default floor of eleven the
+rule changes nothing.
+
+**Measured** at floor 11 on blocks of 8, 15, 23, 24 and 40 values:
+before the ramp the sign fallback wrote `1.0` eight times and the twin
+was re-described as another role; with it, 0 to 7 and nothing missed.
+The 15-value block's twin is 1.9 per cent off its mean and 6 per cent
+off its spread, with nothing missed on the twin or the table.
+
+### P4-D324 The listed tail on a grid, and the lattice check
+
+**The decision** (owner, 2026-09-22). On a block whose values stand on
+a grid -- `integer_valued`, or one published fraction width -- a tail
+that holds at most `taxonomy.TAIL_VALUES_MOST` (six) different values
+publishes THOSE VALUES, ascending, with no count beside them, and the
+generator writes the tail on them and on nothing else, each at least
+once, with counts solved so that the tail's mean distance is met
+exactly and its root-mean-square as closely as whole counts allow
+(G5.3e). The owner's words: "we don't need to be worried about the
+tails ... many people will be there and there is no big deal in knowing
+that it's there. If you prefer a more privacy worried approach, make
+sure that code still working and that we gonna still have reliable
+statistical results."
+
+**Why, measured** (the skeptic's break 1). The smooth reading of G5.3b
+rounded onto a bounded scale writes values the scale does not have and
+never writes its own end: on a pain score of 0 to 10 at a floor of
+eleven the twin wrote 50 cells at **11**, wrote 10 in none, and its
+mean was **24.8 per cent high** with nothing missed. Over the
+thirteen-column ordinal battery -- pain, GCS, a surgical risk grade,
+Apgar, children and Likert, two seeds each -- the listed tail writes
+**no off-scale cell and every real value**, and every twin's mean is
+inside the band the shipped generator reached before stage 3.
+
+**The lattice check, producer-side.** On a grid every tail distance is
+`c + k u` with `c` fixed by the published boundary, so `rows * d1` and
+`rows * rms**2` give the sum of the `k` and of their squares exactly,
+and a search over whole parts can leave ONE feasible largest part --
+the withheld end, named in all but name (the skeptic's break 2:
+measured on pain 0 to 10 at 2,000 rows, 18 of 20 seeds). So a grid tail
+whose rows, distances, boundary, grid and sign counts leave one answer
+for its end is LISTED too, whatever its count of values. The search is
+exact and bounded (`taxonomy.TAIL_LATTICE_REACH`,
+`TAIL_LATTICE_WORK`): past those sizes a tail spans too many units for
+one answer to fit, and the measurement that stands behind the bound is
+the skeptic's own -- count, length-of-stay and admissions tails leave 6
+to 39 feasible ends.
+
+**What a listed tail discloses, stated plainly.** Its values, which the
+owner has ruled publishable, and -- through the two distances beside
+them -- how many rows hold each where the tail holds two or three
+values. That is the owner's ruling applied, not an oversight: the
+alternative is a twin that writes values the scale does not have.
+
+**A run that REACHES INTO the tail is one of the runs kept whole**
+(found by `K-P4-11` while this landing was being verified). The
+layout neither joins nor divides a band's runs that lie inside a listed
+tail, and a tail's innermost listed value is commonly the column's
+value just inside the boundary as well -- so the ladder reads one
+number across the edge and such a run lay wholly inside nothing. On the
+240 clinical codes of the ClinVar system the walk joined it to its
+neighbours, the stratum that swallowed it read its own share, and the
+twin wrote five cells at `920759` where the table holds `920760`:
+`tails.high.values` MISSED and one of eighteen coding systems stopped
+validating clean. The run is kept WHOLE and not cut at the edge; a cut
+was measured first and spends one of the band's strata on the tail's
+own part, which took that stratum off a published MODE -- 210 cells
+written nowhere on 1,140 readings. It is kept whole only where the
+band's runs must be JOINED at all, because that is the only case one
+can be joined away in: on 150 cells over three values written
+`+100.25`, `200.25` and `300.25`, whose three runs already had three
+strata, the protection split fifty published pluses across two values
+and the twin wrote four spellings of three numbers. And it is kept
+whole, not kept STILL: the levelling still evens the band, without
+which it came out 49, 53 and 48 cells where the source holds fifty of
+each. The price of keeping it whole is one number at one seed of one
+battery: a 4,000-row column of halves holds 16 of its 17 different
+values at seed 1, where the run kept whole is one stratum and the walk
+could have divided it.
+
+**A pooled census may not cross a checked fact** (the same
+verification). The two spelling clamps of G5.3b step 4 read a census of
+widths and a census of marks as a ceiling, and both censuses count a
+group of fewer cells than the smallest group into the commonest (plan
+P4-D222): a column of 1 to 30 publishes the one field width two
+although nine of its cells wear one. Read as a ceiling there, the clamp
+moved a derived low end from under 1 up to 10, and no set of `m` rows
+has mean distance `d1` with its furthest row nearer than `d1` -- so the
+end made a CHECKED fact unreachable to hold a report-only one. Neither
+clamp now pulls an end inside `b -/+ d1`. Measured on the 30-row
+reading column of a macro workbook: five cells at 10 and none below it,
+the twin's mean 5.3 above the published 15.5, `ladder.p50` and
+`moments.mean` MISSED.
+
+### P4-D325 The histogram between the two tails, and the stretch edges
+
+**The decision.** A tail block's bins divide `[b_lo, b_hi]`, the two
+boundary rungs, and a value outside that stretch is IN NO BIN, so
+G6.7's walk never moves a tail value (G6.7a). The census is published
+as `bin_groups`, groups of bins each holding at least
+`max(small_cell_floor, 3)` rows, which is what makes a histogram
+survive a raised floor at all: measured at a floor of eleven, the
+all-or-nothing census of `value_histogram` vanishes on every
+non-uniform shape, and the groups come back on all sixteen -- 6, 18,
+30, 32 and 32 groups on the normal columns, 15 on a Pareto, 13 to 20 on
+charges, 21 on counts, 23 on a heap at zero, 32 on ages.
+`value_histogram` is `{}` on a tail block.
+
+**The stretch edges keep the owner's principle.** `empty_edges` names
+two REAL values per run of empty bins, and the owner ruled on
+2026-09-22 that "just showing that the value exist is not an issue".
+So the pairs stay where both edges are INTERIOR values -- a run with an
+occupied bin on both sides -- and are withdrawn where a run touches an
+end bin, whose outer neighbour is a tail value. G6.7 walks to the
+published edges as before, and to the edges of the run's own bins
+where the description publishes none.
+
+**K-P4-07 is restated, not quietly lost** (the skeptic's break 5). The
+KPI reads "no twin cell falls in a stretch the real column left empty",
+0 of 12,000 cells, EXACT. Its rule now reads **no twin cell inside a
+published stretch**: the stretches a description publishes are the
+interior ones, and the twin keeps out of those. What it no longer
+covers is a gap whose own edge is a tail value, where the twin may now
+write a cell -- measured on the three two-cluster witnesses, at most
+one bin's width deep. The entry's `status_note` carries this sentence
+and its ceiling.
+
+### P4-D326 Where the outward move is measured
+
+The pinned end's outward move (P4-D322) is measured per shape as REAL
+CELLS OUTSIDE THE TWIN'S RANGE, and the ledger holds the ceiling
+(`K-S3-05`). It is the one number that says whether code developed on
+the twin meets a real row it was not built for, and it is the trade the
+derived end makes: before stage 3 the twin's range was the real one
+exactly, because the description published it.
+
+### P4-D327 The band's own sign (found while building landing 3.3)
+
+**The defect.** On an ordinary count column the twin wrote the value
+one in **4 cells against the table's 317**, and its mean was 18 per
+cent high, with every check passing, at floors 1 and 11. Reproduced:
+2,000 rows of `int(random.Random(7).expovariate(0.2))` beside a
+constant column, described, generated at seed 4.
+
+**The cause.** The positive band begins where the zero stratum ends,
+and the ladder does not know that: it crosses from the last rung
+reading nought to the first reading one by a straight line, so the
+first ranks of the band read a fraction under a half, the integer rule
+of G5.4 takes them to nought, and the band opens with a run of noughts
+BESIDE the real plateau of one. G5.5's sign repair moves that run to
+one, two strata then hold one number, G6.5a's separation moves the
+larger up to two, and every stratum above it moves up in turn.
+
+**The repair** (method G5.2a step 1a). A band's rank values are held to
+the band's own sign before the runs are taken: in the positive band a
+value that is not above nought reads as the first value of the band
+that is, and in the negative band a value that is not below nought
+reads as the last value that is. With it the twin writes one in 324
+cells and its mean is 1.3 per cent above the table's. The frozen case
+`mode_held` moved with the repair -- the ladder now reads the
+commonest value on a stratum of its own, so the case's mode moved one
+grid step to keep holding its own pass up. NO FROZEN CASE WAS ADDED
+for the step itself, and that is named here as the gap it is: what
+pins it is the round trip
+`tests/test_stage3_tail_rule.py::test_a_count_column_beside_a_zero_heap_keeps_its_ones`,
+which withdraws the step and reads the counts and the mean off the
+twin. `K-S3-07` holds that same column's count of ones and its mean,
+and `K-S3-08` holds the histogram the groups keep at a raised floor.

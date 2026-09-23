@@ -122,17 +122,26 @@ def test_the_sentence_says_the_range_as_dates() -> None:
     """The two ends, converted, are what makes the column recognizable.
 
     A reader holding `1600000000` cannot tell what it is; a reader told
-    the column runs from one calendar day to another can. The two days
-    are the block's own `min` and `max` said a second way, so the
-    assertion is against those rather than against written dates.
+    the column runs from one calendar day to another can.
+
+    THE TWO DAYS ARE READ OUT OF THE COLUMN'S OWN NUMBERS. They used to
+    be read out of the block, as `percentiles.min` and `percentiles.max`
+    said a second way, and on a column of two hundred numbers both of
+    those rungs are now null: the tail rule of contract 6.7a withholds
+    every rung whose reading touches the outermost values (landing
+    3.3). NF51's arguments are the smallest and the largest value read
+    in the band, by the sentence's own statement of itself, so that is
+    what this test works out -- which is the stronger assertion anyway,
+    because it no longer passes by agreeing with a second fact the same
+    producer wrote.
     """
     values = _epoch_seconds()
     block = _described(values, name="event_at")["columns"][0]
     said = _said(block, BAND_OPENING)
     assert said is not None
-    for end in ("min", "max"):
-        number = int(block["percentiles"][end])
-        year, month, day = parsing.civil_from_days(number // _DAY)
+    numbers = [int(value) for value in values]
+    for end in (min(numbers), max(numbers)):
+        year, month, day = parsing.civil_from_days(end // _DAY)
         assert f"{year:04d}-{month:02d}-{day:02d}" in said, end
 
 
@@ -196,14 +205,21 @@ def test_the_time_band_sentence_moves_no_role_and_no_fact(monkeypatch) -> None:
 
 
 def test_the_sentence_is_exactly_the_form_and_carries_no_cell() -> None:
-    """Seven whole numbers, and not one spelling of the column."""
+    """Seven whole numbers, and not one spelling of the column.
+
+    The two ends are the column's own smallest and largest number, not
+    the block's two end rungs: the tail rule withholds those on a
+    column this size (landing 3.3), and the sentence says it takes the
+    values.
+    """
     values = _epoch_seconds()
     block = _described(values)["columns"][0]
     said = _said(block, BAND_OPENING)
     assert said is not None
     assert taxonomy.NOTE_ARITY[taxonomy.REMARK_EPOCH_BAND] == 7
-    first = parsing.civil_from_days(int(block["percentiles"]["min"]) // _DAY)
-    last = parsing.civil_from_days(int(block["percentiles"]["max"]) // _DAY)
+    numbers = [int(value) for value in values]
+    first = parsing.civil_from_days(min(numbers) // _DAY)
+    last = parsing.civil_from_days(max(numbers) // _DAY)
     assert said == taxonomy.rendered(
         taxonomy.REMARK_EPOCH_BAND,
         (taxonomy.EPOCH_BAND_SECONDS,) + first + last,

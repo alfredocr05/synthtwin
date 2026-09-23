@@ -347,7 +347,12 @@ def test_an_outlying_sentinel_number_is_read_as_missing() -> None:
         }
     ]
     assert described.missing_by_class["(numeric-sentinel)"] == 15
-    assert described.details["percentiles"]["min"] == 1.0
+    # THE SENTINEL IS OUT OF THE STATISTICS, read off the low tail
+    # rather than off `min`: the tail rule withholds the two ends
+    # (contract TL1, stage 3), and a column still holding -999 would
+    # have its low boundary rung far below one.
+    assert described.details["tails"]["low"]["percent"] == 6
+    assert described.details["percentiles"]["p50"] == 100.0
 
 
 def test_a_sentinel_that_is_not_an_outlier_stays_a_number() -> None:
@@ -403,9 +408,17 @@ def test_a_column_far_from_any_threshold_is_quiet() -> None:
 
 
 def test_percentiles_never_go_down() -> None:
+    # THE RUNGS THE BLOCK PUBLISHES, nulls passed over: the tail rule
+    # withholds every rung outside the two boundaries (contract TL1,
+    # stage 3) and invariant Q19 is stated over what is left.
     described = describe(fixtures.numbers(4, 500, 0, 10_000))
     ladder = described.details["percentiles"]
-    values = [ladder[label] for label, _num, _den in taxonomy.LADDER]
+    values = [
+        ladder[label]
+        for label, _num, _den in taxonomy.LADDER
+        if ladder[label] is not None
+    ]
+    assert len(values) >= 7, "a 500-row column publishes its middle rungs"
     assert values == sorted(values)
 
 
@@ -418,14 +431,25 @@ def test_counts_are_exact_not_rounded() -> None:
 
 
 def test_statistics_match_a_hand_computation() -> None:
-    described = describe(["1", "2", "3", "4"])
-    ladder = described.details["percentiles"]
+    # THE HAND COMPUTATION IS ASKED OF THE FUNCTIONS, because a block of
+    # four values is below the tail rule's own floor and publishes no
+    # rung and no moment at all (contract TL2, stage 3).
+    ladder = taxonomy._quantiles([1.0, 2.0, 3.0, 4.0])
     assert ladder["min"] == 1.0
     assert ladder["p50"] == 2.5
     assert ladder["max"] == 4.0
-    assert described.details["mean"] == 2.5
+    moments = taxonomy._moments([1.0, 2.0, 3.0, 4.0])
+    assert moments["mean"] == 2.5
     # Sample standard deviation of 1,2,3,4 is sqrt(5/3).
-    assert described.details["std"] == pytest.approx(1.29099444874, rel=1e-9)
+    assert moments["std"] == pytest.approx(1.29099444874, rel=1e-9)
+    # ...AND OF A PUBLISHED BLOCK BIG ENOUGH TO CARRY THEM. Twenty-four
+    # values of the same four numbers clear `2 * max(floor, 3) + 1`, so
+    # the block publishes its median and its mean, and both are the
+    # hand computation above.
+    published = describe(["1", "2", "3", "4"] * 6)
+    assert published.details["percentiles"]["p50"] == 2.5
+    assert published.details["mean"] == 2.5
+    assert published.details["percentiles"]["min"] is None
 
 
 def test_spread_and_shape_are_undefined_rather_than_invented() -> None:
@@ -455,13 +479,18 @@ def test_published_numbers_keep_every_digit_they_earned() -> None:
     assert taxonomy.published(1 / 3) == 0.3333333333333333
     assert taxonomy.published(float("inf")) is None
     assert taxonomy.published(-0.0) == 0.0, "row order must not reach the bytes"
-    described = describe([str(1000000000000000 + step) for step in range(10)])
-    ladder = described.details["percentiles"]
-    assert ladder["min"] != ladder["max"], (
-        "ten different values must not publish an empty range"
+    # THIRTY VALUES AND NOT TEN, because ten are fewer than a tail's own
+    # rows and such a block publishes no rung at all (contract TL2,
+    # stage 3). The point is unchanged: the rungs a block of values
+    # around 1e15 publishes are not all one number.
+    described = describe(
+        [str(1000000000000000 + step) for step in range(40)]
     )
-    assert ladder["min"] == 1000000000000000.0
-    assert ladder["max"] == 1000000000000009.0
+    ladder = described.details["percentiles"]
+    assert ladder["p50"] != ladder["p75"], (
+        "forty different values must not publish an empty range"
+    )
+    assert ladder["p50"] == 1000000000000019.5
 
 
 def test_every_present_value_is_counted_once() -> None:

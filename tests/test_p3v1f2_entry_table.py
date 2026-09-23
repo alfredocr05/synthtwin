@@ -1107,20 +1107,87 @@ def test_every_named_predicate_binds_every_fact_exactly_once(
             seen.add(identity)
 
 
+def _a_label_half_that_cannot_supply_its_spellings(
+    folder: pathlib.Path,
+) -> "validation.Outcome":
+    """A run that reaches an authorized deviation, built here.
+
+    THE FIXTURES ABOVE STOPPED REACHING ONE AT LANDING 3.3, and that is
+    a measurement rather than an omission: the saturated fixture's twin
+    used to hold fewer different numbers than its description publishes
+    -- three distinct counts on its `reading` column took the envelope's
+    authorized deviation -- and with the tail rule it holds all 100 of
+    them, so all three are HELD. Nothing else in the walk lowers an
+    outcome, and the loop below would have gone on passing over an
+    empty set.
+
+    So the case is CONSTRUCTED here instead, from the rule that grants
+    the lowering rather than from any fixture's luck: a compound column
+    whose label half publishes more spellings than the twin can supply
+    (plans P4-D275 and P4-D276). At a floor of eleven `alpha` covers
+    twelve rows and is published as its commonest spelling alone, while
+    `beta` covers ten and is held back with both of its own -- so the
+    half publishes 1 + 2 = 3 spellings, the twin can write 1 + 1 = 2,
+    and the column's raw count is one short of its published 40 + 3
+    inside the window 40 + 2 to 40 + 3. That is the one shape of
+    lowering this product grants, and `tests/test_p2c1f4_approximation
+    _bounds.py` measures its window; here it is the witness that keeps
+    the walk below from asserting nothing.
+    """
+    values = (
+        [f"{index * 2}e0" for index in range(1, 41)]
+        + ["alpha"] * 6
+        + ["Alpha"] * 6
+        + ["beta"] * 5
+        + ["Beta"] * 5
+    )
+    path = fixtures.write(
+        folder,
+        "short-half.csv",
+        fixtures.rows_to_csv(["c"], [[value] for value in values]),
+    )
+    document = profile.build_document(
+        reading.read_table(str(path)),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+    )
+    assert document["columns"][0]["role"] == "numbers_with_labels"
+    written = fixtures.write_profile(folder, "short-half.json", document)
+    described = contract.load_profile(str(written))
+    twin = folder / "short-half-twin.csv"
+    twin.write_text(
+        rendering.twin_csv(generation.generate(described, SEED)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return validation.measure(described, str(twin))
+
+
 def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
+    tmp_path: pathlib.Path,
     green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """A lowering shown without its authority is one nobody can check.
 
     Every AUTHORIZED-DEVIATION verdict must belong to a fact the
     registry carries an authorization for, and must arrive with the
-    passage that grants it.
+    passage that grants it. The walk is the green fixtures AND the
+    constructed run above, which is where the witness lives since
+    landing 3.3.
     """
     by_key = {
         f"{fact.group}.{fact.field}": fact for fact in dispositions.REGISTRY
     }
     seen = 0
-    for name, _described, _twin, outcome in green:
+    walked = green + [
+        (
+            "a label half that cannot supply its spellings",
+            None,
+            "",
+            _a_label_half_that_cannot_supply_its_spellings(tmp_path),
+        )
+    ]
+    for name, _described, _twin, outcome in walked:
         for check in outcome.checks:
             if check.verdict != validation.AUTHORIZED_DEVIATION:
                 continue
@@ -1132,7 +1199,7 @@ def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
                 f"fact the registry authorizes none for"
             )
     assert seen, (
-        "no fixture here reached an authorized deviation at all, so this "
+        "no run here reached an authorized deviation at all, so this "
         "assertion is asserting nothing"
     )
 
@@ -1640,6 +1707,147 @@ def _dated(described: contract.Profile, text: str, index: int, rule: str) -> str
             rows[row][index] = f"2024-{month}-{day}T09:{minute}:00.123"
         step = step + 1
     return _rebuilt(rows)
+
+
+def _pushed_tail(described: contract.Profile, text: str, index: int) -> str:
+    """The outermost cells of one column pushed further out (stage 3).
+
+    THE RED FILE THE TAIL FACTS OWE (contract 6.7a, method G12.13). A
+    description publishes, per side, how many rows lie beyond its
+    boundary rung, how far from it they lie on average, the
+    root-mean-square of that distance and -- on a grid whose tail holds
+    a handful of values -- those values. Every perturbation this
+    battery had before edited a cell's CLASS, its spelling or its
+    presence; none moved the outer rows of a column while leaving it
+    the same column, so nothing here showed that a tail fact can fail
+    at all.
+
+    This is that edit: the outermost twelve cells on each side -- more
+    than any tail of these fixtures holds -- move out to THREE TIMES
+    their distance from the thirteenth cell in, so each published
+    distance is several times what the file now holds, the listed
+    values become other values, and a cell lands beyond a published
+    heaped end. Nothing else about the file changes: every cell is
+    still a number written as it was, none of them crosses nought, the
+    count of rows and of numbers stands, and the column keeps its
+    role -- which is what keeps the disclosure gate open and the sites
+    of the column reporting MISSED rather than WITHHELD.
+
+    A JOINED COLUMN IS PUSHED POSITION BY POSITION, on its own
+    published separator, because each position publishes its own tail
+    and a file that moved only the whole cell would leave the second
+    position's facts untouched.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    column = described.columns[index]
+    separator = getattr(column.facts, "separator", None)
+    places = column.facts.n_parts if separator else 1
+    moved = False
+    for place in range(places):
+        found: "list[tuple[float, int]]" = []
+        for row in range(first, len(rows)):
+            if not _holds_a_value(described, index, rows[row][index]):
+                continue
+            piece = _piece_at(rows[row][index], separator, place)
+            number = None if piece is None else parsing.parse_number(piece)
+            if number is not None:
+                found = found + [(number, row)]
+        if len(found) < 26:
+            continue
+        found.sort()
+        inner_low = found[12][0]
+        inner_high = found[len(found) - 13][0]
+        if inner_high <= inner_low:
+            continue
+        pushed = found[:12] + found[len(found) - 12 :]
+        for number, row in pushed:
+            low = number < inner_low
+            away = (
+                inner_low - 3 * (inner_low - number)
+                if low
+                else inner_high + 3 * (number - inner_high)
+            )
+            # THE CELL KEEPS ITS SIDE OF NOUGHT. A column of positive
+            # readings whose low cells went negative is a different
+            # column -- its role moves, the disclosure gate closes and
+            # every site of it reports WITHHELD rather than MISSED, so
+            # the file would be a red case that can never go red.
+            if (number > 0 and away <= 0) or (number < 0 and away >= 0):
+                away = number / 4
+            rows[row][index] = _piece_written(
+                rows[row][index], separator, place, f"{away:g}"
+            )
+        moved = True
+    return _rebuilt(rows) if moved else ""
+
+
+def _crowded_parts(described: contract.Profile, text: str, index: int) -> str:
+    """Each position of a joined column crowded toward its own low end.
+
+    The companion of `_compressed` for a column whose cells hold two
+    numbers. The plain edit parses the whole cell, so it makes no file
+    at all here, and every INTERIOR rung of a position was therefore
+    left with no edit that moves it: the first position's `ladder.p10`
+    and `ladder.p90` had no registered red case once the tail rule
+    withheld the rungs the old edits moved.
+
+    Each position keeps its own two ends and its own count of numbers,
+    so the column is the same column by every fact but the shape of
+    each position.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    column = described.columns[index]
+    separator = getattr(column.facts, "separator", None)
+    if separator is None:
+        return ""
+    moved = False
+    for place in range(column.facts.n_parts):
+        found: "list[tuple[float, int]]" = []
+        for row in range(first, len(rows)):
+            if not _holds_a_value(described, index, rows[row][index]):
+                continue
+            piece = _piece_at(rows[row][index], separator, place)
+            number = None if piece is None else parsing.parse_number(piece)
+            if number is not None:
+                found = found + [(number, row)]
+        if len(found) < 3:
+            continue
+        found.sort()
+        low = found[0][0]
+        high = found[len(found) - 1][0]
+        for rank in range(len(found)):
+            share = rank / (len(found) - 1)
+            rows[found[rank][1]][index] = _piece_written(
+                rows[found[rank][1]][index],
+                separator,
+                place,
+                f"{low + (high - low) * share * share * share:g}",
+            )
+        moved = True
+    return _rebuilt(rows) if moved else ""
+
+
+def _piece_at(cell: str, separator: "str | None", place: int) -> "str | None":
+    """One position of a joined cell, or the whole cell where there is none."""
+    if separator is None:
+        return cell
+    pieces = cell.split(separator)
+    return pieces[place] if place < len(pieces) else None
+
+
+def _piece_written(
+    cell: str, separator: "str | None", place: int, value: str
+) -> str:
+    """``cell`` with one position rewritten, the rest left as they were."""
+    if separator is None:
+        return value
+    pieces = cell.split(separator)
+    if place >= len(pieces):
+        return cell
+    pieces[place] = value
+    return separator.join(pieces)
 
 
 def _classed(
@@ -2894,6 +3102,27 @@ def _column_perturbations(
         shaped = shaped + [
             (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
         ]
+    if column.role in ROLES_WITH_NUMBERS or column.role == "joined_numbers":
+        # THE OUTER ROWS MOVED, which is the one edit a tail fact
+        # answers for (stage 3, contract 6.7a). A joined column takes
+        # it too: each of its positions publishes a tail of its own.
+        shaped = shaped + [
+            (
+                f"pushed-{name}",
+                CLASS_SHAPE,
+                _pushed_tail(described, source, index),
+            )
+        ]
+    if column.role == "joined_numbers":
+        # ...and the same column's INTERIOR rungs, which the plain
+        # crowding edit cannot reach through a cell of two numbers.
+        shaped = shaped + [
+            (
+                f"crowded-{name}",
+                CLASS_SHAPE,
+                _crowded_parts(described, source, index),
+            )
+        ]
     if column.role == "numeric_unrepresentable":
         shaped = shaped + [
             (
@@ -3249,9 +3478,7 @@ NAMED_RED_CASES = (
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[1]', 'widths.number 2'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].integer_valued', 'type.number 1 is whole'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].kurtosis', 'number 1 moments.kurtosis'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].max', 'ends.number 1 max'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].mean', 'number 1 moments.mean'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].min', 'ends.number 1 min'),
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.at-least.plain'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.decimal'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.exponent_lower'),
@@ -3262,22 +3489,14 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.remainder'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spelled'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spill'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p01'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p05'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p10'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p25'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p50'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p75'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p90'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p95'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p99'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].skew', 'number 1 moments.skew'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].std', 'number 1 moments.std'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].integer_valued', 'type.number 2 is whole'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].kurtosis', 'number 2 moments.kurtosis'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].max', 'ends.number 2 max'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].mean', 'number 2 moments.mean'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].min', 'ends.number 2 min'),
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.at-least.plain'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.decimal'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.exponent_lower'),
@@ -3288,15 +3507,9 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.remainder'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spelled'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spill'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p01'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p05'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p10'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p25'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p50'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p75'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p90'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p95'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p99'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].skew', 'number 2 moments.skew'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].std', 'number 2 moments.std'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.separator', 'shape.separator'),
@@ -3389,22 +3602,13 @@ NAMED_RED_CASES = (
     RedCase('pooled', 'dropped-row', 'reading', 'numeric.numeric_styles', 'styles.remainder'),
     RedCase('pooled', 'noncanonical-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.spill'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p01'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p05'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p10'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p25'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p50'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p75'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p90'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p95'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p99'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.max', 'ladder.max'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.min', 'ladder.min'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.std', 'moments.std'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.std_unrepresentable', 'type.std_unrepresentable'),
     RedCase('pooled', 'one-contradicted-reading', 'reading', 'universal.n_contradictory', 'counts.n_contradictory'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_missing', 'presence.n_missing'),
-    RedCase('pooled', 'moved-cell', 'reading', 'universal.n_not_numeric', 'counts.n_not_numeric'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_numeric', 'counts.n_numeric'),
     RedCase('pooled', 'one-overflowed-reading', 'reading', 'universal.n_out_of_range', 'counts.n_out_of_range'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
@@ -3712,13 +3916,6 @@ NAMED_RED_CASES = (
         "amount",
         "numeric.percentiles",
         "ladder.p90",
-    ),
-    RedCase(
-        "every-role",
-        "raised-amount",
-        "amount",
-        "numeric.percentiles.max",
-        "ladder.max",
     ),
     RedCase("every-role", "zeroed-visits", "visits", "numeric.n_zero", "counts.n_zero"),
     RedCase(
@@ -4040,9 +4237,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-worded-reading", "suppressed.suppressed_rows"),
             ("half-whole-reading", "distinct.n_numeric_distinct"),
             ("half-whole-reading", "distinct.n_numeric_distinct_folded"),
-            ("raised-reading", "ladder.max"),
-            ("zeroed-reading", "ladder.min"),
-            ("zeroed-reading", "ladder.p01"),
             ("zeroed-reading", "ladder.p05"),
             ("zeroed-reading", "ladder.p10"),
             ("zeroed-reading", "ladder.p25"),
@@ -4050,7 +4244,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-reading", "ladder.p75"),
             ("enormous-reading", "ladder.p90"),
             ("enormous-reading", "ladder.p95"),
-            ("enormous-reading", "ladder.p99"),
             ("marked-reading", "levels.not detected.count"),
             ("reshaped-reading", "levels.not detected.label"),
             ("reshaped-reading", "levels.not detected.shape_form_cells"),
@@ -4077,6 +4270,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("half-vast-reading", "type.std_unrepresentable"),
             ("marked-reading", "widths.published.2"),
             ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-reading", "tails.high.mean_distance"),
+            ("pushed-reading", "tails.high.rms_distance"),
+            ("bracketed-reading", "tails.low.mean_distance"),
+            ("bracketed-reading", "tails.low.rms_distance"),
         ),
     },
     "every-role": {
@@ -4133,8 +4332,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("fractioned-amount", "widths.published.2"),
             ("rewritten-amount", "distinct.n_distinct"),
             ("rewritten-amount", "distinct.n_distinct_folded"),
-            ("one-negated-amount", "ladder.min"),
-            ("negated-amount", "ladder.p01"),
             ("fractioned-amount", "ladder.p05"),
             ("fractioned-amount", "ladder.p10"),
             # `spread` stopped moving p25 when the rung window began
@@ -4148,7 +4345,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-plussed-amount", "ladder.p50"),
             ("spread-amount", "ladder.p75"),
             ("crowded-amount", "ladder.p95"),
-            ("crowded-amount", "ladder.p99"),
             ("raised-amount", "moments.mean"),
             ("raised-amount", "moments.skew"),
             ("raised-amount", "moments.kurtosis"),
@@ -4169,6 +4365,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_upper-amount", "styles.spill"),
             ("vast-amount", "type.integer_valued"),
             ('quoted-amount', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-amount", "tails.high.mean_distance"),
+            ("pushed-amount", "tails.high.rms_distance"),
+            ("crowded-amount", "tails.low.mean_distance"),
+            ("crowded-amount", "tails.low.rms_distance"),
         ),
         "answer": (
             ("emptied-answer", "axes.quality_state"),
@@ -4295,9 +4497,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-dose", "type.integer_valued"),
             ("vast-dose", "type.std_unrepresentable"),
             ("one-worded-dose", "counts.numeric_share"),
-            ("fractioned-dose", "ladder.min"),
-            ("raised-dose", "ladder.max"),
-            ("fractioned-dose", "ladder.p01"),
             ("crowded-dose", "ladder.p05"),
             ("crowded-dose", "ladder.p10"),
             ("crowded-dose", "ladder.p25"),
@@ -4308,7 +4507,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # LANDING 2b.1: the checker now reads the widest stratum as no less
             # than method G5.2a's cap, six here, so a crowded file's p99 lands
             # inside the honest window; the enormous cells still move it out.
-            ("enormous-dose", "ladder.p99"),
             ("raised-dose", "moments.mean"),
             ("raised-dose", "moments.std"),
             ("raised-dose", "moments.skew"),
@@ -4331,6 +4529,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("spread-dose", "widths.published.1"),
             ("spread-dose", "widths.published.2"),
             ('quoted-dose', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-dose", "tails.high.mean_distance"),
+            ("pushed-dose", "tails.high.rms_distance"),
+            ("marked-dose", "tails.low.mean_distance"),
+            ("marked-dose", "tails.low.rms_distance"),
         ),
         "seen_at": (
             # THE CLOCK ROLE. Three edits are its own: the two halves
@@ -4389,9 +4593,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-worded-reading", "counts.numeric_share"),
             ("emptied-reading", "distinct.n_distinct"),
             ("emptied-reading", "distinct.n_distinct_folded"),
-            ("raised-reading", "ladder.max"),
-            ("one-zeroed-reading", "ladder.min"),
-            ("zeroed-reading", "ladder.p01"),
             ("zeroed-reading", "ladder.p05"),
             ("zeroed-reading", "ladder.p10"),
             ("zeroed-reading", "ladder.p25"),
@@ -4408,7 +4609,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # it -- measured, not guessed.
             ("crowded-reading", "ladder.p90"),
             ("enormous-reading", "ladder.p95"),
-            ("enormous-reading", "ladder.p99"),
             ("raised-reading", "moments.mean"),
             ("raised-reading", "moments.skew"),
             ("raised-reading", "moments.kurtosis"),
@@ -4435,6 +4635,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-fractioned-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
             ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("crowded-reading", "tails.high.rms_distance"),
+            ("reshaped-reading", "tails.low.mean_distance"),
+            ("reshaped-reading", "tails.low.rms_distance"),
         ),
         "record_code": (
             ("emptied-record_code", "axes.quality_state"),
@@ -4601,16 +4807,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-worded-visits", "counts.numeric_share"),
             ("emptied-visits", "distinct.n_distinct"),
             ("emptied-visits", "distinct.n_distinct_folded"),
-            ("raised-visits", "ladder.max"),
-            ("one-negated-visits", "ladder.min"),
-            ("negated-visits", "ladder.p01"),
             ("negated-visits", "ladder.p05"),
             ("marked-visits", "ladder.p10"),
             ("crowded-visits", "ladder.p25"),
             ("crowded-visits", "ladder.p75"),
             ("crowded-visits", "ladder.p90"),
             ("enormous-visits", "ladder.p95"),
-            ("enormous-visits", "ladder.p99"),
             ("raised-visits", "moments.mean"),
             ("raised-visits", "moments.std"),
             ("renamed-visits", "position.at"),
@@ -4624,6 +4826,16 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_lower-visits", "styles.spill"),
             ("marked-visits", "type.std_unrepresentable"),
             ('quoted-visits', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("raised-visits", "ladder.max (heaped end, one-sided)"),
+            ("pushed-visits", "ladder.min (heaped end, one-sided)"),
+            ("floor-grouped-visits", "tails.high.mean_distance"),
+            ("floor-grouped-visits", "tails.high.rms_distance"),
+            ("crowded-visits", "tails.high.values"),
+            ("pushed-visits", "tails.low.mean_distance"),
+            ("pushed-visits", "tails.low.rms_distance"),
+            ("pushed-visits", "tails.low.values"),
         ),
     },
     "unrepresentable": {
@@ -4878,17 +5090,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-code", "counts.n_used_in_statistics"),
             ("floor-plussed-code", "counts.n_zero"),
             ("marked-code", "counts.numeric_share"),
-            ("enormous-code", "ladder.max"),
-            ("bracketed-code", "ladder.min"),
-            ("bracketed-code", "ladder.p01"),
-            ("marked-code", "ladder.p05"),
-            ("crowded-code", "ladder.p10"),
-            ("crowded-code", "ladder.p25"),
             ("crowded-code", "ladder.p50"),
-            ("crowded-code", "ladder.p75"),
-            ("crowded-code", "ladder.p90"),
-            ("crowded-code", "ladder.p95"),
-            ("enormous-code", "ladder.p99"),
             ("crowded-code", "moments.mean"),
             ("marked-code", "moments.skew"),
             ("marked-code", "moments.kurtosis"),
@@ -4916,6 +5118,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-code", "type.std_unrepresentable"),
             ('quoted-code', 'bytes.quoting'),
             ('reversed-code', 'rows.order'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-code", "tails.high.mean_distance"),
+            ("pushed-code", "tails.high.rms_distance"),
+            ("crowded-code", "tails.low.mean_distance"),
+            ("crowded-code", "tails.low.rms_distance"),
         ),
     },
     # THE SATURATED COLUMN, whose grid holds exactly as many points as
@@ -4972,9 +5180,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-reading", "counts.numeric_share"),
             ("vast-reading", "distinct.n_distinct"),
             ("vast-reading", "distinct.n_distinct_folded"),
-            ("vast-reading", "ladder.max"),
-            ("vast-reading", "ladder.min"),
-            ("vast-reading", "ladder.p01"),
             ("vast-reading", "ladder.p05"),
             ("vast-reading", "ladder.p10"),
             ("vast-reading", "ladder.p25"),
@@ -4982,7 +5187,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-reading", "ladder.p75"),
             ("vast-reading", "ladder.p90"),
             ("vast-reading", "ladder.p95"),
-            ("vast-reading", "ladder.p99"),
             ("marked-reading", "moments.kurtosis"),
             ("vast-reading", "moments.mean"),
             ("marked-reading", "moments.skew"),
@@ -5003,6 +5207,14 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
             ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("floor-grouped-reading", "tails.high.rms_distance"),
+            ("pushed-reading", "tails.high.values"),
+            ("marked-reading", "tails.low.mean_distance"),
+            ("marked-reading", "tails.low.rms_distance"),
+            ("pushed-reading", "tails.low.values"),
         ),
     },
     "pooled": {
@@ -5045,7 +5257,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('marked-reading', 'counts.n_left_out_of_statistics'),
             ('marked-reading', 'counts.n_negative'),
             ('marked-reading', 'counts.n_negative_unrepresentable'),
-            ('moved-cell', 'counts.n_not_numeric'),
             ('blanked-cell', 'counts.n_numeric'),
             ('one-overflowed-reading', 'counts.n_out_of_range'),
             ('blanked-cell', 'counts.n_used_in_statistics'),
@@ -5054,17 +5265,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('rewritten-reading', 'distinct.n_distinct'),
             ('marked-reading', 'distinct.n_distinct_values'),
             ('rewritten-reading', 'distinct.n_distinct_folded'),
-            ('marked-reading', 'ladder.max'),
-            ('marked-reading', 'ladder.min'),
-            ('marked-reading', 'ladder.p01'),
-            ('marked-reading', 'ladder.p05'),
-            ('marked-reading', 'ladder.p10'),
             ('marked-reading', 'ladder.p25'),
             ('marked-reading', 'ladder.p50'),
             ('marked-reading', 'ladder.p75'),
-            ('marked-reading', 'ladder.p90'),
-            ('marked-reading', 'ladder.p95'),
-            ('marked-reading', 'ladder.p99'),
             ('marked-reading', 'moments.mean'),
             ('marked-reading', 'moments.std'),
             ('not-utf8', 'position.at'),
@@ -5089,6 +5292,15 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('marked-reading', 'type.std_unrepresentable'),
             ('blanked-cell', 'widths.published.1'),
             ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("marked-reading", "counts.n_not_numeric"),
+            ("pushed-reading", "ladder.min (heaped end, one-sided)"),
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("floor-grouped-reading", "tails.high.rms_distance"),
+            ("vast-reading", "tails.low.mean_distance"),
+            ("vast-reading", "tails.low.rms_distance"),
+            ("pushed-reading", "tails.low.values"),
         ),
     },
     "spelled": {
@@ -5139,17 +5351,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-reading", "counts.numeric_share"),
             ("rewritten-reading", "distinct.n_distinct"),
             ("rewritten-reading", "distinct.n_distinct_folded"),
-            ("one-fractioned-reading", "ladder.max"),
-            ("one-zeroed-reading", "ladder.min"),
-            ("one-negated-reading", "ladder.p01"),
-            ("negated-reading", "ladder.p05"),
-            ("crowded-reading", "ladder.p10"),
-            ("crowded-reading", "ladder.p25"),
             ("crowded-reading", "ladder.p50"),
-            ("crowded-reading", "ladder.p75"),
-            ("crowded-reading", "ladder.p90"),
-            ("crowded-reading", "ladder.p95"),
-            ("one-fractioned-reading", "ladder.p99"),
             ("one-fractioned-reading", "moments.mean"),
             ("one-fractioned-reading", "moments.skew"),
             ("one-fractioned-reading", "moments.kurtosis"),
@@ -5172,6 +5374,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-reading", "type.std_unrepresentable"),
             ('quoted-reading', 'bytes.quoting'),
             ('reversed-reading', 'rows.order'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-reading", "tails.high.mean_distance"),
+            ("pushed-reading", "tails.high.rms_distance"),
+            ("crowded-reading", "tails.low.mean_distance"),
+            ("crowded-reading", "tails.low.rms_distance"),
         ),
     },
     "quarters": {
@@ -5315,14 +5523,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-column_1", "counts.numeric_share"),
             ("emptied-column_1", "distinct.n_distinct"),
             ("emptied-column_1", "distinct.n_distinct_folded"),
-            ("raised-column_1", "ladder.max"),
-            ("one-zeroed-column_1", "ladder.min"),
-            ("zeroed-column_1", "ladder.p01"),
-            ("zeroed-column_1", "ladder.p05"),
             # LANDING 2b.1: on sixty cells the widest stratum read as G5.2a's
             # cap widens the p10 window to 0.5 to 72.9, which the floor's worth
             # of plussed cells stays inside; the enormous cells still leave it.
-            ("enormous-column_1", "ladder.p10"),
             # LANDING 2b.1: the same widening, at p50 (132.2 to 244.3).
             ("crowded-column_1", "ladder.p50"),
             # `floor-plussed` reached p75 while the ladder had
@@ -5332,9 +5535,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # `crowded` is the witness now, and it is already the
             # one registered for p90 and p95.
             ("crowded-column_1", "ladder.p75"),
-            ("crowded-column_1", "ladder.p90"),
-            ("crowded-column_1", "ladder.p95"),
-            ("raised-column_1", "ladder.p99"),
             # LANDING 2b.1: the same widening, on the mean (149.7 to 237.4).
             ("crowded-column_1", "moments.mean"),
             # `moments.skew` and `moments.kurtosis` are no longer
@@ -5358,6 +5558,12 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("fractioned-column_1", "type.integer_valued"),
             ("vast-column_1", "type.std_unrepresentable"),
             ('quoted-column_1', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-column_1", "tails.high.mean_distance"),
+            ("pushed-column_1", "tails.high.rms_distance"),
+            ("reshaped-column_1", "tails.low.mean_distance"),
+            ("reshaped-column_1", "tails.low.rms_distance"),
         ),
         "column_2": (
             ("emptied-column_2", "axes.quality_state"),
@@ -5419,6 +5625,20 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
         'reading': (
             ('quoted-reading', 'bytes.quoting'),
             ('reversed-reading', 'rows.order'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("crowded-reading", "number 1 ladder.p10"),
+            ("crowded-reading", "number 1 ladder.p90"),
+            ("pushed-reading", "number 1 tails.high.mean_distance"),
+            ("pushed-reading", "number 1 tails.high.rms_distance"),
+            ("pushed-reading", "number 1 tails.low.mean_distance"),
+            ("pushed-reading", "number 1 tails.low.rms_distance"),
+            ("crowded-reading", "number 2 ladder.p10"),
+            ("crowded-reading", "number 2 ladder.p90"),
+            ("pushed-reading", "number 2 tails.high.mean_distance"),
+            ("pushed-reading", "number 2 tails.high.rms_distance"),
+            ("pushed-reading", "number 2 tails.low.mean_distance"),
+            ("pushed-reading", "number 2 tails.low.rms_distance"),
         ),
     },
 }
@@ -5734,6 +5954,16 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "spelling.negative_form"): "numeric.negative_form",
     ("compound", "spelling.decimal_plus"): "numeric.decimal_plus",
     ("compound", "styles.spill"): "numeric.numeric_styles",
+    # THE TWO TAIL DISTANCES OF THE NUMBERS HALF (stage 3, landing
+    # 3.3). A compound column's numeric half takes the numeric group's
+    # facts, exactly as its rungs and its moments do above, and each
+    # distance is a field of its own, APPROXIMATED under G12.13.
+    ("compound", "tails.high.mean_distance"): (
+        "numeric.tails.high.mean_distance"
+    ),
+    ("compound", "tails.high.rms_distance"): "numeric.tails.high.rms_distance",
+    ("compound", "tails.low.mean_distance"): "numeric.tails.low.mean_distance",
+    ("compound", "tails.low.rms_distance"): "numeric.tails.low.rms_distance",
     ("compound", "suppressed.numbers.mean"): "label.suppressed_numbers.mean",
     ("compound", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("compound", "suppressed.suppressed_rows"): "label.suppressed_rows",
@@ -5757,10 +5987,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'counts.n_unparsed'): 'joined.n_unparsed',
     ("joined", 'distinct.n_distinct'): 'joined.n_distinct',
     ("joined", 'distinct.n_distinct_folded'): 'joined.n_distinct_folded',
-    ("joined", 'ends.number 1 max'): 'joined.parts[0].max',
-    ("joined", 'ends.number 1 min'): 'joined.parts[0].min',
-    ("joined", 'ends.number 2 max'): 'joined.parts[1].max',
-    ("joined", 'ends.number 2 min'): 'joined.parts[1].min',
     ("joined", 'number 1 ladder.p01'): 'joined.parts[0].percentiles',
     ("joined", 'number 1 ladder.p05'): 'joined.parts[0].percentiles',
     ("joined", 'number 1 ladder.p10'): 'joined.parts[0].percentiles',
@@ -5809,6 +6035,42 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 2 styles.remainder'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.spelled'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.spill'): 'joined.parts[1].numeric_styles',
+    # EACH POSITION'S TAIL (stage 3, landing 3.3). A position withholds
+    # its two ends by the tail rule exactly as a plain numeric column
+    # does, and the withheld rung is LISTED under the field its check
+    # would have named -- the position's own `percentiles.min` and
+    # `percentiles.max`, which contract 9.4a gives the numeric group's
+    # dispositions. The exact `ends.number N min|max` rows above stay:
+    # they are the legacy reading, and a position that publishes a
+    # heaped end keeps them.
+    ("joined", 'number 1 ladder.max'): 'joined.parts[0].percentiles.max',
+    ("joined", 'number 1 ladder.min'): 'joined.parts[0].percentiles.min',
+    ("joined", 'number 2 ladder.max'): 'joined.parts[1].percentiles.max',
+    ("joined", 'number 2 ladder.min'): 'joined.parts[1].percentiles.min',
+    ("joined", 'number 1 tails.high.mean_distance'): (
+        'joined.parts[0].tails.high.mean_distance'
+    ),
+    ("joined", 'number 1 tails.high.rms_distance'): (
+        'joined.parts[0].tails.high.rms_distance'
+    ),
+    ("joined", 'number 1 tails.low.mean_distance'): (
+        'joined.parts[0].tails.low.mean_distance'
+    ),
+    ("joined", 'number 1 tails.low.rms_distance'): (
+        'joined.parts[0].tails.low.rms_distance'
+    ),
+    ("joined", 'number 2 tails.high.mean_distance'): (
+        'joined.parts[1].tails.high.mean_distance'
+    ),
+    ("joined", 'number 2 tails.high.rms_distance'): (
+        'joined.parts[1].tails.high.rms_distance'
+    ),
+    ("joined", 'number 2 tails.low.mean_distance'): (
+        'joined.parts[1].tails.low.mean_distance'
+    ),
+    ("joined", 'number 2 tails.low.rms_distance'): (
+        'joined.parts[1].tails.low.rms_distance'
+    ),
     ("joined", 'position.at'): 'universal.position',
     ("joined", 'presence.n_missing'): 'universal.n_missing',
     ("joined", 'presence.n_present'): 'universal.n_present',
@@ -6210,6 +6472,29 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # with a minus, now reach.
     ("numeric", "spelling.negative_notations"): "numeric.negative_notations",
     ("numeric", "styles.spill"): "numeric.numeric_styles",
+    # THE TAIL RULE (stage 3, landing 3.3). An end the rule withholds
+    # is LISTED at `ladder.min`/`ladder.max` above, under the same
+    # field its check bound before -- the obligation going quiet, not
+    # another one appearing. An end a group of rows SHARES is still
+    # published, and is checked one-sided and silently under its own
+    # subcheck, so the two readings never share a name.
+    ("numeric", "ladder.max (heaped end, one-sided)"): (
+        "numeric.percentiles.max"
+    ),
+    ("numeric", "ladder.min (heaped end, one-sided)"): (
+        "numeric.percentiles.min"
+    ),
+    # The tail's own published facts: two distances per side, each
+    # APPROXIMATED under G12.13, and -- on a grid whose tail holds a
+    # handful of values -- the values themselves, which are
+    # EXACT-OBSERVABLE because the generator writes that tail on those
+    # values and no others.
+    ("numeric", "tails.high.mean_distance"): "numeric.tails.high.mean_distance",
+    ("numeric", "tails.high.rms_distance"): "numeric.tails.high.rms_distance",
+    ("numeric", "tails.high.values"): "numeric.tails.high.values",
+    ("numeric", "tails.low.mean_distance"): "numeric.tails.low.mean_distance",
+    ("numeric", "tails.low.rms_distance"): "numeric.tails.low.rms_distance",
+    ("numeric", "tails.low.values"): "numeric.tails.low.values",
     ("numeric", "type.integer_valued"): "numeric.integer_valued",
     ("numeric", "type.std_unrepresentable"): "numeric.std_unrepresentable",
     # -- numeric_unrepresentable -------------------------------------------
@@ -6306,6 +6591,14 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # 2026-09-04: amendment A-P4-55 makes the count of different
         # numbers an obligation, so each position files it as a check.
         "joined.parts[0].percentiles_between",
+        # ...AND THE TWO A TAIL BLOCK CARRIES (stage 3, plan P4-D321):
+        # a position publishes no census of every bin at all, and its
+        # shape stands in `bin_groups`, which is REPORT-ONLY for the
+        # reason the census was.
+        "joined.parts[0].value_histogram",
+        "joined.parts[0].bin_groups",
+        "joined.parts[1].value_histogram",
+        "joined.parts[1].bin_groups",
         "joined.parts[1].field_widths",
 
         "joined.parts[1].percentiles_between",
@@ -6348,6 +6641,9 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # obligation, so it is an executable subcheck now and is held
         # to `SUBCHECK_FACTS` beside the other checks.
         "numeric.percentiles_between",
+        # ...AND THE TWO A TAIL BLOCK CARRIES (stage 3, plan P4-D321).
+        "numeric.value_histogram",
+        "numeric.bin_groups",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",
@@ -6498,6 +6794,12 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).
         "numeric.value_histogram",
+        # ...AND THE GROUPS OF BINS THAT STAND IN THE CENSUS'S PLACE ON
+        # A TAIL BLOCK (stage 3, plan P4-D321), REPORT-ONLY for the
+        # reason the census is: the twin's cells are allotted to values
+        # by the runs of the published ladder and not by a census of
+        # bins.
+        "numeric.bin_groups",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",

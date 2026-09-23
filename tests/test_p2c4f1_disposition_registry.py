@@ -1105,8 +1105,17 @@ def _numeric_classes(
 # character. Landing 2b.7 disposed `wide_runs` in the numeric table and
 # left the affixed cores without the delegation, so the fact reached the
 # cores nowhere. No other row is touched and the head prose is untouched.
+# MOVED 2026-09-22 AT LANDING 3.3, THE NUMERIC TAIL, and it LOWERS
+# nothing: FIVE ROWS added, each carrying the delegation phrase `as on
+# `count` and `continuous` above` character for character -- `tails`,
+# the four tail distances, the two lists of a tail's own values, the
+# two percents beside the two row counts, and `bin_groups`. The landing
+# disposed all of them in the numeric table this sub-table delegates
+# to, and without these rows not one of them would have reached an
+# affixed column's cores. No other row is touched and the head prose is
+# untouched.
 AFFIXED_REGION_DIGEST = (
-    "039f92e50566e6c131304a8ae46a5c195d5b88c085b2c9b5f194f70fadbc56ea"
+    "aa11a6dd51a8dc35d9a538acd223c36b3f41bd076ab37f3d11dfde394b289f0e"
 )
 
 

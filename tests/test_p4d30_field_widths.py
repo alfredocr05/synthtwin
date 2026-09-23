@@ -348,13 +348,26 @@ def test_residual_r_p4_114s_own_column_is_met_under_the_stratum_cap(
 def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
     tmp_path: pathlib.Path,
 ) -> None:
-    """REPORT-ONLY means reported, and residual R-P4-114's shape.
+    """REPORT-ONLY means reported, and the witness moved at stage 3.
 
-    Its three strata are given 7, 6 and 6 cells where the source holds
-    six, six and seven, so the seventh padded cell has no two-figure
-    value to wear the padding and comes out `01`, a one-figure value in
-    a two-figure field. No move of a VALUE repairs a cell COUNT, so this column misses
-    -- and the point of this test is that it is not silent about it.
+    RESIDUAL R-P4-114'S SHAPE NO LONGER MISSES. Its three strata were
+    given 7, 6 and 6 cells where the source holds six, six and seven, so
+    the seventh padded cell had no two-figure value to wear the padding
+    and came out `01`, a one-figure value in a two-figure field. The tail
+    rule places the rows beyond each boundary on their own grid points
+    (method G5.3b), and that column now comes back whole -- `{1: 6, 2:
+    13}` at every one of twenty seeds, with nothing named. It is
+    asserted below in that form, because a census that stopped missing
+    is a fact worth keeping.
+
+    WHAT STILL MISSES, and what this test is for: sixty whole numbers
+    from 1000 to 60000 publish the one width five, because the nine
+    cells of four figures are fewer than the smallest group and the
+    census counts them into the commonest (ruling 6 of 2026-09-17). The
+    derived low end may not be held to that width -- no set of rows
+    reaches the published mean distance from inside it (method G5.3b
+    step 4) -- so the twin writes nine cells narrower than the census
+    names, and the point of this test is that it is not silent about it.
     """
     # FLOOR ONE (plan P4-D316): widths held by six and thirteen cells.
     document, loaded = _described(
@@ -362,8 +375,22 @@ def test_a_width_the_ladder_cannot_reach_is_named_on_both_pages(
     )
     assert document["columns"][0]["field_widths"] == {"1": 6, "2": 13}
     for seed in SEEDS:
-        cells, path, built = _twin_cells(tmp_path, "signed", loaded, seed)
-        assert _field_widths_of(cells, "") != {1: 6, 2: 13}
+        cells, _path, built = _twin_cells(tmp_path, "signed", loaded, seed)
+        assert _field_widths_of(cells, "") == {1: 6, 2: 13}, seed
+        assert not [
+            note for note in built.deviations if note.fact == "field_widths"
+        ], seed
+
+    stepped = tmp_path / "stepped"
+    stepped.mkdir()
+    document, loaded = _described(
+        stepped, "measured", "reading",
+        [f"{index * 1000}" for index in range(1, 61)],
+    )
+    assert document["columns"][0]["field_widths"] == {"5": 60}
+    for seed in SEEDS:
+        cells, path, built = _twin_cells(stepped, "measured", loaded, seed)
+        assert _field_widths_of(cells, "") != {5: 60}
         # The twin's OWN report names it, with the published count
         # beside the achieved one.
         named = [
@@ -408,15 +435,23 @@ def test_a_padded_count_the_strata_cannot_hold_is_named_on_both_pages(
     wide. No move of a VALUE repairs a cell COUNT, so this column misses
     -- and the point of this test is that it is not silent about it.
 
-    WHERE THE MISS NOW SHOWS (measured at the stage-2b integration).
+    WHERE THE MISS SHOWED (measured at the stage-2b integration).
     Landing 2b.7 spells each number the way the source spelled its own
-    value, so the ninth padded cell is no longer forced three figures
-    wide: the field-width census now comes back whole, `{1: 8, 2: 17}`
-    at every seed, and the strata that still come out 9, 8 and 8 cost
-    the PADDED count instead -- eight `-02` written against nine. That
-    census is EXACT-OBSERVABLE, so the miss is named on the twin's own
-    page and MISSED on the quality page, and the width census stays
-    REPORT-ONLY and listed.
+    value, so the ninth padded cell was no longer forced three figures
+    wide: the field-width census came back whole, `{1: 8, 2: 17}` at
+    every seed, and the strata that still came out 9, 8 and 8 cost the
+    PADDED count instead -- eight `-02` written against nine.
+
+    AND IT STOPPED MISSING AT STAGE 3 (landing 3.3), which is recorded
+    here rather than asserted away. The tail rule places the rows beyond
+    each boundary on their own grid points, the strata come out 8, 8 and
+    9 as the source holds them, and the twin writes nine `-02` at every
+    one of twenty seeds with nothing named. What this test still holds
+    is the SHAPE of the two censuses, which is what it was written for:
+    the padded count is EXACT-OBSERVABLE and files a check, HELD here;
+    the width census is REPORT-ONLY, listed and never checked. A twin
+    that misses a width is the test above, whose witness moved to a
+    column that still does.
     """
     # FLOOR ONE (plan P4-D316): a padded count of nine.
     document, loaded = _described(
@@ -428,17 +463,13 @@ def test_a_padded_count_the_strata_cannot_hold_is_named_on_both_pages(
     for seed in SEEDS:
         cells, path, built = _twin_cells(tmp_path, "signed", loaded, seed)
         assert _field_widths_of(cells, "") == {1: 8, 2: 17}
-        assert sum(1 for cell in cells if cell == "-02") != 9
-        # The twin's OWN report names it, with the published count
-        # beside the achieved one.
-        named = [
+        assert sum(1 for cell in cells if cell == "-02") == 9, seed
+        assert not [
             note for note in built.deviations
-            if note.fact == "pad_widths" and note.column == "reading"
-        ]
-        assert named, f"seed {seed}: the twin missed a width and said nothing"
-        assert "wide with a leading zero" in named[0].published
-        # ...and the quality report LISTS the census, because the fact
-        # is REPORT-ONLY: a file is not failed on it.
+            if note.fact in ("pad_widths", "field_widths")
+        ], seed
+        # ...and the quality report LISTS the width census, because the
+        # fact is REPORT-ONLY: a file is not failed on it.
         outcome = validation.measure(loaded, str(path))
         listed = [
             entry for entry in outcome.listings
@@ -449,10 +480,13 @@ def test_a_padded_count_the_strata_cannot_hold_is_named_on_both_pages(
             check for check in outcome.checks
             if check.fact == "numeric.field_widths"
         ], "a REPORT-ONLY census may not file an executable subcheck"
-        assert [
+        held = [
             check for check in outcome.checks
-            if check.fact == "numeric.pad_widths" and check.verdict == "MISSED"
-        ], f"seed {seed}: the padded count was missed and the quality page held it"
+            if check.fact == "numeric.pad_widths"
+        ]
+        assert held and all(
+            check.verdict == "HELD" for check in held
+        ), f"seed {seed}: {[check.verdict for check in held]}"
 
 
 # -- the disclosure, in words -----------------------------------------

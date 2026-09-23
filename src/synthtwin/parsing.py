@@ -6524,3 +6524,77 @@ def histogram_bin(value: float, lowest: float, highest: float) -> int:
     if place >= HISTOGRAM_BINS:
         return HISTOGRAM_BINS - 1
     return place
+
+
+def scale_bin(value: float, lowest: float, highest: float) -> int:
+    """The bin of a value on a TAIL block's scale, or -1 outside it.
+
+    A tail block's bins divide the stretch between its two boundary rungs
+    (contract C6-31f as amended by stage 3, plan P4-D325), and the rows
+    beyond those rungs are described by the tail facts and stand in NO
+    bin. The clamp of `histogram_bin` would read a tail value below the
+    low boundary as bin nought, and method G6.7 would then walk it onto
+    the scale: measured on a 40-value block whose bin nought was empty,
+    twelve of its low ranks were dragged just above the boundary. Inside
+    the scale this is `histogram_bin` exactly.
+
+    Guarantees: accepts a value and the two boundary rungs; returns a bin
+    number, or -1 for a value outside `[lowest, highest]` or a scale with
+    no width. Raises nothing. No I/O of any kind.
+    """
+    if value - value != 0.0:
+        return -1
+    if lowest - lowest != 0.0 or highest - highest != 0.0:
+        return -1
+    if not highest > lowest:
+        return -1
+    if value < lowest or value > highest:
+        return -1
+    return histogram_bin(value, lowest, highest)
+
+
+# THE FEWEST UNITS A TAIL SPANS WHATEVER THE FLOOR (stage 3, plan
+# P4-D321). Two published moments over one or two cells solve for those
+# cells exactly, so a tail never holds fewer than three units. Here,
+# beside the bins, because the producer, the loader and the validator's
+# re-description all ask it and each already imports this module.
+TAIL_MINIMUM = 3
+
+
+def tail_units(floor: int) -> int:
+    """The fewest units each tail spans: the floor, and never below three."""
+    return max(floor, TAIL_MINIMUM)
+
+
+def tail_percent(count: int, units: int) -> "int | None":
+    """The boundary percent of one side of a tail block (contract L4).
+
+    The smallest whole percent `p` from 1 to 50 whose type-7 reading
+    `floor((count - 1) p / 100)` leaves at least ``units`` order
+    statistics strictly outside it -- so no published rung reads any of
+    the outermost ``units`` values. None where no percent does, which is
+    a block of fewer than `2 units + 1` values. The high side's percent
+    is a hundred less the same answer.
+
+    Guarantees: accepts the count of used values and the units the tail
+    must span; returns a percent or None. Determinism: a fixed function
+    of the two. Raises nothing. No I/O of any kind.
+    """
+    for percent in range(1, 51):
+        if ((count - 1) * percent) // 100 >= units:
+            return percent
+    return None
+
+
+def tail_rows(count: int, percent: int, side: str) -> int:
+    """How many rows one tail holds (contract T3).
+
+    Low: the positions below `h = (count - 1) percent / 100`, which are
+    `ceil(h)` of them. High: the positions above it, `count - 1 -
+    floor(h)`. A rung at `h` reads `floor(h)` and `ceil(h)`, and neither
+    is a tail row.
+    """
+    steps = (count - 1) * percent
+    if side == "low":
+        return -((-steps) // 100)
+    return count - 1 - steps // 100

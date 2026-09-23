@@ -30,6 +30,7 @@ import pathlib
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import parsing, profile, taxonomy
 from synthtwin.cli import main
 
@@ -67,6 +68,26 @@ def _run(
     assert main(["profile", table] + options) == 0
     capsys.readouterr()
     return _profiled(tmp_path, name)
+
+
+def _the_smallest_is_one(column: dict, values: "list[str]") -> None:
+    """The column's smallest value is 1, said the way stage 3 says it.
+
+    THE END ITSELF IS WITHHELD. One row holds the 1, and the tail rule
+    of contract 6.7a publishes an end only where a group of at least
+    max(`small_cell_floor`, 3) rows holds it -- so `percentiles.min` is
+    null here and what the description says about those rows is the
+    GROUP beyond the low boundary: how many there are and how far from
+    that boundary they lie. Those numbers pin the smallest value as
+    tightly as the end did: the twelve rows are 1 to 12 and nothing
+    else gives their distances from the published rung.
+    """
+    assert column["percentiles"]["min"] is None, (
+        "an end no group holds is withheld by the tail rule"
+    )
+    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+        column, [float(value) for value in values]
+    )
 
 
 # -- a legitimate NA --------------------------------------------------
@@ -190,7 +211,7 @@ def test_the_same_column_without_the_option_loses_the_number(
     )
     column = document["columns"][0]
     assert column["n_missing"] == 15
-    assert column["percentiles"]["min"] == 1.0
+    _the_smallest_is_one(column, READINGS)
 
 
 @pytest.mark.parametrize("declared", ["-999", "-999.00"])
@@ -210,7 +231,7 @@ def test_a_declared_missing_number_matches_the_files_spelling(
     column = document["columns"][0]
     assert column["n_missing"] == 15
     assert column["missing_by_class"]["(declared-missing)"] == 15
-    assert column["percentiles"]["min"] == 1.0
+    _the_smallest_is_one(column, [str(index) for index in range(1, 200)])
 
 
 def test_a_declared_missing_number_is_removed_before_any_rule_runs(
@@ -226,7 +247,7 @@ def test_a_declared_missing_number_is_removed_before_any_rule_runs(
     column = document["columns"][0]
     assert column["role"] == taxonomy.ROLE_COUNT
     assert column["n_missing"] == 15
-    assert column["percentiles"]["min"] == 1.0
+    _the_smallest_is_one(column, [str(index) for index in range(1, 200)])
     assert column["n_negative"] == 0
 
 
@@ -304,8 +325,11 @@ def test_both_candidates_can_be_declared_missing_at_once(
     column = document["columns"][0]
     assert column["n_missing"] == 30
     assert column["missing_by_class"]["(declared-missing)"] == 30
-    assert column["percentiles"]["min"] == 1.0
-    assert column["percentiles"]["max"] == 199.0
+    _the_smallest_is_one(column, READINGS)
+    assert column["percentiles"]["max"] is None
+    assert tail_rule.stated(column["tails"]["high"]) == tail_rule.expected(
+        column, [float(value) for value in READINGS], low=False
+    )
 
 
 def test_one_column_can_carry_a_kept_text_code_and_a_kept_number(
@@ -382,8 +406,17 @@ def test_two_declarations_that_are_not_the_same_value_are_accepted(
     )
     column = document["columns"][0]
     assert column["n_missing"] == 15
+    # The kept -999 is held by fifteen rows, a group the floor of eleven
+    # reaches, so the tail rule publishes that end (contract TL1); the
+    # largest value, 199, is held by one row and is named through the
+    # group beyond the high boundary instead.
     assert column["percentiles"]["min"] == -999.0
-    assert column["percentiles"]["max"] == 199.0
+    assert column["percentiles"]["max"] is None
+    assert tail_rule.stated(column["tails"]["high"]) == tail_rule.expected(
+        column,
+        [float(value) for value in READINGS] + [-999.0] * 15,
+        low=False,
+    )
 
 
 def test_the_library_refuses_the_same_contradiction(

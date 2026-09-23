@@ -317,6 +317,21 @@ def test_nothing_a_file_holds_decides_which_obligations_it_owes(
 # a shape the producer publishes, and has no deviation it can state.
 _SPREAD_SUBCHECKS = ("moments.std",)
 
+# ...and the measurements a column's own COUNT OF VALUES decides the
+# existence of (amendment V2.4-A11, stage 3). The tail rule of contract
+# 6.7a reads the boundary percent off that count alone (TL1) and the
+# rows beyond it off the same count (TL4), so a file holding a
+# different number of values describes itself with its ladder and its
+# tails at a DIFFERENT percent, and publishes nothing at the percent
+# this description names. The rungs and the tail facts then go quiet
+# for the reason A2 widened the clause to admit: a published fact of
+# its own, `counts.n_used_in_statistics`, decides whether such a
+# measurement exists at all, and it MISSES in the same report -- which
+# is the sentence a reader acts on. The column is still a column of
+# numbers, so its role is HELD and its role is right.
+_TAIL_HEADS = ("ladder.", "tails.")
+_TAIL_COUNT = "counts.n_used_in_statistics"
+
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
 ) -> None:
@@ -345,9 +360,16 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
       so its role is HELD and its role is right, and the producer
       publishes for it that the spread CANNOT be held -- which is a
       published fact of its own, is reported as a MISSED check of its
-      own, and is exactly the reason no spread is shown. Either way a
-      reader is never told nothing: the report says out loud, in a
-      verdict, why the rest of the column went quiet.
+      own, and is exactly the reason no spread is shown. And since
+      stage 3 there is a third, of the same shape (amendment V2.4-A11):
+      the tail rule reads a column's two boundary percents off its
+      COUNT of values and nothing else, so a file holding a different
+      number of values publishes its ladder and its tails at a
+      different percent and publishes nothing at the percent the
+      description names -- and `counts.n_used_in_statistics` is a
+      published fact of its own that MISSES in the same report. Either
+      way a reader is never told nothing: the report says out loud, in
+      a verdict, why the rest of the column went quiet.
 
     Together these say a measured file cannot buy silence. Making a file
     worse can make its obligations MISS, and it can make the file's own
@@ -434,6 +456,11 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     "type.std_unrepresentable",
                 ) in missed:
                     continue
+                if check.subcheck.startswith(_TAIL_HEADS) and (
+                    check.column,
+                    _TAIL_COUNT,
+                ) in missed:
+                    continue
                 unexplained = unexplained + [
                     (
                         f"{name}/{label}/{marker}: {check.column} "
@@ -513,7 +540,13 @@ def test_the_gate_still_comes_from_the_file_s_own_description(
         ["5" if index % 2 else "7" for index in range(60)],
         "twovalued.csv",
     )
-    for subcheck in ("ladder.p50", "moments.mean", "ladder.min"):
+    # `ladder.min` stood here as the third. The tail rule of contract
+    # 6.7a withholds that rung from PUBLICATION on a column of sixty
+    # different numbers (landing 3.3), so there is no such obligation
+    # left to gate; what the description says about that end instead is
+    # the group beyond the boundary, and the gate closes over it the
+    # same way.
+    for subcheck in ("ladder.p50", "moments.mean", "tails.low.mean_distance"):
         check = _one(outcome, subcheck)
         assert check.verdict == validation.WITHHELD, check
         assert check.achieved == ""

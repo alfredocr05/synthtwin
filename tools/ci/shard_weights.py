@@ -257,6 +257,9 @@ SECONDS = {
     "tests/test_stage2_judged_provenance.py": 5.11,
     "tests/test_stage2_nested_grouping_loss.py": 0.72,
     "tests/test_stage2_refusals.py": 0.36,
+    # The tail rule of stage 3 (landing 3.3): forty-five cases over ten
+    # shapes, each a whole run through the product.
+    "tests/test_stage3_tail_rule.py": 52.0,
     "tests/test_stage2_round_trip.py": 21.51,
     "tests/test_stage2_spellings_survive.py": 0.72,
     "tests/test_stage2_summary.py": 0.47,

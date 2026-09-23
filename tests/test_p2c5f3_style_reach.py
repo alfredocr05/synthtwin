@@ -404,8 +404,23 @@ def test_the_map_is_not_bought_with_another_exact_count(
             assert len([one for one in numbers if one == 0.0]) == (
                 column["n_zero"]
             ), (name, seed)
-            assert min(numbers) == column["percentiles"]["min"], (name, seed)
-            assert max(numbers) == column["percentiles"]["max"], (name, seed)
+            # THE TWO ENDS ARE THE LADDER'S, and on a tail block they
+            # are DERIVED rather than published (contract 6.7a, method
+            # G5.3b): the reach step may not move them either way, so
+            # they are read from `contract.tail_ladder` -- the ladder
+            # every consumer reads -- and compared exactly as the
+            # published pair was.
+            facts = loaded.columns[0].facts
+            assert isinstance(facts, contract.NumericFacts)
+            ladder = contract.tail_ladder(facts)
+            if ladder is None:
+                ends = (
+                    column["percentiles"]["min"],
+                    column["percentiles"]["max"],
+                )
+            else:
+                ends = (ladder[0], ladder[len(ladder) - 1])
+            assert (min(numbers), max(numbers)) == ends, (name, seed)
             assert len(set(numbers)) <= column["n_distinct_folded"], (
                 name, seed
             )

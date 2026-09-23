@@ -62,7 +62,10 @@ def test_a_column_at_the_line_keeps_its_distribution() -> None:
     """
     described = describe([str(index) for index in range(99)] + ["trace"])
     assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["percentiles"]["max"] == 98.0
+    # THE MIDDLE RUNG AND NOT THE END: the tail rule withholds both ends
+    # (contract TL1, stage 3), and the median of 0..98 says the same
+    # thing about which cells the statistics used.
+    assert described.details["percentiles"]["p50"] == 49.0
     assert described.details["n_used_in_statistics"] == 99
     assert described.details["n_left_out_of_statistics"] == 1
 
@@ -319,7 +322,11 @@ def test_a_candidate_is_judged_even_when_some_values_are_words() -> None:
     described = describe(values)
     assert described.n_missing == 15
     assert described.n_not_numeric == 1
-    assert described.details["percentiles"]["min"] == 1.0
+    # The sentinel is out of the statistics: the median of 1..199 is
+    # 100, and a column still holding fifteen cells of -999 would
+    # publish a lower one. The two ends are withheld by the tail rule
+    # (contract TL1, stage 3), so the middle rung carries the point.
+    assert described.details["percentiles"]["p50"] == 100.0
 
 
 def test_unrepresentable_values_do_not_stop_a_sentinel_being_judged() -> None:
@@ -338,7 +345,8 @@ def test_unrepresentable_values_do_not_stop_a_sentinel_being_judged() -> None:
         [str(index) for index in range(1, 197)] + ["-999"] * 15 + ["1e999"]
     )
     described = describe(values)
-    assert described.details["percentiles"]["min"] == 1.0
+    # The median of 1..196, which fifteen cells of -999 would pull down.
+    assert described.details["percentiles"]["p50"] == 98.5
     assert described.n_missing == 15
     assert described.n_out_of_range == 1
 

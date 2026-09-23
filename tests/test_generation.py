@@ -345,9 +345,35 @@ def test_integer_valued_is_recounted_from_the_written_values(
         assert whole == facts.integer_valued, column.name
 
 
+def _ends_of(facts: contract.NumericFacts) -> "tuple[float, float]":
+    """The two ends of the ladder the construction reads.
+
+    The published `min` and `max` on a block written before stage 3;
+    the derived ends of method G5.3b on a tail block, which are what
+    its two pinned strata hold.
+    """
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return ladder[0], ladder[len(ladder) - 1]
+    low = facts.percentiles.minimum
+    high = facts.percentiles.maximum
+    assert low is not None and high is not None
+    return low, high
+
+
 def test_the_two_ends_of_a_ladder_are_exact(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
+    """The twin's two ends are the ladder's, DERIVED where the tail rule
+    withholds the published ones (method G5.3b, stage 3).
+
+    A block written before stage 3 publishes `min` and `max` and the
+    twin holds them exactly. A tail block publishes neither unless a
+    group of rows shares one, and the two pinned strata hold the derived
+    ends instead -- which is what `contract.tail_ladder` reads, and what
+    every consumer of the ladder reads with it.
+    """
     for column in every_role.columns:
         facts = column.facts
         if not isinstance(facts, contract.NumericFacts):
@@ -358,8 +384,9 @@ def test_the_two_ends_of_a_ladder_are_exact(
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         held = [value for value in values if value is not None]
-        assert min(held) == facts.percentiles.minimum, column.name
-        assert max(held) == facts.percentiles.maximum, column.name
+        ends = _ends_of(facts)
+        assert min(held) == ends[0], column.name
+        assert max(held) == ends[1], column.name
 
 
 def test_every_value_lies_between_the_two_published_ends(
@@ -372,9 +399,7 @@ def test_every_value_lies_between_the_two_published_ends(
         facts = column.facts
         if not isinstance(facts, contract.NumericFacts):
             continue
-        low = facts.percentiles.minimum
-        high = facts.percentiles.maximum
-        assert low is not None and high is not None
+        low, high = _ends_of(facts)
         for cell in _present(_cells(twin, column.name), column):
             if parsing.classify_number(cell) != parsing.NUMBER:
                 continue
@@ -514,9 +539,20 @@ def bent(tmp_path_factory: pytest.TempPathFactory) -> contract.Profile:
 
 
 def _rungs_of(described: contract.Profile) -> list:
-    """The eleven published rungs of the one column of ``described``."""
+    """The eleven rungs the construction reads, at the named percents.
+
+    On a block written before stage 3 they are the published eleven. On
+    a tail block the rungs outside the two boundaries are withheld and
+    the tail's own reading stands there (method G5.3b), so the eleven
+    are read off `contract.tail_ladder` -- the one ladder every consumer
+    reads, and the one a twin laid along it is laid along.
+    """
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return [ladder[percent] for percent in contract.LADDER_PERCENTS]
     rungs = [rung for rung in facts.percentiles.rungs]
     assert None not in rungs, "this description must publish a whole ladder"
     return rungs
@@ -1086,14 +1122,22 @@ def test_a_column_that_meets_every_fact_names_no_deviation(
     # report has nothing to name. A report that named something here
     # would teach a reader to ignore it.
     #
-    # AT THE DEFAULT FLOOR THE COLUMN HAS TO WEAR ONE WIDTH to be that
-    # case (plan P4-D316). 1000 to 60000 write nine cells four figures
-    # wide, fewer than the smallest group of 11, so the width census
-    # counts them into the commonest width (ruling 6 of 2026-09-17)
-    # while the exact smallest value, 1000, keeps its four figures: the
-    # twin cannot meet both and names `field_widths`, a report-only
-    # fact. That is the default's cost until the tail landing withdraws
-    # the exact ends, and it is pinned here so it cannot spread unseen.
+    # AND THE ONE COST THE DEFAULT LEAVES HERE IS NAMED, WHICH IS WHAT
+    # THIS TEST IS ABOUT (stage 3, plan P4-D321). 1000 to 60000 write
+    # nine cells four figures wide, fewer than the smallest group of 11,
+    # so the width census counts them into the commonest width (ruling 6
+    # of 2026-09-17) and says every cell is five figures wide. The tail
+    # rule withholds the exact smallest value and derives an end from
+    # the published facts; holding THAT end to the census would put it
+    # at 10000, nearer the boundary rung than the tail's own published
+    # mean distance, which no set of rows can meet (method G5.3b step
+    # 4). So the end stands where the sign rule leaves it, the twin
+    # writes nine cells narrower than the census names, and it says so:
+    # `field_widths` is named and nothing else is. The trade is
+    # measured: the twin's mean is 30800.3 against the published 30500.0
+    # and its spread 17721.8 against 17464.2, where holding the end to
+    # the census gave 31558.7 and 16641.1 -- twice as far out on the
+    # mean and three times on the spread, to meet a report-only census.
     values = [f"{index * 1000}" for index in range(1, 61)]
     (tmp_path / "mixed").mkdir()
     mixed = _described(
@@ -1102,6 +1146,8 @@ def test_a_column_that_meets_every_fact_names_no_deviation(
     assert [one.fact for one in generation.generate(mixed, 3).deviations] == [
         "field_widths"
     ]
+    # ...and the column whose cells are ALL five figures wide, where the
+    # census states a ceiling nothing pooled, names nothing at all.
     values = [f"{index * 1000}" for index in range(10, 70)]
     described = _described(
         tmp_path, fixtures.single_column_table("measured", values)

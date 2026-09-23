@@ -717,6 +717,44 @@ _LISTING_WORDS = {
         "how many figures each of your whole-numbered cells was "
         "written with"
     ),
+    # THE TAIL FACTS (stage 3). The description does not carry your
+    # column's smallest and largest values; it carries how many rows lie
+    # beyond each end of the published ladder and how far from it they
+    # lie, which is what these lines are about.
+    "numeric.tails": (
+        "where each end of your column's ladder stops and how many rows "
+        "lie beyond it"
+    ),
+    "numeric.tails.low.mean_distance": (
+        "how far the smallest values of your column lie, on average, "
+        "below the lowest step of its published ladder"
+    ),
+    "numeric.tails.low.rms_distance": (
+        "how far the smallest values of your column lie below that step "
+        "when the distances are squared, averaged and rooted, which is "
+        "what says how spread out they are"
+    ),
+    "numeric.tails.low.values": (
+        "which values the smallest rows of your column lie on, without "
+        "saying how many rows hold each"
+    ),
+    "numeric.tails.high.mean_distance": (
+        "how far the largest values of your column lie, on average, "
+        "above the highest step of its published ladder"
+    ),
+    "numeric.tails.high.rms_distance": (
+        "how far the largest values of your column lie above that step "
+        "when the distances are squared, averaged and rooted, which is "
+        "what says how spread out they are"
+    ),
+    "numeric.tails.high.values": (
+        "which values the largest rows of your column lie on, without "
+        "saying how many rows hold each"
+    ),
+    "numeric.bin_groups": (
+        "the shape of your numbers between the two ends of the "
+        "published ladder -- how many of them fall in each group of bins"
+    ),
 }
 
 

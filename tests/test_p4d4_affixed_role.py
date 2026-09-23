@@ -30,6 +30,8 @@ import tempfile
 import pytest
 
 import fixtures
+import tail_rule
+
 from synthtwin import (
     asking,
     cli,
@@ -44,6 +46,18 @@ from synthtwin import (
     taxonomy,
     validation,
 )
+
+
+def _boundary(block: dict, low: bool = True) -> float:
+    """The outermost rung a tail block still publishes on one side.
+
+    The two ends are withheld by the tail rule (contract 6.7a) and so is
+    every rung outside the two boundary percents, so a test that used to
+    read `percentiles.min` reads the rung at `tails.low.percent` -- the
+    smallest number the description still names.
+    """
+    side = block["tails"]["low" if low else "high"]
+    return tail_rule.rung_of(block, side["percent"])
 
 
 def _document(
@@ -394,7 +408,12 @@ def test_removal_over_the_cores_does_not_hand_the_column_to_an_earlier_rule(
     verdicts = column["sentinel_verdicts"]
     assert verdicts, "the removed stand-in is published as a verdict"
     assert verdicts[0]["candidate"] == "-999"
-    assert column["percentiles"]["min"] == 1.0
+    # The smallest CORE is 1, held by nine rows and so withheld as an
+    # end (contract 6.7a); the cores stand on a grid and the low tail
+    # holds two different values, so the description lists them and the
+    # 1 is named there -- which is what says the stand-in is gone.
+    assert column["percentiles"]["min"] is None
+    assert column["tails"]["low"]["values"][0] == 1.0
 
 
 # -- the competing-readings remark ------------------------------------
@@ -567,7 +586,16 @@ def test_a_declaration_matching_no_cell_is_inert_on_the_affixed_role() -> None:
     column = _kept(_UNIT_CELLS, ("-999",))["columns"][0]
     plain = _kept(_UNIT_CELLS, ())["columns"][0]
     assert column["n_present"] == plain["n_present"] == 89
-    assert column["percentiles"]["min"] == plain["percentiles"]["min"] == 1.0
+    assert column["tails"] == plain["tails"]
+    assert column["percentiles"]["min"] is plain["percentiles"]["min"] is None
+    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+        column,
+        [
+            float(cell.replace(" mg", ""))
+            for cell in _UNIT_CELLS
+            if not cell.startswith("-999")
+        ],
+    )
     assert [entry["verdict"] for entry in column["sentinel_verdicts"]] == [
         "read_as_missing"
     ]
@@ -695,7 +723,15 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     )
     column = document["columns"][0]
     assert column["fraction_widths"] == {"(withheld)": 61}
-    assert column["percentiles"]["min"] == 2.11
+    # THE SMALLEST VALUE IS 2.11 AND THE DESCRIPTION NO LONGER NAMES IT
+    # (stage 3, contract 6.7a): one row holds it, so the end is
+    # withheld and the rows beyond the low boundary are described as a
+    # group. The snap this case is about is still bounded by that
+    # boundary rung, which is what the twin reads.
+    assert column["percentiles"]["min"] is None
+    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+        column, [float(value) for value in values]
+    )
     described = contract.load_profile(
         f"{fixtures.write_profile(folder, 'v.json', document)}"
     )
@@ -1154,9 +1190,20 @@ def test_a_column_wearing_three_wrappers_is_a_quantity(
         one["count"] for one in block["affix_variants"]
     )
     assert published == counted, (published, counted)
-    # ...and the quantity itself, which is the whole point.
-    assert block["percentiles"]["min"] == min(
-        float(one.replace(" H", "").replace(" L", "")) for one in rows
+    # ...and the quantity itself, which is the whole point. The end is
+    # withheld by the tail rule (contract 6.7a), so what the block says
+    # about the smallest cores is the group beyond its low boundary,
+    # measured over the CORES of this column.
+    assert block["percentiles"]["min"] is None
+    # The block's own numbers are the COMMONEST wrapper's cores, which
+    # on this column is the ` L` flag rather than the bare cells.
+    assert tail_rule.stated(block["tails"]["low"]) == tail_rule.expected(
+        block,
+        [
+            float(one[: -len(block["affix_suffix"])])
+            for one in rows
+            if one.endswith(block["affix_suffix"])
+        ],
     )
     assert block["n_core_numeric"] == 200, block["n_core_numeric"]
 
@@ -1923,9 +1970,14 @@ def test_the_measurement_declaration_reaches_flush_units(
     block = declared["columns"][0]
     assert block["role"] == "affixed_number", block["role"]
     assert len(block["affix_variants"]) == 1, block["affix_variants"]
-    # ...and each unit keeps its own numbers, which is the point.
-    assert block["percentiles"]["max"] < 100.0
-    assert block["affix_variants"][0]["numbers"]["percentiles"]["min"] > 100.0
+    # ...and each unit keeps its own numbers, which is the point. The
+    # two ENDS are withheld by the tail rule, so the claim is made on
+    # the outermost rungs the ladder still publishes.
+    assert block["percentiles"]["max"] is None
+    assert _boundary(block, low=False) < 100.0
+    variant = block["affix_variants"][0]["numbers"]
+    assert variant["percentiles"]["min"] is None
+    assert _boundary(variant, low=True) > 100.0
 
 
 def test_the_sentence_names_the_count_that_wears_the_spelling(
@@ -2034,10 +2086,14 @@ def test_a_wrapper_is_measured_against_its_OWN_spelling(
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ]
-    # THE KILOGRAM ENDS ARE COMPARED AGAINST KILOGRAMS, which in that
-    # file run near 300, so they miss rather than holding.
-    assert "ladder.min" in missed, missed[:10]
-    assert "ladder.max" in missed, missed[:10]
+    # THE KILOGRAM LADDER IS COMPARED AGAINST KILOGRAMS, which in that
+    # file run near 300, so it misses rather than holding. The two ENDS
+    # carry no check at all on a tail block -- they are withheld, and a
+    # published one is checked one-sided and silently (method G5.6a) --
+    # so the rungs the ladder does publish are what miss.
+    assert "ladder.min" not in missed
+    assert "ladder.p50" in missed, missed[:10]
+    assert "ladder.p25" in missed, missed[:10]
 
 
 def test_a_wrapper_whose_numbers_are_wrong_is_caught(
@@ -2086,7 +2142,7 @@ def test_a_wrapper_whose_numbers_are_wrong_is_caught(
     # ...AND EVERY MISS NAMES THE WRAPPER IT BELONGS TO.
     for subcheck in missed:
         assert subcheck.startswith("affix_variants[0]."), subcheck
-    assert "affix_variants[0].ladder.min" in missed, missed
+    assert "affix_variants[0].ladder.p50" in missed, missed
 
 
 def _wearing_a_set(folder: pathlib.Path, stem: str) -> "dict[str, object]":
@@ -2267,16 +2323,20 @@ def test_two_units_are_never_averaged_into_one_number(
     # THE COLUMN'S OWN BLOCK IS THE COMMONEST WRAPPER'S, so its ends
     # are that wrapper's ends and not the two ranges laid end to end.
     assert block["affix_suffix"] == " kg", block["affix_suffix"]
-    assert block["percentiles"]["min"] >= 60.0
-    assert block["percentiles"]["max"] <= 70.0
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+    assert _boundary(block, low=True) >= 60.0
+    assert _boundary(block, low=False) <= 70.0
     assert 60.0 <= block["mean"] <= 70.0, block["mean"]
     # ...and the pounds are described as pounds, beside their wrapper.
     assert len(block["affix_variants"]) == 1, block["affix_variants"]
     other = block["affix_variants"][0]
     assert other["suffix"] == " lb", other["suffix"]
     assert other["count"] == 100, other["count"]
-    assert other["numbers"]["percentiles"]["min"] >= 132.0
-    assert other["numbers"]["percentiles"]["max"] <= 154.0
+    assert other["numbers"]["percentiles"]["min"] is None
+    assert other["numbers"]["percentiles"]["max"] is None
+    assert _boundary(other["numbers"], low=True) >= 132.0
+    assert _boundary(other["numbers"], low=False) <= 154.0
     assert 132.0 <= other["numbers"]["mean"] <= 154.0, other["numbers"]["mean"]
     # NO POOLED NUMBER SURVIVES ANYWHERE IN THE BLOCK: nothing in this
     # column's description sits between the two ranges, which is where

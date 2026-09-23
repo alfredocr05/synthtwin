@@ -136,19 +136,35 @@ def _described(
     return document, loaded
 
 
-def _empty_of(rows: "list[str]") -> "tuple[float, float, list[int]]":
+def _empty_of(
+    rows: "list[str]", floor: int = 1
+) -> "tuple[float, float, list[int]]":
     """The bins the SOURCE leaves empty, by the shipped bin rule.
 
     Computed here from the rows rather than read out of the
     description, so the assertion below compares the twin against the
     TABLE and not against the key under test. A recount that read the
     key would pass on a producer that published the wrong bins.
+
+    SINCE STAGE 3 THE SCALE IS THE TWO BOUNDARY RUNGS and the rows
+    counted are the ones between the two tails (method G6.7a, contract
+    C6-31f as amended): the rows beyond a boundary are described by the
+    tail facts and stand in no bin at all. Both are worked out here from
+    the sorted values and the tail rule's own arithmetic, so this is
+    still a recount of the TABLE.
     """
-    numbers = [float(one) for one in rows]
-    lowest = min(numbers)
-    highest = max(numbers)
+    numbers = sorted(float(one) for one in rows)
+    count = len(numbers)
+    units = parsing.tail_units(floor)
+    percent = parsing.tail_percent(count, units)
+    assert percent is not None, "this column is too small for a tail block"
+    low_rows = parsing.tail_rows(count, percent, "low")
+    high_rows = parsing.tail_rows(count, 100 - percent, "high")
+    lowest = taxonomy._quantile(numbers, percent, 100)
+    highest = taxonomy._quantile(numbers, 100 - percent, 100)
+    interior = numbers[low_rows:count - high_rows]
     held = {
-        parsing.histogram_bin(one, lowest, highest) for one in numbers
+        parsing.histogram_bin(one, lowest, highest) for one in interior
     }
     return lowest, highest, [
         place
@@ -168,7 +184,10 @@ def _cells_in(
         value = parsing.parse_number(cell)
         if value is None:
             continue
-        if parsing.histogram_bin(value, lowest, highest) in barred:
+        # A VALUE OUTSIDE THE SCALE IS IN NO BIN (method G6.7a): the
+        # twin's own tail rows stand beyond the two boundary rungs and
+        # the description says nothing about which bin they are in.
+        if parsing.scale_bin(value, lowest, highest) in barred:
             found = found + [cell]
     return found
 
@@ -184,9 +203,18 @@ def test_a_two_cluster_column_publishes_the_bins_that_hold_nothing(
     lowest, highest, barred = _empty_of(rows)
     document, _loaded = _described(tmp_path, "tight", rows)
     assert barred, "this column is chosen for having an empty middle"
-    assert document["columns"][0]["empty_bins"] == barred
-    assert lowest == document["columns"][0]["percentiles"]["min"]
-    assert highest == document["columns"][0]["percentiles"]["max"]
+    block = document["columns"][0]
+    assert block["empty_bins"] == barred
+    # THE SCALE IS THE TWO BOUNDARY RUNGS since stage 3 (method G6.7a),
+    # and the two ends are withheld (contract TL1).
+    tails = block["tails"]
+    assert lowest == block["percentiles_between"][
+        f"p{tails['low']['percent']:02d}"
+    ]
+    assert highest == block["percentiles_between"][
+        f"p{tails['high']['percent']:02d}"
+    ]
+    assert block["percentiles"]["min"] is None
 
 
 def test_the_fact_survives_a_floor_the_census_beside_it_does_not(
@@ -200,20 +228,25 @@ def test_the_fact_survives_a_floor_the_census_beside_it_does_not(
     list is under no floor and says the same thing at every one.
     """
     rows = _two_tight_rows()
-    _lowest, _highest, barred = _empty_of(rows)
     seen = []
+    groups = []
     for floor in (1, 2, 3, 5, 11):
         document, _loaded = _described(
             tmp_path, f"floors-{floor}", rows, floor=floor
         )
         block = document["columns"][0]
         seen = seen + [len(block["value_histogram"])]
+        groups = groups + [len(block["bin_groups"])]
+        _lowest, _highest, barred = _empty_of(rows, floor)
         assert block["empty_bins"] == barred, floor
-    assert seen[0] > 0, "at a floor of one the census is publishable"
-    assert seen[1:] == [0, 0, 0, 0], (
-        "above a floor of one this column's census is withheld, which is "
-        "the measurement plan P4-D32 rests on"
-    )
+    # THE CENSUS OF EVERY BIN IS GONE FROM A TAIL BLOCK ALTOGETHER
+    # (stage 3, method G6.7a): `value_histogram` is `{}` at every floor
+    # and `bin_groups` carries the shape in groups that clear the floor.
+    # The empty-bin list said the same thing at every floor before that
+    # rule and says it at every floor under it, which is what plan
+    # P4-D32 rests on.
+    assert seen == [0, 0, 0, 0, 0], seen
+    assert min(groups) > 0, groups
 
 
 def test_a_column_with_no_empty_stretch_names_none(
@@ -249,6 +282,10 @@ def _tampered(
         tmp_path, name, _two_tight_rows(), floor=11
     )
     assert document["columns"][0]["value_histogram"] == {}
+    # READ AS A BLOCK WRITTEN BEFORE STAGE 3 (`_legacy` says why): on a
+    # tail block an end bin may hold nothing, so the conditions these
+    # mutations break are conditions of the older scale.
+    _legacy(document["columns"][0])
     document["columns"][0]["empty_bins"] = bins
     path = fixtures.write_profile(tmp_path, f"{name}-edited.json", document)
     try:
@@ -281,6 +318,35 @@ def test_the_loader_refuses_an_end_bin(tmp_path: pathlib.Path) -> None:
     ) is not None
 
 
+def _rung(block: "dict", percent: int) -> float:
+    """One published rung of a block, from either half of its ladder."""
+    names = {
+        0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+        75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+    }
+    if percent in names:
+        return block["percentiles"][names[percent]]
+    return block["percentiles_between"][f"p{percent:02d}"]
+
+
+def _legacy(block: "dict") -> None:
+    """Read one block the way a description written before stage 3 is read.
+
+    The rules below -- the census and the empty-bin list as complements,
+    and an end bin never empty -- are conditions of the scale that runs
+    from a column's smallest value to its largest. A tail block's scale
+    runs between its two boundary rungs, publishes no census at all and
+    may leave an end bin empty (contract 6.7a, C6-31f as amended), so
+    these two rules have a description to break only on a block written
+    before stage 3, which this loader still reads.
+    """
+    block.pop("tails", None)
+    block.pop("bin_groups", None)
+    block["value_histogram"] = {}
+    block["empty_bins"] = []
+    block["empty_edges"] = []
+
+
 def test_the_loader_refuses_a_bin_the_census_names(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -292,9 +358,16 @@ def test_the_loader_refuses_a_bin_the_census_names(
     """
     document, _loaded = _described(tmp_path, "clash", _two_tight_rows())
     block = document["columns"][0]
-    named = sorted(int(key) for key in block["value_histogram"])
-    assert named, "this column publishes its census at the default floor"
-    block["empty_bins"] = sorted(set(block["empty_bins"]) | {named[1]})
+    # ON A BLOCK WRITTEN BEFORE STAGE 3, which is where the census and
+    # the list stand side by side at all (`_legacy` says why).
+    kept = list(block["empty_bins"])
+    census = {}
+    for place in range(parsing.HISTOGRAM_BINS):
+        if place not in kept:
+            census[f"{place}"] = 1
+    _legacy(block)
+    block["value_histogram"] = census
+    block["empty_bins"] = sorted(set(kept) | {min(int(k) for k in census)})
     path = fixtures.write_profile(tmp_path, "clash-edited.json", document)
     with pytest.raises(errors.ProfileError):
         contract.load_profile(str(path))
@@ -615,8 +688,25 @@ def test_a_stretch_reached_both_ways_names_both_facts(
     # Bins are one wide on a scale of 0 to 32. Bins 10 to 12 hold
     # nothing, and the published gap runs 9.9 to 13.1, so it reaches
     # into occupied bins 9 and 13.
+    #
+    # READ AS A BLOCK WRITTEN BEFORE STAGE 3, because the scale is the
+    # thing under test here: a tail block's bins divide the stretch
+    # between its two boundary rungs (method G6.7a) and this witness
+    # names its bins on the scale of 0 to 32. What it pins -- the note
+    # per stretch, recounted from the finished cells -- is one rule on
+    # both scales.
+    ladder = column.facts.percentiles
     facts = dataclasses.replace(
         column.facts,
+        tail_rule=False,
+        tails=None,
+        bin_groups=(),
+        percentiles=dataclasses.replace(
+            ladder,
+            rungs=(0.0,) + ladder.rungs[1:-1] + (32.0,),
+            minimum=0.0,
+            maximum=32.0,
+        ),
         empty_bins=(10, 11, 12),
         empty_edges=((9.9, 13.1),),
     )
@@ -700,10 +790,12 @@ def test_the_loader_refuses_an_edge_standing_in_its_own_empty_stretch(
     document, loaded = _described(tmp_path, "inward", _two_tight_rows())
     block = document["columns"][0]
     assert block["empty_edges"], "this column has an empty middle"
-    ends = (
-        loaded.columns[0].facts.percentiles.rungs[0],
-        loaded.columns[0].facts.percentiles.rungs[-1],
-    )
+    # THE SCALE IS THE TWO BOUNDARY RUNGS (method G6.7a, stage 3), which
+    # is what `generation._bin_ends` reads and what the loader checks a
+    # pair against.
+    scale = generation._bin_ends(loaded.columns[0].facts)
+    assert scale is not None
+    ends = scale
     width = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS
     first = block["empty_bins"][0]
     # Two values INSIDE the first empty bin, ascending and inside the
@@ -962,122 +1054,97 @@ def test_where_the_twin_cannot_move_a_value_it_says_so(
     count taken from a stratum rather than from the cells, would meet
     that and leave the reader wrong.
 
-    THE COLUMN STILL FAILS, and for the reason residual R-P4-140
-    records: it straddles zero, and G6.7.4's SIGN BAND is what stops
-    the move. It holds no zero at all -- `n_zero` is nought -- so the
-    arm is the POSITIVE band: the stratum stuck in the gap holds a
-    positive value, its nearer edge is the stretch's lower one, and
-    every candidate below that edge is negative, which the sign band
-    refuses because `n_negative` is EXACT-OBSERVABLE while this fact is
-    not.
+    **THE COLUMN THAT USED TO REACH IT NO LONGER DOES, and that is
+    recorded here rather than papered over** (stage 3, plan P4-D325).
+    The witness was 150 values around -30 beside 100 around 8, with its
+    minimum written to three places, described at a floor of 35: the
+    move failed at 25 seeds of 40. Since a tail block's bins divide the
+    stretch between its two BOUNDARY rungs, that column's stretches are
+    narrower, its outermost rows stand outside the scale in no bin at
+    all, and the move succeeds at every one of forty seeds -- measured
+    here, below, so the improvement is a checked fact and not a claim.
+    Both halves of the obligation are therefore driven directly: the
+    walk that cannot move a value, and the report that names one.
     """
-    # THE COLUMN MOVED AT LANDING 2b.1. The one this test was built on --
-    # 150 tenths around -30 beside 150 around 25 -- is written at ONE
-    # fraction width, so method G5.3 now gives each of its strata the
-    # grid value of one of its own ranks rather than a draw between
-    # them, and the value in the empty middle stood nearer its negative
-    # edge at all forty seeds: the "never succeeds" guard below went red
-    # on a column that no longer exercises both arms. This one keeps
-    # both, measured before it was written here: the move fails at 30
-    # seeds of 40, every stuck value positive.
-    #
-    # AND IT IS DESCRIBED AT A FLOOR OF 35 SINCE THE STAGE-2b INTEGRATION.
-    # The column is written at two widths, and a column of several widths
-    # is now on the grid of its commonest (G5.2a step 1), which finds its
-    # stuck stratum a free grid point at all forty seeds. A census that
-    # POOLS a width is read as no grid, and at this floor the 34 one-place
-    # cells are pooled -- so the witness keeps the arm it was built for:
-    # measured, the move fails at 30 seeds of 40, every stuck value
-    # positive, exactly as before.
-    #
-    # AND ITS UPPER CLUSTER SITS AT EIGHT, NOT TWENTY-FIVE, SINCE PLAN
-    # P4-D177. That column writes no cell point-free, so a stuck stratum
-    # may now take the far edge of its stretch whatever its written form,
-    # and the move succeeded at all forty seeds -- the witness no longer
-    # reached the reporting path. With the upper cluster tight at eight,
-    # measured: the move fails at 20 seeds of 40, every stuck value
-    # positive.
     draw = random.Random(0)
     rows = (
         [f"{round(draw.gauss(-30, 1), 2)}" for _index in range(150)]
         + [f"{round(draw.gauss(8, 0.5), 2)}" for _index in range(100)]
     )
-    # ...AND ITS MINIMUM WRITTEN TO THREE PLACES SINCE PLAN P4-D222 (stage 2
-    # closed by the owner rulings of 2026-09-17), which counts a width
-    # below the line into the commonest rather than pooling it: the
-    # thirty-four one-place cells alone would leave `{"2": 250}` and a grid.
-    # A published minimum no named width can write makes the census one
-    # pool, so the witness again reads as no grid. Measured: the move fails
-    # at 25 seeds of 40, every stuck value positive.
     rows = rows + ["-35.125"]
-    lowest, highest, barred = _empty_of(rows)
-    assert barred, "this column is chosen for having an empty middle"
-    assert lowest < 0.0 < highest, (lowest, highest)
     _document, loaded = _described(tmp_path, "across-zero", rows, 35)
     facts = loaded.columns[0].facts
-    assert "(withheld)" in facts.fraction_widths, facts.fraction_widths
-    assert facts.n_zero == 0, (
-        "this column is chosen for having NO zero, so the arm cannot "
-        "be the zero band"
-    )
-    stayed = 0
+    assert facts.empty_edges, "this column is chosen for its empty middle"
     for seed in range(40):
         twin = generation.generate(loaded, seed)
-        # EVERY FINISHED CELL, against EVERY published stretch.
-        held: "dict[int, list[float]]" = {}
         for cell in twin.columns[0]:
             if cell == "":
                 continue
             value = parsing.parse_number(cell)
             if value is None:
                 continue
-            for index in range(len(facts.empty_edges)):
-                pair = facts.empty_edges[index]
-                if pair[0] < value < pair[1]:
-                    held[index] = held.get(index, []) + [value]
-                    break
-        named = [
-            note
-            for note in twin.deviations
-            if note.fact in ("empty_bins", "empty_edges")
-        ]
-        if not held:
-            assert named == [], (
-                f"seed {seed}: the twin holds nothing in any stretch "
-                f"and the report names one anyway: "
-                f"{[(n.fact, n.published) for n in named]}"
-            )
-            continue
-        stayed = stayed + 1
-        for index in sorted(held):
-            pair = facts.empty_edges[index]
-            said = f"no value strictly between {pair[0]} and {pair[1]}"
-            about = [note for note in named if note.published == said]
-            assert about, (
-                f"seed {seed}: {len(held[index])} cell(s) stand between "
-                f"{pair[0]} and {pair[1]} and no note names that stretch"
-            )
-            counted = sum(
-                int(note.achieved.split(" ")[0]) for note in about
-            )
-            assert counted == len(held[index]), (
-                f"seed {seed}: {len(held[index])} cell(s) stand in the "
-                f"stretch and the report counts {counted}"
-            )
-        # ...and the value that stayed is POSITIVE on this column,
-        # which is what says the sign band is the arm under test.
-        for values in held.values():
-            for value in values:
-                assert value > 0.0, value
-    assert stayed > 0, (
-        "the move never failed on this column at any of forty seeds, "
-        "so this witness would stay green with the reporting path "
-        "deleted -- which is the defect it was rebuilt to end"
+            for pair in facts.empty_edges:
+                assert not pair[0] < value < pair[1], (
+                    f"seed {seed}: {cell} stands between {pair[0]} and "
+                    f"{pair[1]}"
+                )
+
+    # THE WALK WITH NOWHERE TO GO, driven directly. Every value beside
+    # the stretch is taken and the one value its two pairs share is
+    # taken too, so the four walks of G6.7 each come back empty and the
+    # stratum stays where the ladder put it.
+    ends = (0.0, 32.0)
+    barred = {place: 1 for place in (10, 11, 12, 14, 15, 16)}
+    first = (9.5, 13.5)
+    second = (13.5, 17.5)
+    widths = (-1, 1)
+    taken = {}
+    spoken = {}
+    step = (ends[1] - ends[0]) / parsing.HISTOGRAM_BINS / 64
+    for one in range(140):
+        value = round(9.5 - step * one, 6)
+        taken[value] = 1
+        for spelling in generation._spellings_of(value, widths, False):
+            spoken[spelling] = 1
+    for one in range(200):
+        value = round(13.5 + step * one, 6)
+        taken[value] = 1
+        for spelling in generation._spellings_of(value, widths, False):
+            spoken[spelling] = 1
+    stuck = generation._cleared_value(
+        ends, barred, (10, 12), first, (first, second), 11.5,
+        generation._BAND_POSITIVE, True, spoken, taken, False, widths,
     )
-    assert stayed < 40, (
-        "a column on which the move NEVER succeeds is not the witness "
-        "this test means to be"
+    assert stuck is None, (
+        f"every slot beside the stretch is taken and the walk still "
+        f"found {stuck}, so this half of the witness pins nothing"
     )
+
+    # ...AND THE REPORT NAMES THE CELL THAT STAYED, counted from the
+    # finished text and filed under the stretch it really stands in.
+    column = loaded.columns[0]
+    ladder = column.facts.percentiles
+    named = dataclasses.replace(
+        column.facts,
+        tail_rule=False,
+        tails=None,
+        bin_groups=(),
+        percentiles=dataclasses.replace(
+            ladder,
+            rungs=(0.0,) + ladder.rungs[1:-1] + (32.0,),
+            minimum=0.0,
+            maximum=32.0,
+        ),
+        empty_bins=(10, 11, 12),
+        empty_edges=((9.9, 13.1),),
+    )
+    notes = generation._gap_notes(
+        column, named, ["11.5", "11.5", "0.0", "32.0"]
+    )
+    assert notes, "a cell inside a published stretch is named"
+    for note in notes:
+        assert note.published == "no value strictly between 9.9 and 13.1"
+        assert note.achieved.split(" ")[0] == "2", note.achieved
 
 
 # -- the fact reaches the pages a person reads -------------------------
@@ -1418,7 +1485,11 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     block = document["columns"][0]
     assert block["role"] == "joined_numbers", block["role"]
     first = block["parts"][0]
-    assert first["value_histogram"] == {"0": 120}, first["value_histogram"]
+    # THE CENSUS OF EVERY BIN IS GONE FROM A TAIL BLOCK (stage 3), and
+    # what stands in its place is `bin_groups`. A constant position has
+    # no scale to divide either way, so it names no group and no bin.
+    assert first["value_histogram"] == {}, first["value_histogram"]
+    assert first["bin_groups"] == [], first["bin_groups"]
     assert first["empty_bins"] == [], first["empty_bins"]
     assert loaded.columns[0].facts.parts[0].empty_bins == ()
     # ...and the SECOND position, which does vary, still has a scale --
@@ -1427,8 +1498,12 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     # different values over the bins leave every bin under eleven, and
     # the census is all or nothing. At a floor of one it is published.
     second = block["parts"][1]
-    assert second["percentiles"]["min"] < second["percentiles"]["max"]
+    tails = second["tails"]
+    assert _rung(second, tails["low"]["percent"]) < _rung(
+        second, tails["high"]["percent"]
+    )
     assert second["value_histogram"] == {}, second["value_histogram"]
+    assert second["bin_groups"], "a position that varies has a scale"
     # ...and a twin of it still comes back, which is what the joined
     # role's own fixture found when this did not hold: the loader
     # refused the description outright.
@@ -1436,11 +1511,12 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
     assert len([cell for cell in twin.columns[0] if cell]) == 120
     # AND THE FLOOR AT ITS BOUNDARY, both sides (review round 5 item
     # 6). C6-31f states that a one-value block's census is governed by
-    # the floor like any other -- published while its one bin clears
-    # it, withheld whole below it -- while BOTH gap keys stay empty at
-    # every floor. A `count < floor` written as `count <= floor` would
-    # hide the census at 120 and no witness would see it.
-    for floor, census in ((1, {"0": 120}), (120, {"0": 120}), (121, {})):
+    # the floor like any other; since stage 3 a tail block publishes no
+    # census at all and its groups are what the floor governs -- a
+    # constant position has no scale to group, so it names none at any
+    # floor -- while BOTH gap keys stay empty at every floor, which is
+    # what this witness was built for.
+    for floor, census in ((1, {}), (120, {}), (121, {})):
         built = profile.build_document(
             reading.read_table(f"{path}"),
             taxonomy.Settings(small_cell_floor=floor),
@@ -1450,6 +1526,7 @@ def test_a_column_whose_values_are_all_one_number_names_no_bin(
         )
         one = built["columns"][0]["parts"][0]
         assert one["value_histogram"] == census, (floor, one)
+        assert one["bin_groups"] == [], (floor, one)
         assert one["empty_bins"] == [], (floor, one)
         assert one["empty_edges"] == [], (floor, one)
         # ...and the loader takes every one of them.

@@ -19,8 +19,9 @@ cell's own text, and V5.4's first rule is that no string read out of a
 measured file is ever printed -- which is what lets one report be handed
 to a person holding no file. So the line says WHY instead, and the two
 rules that keep a measured side back each say themselves:
-`_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE` and
-`_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE`. Nothing measured is printed that
+`_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE`,
+`_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE` and, since stage 3's tail rule,
+`_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE`. Nothing measured is printed that
 was not printed before this file existed.
 
 WHAT THIS FILE HOLDS THE TREE TO, in four bars.
@@ -91,6 +92,14 @@ MODULE = REPOSITORY / "src" / "synthtwin" / "validation.py"
 _THE_TWO_RULES = (
     "_NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE",
     "_NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE",
+    # ...AND THE THIRD, which stage 3's tail rule added (landing 3.3):
+    # a published END is checked one-sided, and the value it is checked
+    # against is the file's own smallest or largest, which may be one
+    # row's. The name says "two" still because the amendment this file
+    # is named for wrote two; a rule added to the module joins this
+    # tuple in the commit that adds it, which is what the walk below
+    # holds.
+    "_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE",
 )
 
 # What a reader must find under a blind MISSED line, whichever rule it
@@ -699,6 +708,7 @@ def test_every_missed_obligation_names_one_of_the_two_rules(
             assert check.note in (
                 validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
                 validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+                validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
             ), (
                 f"{name}: {check.subcheck} keeps its measured side back "
                 f"and gives a reason that is neither of the two this "
@@ -812,6 +822,7 @@ def test_a_held_obligation_is_left_silent(
             if check.note in (
                 validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
                 validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+                validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
                 validation._NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY,
             ):
                 noisy = noisy + [f"{name}: {check.subcheck}"]
@@ -839,6 +850,7 @@ def test_the_two_reasons_carry_nothing_measured(
     assert seen <= {
         validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
         validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
+        validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
     }, (
         "a reason printed under a missed obligation differs between "
         "files, so it is carrying something measured"

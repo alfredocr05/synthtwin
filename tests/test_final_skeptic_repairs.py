@@ -564,7 +564,6 @@ def test_two_places_written_by_the_shortest_round_trip_keep_both_widths(
 @pytest.mark.parametrize(
     ("rule", "replacement"),
     [
-        ("_widths_exchanged", lambda _column, _facts, _layout, values: values),
         (
             "_pinned_width_order",
             lambda quotas, _need, _size: sorted(quotas, reverse=True),
@@ -577,10 +576,48 @@ def test_the_two_widths_are_kept_by_each_rule(
     rule: str,
     replacement: object,
 ) -> None:
-    """The mutants: no exchange or move; a pinned value takes the widest width."""
+    """The mutant: a pinned value takes the widest width."""
     monkeypatch.setattr(generation, rule, replacement)
     document, loaded = _described(tmp_path, {"value": _two_place_readings()})
     assert not _widths_met(loaded, document, 4)
+
+
+def test_the_exchange_has_no_witness_left_on_these_shapes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_widths_exchanged` stopped biting at landing 3.3, and this says so.
+
+    THE MUTANT WAS THE FIRST HALF OF THE TEST ABOVE: withdraw the
+    exchange -- hand the values back untouched -- and the two-place
+    column's twin missed its own `fraction_widths` at every seed. It
+    does not any more. The tail rule places the rows beyond each
+    boundary on their own grid points and derives the two ends from the
+    published facts (contract 6.7a, method G5.3b), so the values the
+    width stages are handed already carry both widths and the exchange
+    finds nothing to do on this column.
+
+    FOUR SHAPES WERE SEARCHED FOR A WITNESS and none was found: the
+    skeptic's own 2,000 two-place readings, 600 wider ones, 1,500 at a
+    hundred, and 400 of mixed places -- the last of which misses its
+    census with the rule AND without it, so it is no witness either.
+    The rule stays: what it states is still true of the construction,
+    and a case that needs it may arrive with the next shape. What is
+    pinned here is the measurement itself, in the form the suite reads
+    -- the mutant is applied and the twin still meets the census -- so
+    a later change that gives the rule work again turns this red and is
+    read rather than missed.
+    """
+    document, loaded = _described(tmp_path, {"value": _two_place_readings()})
+    assert _widths_met(loaded, document, 4)
+    monkeypatch.setattr(
+        generation,
+        "_widths_exchanged",
+        lambda _column, _facts, _layout, values: values,
+    )
+    assert _widths_met(loaded, document, 4), (
+        "the exchange has a witness again: put this case back in the "
+        "parametrized mutant above, where it was until landing 3.3"
+    )
 
 
 def test_three_places_keep_every_width_and_every_number(

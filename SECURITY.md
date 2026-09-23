@@ -283,9 +283,17 @@ Stated here so that no reader has to discover them independently:
   surface of this project may describe it as present before it is.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
-  `small_cell_floor` rows share, the smallest and largest values of
-  numeric columns and the points between them, and counts about groups
-  nobody is named in. **`small_cell_floor` is 11 by default** (owner,
+  `small_cell_floor` rows share, the steps of a numeric column's ladder
+  between its two tails, and counts about groups nobody is named in. A
+  numeric column's smallest and largest values are NOT among them since
+  stage 3: every step that would read one of the outermost
+  `max(small_cell_floor, 3)` values is withheld, and each end is
+  described by how many rows lie beyond it and how far from the last
+  published step they lie, on average and root-mean-square. An end at
+  least that many rows share is published as itself, because it is a
+  value of a group; on a column whose values stand on a grid and whose
+  tail holds few of them, the tail's own values are published without
+  how many rows hold each, by the owner's ruling of 2026-09-22. **`small_cell_floor` is 11 by default** (owner,
   2026-09-22), so by default it publishes a label only where at least
   eleven rows share it, with how many rows did, and pools the rest into
   a count that names none of them. `--smallest-group` lowers it, down to
