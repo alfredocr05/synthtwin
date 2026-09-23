@@ -186,26 +186,38 @@ def _factor_of(facts: contract.DatetimeFacts) -> int:
     asserted to hold of every moment rather than assumed of the span.
     """
     resolution = facts.resolution
+    assert facts.low_tail is not None and facts.high_tail is not None
+    published = [
+        moment
+        for moment in list(facts.date_percentiles.rungs)
+        + [facts.low_tail.boundary, facts.high_tail.boundary]
+        if moment is not None
+    ]
     theirs = generation._ordinal_of(
-        facts.latest, resolution
-    ) - generation._ordinal_of(facts.earliest, resolution)
+        facts.high_tail.boundary, resolution
+    ) - generation._ordinal_of(facts.low_tail.boundary, resolution)
     mine = validation._ordinal_of(
-        facts.latest, resolution
-    ) - validation._ordinal_of(facts.earliest, resolution)
+        facts.high_tail.boundary, resolution
+    ) - validation._ordinal_of(facts.low_tail.boundary, resolution)
     assert theirs > 0, f"{resolution}: the fixture spans no time at all"
     factor, remainder = divmod(mine, theirs)
     assert remainder == 0 and factor >= 1, (
         f"{resolution}: the validator's span is not a whole multiple of "
         f"the method's, so the two are not the same space"
     )
-    for moment in list(facts.date_percentiles.rungs) + [
-        facts.earliest,
-        facts.latest,
-    ]:
+    for moment in published:
         assert validation._ordinal_of(moment, resolution) == factor * (
             generation._ordinal_of(moment, resolution)
         ), f"{resolution}: {moment}"
     return factor
+
+
+def _column_of(described: contract.Profile) -> contract.ColumnBlock:
+    return described.columns[0]
+
+
+def _floor_of(described: contract.Profile) -> int:
+    return described.settings.small_cell_floor
 
 
 def test_every_precision_the_producer_publishes_has_a_fixture() -> None:
@@ -292,28 +304,79 @@ def test_the_two_writings_of_the_rank_window_agree(
     """
     described, _twin = by_precision[precision]
     facts = _facts_of(described)
+    column = _column_of(described)
+    floor = _floor_of(described)
     factor = _factor_of(facts)
-    ladder = [
-        generation._ordinal_of(rung, facts.resolution)
-        for rung in facts.date_percentiles.rungs
-    ]
-    for ranks in _RANK_COUNTS:
-        lows, highs = validation._rank_windows(facts, ranks)
-        their_lows, their_highs = generation._datetime_window(
-            ladder, facts, ranks
+    parsed = column.n_present - facts.n_unparsed
+    layout = generation._date_layout(column, facts, parsed, floor)
+    lows, highs = validation._rank_windows(facts, parsed, column, floor)
+    their_lows, their_highs = generation._datetime_window(
+        layout, facts, parsed
+    )
+    assert len(lows) == parsed and len(highs) == parsed
+    for rank in range(parsed):
+        assert lows[rank] == factor * their_lows[rank], (
+            f"{precision}, rank {rank}: the validator "
+            f"admits from {lows[rank]} where the construction cannot "
+            f"go below {factor * their_lows[rank]}"
         )
-        assert len(lows) == ranks and len(highs) == ranks
-        for rank in range(ranks):
-            assert lows[rank] == factor * their_lows[rank], (
-                f"{precision}, {ranks} ranks, rank {rank}: the validator "
-                f"admits from {lows[rank]} where the construction cannot "
-                f"go below {factor * their_lows[rank]}"
+        assert highs[rank] == factor * their_highs[rank], (
+            f"{precision}, rank {rank}: the validator "
+            f"admits up to {highs[rank]} where the construction "
+            f"cannot pass {factor * their_highs[rank]}"
+        )
+
+
+@pytest.mark.parametrize("precision", sorted(_BUILDERS))
+def test_the_two_writings_of_the_tail_strata_agree(
+    precision: str,
+    by_precision: "dict[str, tuple[contract.Profile, str]]",
+) -> None:
+    """G12.14's window, written twice, rank by rank (stage 3).
+
+    THE ASSERTION THE TAIL LANDING ADDS. The construction of G7.3b --
+    the mixture, the power chosen by exact rational comparison, the
+    weight's quadratic, the moment-matched end and its clamp-aware
+    fallback, the rounding halves up, the tie group, the step off a
+    hole, the move onto a midnight and the clamp to the readable window
+    -- is written in the generator, again in the validator and a third
+    time in the oracle. A validator whose derived end differs from the
+    generator's by ONE UNIT reports 23 of 128 conforming sides of the
+    design's own battery MISSED (the skeptic of the tail design, B7), so
+    the two writings are compared here, at every distance, on every
+    precision the producer can publish.
+    """
+    described, _twin = by_precision[precision]
+    facts = _facts_of(described)
+    column = _column_of(described)
+    floor = _floor_of(described)
+    parsed = column.n_present - facts.n_unparsed
+    layout = generation._date_layout(column, facts, parsed, floor)
+    mine = validation._date_tail_windows(column, facts, floor, "")
+    drawn = 0
+    for side, plan in (("low", layout.low), ("high", layout.high)):
+        assert plan is not None, side
+        if side not in mine:
+            # A TAIL THAT PUBLISHES ITS VALUES draws no strata at all:
+            # each of its ranks stands on one published value (G7.3c),
+            # and the two writings are compared through the gap below.
+            assert plan.shape is None, side
+            continue
+        drawn = drawn + 1
+        near, far = mine[side]
+        assert len(near) == plan.rows and len(far) == plan.rows
+        for index in range(plan.rows):
+            assert near[index] == plan.near[index], (
+                f"{precision}, {side} tail, rank {index}: the validator's "
+                f"nearest distance is {near[index]} where the construction "
+                f"draws {plan.near[index]}"
             )
-            assert highs[rank] == factor * their_highs[rank], (
-                f"{precision}, {ranks} ranks, rank {rank}: the validator "
-                f"admits up to {highs[rank]} where the construction "
-                f"cannot pass {factor * their_highs[rank]}"
+            assert far[index] == plan.far[index], (
+                f"{precision}, {side} tail, rank {index}: the validator's "
+                f"furthest distance is {far[index]} where the construction "
+                f"draws {plan.far[index]}"
             )
+    assert drawn >= 0
 
 
 def test_the_two_writings_of_the_rung_rank_agree() -> None:
@@ -371,29 +434,32 @@ def _compare_the_envelopes(
     """
     column = described.columns[0]
     facts = _facts_of(described)
+    floor = _floor_of(described)
     assert facts.n_unparsed == 0 and column.n_missing == 0, (
         "this fixture holds holes or unreadable cells, so the two ends "
         "are not being asked the same question"
     )
-    ladder = [
-        generation._ordinal_of(rung, facts.resolution)
-        for rung in facts.date_percentiles.rungs
-    ]
+    assert facts.low_tail is not None and facts.high_tail is not None
     written = [
         line.split(",")[0] for line in twin.splitlines()[1:] if line
     ]
-    lows, highs = generation._datetime_window(
-        ladder, facts, len(written)
-    )
-    # The construction's own lower end, which on a column moved onto
-    # values at midnight is not G12.4's windows alone (landing 2b.3).
-    lowest = generation._apart_at_least(ladder, facts, lows, highs, len(written))
-    reachable = ladder[10] - ladder[0] + 1
+    layout = generation._date_layout(column, facts, len(written), floor)
+    lows, highs = generation._datetime_window(layout, facts, len(written))
+    lowest = generation._forced_apart(lows, highs)
+    # THE UPPER END, in the construction's own terms since stage 3: the
+    # instants between the two BOUNDARIES, once per way an instant can
+    # be written, plus one for each cell of the two tails.
+    reachable = layout.high.boundary - layout.low.boundary + 1
     unit = generation._precision_slack(facts) + 1
     reachable = (reachable + unit - 1) // unit
     spellings = generation._spellings_of_a_date(facts)
-    highest = min(len(written), reachable * spellings)
-    mine, my_highest = validation._datetime_distinct_window(column, facts)
+    highest = min(
+        len(written),
+        reachable * spellings + facts.low_tail.rows + facts.high_tail.rows,
+    )
+    mine, my_highest = validation._datetime_distinct_window(
+        column, facts, floor
+    )
     assert my_highest >= float(highest), (
         f"{label}: the validator's upper end is {my_highest} where the "
         f"construction can reach {highest}, so a twin the construction "
@@ -477,59 +543,50 @@ def test_a_twin_of_its_own_description_misses_nothing(
     assert not wrong, f"{precision}: {wrong}"
 
 
-def test_the_pinned_ends_force_more_different_values(
+def test_the_pinned_ranks_force_more_different_values(
     tmp_path: pathlib.Path,
 ) -> None:
-    """P3-V4-F4's own witness: a file inside the old bound and outside this one.
+    """P3-V4-F4's own witness, at stage 3's pins.
 
-    A twelve-rank quarterly description, measured against twelve rows
-    holding SIX different quarters, both ends of the published range
-    among them. Rank zero is the published earliest and rank eleven the
-    published latest, exactly, so the walk of G12.5 cannot put either of
-    them on a neighbour's instant and the construction forces seven
-    different instants. Unpinned, the same walk found six: the file was
-    reported WITHIN its stated window at both distinctness counts, which
-    is a file passing a bound its own construction cannot meet.
+    A quarterly description measured against a file holding fewer
+    different quarters than its own construction forces. The pinned
+    ranks are the two tail boundaries and the published rungs between
+    them, each held to one value, so the walk of G12.5 cannot put two of
+    them on one instant -- and the tails' own ranks are held to their
+    strata, which are disjoint here. Unpinned, the same walk found
+    fewer: a file was reported WITHIN its stated window at both
+    distinctness counts, which is a file passing a bound its own
+    construction cannot meet.
+
+    THE WITNESS IS DERIVED FROM THE BOUND, never written out: it holds
+    the largest number of different quarters that is still short of what
+    the construction forces, so it follows the rule when the rule moves.
+    It moved once: every quarter of this column is one row's own, so
+    plan P4-D342 stopped its tails listing their values and they publish
+    their shape instead, which is fewer pinned ranks and a smaller
+    forced count.
     """
     folder = tmp_path / "quarters"
     folder.mkdir()
     published = [
-        "2018-Q2",
-        "2019-Q2",
-        "2020-Q4",
-        "2021-Q3",
-        "2022-Q2",
-        "2022-Q4",
-        "2024-Q2",
-        "2026-Q2",
-        "2028-Q1",
-        "2028-Q4",
-        "2029-Q1",
-        "2032-Q2",
+        f"{1990 + index // 4:04d}-Q{1 + index % 4}" for index in range(40)
     ]
     described = _described(folder, published, "witness")
     column = described.columns[0]
     facts = _facts_of(described)
-    assert column.n_present == 12 and column.n_distinct == 12
-    low, _high = validation._datetime_distinct_window(column, facts)
+    floor = _floor_of(described)
+    assert column.n_present == 40 and column.n_distinct == 40
+    low, _high = validation._datetime_distinct_window(column, facts, floor)
     # The bound is the CONSTRUCTION's own, taken from the generator's
-    # writing of the same walk rather than written out here, so this
-    # says what the file is short of rather than what today's code says.
-    ladder = [
-        generation._ordinal_of(rung, facts.resolution)
-        for rung in facts.date_percentiles.rungs
-    ]
-    lows, highs = generation._datetime_window(ladder, facts, 12)
+    # writing of the same walk rather than written out here.
+    layout = generation._date_layout(column, facts, 40, floor)
+    lows, highs = generation._datetime_window(layout, facts, 40)
     assert low == float(generation._forced_apart(lows, highs))
-    held = (
-        ["2018-Q2"] * 2
-        + ["2020-Q4"] * 2
-        + ["2022-Q2"] * 2
-        + ["2024-Q2"] * 2
-        + ["2028-Q1"] * 2
-        + ["2032-Q2"] * 2
-    )
-    assert len(set(held)) < low, (
+    wanted = int(low) - 1
+    assert wanted >= 1, low
+    step = -(-len(published) // wanted)
+    held = [published[step * (index // step)] for index in range(40)]
+    assert len(set(held)) <= wanted < low, (
         "the witness file holds as many different quarters as the "
         "construction forces, so it is not short of the bound at all"
     )
@@ -546,12 +603,6 @@ def test_the_pinned_ends_force_more_different_values(
             f"construction forces {low:.0f}, and {subcheck} is "
             f"{verdicts[subcheck]}"
         )
-    # ...and both ENDS are right, so this is the bound doing the
-    # catching and not a neighbour that was going to fail anyway (V8.2).
-    assert verdicts["ends.earliest"] == validation.HELD
-    assert verdicts["ends.latest"] == validation.HELD
-    assert verdicts["date-ladder.min"] == validation.HELD
-    assert verdicts["date-ladder.max"] == validation.HELD
 
 
 def test_a_rung_that_misses_by_most_of_a_minute_is_missed(
@@ -575,11 +626,14 @@ def test_a_rung_that_misses_by_most_of_a_minute_is_missed(
     described = _described(folder, published, "minutes")
     facts = _facts_of(described)
     assert facts.time_precision == parsing.PRECISION_MINUTE
-    held = (
-        ["2024-03-01 00:00"] * 3
-        + ["2024-03-01 00:01"] * 56
-        + ["2024-03-01 00:59"]
-    )
+    # STAGE 3: the rung this witness is about is one the tail rule
+    # publishes -- p25, read off rank 14 of 60, which lies between the
+    # two boundaries -- and the file holds its own rank 14 a whole
+    # minute below the window that rank leaves.
+    held = [
+        f"2024-03-01 {(index + 20) // 60:02d}:{(index + 20) % 60:02d}"
+        for index in range(60)
+    ]
     outcome = _measure(
         folder,
         described,
@@ -587,11 +641,9 @@ def test_a_rung_that_misses_by_most_of_a_minute_is_missed(
         "measured.csv",
     )
     verdicts = {check.subcheck: check.verdict for check in outcome.checks}
-    assert verdicts["date-ladder.p05"] == validation.MISSED, (
-        "the file's fifth-percentile rung sits a minute below the window "
-        f"its rank leaves, and the report calls it {verdicts['date-ladder.p05']}"
+    assert verdicts["date-ladder.p25"] == validation.MISSED, (
+        "the file's twenty-fifth-percentile rung sits minutes away from "
+        "the window its rank leaves, and the report calls it "
+        f"{verdicts['date-ladder.p25']}"
     )
-    # The two ends still hold, so the rung is answering for itself.
-    assert verdicts["ends.earliest"] == validation.HELD
-    assert verdicts["ends.latest"] == validation.HELD
     assert outcome.census.missed > 0

@@ -260,8 +260,16 @@ def test_placeholder_judging_reads_the_declared_order(
     )
     assert block["n_present"] == 400
     assert block["n_missing"] == 0
-    assert block["earliest"] == "1900-01-01"
-    assert block["latest"] == "1900-03-12"
+    # READ DAY FIRST, which is what the twenty 1 January cells prove:
+    # the two tail boundaries stand where a day-first reading puts them
+    # (stage 3, plan P4-D328 -- the two ends this asserted are published
+    # nowhere), and the outermost of all is `1900-01-01`, held by the
+    # low tail's own rows.
+    assert block["low_tail"]["boundary"] == "1900-01-12"
+    assert block["low_tail"]["rows"] == 20
+    assert block["low_tail"]["values"] == ["1900-01-01"]
+    assert block["high_tail"]["boundary"] == "1900-02-12"
+    assert block["high_tail"]["values"] == ["1900-03-12"]
     assert block["missing_by_source"] == {}
 
 
@@ -917,16 +925,25 @@ def test_the_figures_a_date_format_shows() -> None:
 # -- item 10: a tied endpoint changed the published offset -------------
 
 
-def test_a_tied_endpoint_keeps_its_published_offset(
+def test_a_column_tied_at_its_ends_keeps_its_offsets_and_its_tails(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The reviewer's own shape at seed 4 (plan P4-D255).
+    """The reviewer's own shape at seed 4, re-derived at stage 3.
 
-    The source publishes `+01:00` as its latest offset, because the
-    describing step reads it off the last of the ordered cells; the
-    twin's interior ranks at that same instant took `+02:00`, so the
-    twin published `+02:00` and missed `offsets.latest` with no
-    deviation printed.
+    IT WAS FROZEN FOR PLAN P4-D255, which held a rank standing on an
+    end's instant to an offset that could not out-sort the end's own.
+    Both end offsets are published nowhere since the tail landing (plan
+    P4-D328): the description names no offset for an end row because it
+    describes no end row, so the rule is gone and the fields with it.
+    What this shape still pins is that a column tied at both ends comes
+    back whole -- the same census of offsets, the same two boundaries
+    and counts, and nothing missed on either file -- which is what the
+    defect P4-D255 repaired cost it. The twin's own re-description of
+    that low tail publishes its SHAPE rather than the three values the
+    real column lists, and the assertions below say exactly why: the
+    counts are the one thing the description withholds there, so the
+    twin chose 1, 1 and 20 where the real column had 2, 2 and 18, and a
+    value one cell holds is one plan P4-D342 will not list.
     """
     cells: "list[str]" = []
     for place in range(120):
@@ -937,9 +954,37 @@ def test_a_tied_endpoint_keeps_its_published_offset(
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / "tied", cells
     )
-    assert first["latest_utc_offset"] == "+01:00"
-    assert second["latest_utc_offset"] == first["latest_utc_offset"]
-    assert second["earliest_utc_offset"] == first["earliest_utc_offset"]
+    assert second["utc_offsets"] == first["utc_offsets"]
+    assert second["datetimes_read_at"] == first["datetimes_read_at"]
+    for side in ("low_tail", "high_tail"):
+        for key in ("boundary", "rows"):
+            assert second[side][key] == first[side][key], (side, key)
+    # THE TWIN STANDS ITS LOW TAIL ON THE SAME THREE INSTANTS and is
+    # free to choose how many cells go on each, because the description
+    # withholds that tail's mean (plan P4-D329): the counts are the one
+    # thing it does not publish. MEASURED: it puts 1, 1 and 20 cells
+    # where the real column had 2, 2 and 18, and a value ONE cell holds
+    # is a value plan P4-D342 will not list -- so the twin's own
+    # description publishes that tail's shape instead of a list. Both
+    # halves are asserted, so a change to either is visible here.
+    listed = first["low_tail"]["values"]
+    assert isinstance(listed, list) and len(listed) == 3
+    member = first["format"]
+    held = []
+    for value in listed:
+        count = 0
+        for cell in written:
+            found = parsing.parse_datetime(cell, member)
+            if found is None:
+                continue
+            shifted = parsing.utc_canonical(found[0], found[1])
+            if shifted == value:
+                count += 1
+        held += [count]
+    assert sorted(held) == [1, 1, 20], held
+    assert min(held) < taxonomy.TAIL_SHARED_CELLS
+    assert second["low_tail"]["values"] is None
+    assert second["high_tail"]["values"] == first["high_tail"]["values"]
     assert (twin_exit, real_exit) == (0, 0)
 
 

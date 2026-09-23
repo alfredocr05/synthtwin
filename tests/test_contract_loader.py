@@ -407,17 +407,46 @@ def length_of(_column: str, shortest: int) -> Change:
 
 
 def sixtieth_second(name: str) -> Change:
-    """Publish the last second of a leap minute as a column's last value.
+    """Publish the last second of a leap minute as a tail's own boundary.
 
-    The ladder's own end is moved with it, so that the description
-    breaks D10 and not D11: what is under test is the seconds field on
-    the shared clock, not the tie between the two ends.
+    Since stage 3 no end is published, so what carries a seconds field
+    the shared clock cannot read back is a tail boundary -- a real cell
+    of the column, and the value D10 is stated over.
     """
     def change(document: Document) -> None:
         block = at(document, name)
-        end = f"{block['latest'][0:17]}60"
-        block["latest"] = end
-        block["date_percentiles"]["max"] = end
+        tail = block["high_tail"]
+        assert isinstance(tail, dict)
+        boundary = tail["boundary"]
+        assert isinstance(boundary, str)
+        tail["boundary"] = f"{boundary[0:17]}60"
+    return change
+
+
+def a_tail_with_values_and_spread(name: str) -> Change:
+    """Publish a tail's values beside the root-mean-square distance TL1 drops.
+
+    A tail that names which values it holds publishes no spread: the two
+    together settle how many cells hold each value, which is the count
+    the floor protects.
+    """
+    def change(document: Document) -> None:
+        block = at(document, name)
+        tail = block["low_tail"]
+        assert isinstance(tail, dict)
+        boundary = tail["boundary"]
+        assert isinstance(boundary, str)
+        tail["values"] = ["1970-01-01" if len(boundary) == 10 else "1970-01-01 00:00:00"]
+    return change
+
+
+def edit_inside_inside(_column: str, _key: str, **changes: object) -> Change:
+    """Change entries of a block inside a column's own block."""
+    def change(document: Document) -> None:
+        inner = at(document, _column)[_key]
+        assert isinstance(inner, dict)
+        for key in changes:
+            inner[key] = changes[key]
     return change
 
 
@@ -783,10 +812,6 @@ def battery() -> list[Mutation]:
             "L1", "a ladder that goes down",
             edit_inside("amount", "percentiles", p05=1000.0),
         ),
-        Mutation(
-            "L3", "a ladder of dates with nothing at one rung",
-            edit_inside("recorded_on", "date_percentiles", p50=None),
-        ),
         # -- the empty column -----------------------------------------
         Mutation(
             "E1", "a column called empty that holds every value",
@@ -1056,13 +1081,7 @@ def battery() -> list[Mutation]:
             edit(
                 "recorded_on",
                 utc_offsets={"(none)": 237, "(withheld)": 3},
-                earliest_utc_offset="(none)",
-                latest_utc_offset="(none)",
             ),
-        ),
-        Mutation(
-            "D4", "an endpoint naming an offset the map holds back",
-            edit("recorded_on", earliest_utc_offset="+02:00"),
         ),
         Mutation(
             "D5", "two offsets published on the local clock",
@@ -1104,26 +1123,70 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "D9", "an offset on a column that publishes no time of day",
-            edit(
-                "recorded_on",
-                utc_offsets={"+02:00": 240},
-                earliest_utc_offset="+02:00",
-                latest_utc_offset="+02:00",
-            ),
+            edit("recorded_on", utc_offsets={"+02:00": 240}),
         ),
         Mutation(
             "D10", "a last value the shared clock cannot read back",
             sixtieth_second("logged_at"),
         ),
         Mutation(
-            "D10", "ends carrying seconds a column of whole minutes cannot",
-            edit("logged_at", time_precision="minute"),
+            # THE TAIL UNIT MOVES WITH THE PRECISION (stage 3, TL4), so
+            # that what this case breaks is D10 and not the unit rule one
+            # step earlier: a column recording whole minutes counts its
+            # tails in minutes, and its published boundary still carries
+            # a seconds field no cell of it can write.
+            "D10", "a boundary carrying seconds a column of whole minutes cannot",
+            edit("logged_at", time_precision="minute", tail_unit="minute"),
         ),
+        # THE LADDER AROUND THE TAILS (stage 3, D11). The two ends are
+        # always empty, a rung read from inside a tail is empty, and a
+        # rung read from between the two boundaries is published: each of
+        # the three is broken here in turn.
         Mutation(
-            "D11", "a ladder that begins before the column's first value",
+            "D11", "a ladder publishing an end the tail rule withholds",
             edit_inside(
                 "recorded_on", "date_percentiles", min="2023-01-01"
             ),
+        ),
+        Mutation(
+            "D11", "a ladder with nothing at a rung between the boundaries",
+            edit_inside("recorded_on", "date_percentiles", p50=None),
+        ),
+        Mutation(
+            "D11", "a published rung outside the tail boundaries",
+            edit_inside_inside(
+                "recorded_on", "high_tail", boundary="2024-11-01"
+            ),
+        ),
+        # THE TAILS THEMSELVES (stage 3, TL1 to TL4).
+        Mutation(
+            "TL1", "a tail publishing its values and its spread as well",
+            a_tail_with_values_and_spread("recorded_on"),
+        ),
+        Mutation(
+            "TL2", "one tail published and the other not",
+            edit("recorded_on", low_tail=None),
+        ),
+        Mutation(
+            "TL2", "a tail holding fewer cells than the smallest group",
+            edit_inside_inside("recorded_on", "low_tail", rows=2),
+        ),
+        Mutation(
+            "TL3", "a tail whose cells lie less than a unit beyond it",
+            edit_inside_inside(
+                "recorded_on", "low_tail", mean_distance=0.5
+            ),
+        ),
+        Mutation(
+            "TL3", "a tail whose spread is below its own mean",
+            edit_inside_inside(
+                "recorded_on", "low_tail", rms_distance=1.0,
+                mean_distance=4.0,
+            ),
+        ),
+        Mutation(
+            "TL4", "tails counted in a unit the column does not publish",
+            edit("recorded_on", tail_unit="second"),
         ),
         Mutation(
             "D12", "a mark between day and clock named for too few rows",
@@ -1212,8 +1275,12 @@ def battery() -> list[Mutation]:
             edit("recorded_on", all_at_midnight=True),
         ),
         Mutation(
+            # AND THE TAIL UNIT WITH IT (stage 3, TL4): a column standing
+            # at midnight counts its tails in days, so a mutation that
+            # says so without moving the unit is refused one rule earlier
+            # and D14 is never reached.
             "D14", "stamps on the shared clock said to stand at midnight",
-            edit("logged_at", all_at_midnight=True),
+            edit("logged_at", all_at_midnight=True, tail_unit="day"),
         ),
         Mutation(
             "D15", "more values counted at midnight than the column holds",
@@ -1614,8 +1681,8 @@ def battery() -> list[Mutation]:
             edit_inside("seen_at", "clock_percentiles", p50="07:59:00"),
         ),
         Mutation(
-            "T2", "a ladder that does not begin at the earliest time",
-            edit("seen_at", earliest="07:01"),
+            "T2", "a clock ladder publishing an end the tail rule withholds",
+            edit_inside("seen_at", "clock_percentiles", min="07:01"),
         ),
         Mutation(
             "T3", "clock rungs that go backwards",
@@ -1761,8 +1828,10 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "R16", "a date written in no canonical form",
-            edit("recorded_on", earliest="15/03/2024"),
-            names="earliest",
+            edit_inside_inside(
+                "recorded_on", "low_tail", boundary="15/03/2024"
+            ),
+            names="low_tail -> boundary",
         ),
         Mutation(
             "R16", "an offset in no form an offset takes",

@@ -422,11 +422,18 @@ def test_k_p4_22(record_property, every_role: "dict", every_role_twins: "dict") 
             (header[i], cell) for row in twin[1:] for i, cell in enumerate(row)
         }
         ends_of_one = 0
+        # THE DATE AND CLOCK ENDS ARE COUNTED SEPARATELY, and since
+        # stage 3 they are nought by construction: a column of dates or
+        # clock times publishes no end at all (plan P4-D328), so the
+        # keys below are absent from every such block and the count is
+        # a measurement of that rather than an assumption about it.
+        date_ends_of_one = 0
         for block in described.document["columns"]:
             column = header.index(block["name"])
             for key in ("earliest", "latest"):
                 if isinstance(block.get(key), str) and tally[block["name"]][block[key]] == 1:
                     ends_of_one += 1
+                    date_ends_of_one += 1
             ladder = block.get("percentiles")
             if isinstance(ladder, dict) and block["role"] in ("count", "continuous"):
                 for key in ("min", "max"):
@@ -438,6 +445,7 @@ def test_k_p4_22(record_property, every_role: "dict", every_role_twins: "dict") 
         value[f"levels_of_one_f{floor}"] = len(levels_of_one)
         value[f"twin_writes_levels_of_one_f{floor}"] = len(levels_of_one & written)
         value[f"ends_held_by_one_row_f{floor}"] = ends_of_one
+        value[f"date_ends_held_by_one_row_f{floor}"] = date_ends_of_one
     _kpi(record_property, "K-P4-22", value)
 
 

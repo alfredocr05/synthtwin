@@ -352,6 +352,10 @@ ENVELOPE_DATETIME_DISTINCT = "docs/spec/generation-method-v1.md G12.5"
 # in the same landing as the construction it bounds.
 ENVELOPE_CLOCK_RUNG = "docs/spec/generation-method-v1.md G12.10"
 ENVELOPE_CLOCK_DISTINCT = "docs/spec/generation-method-v1.md G12.11"
+# The window a date or clock tail's two distances are met inside (stage
+# 3): the construction's own, every drawn rank at the smallest word at one
+# end and at the largest at the other.
+ENVELOPE_TAIL_DISTANCE = "docs/spec/generation-method-v1.md G12.14"
 # The window a joined column's rank agreement is met inside. It is
 # published rounded to four figures and reached by a walk that stops
 # once it is close enough, so it is approximated and not exact -- and
@@ -510,6 +514,24 @@ INPUT_SIDE_ENTRIES = (
     # block it is (contract 9.4b, plan P4-D33).
     ("compound", "numbers"),
     ("compound", "labels"),
+    # THE TWO TAIL BLOCKS OF A DATE OR CLOCK COLUMN, on the same terms
+    # (stage 3, plan P4-D328): the container carries no VALUE obligation
+    # of its own -- its membership is the five keys inside it, each
+    # checked or listed under its own name -- so it is bound here and
+    # nowhere else.
+    ("datetime", "low_tail"),
+    ("datetime", "high_tail"),
+    ("clock", "low_tail"),
+    ("clock", "high_tail"),
+    # ...AND THE UNIT THOSE TAILS ARE COUNTED IN, which is LOADER-ONLY:
+    # contract TL4 settles it from the block's own resolution, precision
+    # and midnight fields when the description is READ, and the loader
+    # refuses one that publishes another. Each of the three fields it
+    # follows from is checked in its own right, so a verdict here would
+    # be a second reading of theirs under a name the registry can answer
+    # for once -- which is what makes the whole of its obligation the
+    # profile's.
+    ("datetime", "tail_unit"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -849,11 +871,24 @@ _NOT_CHECKABLE_IDENTIFIER_CORNER = (
     "the report states rather than one a file is measured against. "
     "Authorized by "
 )
-_NOT_CHECKABLE_ENDPOINT_WITHHELD = (
-    "the publication floor held this end's own offset back, so the "
-    "description names no offset for it and no file can carry one "
-    "either way. The offsets the description does name are checked, "
-    "and are the whole of what a CSV can evidence here"
+_NOT_CHECKABLE_RUNG_WITHHELD = (
+    "the description withholds this rung by its tail rule: the rank it "
+    "would be read from holds one of the column's outer values, so the "
+    "description publishes nothing there and no file can hold anything "
+    "either way (docs/spec/profile-contract-v6.md D11 and T2)"
+)
+_NOT_CHECKABLE_NO_TAIL = (
+    "the column holds too few values, or too many of them tied at an "
+    "end, for a tail boundary to exist on each side, so the description "
+    "publishes no tail and no rung; its counts are still checked "
+    "(docs/spec/profile-contract-v6.md TL2)"
+)
+_NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
+    "the description's tail publishes nothing under this key: the values "
+    "a tail holds are published only where it holds few of them or where "
+    "its distances would settle a count below the floor, and a distance "
+    "is published only where the tail has a row to measure "
+    "(docs/spec/profile-contract-v6.md TL1)"
 )
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
@@ -7423,7 +7458,8 @@ def _obligations(
         split_settings.declared_missing_values,
         comma,
     ))
-    gated = _universal_checks(column, block, mine)
+    system = _tail_date_system(description, column)
+    gated = _universal_checks(column, block, mine, floor, system)
     # A JOINED COLUMN READ FROM ITS VALUES counts a position's cells by
     # rule 9c's own admission (integration repair of landing 2b.5).
     pairs = (
@@ -7432,11 +7468,11 @@ def _obligations(
     )
     writable = not subsecond_figures_unwritable(description, column)
     gated = gated + _role_checks(
-        column, block, own_cells, floor, mine, pairs, writable
+        column, block, own_cells, floor, mine, pairs, writable, system
     )
-    measured = _universal_checks(column, split, mine)
+    measured = _universal_checks(column, split, mine, floor, system)
     measured = measured + _role_checks(
-        column, split, split_cells, floor, mine, pairs, writable
+        column, split, split_cells, floor, mine, pairs, writable, system
     )
     return checks + _governed(gated, measured, split_published)
 
@@ -8813,8 +8849,14 @@ def _universal_checks(
     column: contract.ColumnBlock,
     block: "dict[str, object]",
     mine: "tuple[str, ...]",
+    floor: int = 1,
+    date_system: str = "",
 ) -> "list[Check]":
-    """The counts every role publishes, whatever its role is."""
+    """The counts every role publishes, whatever its role is.
+
+    `floor` and `date_system` reach the distinctness envelope of a column
+    of dates or clock times, whose tail strata depend on them (G12.14).
+    """
     name = column.name
     checks: list[Check] = []
     for field, published in (
@@ -8833,7 +8875,9 @@ def _universal_checks(
                 None if measured is None else _shown_count(measured),
             )
         ]
-    checks = checks + _distinctness_checks(column, block, mine)
+    checks = checks + _distinctness_checks(
+        column, block, mine, floor, date_system
+    )
     return checks
 
 
@@ -8841,6 +8885,8 @@ def _distinctness_checks(
     column: contract.ColumnBlock,
     block: "dict[str, object]",
     mine: "tuple[str, ...]",
+    floor: int = 1,
+    date_system: str = "",
 ) -> "list[Check]":
     """The two distinctness counts, at whatever bar this profile sets.
 
@@ -8878,7 +8924,7 @@ def _distinctness_checks(
                     subcheck,
                     _shown_count(published),
                     None if measured is None else float(measured),
-                    _clock_distinct_window(column, facts),
+                    _clock_distinct_window(column, facts, floor),
                     ENVELOPE_CLOCK_DISTINCT,
                     float(published),
                 )
@@ -8897,7 +8943,9 @@ def _distinctness_checks(
             # 1077 was WITHIN-BOUND of a window from 11 to 1460 and passed
             # in silence. Inside the envelope the count is EXACT; outside
             # it, where the construction cannot reach, the window stands.
-            window = _datetime_distinct_window(column, facts)
+            window = _datetime_distinct_window(
+                column, facts, floor, date_system
+            )
             if (
                 contract.datetime_counts_reachable(column)
                 and window[0] <= published <= window[1]
@@ -8919,7 +8967,7 @@ def _distinctness_checks(
                     subcheck,
                     _shown_count(published),
                     None if measured is None else float(measured),
-                    _datetime_distinct_window(column, facts),
+                    window,
                     ENVELOPE_DATETIME_DISTINCT,
                     float(published),
                 )
@@ -9668,6 +9716,7 @@ def _role_checks(
     mine: "tuple[str, ...]",
     plain_pairs: bool = False,
     figures_writable: bool = True,
+    date_system: str = "",
 ) -> "list[Check]":
     """Everything the column's own role adds.
 
@@ -9684,7 +9733,7 @@ def _role_checks(
     if isinstance(facts, contract.JoinedFacts):
         return _joined_checks(column, facts, block, cells, floor, plain_pairs)
     if isinstance(facts, contract.ClockFacts):
-        return _clock_checks(column, facts, block)
+        return _clock_checks(column, facts, block, cells, floor)
     if isinstance(facts, contract.AffixedFacts):
         return _affixed_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.NumericFacts):
@@ -9707,7 +9756,8 @@ def _role_checks(
         )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(
-            column, facts, block, floor, mine, cells, figures_writable
+            column, facts, block, floor, mine, cells, figures_writable,
+            date_system,
         )
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor, cells)
@@ -14645,21 +14695,991 @@ def _variant_map(
 # -- the datetime role ------------------------------------------------
 
 
+# -- the date and clock tails (method G7.3b, G7.3c, G12.14; stage 3) ----
+#
+# WRITTEN HERE FROM THE METHOD'S STATEMENT AND NOT IMPORTED (V1.4). The
+# window a twin's tail distances are held to is the construction's own:
+# every drawn rank at the smallest word at one end and at the largest at
+# the other, the outermost rank at its derived end and a tail's group at
+# its one distance throughout. The construction is written three times --
+# the generator, this module and the oracle -- and the suite holds the
+# first two to agreeing rank for rank.
+
+_TAIL_WORD = 18446744073709551616
+
+
+def _tail_round(value: float) -> int:
+    """G7.3b's rounding: the nearest whole number, halves up, on the value itself."""
+    if value <= 0.0:
+        return 0
+    mantissa, power = math.frexp(value)
+    whole = int(math.ldexp(mantissa, 53))
+    twos = power - 53
+    if twos >= 0:
+        return whole << twos
+    return (whole * 2 + (1 << -twos)) // (2 << -twos)
+
+
+def _tail_power(ratio: float) -> int:
+    """G7.3b: the largest n with (n + 1)**2 <= r (2n + 1), r taken exactly."""
+    mantissa, power = math.frexp(ratio)
+    numerator = int(math.ldexp(mantissa, 53))
+    denominator = 1
+    if power >= 53:
+        numerator = numerator << (power - 53)
+    else:
+        denominator = 1 << (53 - power)
+    found = 0
+    while (found + 2) ** 2 * denominator <= numerator * (2 * found + 3):
+        found = found + 1
+    return found
+
+
+def _tail_pow(base: float, exponent: int) -> float:
+    """G7.3b: base**exponent by squaring, most significant bit first."""
+    bits: "list[int]" = []
+    left = exponent
+    while left > 0:
+        bits += [left % 2]
+        left = left // 2
+    result = 1.0
+    for place in range(len(bits) - 1, -1, -1):
+        result = result * result
+        if bits[place]:
+            result = result * base
+    return result
+
+
+def _tail_mix(power: int, ratio: float) -> float:
+    """G7.3b: the weight w, the root in [0, 1] of the mixture's quadratic."""
+    a2 = 1.0 / (power + 2)
+    de = 1.0 / ((power + 1) * (power + 2))
+    b1 = 1.0 / (2 * power + 1)
+    c = 1.0 / (power + 1)
+    b2 = 1.0 / (2 * power + 3)
+    qa = ((b1 - c) + b2) - ((ratio * de) * de)
+    qb = (c - (2.0 * b2)) - (((2.0 * ratio) * a2) * de)
+    qc = b2 - ((ratio * a2) * a2)
+    if qc <= 0.0:
+        return 0.0
+    disc = max((qb * qb) - ((4.0 * qa) * qc), 0.0)
+    root = math.sqrt(disc)
+    q = -0.5 * (qb + root) if qb >= 0.0 else -0.5 * (qb - root)
+    kept: "list[float]" = []
+    if qa != 0.0:
+        kept += [q / qa]
+    if q != 0.0:
+        kept += [qc / q]
+    inside = [
+        value for value in kept if -1e-12 <= value <= 1.0 + 1e-12
+    ]
+    if not inside:
+        return 1.0
+    return min(max(min(inside), 0.0), 1.0)
+
+
+@dataclasses.dataclass(frozen=True)
+class _TailCurve:
+    """G7.3b's shape as this module reads it: n, w, E and the stretch."""
+
+    power: int
+    weight: float
+    scale: float
+    stretch: float
+
+
+def _tail_a(curve: _TailCurve, s: float) -> float:
+    """a(s) = E * (s**n * (w + (1 - w) * s))."""
+    return curve.scale * (
+        _tail_pow(s, curve.power) * (curve.weight + ((1.0 - curve.weight) * s))
+    )
+
+
+def _tail_integral(curve: _TailCurve, s: float) -> float:
+    """The integral of a from 0 to s."""
+    up = _tail_pow(s, curve.power + 1)
+    return curve.scale * (
+        ((curve.weight * up) / (curve.power + 1))
+        + (((1.0 - curve.weight) * (up * s)) / (curve.power + 2))
+    )
+
+
+def _tail_square_integral(curve: _TailCurve, s: float) -> float:
+    """The integral of a**2 from 0 to s."""
+    w = curve.weight
+    v = 1.0 - w
+    up = _tail_pow(s, 2 * curve.power + 1)
+    first = ((w * w) * up) / (2 * curve.power + 1)
+    second = (((2.0 * w) * v) * (up * s)) / (2 * curve.power + 2)
+    third = ((v * v) * ((up * s) * s)) / (2 * curve.power + 3)
+    return (curve.scale * curve.scale) * ((first + second) + third)
+
+
+@dataclasses.dataclass(frozen=True)
+class _TailWindow:
+    """One tail's construction as this module reads it (G12.14).
+
+    `near` and `far` are each rank's nearest and furthest whole distance,
+    outermost first; `unit` how many of this module's space units one
+    tail unit is, and `boundary` the published boundary in tail units.
+    """
+
+    rows: int
+    low_side: bool
+    boundary: int
+    near: "tuple[int, ...]"
+    far: "tuple[int, ...]"
+
+
+def _tail_construction(
+    rows: int,
+    mean: float,
+    root: float,
+    floor: int,
+    edge: int,
+    apart: bool,
+    end_step: "dict[int, bool]",
+    boundary: int,
+    low_side: bool,
+    group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
+) -> "tuple[list[int], list[int]]":
+    """Every rank's nearest and furthest distance, outermost first (G7.3b).
+
+    `end_step` is the set of tail units the column's own absent spellings
+    name, off which the outermost rank and the group step inward.
+    `group_midnight` is, on a column moved onto a midnight and counted in
+    seconds or minutes, (anchor in seconds, seconds per unit, 0, the
+    shifts of the offsets it names), where the group stands at the
+    nearest midnight within its strata.
+    """
+    ratio = 1.0
+    if mean > 0.0:
+        t = root / mean
+        ratio = t * t
+    ratio = max(ratio, 1.0)
+    power = _tail_power(ratio)
+    weight = _tail_mix(power, ratio)
+    scale = mean / ((1.0 / (power + 2)) + (weight * (1.0 / ((power + 1) * (power + 2)))))
+    curve = _TailCurve(power, weight, scale, 1.0)
+    inner = (rows - 1) / rows
+    total = rows * mean
+    squares = rows * (root * root)
+    below = rows * _tail_integral(curve, inner)
+    below_squares = rows * _tail_square_integral(curve, inner)
+    reach = _tail_a(curve, inner)
+    qa = (below * below) + below_squares
+    qb = -2.0 * (total * below)
+    qc = (total * total) - squares
+    stretch = 1.0
+    end = -1.0
+    if qa > 0.0:
+        disc = (qb * qb) - ((4.0 * qa) * qc)
+        if disc >= 0.0:
+            spread = math.sqrt(disc)
+            for k in ((-qb - spread) / (2.0 * qa), (-qb + spread) / (2.0 * qa)):
+                far_end = total - (k * below)
+                if k > 0.0 and far_end >= k * reach:
+                    if end < 0.0 or abs(k - 1.0) < abs(stretch - 1.0):
+                        stretch = k
+                        end = far_end
+    if end < 0.0:
+        stretch = 1.0
+        end = math.sqrt(
+            max(
+                rows
+                * (
+                    _tail_square_integral(curve, 1.0)
+                    - _tail_square_integral(curve, inner)
+                ),
+                0.0,
+            )
+        )
+    if end > edge:
+        end = float(edge)
+        if below > 0.0:
+            stretch = (total - end) / below
+    curve = _TailCurve(power, weight, scale, stretch)
+    end_whole = min(max(1, _tail_round(end)), edge)
+    grouped = rows
+    group = 0
+    if not apart and rows > floor >= 1:
+        grouped = floor - 1
+        share = (rows - grouped) / rows
+        mean_of_group = (rows * _tail_integral(curve, share)) / (rows - grouped)
+        group = min(max(1, _tail_round(stretch * mean_of_group)), edge)
+        if grouped == 0:
+            end_whole = group
+    end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    if grouped < rows:
+        if group_midnight is not None:
+            furthest = max(
+                group,
+                _tail_round(stretch * _tail_a(curve, (rows - grouped) / rows)),
+            )
+            group = _midnight_nearest(
+                group, min(furthest, edge), low_side, group_midnight
+            )
+        group = _stepped_off(group, boundary, low_side, end_step)
+    end_whole = max(end_whole, group)
+    near: "list[int]" = []
+    far: "list[int]" = []
+    for word in (0, _TAIL_WORD - 1):
+        found = [end_whole]
+        for index in range(1, rows):
+            if index >= grouped:
+                found += [group]
+                continue
+            s = ((rows - 1 - index) * _TAIL_WORD + word) / (rows * _TAIL_WORD)
+            found += [max(1, _tail_round(stretch * _tail_a(curve, s)))]
+        for index in range(rows - 2, -1, -1):
+            found[index] = max(found[index], found[index + 1])
+        if apart:
+            for index in range(rows - 2, -1, -1):
+                if found[index] <= found[index + 1]:
+                    found[index] = found[index + 1] + 1
+                found[index] = min(found[index], edge)
+            for index in range(1, rows):
+                if found[index] >= found[index - 1]:
+                    found[index] = max(1, found[index - 1] - 1)
+        found = [min(value, edge) for value in found]
+        if word == 0:
+            near = found
+        else:
+            far = found
+    return (near, far)
+
+
+def _stepped_off(
+    distance: int, boundary: int, low_side: bool, holes: "dict[int, bool]"
+) -> int:
+    """G7.3b: a word-less rank stepped inward off every unit a hole names."""
+    while distance > 1:
+        unit = boundary - distance if low_side else boundary + distance
+        if unit not in holes:
+            return distance
+        distance = distance - 1
+    return distance
+
+
+def _midnight_nearest(
+    distance: int,
+    furthest: int,
+    low_side: bool,
+    where: "tuple[int, int, int, tuple[int, ...]]",
+) -> int:
+    """G7.3b: the distance of the midnight nearest a group's, from 1 to `furthest`.
+
+    `where` is (the tail's anchor in seconds, seconds per unit, unused,
+    the shift of every offset the column names). The inner is taken on a
+    tie; the group's own distance where none lies in reach.
+    """
+    anchor, unit, _unused, shifts = where
+    period = 86400 // unit
+    best = -1
+    for shift in shifts:
+        moved = anchor + shift
+        if moved % unit != 0:
+            continue
+        first = (moved // unit) % period if low_side else (-(moved // unit)) % period
+        if first == 0:
+            first = period
+        lap = (distance - first) // period
+        for candidate in (first + lap * period, first + (lap + 1) * period):
+            if candidate < 1 or candidate > furthest:
+                continue
+            if (
+                best < 0
+                or abs(candidate - distance) < abs(best - distance)
+                or (
+                    abs(candidate - distance) == abs(best - distance)
+                    and candidate < best
+                )
+            ):
+                best = candidate
+    return distance if best < 0 else best
+
+
+def _tail_value_counts(
+    distances: "list[int]", rows: int, total: "int | None"
+) -> "list[int]":
+    """G7.3c's count rule, written out here from the method (V1.4).
+
+    The values in distance order, outermost first: every value takes at
+    least one rank; with the mean published each value from the
+    outermost inward takes the fewest ranks that still leave the values
+    inside it able to reach the whole sum exactly, and the innermost
+    takes the rest; with no mean, or where no count can reach it, the
+    ranks are shared as evenly as the values allow, the outer values
+    first.
+    """
+    count = len(distances)
+    even = [0 for _value in distances]
+    for index in range(rows):
+        even[(index * count) // rows] += 1
+    if total is None or count == 0:
+        return even
+    counts = [1 for _value in distances]
+    left_rows = rows - count
+    left_sum = total
+    for value in distances:
+        left_sum = left_sum - value
+    if left_sum < 0 or left_rows < 0:
+        return even
+    for place in range(count - 1):
+        rest = distances[place + 1:]
+        chosen = -1
+        for extra in range(left_rows + 1):
+            spent = extra * distances[place]
+            if spent > left_sum:
+                break
+            if _tail_extras_reach(rest, left_rows - extra, left_sum - spent):
+                chosen = extra
+                break
+        if chosen < 0:
+            return even
+        counts[place] = counts[place] + chosen
+        left_rows = left_rows - chosen
+        left_sum = left_sum - chosen * distances[place]
+    last = distances[count - 1]
+    if left_rows * last != left_sum:
+        return even
+    counts[count - 1] = counts[count - 1] + left_rows
+    return counts
+
+
+def _tail_extras_reach(values: "list[int]", extra: int, total: int) -> bool:
+    """Whether `extra` more cells over these values can add exactly `total`."""
+    if extra == 0:
+        return total == 0
+    if not values or total < 0:
+        return False
+    reach = [0 for _count in range(extra + 1)]
+    reach[0] = 1
+    ceiling = (1 << (total + 1)) - 1
+    for value in values:
+        for count in range(1, extra + 1):
+            reach[count] = reach[count] | ((reach[count - 1] << value) & ceiling)
+    return (reach[extra] >> total) & 1 == 1
+
+
+def _tail_value_spots(
+    tail: contract.TailFacts, low_side: bool, spots: "list[int]"
+) -> "list[int]":
+    """Where each rank of a tail publishing its values stands, outermost first.
+
+    `spots` are the values' own ordinals in this reading's units, in the
+    document's ascending order; the distances are taken from the
+    boundary in tail units, so the counts of G7.3c are the generator's.
+    """
+    ordered = [spot for spot in spots]
+    if not low_side:
+        ordered = [ordered[place] for place in range(len(ordered) - 1, -1, -1)]
+    return ordered
+
+
+def _tail_date_system(description: contract.Profile, column: contract.ColumnBlock) -> str:
+    """G7.3e: the workbook date system a column's cells are stored under, or "".
+
+    A workbook column whose format code stores days, read from the
+    description's own record of the workbook; "" for a delimited table
+    and for a workbook column of text.
+    """
+    form = description.source.workbook
+    place = column.position - 1
+    if form is None or place < 0 or place >= len(form.columns):
+        return ""
+    kind = dialect.sheet_format_kind(form.columns[place].format_code)
+    if kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
+        return form.date_system
+    return ""
+
+
+def _tail_holes(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "dict[int, bool]":
+    """G7.3b: every tail unit one of the column's own absent spellings names."""
+    found: "dict[int, bool]" = {}
+    for spelling in sorted(column.missing_by_source):
+        read = parsing.parse_datetime(spelling, facts.parser_family)
+        if read is None:
+            continue
+        moment = read[0]
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == taxonomy.RESOLUTION_DATETIME
+        ):
+            shifted = parsing.utc_canonical(read[0], read[1])
+            if shifted is None:
+                continue
+            moment = shifted
+        found[
+            taxonomy.tail_ordinal(moment, facts.tail_unit, facts.datetimes_read_at)
+        ] = True
+    return found
+
+
+def _date_tail_windows(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    floor: int,
+    date_system: str,
+) -> "dict[str, tuple[list[int], list[int]]]":
+    """Each shape-drawn tail's nearest and furthest distances (G12.14).
+
+    Keyed `low` and `high`; a tail publishing its values, or a column
+    with no tails, has no entry, because its ranks stand at published
+    values rather than inside strata.
+    """
+    found: "dict[str, tuple[list[int], list[int]]]" = {}
+    if facts.low_tail is None or facts.high_tail is None:
+        return found
+    reading = facts.datetimes_read_at
+    edges = taxonomy.tail_edges(
+        facts.parser_family, facts.tail_unit, reading, facts.utc_offsets,
+        date_system,
+    )
+    holes = _tail_holes(column, facts)
+    # ALL DIFFERENT IS A FACT ABOUT THE WHOLE COLUMN, and the window is
+    # drawn from the SAME construction the generator runs
+    # (`generation._date_layout`), which reads it exactly this way. It
+    # was hard-coded False here, so on a column of all-different dates
+    # the window was drawn TIGHTER than the construction -- which is a
+    # validator that rejects conforming twins. It went unseen while such
+    # a column published its tail's values instead of its shape;
+    # plan P4-D342 closed that road and a column of 120 different months
+    # then missed both of its low tail's distances, its twin standing at
+    # a mean of 7.0 against a window of 5.64 to 6.45 whose construction
+    # reaches 7.0.
+    apart = column.n_distinct - facts.n_unparsed >= column.n_present - facts.n_unparsed
+    midnight_group = (
+        facts.resolution == taxonomy.RESOLUTION_DATETIME
+        and not facts.all_at_midnight
+        and facts.n_at_midnight is not None
+        and facts.n_at_midnight > 0
+    )
+    shifts: "list[int]" = [0]
+    if reading == "utc":
+        shifts = [
+            _offset_shift(key)
+            for key in sorted(facts.utc_offsets)
+            if key != contract.WITHHELD
+        ]
+    seconds_per_unit = 60 if facts.tail_unit == parsing.TAIL_UNIT_MINUTE else 1
+    for key, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if tail.values is not None:
+            continue
+        at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
+        edge = max(1, at - edges[0] if low_side else edges[1] - at)
+        mean = 1.0 if tail.mean_distance is None else tail.mean_distance
+        root = mean if tail.rms_distance is None else tail.rms_distance
+        where: "tuple[int, int, int, tuple[int, ...]] | None" = None
+        if midnight_group:
+            anchor = taxonomy.tail_ordinal(tail.boundary, parsing.TAIL_UNIT_SECOND, reading)
+            where = (anchor, seconds_per_unit, 0, tuple(shifts))
+        found[key] = _tail_construction(
+            tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
+            where,
+        )
+    return found
+
+
+def _clock_tail_windows(
+    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
+) -> "dict[str, tuple[list[int], list[int]]]":
+    """Each shape-drawn clock tail's nearest and furthest distances (G12.14)."""
+    found: "dict[str, tuple[list[int], list[int]]]" = {}
+    if facts.low_tail is None or facts.high_tail is None:
+        return found
+    parsed = column.n_present - facts.n_unparsed
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    capacity = parsing.CLOCK_CAPACITY[facts.clock_form]
+    for key, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if tail.values is not None:
+            continue
+        at = _clock_ordinal_or_zero(tail.boundary, facts.clock_form)
+        edge = max(1, at if low_side else capacity - 1 - at)
+        mean = 1.0 if tail.mean_distance is None else tail.mean_distance
+        root = mean if tail.rms_distance is None else tail.rms_distance
+        found[key] = _tail_construction(
+            tail.rows, mean, root, floor, edge, apart, {}, at, low_side, None
+        )
+    return found
+
+
+def _offset_shift(key: str) -> int:
+    """How far one published offset key moves a wall clock from the shared one."""
+    if key in ("Z", contract.NO_OFFSET, contract.WITHHELD) or not key:
+        return 0
+    seconds = 3600 * int(key[1:3]) + 60 * int(key[4:6])
+    return -seconds if key[0] == "-" else seconds
+
+
+def _offset_absorbed_into(
+    facts: contract.DatetimeFacts, dates: int
+) -> "tuple[str, dict[str, int]]":
+    """Which offset the census counted a rare one into, and that census.
+
+    A PUBLISHED FACT, NOT A SECOND FLOOR DECISION (plan P4-D222): where a
+    cell's written offset is one the description's census does not name,
+    the census counted it into the commonest offset it does name, and
+    every published fact below -- the clock the column is read on, the
+    ladder, the two tails -- speaks of that cell AT THAT OFFSET. Reading
+    the file at the cell's own text instead moves the cell by the
+    difference between the two offsets and can put it in another rank,
+    which made a REAL table miss its own tail boundary.
+    `parsing.absorbed_room` names the taker.
+
+    The census that decided it is the one over the cells that CAN wear an
+    offset: on the joint reading a whole date wears none because of what
+    it is, so the dates come out of `(none)` first -- the same
+    subtraction that census's own population is defined by. An empty
+    name -- a pooled census, or one naming nothing -- means nothing was
+    absorbed and every cell is read as it was written.
+
+    Guarantees: accepts the published datetime facts and how many of the
+    file's parsed cells are whole dates on a joint column; returns the
+    name and the census over the offset-bearing cells. Determinism: a
+    function of the two; the census is walked in sorted order. Raises
+    nothing. No I/O of any kind.
+    """
+    named: "dict[str, int]" = {}
+    for key in sorted(facts.utc_offsets):
+        count = facts.utc_offsets[key]
+        if key == contract.NO_OFFSET:
+            count = count - dates
+        if count > 0:
+            named[key] = count
+    commonest, _room = parsing.absorbed_room(named, 1)
+    return commonest, named
+
+
+def _dates_the_file_reads(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[str]":
+    """The column's cells, less the days its OWN description reads as holes.
+
+    A TAIL IS COUNTED OVER THE CELLS THE DESCRIPTION COUNTS (amendment
+    A-P3-5 clause 2, the rule `_cells_that_description_reads` states for
+    the recounts). A day like `1900-01-01`, worn by enough cells and
+    lying far outside the rest of the column, is judged by the producer
+    to mean "no value": the description publishes that verdict, counts
+    those cells among the absent, and takes them out of everything it
+    measures the column by -- the tails included. They are still DATES
+    to a reader, so counting the file's own cells without asking the
+    verdict puts twenty instants below a boundary published over the
+    449 values that description holds, and the table the description
+    was written from is told it missed its own tail. Measured: 20 cells
+    of `1900-01-01 00:00:00` beside 449 consecutive days, four
+    obligations MISSED and `validate` exiting 3 on the source itself.
+
+    The verdict read is the FILE'S OWN (the re-described block), exactly
+    as the recounts read it, and a candidate that description publishes
+    as kept is data and stays. Where a verdict is withheld for its size
+    the cells stay too, which is the corner
+    `_cells_that_description_reads` already bounds.
+
+    THE CANDIDATE'S DAY AND NOT ITS SPELLINGS, which is where this
+    differs from `_placeholder_spellings_dropped` beside it. That reader
+    takes the `missing_by_source` keys the verdict's own decision took
+    out, and a verdict can publish none of them: plan P4-D293 raises a
+    pool by the smallest NAMED spelling until it names no row, so a
+    judged spelling worn by twenty cells is taken into the pool and the
+    verdict names its candidate alone -- which is this very column
+    (`tests/test_stage2_judged_provenance.py`). The cells are therefore
+    found by reading each one under the column's own member and
+    comparing the DAY: an exact comparison on a date, with no reader
+    that rounds in it, which is the property the spelling rule was
+    written to keep.
+    """
+    judged = _placeholder_days_judged(block)
+    if not judged:
+        return cells
+    kept: "list[str]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is not None and read[0][0:10] in judged:
+            continue
+        kept += [cell]
+    return kept
+
+
+def _placeholder_days_judged(block: "dict[str, object]") -> "dict[str, int]":
+    """The placeholder DAYS a re-described block reads as "no value".
+
+    The candidate of every `read_as_missing` verdict naming one of the
+    built-in placeholder days, as its canonical ISO day. A candidate the
+    floor withheld by name is `(withheld)`, names nothing, and is not
+    here.
+
+    Guarantees: accepts one re-described block; returns a mapping the
+    day comparison beside it takes. Determinism: a fixed function of the
+    block. Errors raised: none. No I/O.
+    """
+    found: "dict[str, int]" = {}
+    if "sentinel_verdicts" not in block:
+        return found
+    entries = block["sentinel_verdicts"]
+    if not isinstance(entries, list):
+        return found
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        inner: "dict[str, object]" = {}
+        for name in entry:
+            if isinstance(name, str):
+                inner[name] = entry[name]
+        if _text_at(inner, "verdict") != taxonomy.VERDICT_MISSING:
+            continue
+        candidate = _text_at(inner, "candidate")
+        if candidate is None:
+            continue
+        for day in parsing.calendar_placeholders():
+            if candidate == day:
+                found[day] = 1
+    return found
+
+
+def _tail_units_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[int | None]":
+    """One reading per cell, in tail units, or null where it is not a date.
+
+    Each cell is read under the member that read the real column, worn at
+    the offset the published census counts it at
+    (`_offset_absorbed_into`) and put on the clock the description
+    publishes, exactly as the producer describes a table -- this is
+    describing the file, not the twin's construction.
+
+    THE READING STAYS WITH ITS OWN CELL here, and the caller below sorts
+    the readings it keeps. The tails are counted over sorted values and
+    need nothing else, but a caller that has to say WHICH cell stands at
+    a boundary cannot take that from a sorted list, and a second reader
+    written beside this one would be a second answer to the same
+    question.
+    """
+    joint = facts.parser_family == contract.FORMAT_ISO_MIXED
+    read_cells: "list[tuple[str, str, bool] | None]" = []
+    dates = 0
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            read_cells += [None]
+            continue
+        dated = joint and parsing.parse_datetime(cell, taxonomy.ISO_FORMS[1]) is None
+        if dated:
+            dates = dates + 1
+        read_cells += [(read[0], read[1], dated)]
+    commonest, named = _offset_absorbed_into(facts, dates)
+    found: "list[int | None]" = []
+    for entry in read_cells:
+        if entry is None:
+            found += [None]
+            continue
+        canonical, offset, dated = entry
+        worn = offset
+        key = worn if worn else contract.NO_OFFSET
+        if commonest and not dated and key not in named:
+            worn = "" if commonest == contract.NO_OFFSET else commonest
+        moment = canonical
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == taxonomy.RESOLUTION_DATETIME
+        ):
+            shifted = parsing.utc_canonical(canonical, worn)
+            if shifted is None:
+                found += [None]
+                continue
+            moment = shifted
+        found += [
+            taxonomy.tail_ordinal(moment, facts.tail_unit, facts.datetimes_read_at)
+        ]
+    return found
+
+
+def _file_tail_units(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[int]":
+    """The file's cells that read as dates, in tail units, ascending."""
+    found: "list[int]" = []
+    for unit in _tail_units_of(facts, cells):
+        if unit is not None:
+            found += [unit]
+    return sorted(found)
+
+
+def _file_clock_units(
+    form: str, cells: "list[str]", published: str = ""
+) -> "list[int]":
+    """The file's clock times in the PUBLISHED form's unit, ascending.
+
+    READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT, exactly as the
+    rungs are (`_clock_seconds`): a file whose cells wear the other shape
+    publishes a ladder in that shape, and reading it under the
+    description's form would find nothing and silence every obligation on
+    a file whose own description publishes the measurement being asked
+    for, which V5.3 does not permit as a reason for silence. Both sides
+    meet in seconds of day and are then counted in the published form's
+    own unit, a minute of which holds sixty of them.
+    """
+    step = 60 if form == contract.CLOCK_FORMS[0] else 1
+    wanted = 60 if (published or form) == contract.CLOCK_FORMS[0] else 1
+    found: "list[int]" = []
+    for cell in cells:
+        read = parsing.clock_ordinal(cell, form)
+        if read is not None:
+            found += [(read * step) // wanted]
+    return sorted(found)
+
+
+def _tail_checks(
+    name: str,
+    group: str,
+    low: "contract.TailFacts | None",
+    high: "contract.TailFacts | None",
+    units: "list[int]",
+    boundaries: "tuple[int, int]",
+    windows: "dict[str, tuple[list[int], list[int]]]",
+    values_of: "dict[str, list[int]]",
+    unit: str,
+) -> "list[Check]":
+    """Each published tail against the file, read at the PUBLISHED boundary.
+
+    THE BOUNDARY IS THE DESCRIPTION'S, NEVER RE-DERIVED FROM THE FILE
+    (stage 3, the numeric skeptic's point about subjects): the file's
+    cells strictly beyond it are counted and measured, whatever the
+    file's own boundary rule would say. Four obligations per side:
+
+    - `tails.<side>.boundary`, EXACT: the file's cell at that many ranks
+      in from the outside stands on the published boundary. Its text is
+      the file's, so only the verdict is shown.
+    - `tails.<side>.rows`, EXACT: the count of cells strictly beyond it.
+    - `tails.<side>.mean_distance` and `.rms_distance`: HELD where the
+      file's value is the published one exactly (the real table, by
+      construction), otherwise WITHIN-BOUND inside the construction
+      window of G12.14 or MISSED. Numbers in the tail's unit are shown.
+    - where the tail publishes its values, `tails.<side>.values`, EXACT
+      and silent: the file's outer cells hold exactly those values, each
+      at least once; and its mean, where published, EXACT.
+    """
+    checks: "list[Check]" = []
+    if low is None or high is None:
+        return checks
+    count = len(units)
+    for side, tail, at in (("low", low, boundaries[0]), ("high", high, boundaries[1])):
+        # EACH KEY IS ITS OWN FACT, because each key is its own
+        # obligation: a boundary and a count of rows are exact, the two
+        # distances are approximated, and a report naming one fact for
+        # all five would file an exact line and a windowed line under a
+        # name the disposition registry can only answer for once.
+        stem = f"{group}.{side}_tail"
+        if side == "low":
+            beyond = [at - value for value in units if value < at]
+            place = tail.rows
+        else:
+            beyond = [value - at for value in units if value > at]
+            place = count - 1 - tail.rows
+        # A FILE WITH NO CELL AT THAT RANK MISSES, AND DOES NOT GO QUIET
+        # (V5.3). The rank is counted from the outside of the file's own
+        # dates, so a file holding fewer of them than the description
+        # publishes has no cell standing where the boundary stands --
+        # which is a published obligation the file does not meet, not a
+        # measurement the file's own description would decline to carry.
+        # Reporting it WITHHELD said the disclosure gate had closed on a
+        # column whose role the same report held, which is silence
+        # bought by making a file worse.
+        on = False
+        if 0 <= place < count:
+            on = units[place] == at
+        checks += [
+            _silent(
+                name,
+                f"{stem}.boundary",
+                f"tails.{side}.boundary",
+                tail.boundary,
+                on,
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
+        checks += [
+            _exact(
+                name,
+                f"{stem}.rows",
+                f"tails.{side}.rows",
+                _shown_count(tail.rows),
+                _shown_count(len(beyond)),
+            )
+        ]
+        total = 0
+        squares = 0
+        for distance in beyond:
+            total = total + distance
+            squares = squares + distance * distance
+        if tail.values is not None:
+            wanted: "dict[int, bool]" = {}
+            for distance in values_of[side]:
+                wanted[distance] = True
+            seen: "dict[int, bool]" = {}
+            for distance in beyond:
+                seen[distance] = True
+            checks += [
+                _silent(
+                    name,
+                    f"{stem}.values",
+                    f"tails.{side}.values",
+                    f"{len(tail.values)} values",
+                    sorted(seen) == sorted(wanted),
+                    _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+                )
+            ]
+            if tail.mean_distance is not None:
+                measured = None if not beyond else total / len(beyond)
+                checks += [
+                    _exact(
+                        name,
+                        f"{stem}.mean_distance",
+                        f"tails.{side}.mean_distance",
+                        _tail_figure(tail.mean_distance, unit),
+                        None if measured is None else _tail_figure(measured, unit),
+                    )
+                ]
+            continue
+        near, far = windows[side]
+        size = max(tail.rows, 1)
+        near_total = 0
+        near_squares = 0
+        far_total = 0
+        far_squares = 0
+        for index in range(len(near)):
+            near_total = near_total + near[index]
+            near_squares = near_squares + near[index] * near[index]
+            far_total = far_total + far[index]
+            far_squares = far_squares + far[index] * far[index]
+        for key, published, top, lowest, highest, rooted in (
+            ("mean_distance", tail.mean_distance, total, near_total, far_total, False),
+            ("rms_distance", tail.rms_distance, squares, near_squares, far_squares, True),
+        ):
+            if published is None:
+                continue
+            checks += [
+                _tail_window_check(
+                    name,
+                    f"{stem}.{key}",
+                    f"tails.{side}.{key}",
+                    published,
+                    top,
+                    len(beyond),
+                    lowest,
+                    highest,
+                    size,
+                    rooted,
+                    unit,
+                )
+            ]
+    return checks
+
+
+def _tail_figure(value: float, unit: str) -> str:
+    """A tail distance written for a person, with its unit."""
+    return f"{value!r} {unit}(s)"
+
+
+def _tail_window_check(
+    name: str,
+    fact: str,
+    subcheck: str,
+    published: float,
+    top: int,
+    count: int,
+    lowest: int,
+    highest: int,
+    size: int,
+    rooted: bool,
+    unit: str,
+) -> Check:
+    """One tail distance against G12.14's window, compared exactly.
+
+    `top / count` is the file's sum (or sum of squares) over its cells
+    beyond the boundary; `lowest / size` and `highest / size` are the
+    construction's two ends. The comparison is made in whole numbers;
+    the root-mean-square distance is compared as its square, so no
+    rounding decides a verdict. The file's value is HELD where it rounds
+    to the published one (V6.1-A1).
+    """
+    if count == 0:
+        return Check(
+            name, fact, subcheck, MISSED, _tail_figure(published, unit),
+            "no cell beyond the boundary",
+        )
+    measured = top / count
+    if rooted:
+        measured = math.sqrt(measured)
+    shown = _tail_figure(measured, unit)
+    exact = _tail_ratio_equal(top, count, published, rooted)
+    low_value = lowest / size
+    high_value = highest / size
+    if rooted:
+        low_value = math.sqrt(low_value)
+        high_value = math.sqrt(high_value)
+    reaches = lowest * count <= top * size <= highest * count
+    note: "tuple[str, ...]" = (
+        f"      the file's value is allowed from {low_value!r} to "
+        f"{high_value!r} {unit}(s)",
+    )
+    if exact:
+        return Check(
+            name, fact, subcheck, HELD, _tail_figure(published, unit), shown
+        )
+    verdict = WITHIN_BOUND if reaches else MISSED
+    return Check(
+        name,
+        fact,
+        subcheck,
+        verdict,
+        _tail_figure(published, unit),
+        shown,
+        ENVELOPE_TAIL_DISTANCE,
+        note,
+    )
+
+
+def _tail_ratio_equal(top: int, count: int, published: float, rooted: bool) -> bool:
+    """Whether the file's whole sum over its count rounds to the published value.
+
+    The producer publishes the sum over the count, or the square root of
+    it, rounded once to the nearest binary64; the file's own value is
+    that same rounding of its own sum, so equality of the two roundings
+    is the question, and it is asked of the producer's own rounding.
+    """
+    if rooted:
+        return taxonomy.rounded_root_ratio(top, count) == published
+    return taxonomy.rounded_ratio(top, count) == published
+
+
 def _clock_checks(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     block: "dict[str, object]",
+    cells: "list[str] | None" = None,
+    floor: int = 1,
 ) -> "list[Check]":
     """A column of clock times.
 
-    THE THREE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the
-    unparsed count are exact and are COUNTS or words of this package's
-    own, so both sides print. The two endpoints and the ladder's two
-    ends are exact too, but their measured side is TEXT READ OUT OF THE
-    FILE, so the comparison is made in full and only the verdict is
-    shown -- the same treatment the datetime role's endpoints get, and
-    for the same rule. The nine interior rungs are approximated inside
-    the window this role's own construction leaves them.
+    THE KINDS OF OBLIGATION THIS ROLE CARRIES. The form and the unparsed
+    count are exact and are COUNTS or words of this package's own, so
+    both sides print. Each TAIL (stage 3) is read at its PUBLISHED
+    boundary: the boundary exact and silent, the count beyond it exact,
+    and its two distances inside the construction window of G12.14
+    (`_tail_checks`). The published interior rungs are approximated
+    inside the window this role's own construction leaves them; a rung
+    the tail rule withholds is listed, never checked.
     """
     name = column.name
     checks: "list[Check]" = []
@@ -14673,21 +15693,6 @@ def _clock_checks(
             found,
         )
     ]
-    for field, published in (
-        ("earliest", facts.earliest),
-        ("latest", facts.latest),
-    ):
-        seen = _text_at(block, field)
-        checks += [
-            _silent(
-                name,
-                f"clock.{field}",
-                f"ends.{field}",
-                published,
-                None if seen is None else seen == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     counted = _count_at(block, "n_unparsed")
     checks += [
         _exact(
@@ -14698,7 +15703,39 @@ def _clock_checks(
             None if counted is None else _shown_count(counted),
         )
     ]
-    checks = checks + _clock_ladder_checks(column, facts, block)
+    if facts.low_tail is not None and facts.high_tail is not None:
+        form = facts.clock_form
+        values_of: "dict[str, list[int]]" = {}
+        for side, tail, low_side in (
+            ("low", facts.low_tail, True),
+            ("high", facts.high_tail, False),
+        ):
+            at = _clock_ordinal_or_zero(tail.boundary, form)
+            found_values: "list[int]" = []
+            if tail.values is not None:
+                for value in tail.values:
+                    here = _clock_ordinal_or_zero(value, form)
+                    found_values += [at - here if low_side else here - at]
+            values_of[side] = found_values
+        checks += _tail_checks(
+            name,
+            "clock",
+            facts.low_tail,
+            facts.high_tail,
+            _file_clock_units(
+                found if found is not None else form,
+                [] if cells is None else cells,
+                form,
+            ),
+            (
+                _clock_ordinal_or_zero(facts.low_tail.boundary, form),
+                _clock_ordinal_or_zero(facts.high_tail.boundary, form),
+            ),
+            _clock_tail_windows(column, facts, floor),
+            values_of,
+            _clock_units(form),
+        )
+    checks = checks + _clock_ladder_checks(column, facts, block, floor)
     return checks
 
 
@@ -14706,55 +15743,30 @@ def _clock_ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     block: "dict[str, object]",
+    floor: int = 1,
 ) -> "list[Check]":
-    """The clock ladder: the two ends exact, the nine interior windowed.
+    """The clock ladder: each PUBLISHED interior rung inside its window.
 
     The window is this role's own construction written out here rather
-    than imported: the validator may not read the generator, so the
-    arithmetic is taken from the method's clause and the suite holds the
-    two writings to agreeing.
-
-    Rank `k` is its own stratum -- its share of the day runs from `k/P`
-    to `(k+1)/P` and no word can carry it outside that band -- so the
-    rank sits between the ladder read at those two shares, less one unit
-    of the form at the low end for the flooring. The two ends are PINNED
-    and have no room at all: the construction writes rank 0 at the
-    published earliest and rank `P-1` at the published latest, and T2
-    makes those the ladder's own two ends.
+    than imported (`_clock_rank_windows`): the validator may not read the
+    generator, so the arithmetic is taken from the method's clause and
+    the suite holds the two writings to agreeing. A rung the tail rule
+    withholds is not a check at all -- it is listed (`_tail_listings`),
+    because comparing a null against a null proves nothing.
     """
     name = column.name
     measured = _inner_at(block, "clock_percentiles")
     checks: "list[Check]" = []
-    for key, expected in (
-        ("min", facts.earliest),
-        ("max", facts.latest),
-    ):
-        seen = None if measured is None else _text_at(measured, key)
-        checks += [
-            _silent(
-                name,
-                f"clock.clock_percentiles.{key}",
-                f"clock-ladder.{key}",
-                expected,
-                None if seen is None else seen == expected,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(facts, parsed)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
+        published = facts.clock_percentiles[key]
+        if published is None:
+            continue
         seen = None if measured is None else _text_at(measured, key)
-        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT. A file
-        # whose cells wear the other shape publishes a ladder in that
-        # shape, and reading it under the DESCRIPTION's form finds
-        # nothing -- so every rung went silent, on a file whose own
-        # description publishes exactly the measurement being asked
-        # for. That is not the disclosure gate closing; it is the
-        # validator unable to read, which V5.3 does not permit as a
-        # reason for silence. Both sides are read in their own form and
-        # compared in seconds of day, where a minute is sixty and the
-        # two spaces are one.
+        # READ IN THE FILE'S OWN FORM AND COMPARED IN ONE UNIT, seconds
+        # of day, where a minute is sixty and the two spaces are one.
         held = None if seen is None else _clock_seconds(seen, block)
         rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
         checks += [
@@ -14762,7 +15774,7 @@ def _clock_ladder_checks(
                 name,
                 f"clock-ladder.{key}",
                 facts,
-                facts.clock_percentiles[key],
+                published,
                 held,
                 (lows[rank], highs[rank]),
             )
@@ -14908,49 +15920,107 @@ def _within_clock(
 
 
 def _clock_rank_windows(
-    facts: contract.ClockFacts, parsed: int
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    parsed: int,
+    floor: int = 1,
 ) -> "tuple[list[int], list[int]]":
-    """The window every rank of a column of clock times sits in.
+    """The window every rank of a column of clock times sits in (stage 3).
 
-    Whole-number arithmetic throughout, in the ordinal unit the
-    published FORM sets -- minutes of day, or seconds of day -- because
-    that is the unit the construction interpolates in and a window drawn
-    in another one would floor to a different place.
+    Whole-number arithmetic throughout, in the ordinal unit the published
+    FORM sets, handed back in SECONDS because the measured side is read in
+    the FILE's form. A tail rank sits inside its stratum (G12.14); a
+    boundary rank on its boundary; a body rank between the knots read at
+    its own two positions, one unit lower at the bottom for the flooring
+    -- the knots being the low boundary at its rank, each published rung
+    at `P * c / 100` and the high boundary at `P -` the high tail's rows.
+    A column with no tails is its ramp, every rank a point.
 
-    Guarantees: accepts one column's published clock facts and how many
-    of its cells read back as clock times; returns the two ends of every
-    rank's window. Nothing measured is consulted -- this is what the
-    DESCRIPTION obliges. Determinism: a fixed function of those two.
-    Errors raised: none.
+    Guarantees: accepts the column, its facts, how many of its cells read
+    back as clock times and the floor; returns the two ends of every
+    rank's window. Nothing measured is consulted. Determinism: a fixed
+    function of those four. Errors raised: none.
     """
-    ladder = [
-        _clock_ordinal_or_zero(facts.clock_percentiles[name], facts.clock_form)
-        for name in _LADDER_KEYS
-    ]
-    last = len(_LADDER_KEYS) - 1
-    # THE WINDOWS ARE DRAWN IN THE FORM'S OWN UNIT AND HANDED BACK IN
-    # SECONDS, because the measured side is read in the FILE's form and
-    # the two have to meet in one space. The interpolation itself must
-    # happen in the column's own unit -- it floors, and flooring in
-    # seconds lands part way through a minute the construction cannot
-    # write -- so the conversion is the last step and never the first.
-    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    form = facts.clock_form
+    step = 60 if form == contract.CLOCK_FORMS[0] else 1
     lows: "list[int]" = []
     highs: "list[int]" = []
+    low = facts.low_tail
+    high = facts.high_tail
+    if low is None or high is None:
+        spread = max(1, min(parsed, column.n_distinct - facts.n_unparsed))
+        for rank in range(parsed):
+            value = step * ((rank * spread) // max(parsed, 1))
+            lows += [value]
+            highs += [value]
+        return (lows, highs)
+    low_rank = low.rows
+    high_rank = parsed - 1 - high.rows
+    low_at = _clock_ordinal_or_zero(low.boundary, form)
+    high_at = _clock_ordinal_or_zero(high.boundary, form)
+    word = _TAIL_WORD
+    knots: "list[tuple[int, int]]" = [(100 * low_rank * word, low_at)]
+    for index in range(1, len(_LADDER_KEYS) - 1):
+        rung = facts.clock_percentiles[_LADDER_KEYS[index]]
+        if rung is None:
+            continue
+        rank = _rung_rank(_LADDER_PERCENTS[index], parsed)
+        if low_rank < rank < high_rank:
+            knots += [
+                (
+                    parsed * _LADDER_PERCENTS[index] * word,
+                    _clock_ordinal_or_zero(rung, form),
+                )
+            ]
+    knots += [(100 * (high_rank + 1) * word, high_at)]
+    windows = _clock_tail_windows(column, facts, floor)
     for rank in range(parsed):
-        if rank == 0:
-            lows += [step * ladder[0]]
-            highs += [step * ladder[0]]
+        if rank < low_rank or rank > high_rank:
+            low_side = rank < low_rank
+            tail = low if low_side else high
+            at = low_at if low_side else high_at
+            index = rank if low_side else parsed - 1 - rank
+            if tail.values is not None:
+                # A TAIL THAT PUBLISHES ITS VALUES puts each rank on one of
+                # them (G7.3c), so each rank's window is the tail's span.
+                spots = [
+                    _clock_ordinal_or_zero(value, form) for value in tail.values
+                ]
+                lows += [step * min(spots)]
+                highs += [step * max(spots)]
+                continue
+            near, far = windows["low" if low_side else "high"]
+            first = at - far[index] if low_side else at + near[index]
+            second = at - near[index] if low_side else at + far[index]
+            lows += [step * first]
+            highs += [step * second]
             continue
-        if rank == parsed - 1 and parsed >= 2:
-            lows += [step * ladder[last]]
-            highs += [step * ladder[last]]
+        if rank == low_rank:
+            lows += [step * low_at]
+            highs += [step * low_at]
             continue
-        lows += [
-            step * _ladder_ordinal_at(ladder, rank, parsed) - step
+        if rank == high_rank:
+            lows += [step * high_at]
+            highs += [step * high_at]
+            continue
+        lows += [step * _clock_knot_at(knots, 100 * rank * word) - step]
+        highs += [
+            step * min(_clock_knot_at(knots, 100 * (rank + 1) * word), high_at)
         ]
-        highs += [step * _ladder_ordinal_at(ladder, rank + 1, parsed)]
     return (lows, highs)
+
+
+def _clock_knot_at(knots: "list[tuple[int, int]]", position: int) -> int:
+    """The clock body read at one position, flooring between two knots."""
+    for place in range(len(knots) - 1):
+        start, low = knots[place]
+        stop, high = knots[place + 1]
+        if position <= stop or place == len(knots) - 2:
+            if stop <= start:
+                return high
+            share = min(max(position - start, 0), stop - start)
+            return low + (share * (high - low)) // (stop - start)
+    return knots[0][1]
 
 
 def _clock_ordinal_or_zero(text: str, form: str) -> int:
@@ -15027,6 +16097,7 @@ def _datetime_checks(
     mine: "tuple[str, ...]",
     cells: "list[str]",
     figures_writable: bool = True,
+    date_system: str = "",
 ) -> "list[Check]":
     """A column of dates and times.
 
@@ -15037,21 +16108,37 @@ def _datetime_checks(
     """
     name = column.name
     checks: list[Check] = []
-    for field, published in (
-        ("earliest", facts.earliest),
-        ("latest", facts.latest),
-    ):
-        found = _text_at(block, field)
-        checks += [
-            _silent(
-                name,
-                f"datetime.{field}",
-                f"ends.{field}",
-                published,
-                None if found is None else found == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
+    # THE TWO TAILS (stage 3, plan P4-D328), each read at the PUBLISHED
+    # boundary. No end of the column is published any more, so no end is
+    # checked.
+    if facts.low_tail is not None and facts.high_tail is not None:
+        reading = facts.datetimes_read_at
+        values_of: "dict[str, list[int]]" = {}
+        for side, tail, low_side in (
+            ("low", facts.low_tail, True),
+            ("high", facts.high_tail, False),
+        ):
+            at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
+            found_values: "list[int]" = []
+            if tail.values is not None:
+                for value in tail.values:
+                    here = taxonomy.tail_ordinal(value, facts.tail_unit, reading)
+                    found_values += [at - here if low_side else here - at]
+            values_of[side] = found_values
+        checks += _tail_checks(
+            name,
+            "datetime",
+            facts.low_tail,
+            facts.high_tail,
+            _file_tail_units(facts, _dates_the_file_reads(block, facts, cells)),
+            (
+                taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
+                taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
+            ),
+            _date_tail_windows(column, facts, floor, date_system),
+            values_of,
+            facts.tail_unit,
+        )
     # THE TWO THE FORMAT CODE CAN STRAND (plan P4-D259.1), and they are
     # stranded TOGETHER: what makes `subsecond` unreachable is the same
     # fact that makes its count of figures unreachable, so a report
@@ -15116,7 +16203,9 @@ def _datetime_checks(
     checks = checks + _mark_checks(column, facts, block, floor)
     checks = checks + _written_form_checks(column, facts, block, floor, cells)
     checks = checks + _midnight_checks(column, facts, block)
-    checks = checks + _date_ladder_checks(column, facts, block)
+    checks = checks + _date_ladder_checks(
+        column, facts, block, floor, date_system
+    )
     return checks
 
 
@@ -15716,7 +16805,11 @@ def _offset_checks(
     floor: int,
     mine: "tuple[str, ...]",
 ) -> "list[Check]":
-    """The offset map, the two endpoint offsets, and how they were read."""
+    """The offset map and the clock the column is read on.
+
+    No end offset is published since stage 3 (plan P4-D328), so none is
+    checked: the two end rows are no longer described at all.
+    """
     name = column.name
     corner = CORNER_DATETIME_OFFSETS_WITHHELD
     if corner in mine:
@@ -15743,31 +16836,6 @@ def _offset_checks(
                 floor,
             )
         ]
-    for field, published, subcheck in (
-        ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
-        ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
-    ):
-        if published == taxonomy.SUPPRESSED_LABEL:
-            # THE ENDPOINT ITSELF IS WITHHELD, so the description names
-            # no offset for this end at all and there is nothing for a
-            # file to carry. `_endpoint_listings` files it in the
-            # not-checkable census; checking it compared a file's own
-            # floor against the source's, which is a fact about how many
-            # rows shared an offset and not about the file's dates, and
-            # reported MISSED against the shipped generator's own twin
-            # (review item P3-V7-F2's battery).
-            continue
-        found = _text_at(block, field)
-        checks += [
-            _silent(
-                name,
-                f"datetime.{field}",
-                subcheck,
-                published,
-                None if found is None else found == published,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     read_at = _text_at(block, "datetimes_read_at")
     checks += [
         _exact(
@@ -15785,58 +16853,39 @@ def _date_ladder_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
+    floor: int = 1,
+    date_system: str = "",
 ) -> "list[Check]":
-    """The date ladder: the two ends exact, the nine interior in windows.
+    """The date ladder: each PUBLISHED interior rung inside its window.
 
-    The window is method G12.4's, taken in the ordinal space method
-    G7.1 fixes for the resolution this column publishes (`_instant_of`)
-    and drawn by `_rank_windows` below, which is the method's own
+    The window is method G12.4's, taken in the ordinal space method G7.1
+    fixes for the resolution this column publishes (`_instant_of`) and
+    drawn by `_rank_windows` below, which is the method's own
     construction written out. The rung a description publishes is
-    SELECTED, not interpolated -- there is no half-way point between two
-    dates a calendar recognises -- so the rung is read off ONE RANK, the
-    rank G12.4 names, and the window is that rank's own.
+    SELECTED, not interpolated, so the rung is read off ONE RANK, the rank
+    G12.4 names, and the window is that rank's own: since landing 2b.6
+    that rank is PINNED to the rung's published value, so the window is
+    the value itself (`_pin_bounds_of`).
 
-    EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4). These
-    nine rungs used to be WITHHELD one by one on any column of quarters,
-    because the space was `parsing.instant_key`'s alone and a quarter
-    names no instant in it. The method defines a quarter's ordinal and
-    applies this bound to quarters in as many words, so the obligation
-    was there and only the measurement was missing: a file holding three
-    of the twelve published quarters passed with these nine and both
-    distinctness counts silenced. There is no branch here that a
-    resolution can silence any more.
+    EVERY RESOLUTION, INCLUDING QUARTERS (review item P3-V3-F4), and THE
+    RANK IS THE METHOD'S, IN WHOLE NUMBERS (review item P3-V4-F4).
 
-    AND THE RANK IS THE METHOD'S, IN WHOLE NUMBERS (review item
-    P3-V4-F4). The version this replaces worked the rank out as
-    `((P - 1) * share * 100) // 100` over a floating-point share and
-    then read the ladder through the float reader the numeric ladder
-    uses, neither of which is the arithmetic G12.4 fixes. `_rung_rank`
-    is that arithmetic, and the suite compares it with the generator's
-    own writing of it at every resolution. Since landing 2b.6 the rung's
-    own window needs no ladder reading at all: the rank a rung is
-    selected from is PINNED to that rung's published value, so the
-    window is the value itself (`_pin_bounds_of`).
+    A RUNG THE TAIL RULE WITHHOLDS IS NOT A CHECK (stage 3): its rank is
+    one of a tail's, the description publishes nothing there, and a null
+    compared with a null proves nothing, so it is listed instead
+    (`_tail_listings`). The two ends are always withheld now.
     """
     name = column.name
     measured = _inner_at(block, "date_percentiles")
     published = facts.date_percentiles
     checks: list[Check] = []
-    for key, expected in (("min", published.minimum), ("max", published.maximum)):
-        found = None if measured is None else _text_at(measured, key)
-        checks += [
-            _silent(
-                name,
-                f"datetime.date_percentiles.{key}",
-                f"date-ladder.{key}",
-                expected,
-                None if found is None else found == expected,
-                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-            )
-        ]
     dated = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _rank_windows(facts, dated)
+    lows, highs = _rank_windows(facts, dated, column, floor, date_system)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
+        rung = published.rungs[index]
+        if rung is None:
+            continue
         found = None if measured is None else _text_at(measured, key)
         seen = None if found is None else _instant_of(found, facts.resolution)
         rank = _rung_rank(_LADDER_PERCENTS[index], dated)
@@ -15845,7 +16894,7 @@ def _date_ladder_checks(
                 name,
                 f"date-ladder.{key}",
                 facts,
-                published.rungs[index],
+                rung,
                 seen,
                 (lows[rank], highs[rank]),
             )
@@ -16007,38 +17056,42 @@ def _within_instant(
 
 
 def _clock_distinct_window(
-    column: contract.ColumnBlock, facts: contract.ClockFacts
+    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int = 1
 ) -> "tuple[float, float]":
-    """How many different values a column of clock times may hold.
+    """How many different values a column of clock times may hold (G12.11).
 
-    The same two ends the date role's envelope has, in this role's own
-    ordinal space. The LOWER end counts ranks whose windows do not
-    overlap -- two ranks that cannot hold the same time are two
-    identities the twin must carry -- plus every stand-in, each spelled
-    differently from every other cell. The UPPER end is how many times
-    the published range holds at all, plus those stand-ins, and never
-    more cells than the column has.
+    The LOWER end counts ranks whose windows do not overlap -- two ranks
+    that cannot hold the same time are two identities the twin must carry
+    -- plus every stand-in, each spelled differently from every other
+    cell. The UPPER end is how many times lie between the two tail
+    boundaries, plus one for each cell of the two tails, plus those
+    stand-ins, and never more cells than the column has (stage 3: no end
+    is published, so the range is the boundaries'); a column with no
+    tails reaches every present cell.
 
-    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column
-    it does not: a column of two hundred and forty rows over a hundred
-    and twenty different times publishes a hundred and twenty while the
-    construction writes a value per rank. That is what an explicit
-    cardinality bound is for, and it is why this role's two distinctness
-    counts are approximated rather than exact.
+    IT NEED NOT CONTAIN THE PUBLISHED COUNT, and on an ordinary column it
+    does not: the construction writes a value per rank.
     """
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(facts, parsed)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor)
     separate = _ranks_forced_apart(lows, highs)
-    earliest = _clock_ordinal_or_zero(facts.earliest, facts.clock_form)
-    latest = _clock_ordinal_or_zero(facts.latest, facts.clock_form)
-    room = latest - earliest + 1
-    upper = min(column.n_present, room + facts.n_unparsed)
+    upper = column.n_present
+    if facts.low_tail is not None and facts.high_tail is not None:
+        low_at = _clock_ordinal_or_zero(facts.low_tail.boundary, facts.clock_form)
+        high_at = _clock_ordinal_or_zero(facts.high_tail.boundary, facts.clock_form)
+        room = (
+            high_at - low_at + 1 + facts.low_tail.rows + facts.high_tail.rows
+        )
+        upper = min(column.n_present, room + facts.n_unparsed)
     lower = min(separate + facts.n_unparsed, upper)
     return (float(lower), float(upper))
 
 
 def _datetime_distinct_window(
-    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    floor: int = 1,
+    date_system: str = "",
 ) -> "tuple[float, float]":
     """How many different values a column of dates may hold (G12.5).
 
@@ -16046,109 +17099,242 @@ def _datetime_distinct_window(
     two ranks that cannot hold the same instant are two identities the
     twin must carry, and every cell that did not read as a date is a
     counted stand-in spelled differently from every other. The UPPER
-    end is how many instants the published range holds at the published
-    precision, once per offset the description names by name, plus
-    those same stand-ins, and never more cells than the column has.
+    end is how many instants lie between the two tail boundaries at the
+    published precision, once per way an instant can be written, plus one
+    for each cell of the two tails, plus those same stand-ins, and never
+    more cells than the column has (stage 3: no end is published, so the
+    range is the boundaries'); a column with no tails reaches every
+    present cell.
 
     This envelope need not contain the published count, and on an
-    ordinary column it does not: a column of 240 rows over 84 different
-    dates publishes 84 while the construction writes a value per rank.
-    That is what the matrix means by giving a column of dates its own
-    explicit cardinality bound.
-
-    IT IS DRAWN FOR EVERY RESOLUTION AND RETURNS NO "CANNOT SAY"
-    (review item P3-V3-F4). It used to hand back nothing for a column of
-    quarters, and both distinctness counts were then WITHHELD whatever
-    the file held -- so a twelve-row file carrying three of twelve
-    published quarters was told its distinctness could not be shown. The
-    ordinal space below is the method's own for each resolution, so
-    there is nothing left here for a resolution to silence.
-
-    AND THE WINDOWS IT WALKS ARE G12.4'S, ENDS AND ALL (review item
-    P3-V4-F4). The version this replaces drew every rank's window from
-    the ladder alone, including the two the construction PINS -- so the
-    first rank's window ran from the published earliest back by one unit
-    and forward to the second rank's share, and swallowed ranks the
-    construction cannot put on the same instant as rank zero. Measured
-    on a twelve-rank quarterly description, the walk returned four
-    separate ranks where the pinned construction forces six, and a file
-    holding four different quarters was told it was inside the envelope.
-    The walk itself is unchanged; it now walks the right windows, which
-    is the whole of the repair.
+    ordinary column it does not: the construction writes a value per
+    rank. IT IS DRAWN FOR EVERY RESOLUTION AND RETURNS NO "CANNOT SAY"
+    (review item P3-V3-F4), and THE WINDOWS IT WALKS ARE G12.4'S (review
+    item P3-V4-F4).
     """
     dated = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _rank_windows(facts, dated)
-    # THE SEPARATENESS WALK NEEDS NO CORRECTION OF ITS OWN (landing
-    # 2b.6). A rank's window IS the gap between the pinned ranks either
-    # side of it now (`_pin_bounds_of`), and the move onto a midnight
-    # keeps every rank inside exactly that gap, so the widening, the
-    # deduction of the ranks the move may carry out, and the second set
-    # of pinned windows all computed a weaker form of this same count.
+    lows, highs = _rank_windows(facts, dated, column, floor, date_system)
     separate = _ranks_forced_apart(lows, highs)
-    step = _precision_step(facts)
-    earliest = _ordinal_of(facts.earliest, facts.resolution)
-    latest = _ordinal_of(facts.latest, facts.resolution)
-    room = (latest - earliest) // step + 1
-    upper = min(
-        column.n_present,
-        room * _spellings_of_an_instant(facts) + facts.n_unparsed,
-    )
+    upper = column.n_present
+    if facts.low_tail is None or facts.high_tail is None:
+        # THE RAMP BOUNDS ITSELF (G12.5, stage 3): a column publishing
+        # no tail spreads its ranks over its published count of
+        # different values from 1970-01-01, so the twin holds those
+        # instants and no others, each written the ways an instant can
+        # be. Read as the whole column instead, this admitted 124 on a
+        # ramp that can hold six.
+        steps = max(1, min(dated, column.n_distinct - facts.n_unparsed))
+        upper = min(
+            column.n_present,
+            steps * _spellings_of_an_instant(facts) + facts.n_unparsed,
+        )
+    if facts.low_tail is not None and facts.high_tail is not None:
+        step = _precision_step(facts)
+        low_at = _ordinal_of(facts.low_tail.boundary, facts.resolution)
+        high_at = _ordinal_of(facts.high_tail.boundary, facts.resolution)
+        room = (high_at - low_at) // step + 1
+        upper = min(
+            column.n_present,
+            room * _spellings_of_an_instant(facts)
+            + facts.low_tail.rows
+            + facts.high_tail.rows
+            + facts.n_unparsed,
+        )
     lower = min(separate + facts.n_unparsed, upper)
     return (float(lower), float(upper))
 
 
 def _pin_bounds_of(
-    facts: contract.DatetimeFacts, dated: int
+    facts: contract.DatetimeFacts,
+    dated: int,
+    column: "contract.ColumnBlock | None" = None,
+    floor: int = 1,
+    date_system: str = "",
 ) -> "tuple[list[int], list[int]]":
-    """The pinned value below and above every rank -- the rank's GAP.
+    """Every rank's GAP, in this reading's own units (method G7.3, G12.4).
 
-    THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4;
-    method G7.3 and G12.4, landing 2b.6), never imported. The published
-    tail pins the two ends and the rank each of the nine interior rungs
-    is read off, each at its published value, and every other rank is
-    drawn inside the gap between the two pinned ranks either side of it.
-    So a rank stands between those two pinned values and nowhere else,
-    and a pinned rank has no room at all.
+    THE GENERATOR'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4),
+    never imported. The two boundary ranks are pinned at the two tail
+    boundaries and each published rung between them at its own value; a
+    body rank stands between the two pins either side of it. A tail rank
+    stands inside its STRATUM (G12.14): between its nearest and furthest
+    distance from the boundary, in whole tail units -- widened by half a
+    day either way where a day of the shared clock is the unit, since the
+    move onto a local midnight may take it anywhere inside that day -- or
+    anywhere between a tail's outermost and innermost published value
+    where the tail publishes its values. A column with no tails is its
+    ramp (G7.3d): from 1970-01-01 across as many units as it has different
+    values less one.
 
-    IT IS NOW THE WHOLE OF THE WINDOW, not a second set beside it. Under
-    the construction this replaces, a rank was its own `1 / P` stratum
-    and these wider bounds were needed only for a column moved onto a
-    midnight, whose move carried ranks out of their strata; the gap is
-    where every rank of every column comes from now, so `_rank_windows`
-    below is built from this and the separateness walk of G12.5 needs no
-    correction of its own.
-
-    Guarantees: accepts the facts and the dated count; returns one lower
-    and one upper bound per rank in this reading's own units, both
-    non-decreasing. Linear. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    Guarantees: accepts the facts, the dated count and what the tails
+    need; returns one lower and one upper bound per rank, both
+    non-decreasing. Linear. Determinism: a function of the arguments.
+    Raises nothing. No I/O of any kind.
     """
-    ladder = _ladder_ordinals(facts)
-    step = _space_unit(facts)
-    last = len(_LADDER_KEYS) - 1
-    values: dict[int, int] = {0: step * ladder[0]}
-    if dated >= 2:
-        values[dated - 1] = step * ladder[last]
-    for place in range(1, last):
+    lows: list[int] = [0 for _rank in range(dated)]
+    highs: list[int] = [0 for _rank in range(dated)]
+    space = 1
+    if facts.resolution in (taxonomy.RESOLUTION_DATE, taxonomy.RESOLUTION_DATETIME):
+        space = 86400
+    low = facts.low_tail
+    high = facts.high_tail
+    if low is None or high is None:
+        spread = 1
+        if column is not None:
+            spread = max(1, min(dated, column.n_distinct - facts.n_unparsed))
+        top = (spread - 1) * space
+        for rank in range(dated):
+            lows[rank] = top if rank == dated - 1 and dated >= 2 else 0
+            highs[rank] = 0 if rank == 0 else top
+        return (lows, highs)
+    low_rank = low.rows
+    high_rank = dated - 1 - high.rows
+    values: dict[int, int] = {
+        low_rank: _ordinal_of(low.boundary, facts.resolution),
+        high_rank: _ordinal_of(high.boundary, facts.resolution),
+    }
+    for place in range(1, len(_LADDER_KEYS) - 1):
+        rung = facts.date_percentiles.rungs[place]
+        if rung is None:
+            continue
         rank = _rung_rank(_LADDER_PERCENTS[place], dated)
-        if rank not in values:
-            values[rank] = step * ladder[place]
-    lows: list[int] = []
-    highs: list[int] = []
-    below = values[0]
-    for rank in range(dated):
+        if low_rank < rank < high_rank and rank not in values:
+            values[rank] = _ordinal_of(rung, facts.resolution)
+    below = values[low_rank]
+    for rank in range(low_rank, high_rank + 1):
         if rank in values:
             below = values[rank]
-        lows += [below]
-    above = values[dated - 1] if dated >= 2 else values[0]
-    reversed_highs: list[int] = []
-    for rank in range(dated - 1, -1, -1):
+        lows[rank] = below
+    above = values[high_rank]
+    for rank in range(high_rank, low_rank - 1, -1):
         if rank in values:
             above = values[rank]
-        reversed_highs += [above]
-    for rank in range(dated):
-        highs += [reversed_highs[dated - 1 - rank]]
+        highs[rank] = above
+    unit = _tail_unit_size(facts)
+    half = 0
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY and not _counts_in_days(facts):
+        half = 43200
+    windows: "dict[str, tuple[list[int], list[int]]]" = {}
+    if column is not None:
+        windows = _date_tail_windows(column, facts, floor, date_system)
+    for side, tail, low_side in (("low", low, True), ("high", high, False)):
+        boundary = _ordinal_of(tail.boundary, facts.resolution)
+        anchor = boundary
+        if half > 0:
+            anchor = ((boundary + half) // unit) * unit
+        spots: "list[int]" = []
+        if tail.values is not None:
+            at = taxonomy.tail_ordinal(
+                tail.boundary, facts.tail_unit, facts.datetimes_read_at
+            )
+            ordered = list(tail.values)
+            if not low_side:
+                ordered = [
+                    ordered[place] for place in range(len(ordered) - 1, -1, -1)
+                ]
+            distances: "list[int]" = []
+            for value in ordered:
+                here = taxonomy.tail_ordinal(
+                    value, facts.tail_unit, facts.datetimes_read_at
+                )
+                distances += [at - here if low_side else here - at]
+            whole: "int | None" = None
+            if tail.mean_distance is not None:
+                whole = _tail_round(tail.rows * tail.mean_distance)
+            counted = _tail_value_counts(distances, tail.rows, whole)
+            if whole is None:
+                counted = _tail_values_by_midnight(facts, ordered, dated, counted)
+            for place in range(len(ordered)):
+                for _copy in range(counted[place]):
+                    spots += [_ordinal_of(ordered[place], facts.resolution)]
+        for index in range(tail.rows):
+            rank = index if low_side else dated - 1 - index
+            if tail.values is not None:
+                lows[rank] = spots[index]
+                highs[rank] = spots[index]
+                continue
+            if side not in windows:
+                lows[rank] = boundary
+                highs[rank] = boundary
+                continue
+            near = windows[side][0][index]
+            far = windows[side][1][index]
+            if low_side:
+                lows[rank] = anchor - far * unit - half
+                highs[rank] = anchor - near * unit + max(half - 1, 0)
+            else:
+                lows[rank] = anchor + near * unit - half
+                highs[rank] = anchor + far * unit + max(half - 1, 0)
     return (lows, highs)
+
+
+def _tail_values_by_midnight(
+    facts: contract.DatetimeFacts,
+    ordered: "list[str]",
+    dated: int,
+    counted: "list[int]",
+) -> "list[int]":
+    """How a tail with NO published mean shares its ranks (method G7.3c).
+
+    THE METHOD'S RULE, WRITTEN OUT HERE FROM ITS STATEMENT (V1.4), never
+    imported. With the mean withheld the description says only that each
+    listed value is held at least once, so every other rank is the
+    construction's to place, and it places them where the column's other
+    exact facts need them: each value takes one rank, and the rest go to
+    the first value, outermost first, that stands at a local midnight
+    where the column publishes more cells at midnight than not, or that
+    does not where it publishes fewer. Where no value answers, the even
+    share stands.
+
+    Guarantees: accepts the facts, the tail's values in distance order,
+    the parsed count and the even share; returns one count per value,
+    each at least one, adding to the same total. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    counted_at = facts.n_at_midnight
+    if counted_at is None or _counts_in_days(facts) or len(ordered) < 2:
+        return counted
+    if facts.resolution != taxonomy.RESOLUTION_DATETIME:
+        return counted
+    total = 0
+    for count in counted:
+        total = total + count
+    mostly = 2 * counted_at >= dated
+    chosen = -1
+    for place in range(len(ordered)):
+        stands = len(_midnight_offsets_of(ordered[place], facts)) > 0
+        if stands == mostly and chosen < 0:
+            chosen = place
+    if chosen < 0:
+        return counted
+    shared = [1 for _value in ordered]
+    shared[chosen] = total - (len(ordered) - 1)
+    return shared
+
+
+def _midnight_offsets_of(
+    text: str, facts: contract.DatetimeFacts
+) -> "tuple[str, ...]":
+    """Every published offset under which this moment is a local midnight."""
+    seconds = _ordinal_of(text, taxonomy.RESOLUTION_DATETIME)
+    found: "list[str]" = []
+    for key in sorted(facts.utc_offsets):
+        if key in (contract.NO_OFFSET, contract.WITHHELD):
+            continue
+        if (seconds + _offset_shift(key)) % 86400 == 0:
+            found += [key]
+    if contract.NO_OFFSET in facts.utc_offsets and seconds % 86400 == 0:
+        found += [contract.NO_OFFSET]
+    return tuple(found)
+
+
+def _tail_unit_size(facts: contract.DatetimeFacts) -> int:
+    """One tail unit in this reading's own units (G7.1, contract TL4)."""
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY:
+        return 86400
+    if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+        return 60
+    return 1
 
 
 def _spellings_of_an_instant(facts: contract.DatetimeFacts) -> int:
@@ -16236,115 +17422,56 @@ def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
 
 
 def _rank_windows(
-    facts: contract.DatetimeFacts, dated: int
+    facts: contract.DatetimeFacts,
+    dated: int,
+    column: "contract.ColumnBlock | None" = None,
+    floor: int = 1,
+    date_system: str = "",
 ) -> "tuple[list[int], list[int]]":
     """The window every rank of a column of dates sits in (method G12.4).
 
     THE CONSTRUCTION, WRITTEN FROM THE METHOD AND NOT IMPORTED (V1.4,
-    V4.2; review items P3-V4-F4 and P3-V4-F5). Since landing 2b.6 rank
-    `k` of G7.3 is NOT its own stratum. The published tail PINS the two
-    ends and the rank each of the nine interior rungs is read off, each
-    at its published value, and every other rank is drawn inside the gap
-    between the two pinned ranks either side of it (`_pin_bounds_of`),
-    so with `P[k]` and `Q[k]` the pinned values below and above rank `k`
+    V4.2; review items P3-V4-F4 and P3-V4-F5). Every rank is drawn inside
+    its own gap (`_pin_bounds_of`), so with `P[k]` and `Q[k]` the two ends
+    of rank `k`'s gap
 
         P[k] - u   <=   O[k]   <=   Q[k]
 
     and `u` the reading unit below. **A pinned rank's window is a
     POINT**: it holds the value the description publishes and nothing
-    else, which is what makes each of the nine rungs an exact placement
-    rather than a band. **The two ends are pinned on both sides with no
-    allowance at all**, because G7.5 writes them from the endpoint's own
-    fields rather than from an ordinal, so writing them loses nothing;
-    the profile contract's D11 makes those two instants the ladder's own
-    two ends, which is why they are read off the ladder here.
-
-    WHAT THE BAND USED TO BE, and why widening it here is not a
-    loosening. Rank `k` used to be confined to `[k / P, (k + 1) / P)` of
-    the distribution, which is a tighter window for the ranks BETWEEN
-    rungs and a WRONGER one for the rungs themselves: the interpolation
-    floors, so every interior rung landed below its published value in
-    all 54 runs it was measured over, and the band was what let that
-    pass. The rungs are the only ranks this document checks a value at,
-    so the check those ranks get is strictly stronger now.
-
-    Leaving the pinning out was review item P3-V4-F4: the first and last
-    ranks got the interior band, the separateness walk of G12.5 then let
-    the first window swallow ranks that cannot share its instant, and a
-    file with four different quarters passed a bound the construction
-    puts at six.
+    else, which is what makes each published rung an exact placement
+    rather than a band. Since stage 3 the pinned ranks are the two tail
+    boundaries and the rungs between them; no end is pinned, because no
+    end is published.
 
     Guarantees:
 
-    - Inputs: one column's published datetime facts, and how many of its
-      cells read back as a date. Nothing measured is consulted: this is
-      what the DESCRIPTION obliges, and the caller compares the file
-      with it.
-    - Determinism: a fixed function of those two, in whole-number
-      arithmetic throughout -- no float is formed anywhere in it, as
-      G7.1 requires of every step in this space.
+    - Inputs: one column's published datetime facts, how many of its cells
+      read back as a date, and what the tails need. Nothing measured is
+      consulted: this is what the DESCRIPTION obliges.
+    - Determinism: a fixed function of those, in whole-number arithmetic
+      for every gap and in G7.3b's binary64 arithmetic for a tail's strata.
     - Errors raised: TypeError through `_ordinal_of` where a published
       instant names no point in its own resolution's space, which is a
       contradiction between the strict loader and this reading rather
       than a fact about any file (V3.4-A1).
     """
-    step = _space_unit(facts)
-    ladder = _ladder_ordinals(facts)
     unit = _reading_unit(facts)
-    last = len(_LADDER_KEYS) - 1
-    bounds_low, bounds_high = _pin_bounds_of(facts, dated)
+    bounds_low, bounds_high = _pin_bounds_of(
+        facts, dated, column, floor, date_system
+    )
     lows: list[int] = []
     highs: list[int] = []
     for rank in range(dated):
-        if rank == 0:
-            lows += [step * ladder[0]]
-            highs += [step * ladder[0]]
-            continue
-        if rank == dated - 1 and dated >= 2:
-            lows += [step * ladder[last]]
-            highs += [step * ladder[last]]
-            continue
         room = unit
         if bounds_low[rank] == bounds_high[rank]:
-            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6), and
-            # this is what makes the sentence above true rather than
-            # merely written. `u` covers the downward rounding of the
-            # draw and for a cell written to the minute; a rank whose
-            # two bounds are one value draws nothing and is written at
-            # the published value itself. Spending `u` there put the
-            # rung's window at [published - 1 day, published] on a
-            # column of dates, and a twin with every interior cell moved
-            # one day EARLY -- the defect landing 2b.6 repaired -- came
-            # back WITHIN-BOUND at all nine rungs.
+            # NO ROOM, NO ALLOWANCE (repair pass of landing 2b.6): a rank
+            # whose two bounds are one value draws nothing and is written
+            # at the pinned value itself.
             room = 0
         lows += [bounds_low[rank] - room]
         highs += [bounds_high[rank]]
     return (lows, highs)
-
-
-def _ladder_ordinals(facts: contract.DatetimeFacts) -> "list[int]":
-    """The eleven published rungs, in the unit the METHOD counts them in.
-
-    AND THAT IS NOT ALWAYS THE UNIT THIS READING COUNTS IN, which is the
-    third divergence of review item P3-V4-F4. `_instant_of` reads a
-    whole date into the SECONDS its two neighbours already speak, and
-    the method's ordinal unit for a column of whole dates is ONE DAY --
-    so the interpolation of G7.3, which FLOORS, gives a different answer
-    in the two units: floored in seconds it lands part way through a
-    day, and floored in days it lands on the day the construction can
-    actually write. The scaling does not cancel through a floor, and a
-    window drawn the finer way sat up to a whole day above the
-    construction's own lower end.
-
-    So the arithmetic is done in the method's unit and put back into
-    this reading's afterwards (`_space_unit`). A published rung of a
-    date column names midnight, so the division is exact.
-    """
-    step = _space_unit(facts)
-    return [
-        _ordinal_of(rung, facts.resolution) // step
-        for rung in facts.date_percentiles.rungs
-    ]
 
 
 def _counts_in_days(facts: contract.DatetimeFacts) -> bool:
@@ -17357,6 +18484,10 @@ def _listings(
                 )
             ]
         facts = column.facts
+        if isinstance(facts, contract.ClockFacts):
+            # WHAT THE TAIL RULE WITHHOLDS (stage 3), listed as a column of
+            # dates lists it below.
+            listings = listings + _tail_listings(column, facts)
         if isinstance(facts, contract.DatetimeFacts):
             # `format` AND THE FORM CENSUS ARE CHECKED since landing
             # 2b.6, where they were listed before it. Both were
@@ -17453,7 +18584,7 @@ def _listings(
                             _NOT_CHECKABLE_NO_MIDNIGHT_COUNT,
                         )
                     ]
-            listings = listings + _endpoint_listings(column, facts, corners)
+            listings = listings + _tail_listings(column, facts)
         # EVERY ROLE THAT CARRIES A QUANTITATIVE BLOCK, AND NOT ONLY
         # THE TWO THAT ARE ONE (review item P4-G6-R4-F1). These
         # branches each tested the OUTER facts for `NumericFacts`,
@@ -17634,43 +18765,74 @@ def _listings(
     return listings
 
 
-def _endpoint_listings(
+def _tail_listings(
     column: contract.ColumnBlock,
-    facts: contract.DatetimeFacts,
-    corners: "dict[str, tuple[str, ...]]",
+    facts: "contract.DatetimeFacts | contract.ClockFacts",
 ) -> "list[Listing]":
-    """An endpoint offset the publication floor held back on its own.
+    """What the tail rule withholds from a column of dates or clock times.
 
-    P2-D9's corner is the map that is NOTHING BUT the withheld key, and
-    `_corner_listings` files all four obligations there. This is the
-    other shape: a map naming real offsets whose own earliest or latest
-    END fell below the floor and was published as the withheld label.
-    The description then names no offset for that end, so no file
-    carries one either way -- and the comparison that stood here asked
-    whether the file's OWN floor had suppressed the same end, which is a
-    fact about how many rows shared an offset rather than about the
-    file's dates, and reported MISSED against the shipped generator's
-    own twin.
+    Every rung whose rank lies inside a tail is published as null, and
+    so are both ends of the ladder (stage 3, contract D11 and T2); a
+    column too small or too tied for a boundary on each side publishes no
+    tail at all. Each is LISTED, never checked: the description publishes
+    nothing there, so there is nothing for a file to hold, and comparing
+    a null with a null would count a fact no file can miss.
     """
-    if CORNER_DATETIME_OFFSETS_WITHHELD in _corner_names(
-        corners, column.name
-    ):
-        return []
-    listings: list[Listing] = []
-    for field, published, subcheck in (
-        ("earliest_utc_offset", facts.earliest_utc_offset, "offsets.earliest"),
-        ("latest_utc_offset", facts.latest_utc_offset, "offsets.latest"),
-    ):
-        if published != taxonomy.SUPPRESSED_LABEL:
+    group = "clock" if isinstance(facts, contract.ClockFacts) else "datetime"
+    ladder_key = "clock_percentiles" if group == "clock" else "date_percentiles"
+    prefix = "clock-ladder" if group == "clock" else "date-ladder"
+    listings: "list[Listing]" = []
+    rungs: "list[str | None]" = []
+    if isinstance(facts, contract.ClockFacts):
+        for key in _LADDER_KEYS:
+            rungs += [facts.clock_percentiles[key]]
+    else:
+        for rung in facts.date_percentiles.rungs:
+            rungs += [rung]
+    for index in range(len(_LADDER_KEYS)):
+        if rungs[index] is not None:
             continue
         listings += [
             Listing(
                 column.name,
-                f"datetime.{field}",
-                subcheck,
-                _NOT_CHECKABLE_ENDPOINT_WITHHELD,
+                f"{group}.{ladder_key}",
+                f"{prefix}.{_LADDER_KEYS[index]}",
+                _NOT_CHECKABLE_RUNG_WITHHELD,
             )
         ]
+    for side, tail in (("low", facts.low_tail), ("high", facts.high_tail)):
+        if facts.low_tail is None or facts.high_tail is None:
+            # NO TAIL AT ALL: every one of the side's five keys is a
+            # fact this description does not publish, and each is listed
+            # under its own name, because each is its own obligation
+            # everywhere else.
+            for key in parsing.TAIL_KEYS:
+                listings += [
+                    Listing(
+                        column.name,
+                        f"{group}.{side}_tail.{key}",
+                        f"tails.{side}.{key}",
+                        _NOT_CHECKABLE_NO_TAIL,
+                    )
+                ]
+            continue
+        if tail is None:
+            continue
+        for key, published in (
+            ("values", tail.values),
+            ("mean_distance", tail.mean_distance),
+            ("rms_distance", tail.rms_distance),
+        ):
+            if published is not None:
+                continue
+            listings += [
+                Listing(
+                    column.name,
+                    f"{group}.{side}_tail.{key}",
+                    f"tails.{side}.{key}",
+                    _NOT_CHECKABLE_TAIL_KEY_WITHHELD,
+                )
+            ]
     return listings
 
 
@@ -18133,8 +19295,6 @@ def _corner_listings(
         ]
         for field, subcheck in (
             ("utc_offsets", "offsets.map"),
-            ("earliest_utc_offset", "offsets.earliest"),
-            ("latest_utc_offset", "offsets.latest"),
             ("datetimes_read_at", "offsets.read-at"),
         ):
             listings += [

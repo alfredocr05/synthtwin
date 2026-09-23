@@ -130,6 +130,22 @@ SHORT_SPAN_PEAK = 4.0
 # both wait on the stage that sets the disclosure floor.
 BURST_LOWEST = 0.10
 
+# ...AND THE TAILS MOVED IT AT ONE SIZE (stage 3, plan P4-D328). The
+# outer cells of a burst column are no longer spread evenly between a
+# published end and a rung: each side is drawn through its own tail
+# shape, whose two distances the description publishes, so the heaps at
+# the two ENDS of the range come back as heaps. Measured after the
+# landing, over seeds 4 and 7: 0.459 and 0.563 at 400 rows, against
+# 0.335 to 0.466 before it, and 0.137 and 0.168 at 1,500 rows, against
+# 0.150 to 0.182. At 400 rows one seed now reaches the band the shapes
+# eleven rungs carry; at 1,500 the column is short of it exactly as it
+# was, because the tails hold 22 of its 1,500 cells and the rest still
+# fill their gaps evenly. The limit is therefore NOT closed, the
+# report's sentence about heaped days stands, and what this file pins
+# is a band per SIZE rather than one number for both.
+BURST_SMALL = (0.35, 0.75)
+BURST_LARGE = (0.10, 0.30)
+
 
 def _exit_of(argv: "list[str]") -> int:
     """Run one synthtwin command in this process and return its exit code."""
@@ -342,6 +358,15 @@ def _measured(
         percent = INTERIOR[place - 1]
         rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
         published = first["date_percentiles"][f"p{percent:02d}"]
+        if published is None:
+            # A RUNG THE TAIL RULE WITHHOLDS IS NOT A FACT TO HOLD
+            # (stage 3, contract D11): its rank lies inside a tail, so
+            # the description publishes nothing there and the twin owes
+            # nothing there. At a floor of eleven that is `p01` and
+            # `p99` on a column of this size, and what stands at those
+            # ranks instead -- the tail's own rows and distances -- is
+            # checked by the round trip above, which both files pass.
+            continue
         if ordered[rank] != published:
             missed += [f"p{percent:02d}: {published} -> {ordered[rank]}"]
     return (twin_variance / real_variance, missed)
@@ -442,6 +467,13 @@ def test_an_outbreak_column_is_short_of_the_band_and_says_so(
     0.335 to 0.466 at 400 rows and 0.150 to 0.182 at 1,500, against
     0.402 to 0.449 and 0.187 to 0.284 before the repair.
 
+    THE TAILS MOVED THE SMALL SIZE AND NOT THE LARGE ONE (stage 3, plan
+    P4-D328): 0.459 and 0.563 at 400 rows and 0.137 and 0.168 at 1,500.
+    The two tails carry 22 cells whatever the column's size, so at 400
+    rows they are a twentieth of it and at 1,500 a seventieth, and what
+    the twin gives back is the heaps at the two ENDS of the range and
+    nothing between. The band is therefore pinned per size.
+
     It is asserted in both directions for the reason the weekday limit
     is: the number is what a later landing will move, and a change in
     either direction should show up as a failure rather than as nothing.
@@ -454,11 +486,13 @@ def test_an_outbreak_column_is_short_of_the_band_and_says_so(
         tmp_path / f"burst-{rows}-{seed}", "burst", rows, seed, False
     )
     assert not missed, missed
-    assert BURST_LOWEST <= ratio < LOWEST, (
-        f"a burst column at {rows} rows, seed {seed}, reaches {ratio:.3f}. "
-        f"Below {BURST_LOWEST} the twin has lost ground this pass measured "
-        f"it holding; at {LOWEST} or above it now meets the band, which "
-        f"would mean a landing has carried the heaped days -- and then "
+    floor, ceiling = BURST_SMALL if rows <= 400 else BURST_LARGE
+    assert floor <= ratio <= ceiling, (
+        f"a burst column at {rows} rows, seed {seed}, reaches {ratio:.3f}, "
+        f"outside the {floor}-{ceiling} this size was measured at. "
+        f"Below it the twin has lost ground this pass measured it "
+        f"holding; above it a landing has carried more of the heaped "
+        f"days -- and then "
         f"this test, the report's fourth clause and the plan's residual "
         f"are what should be rewritten, not this assertion deleted."
     )
@@ -569,12 +603,18 @@ def test_a_twin_written_one_day_early_is_missed_at_every_rung(
         )
     ][1:]
     block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
-    first = datetime.date.fromisoformat(block["date_percentiles"]["min"])
-    last = datetime.date.fromisoformat(block["date_percentiles"]["max"])
+    # THE TWO TAIL BOUNDARIES STAND WHERE THE TWO LADDER ENDS DID
+    # (stage 3, plan P4-D328): the ladder publishes no end any more, and
+    # what the column publishes at its outside is a boundary on each
+    # side. Every cell at or beyond one of them is left exactly where
+    # the twin put it, so the two tails still hold and the lines this
+    # test reads are the RUNGS' own.
+    first = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    last = datetime.date.fromisoformat(block["high_tail"]["boundary"])
     moved: "list[str]" = []
     for cell in written:
         held = datetime.date.fromisoformat(cell)
-        if held <= first + datetime.timedelta(days=1) or held == last:
+        if held <= first + datetime.timedelta(days=1) or held >= last:
             moved += [cell]
         else:
             moved += [(held - datetime.timedelta(days=1)).isoformat()]
@@ -609,7 +649,16 @@ def test_a_twin_written_one_day_early_is_missed_at_every_rung(
         if "date-ladder." in line and "MISSED" in line
     ]
     named = {line.split("date-ladder.")[1][0:3] for line in missed}
-    assert named == {f"p{percent:02d}" for percent in INTERIOR}, sorted(named)
+    # EVERY RUNG THE DESCRIPTION PUBLISHES, which is every interior rung
+    # whose rank stands between the two tail boundaries; a rung the tail
+    # rule withholds is null, is listed rather than checked, and cannot
+    # be missed by any file.
+    owed = {
+        f"p{percent:02d}"
+        for percent in INTERIOR
+        if block["date_percentiles"][f"p{percent:02d}"] is not None
+    }
+    assert named == owed, (sorted(named), sorted(owed))
 
 
 @pytest.mark.parametrize("resolution", ["month", "quarter"])
@@ -839,7 +888,15 @@ def test_a_short_study_span_puts_no_spike_on_a_published_rung(
     parsed = rows - first["n_unparsed"]
     for percent in INTERIOR:
         rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
-        assert ordered[rank] == first["date_percentiles"][f"p{percent:02d}"]
+        published = first["date_percentiles"][f"p{percent:02d}"]
+        if published is None:
+            # WITHHELD BY THE TAIL RULE (stage 3, contract D11): this
+            # rank lies inside a tail, so the description publishes
+            # nothing there and the twin owes nothing there. The cells
+            # at those ranks are checked by the round trip above, which
+            # both files pass, under the tail's own obligations.
+            continue
+        assert ordered[rank] == published
     whole = [
         day.isoformat()
         for day in _span(chosen[0], chosen[-1])
@@ -853,7 +910,14 @@ def test_a_short_study_span_puts_no_spike_on_a_published_rung(
         f"variance is {ratio:.2f} of what such a column varies by"
     )
     held = dict(zip(whole, counts))
-    rungs = {first["date_percentiles"][f"p{percent:02d}"] for percent in INTERIOR}
+    # THE DAYS A RUNG IS PUBLISHED ON, which is what this measures: a
+    # rung the tail rule withholds names no day, so it names none here
+    # either (stage 3, contract D11).
+    rungs = {
+        first["date_percentiles"][f"p{percent:02d}"]
+        for percent in INTERIOR
+        if first["date_percentiles"][f"p{percent:02d}"] is not None
+    }
     peak = max((held[day] - expected) / math.sqrt(expected) for day in rungs)
     assert peak <= SHORT_SPAN_PEAK, (
         f"{rows} dates over {span} days, seed {seed}: a published rung's "
@@ -872,8 +936,52 @@ class _WordSpy(list):  # type: ignore[type-arg]
         return list.__getitem__(self, index)
 
 
-@pytest.mark.parametrize("parsed", [11, 12, 13, 60, 240, 400, 401, 1500])
+def _spend(
+    folder: pathlib.Path, parsed: int
+) -> "tuple[int, int, dict[int, int]]":
+    """One column of `parsed` dates: what it was handed, read and pinned.
+
+    Built through the REAL producer and loader, because what a column
+    pins is a fact about its published description -- which rungs the
+    tail rule withholds, whether each tail publishes its values, whether
+    it holds a tie group -- and not about a ladder written out here. The
+    dates are three days apart so that every value differs and no tail
+    goes to its values.
+    """
+    from synthtwin import contract, generation, profile, reading, taxonomy
+
+    start = datetime.date(2020, 1, 1)
+    values = sorted(
+        (start + datetime.timedelta(days=index * 3)).isoformat()
+        for index in range(parsed)
+    )
+    text = fixtures.single_column_table("when", values)
+    path = fixtures.write(folder, f"c{parsed}.csv", text)
+    table = reading.read_table(
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+    )
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=11), []
+    )
+    written = fixtures.write_profile(folder, f"c{parsed}-profile.json", document)
+    described = contract.load_profile(str(written))
+    column = described.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts), column.role
+    got = column.n_present - facts.n_unparsed
+    assert got == parsed, (got, parsed)
+    layout = generation._date_layout(
+        column, facts, got, described.settings.small_cell_floor
+    )
+    handed = max(got - 2, 0)
+    words = _WordSpy(range(1, handed + 1))
+    generation._spread_ordinals(layout, words)
+    return handed, words.high + 1, generation._ordinal_pins(layout)
+
+
+@pytest.mark.parametrize("parsed", [11, 12, 13, 23, 60, 240, 400, 401, 1500])
 def test_a_pinned_rank_spends_no_word_and_the_budget_is_unchanged(
+    tmp_path: pathlib.Path,
     parsed: int,
 ) -> None:
     """THE RULE FIVE DOCUMENTS STATED WRONGLY, measured (landing 2b.14).
@@ -881,18 +989,19 @@ def test_a_pinned_rank_spends_no_word_and_the_budget_is_unchanged(
     Every one of them said that each rank between the ends spends
     exactly one word, a pinned rank included, because a pinned rank
     draws its word and discards it. The construction does no such thing:
-    it takes a word only for the ranks strictly BETWEEN two pins. The
+    it takes a word only for the ranks the layout does not pin. The
     repair pass of landing 2b.6 amended four of the five places after
     its reviewer measured 389 words read of 398; the plan was the fifth
     and still carried the withdrawn sentence, which landing 2b.14
     amended.
 
-    Nothing was pinning either rule, which is why the two could drift
-    apart at all -- the oracle mirrored the CODE while its own docstring
-    stated the other rule, so no vector comparison could see it. This is
-    that pin, and it states the rule in the form that makes it
-    checkable: a column reads one word for every rank that is not
-    pinned, so `read == parsed - (the number of DISTINCT pinned ranks)`.
+    STAGE 3 WIDENED THE PINNED SET AND LEFT THE RULE STANDING (plan
+    P4-D328). What a column of dates pins is now the two TAIL
+    BOUNDARIES, the rungs the tail rule publishes between them, and each
+    tail's word-less ranks -- its outermost rank, its tie group where it
+    holds one, and every rank of a tail that publishes its values. The
+    rule is unchanged: a column reads one word for every rank that is
+    not pinned, so `read == parsed - len(pins)`.
 
     The budget is the half that matters for every other column, and it
     is asserted here too: the column is handed `parsed - 2` words
@@ -900,134 +1009,110 @@ def test_a_pinned_rank_spends_no_word_and_the_budget_is_unchanged(
     draw are simply left unread and no column generated afterwards
     moves.
     """
-    from synthtwin import generation
-
-    span = 365
-    ladder = (
-        [0]
-        + [round(span * percent / 100) for percent in INTERIOR]
-        + [span]
-    )
-    handed = max(parsed - 2, 0)
-    words = _WordSpy(range(1, handed + 1))
-    ordinals = generation._spread_ordinals(ladder, parsed, words)
-    pins = generation._ordinal_pins(ladder, parsed)
-    read = words.high + 1
-    assert ordinals == sorted(ordinals), "the ranks must stay ascending"
+    handed, read, pins = _spend(tmp_path, parsed)
     # ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE.
-    assert read == parsed - len(set(pins)), (
-        f"{parsed} ranks over {len(set(pins))} distinct pins read {read} "
+    assert read == parsed - len(pins), (
+        f"{parsed} ranks over {len(pins)} pins read {read} "
         f"words; the rule says one for each rank that is not pinned"
     )
     # ...AND THE BUDGET IS UNCHANGED, the surplus simply never read.
     assert read <= handed, (read, handed)
-    assert handed - read == len(set(pins)) - 2, (
-        f"{handed - read} words left unread against {len(set(pins))} "
-        f"distinct pins: the two ends are not drawn for either way"
+    assert handed - read == len(pins) - 2, (
+        f"{handed - read} words left unread against {len(pins)} "
+        f"pins: the two outermost ranks are not drawn for either way"
     )
 
 
-def test_the_measured_word_spend_of_a_four_hundred_row_column() -> None:
+def test_the_measured_word_spend_of_a_four_hundred_row_column(
+    tmp_path: pathlib.Path,
+) -> None:
     """The number the amended sentences carry, asserted as a number.
 
     A rule stated as arithmetic can be met by an implementation that
     pins nothing, so the headline measurement is pinned as itself: a
-    400-row column with eleven distinct pins is handed 398 content words
-    and reads 389 of them.
+    400-row column of different dates is handed 398 content words and
+    reads 389 of them. IT DID NOT MOVE AT STAGE 3, and that is the
+    measurement rather than a coincidence: the ladder's two ends stopped
+    being pinned and the two tail boundaries took their place, the two
+    rungs whose ranks fell inside a tail were withheld, and each tail
+    pinned its own outermost rank -- eleven pins before and eleven
+    after, so the shared word stream stands exactly where it stood.
     """
-    from synthtwin import generation
-
-    span = 365
-    ladder = (
-        [0]
-        + [round(span * percent / 100) for percent in INTERIOR]
-        + [span]
-    )
-    words = _WordSpy(range(1, 399))
-    generation._spread_ordinals(ladder, 400, words)
-    assert len(set(generation._ordinal_pins(ladder, 400))) == 11
-    assert words.high + 1 == 389, words.high + 1
+    handed, read, pins = _spend(tmp_path, 400)
+    assert handed == 398, handed
+    assert len(pins) == 11, sorted(pins)
+    assert read == 389, read
 
 
 @pytest.mark.parametrize(
-    "parsed", [2, 3, 5, 11, 12, 13, 20, 60, 101, 240, 400, 401, 1500, 3000]
+    "parsed", [3, 5, 11, 12, 13, 20, 23, 24, 30, 60, 101, 240, 400, 401, 1500]
 )
-def test_the_pins_leave_at_most_nine_words_unread(parsed: int) -> None:
+def test_the_pins_leave_the_surplus_the_pinned_ranks_fix(
+    tmp_path: pathlib.Path, parsed: int
+) -> None:
     """THE NUMBER THE AMENDED SENTENCE ITSELF CARRIED WAS WRONG.
 
     Landing 2b.14 rewrote the word-spend rule in five places and every
-    one of them went on to say that the pins leave `up to eleven` of
-    the handed words unread. The ceiling is NINE, and the code says so
-    twice over: the published tail pins AT MOST ELEVEN RANKS -- the two
-    ends and the nine interior rungs -- and neither end is ever drawn
-    for, so the surplus a column leaves unread is the number of
-    DISTINCT pinned ranks less two.
+    one of them went on to say that the pins leave `up to eleven` of the
+    handed words unread. The ceiling was NINE then, because the ladder
+    pinned at most eleven ranks and neither end was ever drawn for.
 
-    Measured across the fourteen sizes below, the surplus runs 0, 1, 3,
-    5, 6, 6, 6, 8 and then 9 from a hundred and one rows upward. It
-    never reaches ten, at any size.
+    STAGE 3 MOVED THE CEILING AND NOT THE RULE. A column of dates now
+    pins its two tail boundaries, the rungs published between them, and
+    each tail's word-less ranks, so the surplus is still the pinned
+    ranks less two -- and the ceiling follows the pins rather than the
+    ladder. Measured across the fifteen sizes below, all different
+    dates at a floor of eleven, the surplus runs
+    0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 5, 8, 9, 9 and 11: nought below the
+    size that carries a tail at all, and eleven from 1,500 rows upward,
+    where all nine interior rungs stand between the two boundaries and
+    each tail pins its outermost rank. A tail holding more cells than
+    the floor pins its TIE GROUP as well, and a tail publishing its
+    values pins every rank it has, so a column of either shape leaves
+    more unread than this and reads fewer words -- never more, which is
+    what the budget needs.
 
     This is the same class of defect the landing exists to close -- a
     written sentence that does not follow the code -- carried this time
-    by the correction itself, which is why the ceiling is pinned here
-    as a number rather than left to arithmetic that no reader checks.
+    by the correction itself, which is why the number is pinned here
+    rather than left to arithmetic that no reader checks.
     """
     from synthtwin import generation
 
-    span = 365
-    ladder = (
-        [0]
-        + [round(span * percent / 100) for percent in INTERIOR]
-        + [span]
-    )
-    handed = max(parsed - 2, 0)
-    words = _WordSpy(range(1, handed + 1))
-    generation._spread_ordinals(ladder, parsed, words)
-    pins = generation._ordinal_pins(ladder, parsed)
-    read = words.high + 1
+    handed, read, pins = _spend(tmp_path, parsed)
     unread = handed - read
-    # WHERE THE ELEVEN COMES FROM, so a ladder that grew a rung cannot
-    # leave this ceiling standing.
+    # WHERE THE LADDER'S ELEVEN COMES FROM, so a ladder that grew a rung
+    # cannot leave this standing.
     assert len(generation._PCT) == 11, len(generation._PCT)
-    assert len(set(pins)) <= 11, (
-        f"{len(set(pins))} ranks pinned at {parsed} rows: the tail pins "
-        f"the two ends and the nine interior rungs and no more"
-    )
-    # THE CEILING ITSELF.
-    assert unread <= 9, (
+    # THE CEILING ITSELF, for a column of all-different dates whose
+    # tails hold exactly a smallest group each.
+    assert unread <= 11, (
         f"{unread} of the {handed} words handed to a {parsed}-row column "
-        f"were left unread; the documents say at most nine"
+        f"were left unread; the documents say at most eleven"
     )
-    assert unread == max(len(set(pins)) - 2, 0), (
-        f"{unread} unread against {len(set(pins))} distinct pins: the "
-        f"surplus is the pinned ranks less the two ends"
+    assert unread == max(len(pins) - 2, 0), (
+        f"{unread} unread against {len(pins)} pins: the "
+        f"surplus is the pinned ranks less the two outermost"
     )
 
 
-def test_the_ceiling_of_nine_is_reached_and_not_merely_respected() -> None:
+def test_the_ceiling_of_eleven_is_reached_and_not_merely_respected(
+    tmp_path: pathlib.Path,
+) -> None:
     """A ceiling nothing reaches would be met by a column pinning none.
 
-    At a hundred and one rows and upward all eleven pinned ranks are
-    distinct, so the surplus stands at exactly nine -- the number the
-    method, the plan, the generator, the oracle and the gate all now
-    carry.
+    From 1,500 rows upward every one of the nine interior rungs stands
+    between the two tail boundaries and each tail pins its own outermost
+    rank, so thirteen ranks are pinned and the surplus stands at exactly
+    eleven -- the number the method, the plan, the generator, the oracle
+    and the gate all now carry.
     """
-    from synthtwin import generation
-
-    span = 365
-    ladder = (
-        [0]
-        + [round(span * percent / 100) for percent in INTERIOR]
-        + [span]
-    )
     reached: "list[int]" = []
-    for parsed in (101, 400, 1500, 3000):
-        handed = parsed - 2
-        words = _WordSpy(range(1, handed + 1))
-        generation._spread_ordinals(ladder, parsed, words)
-        reached += [handed - (words.high + 1)]
-        assert len(set(generation._ordinal_pins(ladder, parsed))) == 11
-    assert reached == [9, 9, 9, 9], reached
+    for parsed in (1500, 3000):
+        handed, read, pins = _spend(tmp_path, parsed)
+        reached += [handed - read]
+        assert len(pins) == 13, sorted(pins)
+    assert reached == [11, 11], reached
 
 
 def _straightest_only(

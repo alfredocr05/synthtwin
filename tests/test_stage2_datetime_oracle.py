@@ -51,10 +51,12 @@ def _facts(
         time_precision=precision,
         subsecond_digits=digits,
         datetimes_read_at="local",
-        earliest="",
-        latest="",
-        earliest_utc_offset="(none)",
-        latest_utc_offset="(none)",
+        # NO END AND NO END OFFSET SINCE STAGE 3 (plan P4-D328): what a
+        # column publishes at its outside is a tail, and neither of the
+        # two rules this file compares reads one.
+        tail_unit="second",
+        low_tail=None,
+        high_tail=None,
         date_percentiles=typing.cast(contract.DateLadder, None),
         n_unparsed=0,
         utc_offsets={},

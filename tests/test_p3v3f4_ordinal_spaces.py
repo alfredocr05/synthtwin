@@ -59,18 +59,21 @@ SEED = 20260814
 
 # The eleven obligations the finding silenced, named here so a repair
 # that quietly drops one of them cannot pass by measuring the other ten.
+# STAGE 3: the two ends of the ladder and the rungs whose rank falls
+# inside a tail are withheld by the description itself and LISTED, never
+# checked (contract D11), so what must be FILED as a check is the rungs
+# the tail rule publishes, plus the two distinctness counts and the four
+# obligations of each tail.
 _SILENCED = (
     "distinct.n_distinct",
     "distinct.n_distinct_folded",
-    "date-ladder.p01",
-    "date-ladder.p05",
-    "date-ladder.p10",
     "date-ladder.p25",
     "date-ladder.p50",
     "date-ladder.p75",
-    "date-ladder.p90",
-    "date-ladder.p95",
-    "date-ladder.p99",
+    "tails.low.boundary",
+    "tails.low.rows",
+    "tails.high.boundary",
+    "tails.high.rows",
 )
 
 
@@ -239,31 +242,46 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
     """The reviewer's file, measured (review item P3-V3-F4).
 
     Twelve distinct quarters published from `2018-Q1` to `2024-Q4`,
-    against a twelve-row file holding three of them. Both ENDS of the
-    file are right, and everything between them is wrong -- so what has
-    to catch it is exactly the eleven obligations that were withheld:
-    the nine rungs between the ends and the two counts of how many
-    different values the column holds.
+    against a twelve-row file holding three of them. Both BOUNDARIES of
+    the file are right, and everything between them is wrong -- so what
+    has to catch it is exactly the eleven obligations that were
+    withheld: the nine rungs between the boundaries and the two counts
+    of how many different values the column holds.
     """
     folder = tmp_path / "witness"
     folder.mkdir()
-    published = [
-        "2018-Q1",
-        "2018-Q4",
-        "2019-Q2",
-        "2019-Q4",
-        "2020-Q2",
-        "2020-Q4",
-        "2021-Q2",
-        "2021-Q3",
-        "2022-Q1",
-        "2022-Q4",
-        "2023-Q3",
-        "2024-Q4",
-    ]
+    # STAGE 3: a column of twelve quarters publishes no value at all --
+    # twelve is below `2k + 1` at a floor of eleven, so it has no tail
+    # and no rung (contract TL2). The witness is the same shape at the
+    # size where the obligations exist: 240 quarters over sixty years,
+    # measured against a file that keeps both BOUNDARIES exactly and
+    # piles everything between them onto one quarter.
+    published = [f"{1960 + index // 4}-Q{index % 4 + 1}" for index in range(240)]
     described = _described(folder, published, "witness")
-    assert described.columns[0].n_distinct == 12
-    held = ["2018-Q1"] * 5 + ["2021-Q3"] * 2 + ["2024-Q4"] * 5
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    assert facts.low_tail is not None and facts.high_tail is not None
+    low = facts.low_tail.rows
+    high = 239 - facts.high_tail.rows
+    # STAGE 3, plan P4-D342: every quarter of this column is one row's
+    # own, so its two tails publish their SHAPE and list no value, and
+    # the construction forces fewer different values than it did while
+    # they listed them. The witness follows the BOUND rather than a
+    # number written out here: it keeps both boundaries standing at
+    # their own ranks and piles every other rank onto one quarter a
+    # side, which leaves it far short of what the construction forces.
+    held = (
+        [published[low - 1]] * low
+        + [published[low]]
+        + [published[low + 1]] * (high - low - 1)
+        + [published[high]]
+        + [published[high + 1]] * (239 - high)
+    )
+    assert len(held) == 240
+    forced, _widest = validation._datetime_distinct_window(
+        described.columns[0], facts, described.settings.small_cell_floor
+    )
+    assert len(set(held)) < forced, (len(set(held)), forced)
     outcome = _measure(
         folder,
         described,
@@ -272,7 +290,7 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
     )
     assert outcome.census.withheld == 0
     assert outcome.census.missed > 0, (
-        "the file holds three of the twelve published quarters and the "
+        "the file piles two hundred rows onto one quarter and the "
         "report calls nothing missed, so it exits 0 and prints the pass "
         "conclusion"
     )
@@ -281,20 +299,21 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
         assert verdicts[subcheck] == validation.MISSED, subcheck
     missed_rungs = [
         subcheck
-        for subcheck in _SILENCED
+        for subcheck in verdicts
         if subcheck.startswith("date-ladder.")
         and verdicts[subcheck] == validation.MISSED
     ]
     assert len(missed_rungs) >= 5, (
-        "the file piles its twelve rows onto three quarters, and this "
-        f"many of the nine rungs between the ends saw it: {missed_rungs}"
+        "the file piles its rows onto one quarter, and this "
+        f"many of the published rungs saw it: {missed_rungs}"
     )
-    # ...and the two ENDS are right, so the nine did the catching rather
-    # than riding on a neighbour that was going to miss anyway (V8.2).
-    assert verdicts["ends.earliest"] == validation.HELD
-    assert verdicts["ends.latest"] == validation.HELD
-    assert verdicts["date-ladder.min"] == validation.HELD
-    assert verdicts["date-ladder.max"] == validation.HELD
+    # ...and the two BOUNDARIES are right, so the rungs did the catching
+    # rather than riding on a neighbour that was going to miss anyway
+    # (V8.2).
+    assert verdicts["tails.low.boundary"] == validation.HELD
+    assert verdicts["tails.high.boundary"] == validation.HELD
+    assert verdicts["tails.low.rows"] == validation.HELD
+    assert verdicts["tails.high.rows"] == validation.HELD
 
 
 def test_the_two_writings_of_the_ordinal_space_agree(
@@ -334,15 +353,18 @@ def test_the_two_writings_of_the_ordinal_space_agree(
         described, _twin = by_resolution[resolution]
         facts = described.columns[0].facts
         assert isinstance(facts, contract.DatetimeFacts)
-        moments = list(facts.date_percentiles.rungs) + [
-            facts.earliest,
-            facts.latest,
+        assert facts.low_tail is not None and facts.high_tail is not None
+        moments = [
+            moment
+            for moment in list(facts.date_percentiles.rungs)
+            + [facts.low_tail.boundary, facts.high_tail.boundary]
+            if moment is not None
         ]
-        base = facts.earliest
-        theirs = generation._ordinal_of(facts.latest, resolution) - (
-            generation._ordinal_of(base, resolution)
-        )
-        ours = validation._instant_of(facts.latest, resolution)
+        base = facts.low_tail.boundary
+        theirs = generation._ordinal_of(
+            facts.high_tail.boundary, resolution
+        ) - (generation._ordinal_of(base, resolution))
+        ours = validation._instant_of(facts.high_tail.boundary, resolution)
         low = validation._instant_of(base, resolution)
         assert ours is not None and low is not None
         assert theirs > 0, f"{resolution}: the fixture spans no time at all"

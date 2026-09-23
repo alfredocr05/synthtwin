@@ -235,7 +235,15 @@ def test_a_below_floor_utc_offset_is_named_nowhere() -> None:
     described = describe(values)
     assert described.role == taxonomy.ROLE_DATETIME
     assert described.details["utc_offsets"] == {"+00:00": 39}
-    assert described.details["latest_utc_offset"] == "+00:00"
+    # AND THE COLUMN IS READ ON THE LOCAL CLOCK, which is the published
+    # consequence of the absorption: a column whose census named two
+    # offsets would be read on the shared one. The two rare zones were
+    # counted into `+00:00` and their rows are read there, so one
+    # offset is named and nothing distinguishes those rows. (This stood
+    # on `latest_utc_offset` until stage 3 removed the two end offsets
+    # from the role, plan P4-D328; the reading is the same fact said
+    # about the whole column instead of about one row.)
+    assert described.details["datetimes_read_at"] == "local"
     assert "+05:45" not in whole_block(described)
     assert "+09:00" not in whole_block(described)
     # ...and the lone zone of the old witness is counted in the same way.
@@ -247,8 +255,14 @@ def test_a_below_floor_utc_offset_is_named_nowhere() -> None:
 def test_an_offset_above_the_floor_is_still_named() -> None:
     values = [f"2024-03-{day:02d}T09:00:00+05:45" for day in range(1, 29)]
     described = describe(values)
-    assert described.details["earliest_utc_offset"] == "+05:45"
-    assert described.details["latest_utc_offset"] == "+05:45"
+    # NAMED, in the census and in the block: twenty-eight rows carry it,
+    # which is above the line, so the census names it and the column is
+    # read on it. The two end offsets that used to carry this are
+    # removed from the role (stage 3, plan P4-D328), and the census is
+    # where an offset a column really wore is named now.
+    assert described.details["utc_offsets"] == {"+05:45": 28}
+    assert described.details["datetimes_read_at"] == "local"
+    assert "+05:45" in whole_block(described)
 
 
 # -- F4: nothing is routed by the width of its text -------------------

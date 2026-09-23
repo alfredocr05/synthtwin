@@ -184,11 +184,20 @@ def test_the_block_carries_five_keys_and_no_sixth() -> None:
         assert absent not in column, absent
     ladder = column["clock_percentiles"]
     assert sorted(ladder) == sorted(taxonomy.LADDER_NAMES)
-    # SELECTION: every rung is a time some row wore.
-    for rung in ladder.values():
-        assert rung in _minutes(60), rung
-    assert ladder["min"] == column["earliest"]
-    assert ladder["max"] == column["latest"]
+    # SELECTION: every PUBLISHED rung is a time some row wore, and the
+    # two ends are empty since stage 3 -- the ranks they stand at hold
+    # the column's outermost values (contract T2).
+    assert ladder["min"] is None and ladder["max"] is None
+    for name in taxonomy.LADDER_NAMES:
+        rung = ladder[name]
+        if rung is not None:
+            assert rung in _minutes(60), rung
+    # ...and each tail's boundary is a time some row wore too.
+    for side in ("low_tail", "high_tail"):
+        tail = column[side]
+        assert isinstance(tail, dict), side
+        assert tail["boundary"] in _minutes(60)
+        assert tail["rows"] >= 11
     facts = loaded.columns[0].facts
     assert isinstance(facts, contract.ClockFacts)
 
@@ -216,7 +225,12 @@ def _forged(edit) -> "tuple[dict, pathlib.Path]":
                 "p50", "07:49:00"
             ),
         ),
-        ("T2", lambda column: column.__setitem__("latest", "09:15")),
+        (
+            "T2",
+            lambda column: column["clock_percentiles"].__setitem__(
+                "min", "07:00"
+            ),
+        ),
         (
             "T2",
             lambda column: column["clock_percentiles"].__setitem__(
@@ -263,8 +277,29 @@ def test_the_twin_pins_both_ends_and_stays_inside_them() -> None:
             if parsing.clock_form(cell) == facts.clock_form
         ]
         assert len(times) == column["n_present"] - facts.n_unparsed, seed
-        assert min(times) == facts.earliest, seed
-        assert max(times) == facts.latest, seed
+        # STAGE 3: what the construction promises is the two BOUNDARIES
+        # and the counts beyond them, not the column's own two ends.
+        assert facts.low_tail is not None and facts.high_tail is not None
+        ordinals = sorted(
+            parsing.clock_ordinal(cell, facts.clock_form) or 0
+            for cell in times
+        )
+        low = parsing.clock_ordinal(
+            facts.low_tail.boundary, facts.clock_form
+        )
+        high = parsing.clock_ordinal(
+            facts.high_tail.boundary, facts.clock_form
+        )
+        assert ordinals[facts.low_tail.rows] == low, seed
+        assert (
+            ordinals[len(ordinals) - 1 - facts.high_tail.rows] == high
+        ), seed
+        assert len([o for o in ordinals if o < (low or 0)]) == (
+            facts.low_tail.rows
+        ), seed
+        assert len([o for o in ordinals if o > (high or 0)]) == (
+            facts.high_tail.rows
+        ), seed
 
 
 def test_a_stand_in_never_reads_as_a_clock_time_in_either_form() -> None:
@@ -363,7 +398,18 @@ def test_a_rung_is_said_as_a_distance_a_person_can_read() -> None:
         for check in outcome.checks
         if check.subcheck.startswith("clock-ladder.p")
     ]
-    assert len(rungs) == 9
+    # STAGE 3: the ladder is published between the two tail boundaries,
+    # so the rungs a file is checked at are the ones the tail rule
+    # leaves -- six here, with p01, p99 and the two ends withheld and
+    # LISTED instead (contract T2).
+    assert 1 <= len(rungs) <= 9
+    listed = [
+        entry.subcheck
+        for entry in outcome.listings
+        if entry.subcheck.startswith("clock-ladder.")
+    ]
+    assert "clock-ladder.min" in listed and "clock-ladder.max" in listed
+    assert len(rungs) + len(listed) == 11
     for check in rungs:
         assert check.achieved == "that same time" or (
             "minute(s)" in check.achieved
@@ -463,5 +509,10 @@ def test_a_file_in_the_other_form_is_read_rather_than_silenced() -> None:
     outcome = validation.measure(loaded, f"{other}")
     spoken = {check.subcheck: check.verdict for check in outcome.checks}
     assert spoken["form.clock_form"] == validation.MISSED
-    for name in ("p01", "p25", "p50", "p75", "p99"):
+    # The rungs the tail rule publishes at a hundred cells: p01 and p99
+    # are withheld below 1,101 rows, and the two ends always.
+    for name in ("p25", "p50", "p75"):
         assert spoken[f"clock-ladder.{name}"] == validation.HELD, name
+    # ...and the two tails are read in the file's own form as well.
+    assert spoken["tails.low.boundary"] == validation.HELD
+    assert spoken["tails.high.boundary"] == validation.HELD

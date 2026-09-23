@@ -587,8 +587,8 @@ stand at four or less. On `affixed_number` these are `affix_prefix`,
 `n_core_numeric`, `n_core_out_of_range`, `n_core_contradictory` and
 `n_core_not_numeric`, and the quantitative set computed over the cores,
 whose only container members are the objects `percentiles` and
-`numeric_styles`. On `time_of_day` they are `clock_form`, `earliest`,
-`latest`, `clock_percentiles` and `n_unparsed`. Elsewhere they are
+`numeric_styles`. On `time_of_day` they are `clock_form`, `low_tail`,
+`high_tail`, `clock_percentiles` and `n_unparsed`. Elsewhere they are
 `fraction_widths`, `pad_widths` and `field_widths` — each a key of the
 block, a sibling of `numeric_styles` — `shape_forms`, a key of the block on the five
 roles that carry it, `resolution_mix`, `datetime_separators`, `all_at_midnight`, `min_length`, `max_length`, the `(date-sentinel)` key
@@ -3312,9 +3312,25 @@ converting the twin's column to dates the way the source column would
 be converted gives dates over the same span. What was missing was never
 fidelity; it was the person being told (residual R-P4-9).
 
-**Both ends are facts the block already publishes.** They are `min` and
-`max` of the same block, written a second way, so the sentence
-discloses nothing the description does not already hold.
+**Both ends are facts the block already publishes.** They are the
+outermost values the same block publishes, written a second way, so the
+sentence discloses nothing the description does not already hold. While
+that block's ladder publishes `min` and `max`, they are `min` and `max`.
+
+**AND THE SENTENCE FOLLOWS THEM WHEN THEY MOVE (stage 3, plan
+P4-D332).** The date and clock roles stopped publishing their two end
+rows in this version: a role's outermost cells are described by a tail —
+a boundary, a count of rows beyond it and their distances — and the
+extreme value itself is published nowhere. Where the `count` role's
+ladder follows, this remark's two ends are that block's **low and high
+tail boundaries**, read in the band exactly as written above, and its
+arity, its seven argument classes and its sentence are unchanged: seven
+whole numbers, a band and two days. The remark may not outlive the
+facts it quotes. A block that publishes no end and no boundary — a
+column too small for a tail — carries no remark, because both ends of
+the sentence would then be values nothing else in the description
+holds, which is the one thing this grammar's arguments may never be
+(4.5.1).
 
 **Why the definition is over every value, stated exactly.** A band is
 one interval, so on this role — where every value is a whole number —
@@ -5051,7 +5067,9 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: twenty.**
+**Added keys: nineteen** (stage 3: `earliest`, `latest`,
+`earliest_utc_offset` and `latest_utc_offset` are gone, and `tail_unit`,
+`low_tail` and `high_tail` stand in their place).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -5059,12 +5077,11 @@ ISO reading below may still claim the column.
 | `resolution` | string | `date`, `datetime`, `quarter`, `month` | which canonical form the published datetimes are written in |
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
-| `datetimes_read_at` | string | `local`, `utc` | which clock `earliest`, `latest` and `date_percentiles` are written on |
-| `earliest` | string | a canonical form, below | the earliest instant, in the canonical form for this resolution |
-| `latest` | string | a canonical form, below | the latest instant |
-| `earliest_utc_offset` | string | an offset, `(none)`, or `(withheld)` | the UTC offset the earliest cell carried |
-| `latest_utc_offset` | string | an offset, `(none)`, or `(withheld)` | the UTC offset the latest cell carried |
-| `date_percentiles` | ladder of strings | section 5.6 | the eleven-rung ladder over the ordered instants |
+| `datetimes_read_at` | string | `local`, `utc` | which clock the tails and `date_percentiles` are written on |
+| `tail_unit` | string | `day`, `month`, `quarter`, `minute`, `second` | the unit the two tails count their distances in (TL4) |
+| `low_tail` | object or `null` | `{boundary, rows, mean_distance, rms_distance, values}` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average, the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds (TL1 to TL3) |
+| `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored |
+| `date_percentiles` | ladder of strings or `null` | section 5.6 | the eleven-rung ladder over the ordered instants, published between the two tail boundaries and empty everywhere else (D11) |
 | `n_unparsed` | integer ≥ 0 | — | present cells that did not read as a date under the chosen format |
 | `utc_offsets` | object | offset → count | how often each UTC offset appeared, under the floor |
 | `resolution_mix` | object | format member → count | how many parsed cells wore each form |
@@ -5543,13 +5560,14 @@ column is published on, its ends and their offsets follow
 map is one pool, beside which the clock is `utc` and both ends are held
 back.
 
-**Invariant D4 (endpoint offsets never out-name the map).** An endpoint
-offset field holds `(none)` when that endpoint's cell carried no
-offset; otherwise it holds that offset when the offset is a key of
-`utc_offsets`, and `(withheld)` when it is not. An endpoint field may
-never name an offset the map is withholding — a value published in one
-field of a block that another field of the same block promises to
-withhold is a contradiction the contract forbids.
+**The fourth invariant of this section is DELETED (stage 3, plan
+P4-D328), and its number is not reused.** It held the two endpoint
+offset fields to the offset map: an end could not name an offset the
+map was withholding. Those two fields described the two end ROWS, and
+no end row is described any more -- the description publishes a tail on
+each side instead -- so the fields are gone from the format and the rule
+with them. The numbering below is unchanged, so every invariant a
+reader knows by number is still the rule it was.
 
 **Invariant D5 (which clock).** `datetimes_read_at` is `local` when the
 whole column shares one UTC offset, and `utc` when two or more offsets
@@ -5638,58 +5656,136 @@ checkable form of it is `n_unparsed < n_present`. When `n_present ==
 n_unparsed` the column has no parsed cell and cannot reach the datetime
 role at all, so both endpoints are always real values.
 
-**Invariant D10 (an endpoint the column's own recorded shape can
-show).** Where `resolution` is `datetime`, the seconds field of
-`earliest` and of `latest`:
+**Invariant D10 (a published moment the column's own recorded shape can
+show).** *Stage 3: no end is published, so the moments this is stated
+over are the ones a tail publishes -- its `boundary`, and each entry of
+its `values`.* Where `resolution` is `datetime`, the seconds field of
+every such moment:
 
 - is `00` when `time_precision` is `minute`, because a cell written
-  `YYYY-MM-DD`, a mark, then `HH:MM` has no seconds field to carry anything else; and
+  `YYYY-MM-DD`, a mark, then `HH:MM` has no seconds field to carry
+  anything else; and
 - is not `60` when `datetimes_read_at` is `utc`, because that field
   names the instant on the SHARED clock, and reading any wall-clock
   cell back onto the shared clock moves a sixtieth second to the
   following minute whatever cell carried it.
 
-And, where `resolution` is `datetime` and `datetimes_read_at` is `utc`,
-each endpoint's own minute moved onto the clock its endpoint offset
-names — `earliest` by `earliest_utc_offset`, `latest` by
-`latest_utc_offset` — is still inside the years `0001` to `9999` that
-the canonical forms above can spell. A column on the shared clock
-writes every cell on the wall clock its offset names, so an endpoint
-within one offset's distance of the calendar's first or last minute
-asks for a cell no reader reads back as a date at all. BOTH directions
-are refused: an early endpoint behind the shared clock, and a late
-endpoint ahead of it.
+**The calendar's edge is a GENERATOR obligation now, not a refusal
+here** (stage 3, plan P4-D331). It used to be asked of each endpoint
+moved onto the clock its own endpoint offset named; no endpoint and no
+endpoint offset is published any more, and what the loader would be
+asking about is a cell the twin derives. Method G7.3e is where it is
+kept: every rank of a tail is placed inside the days the column's own
+member -- and its workbook's date system -- can write and read back,
+which is the calendar for an ordinary member, 1969 to 2068 for a
+two-figure year, and the system's first day for a stored workbook day.
 
-**Why this is refused rather than reported.** Both endpoints are
-EXACT-OBSERVABLE with no exception, so a pair of published facts that
-no cell can show at once is settled where it is decided, exactly as the
-`date`-beside-`datetime` pair of D6 is. The producer writes none of the
-three: `time_precision` is the FINEST precision any cell writes, so a
-column whose end carries seconds wrote a seconds field somewhere; a
-column put on the shared clock has its endpoints normalized onto that
-clock before they are published, which is where a sixtieth second would
-have been resolved; and a real column whose values sit within a day of
-either end of the calendar has no offsets to mix. So this refuses
-nothing a real table can express, and it costs the leap second nothing:
-on the `local` clock — which is every column but the few that mix
-offsets — `SS` of `60` is accepted and written back unchanged, as
-section 9 requires. The third pair is decided here because the loader
-already holds all three fields it needs — the endpoint, its offset and
-the clock — so it is decidable in the description rather than lowered
-to an obligation somewhere else. It was the fourth time this one
-obligation had been lowered instead, and section 13 records the four.
+**Why the two above are refused rather than reported.** Every moment a
+tail publishes is a real cell's value and EXACT-OBSERVABLE, so a pair of
+published facts that no cell can show at once is settled where it is
+decided, exactly as the `date`-beside-`datetime` pair of D6 is. The
+producer writes neither: `time_precision` is the FINEST precision any
+cell writes, so a column whose boundary carries seconds wrote a seconds
+field somewhere; and a column put on the shared clock has its moments
+normalized onto that clock before they are published, which is where a
+sixtieth second would have been resolved. So this refuses nothing a real
+table can express, and it costs the leap second nothing: on the `local`
+clock -- which is every column but the few that mix offsets -- `SS` of
+`60` is accepted and written back unchanged, as section 9 requires.
 
-**Invariant D11 (the ladder ends ARE the two endpoints).**
-`date_percentiles.min == earliest` and `date_percentiles.max ==
-latest`. Both pairs describe the same two instants, both are
-EXACT-OBSERVABLE, and the producer builds all four from one ordering of
-the same values. Leaving the pair untied let a hand-made document
-publish a ladder end below `earliest`; a generator pins its first cell
-to `earliest` and interpolates the rest inside the ladder, so the twin
-then held instants EARLIER than the endpoint it published, and
-describing that twin again gave back a different `earliest` with
-nothing said about it. Tying the two is what makes D10 cover the ladder
-ends as well, since they are the same two texts.
+**Invariant D11 (the ladder around its tails).** *Stage 3, plan
+P4-D328; it replaces the D11 that tied the ladder's two ends to the two
+published endpoints, which no longer exist.* With `P` the parsed cells
+(`n_present - n_unparsed`):
+
+- `date_percentiles.min` and `.max` are `null`, always. The two ranks
+  they would be read off are the outermost cells of the two tails;
+- an interior rung at percent `c` is read off rank
+  `k = floor((P - 1) * c / 100)`. It is `null` exactly where
+  `k < low_tail.rows` or `k > P - 1 - high_tail.rows`, and exactly where
+  the column publishes no tails at all;
+- a published rung read off a boundary's own rank IS that boundary,
+  character for character;
+- every published rung lies between `low_tail.boundary` and
+  `high_tail.boundary`, both included.
+
+The loader holds `P`, the two `rows` and the floor, so every clause is
+decided in the description. What it buys is what the old D11 bought one
+step further in: a hand-made document cannot publish a rung at a rank
+the construction pins to a boundary, nor a rung outside the range the
+twin's body is drawn in, and the twin's own re-description gives the
+same rungs back.
+
+**Invariant TL1 (a tail's shape).** `low_tail` and `high_tail` are each
+`null` or a block of exactly five keys: `boundary` (canonical text of
+this column's resolution), `rows` (a whole number of one or more),
+`mean_distance` and `rms_distance` (each a number or `null`), and
+`values` (`null`, or a list of canonical texts). A tail publishes EITHER
+both distances and no values, OR its values with at most its mean
+distance beside them: the values and the spread together settle how many
+cells hold each value, which is the count the floor protects (plan
+P4-D329, the owner's ruling of 2026-09-22).
+
+**WHICH TAIL MAY LIST ITS VALUES** (plan P4-D342). The owner's ruling of
+2026-09-22 is a ruling about BOUNDED SCALES WITH FEW VALUES -- "many
+people will be there and there is no big deal in knowing that it's
+there" -- so the producer lists a tail's values only where that premise
+holds of the column in front of it: one canonical text to a distance
+(below); every distance held by at least `taxonomy.TAIL_SHARED_CELLS`
+of the tail's cells, so that no listed value names one row; and the
+column's own different values, counted as ordinals in the unit TL4
+names, at most `taxonomy.TAIL_SET_VALUES` and standing under at least
+`taxonomy.TAIL_SHARED_CELLS` cells apiece on average -- or, whatever
+the column's grid, every value the tail would list held by at least the
+FLOOR's own number of cells, which is "many people are there" by the
+project's own measure of many. Quarters, months, any small fixed scale
+and any floor-sized heap meet it; a column of clock times, a column of
+days over years, and any fine grid do not, and publish their shape
+instead. The rule is the producer's; a description that lists values
+the floor would protect is not refused HERE, because a reader of a
+description cannot count the file's cells.
+
+**ONE TEXT TO A DISTANCE, or no values at all.** A tail's values are
+published by DISTANCE, in the unit TL4 names, and on the SHARED clock a
+day holds cells two hours apart: a column of bare dates beside midnight
+moments has a `2021-12-31 22:00:00` and a `2022-01-01 00:00:00` one day
+below its boundary. Where a distance carries more than one canonical
+text the tail publishes its two DISTANCES and no values -- they say the
+same thing about where its cells lie -- because one text for that
+distance would tell a twin to write every such cell at one instant, and
+the column's own census of offsets could not then be met (measured: 900
+cells over five days, 13 written `T22:00:00` with no offset at all,
+missing `all_at_midnight`, `n_at_midnight` and the mark census on a
+file whose own source met all three).
+
+**Invariant TL2 (the two tails and the floor).** Both tails are `null`
+or neither is. Where they are published: each `rows` is at least the
+smallest group size the description was written at; the two `rows` added
+leave at least one cell between them (`low.rows + high.rows <= P - 1`);
+`low_tail.boundary` is not after `high_tail.boundary`; and where the two
+leave exactly one cell between them the two boundaries are that cell,
+so they are the same text. Where they are `null`, every rung of
+`date_percentiles` is `null` too: the column is too small, or too tied
+at an end, for a boundary to exist on each side, and it publishes no
+value of the table at all.
+
+**Invariant TL3 (the distances and the values).** Every published
+`mean_distance` is at least one unit, because every cell of a tail lies
+at least one whole unit beyond its boundary; every published
+`rms_distance` is at least the mean distance, allowing one part in
+`2**50` for the two roundings; and a published `values` list holds
+between one and `rows` entries, strictly ascending, every one of them
+strictly beyond its own boundary -- below it on the low side, above it
+on the high side.
+
+**Invariant TL4 (the unit the tails are counted in).** `tail_unit`
+follows from what the block already publishes, and a reader never
+combines fields to learn it: `quarter` and `month` for those two
+resolutions; `day` for `date`, and for a column of moments whose
+`all_at_midnight` is `true`; `minute` where `time_precision` is
+`minute`; and `second` otherwise. On the shared clock a day is the
+nearest midnight OF THAT CLOCK, which is the cell's own local day for
+any offset within twelve hours.
 
 **Invariant D12 (the separator names and the floor).** Every key of
 `datetime_separators` is `upper_t`, `space`, `lower_t` or
@@ -5727,14 +5823,16 @@ column carries only `space` or `(withheld)`.
 
 **Invariant D14 (a column at midnight).** `all_at_midnight` is `true`
 only where `resolution` is `datetime`, `n_present - n_unparsed` is at
-least the floor, `earliest` and `latest` each stand at midnight on the
-wall clock of the offset published for that end, and every rung of
-`date_percentiles` stands at midnight under some offset `utc_offsets`
-names; on the `local` clock that is every one of those instants ending
-in `00:00:00`, and on the `utc` clock the map pools no offset under
-`(withheld)` (landing 2b.3). The rule reads in that one direction: the
-canonical form drops the fraction, so a loader can refuse a `true` no
-column could carry and cannot confirm one (producer obligation MN-P).
+least the floor, and EVERY MOMENT THE BLOCK PUBLISHES stands at midnight
+under some offset `utc_offsets` names -- both tail boundaries, every
+value a tail lists, and every rung of `date_percentiles` that is not
+null (stage 3: the two ends it used to name are no longer published, and
+neither is the offset each of them wore); on the `local` clock that is
+every one of those instants ending in `00:00:00`, and on the `utc` clock
+the map pools no offset under `(withheld)` (landing 2b.3). The rule
+reads in that one direction: the canonical form drops the fraction, so a
+loader can refuse a `true` no column could carry and cannot confirm one
+(producer obligation MN-P).
 
 **Invariant D15 (the count at midnight, landing 2b.3; the floor of two
 and the absent state, landing 2b.6).** `n_at_midnight` is absent —
@@ -5815,15 +5913,17 @@ and its values sum to at most `n_present - n_unparsed`.
 `zulu_case` is `upper` or `lower`; the census is held to D18's
 disclosure rule over `utc_offsets["Z"]`, the total it counts over; it
 is `{}` unless `utc_offsets` NAMES `Z`; and its values sum to at most
-`utc_offsets["Z"]`. The key-set rule is the one D4 makes
-for the endpoint offsets and for the same reason: this census counts a
+`utc_offsets["Z"]`. The key-set rule is the one the invariant this
+version deletes with the two end offsets made for them, and for the
+same reason: this census counts a
 subset of the cells carrying ONE offset, so publishing it beside a
 POOLED `Z` would hand back in one field the count another field of the
 same block promises to withhold.
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
-`earliest`, `latest` and every rung of `date_percentiles` are at second
+every tail boundary, every value a tail lists and every published rung
+of `date_percentiles` is at second
 resolution EVEN WHEN `time_precision` is `subsecond` and
 `subsecond_digits` is 3. The finer precision is a fact about the
 column's notation, published in its own two fields, not a property of
@@ -6952,10 +7052,9 @@ rather than a list of its own, so the two cannot part again.
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
-| `earliest` | | | | | | | ● | ● | | | | | | | |
-| `latest` | | | | | | | ● | ● | | | | | | | |
-| `earliest_utc_offset` | | | | | | | ● | | | | | | | | |
-| `latest_utc_offset` | | | | | | | ● | | | | | | | | |
+| `low_tail` | | | | | | | ● | ● | | | | | | | |
+| `high_tail` | | | | | | | ● | ● | | | | | | | |
+| `tail_unit` | | | | | | | ● | | | | | | | | |
 | `date_percentiles` | | | | | | | ● | | | | | | | | |
 | `utc_offsets` | | | | | | | ● | | | | | | | | |
 | `n_unparsed` | | | | | | | ● | ● | | | | | | ● | |
@@ -7035,14 +7134,23 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred rows, one hundred and eighty-nine marked cells**,
+**Ninety-nine rows, one hundred and eighty-eight marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 19,
 `time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE TAIL LANDING** (stage 3, plan P4-D328). Four rows
+left the matrix -- `earliest`, `latest`, `earliest_utc_offset` and
+`latest_utc_offset`, six marks between them -- and three arrived:
+`low_tail` and `high_tail`, one mark on each of the two roles that
+carry a tail, and `tail_unit`, one mark on `datetime`. The rows go
+from a hundred to ninety-nine and the marked cells from a hundred and
+eighty-nine to a hundred and eighty-eight, with `datetime` at 19 and
+`time_of_day` unchanged at 5.
 
 **RESTATED AT THE POOLED-SCALE LANDING** (2026-09-21, plan P4-D301):
 `suppressed_numbers` is one row and one mark on each of the four label
@@ -7092,7 +7200,7 @@ does not read a coincidence into the matrix.**
   `numeric_unrepresentable`, over a column no statistic could use,
   and on `count` and `continuous`; the cores on `affixed_number`
   (AF7). The row shows four columns filled and no ambiguity follows.
-- `earliest`, `latest` and `n_unparsed` stand on `datetime` and on
+- `low_tail`, `high_tail` and `n_unparsed` stand on `datetime` and on
   `time_of_day`. They ask the same question of two different domains:
   on `datetime` the endpoints are canonical instants at the recorded
   `resolution`; on `time_of_day` they are clock values written in
@@ -7856,9 +7964,9 @@ All four are named residual R-P4-5.
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
 | `clock_form` | string | `hh-mm`, `hh-mm-ss` | which form the column's cells wore, and the form every published clock value of the block is written in | EXACT-CONTROL |
-| `earliest` | string | a clock value in `clock_form` | the earliest clock value the column holds | EXACT-OBSERVABLE |
-| `latest` | string | a clock value in `clock_form` | the latest clock value the column holds | EXACT-OBSERVABLE |
-| `clock_percentiles` | ladder of strings | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed | `min` and `max` EXACT-OBSERVABLE; the nine interior rungs APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
+| `low_tail` | object or `null` | the five keys of TL1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (`hh-mm`) or seconds (`hh-mm-ss`), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
+| `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored | as `low_tail` |
+| `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
 | `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
 **C6-11.** Those five are the whole of what this role adds to the
@@ -7886,29 +7994,35 @@ in that form, never as ordinals; because both forms are fixed-width
 and zero-padded the two orders agree, so T3 is checkable without
 arithmetic on the fields.
 
-**A consequence of T1, stated rather than left to be discovered.** No
-rung is ever `null`. `percentiles` admits a null rung because an
-interpolated numeric rung can fall outside binary64; every rung here
-is a value some cell held and every such value has a spelling in its
-form, exactly as on `date_percentiles`.
+**A consequence of T2, stated rather than left to be discovered.** The
+ladder's two ends are ALWAYS `null`, and so is every rung read from
+inside a tail (stage 3, plan P4-D328): the ranks they stand at hold the
+column's outermost values, and this format publishes none of them. Every
+rung that is not null is still a value some cell held, with a spelling
+in its own form, exactly as on `date_percentiles`.
 
 #### Invariants
 
 **T1 (one form, everywhere in the block).** Every published clock
-value — `earliest`, `latest` and all eleven rungs — is written in the
+value — each tail's `boundary`, each entry of its `values`, and every
+rung that is not null — is written in the
 form `clock_form` names, every field in two digits and in the ranges
 that form's row gives.
 
-**T2 (the ladder ends ARE the endpoints).** `clock_percentiles.min ==
-earliest` and `clock_percentiles.max == latest`. Both pairs describe
-the same two values, all four built from one ordering of the same
-cells, and both ends are EXACT-OBSERVABLE. It is stated because the
-generation rule rests on it: a generator pins its first and last ranks
-to the endpoints and interpolates inside the ladder, so an untied pair
-would let a document publish a ladder end below `earliest`, produce a
-twin holding values earlier than the endpoint it published, and
-re-describe with a different `earliest` and nothing said about it.
-This is the analogue of D11, which pins the datetime ladder.
+**T2 (the ladder around its tails).** *Stage 3, plan P4-D328; it
+replaces the T2 that tied the ladder's two ends to two published
+endpoints, which no longer exist.* It is D11 said for this role, in this
+role's own terms: `clock_percentiles.min` and `.max` are `null`; an
+interior rung at percent `c`, read off rank
+`floor((P - 1) * c / 100)` of the `P` cells that parsed, is `null`
+exactly where that rank lies below `low_tail.rows` or above
+`P - 1 - high_tail.rows`, and exactly where the column publishes no
+tails; a published rung read off a boundary's own rank IS that
+boundary; and every published rung lies between the two boundaries. It
+is stated because the generation rule rests on it: the construction pins
+the two boundary ranks and interpolates the body between them, so an
+untied ladder would let a document publish a rung at a rank the
+construction pins elsewhere.
 
 **T3 (non-decreasing).** Read in ladder order — `min`, `p01`, `p05`,
 `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max` — the values
@@ -7964,17 +8078,21 @@ computed from its values do. It carries no exception of its own — the
 one named exception to the ranges class is `affixed_number`'s two
 affix keys, and section 6.11 confines it there.
 
-**The endpoints and the eleven rungs are exact values of real cells,
-published FLOOR-FREE, and that is a disclosure rather than a
-formality.** No `small_cell_floor` governs an endpoint or a rung: a
-clock value one single cell held is published if it is the smallest,
-the largest, or the cell an order statistic lands on. That is the
-ratified ranges-class endpoint policy, the same one `datetime`,
-`count` and `continuous` endpoints already have, and it newly reaches
-columns that were free text and published no value at all. The
-disclosure inventory prices it, and prices `clock_form` and
-`n_unparsed` beside it: those two carry a shape and a count of the
-table, but no value of it.
+**NO ENDPOINT IS PUBLISHED, and what is published is held to the floor**
+(stage 3, plan P4-D328; the twin's definition, clause 3). The rule this
+replaces published the smallest and the largest value of the column and
+every rung floor-free: a clock value one single cell held was published
+if it was the smallest, the largest, or the cell an order statistic
+landed on. What a block carries now is a BOUNDARY on each side -- the
+smallest value with at least a smallest group's worth of cells strictly
+below it, and the mirror -- with how many cells lie beyond it and how
+far beyond on average, and rungs only between those two boundaries. So
+every value this role publishes is one that at least the floor's worth
+of cells stand outside of, no published value is one of the column's own
+outermost cells, and the disclosure inventory prices the tails' three
+numbers rather than two exact extremes. `clock_form` and `n_unparsed`
+stand beside them, carrying a shape and a count of the table but no
+value of it.
 
 This role is not a nothing-publishing column, so its absent-cell
 accounting is published under the floor exactly as N3 and N6 have it
@@ -7988,9 +8106,9 @@ forbidden-key matrix of section 6.11 carries the same listing for this
 role and for the other twelve; three groups are named here because a
 reader will expect them and their absence is a decision.
 
-- **The other thirteen datetime keys.** `format`, `resolution`,
+- **The other twelve datetime keys.** `format`, `resolution`,
   `resolution_mix`, `time_precision`, `subsecond_digits`,
-  `datetimes_read_at`, `earliest_utc_offset`, `latest_utc_offset`,
+  `datetimes_read_at`, `tail_unit`,
   `date_percentiles`, `utc_offsets`, `datetime_separators`,
   `all_at_midnight` and `n_at_midnight` are `datetime`'s. `clock_form`
   answers the form question here, and a clock with no date carries no
@@ -8004,12 +8122,13 @@ reader will expect them and their absence is a decision.
   labels-class roles, and `level_ceiling` to `categorical` alone. This
   role is in neither place.
 
-`earliest`, `latest` and `n_unparsed` are the three names this role
+`low_tail`, `high_tail` and `n_unparsed` are the three names this role
 shares with `datetime`. They ask the same question of a different
-domain: here the endpoints are clock values in `clock_form` rather
-than canonical instants at a recorded resolution, and `n_unparsed`
-counts cells no CLOCK reading accepted rather than cells no date
-format read.
+domain: here a tail's boundary and values are clock values in
+`clock_form` rather than canonical instants at a recorded resolution,
+its distances are counted in the form's own unit rather than in a
+published `tail_unit`, and `n_unparsed` counts cells no CLOCK reading
+accepted rather than cells no date format read.
 
 #### The remarks it carries, and the one it does not
 
@@ -8022,15 +8141,21 @@ section 4.5, and carries any remark whose trigger its values reach.
 
 #### What the twin owes
 
-Rank 0 and the last rank are pinned to `earliest` and `latest`; the
-interior ranks are interpolated by floor division between them in the
+The two BOUNDARY ranks are pinned to the two published boundaries; each
+tail's other ranks are drawn through the shape its published distances
+fix, or stand on the values it publishes (method G7.3b, G7.3c); and the
+interior ranks are interpolated by floor division between the knots the
+boundaries and the published rungs make, in the
 ordinal unit the published form itself sets, so every value written
 has a canonical spelling in that one form. Every present cell is
 written in `clock_form`, and the `n_unparsed` cells are written as
 counted neutral stand-ins and counted on the surfaces that say what
-was invented. The interpolation is always satisfiable: the two ends
-are real values of a closed finite space and every interior value
-floor-divides between them in that same unit.
+was invented. The interpolation is always satisfiable: the two
+boundaries are real values of a closed finite space and every interior
+value floor-divides between them in that same unit. A column with no
+tails at all spreads its ranks evenly over its published count of
+different values from `00:00` (G7.3d) and publishes no value of the
+table.
 
 Where the column publishes `n_distinct == n_present` the all-different
 obligation binds on this role, and it binds through that same ordinal
@@ -11107,17 +11232,20 @@ it answers to.
 | D1 | the pair (`format`, `resolution`) is one row of the format table, and the binding is exact and TOTAL over all TWENTY members: `iso-date`, `month-first-date`, `day-first-date`, `compact-date`, `slashed-iso-date`, `textual-day-first-date`, `textual-month-first-date`, `dotted-month-first-date`, `dotted-day-first-date`, `two-digit-month-first-date`, `two-digit-day-first-date`, `dotted-two-digit-month-first-date` and `dotted-two-digit-day-first-date` take `date`; `iso-month` takes `month`; `year-quarter` takes `quarter`; `iso-datetime`, `iso-mixed`, `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` take `datetime` | yes |
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero, and only alone (plans P4-D220 and P4-D222, owner rulings of 2026-09-17) | yes |
-| D4 | an endpoint offset field naming a real offset names a key of `utc_offsets`: a value published in one field of a block that another field of the same block promises to withhold is a contradiction this format forbids | yes, in that direction — that `(none)` marks an endpoint cell wearing no offset, and `(withheld)` an offset the map is holding back, is *producer* |
 | D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`, `slashed-iso-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
 | D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
 | D7 | `subsecond_digits > 0` implies `time_precision == "subsecond"`, and `time_precision == "subsecond"` implies `subsecond_digits > 0` | yes |
 | D8 | `n_unparsed < n_present` — the checkable form of "the ladder covers the parsed cells", so both endpoints are always real values | yes |
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
-| D10 | where `resolution` is `datetime`, the seconds field of `earliest` and of `latest` is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`; and where `resolution` is `datetime` and `datetimes_read_at` is `utc`, each endpoint moved onto the clock its own endpoint offset names stays inside the years `0001` to `9999` | yes — the loader holds all three fields it needs: the endpoint, its offset, the clock |
-| D11 | `date_percentiles.min == earliest` and `date_percentiles.max == latest` | yes |
+| D10 | where `resolution` is `datetime`, the seconds field of every moment a tail publishes — its `boundary` and each entry of its `values` — is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`. The calendar's edge is method G7.3e's obligation on the generator since stage 3, no end being published | yes — the loader holds the moments and the clock |
+| D11 | the ladder around its tails: `min` and `max` are `null`; an interior rung at percent `c` is `null` exactly where its rank `floor((P - 1) * c / 100)` lies below `low_tail.rows` or above `P - 1 - high_tail.rows`, and exactly where there are no tails; a published rung read off a boundary's own rank IS that boundary; every published rung lies between the two boundaries | yes — the loader holds `P`, the two `rows` and the floor |
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
-| D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, each end stands at midnight on the wall clock of its own published offset and every `date_percentiles` rung at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
+| D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
+| TL1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or its values with at most its mean beside them | yes |
+| TL2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
+| TL3 | every published `mean_distance` is at least one unit, every published `rms_distance` at least the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
+| TL4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
 | D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`, never `(withheld)`; every key maps to a count at least the floor and never below two (the disclosure rule, P4-D131); the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` while leaving none of those cells over or at least the floor (landing 2b.6, plan P4-D278: a cell that could show no width is counted into the commonest width by the producer, because both conventions spell such a cell the same way, so a census that names anything reaches the parsed total and the remainder is asked of it like the other three) | yes |
@@ -11192,8 +11320,8 @@ part one's (8.3, 8.4).
 
 | id | statement |
 |---|---|
-| T1 | every published clock value — `earliest`, `latest`, the eleven rungs — is written in the form `clock_form` names, two digits a field, in its ranges |
-| T2 | `clock_percentiles.min == earliest` and `.max == latest`; untied, a twin pinned to the ladder can hold values earlier than its published endpoint |
+| T1 | every published clock value — each tail's `boundary`, each entry of its `values`, every published rung — is written in the form `clock_form` names, two digits a field, in its ranges |
+| T2 | the ladder around its tails, exactly as D11 states it for a column of dates: the two ends `null`, an interior rung `null` exactly inside a tail, a rung read off a boundary's rank that boundary, and every published rung between the two |
 | T3 | read in ladder order the rungs never decrease in seconds of day, which for these fixed-width forms agrees with text comparison |
 | T4 | `n_unparsed < n_present`. NOT implied by T5: at `minimum_parse_rate` `0.0` the parse line is zero and T5 vacuous, T4 alone keeping a cell for the endpoints |
 | T5 | `n_present - n_unparsed` is at least the parse-line count of `n_present`, applied as a count |
@@ -11641,10 +11769,13 @@ form, the stand-in is written in it (7.9.1).
 
 | field | disposition |
 |---|---|
-| `earliest`, `latest` | EXACT-OBSERVABLE in the representation owner decision 5 fixes. No corner, no exception: the last second of a leap minute is written back unchanged |
-| `date_percentiles.min`, `date_percentiles.max` | EXACT-OBSERVABLE, in the same representation and on the same terms. No corner, no exception: they are the same two instants, and D11 makes that a rule the loader enforces rather than a sentence a document may contradict |
-| `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 |
-| `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`, `earliest_utc_offset`, `latest_utc_offset` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
+| `low_tail`, `high_tail` | STRUCTURAL — the container's own key carries no VALUE obligation; its membership is the five keys below, and every one of them is disposed in its own right |
+| `low_tail.boundary`, `high_tail.boundary`, `low_tail.rows`, `high_tail.rows` | EXACT-OBSERVABLE in the representation owner decision 5 fixes. No corner, no exception: the boundary is a real cell's value, written back character for character — the last second of a leap minute included — and the count of cells strictly beyond it is the count a re-description gives back. The value itself is never printed in a report, because the measured side is text of the checked file |
+| `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET: the file's cells beyond that boundary hold exactly those values, each at least once. Published only where the tail holds few of them, or where its two distances would settle a count below the floor (TL1, plan P4-D329) |
+| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, the construction's own two ends. A tail publishing its values owes its mean EXACTLY instead, because every rank stands on a published value and the counts are solved to reach it |
+| `tail_unit` | LOADER-ONLY: it names the unit the two tails are counted in, TL4 settles it from `resolution`, `time_precision` and `all_at_midnight` when the description is loaded, and it obliges no cell of any file. Every file that holds those three holds this, and each of the three is checked in its own right, so a verdict here would be a second reading of theirs under a name the registry can answer for only once |
+| `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 — for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, and their absence is the disposition: the ranks they would be read off hold the column's outermost values, so D11 makes both of them `null` in every description, they oblige no cell of any file, and the validator lists them as withheld rather than comparing a null with a null |
+| `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
 | `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
@@ -11677,16 +11808,15 @@ same implementer then cannot make honest.
 
 **Withheld offsets.** Where every offset of a column fell below the
 floor, `utc_offsets` collapses to a single `(withheld)` entry and the
-endpoint offset fields read `(withheld)` too. The profile never says
+offsets are pooled under `(withheld)`. The profile never says
 which offsets those cells carried, so the twin writes them with no
-offset at all: `utc_offsets` recounts as `(none)`, the endpoint fields
-recount as `(none)`, and `datetimes_read_at` can fall from `utc` to
-`local` because the twin holds one offset kind where the real column
-held several. All four are then REPORT-ONLY for that column, with the
-achieved value named beside the published one (G7.4, G12). It touches
-those four fields and no others: `earliest` and `latest` are the
-instants themselves, which a cell carrying no offset still gives back
-exactly.
+offset at all: `utc_offsets` recounts as `(none)` and
+`datetimes_read_at` can fall from `utc` to `local` because the twin
+holds one offset kind where the real column held several. Those fields
+are then REPORT-ONLY for that column, with the achieved value named
+beside the published one (G7.4, G12). It touches those fields and no
+others: a tail's boundary and its values are the instants themselves,
+which a cell carrying no offset still gives back exactly.
 
 **THE LAST SECOND OF A LEAP MINUTE IS NOT A CORNER, AND MAY NOT BE
 MADE ONE** (review item P2-C2-F5). `SS` of `60` is a reading the
@@ -11731,9 +11861,11 @@ table means exactly what its disposition says.
 | field | disposition |
 |---|---|
 | `clock_form` | EXACT-OBSERVABLE — every twin cell of the column is written in the form this key names, so the form is recounted from the written twin. It is the clock role's analogue of `resolution`, which fixes the canonical text of a datetime cell and is exact for the same reason |
-| `earliest`, `latest` | EXACT-OBSERVABLE — exact values of real cells, written back character for character in `clock_form` |
-| `clock_percentiles.min`, `clock_percentiles.max` | EXACT-OBSERVABLE — they ARE the two endpoints, which T2 makes a rule the loader enforces rather than a sentence a document may contradict |
-| `clock_percentiles` interior rungs | APPROXIMATED — the ends are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
+| `low_tail`, `high_tail` | STRUCTURAL, as on `datetime`: the container carries no value obligation of its own |
+| `low_tail.boundary`, `high_tail.boundary`, `low_tail.rows`, `high_tail.rows` | EXACT-OBSERVABLE — the boundary is an exact value of a real cell, written back character for character in `clock_form`, and the count beyond it is the count a re-description gives back |
+| `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET, exactly as on `datetime` |
+| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, in minutes (`hh-mm`) or seconds (`hh-mm-ss`) |
+| `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by form, and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
 
@@ -12493,12 +12625,14 @@ a marked row.
    priced at row 15, not here. The role-added set is fifteen keys, of
    which a `free_text` block carries none, so every one is new for such
    a column:
-   - **VALUES of real cells, floor-free under the ranges-class endpoint
-     policy:** `earliest` and `latest`; `date_percentiles`, whose `min`
-     and `max` ARE those two texts by D11 and whose nine interior rungs
-     are interpolated; and `earliest_utc_offset` and
-     `latest_utc_offset`, each the offset text that endpoint's own cell
-     carried.
+   - **VALUES of real cells, every one of them held to the floor since
+     stage 3:** `low_tail.boundary` and `high_tail.boundary`, each the
+     smallest value with at least a smallest group's worth of cells
+     beyond it; the values a few-valued tail lists; and the rungs of
+     `date_percentiles` that lie between the two boundaries, each a
+     selected cell. The two ends of that ladder are `null`, and no end
+     of the column and no end's offset is published at all (plan
+     P4-D328).
    - **One VALUE map that is floor-GOVERNED:** the KEYS of
      `utc_offsets`, each an offset spelling as the source wrote it,
      under D3's floor with a `(withheld)` pool.
@@ -13588,7 +13722,6 @@ form to one of those four paths.
 | `sentinel_verdicts[].candidate` | the column is a nothing-publishing column, so no value of the table appears anywhere in its block |
 | `utc_offsets` | the count of every parsed cell, where no OFFSET was carried by enough rows to name (plans P4-D220 and P4-D222) |
 | `datetime_separators` | the count of every parsed cell that writes a clock, where no MARK between day and clock was written by enough rows to name (plans P4-D220 and P4-D222) |
-| `earliest_utc_offset`, `latest_utc_offset` | the map is withholding every offset (plan P4-D222) |
 | `numeric_styles` | the count of every numeric cell, where no spelling STYLE was used by enough rows to name (plan P4-D222) |
 | `fraction_widths` | the count of every `decimal`-styled cell, where no fraction WIDTH was used by enough rows to name or the widths named cannot write a published end (plan P4-D222) |
 | `pad_widths` | the count of every padded cell, where no FIELD WIDTH was used by enough of them to name (plan P4-D222) |
@@ -13608,9 +13741,10 @@ somebody's table and one of synthtwin's own words can land in the same
 slot. A field added later that breaks that property breaks this
 sentence.
 
-**Where `(none)` appears — 2 places:** as a key of `utc_offsets`, and
-as the value of `earliest_utc_offset` or `latest_utc_offset`. It means
-the cell carried no offset at all.
+**Where `(none)` appears — 1 place:** as a key of `utc_offsets`. It
+means the cells counted there carried no offset at all. It stood in two
+more places until stage 3, as the value of `earliest_utc_offset` or
+`latest_utc_offset`, and both fields are gone (plan P4-D328).
 
 **`(blank)`** is a key of `missing_by_class` and of nothing else.
 `resolution_mix` carries no reserved key: it is floor-free and never

@@ -615,11 +615,20 @@ def test_a_style_only_may_shows_is_owed_on_the_twin_s_own_mays(
     150 dates written `17 Jan 2019`, with every date in May written
     `17-MAY-2019`: no other cell writes upper case with hyphens, so the
     names of May keep `upper-either-hyphen-no-comma`, published at 11 at a
-    smallest group of eleven. The twin's own dates put 7 to 10 cells in
-    May at these seeds, every one written in that style. Checked against
+    smallest group of eleven. The twin's own dates put up to eleven
+    cells in May at these seeds, every one written in that style. Checked against
     the twin's own description, that style fell under the floor and its
     whole census was withheld, and the twin exited 3; counted on the
     twin's own cells, it is owed on every May the twin holds.
+
+    THE COUNT IS A BOUND AND NOT A NUMBER (stage 3, plan P4-D328). It
+    read "7 to 10" while the column published its two ends and the
+    twin's outermost ranks stood on them; each side is a TAIL now, drawn
+    through its own shape, so how many of the twin's dates fall in May
+    moved with them -- at two of these seeds to exactly the eleven the
+    census names. What the rule asserts is unchanged: every May the twin
+    holds wears the style, and it holds no more of them than the census
+    publishes.
     """
     cells = [
         day.strftime("%d-%b-%Y").upper() if day.month == 5 else day.strftime("%d %b %Y")
@@ -634,5 +643,9 @@ def test_a_style_only_may_shows_is_owed_on_the_twin_s_own_mays(
         "upper-either-hyphen-no-comma": 11,
     }
     mays = [cell for cell in written if "-MAY-" in cell]
-    assert 0 < len(mays) < 11
+    assert mays, "the twin holds no May, so the style is not exercised"
+    assert len(mays) <= first["month_name_styles"][
+        "upper-either-hyphen-no-comma"
+    ]
+    assert all(cell == cell.upper() for cell in mays), mays
     assert (twin_exit, real_exit) == (0, 0)

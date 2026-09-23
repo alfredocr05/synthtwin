@@ -1281,45 +1281,37 @@ def test_the_withheld_offset_corner_is_exactly_the_published_map(
             if check.subcheck.startswith("offsets.")
         )
         if withheld:
-            # The whole map is the withheld key: all four obligations
-            # are listings and not one of them is checked.
-            assert listed == [
-                "offsets.earliest",
-                "offsets.latest",
-                "offsets.map",
-                "offsets.read-at",
-            ], (probe.stem, listed)
+            # The whole map is the withheld key: BOTH obligations the
+            # fact still carries are listings and neither is checked.
+            # There were four until stage 3, when the two endpoint
+            # offsets left the role with the two ends (plan P4-D328).
+            assert listed == ["offsets.map", "offsets.read-at"], (
+                probe.stem,
+                listed,
+            )
             assert not checked, (probe.stem, checked)
             continue
-        # Otherwise the map is checked key by key, and the only listing
-        # this fact can carry is an ENDPOINT the floor held back on its
-        # own, which is a different shape from the corner and is
-        # asserted against the published field rather than assumed.
-        ends = {
-            "offsets.earliest": facts.earliest_utc_offset,
-            "offsets.latest": facts.latest_utc_offset,
-        }
-        assert listed == sorted(
-            subcheck
-            for subcheck in ends
-            if ends[subcheck] == taxonomy.SUPPRESSED_LABEL
-        ), (probe.stem, listed, ends)
+        # Otherwise the map is checked key by key and this fact lists
+        # nothing at all. The only listing it could carry outside the
+        # corner was an ENDPOINT offset the floor held back on its own,
+        # and a column publishes no endpoint offset any more, so the
+        # corner is the whole of what makes the map a listing.
+        assert listed == [], (probe.stem, listed)
         assert "offsets.read-at" in checked, (probe.stem, checked)
         for subcheck in listed:
             assert subcheck not in checked, (probe.stem, subcheck)
     assert len(shapes) >= 3, shapes
-    # AND THE BRANCH ABOVE IS NO LONGER TAKEN, which is pinned rather than
-    # left to look covered. Since plan P4-D222 (stage 2 closed by the owner
-    # rulings of 2026-09-17) a value at an offset too rare to name is read
-    # at the commonest offset, so an endpoint is held back only where the
-    # whole map is: the corner. `witness-offset-endpoint-pooled` is the
-    # shape that reached the branch until then, and it now names `+01:00`
-    # at both ends.
+    # AND THE TWO ENDPOINT OFFSETS ARE GONE FROM THE REPORT, which is
+    # pinned rather than left to look covered. The branch that listed one
+    # stopped being taken at plan P4-D222 -- a value at an offset too rare
+    # to name is read at the commonest offset since then, so an endpoint
+    # was held back only where the whole map was -- and stage 3 took the
+    # two fields themselves out of the role. Neither name may come back
+    # in either half of a report, on any shape this walk carries.
     assert not any(
-        listing.subcheck in ("offsets.earliest", "offsets.latest")
+        named.subcheck in ("offsets.earliest", "offsets.latest")
         for probe in parity
-        for listing in probe.outcome.listings
-        if validation.CORNER_DATETIME_OFFSETS_WITHHELD not in probe.corners
+        for named in list(probe.outcome.listings) + list(probe.outcome.checks)
     )
 
 

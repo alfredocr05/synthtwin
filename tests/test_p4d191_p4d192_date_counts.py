@@ -118,9 +118,21 @@ def test_a_withdrawn_pass_is_named_and_missed(
     )
     real_off = generation._kept_off_midnight
 
-    def onto_midnight(facts, ordinals, parsed, whole, lows, highs, floor, offsets=None):
-        moved = real_off(facts, ordinals, parsed, whole, lows, highs, floor, offsets)
-        pinned = generation._ranks_the_tail_pins(parsed)
+    def onto_midnight(
+        facts, ordinals, parsed, whole, lows, highs, floor, offsets=None,
+        layout=None,
+    ):
+        moved = real_off(
+            facts, ordinals, parsed, whole, lows, highs, floor, offsets, layout
+        )
+        # WHICH RANKS NEVER MOVE is read off the LAYOUT since stage 3
+        # (plan P4-D328): the two tail boundaries, the rungs the tail
+        # rule publishes between them, and each tail's word-less ranks.
+        pinned = (
+            generation._ranks_the_tail_pins(layout)
+            if layout is not None
+            else [False] * parsed
+        )
         for rank in range(0, parsed, 25):
             if not pinned[rank] and lows[rank] <= moved[rank] - moved[rank] % 86400:
                 moved[rank] = moved[rank] - moved[rank] % 86400

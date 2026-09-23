@@ -130,12 +130,15 @@ _FAMILIES = (
     "label.levels",
     "label.variants",
     "label.variants_withheld",
-    "datetime.earliest",
-    "datetime.latest",
-    "datetime.earliest_utc_offset",
-    "datetime.latest_utc_offset",
-    "datetime.date_percentiles.min",
-    "datetime.date_percentiles.max",
+    # STAGE 3: the two ends, their offsets and the ladder's own two ends
+    # are no longer published, and what a date column can MISS with
+    # nothing to show in their place is a TAIL BOUNDARY (plan P4-D328).
+    # Each key of a tail is its own fact, and the other four print what
+    # they found: the rows beyond the boundary and the two distances are
+    # counts and numbers of the file, and a few-valued tail's values are
+    # compared as a set and reported by their number.
+    "datetime.low_tail.boundary",
+    "datetime.high_tail.boundary",
     "free_text.n_distinct_by_occurrences",
 )
 

@@ -237,15 +237,16 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_and_the_count(
     and `midnight.count` while the real file missed none. The tool told
     the person the twin was wrong for doing what the description said.
 
-    WHAT IT COSTS NOW. The construction spends the SHORTFALL the
-    description itself publishes, `n_distinct_folded` less the
-    different folded spellings written -- one value here, never the
-    five the real column held, which is not published -- on a permitted
-    mark the census leaves unnamed, and it spends it below
-    `parsing.census_floor`, so the twin described again counts the mark
-    back into the commonest name and publishes the same census. The
-    column keeps its kind AND its count, and both files validate at
-    exit 0.
+    WHAT IT COSTS NOW. Nothing, and the reason is the tail rule (stage
+    3, plan P4-D330): two days hold all 125 cells, so at a floor of
+    eleven the two boundaries would cross, the description publishes no
+    tail and no rung at all, and the twin is the RAMP of G7.3d -- which
+    spreads its ranks over the published count of different values and
+    reaches three by itself. There is no shortfall left for G7.9's
+    spend to buy here, so the twin writes the census exactly as
+    published, keeps its kind AND its count, and both files validate at
+    exit 0. G7.9's spend stands for the columns that do fall short; this
+    one no longer does.
     """
     cells = ["2025-01-01 00:00:00"] * 60 + ["2025-01-02 00:00:00"] * 60 + ["2025-01-01T00:00:00"] * 5
     folder = tmp_path / "two-days"
@@ -256,18 +257,16 @@ def test_two_days_and_a_pooled_spelling_keep_the_kind_and_the_count(
     # RULING 6 STILL ABSORBS, on both sides, and the two censuses agree.
     assert first["datetime_separators"] == {"space": 125}
     assert second["datetime_separators"] == first["datetime_separators"]
-    # THE THIRD SPELLING IS BACK, on exactly one value: the shortfall of
-    # one the description publishes, and not the five the table held.
+    # THE CENSUS IS WRITTEN AS PUBLISHED, mark for mark: the twin needs
+    # no spelling the census leaves unnamed, because the ramp reaches
+    # the published count of different values on its own.
     marks: "dict[str, int]" = {}
     for cell in written:
         found = parsing.datetime_separator(cell, "iso-datetime")
         assert found is not None, cell
         marks[found] = marks[found] + 1 if found in marks else 1
-    assert marks == {"space": 124, "upper_t": 1}
+    assert marks == {"space": 125}
     assert len(set(written)) == 3 and len(written) == 125
-    # ...and it stays below the line the census could name it at, which
-    # is what keeps the published census true of the twin.
-    assert marks["upper_t"] < parsing.census_floor(11)
     assert (second["role"], second["n_distinct"], second["n_distinct_folded"]) == (
         "datetime", 3, 3,
     )
@@ -405,6 +404,16 @@ def test_the_promised_window_is_not_widened_where_the_repair_cannot_spend(
     pass never touches would have been reported as landing inside the
     range the method promises. Bounded by `n_distinct_folded`, the term
     is not added here at all.
+
+    AND SINCE STAGE 3 THIS COLUMN PUBLISHES NO TAIL (plan P4-D330):
+    three days hold all 124 of its cells, so the two boundaries would
+    cross and its twin is the RAMP of G7.3d. The lower end is two -- the
+    ramp pins its two ends and leaves every other rank the whole span --
+    and the upper end is the ramp's own reach, its published count of
+    different values times the ways an instant can be written, which is
+    six. Read as the whole column instead, the upper end was 124 on a
+    construction that can hold six, which is an envelope that checks
+    nothing (G12.5, amended here).
     """
     cells = (
         ["2025-01-01 00:00:00"] * 70
@@ -419,7 +428,7 @@ def test_the_promised_window_is_not_widened_where_the_repair_cannot_spend(
     assert (first["n_distinct"], first["n_distinct_folded"]) == (3, 3)
     profile = folder / "real-profile.json"
     lowest, highest, achieved, inside = _window_of(profile, 0, "n_distinct")
-    assert (lowest, highest, achieved, inside) == (3, 6, 6, True)
+    assert (lowest, highest, achieved, inside) == (2, 6, 6, True)
     assert len(set(written)) == 6
     assert (twin_exit, real_exit) == (0, 0)
     assert _missed_on(profile, folder / "real-twin.csv") == []
@@ -436,18 +445,19 @@ def test_a_case_mixed_census_reports_the_one_count_it_leaves_outside(
     both, the space is absorbed, and the construction already writes
     four different texts for two folded ones against a published three.
 
-    WHAT G7.9 DOES HERE, and what it does not. It sees the folded
-    shortfall of one, spends a rank on the unnamed `space`, and reaches
-    `n_distinct_folded` of three exactly -- taking the unfolded count
-    from four to five. Before the pass this column missed `axes.role`,
-    `axes.statistical_type` and `midnight.count`; after it, it misses
-    `distinct.n_distinct` alone. Three checks for one.
+    WHAT THE TAIL RULE DOES HERE (stage 3, plan P4-D330). Two days hold
+    all 125 cells, so the two boundaries would cross, the description
+    publishes no tail and no rung, and the twin is the RAMP of G7.3d:
+    three days, each written with each of the two marks the census
+    names, which is six different texts and THREE folded ones -- the
+    published folded count, reached exactly and without G7.9's spend.
 
-    THE TWO HALVES OF THE RUN AGREE ABOUT THAT ONE. While the whole
-    census budget was added to G12.5's upper end the window here was 2
-    to 14 and the report printed `inside` for a count `synthtwin
-    validate` reported MISSED. Bounded by `n_distinct_folded`, the
-    window is 2 to 4, the twin holds five, and both halves say so.
+    THE TWO HALVES OF THE RUN AGREE. The window G12.5 promises is the
+    ramp's own reach, two to six; the twin holds six; the report says
+    inside and the checker misses nothing on either file. Before the
+    tail rule this column reached four texts for two folded ones, G7.9
+    bought the third, and the unfolded count was then missed -- the one
+    check this case was written to watch the two halves agree about.
     """
     cells = (
         ["2025-04-01T00:00:00"] * 60
@@ -460,15 +470,16 @@ def test_a_case_mixed_census_reports_the_one_count_it_leaves_outside(
     )
     assert first["datetime_separators"] == {"lower_t": 65, "upper_t": 60}
     assert (first["n_distinct"], first["n_distinct_folded"]) == (3, 3)
-    # THE FOLDED COUNT IS REACHED EXACTLY; the unfolded one is not.
+    # THE FOLDED COUNT IS REACHED EXACTLY, and the unfolded one lands
+    # inside the envelope the ramp fixes.
     assert second["n_distinct_folded"] == 3
-    assert len(set(written)) == 5
+    assert len(set(written)) == 6
     profile = folder / "real-profile.json"
     lowest, highest, achieved, inside = _window_of(profile, 0, "n_distinct")
-    assert (lowest, highest, achieved, inside) == (2, 4, 5, False)
-    # ...and the checker names the same one fact, and only that one.
-    assert _missed_on(profile, folder / "real-twin.csv") == ["value:distinct.n_distinct"]
-    assert twin_exit == 3 and real_exit == 0
+    assert (lowest, highest, achieved, inside) == (2, 6, 6, True)
+    # ...and the checker misses nothing at all, on either file.
+    assert _missed_on(profile, folder / "real-twin.csv") == []
+    assert twin_exit == 0 and real_exit == 0
     assert _missed_on(profile, folder / "real.csv") == []
 
 
@@ -902,8 +913,19 @@ def test_a_year_first_slashed_stamp_is_a_column_of_moments(
     assert (first["role"], first["format"], first["time_precision"]) == ("datetime", "slashed-iso-datetime", precision)
     # THE FACT THAT NOW RETURNS, and the reason this test exists.
     assert second["format"] == "slashed-iso-datetime"
-    for key in ("role", "format", "resolution", "time_precision", "datetime_separators", "n_present", "earliest", "latest"):
+    for key in (
+        "role", "format", "resolution", "time_precision",
+        "datetime_separators", "n_present", "tail_unit",
+    ):
         assert second[key] == first[key], (key, first[key], second[key])
+    # THE TWO TAILS IN PLACE OF THE TWO ENDS (stage 3, plan P4-D328),
+    # on the terms contract 9.6 disposes them: the boundary, the rows
+    # beyond it and any values it lists come back exactly; the two
+    # distances are approximated and the exit code below is the verdict
+    # on them.
+    for side in ("low_tail", "high_tail"):
+        for key in ("boundary", "rows", "values"):
+            assert second[side][key] == first[side][key], (side, key)
     # The year leads, the fields are slashed and padded, and the clock
     # stands after one space: the source's own shape, character for
     # character, where every one of these cells used to be an ISO stamp.
@@ -1017,9 +1039,21 @@ def test_bare_dates_beside_moments_at_local_midnight_on_a_real_offset_keep_their
     assert first["all_at_midnight"] is True
     for key in (
         "resolution_mix", "utc_offsets", "datetime_separators", "all_at_midnight", "n_at_midnight",
-        "earliest", "latest", "earliest_utc_offset", "latest_utc_offset", "date_percentiles",
+        "tail_unit", "date_percentiles",
     ):
         assert second[key] == first[key], (key, first[key], second[key])
+    # THE TWO TAILS IN PLACE OF THE TWO ENDS (stage 3, plan P4-D328), on
+    # the terms contract section 9.6 disposes them: the boundary, the
+    # count of rows beyond it and the values a tail lists come back
+    # EXACTLY, and the two distances are APPROXIMATED -- a consequence
+    # of where the construction places the ranks inside their strata,
+    # held to the window of G12.14, which the twin's own exit code below
+    # is the verdict on.
+    for side in ("low_tail", "high_tail"):
+        for key in ("boundary", "rows", "values"):
+            assert second[side][key] == first[side][key], (
+                side, key, first[side][key], second[side][key]
+            )
     assert sum(1 for cell in written if len(cell) == 10) == sum(1 for cell in cells if len(cell) == 10)
     assert all(_at_midnight(cell) for cell in written)
     assert (twin_exit, real_exit) == (0, 0)
@@ -1085,7 +1119,14 @@ def test_a_column_too_short_to_name_a_mark_pools_them_all(
 
 @pytest.mark.parametrize(
     "days, seed, marks",
-    [(3, "0", {"t": 12, "T": 10, " ": 8}), (6, "4", {"T": 10, " ": 9, "t": 11})],
+    # RE-RECORDED AT THE TAIL LANDING (stage 3, plan P4-D330): thirty
+    # values at a floor of twenty publish no tail and no rung, so the
+    # twin is the RAMP of G7.3d and its days are the ramp's own. The
+    # pool is still split ten, ten and ten and still comes back whole,
+    # and no cell of the twin wears the declared absent spelling -- what
+    # moved is which day each mark lands on, which the counts below no
+    # longer distinguish.
+    [(3, "0", {"t": 10, "T": 10, " ": 10}), (6, "4", {"T": 10, " ": 10, "t": 10})],
 )
 def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves_unnamed(
     tmp_path: pathlib.Path, days: int, seed: str, marks: "dict[str, int]"
@@ -1115,7 +1156,13 @@ def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves
             for _ in range(count)
         ]
 
-    declared = [f"{start.isoformat()} 00:00:00"]
+    # THE DECLARED SPELLING IS A DAY THE RAMP WRITES (stage 3, plan
+    # P4-D330). Thirty values at a floor of twenty publish no tail and
+    # no rung, so the twin is the ramp of G7.3d and its days run from
+    # 1970-01-01: a spelling declared absent on 1 January 2024 is a day
+    # the twin never writes at all, and the offer this case is about
+    # could not be made.
+    declared = ["1970-01-03 00:00:00"]
     holes: "list[str]" = []
     flags: "tuple[str, ...]" = ("--smallest-group", "20")
     for spelling in declared:

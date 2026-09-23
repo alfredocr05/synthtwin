@@ -1058,15 +1058,16 @@ def test_red_a_trailing_zero_on_every_cell_is_in_no_published_form(
     assert _verdicts(outcome, "counts.n_numeric") == [validation.HELD]
 
 
-def test_red_a_shifted_date_misses_a_ladder_end(
+def test_red_a_shifted_date_misses_its_tail_boundary(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
 ) -> None:
-    """NAMED SUBCHECK: ends.latest on the datetime column.
+    """NAMED SUBCHECK: tails.high.boundary on the datetime column.
 
-    Every cell of the column moved forward by a decade: the two ends of
-    a column of dates carry no authorization at all, so this cannot
-    land anywhere but MISSED.
+    Every cell of the column moved forward by a decade. The two ends
+    went with stage 3 (plan P4-D328) and what stands at the outside of
+    the column is a TAIL: its boundary is EXACT-OBSERVABLE and carries
+    no authorization at all, so this cannot land anywhere but MISSED.
     """
     described, twin = every_role
     position = _column_of(described, taxonomy.ROLE_DATETIME)
@@ -1085,7 +1086,7 @@ def test_red_a_shifted_date_misses_a_ladder_end(
     found = [
         check
         for check in outcome.checks
-        if check.column == name and check.subcheck == "ends.latest"
+        if check.column == name and check.subcheck == "tails.high.boundary"
     ]
     assert len(found) == 1
     assert found[0].verdict == validation.MISSED
@@ -2019,7 +2020,7 @@ def test_the_offsets_corner_is_listed_and_carries_no_verdict(
 ) -> None:
     """A datetime column whose offsets are the single withheld key.
 
-    REVIEW ITEM P3-V1-F4. In this corner the four offset facts are
+    REVIEW ITEM P3-V1-F4. In this corner the offset facts are
     REPORT-ONLY -- the registry's own class for them, and V4.1's -- and
     a REPORT-ONLY fact is a listing entry: it produces no verdict and is
     counted where a not-checkable obligation is counted. The version
@@ -2061,10 +2062,11 @@ def test_the_offsets_corner_is_listed_and_carries_no_verdict(
     outcome = _measure(
         folder, described, _twin_text(described), "offset-twin.csv"
     )
+    # TWO IDENTITIES, NOT FOUR, SINCE STAGE 3 (plan P4-D328): the two
+    # END offsets went with the two ends, so what the corner reaches is
+    # the census and the reading the column is on.
     offsets = (
         "offsets.map",
-        "offsets.earliest",
-        "offsets.latest",
         "offsets.read-at",
     )
     for subcheck in offsets:

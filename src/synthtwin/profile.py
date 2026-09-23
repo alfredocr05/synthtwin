@@ -857,6 +857,12 @@ _VERSION = "the-version-that-wrote-this"
 # the MARK a line before the table began with, which is punctuation and
 # whitespace and never a word of that line (plan P4-D80).
 _MAYBE_OBJECT = "object-or-nothing"
+# A list, or nothing at all: the values a date or clock tail holds, which
+# it publishes only where it holds few of them (stage 3, contract TL1).
+_MAYBE_ARRAY = "array-or-nothing"
+# A canonical moment, or nothing at all: a rung of a date or clock ladder
+# the tail rule withholds (stage 3, contract D11 and T2).
+_MAYBE_MOMENT = "canonical-datetime-or-nothing"
 _HEADER_TEXT = "a-header-cell-as-written"
 _BLANK_LINE = "a-blank-line-of-spaces-and-tabs"
 _PREAMBLE_MARK = "the-mark-a-line-before-the-table-began-with"
@@ -1488,18 +1494,34 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # all" is written `null` since landing 2b.6, and it covers a real
     # nought too: see `_BOTH_SIDES_OR_UNAVAILABLE`.
     ("columns", _EACH, "n_at_midnight"): _BOTH_SIDES_OR_UNAVAILABLE,
-    ("columns", _EACH, "earliest"): _MOMENT_TEXT,
-    ("columns", _EACH, "latest"): _MOMENT_TEXT,
-    ("columns", _EACH, "earliest_utc_offset"): _OFFSET,
-    ("columns", _EACH, "latest_utc_offset"): _OFFSET,
+    # THE TWO TAILS AND THEIR UNIT (stage 3, plan P4-D328; contract TL1 to
+    # TL4), in place of the first and last value and the offsets those two
+    # rows wore. A tail is a boundary held by a real cell that is never one
+    # of the outer ones, a count of cells at the floor or above, two
+    # distances, and -- where it holds few values -- which values those are.
+    # These rows serve the clock role too: they are keyed by PATH, and a
+    # clock value is canonical moment text by the same character rule.
+    ("columns", _EACH, "tail_unit"): _WORD,
+    ("columns", _EACH, "low_tail"): _MAYBE_OBJECT,
+    ("columns", _EACH, "low_tail", "boundary"): _MOMENT_TEXT,
+    ("columns", _EACH, "low_tail", "rows"): _FLOOR_COUNT,
+    ("columns", _EACH, "low_tail", "mean_distance"): _MAYBE_NUMBER,
+    ("columns", _EACH, "low_tail", "rms_distance"): _MAYBE_NUMBER,
+    ("columns", _EACH, "low_tail", "values"): _MAYBE_ARRAY,
+    ("columns", _EACH, "low_tail", "values", _EACH): _MOMENT_TEXT,
+    ("columns", _EACH, "high_tail"): _MAYBE_OBJECT,
+    ("columns", _EACH, "high_tail", "boundary"): _MOMENT_TEXT,
+    ("columns", _EACH, "high_tail", "rows"): _FLOOR_COUNT,
+    ("columns", _EACH, "high_tail", "mean_distance"): _MAYBE_NUMBER,
+    ("columns", _EACH, "high_tail", "rms_distance"): _MAYBE_NUMBER,
+    ("columns", _EACH, "high_tail", "values"): _MAYBE_ARRAY,
+    ("columns", _EACH, "high_tail", "values", _EACH): _MOMENT_TEXT,
     ("columns", _EACH, "date_percentiles"): _OBJECT,
     ("columns", _EACH, "date_percentiles", _KEY_OF): _WORD,
-    ("columns", _EACH, "date_percentiles", _ANY_KEY): _MOMENT_TEXT,
-    # The clock role's own two. `earliest`, `latest` and `n_unparsed`
-    # need no row of their own and must not be given one: these rules
-    # are keyed by PATH and not by role, so the rows above already
-    # serve both roles -- a clock value is canonical moment text by the
-    # same character rule a date is.
+    ("columns", _EACH, "date_percentiles", _ANY_KEY): _MAYBE_MOMENT,
+    # The clock role's own two. The tails and `n_unparsed` need no row of
+    # their own and must not be given one: these rules are keyed by PATH
+    # and not by role, so the rows above already serve both roles.
     ("columns", _EACH, "clock_form"): _WORD,
     # HOW MANY PARSED CELLS WORE EACH FORM. Its keys are members of
     # this package's own format vocabulary, so a spelling of the table
@@ -1511,7 +1533,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "resolution_mix", _ANY_KEY): _COUNT,
     ("columns", _EACH, "clock_percentiles"): _OBJECT,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): _WORD,
-    ("columns", _EACH, "clock_percentiles", _ANY_KEY): _MOMENT_TEXT,
+    ("columns", _EACH, "clock_percentiles", _ANY_KEY): _MAYBE_MOMENT,
     ("columns", _EACH, "n_unparsed"): _COUNT,
     ("columns", _EACH, "utc_offsets"): _OBJECT,
     ("columns", _EACH, "utc_offsets", _KEY_OF): _OFFSET,
@@ -1776,6 +1798,9 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # Read from the one place the two forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
+    # ...and the unit a tail is counted in (stage 3, contract TL4), a
+    # closed list read from the one place it is written.
+    ("columns", _EACH, "tail_unit"): parsing.TAIL_UNITS,
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
     ("columns", _EACH, "datetime_separators", _KEY_OF): (
         parsing.DATETIME_SEPARATORS + (parsing.MISSING_WITHHELD,)
@@ -2279,6 +2304,8 @@ def _leaf_is_published(
         return _is_number(value)
     if kind == _MAYBE_NUMBER:
         return value is None or _is_number(value)
+    if kind == _MAYBE_MOMENT:
+        return value is None or _is_moment(value)
     if kind == _FLAG:
         return isinstance(value, bool)
     if kind == _NOTHING:
@@ -2515,6 +2542,10 @@ def _check_published(
         if node is None:
             return
         kind = _OBJECT
+    if kind == _MAYBE_ARRAY:
+        if node is None:
+            return
+        kind = _ARRAY
     if kind == _OBJECT:
         if not isinstance(node, dict):
             raise _refuse(path)

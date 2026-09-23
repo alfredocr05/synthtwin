@@ -180,8 +180,15 @@ def test_a_textual_column_is_a_date_column_now() -> None:
         assert block["role"] == "datetime", pattern
         assert block["format"] == member, pattern
         assert block["resolution"] == "date", pattern
-        assert block["earliest"] == "2024-01-01", pattern
-        assert block["latest"] == "2024-08-27", pattern
+        # THE DATES THEMSELVES, READ BACK OUT OF THE WORDS. The two
+        # instants this used to name are published nowhere since stage 3
+        # (plan P4-D328): what stands at the outside of a column of
+        # dates is a tail a side, whose boundary is the smallest value
+        # with the publication floor's worth of cells below it. These
+        # days are one apart and all different, so the two boundaries
+        # are the twelfth day and the twelfth day from the end.
+        assert block["low_tail"]["boundary"] == f"{DAYS[11]}", pattern
+        assert block["high_tail"]["boundary"] == f"{DAYS[-12]}", pattern
         assert block["n_unparsed"] == 0, pattern
         assert block["resolution_mix"] == {member: 240}, pattern
 

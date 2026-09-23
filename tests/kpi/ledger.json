@@ -1152,9 +1152,9 @@
    "phase_stage": "Phase 2 (G10, G5.3)",
    "category": "STATS",
    "headline": false,
-   "name": "Exact counts and both ends are recounted exactly from the twin's own cells",
+   "name": "Exact counts are recounted exactly from the twin's own cells, and so are the numeric ladder's two ends and every tail boundary",
    "status": "GREEN",
-   "rule": "exact equality",
+   "rule": "exact equality. THE TWO ENDS THIS ENTRY NAMED WERE THE LADDER'S (plan P2-D6): the numeric ladder still publishes min and max and they are still recounted here, and a column of dates or clock times publishes neither since stage 3 (plan P4-D328) -- what stands at its outside is a TAIL, whose boundary and count of rows beyond it are recounted from the twin's own cells by the node added below",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -1165,13 +1165,14 @@
     "tests/test_generation.py::test_n_present_and_n_missing_are_recounted_exactly",
     "tests/test_generation.py::test_the_four_class_counts_are_recounted_exactly",
     "tests/test_generation.py::test_the_two_ends_of_a_ladder_are_exact",
+    "tests/test_generation.py::test_the_two_tail_boundaries_are_exact",
     "tests/test_generation.py::test_every_value_lies_between_the_two_published_ends"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "every-role twin 240 rows, seed 7",
-   "evidence": "90 of 90 presence and class recounts equal; every numeric and date column hits both published ends, nothing outside",
+   "evidence": "90 of 90 presence and class recounts equal; every numeric column hits both published ends, nothing outside; and both tail boundaries of the demonstration's date and clock columns are the twin's own cells at the ranks their rows fix",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -1180,7 +1181,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 4
+   "nodes_min_collected": 5
   },
   {
    "id": "K-P2-09",
@@ -2922,7 +2923,9 @@
     "ends_held_by_one_row_f1": 4,
     "levels_of_one_f11": 0,
     "twin_writes_levels_of_one_f11": 0,
-    "ends_held_by_one_row_f11": 4
+    "ends_held_by_one_row_f11": 4,
+    "date_ends_held_by_one_row_f1": 0,
+    "date_ends_held_by_one_row_f11": 0
    },
    "tier": "FAST",
    "source": "pytest",
@@ -2931,12 +2934,14 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "every_role_and_joined_table, record_code declared, pressure a measurement, twin at seed 20260811",
-   "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0",
+   "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0. Stage 3 landing 3.4, measured on its own commit: the DATE AND CLOCK ends are 0 at both floors, counted on a key of their own rather than assumed -- a column of dates or clock times publishes no end for the key to find. The total stayed at 4, which says what the new key cannot: on this table those two roles' ends were held by more than one row anyway, so nothing came off the total here and the 4 are min and max on the two numeric columns. What the key buys is that an end returning to either role turns this entry worse, instead of standing inside a total that did not move",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "74541ce",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py on landing 3.4's own commit; this entry is FAST, so the fast tier is its whole measurement",
     "value": {
+     "date_ends_held_by_one_row_f1": 0,
+     "date_ends_held_by_one_row_f11": 0,
      "ends_held_by_one_row_f1": 4,
      "ends_held_by_one_row_f11": 4,
      "levels_of_one_f1": 147,

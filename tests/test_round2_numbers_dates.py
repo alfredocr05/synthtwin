@@ -570,10 +570,38 @@ def test_a_stranded_non_midnight_run_is_merged_by_a_paid_trade(
     assert real_exit == 0
 
 
-def test_the_mutant_trades_widths_only_and_strands_the_run(
+def test_the_mutant_withdrawing_the_midnight_trade_no_longer_strands(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The mutant: the midnight trade withdrawn, and four values again."""
+    """The same mutant, pointed the other way: nothing strands now.
+
+    THE MUTATION THIS FILE COMMITTED IS KEPT AND ITS OUTCOME MOVED, which
+    is the honest half of a coverage loss (stage 3, plan P4-D328).
+    Withdrawing P4-D258's midnight trade used to leave a fourth value in
+    the twin and `validate` exiting 3; the assertion below was that
+    number, and it was the whole proof that the trade was load-bearing.
+
+    It is not load-bearing on this column any more, and this test says so
+    rather than being deleted or re-fitted to a new number. Two stage-3
+    rules reach the same cells first. The two TAILS of a column of three
+    values publish the outer values themselves, so the twin's outermost
+    cells are settled before any merge is asked for; and the layout now
+    places a run whose gap must hold a midnight into a gap that can hold
+    one (G12.4, `_gap_holds_a_midnight`) instead of leaving it to be
+    traded afterwards. Measured over nine shapes on 2026-09-22 -- three
+    values, twelve, twenty-four, a wide run of months, two runs, three
+    runs, sparse days, a dense clock and a one-cell run -- the mutant
+    matched the unmutated twin in every one.
+
+    So what is asserted is the property that replaced it: with the trade
+    withdrawn the twin STILL holds exactly the published values and
+    reports nothing missed. A regression in either stage-3 rule strands
+    the run again and turns this red, which is the work the old assertion
+    did, aimed at the rule that now does the job. The loss itself -- a
+    committed mutant this suite can no longer distinguish -- is recorded
+    in `docs/spec/generation-method-v1.md` G14.3 beside the three branch
+    cases the tail rule made unreachable.
+    """
     traded = generation._traded_merges
 
     def widths_only(*arguments: "object") -> int:
@@ -586,8 +614,9 @@ def test_the_mutant_trades_widths_only_and_strands_the_run(
         tmp_path / "stranded", _MIDNIGHT_CELLS,
         ("--smallest-group", "11"), "4",
     )
-    assert len(set(written)) == 4
-    assert twin_exit == 3
+    assert len(set(written)) == 3
+    assert sorted(set(written)) == sorted(set(_MIDNIGHT_CELLS))
+    assert twin_exit == 0
     assert real_exit == 0
 
 

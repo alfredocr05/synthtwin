@@ -4689,13 +4689,14 @@ shipped `parsing._days_from_civil` computes, and its inverse is
 the leap rule they use (a year divisible by four is a leap year, except
 a century not divisible by four hundred).
 
-**Two cells do not travel through this space**: the endpoint cells of
-G7.3, which are built from the published endpoint's own fields by
+**Some cells do not travel through this space**: the pinned cells of
+G7.3 carrying a published moment whose seconds field is `60`, which are
+built from that moment's own fields by
 G7.5. The whole-second row above has one place for `HH:MM:59` and the
 next for `HH:MM+1:00`, and none for the `SS` of `60` the profile
-contract's canonical form admits — so an endpoint carrying one is
-written from its fields, and the space below is left to the interior
-ranks it is exact for.
+contract's canonical form admits — so a boundary carrying one is
+built from the published moment's own fields, not from its ordinal, and
+the space below is left to the ranks it is exact for.
 
 ### G7.2 What is generated, and what is a stand-in
 
@@ -4727,22 +4728,29 @@ ranks `r = 0 .. P - 1` (one cell per rank; datetime columns are not
 stratified by value, because no datetime multiplicity map is
 published). Then:
 
-**The published tail PINS a rank to a published value** (landing 2b.6).
-The pinned ranks are `0`, `P - 1`, and the rank each of the nine
-interior rungs is selected from, `k_j = floor((P - 1) * PCT[j] / 100)`
-for `j = 1 .. 9` — the profiler's own rung rank. Two rungs selecting off
-one rank keep the LOWER rung's value, and a rung whose rank is an end is
-left to that end, so the pins are non-decreasing for any ladder a
-description can carry.
+**The published tail PINS a rank to a published value** (landing 2b.6;
+stage 3, plan P4-D328). The pinned ranks are the two TAIL BOUNDARY ranks
+-- `m_lo = low_tail.rows` and `m_hi = P - 1 - high_tail.rows` -- and the
+rank each PUBLISHED interior rung is selected from,
+`k_j = floor((P - 1) * PCT[j] / 100)` for `j = 1 .. 9`, which by the
+contract's D11 lies between the two boundary ranks, both included. Two
+rungs selecting off one rank keep the LOWER rung's value, and a rung
+whose rank is a boundary rank is left to that boundary, so the pins are
+non-decreasing for any ladder a description can carry. **No end is
+pinned, because no end is published**: rank `0` and rank `P - 1` belong
+to the two tails, and a column publishing no tails at all is G7.3d's
+ramp.
 
-- `r == 0`: the cell's instant is `earliest`, used exactly as published.
-  "Exactly as published" means the endpoint's OWN fields, not its
-  ordinal: these two cells are built by G7.5's endpoint rule and do not
-  pass through the space of G7.1 at all.
-- `r == P - 1` and `P >= 2`: the instant is `latest`, exactly, by the
-  same rule.
-- `r == k_j` for some interior rung: the instant is `Lo[j]`, the rung's
-  own published ordinal.
+- `r < m_lo`, or `r > m_hi`: the rank belongs to a TAIL and is placed by
+  G7.3b, or by G7.3c where that tail publishes which values it holds.
+- `r == m_lo`: the instant is `low_tail.boundary`; `r == m_hi`: it is
+  `high_tail.boundary`, each used exactly as published. "Exactly as
+  published" means the boundary's OWN fields and not its ordinal
+  wherever its seconds field is `60` (G7.5), because the space of G7.1
+  has no place for a leap second.
+- `r == k_j` for some PUBLISHED interior rung: the instant is `Lo[j]`,
+  the rung's own published ordinal. A rung the tail rule withholds is
+  null, pins nothing, and is never written anywhere.
 - otherwise: `r` lies strictly between two pinned ranks `a < r < b`. Let
   `Lo_a` and `Lo_b` be their pinned ordinals and `X_a` and `X_b` their
   PLACES, below. The rank takes one word `w` and
@@ -5039,6 +5047,281 @@ not the one either document's matrix points at. No repair is made for
 these two counts (P2-D6, datetime cardinality); the recount of G12 names
 them where the published count was missed.
 
+#### G7.3b The tails: one shape, a derived end, and a stratum for every rank
+
+*Stage 3, plan P4-D328. It replaces the two published ends, which are
+gone from the format.* Each side of a column of dates publishes
+`{boundary, rows, mean_distance, rms_distance, values}` and the tail unit
+they are counted in (contract TL1 to TL4). Where `values` is null the
+`m = rows` ranks beyond the boundary are drawn through ONE SHAPE whose
+mean and mean square over a uniform share are the two published
+distances. Everything below is binary64 arithmetic in `+ - * /` and
+`sqrt` alone, each operation correctly rounded by IEEE 754 on every
+platform, in the order written; no library power, exponential or
+logarithm is used anywhere, and the one integer decision is made by
+exact whole-number comparison.
+
+Write `d1 = mean_distance` and `rho = rms_distance`, both at least one
+unit by TL3.
+
+1. **The shape.** `t = rho / d1`; `r = t * t`; where `r < 1`, `r = 1`.
+   The POWER `n` is the largest whole number with
+   `(n + 1)**2 <= r * (2n + 1)`, decided on the exact rational `r` is:
+   with `r = top / bottom` in whole numbers (its significand and its
+   exponent), `n` is the largest `n` with
+   `(n + 1)**2 * bottom <= top * (2n + 1)`, found by counting up from
+   nought. Then with
+
+   ```
+   a2 = 1.0 / (n + 2)                 de = 1.0 / ((n + 1) * (n + 2))
+   b1 = 1.0 / (2n + 1)                c  = 1.0 / (n + 1)
+   b2 = 1.0 / (2n + 3)
+   qa = ((b1 - c) + b2) - ((r * de) * de)
+   qb = (c - (2.0 * b2)) - (((2.0 * r) * a2) * de)
+   qc = b2 - ((r * a2) * a2)
+   ```
+
+   the WEIGHT `w` is nought where `qc <= 0`; otherwise, with
+   `disc = max((qb * qb) - ((4.0 * qa) * qc), 0.0)`,
+   `q = -0.5 * (qb + sqrt(disc))` where `qb >= 0` and
+   `q = -0.5 * (qb - sqrt(disc))` otherwise, the candidates are `q / qa`
+   (where `qa` is not nought) and `qc / q` (where `q` is not nought),
+   and `w` is the SMALLEST of those that lie in
+   `[-1e-12, 1 + 1e-12]`, kept inside `[0, 1]`; where neither lies
+   there, `w = 1`. The SCALE is
+   `E = d1 / (a2 + (w * de))`, and the shape is
+
+   ```
+   a(s) = E * (s**n * (w + ((1.0 - w) * s)))
+   ```
+
+   with `s**n` by squaring and multiplying over the bits of `n`, the
+   most significant first (`result = result * result`, then
+   `result = result * s` where that bit is set). Its mean over
+   `s` uniform on `[0, 1]` is `d1` and its mean square is `rho**2`,
+   which is what makes the two published numbers the shape's own. It is
+   the same family the numeric tail is read through, so the method has
+   one tail shape and not two.
+
+   The two integrals it is read with are
+
+   ```
+   A(s)  = E * (((w * s**(n+1)) / (n + 1))
+                + (((1.0 - w) * (s**(n+1) * s)) / (n + 2)))
+   B(s)  = (E * E) * ((((w * w) * s**(2n+1)) / (2n + 1)
+                       + (((2.0 * w) * (1.0 - w)) * (s**(2n+1) * s))
+                         / (2n + 2))
+                      + ((((1.0 - w) * (1.0 - w)) * ((s**(2n+1) * s) * s))
+                         / (2n + 3)))
+   ```
+
+   -- the integral of `a` and of `a**2` from nought to `s`, each power
+   taken by the same squaring rule.
+
+2. **The strata.** Rank `i` counted from the OUTSIDE (`i = 0` the
+   outermost, `i = m - 1` the innermost) owns the share
+   `s in [(m - 1 - i) / m, (m - i) / m]`. A drawn rank reads one word
+   `u` and stands at
+   `s = ((m - 1 - i) * 2**64 + u) / (m * 2**64)`, one whole-number
+   quotient rounded once. **The words are read in RANK order**, which
+   is ascending outer index on the low tail and DESCENDING on the high
+   one, so the words run through the column exactly as its ranks do:
+   the low tail's drawn ranks first, then each gap of the body, then
+   the high tail's.
+
+3. **The derived end, matched on both moments.** With
+   `T = m * d1`, `S = m * (rho * rho)`, `inner = (m - 1) / m`,
+   `P1 = m * A(inner)`, `Q1 = m * B(inner)` and
+   `reach = a(inner)`, the STRETCH `k` on ranks `1 .. m - 1` and the
+   outermost rank's distance `D` solve
+
+   ```
+   k**2 * (P1**2 + Q1) - 2 * k * T * P1 + (T**2 - S) = 0,  D = T - k * P1
+   ```
+
+   so that the expected sum of the `m` distances is `T` and the expected
+   sum of their squares is `S`. Of the two roots
+   `((-qb2 -/+ sqrt(disc2)) / (2 * qa2))` with
+   `qa2 = (P1 * P1) + Q1`, `qb2 = -2.0 * (T * P1)` and
+   `qc2 = (T * T) - S`, taken in that order, a root counts only where
+   `k > 0` and `D >= k * reach` -- the outermost rank is never inside
+   rank 1's own reach -- and the one nearest `1` is taken, the first on
+   a tie. Where neither counts, `k = 1` and
+   `D = sqrt(max(m * (B(1) - B(inner)), 0.0))`, the root-mean-square of
+   the shape over the outermost stratum.
+
+   *Why the moments and not the stratum mean (measured, design
+   `date-clock-tails` section 6.2).* On a lone far value the stratum
+   mean misses the published mean square by 14 to 22 per cent and the
+   stratum root-mean-square misses the mean by 13 to 24 per cent, where
+   this end misses by 0.1 to 3.9 per cent.
+
+4. **The readable window.** `edge` is G7.3e's furthest distance. Where
+   `D > edge`, `D = edge` and `k = (T - D) / P1` where `P1 > 0`: the end
+   stands at the edge and the rest of the tail is stretched to keep the
+   published mean, which is the point mass at the edge a column heaped
+   on a sentinel really has.
+
+5. **Whole distances.** Every distance is rounded to the nearest whole
+   unit, halves UP, on the value itself -- its significand and exponent,
+   never `value + 0.5` in binary64 -- and is at least one unit and at
+   most `edge`:
+
+   - rank `0` takes `D`;
+   - a tail holding more cells than the smallest group size `F` puts its
+     innermost ranks on ONE distance (the TIE GROUP): ranks `F - 1` to
+     `m - 1` take
+     `k * (m * A((m - (F - 1)) / m)) / (m - (F - 1))`, the mean of the
+     shape over their strata together, and draw no word. The real tail
+     held them on one value -- that is why `rows` exceeded the floor --
+     and a twin that split them would describe a boundary further out
+     (measured: `heap` seed 7, boundary 2022-03-17 against 2022-03-15
+     and `rows` 40 against 39);
+   - every other rank `i` takes `k * a(s)` at its own `s`.
+
+   Then each distance is raised to at least the distance of the rank
+   inside it, from the innermost outward, so the tail never folds; a
+   column whose values are ALL DIFFERENT (G11) runs the two-pass step of
+   G7A.4 instead; and each is finally kept at `edge` or less.
+
+   **ALL DIFFERENT REACHES BOTH ROLES**, a column of dates exactly as a
+   column of clock times, and a tail of such a column takes NO TIE
+   GROUP: two ranks on one distance are two cells on one value, which a
+   column whose cells all differ does not have. Measured: 400 dates, all
+   different, whose high tail was drawn without this held 398 of them --
+   three ranks on one day -- and missed both distinctness counts on a
+   file whose own source met them.
+
+6. **Where the rank stands.** On the low side the rank's ordinal is
+   `anchor - distance * unit`, on the high side `anchor + distance *
+   unit`, with `unit` the tail unit in the ordinal space of G7.1 -- one
+   for days, months and quarters, sixty for a column written to the
+   minute, one second otherwise, and 86400 for a column counted in days
+   of the shared clock -- and `anchor` the boundary's own ordinal,
+   except on the shared clock counted in days, where it is the UTC
+   midnight of the boundary's own day.
+
+7. **A rank standing at ONE PLACE steps off a hole and onto a midnight.**
+   The outermost rank and the tie group draw no word, so each stands at
+   one place and two rules apply to them, in this order:
+
+   - a tail group of a column whose count at midnight is published and
+     whose unit is a minute or a second stands at the midnight NEAREST
+     its own distance inside the strata it covers -- the local midnight of a
+     named offset's wall clock, the inner taken on a tie, its own
+     distance where none lies in reach. Its strata reach
+     `k * a((m - (F - 1)) / m)`, rounded as above;
+   - a rank whose unit is named by one of the column's own published
+     absent spellings, read under the column's own member, steps one
+     unit INWARD until it is not, never below one unit. A derived end
+     that is a declared missing value would be written as a cell the
+     twin's own description reads as absent (the skeptic of the tail
+     design, B8).
+
+   The end is then raised to the group's distance where the group is
+   further out, so the two stay in rank order.
+
+8. **The gap of a tail rank IS its stratum** (G12.4): the two distances
+   its own construction gives it at a word of nought and at the largest
+   word, widened to the whole DAY it may be moved inside where one unit
+   is a day of the shared clock -- half a day below and one second less
+   than half a day above, so the room is exactly one day wide and two
+   neighbouring ranks' rooms never name one instant twice -- inside
+   which the move onto a local midnight may take it anywhere. Every later pass -- the step off a hole, the counts of
+   different values and of widths, and the moves onto and off midnight
+   -- moves a rank only inside its gap, which is what keeps every
+   published tail fact inside the window of G12.14.
+
+#### G7.3c A tail that publishes which values it holds
+
+*Stage 3, plan P4-D329 (the owner's ruling of 2026-09-22).* Where a tail
+holds few different values, or where its two distances would settle the
+outermost value or a count below the floor, the description publishes
+the tail's sorted distinct `values` instead of its root-mean-square
+distance, and its mean distance beside them only where that settles no
+count below the floor (contract TL1, TL3). It publishes them only where
+each of its DISTANCES carries one canonical text; where a distance
+carries two -- which a day of the shared clock does, holding a bare
+date's midnight and a moment's two hours before it -- the tail
+publishes its two distances instead, and the ranks it holds are drawn
+through the shape below like any other.
+
+The twin then writes the tail ON THOSE VALUES AND NOWHERE ELSE. With the
+values in distance order, outermost first, and `m = rows`:
+
+- every value takes at least one rank;
+- with the mean published, `T = round(m * mean_distance)` halves up is
+  the whole sum the counts must reach exactly. Each value from the
+  outermost inward takes the FEWEST ranks that still leave the values
+  inside it able to reach `T` exactly -- asked by a table over how many
+  ranks are left and what they must still add, in whole numbers -- and
+  the innermost takes the rest;
+- with no mean published, or where no count can reach `T`, rank `i` of
+  the tail takes value number `floor(i * v / m)` of the `v` values, so
+  the ranks are shared as evenly as the values allow, the outer values
+  first;
+- **except that a column publishing `n_at_midnight` shares them by that
+  count instead** (stage 3). With the mean withheld the description says
+  only that each value is held at least once, so every other rank is the
+  construction's to place, and it places them where the column's other
+  EXACT facts need them: each value takes one rank, and the rest go to
+  the first value, outermost first, that stands at a local midnight
+  where the column publishes more cells at midnight than not, or that
+  does not where it publishes fewer. Where no value answers, the even
+  share above stands. Measured: 1,000 moments over five days under two
+  offsets, 980 at local midnight, whose high tail lists a midnight and a
+  noon and withholds its mean because three rows held the noon -- the
+  even share wrote 102 noon cells for those three and the twin missed
+  `n_at_midnight` by 84 and `all_at_midnight` with it.
+
+Each of those ranks stands at its value's own ordinal and draws no word.
+Its gap is that one place, so no later pass moves it.
+
+#### G7.3d A column with no tails: the made-up ramp
+
+*Stage 3, plan P4-D330.* A column too small for a boundary on each side,
+or one so tied at an end that the two boundaries cross (contract TL2),
+publishes no tail, no rung and no value of the table at all. Its cells
+are still counted, so the twin writes a RAMP that meets the counts and
+claims nothing: rank `0` stands at 1970-01-01 -- ordinal nought in every
+space of G7.1 -- and rank `P - 1` at `(D - 1)` steps later, where `D` is
+the column's published count of different values less the cells that
+read as no date, capped at `P` and at least one, and the step is one
+unit of the space, a whole DAY for a column counted in seconds so that
+the passes onto and off midnight have a midnight of each day to reach. Every rank
+between the two is drawn in the gap between them exactly as a body rank
+is, and every later pass runs unchanged, so the published counts of
+different values, of values at midnight, of resolutions and of written
+forms are reached where the construction can reach them. The quality
+report lists every value-bearing obligation of such a column as
+withheld (validation method V3.5).
+
+#### G7.3e The readable window a tail is kept inside
+
+*Stage 3, plan P4-D331 (the skeptic of the tail design, B2 and B3).* A
+twin cell must read back as the value the twin holds, so no rank of a
+tail is placed where the column's own spelling cannot spell it:
+
+- the calendar itself, the years 0001 to 9999, for every member;
+- 1969-01-01 to 2068-12-31 for a member that writes a TWO-FIGURE YEAR,
+  whose century the reader settles at `parsing.TWO_DIGIT_YEAR_PIVOT`:
+  a twin that writes 1968 as `68` is read back as 2068 (measured:
+  8 of 16 twins of a `dd/mm/yy` column wrote 1 to 3 such cells, each
+  missing 4 to 7 of the tail's own checks);
+- from the first day the workbook's date system can store, where the
+  twin's cells are stored as workbook days: 1900-01-01 for the 1900
+  system and 1904-01-01 for the 1904 one;
+- on the SHARED clock, those edges come in by the widest offset the
+  census names, because each cell is written on its own offset's wall
+  clock -- and by one whole day where the unit is a day of that clock.
+
+The edge is then the furthest distance from the boundary inside that
+window, at least one unit. **The calendar is not inset on the local
+clock**: a column holding a heap of `0001-01-01 00:00:00` -- the "no
+date" value of two common systems -- is floor-safe, and its twin writes
+that day exactly (measured: 40 cells of 40, against 0 under a one-day
+inset).
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -5050,30 +5333,44 @@ Allocation, over the `P` parsed cells in ascending rank:
 0. A rank G7.5 writes as a bare date is settled first, with no
    offset: it consumes one from `(none)`, or from `(withheld)` where
    `(none)` has no count left (landing 2b.3).
-1. Rank `0` takes `earliest_utc_offset` and rank `P - 1` takes
-   `latest_utc_offset`, where that key has a count left and the rank is
-   not already settled; a key of `(none)` or `(withheld)` is taken too,
-   and writes no offset (corrected at landing 2b.3 to the rule the
-   generator has always applied, which no frozen case reached). Those
-   two consume one from that key's count. `earliest_utc_offset` and
-   `latest_utc_offset` are EXACT-OBSERVABLE and this is what makes them
-   so. On a column G7.5 moves onto a midnight -- wholly at midnight on
-   the `utc` clock, or only partly at midnight on either clock
+1. **NO END TAKES AN OFFSET OF ITS OWN** (stage 3, plan P4-D328): the
+   description names no offset for the two end rows, because it
+   describes no end row at all, so both ends join the allocation of step
+   2 like every other rank and the two keys are gone from the format.
+   What remains of this step is the midnight rule. On a column G7.5
+   moves onto a midnight -- wholly at midnight on the `utc` clock, or
+   only partly at midnight on either clock
    (integration repair of landing 2b.3: 1,000 moments over five days
    under `+01:00` and `+02:00`, 980 of them at local midnight, stood
    mostly between pinned ranks of one instant, took their offsets in
-   sorted order, and 82 were written an hour off midnight) -- each
-   interior rank whose instant the
-   published tail fixes -- each rung rank of G7.5, and each rank standing
-   between two pinned ranks of one instant -- then takes the first offset,
+   sorted order, and 82 were written an hour off midnight) -- each rank
+   whose instant the layout of G7.3 fixes at ONE PLACE: a boundary rank,
+   a published rung's rank, and a tail's derived end or group where it
+   stands at one instant, with each rank standing between two pinned
+   ranks of one instant -- takes the first offset,
    the real offsets in sorted order and then `(none)`, under which that
    instant stands at midnight and whose key has a count left (repair pass
    of landing 2b.3: a rung at a midnight of the shared clock whose `Z` was
    spent takes `(none)`, and ranks between p90 and the end on one such
    midnight were written `T02:00:00+02:00`).
-2. The remaining counts are spent over the remaining ranks in ascending
-   rank order, taking the offset keys in the profile's own sorted key
-   order, `(none)` and `(withheld)` last.
+2. The remaining counts are spent over the remaining ranks, taking the
+   offset keys in the profile's own sorted key order, `(none)` and
+   `(withheld)` last. The ranks are visited in ascending rank order,
+   except on a column moved onto a midnight, where they are visited
+   **SCARCEST FIRST** (stage 3, repairing plan P4-D254): each remaining
+   rank is counted for how many keys both have a count left AND put a
+   midnight inside that rank's own gap (the bounds of G12.4), and the
+   ranks are taken in ascending order of that count, ties in ascending
+   rank order. Measured on 1,000 moments over five days under `+01:00`
+   and `+02:00`, 980 of them at local midnight: spending in rank order
+   gave a key feasible for nearly every rank to ranks that had another,
+   and the 84 ranks in the twelve-hour gap between the last rung and the
+   high boundary -- where only `+02:00` puts a midnight inside the gap --
+   found it gone, so the twin held 896 and missed both midnight
+   obligations. Counting first and spending the scarcest first writes
+   all 980. Where every key is feasible for every rank the count is the
+   same for all of them and the order is ascending rank order again, so
+   no column outside this rule moves a byte.
 3. A cell allocated `(none)` is written with **no offset**.
 4. A cell allocated `(withheld)` is written with **no offset** as well,
    and this is a loss, named as one: the profile does not say which
@@ -5081,7 +5378,8 @@ Allocation, over the `P` parsed cells in ascending rank:
    spell them apart. See G11 instance 3.
 
 **The clock conversion, which is not optional.** `datetimes_read_at`
-says which clock `earliest`, `latest` and the ladder are written on:
+says which clock the two tail boundaries, the values a tail lists and
+the ladder are written on:
 
 - `local` — one offset wrote the whole column, so the published text IS
   the local wall clock. The cell text is the canonical form of the
@@ -5278,7 +5576,10 @@ space of G7.1 round-trips every instant a whole-second count can hold,
 and there is one a real reader can still hand a description that it
 cannot: the last second of a leap minute, `SS` of `60`, which the
 profile contract's canonical form admits at 6.6.2 because the shipped
-reader accepts one. Read `earliest` (or `latest`) as its four fields —
+reader accepts one. *Stage 3 (plan P4-D328): the values this rule is stated over are the two
+TAIL BOUNDARIES and the values a few-valued tail lists, which are the
+published values of a date column now; no end is published.* Read the
+published moment as its four fields —
 the date, `HH`, `MM` and `SS` — and build the cell as:
 
 1. `resolution` `date`, `month` or `quarter`: the published text itself, which is
@@ -5294,20 +5595,22 @@ the date, `HH`, `MM` and `SS` — and build the cell as:
 The result is then cut to the recorded `time_precision` by the table
 above, and the offset suffix follows as usual. The cut can drop no
 published detail: `minute` is the only precision with no seconds field,
-and the contract's D10 admits it only where both endpoints' `SS` is
-`00`. For every instant whose `SS` is `00` through `59` this produces
+and the contract's D10 admits it only where every published moment's
+`SS` is `00`. For every instant whose `SS` is `00` through `59` this produces
 exactly the same bytes the ordinal route produces, which is why it moved
 no case of G14.3's first nine when it was written; for `SS` of `60` it
 produces the endpoint the description published, and G14.3's
 `leap_second_endpoint` case freezes those bytes beside a committed
 mutant that puts the ordinal route back.
 
-**Both endpoints are therefore EXACT-OBSERVABLE, with no leap-second
-exception**, which is what the ratified plan requires in its own words —
-`earliest`, `latest` EXACT-OBSERVABLE in the representation owner
+**Both tail boundaries are therefore EXACT-OBSERVABLE, with no
+leap-second exception**, which is what the ratified plan requires in its
+own words —
+both tail boundaries EXACT-OBSERVABLE in the representation owner
 decision 5 fixes (`docs/plans/phase-2-generator.md` revision 5, P2-D6,
-the datetime paragraph) — and what the profile contract's 9.6 now
-states in the same words. An earlier
+the datetime paragraph), the obligation stage 3 moved from the two ends
+to the two boundaries without lowering it — and what the profile
+contract's 9.6 now states in the same words. An earlier
 revision of this section instead declared the endpoint REPORT-ONLY
 because the ordinal space has no room for the value. That was a true
 statement about the ordinal space used to lower a bar the owner set;
@@ -5327,26 +5630,31 @@ shared-clock endpoint whose own offset moves its cell off the end of the
 calendar. Each was an exception written beside a sentence that says
 there is none, and the previous paragraph's own words apply to all
 three: a true statement about what a cell can show, used to lower a bar
-the owner set. All three pairs are now refused by the profile contract's
+the owner set. The first two pairs are refused by the profile contract's
 **D10**, on the same terms as its D6 refusal of the
 `date`-beside-`datetime` pair, and its **D11** ties
-`date_percentiles.min` and `.max` to the same two texts. No pair of the
-three reaches a generator, so this method needs no rule for them, and it
+`date_percentiles.min` and `.max` to the tail rule -- both are `null`,
+and every published rung stands between the two boundaries. The third
+pair no longer exists to refuse: stage 3 publishes no end and no end's
+offset, and the calendar's edge is G7.3e's obligation on every rank of a
+tail, which is where the cell it was about is now derived. No pair
+reaches a generator, so this method needs no rule for them, and it
 states none.
 
-**The endpoints are still checked on the written cell, not assumed from
-the rule.** After the cells for ranks `0` and `P - 1` are built, each is
+**The tails are still checked on the written cells, not assumed from
+the rule.** After the cells are built, each is
 read back with the shipped date reader, put on the clock
-`datetimes_read_at` names, and compared with the published `earliest`
-and `latest`. Silence there was the defect: a fact the loader accepted
+`datetimes_read_at` names and counted in the published `tail_unit`: a
+cell must stand on each published boundary, and exactly `rows` cells
+must lie strictly beyond it. Silence there was the defect: a fact the loader accepted
 was quietly changed on output. The check is not a formality now that D10
 and D11 stand, and it is not vacuous either: it fails on any
 implementation that stops writing the ends from their own fields, which
 is the regression this whole section exists to prevent, and a conforming
 repository owes a case that puts that regression in and watches the
 check catch it. What it is NOT is a route by which a
-description gets a lesser end. Every description this contract's loader
-accepts has an end this rule writes exactly; a disagreement here is a
+description gets a lesser tail. Every description this contract's loader
+accepts has tails this method writes exactly; a disagreement here is a
 defect in the implementation, and the run says so in as many words
 rather than passing it off as an outcome the description asked for.
 
@@ -5883,33 +6191,51 @@ This is why G7A.3's first paragraph does not say the capacity test
 guarantees a place for every value. It does not: it guarantees the FORM
 has room, not that the RANGE does. Only the report closes that gap.
 
-### G7A.4 Values: the same stratified inverse transform, in integers
+### G7A.4 Values: the tails, and the body between their boundaries
 
-Convert the eleven rungs to ordinals `Lo[0] .. Lo[10]`. The cells are
-ranks `r = 0 .. P - 1`, one cell per rank; clock columns are not
-stratified by value, because no clock multiplicity map is published.
-Then:
+*Amended at stage 3 (plan P4-D328): a column of clock times publishes no
+earliest and no latest value either, so its two ends belong to its two
+tails and its body runs between the two published boundaries.*
 
-- `r == 0`: the cell is `earliest`, used exactly as published — the
-  published TEXT, not a re-spelling of its ordinal. No word.
-- `r == P - 1` and `P >= 2`: the cell is `latest`, exactly, by the same
-  rule. No word.
-- otherwise: one word `w`, and
+The cells are ranks `r = 0 .. P - 1`, one cell per rank; clock columns
+are not stratified by value, because no clock multiplicity map is
+published. With `m_lo = low_tail.rows` and `m_hi = P - 1 -
+high_tail.rows`, in the form's own unit -- minutes of the day for
+`hh-mm`, seconds for `hh-mm-ss`:
+
+- `r < m_lo` or `r > m_hi`: a TAIL rank, placed by G7.3b in this unit
+  (or by G7.3c where the tail publishes its values), against the day's
+  own ends: nothing beyond `00:00` below and nothing beyond the last
+  minute or second above (G7.3e in this space).
+- `r == m_lo`: the cell is `low_tail.boundary`; `r == m_hi`:
+  `high_tail.boundary`, each the published TEXT, not a re-spelling of
+  its ordinal.
+- otherwise: the body, interpolated between the KNOTS -- the low
+  boundary at position `m_lo`, each PUBLISHED rung `j` at position
+  `P * PCT[j] / 100`, and the high boundary at position `m_hi + 1`,
+  every position counted in hundredths of a rank times `2**64` so that a
+  rank reading one word `w` stands at `100 * (r * 2**64 + w)`. A rung
+  the tail rule withholds is not a knot. Let `(p0, v0)` and `(p1, v1)`
+  be the two knots the rank's own position falls between, the last pair
+  where it passes the end:
 
   ```
-  N_r = r * 2**64 + w
-  D   = P * 2**64
-  find j with PCT[j] * D <= 100 * N_r < PCT[j+1] * D
-  A   = 100 * N_r - PCT[j] * D
-  B   = (PCT[j+1] - PCT[j]) * D
-  ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B
+  share   = min(max(position - p0, 0), p1 - p0)
+  ordinal = v0 + (share * (v1 - v0)) // (p1 - p0)        (v1 where p1 <= p0)
   ```
 
-  identical in shape to G7.3, with `Lo` in the form's own unit. The
-  floor division rounds toward the EARLIER time. `ordinal` lies in
-  `[Lo[j], Lo[j+1]]` by construction and so in `[Lo[0], Lo[10]]`, which
-  T2 makes `[earliest, latest]`: no interior cell falls outside the
-  published range and both endpoints stay exact.
+  identical in shape to G7.3's segment reading. The floor division
+  rounds toward the EARLIER time, and `ordinal` lies between the two
+  boundaries by construction, so no body cell falls into either tail.
+
+**EVERY INTERIOR RANK READS ONE WORD, AS IT ALWAYS HAS.** A clock
+column is handed `P - 2` content words and spends them in rank order;
+rank `0` and rank `P - 1` draw none. A boundary rank and a tail's group
+READ their word and set it aside, so every body rank keeps the word it
+read before stage 3 and no column generated after this one moves
+(G3, G4). A column with no tails at all spreads its ranks evenly over
+its count of different values from `00:00` (the ramp of G7.3d), each
+interior rank still reading and discarding its word.
 
 **The all-different obligation is EXACT for this role**, and it is the
 one shape where it is. Everywhere else a column's count of different
@@ -5921,13 +6247,19 @@ obligation applies where
 n_distinct - n_unparsed  >=  P
 ```
 
-and the repair is: keep the ordinal of the previous rank; if this
-rank's ordinal is not above it, step to the previous ordinal plus one;
-then clamp to the ordinal of `latest`. The interpolation is
-non-decreasing across ranks, so two ranks land on one time only where
-the ladder is tighter than the ranks are numerous, and stepping the
-later one up by one unit is what the source column itself did. The
-clamp is what G7A.3's second paragraph is about.
+and the repair is: in the BODY, keep the ordinal of the previous rank;
+if this rank's ordinal is not above it, step to the previous ordinal
+plus one; then clamp to one unit below the high boundary. In a TAIL it
+is the two-pass step of G7.3b step 5: from the innermost rank outward,
+a distance not above the one inside it is raised to that distance plus
+one and then kept at the edge; then, from the outermost rank inward,
+a distance not below the one outside it is lowered to that distance less
+one, never below one unit. **The clamp runs inside BOTH passes**: with
+the clamp applied only after the first, the ranks piled up at `00:00`
+and `23:59` and 7 of 20 twins of an all-different column repeated a
+value its description publishes as different (the skeptic of the tail
+design, B5). The real column fits, because its own `m` values stood
+between the day's edge and the boundary.
 
 ### G7A.5 The stand-ins
 
@@ -9692,6 +10024,16 @@ eleven on one-place values -1.8, -0.9, -0.6, 0.8, 1.8, 3.3 and 3.5 at the
 counts 9, 18, 28, 23, 8, 30 and 23, the published mode 3.3 at a count of
 30 was written ONCE and nothing was named.
 
+**AND TWO LEFT THE INDEX IN STAGE 3** (plan P4-D328): `earliest` and
+`latest`. A column of dates publishes neither instant any more, so no
+call can pass either name and an index naming them would be a report
+key nothing can produce -- which this guard reads in that direction
+too. What stands in their place is two TAILS, and they are named in
+the shape list below rather than here: a boundary is exact, written
+from the published moment's own fields, so no run can fail to reach
+it; the two DISTANCES are approximated inside the construction window
+of G12.14, which is what an entry of that list is for.
+
 **AND ONE MORE AT PLAN P4-D192**: `date_field_widths`, named where a
 census of one convention is left unmet by the count passes of G7.3. *Widened by plan P4-D195:* a census naming several conventions is
 recounted the same way, and each convention whose count the twin does not
@@ -9704,14 +10046,12 @@ the floor, so without the note a different count passed unsaid.
 * `datetime_separators`
 * `datetimes_read_at`
 * `decimal_plus`
-* `earliest`
 * `empty_bins`
 * `empty_edges`
 * `field_widths`
 * `fraction_widths`
 * `group_separator`
 * `integer_valued`
-* `latest`
 * `n_at_midnight`
 * `max_length`
 * `min_length`
@@ -9750,10 +10090,11 @@ the floor, so without the note a different count passed unsaid.
 * `levels -> shape_form_cells`
 * `levels -> variants_withheld`
 
-**AND FIVE FAMILIES whose name carries a number, listed as their
-shape** (review round 6 item 5). A report builds these from a
-position, a seat or a rung, so the index names the SHAPE and the guard
-holds the shapes to the writing rules that build them:
+**AND THE FAMILIES WHOSE NAME CARRIES A POSITION, listed as their
+shape** (review round 6 item 5; five of them when it was written). A
+report builds these from a position, a seat, a rung or a SIDE, so the
+index names the SHAPE and the guard holds the shapes to the writing
+rules that build them:
 
 * `parts[<n>].<key>` — any key above, carried by one POSITION of a
   `joined_numbers` cell, `<n>` counting from nought
@@ -9779,13 +10120,19 @@ holds the shapes to the writing rules that build them:
   percent written to two figures
 * `clock_percentiles.p<nn>` — the same for a clock ladder
 * `date_percentiles.p<nn>` — the same for a date ladder
+* `<n>_tail.mean_distance` — how far, on average, the cells beyond one
+  TAIL's boundary lie beyond it, `<n>` the side that tail stands on,
+  `low` or `high` (stage 3, plan P4-D328)
+* `<n>_tail.rms_distance` — the same for the root-mean-square distance,
+  which a tail publishes where it publishes no values
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach
 the published fact.
 
 **What this list does not hold, and why the absence is the point.** No
-end of a column of dates appears in it. The contract's D10 and D11
+end of a column of dates appears in it, and neither does a tail's
+BOUNDARY -- the fact that stands where an end stood. The contract's D10 and D11
 settle every description on which one could not be written, so a
 generator has an exact answer for the two ends of every column it is
 handed; a run that finds otherwise has found a defect in itself, prints
@@ -10185,28 +10532,31 @@ above its high end excludes the very statistic it was drawn for.
 
 Let `P = n_present - n_unparsed` be the number of twin cells that read
 back as a date, and `Ladder_d` the published `date_percentiles` read in
-the ordinal space of G7.1 by the same whole-number interpolation G7.3
-builds cells with. Since landing 2b.6 rank `k` of G7.3 is NOT its own
-stratum: the published tail pins the two ends and the rank each of the
-nine interior rungs is selected from, each to its published value, and
-every other rank is drawn inside the gap between the two pinned ranks
-either side of it. Writing `P[k]` and `Q[k]` for the pinned values below
-and above rank `k`, the twin's own ordinals `O`, sorted, obey
+the ordinal space of G7.1. Since landing 2b.6 rank `k` of G7.3 is NOT
+its own stratum, and since stage 3 the ranks the layout pins are the two
+TAIL BOUNDARY ranks and the rank each PUBLISHED interior rung is
+selected from, each at its published value; a BODY rank is drawn inside
+the gap between the two pins either side of it, and a TAIL rank inside
+its own stratum (G7.3b step 8), or at the one place its published value
+gives it (G7.3c). Writing `P[k]` and `Q[k]` for the two ends of rank
+`k`'s gap, the twin's own ordinals `O`, sorted, obey
 
 ```
-O[0] == earliest,   O[P-1] == latest,   O[k_j] == Ladder_d rung j,
+O[m_lo] == low_tail.boundary,   O[m_hi] == high_tail.boundary,
+O[k_j]  == Ladder_d rung j for every PUBLISHED rung,
 and for every other rank:   P[k] - u   <=   O[k]   <=   Q[k]
 ```
 
-**A pinned rank's window is a POINT.** Each of the nine interior rungs
-is held to the value the description publishes rather than to a band
+**A pinned rank's window is a POINT.** Each published interior rung is
+held to the value the description publishes rather than to a band
 around its slice, which is what makes the rung check of this section
 strictly stronger than the one it replaces: under the stratified
 placement every interior rung landed BELOW its published value in all 54
 runs it was measured over, because the interpolation floors, and the
-band was wide enough to admit that. The two ENDS carry no allowance on
-either side, because G7.5 writes them from the endpoint's own fields
-rather than from an ordinal, so writing them loses nothing.
+band was wide enough to admit that. **No end is a rung any more**: both
+ends of the ladder are null and the ranks they stood at are the
+outermost cells of the two tails, whose window is the stratum their own
+construction draws (G12.14).
 
 where `u` is what reading a written cell back can lose: one unit for
 the downward rounding of the whole-number interpolation itself, plus
@@ -10241,26 +10591,45 @@ column (G10.4). So
 F + n_unparsed   <=   n_distinct(twin)
 ```
 
-**The upper end.** Every cell that reads as a date carries an instant
-between the published `earliest` and `latest`, written at the published
-precision, spelled with one of the offsets `utc_offsets` names by name
-(G7.4), and with one of the marks G7.5 allocates. With `W` the number
-of instants that range holds at that precision — days on an
-`all_at_midnight` column — `M` the number of named offsets, or 1 where
+**The upper end.** Every cell of the BODY carries an instant between
+the two published tail boundaries, written at the published precision,
+spelled with one of the offsets `utc_offsets` names by name (G7.4), and
+with one of the marks G7.5 allocates; each cell of the two TAILS can be
+a value of its own, and stage 3 counts them one by one rather than
+through a range no description publishes. With `W` the number of
+instants the two boundaries hold between them at that precision — days
+on a column counted in days — `M` the number of named offsets, or 1 where
 none is named, `S` the number of marks G7.5 writes — the named ones
 and, where a pool is split, the unnamed permitted marks given a share of
-it — or 1 where none is, `C` the product over the four censuses of how
+it — `C` the product over the four censuses of how
 a column's dates were written of how many forms each names, 1 for a
 census naming none (plan P4-D137: `3/5/2024` and `03/05/2024` are two
 cells of one day, and `2024-Q1` and `2024-q1` two of one quarter), `B`
 one on an `iso-mixed` column whose
 `all_at_midnight` is `true` on the `local` clock and that holds a whole
-date, where a day can also be written bare, and nought otherwise, and
+date, where a day can also be written bare, and nought otherwise, `R`
+the two tails' `rows` added, and
 `n_present` cells in the column at all:
 
 ```
-n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + n_unparsed + G)
+n_distinct(twin)   <=   min(n_present, W * (M * S * C + B) + R + n_unparsed + G)
 ```
+
+A column publishing no tails at all is its RAMP (G7.3d), and the ramp
+bounds itself: it spreads its ranks evenly over `D` steps from
+1970-01-01, `D` its published count of different values less its
+unparsed cells, capped at `P` and at least one, so the twin's instants
+are those `D` and no others. Each of them can be written in the same
+`M * S * C + B` ways as a body cell, and each unparsed cell is a
+stand-in of its own:
+
+```
+n_distinct(twin)   <=   min(n_present, D * (M * S * C + B) + n_unparsed + G)
+```
+
+Written as `n_present` instead -- the reading before this clause was
+measured -- the envelope admitted 124 on a column whose ramp can hold
+six, which is an envelope that checks nothing.
 
 `G` is what G7.9 may buy, and it is bounded at BOTH ends. It is nought
 unless the column's census leaves a permitted mark unnamed — nought, that
@@ -10613,10 +10982,17 @@ ordinals, and `Ladder(r, P)` its interpolation at rank `r` of `P`. Then
 rank `r` of the twin, read back and converted to ordinals, satisfies
 
 ```
-r = 0        :  ordinal = Ladder[min]
-r = P - 1    :  ordinal = Ladder[max]                    (for P >= 2)
-otherwise    :  Ladder(r, P) - 1  <=  ordinal  <=  Ladder(r + 1, P)
+r < m_lo or r > m_hi :  the rank's own stratum (G12.14), or its one
+                        published value (G7.3c)
+r = m_lo             :  ordinal = low_tail.boundary
+r = m_hi             :  ordinal = high_tail.boundary
+otherwise            :  Knots(r) - 1  <=  ordinal  <=  Knots(r + 1)
 ```
+
+where `Knots` is G7A.4's own reading between the knots, and the upper
+end is never above the high boundary. *Amended at stage 3: the two ends
+are tail ranks now, and `Ladder` is the knots the two boundaries and
+the published rungs make.*
 
 The two ends are then multiplied into seconds, because the measured
 side is read in the FILE's own form and the two have to meet in one
@@ -10741,6 +11117,47 @@ description publish its pool and the comparison happens. Measured on the
 shape ledger K-2B-50 names: the twin's own re-described block publishes
 a hundred pooled cells at a mean of 204.5, and the twin built without
 the placement publishes a hundred at 100 and is MISSED.
+
+### G12.14 The window on a date or clock tail's two distances
+
+*Stage 3, plan P4-D328.* `mean_distance` and `rms_distance` are
+APPROXIMATED facts (contract section 9), and this is the two-sided bound
+G12.1 obliges them. It is a statement about the CONSTRUCTION and never a
+tolerance around the published number.
+
+Run G7.3b's construction twice over the tail's `m` ranks: once with
+every drawn rank's word at NOUGHT and once with every one at
+`2**64 - 1`, each pass carried through the rounding, the tie group, the
+step off a hole, the move onto a midnight, the monotone fix, the
+all-different step and the clamp to the edge. Call the two whole
+distances of rank `i` `near[i]` and `far[i]`. Every step of the
+construction is monotone in every word, so a twin built by it has each
+rank's distance between those two, and
+
+```
+sum(near) / m   <=   mean(twin)   <=   sum(far) / m
+sqrt(sum(near[i]**2) / m)  <=  rms(twin)  <=  sqrt(sum(far[i]**2) / m)
+```
+
+measured over the twin's cells lying strictly beyond the PUBLISHED
+boundary, in the published tail unit. The comparison is made in whole
+numbers -- the file's own sum against `sum(near)` and `sum(far)` scaled
+by the counts -- so no rounding decides a verdict, and the file's value
+is HELD where it rounds to the published one (validation method V6.1-A1).
+A tail that publishes its values (G7.3c) owes its mean EXACTLY, because
+every rank stands at a published value and the counts are solved to
+reach it.
+
+**Where the window does not cover the published value.** The window
+certifies that the twin was built by the construction, not that it
+reproduced the published fact, and on a tail spanning few whole units
+the rounding of each rank can carry the whole tail's mean outside it:
+measured over the design's battery, all but one of its published values
+lie inside their own window, the exception being a tail of quarters
+whose mean distance is 2. Such a tail publishes its values instead since
+P4-D329, which removes most of that population; what is left is the
+V6.1-A1 pattern, where the real table passes by exact equality and the
+report says the window does not reach the value.
 
 ## G13. Residuals this method carries
 
@@ -11330,16 +11747,57 @@ the cases named above, `accidental_midnight`, with the rule it pinned,
 and it is in no file. The first file,
 `tests/reference/generation-reference-vectors.json`, holds fifteen; the
 second, `tests/reference/generation-branch-vectors.json`, holds
-twenty-one; the third, `tests/reference/generation-branch-vectors-2.json`,
-holds eighteen; the fourth,
+nineteen; the third, `tests/reference/generation-branch-vectors-2.json`,
+holds sixteen; the fourth,
 `tests/reference/generation-document-vectors.json`, holds nine; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds eight;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds ten; the eighth,
-`tests/reference/generation-branch-vectors-6.json`, holds fourteen; and the
-ninth, `tests/reference/generation-branch-vectors-7.json`, holds six
-(G14.2), and a test holds this sentence to those files. **The table below is the inventory itself, and it was short of
+`tests/reference/generation-branch-vectors-6.json`, holds fourteen; the
+ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
+and the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
+four (G14.2), and a test holds this sentence to those files.
+
+**THE TENTH FILE, AND WHY IT WAS OPENED** (stage 3, plan P4-D328). A
+column of dates or clock times needs `2F + 1` cells to publish a tail
+at all, and a case whose rule lives BETWEEN the two boundaries needs a
+body of several ranks besides, so four cases grew at the tail landing:
+`clock_ladder`, `partial_midnight`, `midnight_bare_offsets` and
+`midnight_days`. Grown in place they carried the third file to 261857
+bytes and the second to 258476 against the manifest's 250000-byte cap,
+so the four moved into a file of their own and both fell back under it.
+No case was dropped and no cap was raised.
+
+**AND THREE BRANCHES LOST THEIR WITNESS AT THAT LANDING**, recorded
+here rather than left to be discovered. `date_endpoint_ties` was frozen
+for plan P4-D255's hold on the ranks tied at an END, and there are no
+ends: the description names no offset for an end row because it
+describes no end row. `date_absorbed_mark` was frozen for G7.9's spend
+of an absorbed mark, and `date_two_kinds_nonadjacent` for P4-D258's
+merge onto a held unit that is no rank neighbour; both columns are
+heaped on two or three days, so at a floor of eleven their two
+boundaries cross, they publish no tail and no rung (P4-D330), and their
+twins are the RAMP -- which reaches the published count of different
+values by itself, leaving no shortfall for a mark to buy and no run for
+a merge to move. `date_midnight_traded` keeps its column and loses the
+midnight half of the same merge, because a tail rank moves only inside
+its own stratum. **The round-trip mutant of that same half lost its
+outcome too**, and is named here for the same reason:
+`tests/test_round2_numbers_dates.py` commits a mutant withdrawing the
+midnight trade, and the column of three timestamps whose twin used to
+strand a fourth value now holds exactly the three published ones with
+the trade withdrawn -- the two tails settle the outer values and G12.4
+puts a run whose gap must hold a midnight into a gap that can hold one,
+both before a merge is asked for. Measured over nine shapes on
+2026-09-22, the mutant matched the unmutated twin in every one; the
+test keeps the mutation and asserts the property that replaced it, so a
+regression in either rule strands the run again and turns it red. Each
+of the four cases now holds up a rule it does reach --
+the ramp's step count and its start, G7.3b's moment-matched end, and
+the CONDITION on G7A.4's two-pass step -- and the branches they leave
+are named here so that a later landing can put a case back rather than
+discover the gap. **The table below is the inventory itself, and it was short of
 the count above by one row from the day the pooled-spelling case was
 added** (review item P4-DATE4-F3): an implementer who built exactly the
 rows listed would have left out a required branch while every listed

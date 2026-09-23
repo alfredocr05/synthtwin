@@ -55,54 +55,82 @@ Document = dict[str, typing.Any]
 # One table for every resolution and precision pair the contract permits,
 # so the rendering grammar is exercised at each of them rather than at
 # the two a fixture happens to reach.
+#
+# EACH SHAPE IS WRITTEN AS A SPREAD OF DIFFERENT VALUES since stage 3
+# (plan P4-D328). The four repeated values these shapes held publish no
+# tail at all at a floor of eleven -- ten cells on each of four values
+# leave no value between the two boundaries (contract TL2) -- so the
+# round trip they exist to measure would have nothing to carry. The
+# spread keeps each shape's own resolution, precision and clock and
+# gives the column forty different values, which is what a tail needs.
+def _spread(pattern: str, copies: int) -> "list[str]":
+    """`copies` different values of one shape, a day apart inside a year."""
+    made: "list[str]" = []
+    for index in range(copies):
+        month = 1 + index // 28
+        day = 1 + index % 28
+        made += [pattern.format(month=month, day=day)]
+    return made
+
+
 SHAPES = {
-    "quarter": ["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"],
-    "date": ["2024-01-05", "2024-02-19", "2024-07-30", "2024-11-02"],
-    "minute": [
-        "2024-01-05 09:15",
-        "2024-02-19 13:40",
-        "2024-07-30 21:05",
-        "2024-11-02 04:55",
-    ],
-    "second": [
-        "2024-01-05 09:15:07",
-        "2024-02-19 13:40:44",
-        "2024-07-30 21:05:19",
-        "2024-11-02 04:55:02",
-    ],
-    "subsecond": [
-        "2024-01-05 09:15:07.250",
-        "2024-02-19 13:40:44.100",
-        "2024-07-30 21:05:19.900",
-        "2024-11-02 04:55:02.025",
-    ],
-    "offsets": [
-        "2024-01-05 09:15:07+02:00",
-        "2024-02-19 13:40:44+02:00",
-        "2024-07-30 21:05:19-05:00",
-        "2024-11-02 04:55:02-05:00",
-    ],
+    "quarter": "{month:04d}-Q1",
+    "date": "2024-{month:02d}-{day:02d}",
+    "minute": "2024-{month:02d}-{day:02d} 09:15",
+    "second": "2024-{month:02d}-{day:02d} 09:15:07",
+    "subsecond": "2024-{month:02d}-{day:02d} 09:15:07.250",
+    "offsets": "2024-{month:02d}-{day:02d} 09:15:07+02:00",
 }
+
+# The quarter shape needs a year of its own per value, and the offset
+# shape needs a second offset for the shared clock to be published.
+def _values(shape: str, copies: int) -> "list[str]":
+    """The `copies` different values of one shape."""
+    if shape == "quarter":
+        return [f"{1990 + index // 4:04d}-Q{1 + index % 4}" for index in range(copies)]
+    made = _spread(SHAPES[shape], copies)
+    if shape == "offsets":
+        made = [
+            value if index % 2 == 0 else f"{value[0:19]}-05:00"
+            for index, value in enumerate(made)
+        ]
+    return made
+
 
 # The fields a person can recount on the twin. `format` is REPORT-ONLY
 # and deliberately absent: the twin is written in ISO syntax at the
 # recorded detail, not in the source's lexical family (residual R-P2-7).
+# STAGE 3: the two ends and their offsets are no longer published, so
+# what a twin carries back of the two TAILS is each boundary, the count
+# of cells beyond it and -- where the tail publishes them -- the values
+# it holds, all three EXACT-OBSERVABLE, beside the unit the distances
+# are counted in. The two DISTANCES are APPROXIMATED inside the window
+# of G12.14 and are not compared here; `synthtwin validate` is where
+# they are measured, and `tests/test_p3v4f4_datetime_windows.py` holds
+# the two writings of that window to agreeing.
 CARRIED = (
     "resolution",
     "time_precision",
     "subsecond_digits",
     "datetimes_read_at",
     "utc_offsets",
-    "earliest_utc_offset",
-    "latest_utc_offset",
-    "earliest",
-    "latest",
+    "tail_unit",
 )
+# WHETHER A TAIL PUBLISHES ITS VALUES IS NOT A FACT THE TWIN OWES. It is
+# a decision about the whole column: a tail whose published numbers would
+# settle a count below the floor publishes its values instead (plan
+# P4-D329), and that question is asked with the column's own distinctness
+# beside it. The twin of an all-different column repeats values in its
+# body, so its own tail is not pinned where the source's was, and it
+# publishes the two distances where the source published its values --
+# while holding exactly the same outer values, which is what
+# `synthtwin validate` measures.
+EXACT_IN_A_TAIL = ("boundary", "rows")
 
 
-def _rows(values: "list[str]", copies: int) -> "list[str]":
-    """Enough rows of a small set of values to clear the smallest group."""
-    return [values[index % len(values)] for index in range(copies)]
+def _rows(shape: str, copies: int) -> "list[str]":
+    """Enough different values of one shape for both tails to exist."""
+    return _values(shape, copies)
 
 
 def _document(folder: pathlib.Path, values: "list[str]") -> Document:
@@ -149,7 +177,7 @@ def test_a_temporal_column_reprofiles_to_the_facts_it_published(
     """
     folder = tmp_path / shape
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES[shape], 40))
+    document = _document(folder, _rows(shape, 40))
     block = document["columns"][0]
     assert block["role"] == "datetime", block["role"]
     described = _loaded(folder, document)
@@ -157,12 +185,21 @@ def test_a_temporal_column_reprofiles_to_the_facts_it_published(
     again = _redescribed(folder, built)["columns"][0]
     for key in CARRIED:
         assert again[key] == block[key], f"{shape}: {key}"
+    for side in ("low_tail", "high_tail"):
+        published = block[side]
+        recounted = again[side]
+        assert (published is None) == (recounted is None), f"{shape}: {side}"
+        if published is None:
+            continue
+        for key in EXACT_IN_A_TAIL:
+            assert recounted[key] == published[key], f"{shape}: {side}.{key}"
     named = [
         deviation.fact
         for deviation in built.deviations
         if deviation.column == "when"
     ]
-    assert "earliest" not in named
+    assert "low_tail.rows" not in named
+    assert "high_tail.rows" not in named
     assert "latest" not in named
 
 
@@ -178,7 +215,7 @@ def test_the_pair_no_cell_can_hold_is_refused_by_the_loader(
     """
     folder = tmp_path / "pair"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["second"], 40))
+    document = _document(folder, _rows("second", 40))
     assert document["columns"][0]["resolution"] == "datetime"
     document["columns"][0]["time_precision"] = "date"
     with pytest.raises(errors.ProfileError) as raised:
@@ -206,12 +243,12 @@ def test_an_instant_the_calendar_or_the_clock_has_not_is_refused(
     """
     folder = tmp_path / "calendar"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["second"], 40))
+    document = _document(folder, _rows("second", 40))
     edited = copy.deepcopy(document)
-    edited["columns"][0]["earliest"] = spelling
+    edited["columns"][0]["low_tail"]["boundary"] = spelling
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, edited, "edited.json")
-    assert "earliest" in f"{raised.value}"
+    assert "low_tail" in f"{raised.value}"
 
 
 def test_the_last_second_of_a_leap_minute_is_written_back_exactly(
@@ -233,11 +270,18 @@ def test_the_last_second_of_a_leap_minute_is_written_back_exactly(
     """
     folder = tmp_path / "leap"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["second"], 40))
-    assert document["columns"][0]["latest"] == "2024-11-02 04:55:02"
+    document = _document(folder, _rows("second", 40))
     assert document["columns"][0]["datetimes_read_at"] == "local"
-    document["columns"][0]["latest"] = "2024-11-02 04:55:60"
-    document["columns"][0]["date_percentiles"]["max"] = "2024-11-02 04:55:60"
+    # STAGE 3: what a leap second can stand on is a published value, and
+    # the published values of this role are the two tail boundaries and
+    # the rungs between them. The high boundary carries it here.
+    boundary = document["columns"][0]["high_tail"]["boundary"]
+    leap = f"{boundary[0:17]}60"
+    document["columns"][0]["high_tail"]["boundary"] = leap
+    for name in ("p50", "p75", "p90", "p95"):
+        rung = document["columns"][0]["date_percentiles"][name]
+        if rung == boundary:
+            document["columns"][0]["date_percentiles"][name] = leap
     described = _loaded(folder, document, "leap.json")
     built = generation.generate(described, 3)
 
@@ -246,15 +290,15 @@ def test_the_last_second_of_a_leap_minute_is_written_back_exactly(
         for deviation in built.deviations
         if deviation.column == "when"
     ]
-    assert "latest" not in named
-    assert "date_percentiles.max" not in named
+    assert "high_tail.rows" not in named
+    assert "date_percentiles.p95" not in named
 
     present = [cell for cell in built.columns[0] if cell != ""]
-    # Written with the source's own space since plan P4-D39.
-    assert "2024-11-02 04:55:60" in present
+    # Written with the source's own space since plan P4-D39, and from
+    # the boundary's own fields where its seconds field is 60 (G7.5).
+    assert leap in present
     again = _redescribed(folder, built)["columns"][0]
-    assert again["latest"] == "2024-11-02 04:55:60"
-    assert again["date_percentiles"]["max"] == "2024-11-02 04:55:60"
+    assert again["high_tail"]["boundary"] == leap
 
 
 def test_an_end_no_cell_of_this_shape_can_show_is_refused(
@@ -278,13 +322,12 @@ def test_an_end_no_cell_of_this_shape_can_show_is_refused(
     """
     folder = tmp_path / "cannot"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["offsets"], 40))
+    document = _document(folder, _rows("offsets", 40))
     assert document["columns"][0]["datetimes_read_at"] == "utc"
     shared = copy.deepcopy(document)
-    end = shared["columns"][0]["latest"]
+    end = shared["columns"][0]["high_tail"]["boundary"]
     moved = f"{end[0:17]}60"
-    shared["columns"][0]["latest"] = moved
-    shared["columns"][0]["date_percentiles"]["max"] = moved
+    shared["columns"][0]["high_tail"]["boundary"] = moved
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, shared, "shared.json")
     message = f"{raised.value}"
@@ -292,50 +335,58 @@ def test_an_end_no_cell_of_this_shape_can_show_is_refused(
     assert "when" in message
     assert moved in message
 
-    minutes = _document(folder, _rows(SHAPES["minute"], 40))
+    minutes = _document(folder, _rows("minute", 40))
     assert minutes["columns"][0]["time_precision"] == "minute"
-    finish = minutes["columns"][0]["latest"]
+    finish = minutes["columns"][0]["low_tail"]["boundary"]
     seconds = f"{finish[0:17]}07"
-    minutes["columns"][0]["latest"] = seconds
-    minutes["columns"][0]["date_percentiles"]["max"] = seconds
+    minutes["columns"][0]["low_tail"]["boundary"] = seconds
     with pytest.raises(errors.ProfileError) as second:
         _loaded(folder, minutes, "minutes.json")
     assert "D10" in f"{second.value}"
     assert seconds in f"{second.value}"
 
 
-def test_a_ladder_end_that_is_not_the_column_s_own_end_is_refused(
+def test_a_ladder_rung_outside_the_tail_rule_is_refused(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The two ends of the ladder ARE the first and last values (D11).
+    """The ladder is published between the two boundaries (D11).
 
-    Nothing tied them, and the pair being untied cost an exact fact
-    silently: the generator pins its first cell to `earliest` and
-    interpolates the rest inside the ladder, so a ladder beginning
-    before `earliest` gave a twin holding instants EARLIER than the end
-    it published, and describing that twin again found a different
-    `earliest` with no deviation named for it anywhere (review item
-    P2-C3-F2, found beside it).
+    Stage 3 replaces the tie between the ladder's ends and the column's
+    two endpoints, which are no longer published: what D11 says now is
+    that both ends of the ladder are empty, that a rung inside a tail is
+    empty, that a rung read off a boundary's own rank IS that boundary,
+    and that every published rung lies between the two. Each clause is
+    broken here in turn, and the loader refuses each -- untied, a
+    hand-made document could publish a rung at a rank the construction
+    pins elsewhere, and the twin would hold a value its own description
+    contradicts.
     """
     folder = tmp_path / "ladder"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["second"], 40))
+    document = _document(folder, _rows("second", 40))
     block = document["columns"][0]
-    assert block["date_percentiles"]["min"] == block["earliest"]
-    assert block["date_percentiles"]["max"] == block["latest"]
+    assert block["date_percentiles"]["min"] is None
+    assert block["date_percentiles"]["max"] is None
+    low = block["low_tail"]["boundary"]
+    assert isinstance(low, str)
 
-    early = copy.deepcopy(document)
-    early["columns"][0]["date_percentiles"]["min"] = "2020-01-01 00:00:00"
-    early["columns"][0]["date_percentiles"]["p01"] = "2020-01-01 00:00:00"
+    filled = copy.deepcopy(document)
+    filled["columns"][0]["date_percentiles"]["min"] = low
     with pytest.raises(errors.ProfileError) as raised:
-        _loaded(folder, early, "early.json")
+        _loaded(folder, filled, "filled.json")
     assert "D11" in f"{raised.value}"
 
-    late = copy.deepcopy(document)
-    late["columns"][0]["date_percentiles"]["max"] = "2030-01-01 00:00:00"
+    emptied = copy.deepcopy(document)
+    emptied["columns"][0]["date_percentiles"]["p50"] = None
     with pytest.raises(errors.ProfileError) as second:
-        _loaded(folder, late, "late.json")
+        _loaded(folder, emptied, "emptied.json")
     assert "D11" in f"{second.value}"
+
+    outside = copy.deepcopy(document)
+    outside["columns"][0]["high_tail"]["boundary"] = low
+    with pytest.raises(errors.ProfileError) as third:
+        _loaded(folder, outside, "outside.json")
+    assert "D11" in f"{third.value}" or "TL2" in f"{third.value}"
 
 
 @pytest.mark.parametrize("spelling", ["+99:99", "+15:00", "-14:30", "+02:60"])
@@ -351,11 +402,9 @@ def test_an_offset_no_zone_uses_is_refused(
     """
     folder = tmp_path / "offsets"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["offsets"], 40))
+    document = _document(folder, _rows("offsets", 40))
     edited = copy.deepcopy(document)
     edited["columns"][0]["utc_offsets"] = {spelling: 40}
-    edited["columns"][0]["earliest_utc_offset"] = spelling
-    edited["columns"][0]["latest_utc_offset"] = spelling
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, edited, "edited.json")
     assert "utc_offsets" in f"{raised.value}"
@@ -368,11 +417,9 @@ def test_an_offset_at_the_edge_of_the_range_is_accepted(
     """The boundary is stated in both directions, so the range is a fact."""
     folder = tmp_path / "edge"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["offsets"], 40))
+    document = _document(folder, _rows("offsets", 40))
     edited = copy.deepcopy(document)
     edited["columns"][0]["utc_offsets"] = {spelling: 40}
-    edited["columns"][0]["earliest_utc_offset"] = spelling
-    edited["columns"][0]["latest_utc_offset"] = spelling
     edited["columns"][0]["datetimes_read_at"] = "local"
     described = _loaded(folder, edited, f"edge-{len(spelling)}.json")
     built = generation.generate(described, 3)
@@ -392,11 +439,9 @@ def test_an_offset_on_a_column_with_no_time_of_day_is_refused(
     """
     folder = tmp_path / "dated"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(SHAPES["date"], 40))
+    document = _document(folder, _rows("date", 40))
     assert document["columns"][0]["resolution"] == "date"
     document["columns"][0]["utc_offsets"] = {"+02:00": 40}
-    document["columns"][0]["earliest_utc_offset"] = "+02:00"
-    document["columns"][0]["latest_utc_offset"] = "+02:00"
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, document, "edited.json")
     assert "D9" in f"{raised.value}"

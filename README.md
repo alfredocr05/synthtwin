@@ -119,10 +119,22 @@ table, and it never contains a value from a column you named with
 `--identifier` or a line of free text -- apart from the text every
 value of such a column opens with, like `REC` or `ABC-`, where enough
 rows share it -- but it does contain the
-smallest and largest values of your numeric and date columns, the points
-in between that describe their shape, and, for each label, the exact
+smallest and largest values of your numeric columns, the points in
+between that describe their shape, and, for each label, the exact
 spellings your file used for it together with how many rows wrote it
-that way. **By default no label fewer than eleven rows held is named**:
+that way. **A column of dates or clock times names neither end**: each
+side of it is described by a BOUNDARY -- the earliest date with at
+least a smallest group's worth of cells before it, and its mirror at
+the other end -- together with how many rows lie beyond that boundary
+and how far they lie, so the rarest dates in the column, a date of
+death or a birthday at the edge of a cohort, are not written down.
+Where a tail holds only a few different dates, EACH OF THEM SHARED BY
+AT LEAST TWO ROWS, and the column's dates come from a small fixed set
+rather than a fine grid -- quarters, months, a scale a reader could
+enumerate -- those dates are listed instead, and how many rows hold
+each of them is not. A tail whose dates are one row's own apiece, and
+any column of clock times or of days spread over years, is described by
+its shape and never by a list. **By default no label fewer than eleven rows held is named**:
 synthtwin pools every group under eleven rows into a count that names
 none of them, so a label rarer than that does not reach your twin by
 name. `--smallest-group` lowers the number -- down to 1, where

@@ -505,14 +505,37 @@ def test_a_version_that_is_not_this_one_stops_the_run(
         profile.check_publication(document)
 
 
-def test_a_datetime_endpoint_that_is_a_spelling_stops_the_run(
+def test_a_tail_boundary_that_is_a_spelling_stops_the_run(
     tmp_path: pathlib.Path,
 ) -> None:
+    """Stage 3: a tail's boundary is canonical moment text and nothing else.
+
+    It replaces the endpoint this test used to damage: no end is
+    published any more, and the boundary is the value of the column a
+    date block now carries.
+    """
     document = _document(tmp_path)
     found = False
     for block in document["columns"]:
-        if "earliest" in block:
-            block["earliest"] = SPELLING
+        tail = block.get("low_tail")
+        if isinstance(tail, dict):
+            tail["boundary"] = SPELLING
+            found = True
+    assert found, "this table should hold a date column"
+    with pytest.raises(errors.ProfileError):
+        profile.check_publication(document)
+
+
+def test_a_tail_value_that_is_a_spelling_stops_the_run(
+    tmp_path: pathlib.Path,
+) -> None:
+    """And so is each value a few-valued tail lists (stage 3, TL1)."""
+    document = _document(tmp_path)
+    found = False
+    for block in document["columns"]:
+        tail = block.get("high_tail")
+        if isinstance(tail, dict):
+            tail["values"] = [SPELLING]
             found = True
     assert found, "this table should hold a date column"
     with pytest.raises(errors.ProfileError):

@@ -206,6 +206,30 @@ POOLED_SCALE_FACTS = (
     "label.suppressed_numbers.mean",
 )
 
+# ...and the LISTINGS the tail landing brought (stage 3, plan P4-D328):
+# the values neither tail of either column publishes, and every rung
+# each ladder withholds -- its two ends always, and each rung whose
+# rank lies inside a tail. The rungs are the same lines the check
+# baseline above names as withdrawn: an obligation that MOVED from the
+# checks to the listings is put back there and set aside here, so
+# neither census can lose one quietly.
+TAIL_LISTING_FACTS = (
+    "datetime.low_tail.values",
+    "datetime.high_tail.values",
+    "clock.low_tail.values",
+    "clock.high_tail.values",
+    "|date-ladder.min",
+    "|date-ladder.max",
+    "|date-ladder.p01",
+    "|date-ladder.p05",
+    "|date-ladder.p99",
+    "|clock-ladder.min",
+    "|clock-ladder.max",
+    "|clock-ladder.p01",
+    "|clock-ladder.p05",
+    "|clock-ladder.p99",
+)
+
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     WIDE_RUNS_FACT,
@@ -217,7 +241,7 @@ LISTINGS_ADDED_SINCE = (
     N_AT_MIDNIGHT_FACT,
     NEGATIVE_NOTATIONS_FACT,
     THOUSANDS_MARKS_FACT,
-) + WRITTEN_FORM_FACTS + POOLED_SCALE_FACTS
+) + WRITTEN_FORM_FACTS + POOLED_SCALE_FACTS + TAIL_LISTING_FACTS
 # ...and the CHECK that arrived after the 416 baseline was frozen
 # (amendment A-P4-55, 2026-09-04). The count of different NUMBERS was
 # REPORT-ONLY and listed whole; the owner ruled it an obligation
@@ -302,7 +326,45 @@ WITHDRAWN_CHECKS = (
     "batch|label.suppressed_level_counts|suppressed.counts",
     "note|label.suppressed_level_counts|suppressed.counts",
     "region|label.suppressed_level_counts|suppressed.counts",
+    # THE OBLIGATIONS THE TAIL LANDING WITHDREW (stage 3, plan
+    # P4-D328), named and put back on exactly the doctrine the four
+    # above are. A column of dates or clock times publishes no end and
+    # no end offset, so `ends.earliest`, `ends.latest`,
+    # `offsets.earliest` and `offsets.latest` left the run; each of the
+    # two publishes `null` at `min` and `max` and at every rung
+    # whose rank lies inside a tail, so those rungs moved from the
+    # checks to the listings, where they are named again. What stands in their place
+    # is a TAIL on each side, whose own checks are set aside below --
+    # so both frozen digests come back character for character with the
+    # exchange made explicit, which is what says nothing ELSE moved.
+    # MEASURED before this entry was written: with these thirteen
+    # restored and the sixteen tail checks set aside, the narrow list
+    # reads 407 and the wide one 416, and both digests reproduce.
+    "recorded_on|datetime.earliest|ends.earliest",
+    "recorded_on|datetime.latest|ends.latest",
+    "recorded_on|datetime.earliest_utc_offset|offsets.earliest",
+    "recorded_on|datetime.latest_utc_offset|offsets.latest",
+    "recorded_on|datetime.date_percentiles.min|date-ladder.min",
+    "recorded_on|datetime.date_percentiles.max|date-ladder.max",
+    "recorded_on|datetime.date_percentiles|date-ladder.p01",
+    "recorded_on|datetime.date_percentiles|date-ladder.p05",
+    "recorded_on|datetime.date_percentiles|date-ladder.p99",
+    "seen_at|clock.earliest|ends.earliest",
+    "seen_at|clock.latest|ends.latest",
+    "seen_at|clock.clock_percentiles.min|clock-ladder.min",
+    "seen_at|clock.clock_percentiles.max|clock-ladder.max",
+    "seen_at|clock.clock_percentiles|clock-ladder.p01",
+    "seen_at|clock.clock_percentiles|clock-ladder.p05",
+    "seen_at|clock.clock_percentiles|clock-ladder.p99",
 )
+
+# ...and the subcheck family that ARRIVED with them, set aside rather
+# than folded in: each side of a column of dates or clock times carries
+# a boundary, a count of rows beyond it, its two distances and -- where
+# it publishes them -- the values it holds (contract TL1). Sixteen
+# checks on this demonstration's two such columns, and two listings per
+# column for the values neither of them publishes.
+TAIL_SUBCHECK = "|tails."
 
 # THE ONE CHECK PLAN P4-D6.4 ADDED, set aside on the same doctrine, and
 # it is the only one that can be: the demonstration's `reading` column
@@ -462,7 +524,19 @@ NARROW_COLUMN_DIGESTS = {
     # prints 84 against a window of 84 for both distinct counts, and the
     # quality report moves those two from WITHIN-BOUND to HELD (467 held
     # and 68 within bound become 469 and 66), nothing missed.
-    "recorded_on": "13de1d1246c7e13d97f4cab47aa8e542",
+    # RE-RECORDED AT THE TAIL LANDING (stage 3, plan P4-D328), on the
+    # TWO columns the landing is about and no others. A column of dates
+    # or clock times publishes a tail on each side in place of its two
+    # ends: its outermost ranks are drawn through the shape the tail's
+    # two distances fix and its interior rungs are pinned only where the
+    # tail rule publishes them, so the cells of `recorded_on` and
+    # `seen_at` move and nothing else does. MEASURED before re-recording:
+    # of the demonstration's fourteen columns exactly these two moved in
+    # both the sorted and the written order, the twin and the real table
+    # both validate with nothing missed, and the check census reproduces
+    # the frozen 407 and 416 with the thirteen withdrawn obligations put
+    # back and the sixteen tail checks set aside.
+    "recorded_on": "ebae28ac44a90a0c588fe7e8a8aab668",
     "answer": "f96508b26b4c8cae171b5bf0984d34a3",
     "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -488,7 +562,7 @@ NARROW_COLUMN_DIGESTS = {
     # the census is still 160 at one place and 80 at two, and every other
     # column is byte-identical.
     "dose": "b1f8940a719df22cd6b0186556eabb01",
-    "seen_at": "39d281293fad64fe6a69a81ff0c4d530",
+    "seen_at": "904896a1750543a4b2f419ddd8f160ed",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
 # AND THE SAME COLUMNS IN THE ORDER THEIR CELLS STAND (repair of landing
@@ -519,7 +593,7 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # moved cells as the sorted digest above, as written.
     # Re-recorded for plan P4-D192 with the sorted digest above: the same
     # 105 cells, as written.
-    "recorded_on": "841909b96ca215f629011f39bdc719f5",
+    "recorded_on": "e9bfe1b5f6ab87930b13009970120aaa",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -531,7 +605,7 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # plan P4-D179): the same 12 cells as the sorted digest above, in
     # the places they stood; no cell moved place.
     "dose": "b240a95d4658408ca5d8428c9aaa99e0",
-    "seen_at": "709ae313baf6da42b0b359c1bc43cc3f",
+    "seen_at": "5230cc5d6f06d53b7c8a6b52cf4400bb",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
 
@@ -588,6 +662,10 @@ def test_widening_the_demonstration_lost_no_obligation(
         if f"|{FORM_FACT}|" in entry:
             return True
         if entry == JUDGED_KEY_CHECK:
+            return True
+        # ...and every obligation the two TAILS of a column of dates or
+        # clock times brought (stage 3, plan P4-D328).
+        if TAIL_SUBCHECK in entry:
             return True
         for one in (
             AFFIX_SET_SUBCHECKS
@@ -1588,7 +1666,7 @@ GOLDEN_TWIN_SHA256 = (
     # diffed cell by cell against a git archive of e53d5f4, exactly
     # thirteen cells moved, all in `reading`, each from blank to the
     # `-999` the real table wrote there; the description digest held.
-    "03accd33a302b30205fb6918051af004b6c396b733e9082d1fd7473e38280102"
+    "9eb93b920fe287d5a9413899f24bbdadba24782719b9d0e698f16b6520f182c9"
 )
 
 
@@ -2840,7 +2918,7 @@ GOLDEN_QUALITY_SHA256 = (
     # checkable became 171. NO OBLIGATION LEFT the census and no verdict
     # moved; the description and twin digests above tell which of the
     # two inputs changed, and it is the description alone.
-    "a6bf2b45d78612472dcbfe7b978318a7623c53f05bcf01b76471cdf4fb4b1445"
+    "92af674911e1bf92ef42d52ee83bf149abe6632bb942ac11ebe2aa4eb9ee4ae6"
 )
 
 

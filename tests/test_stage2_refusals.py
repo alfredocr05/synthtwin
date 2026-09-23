@@ -207,7 +207,14 @@ def test_the_loader_refuses_midnight_beside_a_moment_off_midnight(
     tmp_path: pathlib.Path,
 ) -> None:
     document = copy.deepcopy(_moments_document(tmp_path))
-    _column(document)["all_at_midnight"] = True
+    column = _column(document)
+    column["all_at_midnight"] = True
+    # ...AND THE TAIL UNIT WITH IT (stage 3, contract TL4): the unit a
+    # column's tails are counted in follows from the block's own fields,
+    # and a column claiming to stand at midnight counts in DAYS. Left at
+    # `second`, the edit trips TL4 first and the refusal this test is
+    # about is never reached.
+    column["tail_unit"] = "day"
     assert "D14" in _refused(tmp_path, document)
 
 
@@ -223,6 +230,7 @@ def test_the_loader_refuses_midnight_below_the_smallest_group(tmp_path: pathlib.
     column = _column(edited)
     assert column["all_at_midnight"] is False
     column["all_at_midnight"] = True
+    column["tail_unit"] = "day"
     assert "D14" in _refused(tmp_path, edited)
 
 
