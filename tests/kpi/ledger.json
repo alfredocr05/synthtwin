@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. NINE ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and SEVENTEEN ON 13fa831, stage 3 landing 3.3's own commit: K-S3-01, K-S3-02, K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07 and K-S3-08, the eight entries the numeric tail delivered, whose pinned nodes did not exist before it; K-P3-03 and K-2B-05, whose targets the landing met, so both are GREEN at their own measurements; K-2B-47 and K-2B-49, the two carried-residue entries the landing moved, one every key better and one a key each way; K-P4-06, whose ceiling the landing brought down; K-P2-08 and K-P2-09, which pin the two ENDS a twin is held to and now pin the derived ones; and K-S1-01 and K-P3-12, whose seconds were taken on a LOADED machine and are therefore recorded and not judged, their machine-free ratios judged and holding. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. NINE ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and SEVENTEEN ON 0317f5d, stage 3 landing 3.3's own commit, 2026-09-23: K-S3-01, K-S3-02, K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07 and K-S3-08, the eight entries the numeric tail delivered, whose pinned nodes did not exist before it; K-P3-03 and K-2B-05, whose targets the landing met, so both are GREEN at their own measurements; K-2B-47 and K-2B-49, the two carried-residue entries the landing moved, one every key better and one a key each way; K-P4-06, whose ceiling the landing brought down; K-P2-08 and K-P2-09, which pin the two ENDS a twin is held to and now pin the derived ones; and K-S1-01 and K-P3-12, whose seconds were taken on a LOADED machine and are therefore recorded and not judged, their machine-free ratios judged and holding. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -1173,8 +1173,8 @@
    "measured_on": "every-role twin 240 rows, seed 7",
    "evidence": "90 of 90 presence and class recounts equal; every numeric and date column hits both ends of its own ladder, nothing outside. The ends are DERIVED on a tail block since stage 3: the description publishes neither, so what the twin is held to is the pair `contract.tail_ladder` reads from the published facts",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -1207,8 +1207,8 @@
    "measured_on": "squares of 1..200, seed 7",
    "evidence": "3 of 3 rung mutants refused (ends only, shifted, swapped); shifted mean, squeezed SD refused; faithful layout accepted. The ends-only mutant builds its twin from the ladder's two ends, which are the derived ends on a tail block since stage 3",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -1665,8 +1665,8 @@
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
    "evidence": "0 missed at 5,000 and at 20,000 rows, and the twin's spread 0.04 to 0.20 per cent from the published one at 5,000 and 0.11 to 0.22 at 20,000. Before the tail rule the twin drew the outer one per cent as a straight line to the published extreme: 10 of 20 columns missed their own spread at 20,000 rows and the spread stood 1.07 to 3.11 per cent wide at 5,000 and 1.74 to 3.83 at 20,000",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "missed_20k": 0,
@@ -1984,8 +1984,8 @@
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
    "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "validate_ratio_4x_rows": 3.89,
@@ -2356,8 +2356,8 @@
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
    "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node. WHERE EACH PART IS MEASURED (2026-09-20): the whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses (the pool's machinery takes a socket) and which failed every test cell of the first CI run; it pins THREE columns serially now, 24.6 s of the battery's 94.6 measured one column at a time, chosen because they hold all three of the battery's missed above-counts and are the two columns G6.5a's push moved: column 0 at 14 outside and 1 missed, column 9 at 117 and 0, column 11 at 63 and 2. Withdrawing the push turns that node red on column 9 (110 and 6), which is the whole battery's 7 missed against 3. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review of that landing): EITHER number -- agreements outside the window or above-counts missed -- in any of the other nine columns. All three of today's missed above-counts sit in pinned columns, but that is a property of today's measurement and not of the pin: six missed counts appearing in column 3 or column 7 are green in the suite and reported only here, by the driver. The three columns' ceilings are read from this entry's own expected by tests/test_joined_battery_readings.py, and test_the_pin_is_derived_from_the_whole_batterys_ceiling re-derives the pin against them, so a ceiling that moves cannot leave the pin stale in silence (finding 6)",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_joined_battery.py --kpi",
     "value": {
      "above_counts_missed": 1,
@@ -3161,8 +3161,8 @@
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
    "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
     "value": {
      "generate_ratio_4x_rows": 3.4,
@@ -3750,8 +3750,8 @@
    "measured_on": "44 columns of 15 shapes at 500/2,000/4,000 rows, seeds 3 and 11",
    "evidence": "0 of 1,058 verdicts flip and no window differs. The four that flipped were the mean and the spread of a 2,000-row charges column at seeds 3 and 11, where each report drew its window through a ladder of its own; both now read the one shaped ladder (contract.tail_ladder)",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_window_flips.py --kpi",
     "value": {
      "flips": 0,
@@ -5361,8 +5361,8 @@
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
    "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11. ROUND-2 LEDGER PASS (item 11), on the tree of this pass: read_floor_unchecked was int(documents differ) against a bound of at most 1, which no description this defect could produce would ever break -- the 4 published facts that actually move (blank_lines[0].after, .lines, .text and line_endings[0].lines) are the bound now, the boolean is kept beside it as the report-only indicator it always was. The Fortran D exponent, carried by the changelog's ceiling list and measured by nothing: 400 cells like 4.60D+03 at floor 11 are read as free text, 0 of 400 numeric, and the twin writes stand-ins (1.30D-08 comes back as 1.55S-44) on 1,200 of 1,200 cells over seeds 4, 0 and 1 while the validator misses NOTHING -- so the respelled count is report-only and the 0 MISSED verdicts are the bound that can fail. The two generator passes the oracle does not mirror were never measured here and are not: K-P4-23 counts them. REPAIR PASS (finding 3): fortran_d_runs was emitted and bounded by nothing, so cutting the loop from seeds (4, 0, 1) to one left fortran_d_missed_checks at 0 and fortran_d_cells_respelled at 400, both inside their bounds, over a third of the runs; the run and cell counts are at_least bounds now. Measured: at fortran_d_runs 2 the entry is OPEN-WORSE, at 3 OPEN-held.",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi",
     "value": {
      "band_split_distinct_short": 0,
@@ -5478,8 +5478,8 @@
    "measured_on": "24 seeded point-free grids of tenths at floor 11; 400 millisecond moments; 40 record numbers + 'ab' at floor 11; the p4d2 guards over hand-written withheld maps",
    "evidence": "point-free grids: 30 style and width MISSED verdicts and 12 distinct-count MISSED verdicts over 72 twins, the real tables at 0 (P4-D274: adding the band fill's carrier refusal to the column-wide fill trades one for the other). Subsecond: the twin writes 0 of 400 fractions, validate at 0 (P4-D296, the DEVIATION is in the twin's report). Record classes: all_whole_numbers false beside n_numeric 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275)",
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi",
     "value": {
      "pinned_nodes_failing": 0,
@@ -5704,8 +5704,8 @@
    "evidence": "0 of 10 shapes publishes such a number. Before the tail rule, measured over sixteen shapes at floors 1 and 11, a description published 13 to 46 of them per shape -- the two ends, the rungs beside them and the moments that read them",
    "nodes_min_collected": 10,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5736,8 +5736,8 @@
    "evidence": "0 sides solved of 20. The attack is the skeptic's own: a bounded counted subset sum over the grid steps, run to completion on every side whose work stays under three million states",
    "nodes_min_collected": 10,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5768,8 +5768,8 @@
    "evidence": "6 of 6 keep their scale. Before the listed tail, a pain score of 0 to 10 at a floor of eleven published no end, its twin wrote 50 cells at 11 -- a value the scale does not have -- and none at 10, and its mean stood 25 per cent above the table's with nothing missed",
    "nodes_min_collected": 6,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5800,8 +5800,8 @@
    "evidence": "0 missed obligations on 20 files",
    "nodes_min_collected": 10,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5832,8 +5832,8 @@
    "evidence": "0 outside on the six scales, on the normal column and on the ages; 1 each on the lognormal and the Pareto charges. Before the outward move of plan P4-D326, 16 real cells of a 20,000-row normal column and 2 of a hundred-row one fell outside their twins' range",
    "nodes_min_collected": 10,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5864,8 +5864,8 @@
    "evidence": "12 of 12 tails meet their published mean distance to within 1e-9 of it",
    "nodes_min_collected": 6,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5896,8 +5896,8 @@
    "evidence": "324 cells at one against 317, and the mean 1.3 per cent above the table's. Before the step the band's first ranks read nought, G5.5 repaired them to one beside the real plateau of one and G6.5a walked every stratum above up by one: the twin wrote one in FOUR cells, two in 320 against 236, and its mean stood 19.3 per cent high with nothing missed",
    "nodes_min_collected": 1,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
@@ -5929,8 +5929,8 @@
    "evidence": "10 of 10 columns publish groups and every group is the recount's. The census of every bin is all or nothing and published NOTHING at this floor on any of them: `value_histogram` is empty on a tail block at every floor",
    "nodes_min_collected": 2,
    "value_at": {
-    "commit": "13fa831",
-    "date": "2026-09-22",
+    "commit": "0317f5d",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values",
     "value": {
      "pinned_nodes_failing": 0
