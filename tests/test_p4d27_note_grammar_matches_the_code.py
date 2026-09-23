@@ -281,6 +281,12 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
         set(parsing.DATE_FORMATS)
         | set(taxonomy.NOTE_CLOCK_WORDS)
         | set(taxonomy.NOTE_READING_WORDS)
+        # THE TWO UNITS A POPULATION IS COUNTED IN (plan P4-D341,
+        # contract 14.4a). They join this class for the reason the
+        # clock words did: NF59 names a form's second argument by one
+        # of them, so a producer written to a contract that omitted
+        # them would refuse the sentence the tool writes.
+        | set(taxonomy.NOTE_UNIT_WORDS)
     )
     stated = re.search(r"\*\*The package-word vocabulary — (\d+)\*\*", _contract())
     assert stated is not None, "the contract no longer states the count"
@@ -290,8 +296,9 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
     )
     # The clock words are named, and named as NOT being format members:
     # a reader who took them for `format` values would write them into
-    # a key the loader refuses.
-    for word in taxonomy.NOTE_CLOCK_WORDS:
+    # a key the loader refuses. The two units are held to the same two
+    # things, for the same reason.
+    for word in taxonomy.NOTE_CLOCK_WORDS + taxonomy.NOTE_UNIT_WORDS:
         assert f"`{word}`" in _contract(), f"the contract never names {word}"
         assert word not in parsing.DATE_FORMATS
 

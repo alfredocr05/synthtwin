@@ -42,7 +42,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import asking, cli, errors, profile, reading, taxonomy
+from synthtwin import asking, cli, errors, parsing, profile, reading, taxonomy
 
 # The regression for the second repair of this item. Column 3 is the
 # one that speaks: 34 sits inside the range 29..41 written below it.
@@ -84,6 +84,31 @@ _ALL_NUMBERS = b"1,2\n3,4\n5,6\n"
 _PIVOTED_YEARS = b"region,2019,2020\n" + b"".join(
     b"place %d,3.1%d,3.2%d\n" % (index, index, index) for index in range(1, 13)
 )
+
+
+def _grown(body: bytes) -> "tuple[bytes, int]":
+    """``body`` grown to the population floor, and how many ROWS that added.
+
+    `synthtwin profile` describes a table of `parsing.POPULATION_FLOOR`
+    rows or more and refuses a smaller one, writing nothing (plan
+    P4-D341), so every case here is grown until the command will look
+    at it at all. **The first line is left exactly where it is**,
+    because what that line is is the whole subject of this file; the
+    lines below it are repeated in order. Each line added below is one
+    more data row whatever the first line turns out to be, so a case's
+    expected row count grows by exactly what this returns -- the
+    expectation is derived and never read off a run.
+    """
+    lines = [line for line in body.split(b"\n") if line]
+    below = lines[1:]
+    added: "list[bytes]" = []
+    if below:
+        # Counted on the smaller of the two readings -- the first line
+        # taken as the column names -- so the table clears the floor
+        # whichever way the reader settles it.
+        while len(lines) + len(added) < parsing.POPULATION_FLOOR + 1:
+            added += below
+    return b"".join(line + b"\n" for line in lines + added), len(added)
 
 
 def _write(folder: pathlib.Path, body: bytes) -> pathlib.Path:
@@ -130,11 +155,12 @@ def test_the_headerless_export_names_the_columns_itself(
     # regression was about -- a person's row published as schema -- is
     # held here as it was, and more tightly: not one of those words is
     # in any file the run wrote.
-    code = _run(tmp_path, _HEADERLESS_EXPORT)
+    grown, added = _grown(_HEADERLESS_EXPORT)
+    code = _run(tmp_path, grown)
     streams = capsys.readouterr()
     assert code == 0, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == 4, "not one record may be lost"
+    assert document["n_rows"] == 4 + added, "not one record may be lost"
     assert [column["name"] for column in document["columns"]] == [
         "column_1",
         "column_2",
@@ -153,11 +179,12 @@ def test_the_headerless_export_names_the_columns_itself(
 def test_the_headerless_export_keeps_all_four_records_as_data(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    code = _run(tmp_path, _HEADERLESS_EXPORT, "--first-row", "data")
+    grown, added = _grown(_HEADERLESS_EXPORT)
+    code = _run(tmp_path, grown, "--first-row", "data")
     streams = capsys.readouterr()
     assert code == 0, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == 4, "not one record may be lost"
+    assert document["n_rows"] == 4 + added, "not one record may be lost"
     assert [column["name"] for column in document["columns"]] == [
         "column_1",
         "column_2",
@@ -222,7 +249,7 @@ def test_the_question_never_prints_the_row_it_is_asking_about(
     # If that row IS a record, printing it prints somebody's data in
     # order to ask a question about it -- and so does printing a value
     # from below it. The column is named by its position instead.
-    _run(tmp_path, _HEADERLESS_EXPORT)
+    _run(tmp_path, _grown(_HEADERLESS_EXPORT)[0])
     # THE QUESTION IS IN THE QUESTIONS FILE NOW rather than in a refusal
     # (plan P4-D232), and it says the same thing about the same row: the
     # column by its POSITION and no word of the file. What is asserted
@@ -345,10 +372,19 @@ _ORDINARY = {
         ),
         19,
     ),
+    # ITS CODES MUST STAY UNIQUE, so this case is written at the
+    # population floor rather than grown by repeating its rows (plan
+    # P4-D341): what it pins is that a header standing among its
+    # column's values is still read as a header while every one of
+    # those values is DIFFERENT, and a repeated row would take that
+    # evidence away and settle the first row the other way.
     "a name that is one of its column's unique codes": (
         b"age,B10\n"
-        + b"".join(b"%d,B%02d\n" % (30 + index, index) for index in range(1, 20)),
-        19,
+        + b"".join(
+            b"%d,B%02d\n" % (30 + index, index)
+            for index in range(1, parsing.POPULATION_FLOOR + 2)
+        ),
+        parsing.POPULATION_FLOOR + 1,
     ),
 }
 
@@ -362,12 +398,13 @@ def test_an_ordinary_headed_table_is_profiled_without_a_question(
     # code 1. A tool that asks a question about every file cannot be
     # used by the person this one is written for.
     body, expected_rows = _ORDINARY[name]
-    code = _run(tmp_path, body)
+    grown, added = _grown(body)
+    code = _run(tmp_path, grown)
     streams = capsys.readouterr()
     assert code == 0, streams.err
     assert "cannot tell whether the first row" not in streams.err, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == expected_rows, name
+    assert document["n_rows"] == expected_rows + added, name
     assert document["source"]["header_source"] == reading.HEADER_FROM_FILE
     first_name = body.split(b"\n")[0].split(b",")[0].decode()
     assert document["columns"][0]["name"] == first_name, name
@@ -408,11 +445,12 @@ def test_the_review_items_own_file_is_read_by_convention_and_says_so(
     # two earlier repairs could not give without breaking ordinary files
     # -- is that synthtwin claim no evidence for that reading. It does
     # not: it names the assumption and hands over the way to undo it.
-    code = _run(tmp_path, _WORDS_OVER_WORDS)
+    grown, added = _grown(_WORDS_OVER_WORDS)
+    code = _run(tmp_path, grown)
     streams = capsys.readouterr()
     assert code == 0, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == 2
+    assert document["n_rows"] == 2 + added
     table = reading.read_table(f"{tmp_path / 'table.csv'}")
     assert table.header_by_convention is True
     assert table.column_names == ["alpha note", "red apple"]
@@ -453,12 +491,13 @@ def test_no_record_rule_speaks_for_the_review_items_file() -> None:
 def test_answering_data_keeps_all_three_records(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    code = _run(tmp_path, _WORDS_OVER_WORDS, "--first-row", "data")
+    grown, added = _grown(_WORDS_OVER_WORDS)
+    code = _run(tmp_path, grown, "--first-row", "data")
     streams = capsys.readouterr()
     assert code == 0, streams.err
-    assert "3 rows" in streams.out, streams.out
+    assert f"{3 + added} rows" in streams.out, streams.out
     document = _document(tmp_path)
-    assert document["n_rows"] == 3
+    assert document["n_rows"] == 3 + added
     names = [column["name"] for column in document["columns"]]
     assert names == ["column_1", "column_2"]
     # The record the convention would consume is not schema anywhere.
@@ -531,11 +570,12 @@ def test_a_first_row_of_numbers_is_kept_as_the_record_it_reads_as(
     # 2026-09-17, item 8 (plan P4-D232). A row whose every value reads
     # as a number is a record as surely as one the columns below claim,
     # so it goes the way outcome 2 goes.
-    code = _run(tmp_path, _ALL_NUMBERS)
+    grown, added = _grown(_ALL_NUMBERS)
+    code = _run(tmp_path, grown)
     streams = capsys.readouterr()
     assert code == 0, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == 3
+    assert document["n_rows"] == 3 + added
     assert [column["name"] for column in document["columns"]] == [
         "column_1",
         "column_2",
@@ -545,11 +585,12 @@ def test_a_first_row_of_numbers_is_kept_as_the_record_it_reads_as(
 def test_a_first_row_of_numbers_answered_as_data_keeps_every_record(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    code = _run(tmp_path, _ALL_NUMBERS, "--first-row", "data")
+    grown, added = _grown(_ALL_NUMBERS)
+    code = _run(tmp_path, grown, "--first-row", "data")
     streams = capsys.readouterr()
     assert code == 0, streams.err
     document = _document(tmp_path)
-    assert document["n_rows"] == 3
+    assert document["n_rows"] == 3 + added
     assert [column["name"] for column in document["columns"]] == [
         "column_1",
         "column_2",

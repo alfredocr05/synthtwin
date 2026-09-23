@@ -64,6 +64,13 @@ ONE_NUMBER_MANY_SPELLINGS = [
 
 READINGS = [f"{index}" for index in range(1, 200)]
 
+# HOW MANY ROWS EACH OF TWO NEIGHBOURING NUMBERS TAKES (plan P4-D341).
+# The reviewer's shape is twenty of each; the command refuses a table
+# under the population floor and writes nothing, so it is half the
+# floor of each, rounded up, and the two halves are what every count
+# below is derived from.
+EACH = -(-parsing.POPULATION_FLOOR // 2)
+
 
 def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:
     """One column on disk, and its path as a person would type it."""
@@ -133,14 +140,14 @@ def test_the_neighbour_of_a_declared_number_is_not_removed_with_it(
     # twenty of each of two whole numbers one apart, and only one of the
     # two named. Before the repair the column came back with n_present
     # zero and forty rows counted as declared missing.
-    values = [LOWER] * 20 + [UPPER] * 20
+    values = [LOWER] * EACH + [UPPER] * EACH
     document = _run(tmp_path, "reading", values, [_missing(LOWER)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20, (
-        "only the twenty rows holding the number that was named may go"
+    assert column["n_missing"] == EACH, (
+        "only the rows holding the number that was named may go"
     )
-    assert column["n_present"] == 20
-    assert column["missing_by_class"]["(declared-missing)"] == 20
+    assert column["n_present"] == EACH
+    assert column["missing_by_class"]["(declared-missing)"] == EACH
     assert column["role"] != taxonomy.ROLE_EMPTY
 
 
@@ -149,11 +156,11 @@ def test_the_other_neighbour_is_the_one_that_goes(
 ) -> None:
     # The mirror image, so that the check above cannot pass by removing
     # the wrong twenty rows.
-    values = [LOWER] * 20 + [UPPER] * 20
+    values = [LOWER] * EACH + [UPPER] * EACH
     document = _run(tmp_path, "reading", values, [_missing(UPPER)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20
-    assert column["n_present"] == 20
+    assert column["n_missing"] == EACH
+    assert column["n_present"] == EACH
 
 
 @pytest.mark.parametrize(("lower", "upper"), COLLAPSING_PAIRS)
@@ -169,11 +176,11 @@ def test_two_numbers_that_round_alike_are_still_two_numbers(
     assert parsing.parse_number(lower) == parsing.parse_number(upper), (
         "this pair is only interesting while both spellings round alike"
     )
-    values = [lower] * 20 + [upper] * 20
+    values = [lower] * EACH + [upper] * EACH
     document = _run(tmp_path, "reading", values, [_missing(lower)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20
-    assert column["n_present"] == 20
+    assert column["n_missing"] == EACH
+    assert column["n_present"] == EACH
 
 
 @pytest.mark.parametrize(("lower", "upper"), COLLAPSING_PAIRS)

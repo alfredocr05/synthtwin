@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. TWELVE ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and K-P4-06, K-2B-05, K-2B-47, K-2B-49, K-2B-50 and K-2B-51 on f521955, 2026-09-22, that landing's repair pass, where K-P4-06's ceiling moved to the default's 4 in its own commit and the known-miss driver, which crashed on the landing's own guard, was re-measured with the slow tier (plan P4-D320). Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. FOURTEEN ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and K-P4-06, K-2B-05, K-2B-47, K-2B-49, K-2B-50 and K-2B-51 on f521955, 2026-09-22, that landing's repair pass, where K-P4-06's ceiling moved to the default's 4 in its own commit and the known-miss driver, which crashed on the landing's own guard, was re-measured with the slow tier (plan P4-D320); and K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit, the entry that landing added -- its value could not have been taken on any earlier tree, because the population floor is what that landing built (plans P4-D340 and P4-D341); and K-S3-02 on da4cafb, 2026-09-23, that landing's repair pass, which added route two to the person rule and the four label shapes its battery was missing, so the value moved from 25 columns and 0 false positives to 33 and 4, with a second true positive for the categorical subject column. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -370,7 +370,8 @@
    },
    "key_kinds": {
     "suite_seconds": "seconds_below"
-   }
+   },
+   "status_note": "THE SECONDS WERE NOT RE-TAKEN ON LANDING 3.2 OR ITS REPAIR PASS, and this entry's recorded 3,085.8 s therefore stands for an older tree. Stage 3 landing 3.2 raised about eighty test files' tables from 20-60 rows to the population floor of 100, and its repair pass added cases again, so the suite is expected to have grown. WHAT IS KNOWN, from five-shard sums on this machine, which are not the single-process number this entry measures and are taken under other builders' load: the previous landing summed 4,197.2 s for 7,186 collected, and landing 3.2 summed 5,224.2 s for 7,240 -- +24.5 per cent of cost for +54 cases. Scaled onto the recorded single-process figure that is near 3,840 s: still inside the 4,500 s cap, with the headroom cut from about 31 per cent to about 15 per cent. THE COLLECTED COUNT, which is judged everywhere and bounds from below, is met and then some. The next run on a quiet reference machine re-stamps this entry: `kpi_run.py --slow --only K-P0-10`"
   },
   {
    "id": "K-P1-01",
@@ -5686,6 +5687,98 @@
     }
    },
    "nodes_min_collected": 78
+  },
+  {
+   "id": "K-S3-01",
+   "phase_stage": "Stage 3, landing 3.2 (the population floor)",
+   "category": "PRIVACY",
+   "headline": true,
+   "name": "The population floor: what `synthtwin profile` refuses, notices and passes in silence",
+   "status": "GREEN",
+   "rule": "over a fixed battery of 13 sizes and person shapes, driven through cli.main: exactly 4 are REFUSED (under 100 in rows or in people), exactly 6 run with the table-wide NOTICE (100 to 999) and exactly 3 run SILENT (1,000 or more), and 0 refused runs leave a file behind. The band of each case is read off the description's own publication note, not off the screen, so a notice printed and not published would fail here",
+   "rule_kind": "exact",
+   "expected": {
+    "cases": 13,
+    "refused": 4,
+    "noticed": 6,
+    "silent": 3,
+    "files_written_after_a_refusal": 0,
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_p4d341_population_floor.py::test_the_refusal_names_the_count_the_line_and_what_to_do",
+    "tests/test_p4d341_population_floor.py::test_the_twin_table_carries_no_trace_of_the_notice",
+    "tests/test_p4d341_population_floor.py::test_an_answer_at_the_terminal_can_refuse_the_run",
+    "tests/test_p4d341_population_floor.py::test_build_document_still_describes_a_five_row_table",
+    "tests/test_p4d341_population_floor.py::test_validate_still_checks_a_fifty_row_file"
+   ],
+   "nodes_min_collected": 5,
+   "test": "tests/test_kpi_ledger.py::test_k_s3_01",
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "kpi_shapes.POPULATION_BATTERY: the two ends of each band and one step outside it, counted in rows (1, 50, 99, 100, 500, 999, 1,000 and 1,500 rows with every subject_id different) and counted in people (500 rows over 99 and over 100 subjects, 1,200 over 300, 4,000 over 1,000, and 500 rows whose declared identifier never repeats and so counts in rows). Every case is a whole `synthtwin profile` run in this process",
+   "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, which is the only tree it could have been measured on: neither the population floor nor the person question exists before it. MEASURED on the landing that added it. The four refusals are 1, 50 and 99 rows and 500 rows over 99 people; the six notices are 100, 500 and 999 rows, 500 rows over 100 people, 1,200 rows over 300 people and 500 rows whose declared identifier never repeats (counted in rows, 500); the three silent runs are 1,000 and 1,500 rows and 4,000 rows over 1,000 people. No refused run left anything beside the table it was pointed at. The pinned nodes hold the halves a count cannot: that the refusal says the count, the line and what to do; that the twin's TABLE is byte-identical with the notice and without it; that the gate after the on-screen answers refuses before anything is written; and that `build_document` and `synthtwin validate` still take a five-row and a fifty-row file, which is what keeps the floor the COMMAND's",
+   "value_at": {
+    "commit": "52b9eee",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py",
+    "value": {
+     "cases": 13,
+     "refused": 4,
+     "noticed": 6,
+     "silent": 3,
+     "files_written_after_a_refusal": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-02",
+   "phase_stage": "Stage 3, landing 3.2 (the person rule)",
+   "category": "TRUST",
+   "headline": false,
+   "name": "The person question asks about no column that does not name people",
+   "status": "GREEN",
+   "rule": "over the four realistic families of kpi_shapes (each offered twice: with the declarations it ships and with every declaration removed), the every-role table and the four label shapes of kpi_shapes.PERSON_QUESTION_NEGATIVES, the person question is raised about exactly the 4 label columns named in status_note and no other; and on the two repeated-measures tables whose subject_id does name people -- one read as a register and one read as a set of categories -- it is raised about exactly 1 column each. The second half is what stops a rule that asks about nothing reading as a rule that asks about the right thing, and the categorical one is the case plan P4-D340 cites as the question's reason for existing",
+   "rule_kind": "exact",
+   "expected": {
+    "columns_measured": 33,
+    "false_positives": 4,
+    "subject_column_asked_about": 1,
+    "categorical_subject_column_asked_about": 1,
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_p4d341_population_floor.py::test_a_label_column_and_a_scale_column_are_never_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_unique_column_is_never_asked_about",
+    "tests/test_p4d341_population_floor.py::test_another_column_declared_silences_the_question_too",
+    "tests/test_p4d341_population_floor.py::test_a_subject_column_with_a_few_visits_each_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_subject_column_read_as_categories_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_subject_column_of_codes_is_asked_about_whatever_it_is_called",
+    "tests/test_p4d341_population_floor.py::test_a_register_holding_one_value_once_is_not_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_column_of_bare_figures_is_not_a_register"
+   ],
+   "nodes_min_collected": 8,
+   "test": "tests/test_kpi_ledger.py::test_k_s3_02",
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the twelve columns of kpi_shapes.eight_shape_tables(), each family offered twice, the thirteen columns of the every-role table and the eight columns of kpi_shapes.PERSON_QUESTION_NEGATIVES -- 60 wards over 500 rows, 300 different free-text remarks over 600 rows, 8 wards over 500 rows and 30 diagnosis-shaped codes over 600 rows, each beside a bounded whole-number scale -- every one offered to `asking.person_questions`; then kpi_shapes.visits_table at (500, 111) and at (1196, 12)",
+   "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, which is the only tree it could have been measured on: neither the population floor nor the person question exists before it, and the repair pass of the same landing is what added route two and the four negative shapes. The hardest negatives inside the two families are `dose` (40 different values over 400 cells, repeating ten times each) and `note` (9 over 400, repeating forty-four times): both are sets of categories, both fall at route one's second condition, and neither is written as a code, so route two does not reach them either. `record`, `subject` and `visit_id` are different on every row and fall at both first conditions; `score` (98 to 102 different whole numbers repeating 3 to 28 times), `weight`, `amount` and the date columns are excluded by role, which is what keeps every bounded scale the owner named on 2026-09-22 -- a pain score of 0 to 10, a risk grade, a rating item, a coma scale, ages in whole years -- from being asked about. A two-value column of `0` and `1` clears route two's repeat test and is inside the code alphabet, and is kept out by the letter: measured, and pinned as test_a_column_of_bare_figures_is_not_a_register. The same rule was run over five tables of the subject design (fixed 100x5, fixed 150x3, geometric 1,000, and 1-to-8 visits over 40 and over 22 subjects) and asked about `subject_id` on all five and about nothing else",
+   "value_at": {
+    "commit": "da4cafb",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py",
+    "value": {
+     "columns_measured": 33,
+     "false_positives": 4,
+     "subject_column_asked_about": 1,
+     "categorical_subject_column_asked_about": 1
+    }
+   },
+   "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column `categorical`, so the question could never be asked of the case plan P4-D340 cites as its reason for existing: 12 subjects over 1,196 rows, read as a set of categories, with every subject's identifier published beside its visit count. MEASURED on the 33-column battery, route one alone: 2 false positives (ward 60/500 and remarks 300/600) and the cited case NOT asked about. Route one and two: 4 false positives -- the same two, plus ward 8/500 and diagnosis 30/600 -- and the cited case asked about. The two the repair added are label columns written exactly as a subject register is written, and nothing in the values tells them apart; the cost of each is ONE question whose standing answer is `keep`, against a miss whose cost was a description that published twelve people's identifiers. The battery was 25 columns and read 0 false positives before this pass because it held neither shape the rule mis-fires on, while the rule's own docstring named `ward` as a column it kept out; both are repaired. THE MEASURED LIMIT of route two is recorded beside it: one subject with a single visit silences it (test_a_register_holding_one_value_once_is_not_asked_about)"
   }
  ]
 }

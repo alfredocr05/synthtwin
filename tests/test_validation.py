@@ -1749,7 +1749,7 @@ def test_the_settings_are_rebuilt_from_the_description(
     tmp_path: pathlib.Path,
     every_role: "tuple[contract.Profile, str]",
 ) -> None:
-    """P3-D3's table, field by field: fifteen keys, used fifteen ways."""
+    """P3-D3's table, field by field: every rule key, used its own way."""
     described, _twin = every_role
     settings = validation.settings_for(described)
     block = described.settings
@@ -1767,6 +1767,13 @@ def test_the_settings_are_rebuilt_from_the_description(
     assert settings.sentinel_minimum_share == block.sentinel_minimum_share
     assert settings.near_threshold_slack == block.near_threshold_slack
     assert settings.declaration_matching == block.declaration_matching
+    # WHO THE DESCRIBED TABLE'S ROWS WERE ABOUT (plan P4-D340). It
+    # changes no count today and it travels all the same: a
+    # re-description made under settings missing a key is a
+    # re-description under rules the description was not written
+    # under, which is the one way the disclosure gate can be walked
+    # past.
+    assert settings.person_columns == block.person_columns
     # BOTH declaration tuples are DERIVED from the description's own
     # published text, because the SETTINGS BLOCK records neither
     # spelling and the description publishes both anyway: what it names

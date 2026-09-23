@@ -41,24 +41,88 @@ def _exit_of(argv: "list[str]") -> int:
     return code
 
 
+def _describe_with_the_producer(
+    table: pathlib.Path, description: pathlib.Path, flags: "tuple[str, ...]"
+) -> None:
+    """Write the description `synthtwin profile` would write, without it.
+
+    The producer describes a table of any size and refuses none (plan
+    P4-D341); only the command applies the population floor. The flags
+    this file passes are `--smallest-group` and nothing else, so the
+    settings are built from that one number and the reader is asked for
+    the table at the same floor, exactly as the command asks it.
+    """
+    from tests.test_stage2_round_trip import describe_with_the_producer
+
+    describe_with_the_producer(table, description, flags)
+
+
+def _padding(cells: "list[str]") -> int:
+    """How many absent cells `_round_trip` adds to reach the floor."""
+    left = parsing.POPULATION_FLOOR - len(cells)
+    return left if left > 0 else 0
+
+
+def _at_the_floor(cells: "list[str]") -> "list[str]":
+    """``cells`` with `_padding` absent cells after them."""
+    return list(cells) + ["NA"] * _padding(cells)
+
+
 def _round_trip(
     folder: pathlib.Path,
     cells: "list[str]",
     flags: "tuple[str, ...]" = (),
     seed: str = "4",
+    by_command: bool = True,
 ) -> "tuple[dict[str, object], list[str], int, int]":
-    """Describe, build, and check the twin AND the real table at exit 0."""
+    """Describe, build, and check the twin AND the real table at exit 0.
+
+    THE TABLE IS PADDED TO THE POPULATION FLOOR with `NA` cells (plan
+    P4-D341): `synthtwin profile` refuses a smaller table and writes
+    nothing, while every shape in this file is a shape of the column's
+    PRESENT values. `NA` is one of this format's own eighteen spellings
+    for "no value", so the present values -- and every census, form and
+    count over them -- are exactly what each shape wrote; what moves is
+    `n_missing`, and the two tests that state it add `_padding` to what
+    they always stated. A shape already at the floor is unchanged.
+
+    ``by_command`` FALSE DESCRIBES WITH THE PRODUCER INSTEAD, and pads
+    nothing. Two shapes here cannot be padded: their columns hold six
+    different values, and the categorical ceiling is a share of the
+    table's ROWS, so a table grown to a hundred rows reads those six as
+    a set of categories and the whole shape becomes a different one.
+    The population floor is the COMMAND's and `build_document` refuses
+    no table for its size (plan P4-D341), so those two describe that
+    way and still build and check their twin through `generate` and
+    `validate`, which is what they are about.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
+    holding = _at_the_floor(cells) if by_command else list(cells)
+    # THE KEEPER COLUMN (repair of landing 3.2). The population is the
+    # rows that HOLD A VALUE, so absent padding alone no longer reaches
+    # the floor; `rows_at_the_floor` adds a column holding one on every
+    # row exactly where the shape's own present cells fall short, and
+    # leaves a shape that already reaches the floor one column wide.
+    from tests.test_stage2_round_trip import rows_at_the_floor
+
+    names, built = (
+        rows_at_the_floor("value", holding)
+        if by_command
+        else (["value"], [[cell] for cell in holding])
+    )
     table.write_text(
-        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )
-    assert _exit_of(
-        ["profile", str(table), "--out-dir", str(folder), "--replace", *flags]
-    ) == 0
     description = folder / "real-profile.json"
+    if by_command:
+        assert _exit_of(
+            ["profile", str(table), "--out-dir", str(folder), "--replace", *flags]
+        ) == 0
+    else:
+        _describe_with_the_producer(table, description, flags)
     assert _exit_of(
         [
             "generate", str(description), "--out-dir", str(folder),
@@ -357,8 +421,16 @@ def test_a_distinct_spelling_repair_keeps_every_allocated_mark(
     cells: "list[str]" = []
     for text, count in zip(texts, counts):
         cells += [text] * count
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): six different values
+    # over forty rows is the shape, and a table grown to the population
+    # floor reads those six as a set of categories instead, because the
+    # categorical ceiling is a share of the ROWS. The command's floor
+    # is not what this test is about -- the twin's marks are.
     _block, written, twin_exit, real_exit = _round_trip(
-        tmp_path / f"marks-{floor}", cells, ("--smallest-group", floor)
+        tmp_path / f"marks-{floor}",
+        cells,
+        ("--smallest-group", floor),
+        by_command=False,
     )
     grouped = len([cell for cell in written if "," in cell])
     plussed = len([cell for cell in written if "+" in cell])
@@ -386,7 +458,8 @@ def test_a_judged_removal_does_not_fail_the_real_table(
         tmp_path / "judged", cells, ("--smallest-group", "5")
     )
     assert block["shape_forms"] == {"%.%": 68}
-    assert block["n_present"] == 80 and block["n_missing"] == 1
+    assert block["n_present"] == 80
+    assert block["n_missing"] == 1 + _padding(cells)
     assert real_exit == 0 and twin_exit == 0
 
 
@@ -470,8 +543,15 @@ def test_a_saturated_representable_grid_keeps_every_number(
         tmp_path / "subnormal", cells, ("--smallest-group", "11")
     )
     held = {value for value in _read(written)}
-    assert len(written) == 120
-    assert len(held) == 120, len(held)
+    # DERIVED, NOT STATED (repair of landing 3.2). The twin has one
+    # cell per row of the table it was described from, and that table
+    # is this case's own cells or the population floor, whichever is
+    # larger -- so a floor moved past this case's count moves this
+    # expectation with it instead of turning the file red. The count of
+    # different NUMBERS is the case's own, because `_read` keeps only
+    # the cells that read as numbers and the padding does not.
+    assert len(written) == max(len(cells), parsing.POPULATION_FLOOR)
+    assert len(held) == len(cells), len(held)
     assert twin_exit == 0 and real_exit == 0
 
 
@@ -820,8 +900,10 @@ def test_the_recount_names_the_marks_the_repair_could_not_keep(
     for text, count in zip(texts, [7, 5, 7, 10, 6, 5]):
         cells += [text] * count
     folder = tmp_path / "all-marked"
+    # ...and described by the producer for the same reason as item 6
+    # above: forty cells over six values are what the recount needs.
     _block, written, _twin_exit, real_exit = _round_trip(
-        folder, cells, ("--smallest-group", "11")
+        folder, cells, ("--smallest-group", "11"), by_command=False
     )
     marked = len([cell for cell in written if "," in cell])
     assert marked == 38, collections.Counter(written).most_common()

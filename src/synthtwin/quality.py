@@ -199,6 +199,37 @@ def _opening_lines(
     ]
 
 
+def _small_population_lines(description: contract.Profile) -> "list[str]":
+    """The description's notes about the WHOLE TABLE, or nothing.
+
+    RENDERED FROM THE DESCRIPTION (plan P4-D341) and decided nowhere
+    here: a note naming no column is about the table, the population
+    floor is applied once by the command that reads the table, and this
+    report repeats the sentence the description carries. This command
+    checks files of any size and refuses none for being small, which is
+    what lets it check a 50-row file against a description like any
+    other.
+
+    Guarantees: accepts the loaded description; returns the lines, or
+    none where it carries no table-wide note. A fixed function of the
+    description. Raises nothing. No value of any table reaches it.
+    """
+    said: "list[str]" = []
+    for note in description.publication_notes:
+        if note.column == "":
+            said += [note.note]
+    if not said:
+        return []
+    lines = [
+        "ABOUT THE TABLE THE DESCRIPTION WAS MADE FROM, which is not "
+        "the file",
+        "checked here and is not changed by any verdict below.",
+    ]
+    for sentence in said:
+        lines += [f"{sentence}."]
+    return lines
+
+
 def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     """Said only where the description was made under a lowered floor.
 
@@ -1087,6 +1118,11 @@ def quality_report(
     lowered = _lowered_floor_lines(description)
     if lowered:
         lines = lines + lowered + [""]
+    # AND THE SAME PLACE FOR THE SAME REASON (plan P4-D341), and
+    # nothing at all where the description carries no such note.
+    population = _small_population_lines(description)
+    if population:
+        lines = lines + population + [""]
     lines = lines + _summary_lines(outcome.census) + [""]
     lines = lines + _bounds_lines() + [""]
     lines = lines + _detail_lines(outcome)

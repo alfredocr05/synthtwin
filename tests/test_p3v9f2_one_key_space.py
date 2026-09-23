@@ -57,7 +57,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import canonical, contract, errors, profile
+from synthtwin import canonical, contract, errors, parsing, profile
 from synthtwin.cli import main
 
 # The two field names the walk looks for, and the format's one word for
@@ -141,11 +141,18 @@ def test_every_named_space_is_answered_yes_at_a_real_index() -> None:
 def _described(
     folder: pathlib.Path, values: "list[str]", *declared: str
 ) -> "tuple[pathlib.Path, dict]":
-    """Describe one column at a floor of one; return the path and document."""
+    """Describe one column at a floor of one; return the path and document.
+
+    WITH A KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, and a `--missing-value`
+    declaration here turns a column's own spellings into holes. The
+    column under test is still the first, and its cells are untouched.
+    """
     table = fixtures.write(
         folder,
         "reading.csv",
-        fixtures.single_column_table("reading", values),
+        fixtures.kept_column_table("reading", values, tuple(declared)),
     )
     command = ["profile", f"{table}", "--smallest-group", "1"]
     for word in declared:
@@ -160,7 +167,13 @@ def test_a_declared_word_of_ours_spelled_by_a_cell_round_trips(
     tmp_path: pathlib.Path, sayable: str
 ) -> None:
     """The reviewer's own witness, and its two neighbours."""
-    values = [str(row) for row in range(60)] + [sayable] * 2
+    # AT THE POPULATION FLOOR (plan P4-D341): the command describes no
+    # smaller table. The TWO cells wearing the declared word are the
+    # shape, so they stay two and the ordinary readings beside them are
+    # counted up to the floor.
+    values = [
+        str(row) for row in range(parsing.POPULATION_FLOOR - 2)
+    ] + [sayable] * 2
     written, document = _described(tmp_path, values, sayable)
     block = document["columns"][0]
     assert block["missing_by_source"] == {sayable: 2}
@@ -184,7 +197,14 @@ def test_a_label_spelled_like_one_of_our_names_round_trips(
     `(withheld)` case here is the one that stopped the PRODUCER, before
     any loader saw a file.
     """
-    values = [sayable] * 12 + ["north"] * 12 + ["south"] * 12
+    # ...and at the floor for the same reason: THREE levels is the
+    # shape, so the floor is shared between them.
+    each = parsing.POPULATION_FLOOR // 3
+    values = (
+        [sayable] * (parsing.POPULATION_FLOOR - 2 * each)
+        + ["north"] * each
+        + ["south"] * each
+    )
     written, document = _described(tmp_path, values)
     block = document["columns"][0]
     assert block["role"] == "categorical"
@@ -222,7 +242,9 @@ def test_a_floor_of_one_still_holds_nothing_back(
     five positions -- two field names, and the pooled word in the three
     mappings whose keys stay first-party -- must still stop the file.
     """
-    values = [str(row) for row in range(60)]
+    # ...and at the floor for the same reason: what this pins is which
+    # POSITIONS the loader still refuses, which no count decides.
+    values = [str(row) for row in range(parsing.POPULATION_FLOOR)]
     written, _document = _described(tmp_path, values)
 
     def field(name: str, value: int):

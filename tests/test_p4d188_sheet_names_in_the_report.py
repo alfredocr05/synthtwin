@@ -17,12 +17,19 @@ for the twin's sheet names, so the sentence is held to the file.
 import pathlib
 
 from tests import crosscheck
+from synthtwin import parsing
 from tests.test_files_review_repairs import _book, _cell, _held, _rows, _trip
+
+# EVERY TABLE HERE IS WRITTEN AT THE POPULATION FLOOR (plan
+# P4-D341): `synthtwin profile` describes no smaller one, and what
+# this file pins is what the twin's REPORT says about a sheet's
+# name, which no row count settles.
+_ROWS = parsing.POPULATION_FLOOR
 
 
 def _table() -> str:
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
-    for place in range(40):
+    for place in range(_ROWS):
         number = 2 + place
         grid[number] = [
             _cell(f"A{number}", f"{2 + place % 2}", "s"),
@@ -86,7 +93,11 @@ def test_a_published_sheet_name_is_named_as_published(tmp_path: pathlib.Path) ->
 def test_a_delimited_report_carries_no_workbook_paragraph(tmp_path: pathlib.Path) -> None:
     source = tmp_path / "plain.csv"
     source.write_text(
-        "arm,score\n" + "".join(f"{['Low', 'High'][row % 2]},{100 + row}\n" for row in range(40)),
+        "arm,score\n"
+        + "".join(
+            f"{['Low', 'High'][row % 2]},{100 + row}\n"
+            for row in range(_ROWS)
+        ),
         encoding="utf-8",
         newline="",
     )

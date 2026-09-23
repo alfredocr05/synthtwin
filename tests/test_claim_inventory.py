@@ -1784,8 +1784,17 @@ def test_a_full_run_leaves_exactly_the_files_this_file_counts(
     """
     import fixtures
 
+    # THE SMALLEST TABLE THE COMMAND WILL DESCRIBE (plan P4-D341), and
+    # not the forty-eight rows this had before: under the population
+    # floor `synthtwin profile` writes nothing at all, so a run on such
+    # a table counts no files. The number is read from the rule, so a
+    # floor that moves moves this table with it, and what the test
+    # measures -- how many files a FULL run leaves -- is unchanged.
+    from synthtwin import parsing as _parsing
+
     rows = [
-        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+        [fixtures.REGIONS[index % 4], f"{index % 7}"]
+        for index in range(_parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(["region", "visits"], rows)

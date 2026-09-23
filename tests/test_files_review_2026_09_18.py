@@ -56,7 +56,7 @@ import zipfile
 
 import pytest
 
-from synthtwin import asking, dialect, errors, reading, sheetwriting, workbook
+from synthtwin import asking, dialect, errors, parsing, reading, sheetwriting, workbook
 from tests import crosscheck, workbooks
 
 _FLOOR_ELEVEN = "11"
@@ -187,8 +187,13 @@ def test_a_headed_export_is_still_read_as_headed(
     `A_A` is not structured either. A file whose header is words over
     columns of words is the same story.
     """
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this pins is the
+    # SHAPE of the header against its column -- `A_A` over `A9` --
+    # which how many rows stand under it decides nothing about.
     body = "record_id,site,reading\n" + "".join(
-        f"R{100 + index:03d},north,{index}\n" for index in range(40)
+        f"R{100 + index:03d},north,{index}\n"
+        for index in range(parsing.POPULATION_FLOOR)
     )
     table = tmp_path / "headed.csv"
     table.write_text(body, encoding="utf-8", newline="")
@@ -197,7 +202,7 @@ def test_a_headed_export_is_still_read_as_headed(
     assert [one["name"] for one in document["columns"]] == [
         "record_id", "site", "reading",
     ]
-    assert document["n_rows"] == 40
+    assert document["n_rows"] == parsing.POPULATION_FLOOR
 
 
 # -- the workbook reproductions ----------------------------------------

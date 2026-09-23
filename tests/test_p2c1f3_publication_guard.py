@@ -628,6 +628,13 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         # Contract NF36: four counts, then the READING used, which is a
         # package word of its own rather than a format member.
         return (10, 9, 2, 1, taxonomy.READING_DAY_FIRST)
+    if form == taxonomy.NOTE_SMALL_POPULATION:
+        # Its second argument is a UNIT word (contract NF59, 14.4a) and
+        # not a date format: both vocabularies are this package's own
+        # and the grammar admits either at a word position, so a form
+        # built from the wrong one renders a sentence nobody could
+        # read.
+        return (120, taxonomy.NOTE_UNIT_PEOPLE)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
     # The two affixed forms take the fourth argument class at two of

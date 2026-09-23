@@ -29,6 +29,7 @@ import sys
 
 import pytest
 
+from synthtwin import parsing
 from tests import fixtures
 
 FACTS = (
@@ -62,6 +63,102 @@ def _exit_of(argv: "list[str]") -> int:
     return code
 
 
+def describe_with_the_producer(
+    table: pathlib.Path, description: pathlib.Path, flags: "tuple[str, ...]"
+) -> None:
+    """Write the description `synthtwin profile` would write, without it.
+
+    `profile.build_document` describes a table of any size and refuses
+    none; only the command applies the population floor (plan P4-D341).
+    The two flags the callers of this pass are `--smallest-group` and
+    `--identifier`, so the settings are built from that one number, the
+    table is read at the same floor and the named columns are declared,
+    exactly as the command does all three.
+
+    WHAT IT DELIBERATELY DOES NOT DO is derive `person_columns`. That
+    key records what the COMMAND counted the population by, and nothing
+    here counts a population: a description written by the producer
+    says the population was counted in rows, which is what a caller who
+    never ran the gate did.
+
+    AND IT REFUSES A FLAG IT DOES NOT IMPLEMENT (repair of landing
+    3.2). It read `--smallest-group` and `--identifier` and dropped
+    every other flag in silence, while `test_files_review_repairs._trip`
+    hands it whole `flags` tuples: a caller passing `--first-row`,
+    `--sheet`, `--code`, `--decimal-comma` or `--metadata-rows` would
+    have described a DIFFERENT table from the one its test named, with
+    nothing anywhere saying so. Every by_command=False call site passes
+    only the two today, so this refuses nothing that exists; what it
+    stops is the next one.
+    """
+    from synthtwin import profile as producer, reading, taxonomy
+
+    floor = taxonomy.Settings().small_cell_floor
+    declared: "list[str]" = []
+    place = 0
+    for flag in flags:
+        if flag == "--smallest-group":
+            floor = int(flags[place + 1])
+        elif flag == "--identifier":
+            declared += [flags[place + 1]]
+        elif flag[:2] == "--":
+            raise AssertionError(
+                f"describe_with_the_producer does not implement {flag}: it "
+                f"builds the settings from --smallest-group and "
+                f"--identifier alone, so a table described here under any "
+                f"other flag is not the table the command would describe. "
+                f"Implement the flag here, or drive the case by_command"
+            )
+        place = place + 1
+    settings = taxonomy.Settings(small_cell_floor=floor)
+    read = reading.read_table(
+        str(table), "auto", small_cell_floor=settings.small_cell_floor
+    )
+    document = producer.build_document(read, settings, declared)
+    # THE BYTES ARE `fixtures.write_profile`'s, not this module's: a
+    # description written here would carry the platform's line ending
+    # and the loader would be right to refuse it (plan D12), and the
+    # rule that keeps that in one place is
+    # tests/test_description_line_endings.py.
+    fixtures.write_profile(
+        description.parent, description.name, document
+    )
+
+
+def at_the_floor(cells: "list[str]") -> "list[str]":
+    """``cells`` padded to the population floor with ABSENT cells.
+
+    `synthtwin profile` refuses a table under `parsing.POPULATION_FLOOR`
+    and writes nothing (plan P4-D341), so a shape written to exercise a
+    column rule and not a size has to reach it. The padding is `NA`,
+    one of this format's own eighteen spellings for "no value": it
+    leaves the column's PRESENT values exactly as they were, so the
+    role, every census and every published count over them are the ones
+    the shape produced before, and it is a ROW where an empty line in a
+    one-column file would only be a blank line.
+
+    Shapes already at the floor come back unchanged.
+
+    THE PADDING NO LONGER REACHES THE FLOOR ON ITS OWN (repair of
+    landing 3.2). The population is the rows that HOLD A VALUE, so a
+    column of twenty real cells followed by eighty `NA` cells is a
+    population of twenty and the command refuses it -- which is the
+    whole point of that repair, and this helper is the case its skeptic
+    named. What reaches the floor is the padding PLUS a column that
+    holds a value on every row, which `keeper_column` adds and every
+    harness here asks for through `rows_at_the_floor`.
+    """
+    return list(cells) + ["NA"] * (parsing.POPULATION_FLOOR - len(cells))
+
+
+# The keeper column lives in `tests/fixtures.py`, where every harness
+# that writes a one-column table can reach it; these names are the
+# ones this module's callers already import.
+KEEPER_NAME = fixtures.KEEPER_NAME
+KEEPER_VALUE = fixtures.KEEPER_VALUE
+rows_at_the_floor = fixtures.rows_at_the_floor
+
+
 def _round_trip(
     folder: pathlib.Path,
     cells: "list[str]",
@@ -69,18 +166,42 @@ def _round_trip(
     check_real: bool = True,
     seed: str = "4",
     header: str = "value",
+    by_command: bool = True,
 ) -> "tuple[dict[str, object], dict[str, object], list[str], int, int]":
-    """Describe, build, describe the twin; check the twin and the real table."""
+    """Describe, build, describe the twin; check the twin and the real table.
+
+    ``by_command`` FALSE DESCRIBES WITH THE PRODUCER (plan P4-D341).
+    `synthtwin profile` refuses a table under the population floor and
+    writes nothing, and a shape whose ROLE depends on how many rows the
+    table has -- the categorical ceiling is a share of them -- cannot be
+    padded up to that floor without becoming a different shape. The
+    producer describes a table of any size and refuses none, so such a
+    shape is described that way and its twin is still built and checked
+    through `generate` and `validate`, which is what those tests are
+    about. Both the twin's re-description and the checks are the
+    command's either way.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
+    # THE KEEPER COLUMN IS THE COMMAND'S PATH ONLY. The producer
+    # refuses no table for its size, so a shape described that way is
+    # written exactly as it always was and its document has one column.
+    names, built = (
+        rows_at_the_floor(header, cells)
+        if by_command
+        else ([header], [[cell] for cell in cells])
+    )
     table.write_text(
-        fixtures.rows_to_csv([header], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )
     described = ["profile", str(table), "--out-dir", str(folder), "--replace"]
-    assert _exit_of(described + list(flags)) == 0
     profile = folder / "real-profile.json"
+    if by_command:
+        assert _exit_of(described + list(flags)) == 0
+    else:
+        describe_with_the_producer(table, profile, flags)
     assert _exit_of(
         ["generate", str(profile), "--out-dir", str(folder), "--seed", seed, "--replace"]
     ) == 0
@@ -90,7 +211,12 @@ def _round_trip(
     copied = again / "twin.csv"
     copied.write_bytes(twin.read_bytes())
     redescribed = ["profile", str(copied), "--out-dir", str(again), "--replace"]
-    assert _exit_of(redescribed + list(flags)) == 0
+    if by_command:
+        assert _exit_of(redescribed + list(flags)) == 0
+    else:
+        describe_with_the_producer(
+            copied, again / "twin-profile.json", flags
+        )
     first = json.loads(profile.read_text(encoding="utf-8"))["columns"][0]
     second = json.loads(
         (again / "twin-profile.json").read_text(encoding="utf-8")
@@ -227,6 +353,32 @@ def _shapes() -> "dict[str, tuple[list[str], tuple[str, ...], bool, str]]":
         "dates at midnight with a T": (_days(ROWS, "T00:00:00", 20), (), True, ""),
         "dates at midnight with one offset": (_days(ROWS, "T00:00:00+02:00", 21), (), True, ""),
     }
+
+
+def test_the_producer_helper_refuses_a_flag_it_does_not_implement(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A flag dropped in silence describes a different table (landing 3.2).
+
+    The two it does implement go through; anything else stops the test
+    that asked for it rather than quietly describing something else.
+    """
+    folder = tmp_path / "flags"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [["1"] for _ in range(ROWS)]),
+        encoding="utf-8",
+        newline="",
+    )
+    describe_with_the_producer(
+        table, folder / "real-profile.json", ("--smallest-group", "11")
+    )
+    with pytest.raises(AssertionError) as caught:
+        describe_with_the_producer(
+            table, folder / "other-profile.json", ("--first-row", "data")
+        )
+    assert "--first-row" in f"{caught.value}"
 
 
 @pytest.mark.parametrize("shape", sorted(_shapes()))
@@ -428,9 +580,15 @@ def test_a_repair_never_turns_a_column_of_dates_into_two_values(
 
 def test_labels_beside_decimal_comma_numbers_stay_labels(tmp_path: pathlib.Path) -> None:
     """The review's reproduction: `1,234,567` beside `2.397,25` is a label, and stays one."""
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. The SHAPE is the two labels
+    # beside a column of decimal-comma numbers, so the two labels keep
+    # their five cells each and the numbers are counted up to the floor
+    # from them.
+    labels = 10
     numbers = [
         f"{1200.25 + 97 * place:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
-        for place in range(40)
+        for place in range(parsing.POPULATION_FLOOR - labels)
     ]
     cells = numbers + ["1,234,567"] * 5 + ["2,345,678"] * 5
     first, second, _written, twin_exit, _real = _round_trip(
@@ -444,8 +602,21 @@ def test_labels_beside_decimal_comma_numbers_stay_labels(tmp_path: pathlib.Path)
 
 def test_a_grouped_end_is_not_mistaken_for_an_absent_spelling(tmp_path: pathlib.Path) -> None:
     """The review's reproduction: `-999.000` is a value, `-999,000` is absent."""
-    cells = [f"{-1000000 + 25 * place:,}".replace(",", ".") for place in range(41)]
-    cells += ["-999,000"] * 10
+    # ...and at the floor for the same reason: the ten `-999,000` cells
+    # are the shape and the grouped numbers are counted up to it. The
+    # ABSENT cells are counted on top of the floor and not inside it
+    # (repair of landing 3.2): the population is the rows that hold a
+    # value, and `--missing-value -999` is what makes these ten hold
+    # none, so a table of exactly the floor would be a population of
+    # ninety and the command would be right to refuse it. `keeper_column`
+    # cannot see this, because the spelling is absent only under a flag
+    # it is not given.
+    absent = 10
+    cells = [
+        f"{-1000000 + 25 * place:,}".replace(",", ".")
+        for place in range(parsing.POPULATION_FLOOR)
+    ]
+    cells += ["-999,000"] * absent
     first, second, _written, twin_exit, _real = _round_trip(
         tmp_path / "end",
         cells,
@@ -462,8 +633,18 @@ def test_a_twin_too_small_to_prove_its_mark_says_so(tmp_path: pathlib.Path) -> N
     """The review's reproduction at a raised floor: the loss is named, not silent."""
     cells = ["1,040.16", "1,091.80", "801.65", "766.75", "229.49",
              "540.78", "283.64", "180.77", "115.02", "222.04"]
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): TEN cells is the shape
+    # -- a twin with too few slots to prove the mark -- and a table
+    # grown to the population floor has room and proves it. The
+    # producer refuses no table for its size, and the twin is still
+    # built and reported on by the commands, which is where the loss
+    # has to be named.
     first, second, _written, _twin_exit, _real = _round_trip(
-        tmp_path / "small", cells, ("--smallest-group", "2"), False
+        tmp_path / "small",
+        cells,
+        ("--smallest-group", "2"),
+        False,
+        by_command=False,
     )
     assert first["group_separator"] == ","
     report = (tmp_path / "small" / "real-twin-report.txt").read_text(encoding="utf-8")
@@ -506,9 +687,15 @@ def test_a_case_only_respelling_never_turns_moments_into_two_values(
     )
     # FLOOR ONE (plan P4-D316): ten cells whose separators are counts of
     # one to four, which only a floor below eleven names.
+    # AT THE POPULATION FLOOR ON ABSENT CELLS (plan P4-D341): the
+    # command refuses a smaller table, and what this witness is about is
+    # the TEN cells' own spellings and the counts of one to four they
+    # stand on. `at_the_floor` pads with `NA`, which leaves every one of
+    # those -- and the separator census taken over them -- exactly as it
+    # was.
     first, second, _written, twin_exit, _real = _round_trip(
         tmp_path / "case",
-        cells,
+        at_the_floor(cells),
         ("--missing-value", "2025-01-01t00:00:00", "--smallest-group", "1"),
         False,
         seed=seed,
@@ -566,13 +753,27 @@ def test_a_day_whose_every_spelling_is_absent_gets_no_value(
         "--missing-value", "2025-01-02T00:00:00",
         "--missing-value", "2025-01-02t00:00:00",
     )
+    # AT THE POPULATION FLOOR ON ABSENT CELLS (plan P4-D341): the
+    # command refuses a smaller table, and what this witness is about
+    # is the sixty PRESENT moments and the fifteen cells of the wholly
+    # absent day. `at_the_floor` pads with `NA`, so both of those stay
+    # exactly what they were and only the absent total grows.
+    padding = parsing.POPULATION_FLOOR - len(cells)
     first, second, written, twin_exit, _real = _round_trip(
-        tmp_path / "absent-day", cells, flags, True, seed=seed
+        tmp_path / "absent-day", at_the_floor(cells), flags, True, seed=seed
     )
     assert second["n_present"] == first["n_present"] == 60
-    assert second["n_missing"] == first["n_missing"] == 15
+    assert second["n_missing"] == first["n_missing"] == 15 + padding
     assert twin_exit == 0
-    present = [cell for cell in written if cell and not cell.startswith("2025-01-02")]
+    # THE TWIN'S PRESENT MOMENTS: not a blank, not one of the absent
+    # cells the padding to the floor added, and not the wholly absent
+    # day. A moment is what starts with the month these cells are in,
+    # which is the test the padding cannot pass.
+    present = [
+        cell
+        for cell in written
+        if cell.startswith("2025-01-") and not cell.startswith("2025-01-02")
+    ]
     assert len(present) == 60
 
 
@@ -581,8 +782,11 @@ def test_a_column_of_dates_that_collapses_to_two_days_is_named(
 ) -> None:
     """A twin read back as a column of two values says so (confirmation review)."""
     cells = ["2025-01-01"] * 10 + ["2025-01-02", "2025-01-03"]
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): the shape is TWELVE
+    # cells collapsing to two days, and a table at the population floor
+    # the command requires does not collapse.
     first, second, _written, _twin_exit, _real = _round_trip(
-        tmp_path / "days", cells, (), False, seed="0"
+        tmp_path / "days", cells, (), False, seed="0", by_command=False
     )
     assert first["role"] == "datetime"
     report = (tmp_path / "days" / "real-twin-report.txt").read_text(encoding="utf-8")

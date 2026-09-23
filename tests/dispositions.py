@@ -521,6 +521,17 @@ REGISTRY += [
     Fact("document", "columns", STRUCTURAL),
     Fact("document", "source", STRUCTURAL),
 ]
+# `settings` and `publication_notes` are disposed as WHOLE SUBTREES,
+# which is what contract 9.1 says of them too, so a key added inside
+# either is disposed the moment it is added and not by a row of its
+# own. Two were added by plan P4-D340 and P4-D341 and are named here so
+# that the decision is written down rather than inferred: the settings
+# key `person_columns`, which records which declared columns name the
+# people the rows belong to, and the first `publication_notes` entry
+# that names NO column, which carries what the run said about the
+# table's population. Neither is an output obligation -- the twin's
+# table carries no trace of either -- which is what LOADER-ONLY means
+# and why the subtree disposition already covers them.
 REGISTRY += _facts(
     "document",
     LOADER_ONLY,

@@ -25,6 +25,7 @@ import pytest
 from synthtwin import contract, generation, sheetwriting
 from tests import fixtures, workbooks
 from tests.test_extra_round_numbers import _exit_of, _round_trip
+from tests.test_stage2_round_trip import describe_with_the_producer
 
 
 # -- the numbers pass, item 1: the mode's published FREQUENCY ---------
@@ -134,7 +135,18 @@ _ABSORBED_CELLS = ["12"] * 230 + ["Z"] * 10
 def _identifier_round_trip(
     folder: pathlib.Path,
 ) -> "tuple[dict[str, object], list[str], int, int]":
-    """Codex's own declared record number, described, built and checked."""
+    """Codex's own declared record number, described, built and checked.
+
+    DESCRIBED BY THE PRODUCER (plan P4-D341). The column here is the
+    review's own: 230 cells reading `12` and ten reading `Z`, DECLARED
+    with `--identifier`. A declared identifier whose values repeat is
+    what a population is counted by, so those 240 rows are TWO people
+    and the command refuses them -- and the shape cannot be grown,
+    because the two counts are the reading being absorbed. The producer
+    describes a table of any size and refuses none; the twin is still
+    built and both files still checked by the commands, which is where
+    the absorbed counts have to survive.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
     table.write_text(
@@ -144,11 +156,12 @@ def _identifier_round_trip(
         encoding="utf-8",
         newline="",
     )
-    assert _exit_of([
-        "profile", str(table), "--out-dir", str(folder), "--replace",
-        "--identifier", "record", "--smallest-group", "11",
-    ]) == 0
     description = folder / "real-profile.json"
+    describe_with_the_producer(
+        table,
+        description,
+        ("--identifier", "record", "--smallest-group", "11"),
+    )
     assert _exit_of([
         "generate", str(description), "--out-dir", str(folder),
         "--seed", "4", "--replace",

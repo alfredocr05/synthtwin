@@ -37,7 +37,7 @@ import random
 
 import pytest
 
-from synthtwin import reading
+from synthtwin import parsing, reading
 from tests.test_stage2_round_trip import _exit_of
 
 _TOWNS = ("Eastcote", "Westbury", "Southgate", "Harlow", "Redmoor")
@@ -189,22 +189,37 @@ def test_first_row_names_publishes_the_real_names(
 # ------------------------------------- the headed tables that must stand
 
 
+# EACH OF THEM WRITTEN AT THE POPULATION FLOOR (plan P4-D341):
+# `synthtwin profile` refuses a table under it and writes nothing, and
+# what every case here pins is how the FIRST ROW is read. The rows are
+# not repeated to reach the floor -- three of these cases turn on their
+# column's values being all DIFFERENT, and a repeated row would take
+# that evidence away and settle the first row the other way. Each case's
+# own generator is run to the floor instead, so every silhouette, every
+# repetition and every witness below is the one the case was written
+# with, and `n_rows` is derived from the rule rather than read off a
+# run.
+_ROWS = parsing.POPULATION_FLOOR
+
 _HEADED = {
     "names that look like their own codes": ["visit1,visit2"]
-    + [f"a{index % 9},b{index % 9}" for index in range(14)],
+    + [f"a{index % 9},b{index % 9}" for index in range(_ROWS)],
     "pivoted years over four-digit values": ["region,2019,2020"]
-    + [f"place{index},1234,1567" for index in range(1, 15)],
+    + [f"place{index},1234,1567" for index in range(1, _ROWS + 1)],
     "a column whose name looks like a code": ["age,B10"]
-    + [f"{30 + index},B{index:02d}" for index in range(1, 15)],
+    + [f"{30 + index},B{index:02d}" for index in range(1, _ROWS + 1)],
     "two words over two words": ["Full Name,Town"]
-    + [f"{_WORDS[index % 4]} Smith,{_TOWNS[index % 5]}" for index in range(14)],
+    + [
+        f"{_WORDS[index % 4]} Smith,{_TOWNS[index % 5]}"
+        for index in range(_ROWS)
+    ],
     "a record number column under its own name": ["record_id,age"]
-    + [f"R{index:03d},{30 + index}" for index in range(1, 15)],
+    + [f"R{index:03d},{30 + index}" for index in range(1, _ROWS + 1)],
     "a structured column under a real header": ["case_code,town,reading"]
     + [
         f"CASE-{_WORDS[index % 4]}-{100 + index:04d},"
         f"{_TOWNS[index % 5]} Clinic {index},{30 + index}"
-        for index in range(1, 15)
+        for index in range(1, _ROWS + 1)
     ],
 }
 
@@ -224,4 +239,4 @@ def test_an_ordinary_headed_table_is_still_read_as_names(
     assert _profile(tmp_path, body) == 0
     document = _document(tmp_path)
     assert document["source"]["header_source"] == reading.HEADER_FROM_FILE
-    assert document["n_rows"] == 14
+    assert document["n_rows"] == _ROWS

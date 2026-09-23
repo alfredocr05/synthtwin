@@ -30,13 +30,21 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import errors, profile, writing
+from synthtwin import errors, parsing, profile, writing
 from synthtwin.cli import main
 from synthtwin.paths import PathValidationError
 
 PROFILE_TEXT = '{\n  "profile_version": 2,\n  "note": "PROFILE-DERIVED"\n}\n'
 SUMMARY_TEXT = "A summary of the table, for a person to read.\n"
-TABLE_TEXT = "record_code,age\nA1,41\nB2,52\n"
+# A TABLE AT THE POPULATION FLOOR (plan P4-D341): `synthtwin profile`
+# refuses a smaller one and writes nothing, and every test in this file
+# is about what reaches the DISK when a write is interrupted. The row
+# count is read from the rule, and the record codes stay all-different,
+# which is what the declaration in these tests is about.
+TABLE_ROWS = parsing.POPULATION_FLOOR
+TABLE_TEXT = "record_code,age\n" + "".join(
+    f"A{index},{41 + index % 12}\n" for index in range(TABLE_ROWS)
+)
 
 REFUSAL = (
     "The working path was refused by the check that runs immediately "
@@ -220,7 +228,7 @@ def test_the_command_reports_the_refusal_and_leaves_the_folder_clean(
     # only that a path was refused, while a complete real-derived
     # profile sat in a hidden neighbour nobody had been told about.
     table = fixtures.write(
-        tmp_path, "clinic.csv", fixtures.single_column_table("age", ["41"] * 30)
+        tmp_path, "clinic.csv", fixtures.single_column_table("age", ["41"] * parsing.POPULATION_FLOOR)
     )
     _first, second = _outputs(tmp_path)
     _refuse_the_write_of(
@@ -305,7 +313,14 @@ def test_an_ordinary_run_still_writes_both_files_and_clears_up(
     table = fixtures.write(tmp_path, "clinic.csv", TABLE_TEXT)
     assert main(["profile", f"{table}", "--identifier", "record_code"]) == 0
     first, second = _outputs(tmp_path)
-    assert json.loads(first.read_text(encoding="utf-8"))["n_rows"] == 2
+    assert json.loads(first.read_text(encoding="utf-8"))["n_rows"] == TABLE_ROWS
     assert second.read_text(encoding="utf-8")
     assert _neighbours(tmp_path) == []
-    assert capsys.readouterr().err == ""
+    # WHAT AN UNHARMED RUN SAYS NOTHING ABOUT IS THE DISK (plan
+    # P4-D341): it read `err == ""`, which is a claim about every
+    # notice the command has. The table is in the population band, so
+    # the run says how large it is on purpose; what this file is about
+    # is the working files, and that is what is asserted.
+    said = capsys.readouterr().err
+    assert "working file" not in said, said
+    assert REFUSAL not in said, said

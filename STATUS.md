@@ -117,6 +117,17 @@ Then open `your-table-twin.csv` and develop against it. Read
 `your-table-twin-report.txt` — it tells you, per column, what the twin
 reproduces exactly and what it only approximates.
 
+**How small a table synthtwin will describe.** Fewer than 100 and
+`profile` refuses and writes nothing: every count a description
+publishes is a count over the population it was taken from, and below
+a hundred those counts describe the individuals in your table rather
+than a population. From 100 to 999 it describes the table and says so,
+on the screen and on every page it writes, in a sentence you cannot
+turn off. The twin's own table carries no trace of that notice, so code
+you write against the twin runs exactly as it ran before. Where you
+name a column with `--identifier` and its values repeat, the hundred is
+counted in PEOPLE rather than in rows.
+
 Useful options:
 
 - `--seed 7` — same description and seed always give the same twin
@@ -127,7 +138,8 @@ Useful options:
   written, with how many rows carried it; rarer codes are counted
   together, and no average is published over it
 - `--identifier record_id` — "this column is a record number": nothing
-  of it is published at all
+  of it is published at all, and where its values REPEAT it is also how
+  synthtwin counts the people your rows are about
 - `--answers my-table-questions.json` — the questions file from an
   earlier run, with your answers written in. Each answer becomes the
   declaration it stands for, so you can settle a whole table's columns

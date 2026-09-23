@@ -40,9 +40,23 @@ REGIONS = ["north"] * 40 + ["south"] * 40 + ["NA"] * 40
 READINGS = [str(index) for index in range(1, 200)]
 
 
-def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:
-    """One column on disk, and its path as a person would type it."""
-    text = fixtures.single_column_table(name, values)
+def _written(
+    tmp_path: pathlib.Path,
+    name: str,
+    values: list[str],
+    options: "list[str] | None" = None,
+) -> str:
+    """One column on disk, and its path as a person would type it.
+
+    WITH A KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, and a `--missing-value`
+    declaration here turns a column's own spellings into holes. The
+    column under test is still the first, and its cells are untouched.
+    """
+    text = fixtures.kept_column_table(
+        name, values, fixtures.declared_missing_in(list(options or []))
+    )
     return f"{fixtures.write(tmp_path, f'{name}.csv', text)}"
 
 
@@ -63,7 +77,7 @@ def _run(
     capsys: pytest.CaptureFixture[str],
 ) -> dict:
     """Profile one column through the command line; return the document."""
-    table = _written(tmp_path, name, values)
+    table = _written(tmp_path, name, values, options)
     assert main(["profile", table] + options) == 0
     capsys.readouterr()
     return _profiled(tmp_path, name)
@@ -237,7 +251,13 @@ def test_a_number_declaration_does_not_match_by_spelling(
     # honest: `-999` names a NUMBER, so it does not reach a cell that
     # merely reads like it. Nothing in this column is a number, so
     # nothing is declared away.
-    values = [f"code-999-{index}" for index in range(60)]
+    # AT THE POPULATION FLOOR (plan P4-D341), because the command
+    # refuses a smaller table: what this pins is that `-999` reaches no
+    # cell of a column holding no number, and how many such cells there
+    # are decides nothing.
+    values = [
+        f"code-999-{index}" for index in range(parsing.POPULATION_FLOOR)
+    ]
     document = _run(
         tmp_path, "codes", values, ["--missing-value", "-999"], capsys
     )
@@ -449,7 +469,10 @@ def test_the_declared_value_never_reaches_a_withholding_column(
     # A declaration is still a value of the real table, so it obeys the
     # publication rule like every other: a column that publishes nothing
     # names no spelling, not even one the person typed.
-    values = fixtures.prose(50)
+    # ...and so is this one, for the same reason: what it pins is that
+    # a column publishing nothing names no spelling, and the one cell
+    # the declaration reaches is the one counted below.
+    values = fixtures.prose(parsing.POPULATION_FLOOR)
     document = _run(
         tmp_path,
         "comment",

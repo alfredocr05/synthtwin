@@ -576,9 +576,25 @@ def test_a_plus_is_never_padded_past_the_census_of_padded_plus_cells(
     bound the second tier made up the count with `+01`, a spelling no cell
     of the source wore.
     """
+    # AT THE POPULATION FLOOR ON ABSENT CELLS AND A KEEPER COLUMN (plan
+    # P4-D341, and the repair of landing 3.2): the command refuses a
+    # table whose POPULATION is under the floor, and that population is
+    # the rows that HOLD A VALUE -- so the `NA` padding cannot reach it
+    # on its own. The shape here is the NINE padded cells and the
+    # sixteen unpadded ones beside them; `NA` leaves those exactly as
+    # they were, and `held` carries a value on every row so the table
+    # reaches the floor without the census moving.
     rows = [["+1"]] * 8 + [["-99"]] * 8 + [["-02"]] * 9
+    rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - len(rows))
+    rows = [row + [fixtures.KEEPER_VALUE] for row in rows]
     for seed in ("3", "11", "29"):
-        run = _round_trip(tmp_path / f"signed{seed}", ["reading"], rows, seed, floor="1")
+        run = _round_trip(
+            tmp_path / f"signed{seed}",
+            ["reading", fixtures.KEEPER_NAME],
+            rows,
+            seed,
+            floor="1",
+        )
         assert run["first"]["pad_widths"] == {"2": 9}
         written = {row[0] for row in run["rows"] if row[0]}
         assert not [cell for cell in written if cell[:2] == "+0"], written
@@ -689,25 +705,41 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
     the twin -- writing the held-back cells as their own values are --
     missed `pads.published.4` at exit 3.
     """
+    # THE EIGHT VALUES STAY EIGHT AND THE TABLE REACHES THE POPULATION
+    # FLOOR ON ABSENT CELLS AND A KEEPER COLUMN (plan P4-D341, and the
+    # repair of landing 3.2). The shape is that the eight plainly
+    # written cells are BELOW the floor of eleven and so are held back
+    # into the commonest form; grown to thirty-four values they clear
+    # it, publish `leading_zero` themselves and the reproduction is
+    # gone. `NA` leaves every numeric census over the twenty-four
+    # present cells exactly as it was, and `held` carries a value on
+    # every row -- which the population, being the rows that HOLD A
+    # VALUE, is what the command now counts.
+    values = 8
     rows = []
-    for value in range(100, 108):
+    for value in range(100, 100 + values):
         for turn in range(3):
             rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
-    run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
+    present = len(rows)
+    rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - present)
+    rows = [row + [fixtures.KEEPER_VALUE] for row in rows]
+    run = _round_trip(
+        tmp_path / "pooled", ["offset", fixtures.KEEPER_NAME], rows, "4"
+    )
     # THE EIGHT PADDED CELLS ARE COUNTED INTO THE PLUS-SIGNED FORM (plan
     # P4-D222; stage 2 closed by the owner rulings of 2026-09-17), where
     # plan P4-D221 pooled the whole map with them. Counting the sixteen
     # plus-signed padded cells as padded would leave eight plus-signed
     # cells unpadded by subtraction, so the padded census counts none and
     # the twin misses no width.
-    assert run["first"]["numeric_styles"] == {"leading_plus": 24}
+    assert run["first"]["numeric_styles"] == {"leading_plus": present}
     assert run["first"]["pad_widths"] == {}
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
     # ...AND THE LOADER REFUSES THE CENSUS THAT WOULD LEAVE EIGHT BY
     # SUBTRACTION (P5b).
     document = json.loads(run["described"].read_text(encoding="utf-8"))
-    document["columns"][0]["pad_widths"] = {"4": 16}
+    document["columns"][0]["pad_widths"] = {"4": 2 * values}
     edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     with pytest.raises(errors.ProfileError) as stopped:
         contract.load_profile(str(edited))

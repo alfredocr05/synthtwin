@@ -482,8 +482,17 @@ def _roles(described: S.Described, tag: str) -> "dict[str, str]":
 _ARTIFACTS = ("#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!")
 DECISION_SEVEN = {
     # a two-valued column half-full of error literals: binary with the
-    # literals as data, constant once they read as holes
-    "binary_to_constant": (["yes", "#N/A"] * 50, ["#N/A"]),
+    # literals as data, constant once they read as holes.
+    # THE COUNT IS THE FLOOR, DERIVED (repair of landing 3.2): read as
+    # holes the `#N/A` cells hold nothing, and the population is the
+    # rows that HOLD A VALUE, so it is the `yes` half that has to reach
+    # `parsing.POPULATION_FLOOR`. At fifty and fifty this case was
+    # described only because the empty half was counted, which is the
+    # hole that repair closed.
+    "binary_to_constant": (
+        ["yes", "#N/A"] * parsing.POPULATION_FLOOR,
+        ["#N/A"],
+    ),
     # a numeric column the literals polluted past the parse line: free
     # text with them as data, numeric again once they read as holes
     # (the case of test_p4d62_machine_artifacts, pinned beside this)
@@ -1061,6 +1070,162 @@ def test_k_2b_46(
             f"{delimited} delimited runs of the eight shapes, were measured, "
             "recorded and judged above."
         )
+
+
+# -- Stage 3 (landing 3.2: the population floor and the person rule) --------
+
+# THE TWO SUBJECT TABLES, DERIVED FROM THE RULES THEY HAVE TO CLEAR
+# rather than stated (repair of landing 3.2; the same derivation is in
+# tests/test_p4d341_population_floor.py, which owns the pinned nodes).
+_VISIT_ROWS = 500
+# A REGISTER: more subjects than a set of categories may hold in this
+# many rows, so `subject_id` does not read as `categorical` and route
+# one of the person rule is what reaches it; and clear of the
+# population floor by one smallest group, so the same table is
+# described rather than refused once the answer moves the count into
+# people. Moving either constant moves this number with it.
+_SUBJECTS = max(
+    parsing.POPULATION_FLOOR + parsing.DEFAULT_SMALL_CELL_FLOOR,
+    taxonomy.categories_ceiling(_VISIT_ROWS, taxonomy.Settings()) + 1,
+)
+# A SET OF CATEGORIES: the plan's own cited case (P4-D340, "a table of
+# 12 subjects over 1,196 rows"), kept at the numbers the plan cites.
+# What it has to keep is the property, not the numbers: FEWER subjects
+# than the ceiling allows, so the column publishes every identifier,
+# and every subject on at least `asking.PERSON_ROWS_PER_VALUE` rows.
+_FEW_ROWS = 1196
+_FEW_SUBJECTS = 12
+
+
+def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
+    """The population floor over a battery of sizes and person shapes.
+
+    Every case runs through `cli.main`, so what is measured is the
+    shipped command and not a function beside it. Three counts come
+    back -- how many of the battery were REFUSED, how many ran with the
+    NOTICE and how many ran SILENT -- and a fourth that is the whole
+    point of the first: how many refused runs left a file behind.
+    """
+    bands = {"refused": 0, "noticed": 0, "silent": 0}
+    wrote_after_refusing = 0
+    for name, rows, subjects, declared in S.POPULATION_BATTERY:
+        folder = tmp_path / name.replace(" ", "_")
+        folder.mkdir(parents=True)
+        table = fixtures.write(
+            folder, "real.csv", S.visits_table(rows, subjects)
+        )
+        flags = ["--identifier", "subject_id"] if declared else []
+        code = S.quiet_cli(["profile", f"{table}"] + flags)
+        left = sorted(one.name for one in folder.iterdir())
+        if code != 0:
+            bands["refused"] += 1
+            if left != ["real.csv"]:
+                wrote_after_refusing += 1
+            continue
+        document = json.loads(
+            (folder / "real-profile.json").read_text(encoding="utf-8")
+        )
+        said = [
+            note for note in document["publication_notes"]
+            if note["column"] == ""
+        ]
+        bands["noticed" if said else "silent"] += 1
+    _kpi(
+        record_property,
+        "K-S3-01",
+        {
+            "cases": len(S.POPULATION_BATTERY),
+            "refused": bands["refused"],
+            "noticed": bands["noticed"],
+            "silent": bands["silent"],
+            "files_written_after_a_refusal": wrote_after_refusing,
+        },
+        ", ".join(f"{k}={v}" for k, v in sorted(bands.items())),
+    )
+
+
+def test_k_s3_02(record_property, tmp_path: pathlib.Path) -> None:
+    """The person question's false positives on the realistic shapes.
+
+    Every column of the four realistic families and of the every-role
+    table is offered to the rule, with the declarations those families
+    ship and with every declaration removed. NONE of them names people,
+    so every column asked about is a false positive. The same rule is
+    then run on TWO repeated-measures tables whose `subject_id` DOES
+    name people -- `_VISIT_ROWS` visits over `_SUBJECTS` subjects,
+    which reads as a register, and 1,196 visits over 12 subjects, which
+    reads as a set of categories and publishes every subject's
+    identifier -- so a rule that asks about nothing at all is not
+    mistaken for a rule that asks about the right thing, and the case
+    the plan cites as its reason for existing is one of the two.
+
+    AND FOUR LABEL SHAPES THAT ARE IN NEITHER FAMILY
+    (`kpi_shapes.PERSON_QUESTION_NEGATIVES`, added by the repair of
+    landing 3.2). The rule's own docstring named `ward` as a column it
+    kept out while a 60-ward column over 500 rows cleared it, which is
+    what a battery missing a shape lets stand. The four are here so the
+    count of false positives is measured over the shapes the rule does
+    mis-fire on, and the ledger holds that count where it can be seen.
+    """
+    from synthtwin import asking, profile as profile_module, reading
+
+    settings = taxonomy.Settings()
+
+    def asked(folder: pathlib.Path, text: str, declared: "list[str]") -> "list[str]":
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(folder, "real.csv", text)
+        read = reading.read_table(
+            f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+        )
+        document = profile_module.build_document(read, settings, list(declared))
+        raised = asking.questions_for(
+            document, read.columns, settings, list(declared)
+        )
+        person = asking.person_questions(
+            document, read.columns, settings, list(declared),
+            list(declared), raised,
+        )
+        return [one.name for one in person]
+
+    columns = 0
+    false_positives: "list[str]" = []
+    place = 0
+    for family in S.eight_shape_tables():
+        text = S.delimited_text(family["names"], family["rows"])
+        columns += len(family["names"])
+        for declared in ([family["identifier"]] if family["identifier"] else [], []):
+            place += 1
+            for name in asked(tmp_path / f"fam{place}", text, declared):
+                false_positives += [f"{family['family']}:{name}"]
+    every = fixtures.every_role_table()
+    columns += len(every.splitlines()[0].split(","))
+    for name in asked(tmp_path / "every_role", every, []):
+        false_positives += [f"every_role:{name}"]
+    for tag, label, different, rows in S.PERSON_QUESTION_NEGATIVES:
+        place += 1
+        columns += 2
+        text = S.label_table(label, different, rows)
+        for name in asked(tmp_path / f"neg{place}", text, []):
+            false_positives += [f"{tag}:{name}"]
+    found = asked(tmp_path / "visits", S.visits_table(_VISIT_ROWS, _SUBJECTS), [])
+    # THE CASE THE PLAN CITES, which route one could never reach: the
+    # subject count is UNDER the categorical ceiling for this many
+    # rows, so `subject_id` reads as a set of categories and publishes
+    # all twelve identifiers beside their visit counts.
+    categorical = asked(
+        tmp_path / "few", S.visits_table(_FEW_ROWS, _FEW_SUBJECTS), []
+    )
+    _kpi(
+        record_property,
+        "K-S3-02",
+        {
+            "columns_measured": columns,
+            "false_positives": len(false_positives),
+            "subject_column_asked_about": len(found),
+            "categorical_subject_column_asked_about": len(categorical),
+        },
+        ", ".join(sorted(set(false_positives))) or "none",
+    )
 
 
 # -- Stage 6 (a baseline measured now) --------------------------------------

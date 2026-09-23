@@ -22,6 +22,8 @@ The vocabulary is deliberately neutral and made up on the spot.
 
 import zipfile
 
+from synthtwin import parsing
+
 # A fixed moment for every member, so the bytes do not carry the clock.
 _WHEN = (1980, 1, 1, 0, 0, 0)
 
@@ -338,6 +340,14 @@ def sheet(
 
 SITES = ("North", "South", "East", "West")
 
+# HOW MANY RECORDS THE ORDINARY SHAPES HOLD (plan P4-D341). `synthtwin
+# profile` describes no table under `parsing.POPULATION_FLOOR` and
+# writes nothing, and none of these shapes is a shape of a ROW COUNT --
+# each is about a sheet's furniture, its storage types, its date system
+# or its macro project. So each builder writes the floor by default and
+# every caller that needs a different length still says so.
+BOOK_ROWS = parsing.POPULATION_FLOOR
+
 
 def _rows_of(n_rows: int, first: int = 2) -> "list[tuple[int, list[str]]]":
     """`n_rows` ordinary records of four columns, starting at row `first`."""
@@ -358,7 +368,7 @@ def _rows_of(n_rows: int, first: int = 2) -> "list[tuple[int, list[str]]]":
     return out
 
 
-def plain_book(n_rows: int = 30) -> bytes:
+def plain_book(n_rows: int = BOOK_ROWS) -> bytes:
     """One visible sheet, a header row, ordinary typed records."""
     strings = ["reading", "site", "amount", "recorded_on"] + list(SITES)
     head = [
@@ -397,13 +407,18 @@ def plain_book(n_rows: int = 30) -> bytes:
     )
 
 
-def typed_book() -> bytes:
+def typed_book(n_rows: int = BOOK_ROWS) -> bytes:
     """Every cell class the study says a description MUST carry.
 
     Columns: a text of digits that must stay text, NA-like text, an
     empty-string cell beside an absent one, a boolean, an error, a
     formula with a cached value and one without, an integral number
     beside a fractional one, and a number wearing a format code.
+
+    THE TWO RECORDS THE STUDY WROTE ARE REPEATED to ``n_rows`` (plan
+    P4-D341), so the shape -- every cell class, on the rows the study
+    put it on -- is unchanged and the table reaches the population
+    floor the command describes at.
     """
     strings = [
         "code",
@@ -424,33 +439,39 @@ def typed_book() -> bytes:
     for place in range(8):
         head += [cell(f"{chr(65 + place)}1", f"{place}", "s")]
     body: "list[tuple[int, list[str]]]" = [(1, head)]
-    body += [
-        (
-            2,
-            [
-                cell("A2", "8", "s"),
-                cell("B2", "9", "s"),
-                cell("C2", "10", "s"),
-                cell("D2", "1", "b"),
-                cell("E2", "#N/A", "e"),
-                cell("F2", "40", "", 0, "A2*10", True),
-                cell("G2", "12.5"),
-                cell("H2", "123", "", 7),
-            ],
-        ),
-        (
-            3,
-            [
-                cell("A3", "11", "s"),
-                cell("B3", "12", "s"),
-                cell("D3", "0", "b"),
-                cell("E3", "#DIV/0!", "e"),
-                cell("F3", "", "", 0, "A3*10", False),
-                cell("G3", "3"),
-                cell("H3", "4501", "", 7),
-            ],
-        ),
-    ]
+    for place in range(n_rows):
+        number = 2 + place
+        if place % 2 == 0:
+            body += [
+                (
+                    number,
+                    [
+                        cell(f"A{number}", "8", "s"),
+                        cell(f"B{number}", "9", "s"),
+                        cell(f"C{number}", "10", "s"),
+                        cell(f"D{number}", "1", "b"),
+                        cell(f"E{number}", "#N/A", "e"),
+                        cell(f"F{number}", "40", "", 0, f"A{number}*10", True),
+                        cell(f"G{number}", "12.5"),
+                        cell(f"H{number}", "123", "", 7),
+                    ],
+                )
+            ]
+            continue
+        body += [
+            (
+                number,
+                [
+                    cell(f"A{number}", "11", "s"),
+                    cell(f"B{number}", "12", "s"),
+                    cell(f"D{number}", "0", "b"),
+                    cell(f"E{number}", "#DIV/0!", "e"),
+                    cell(f"F{number}", "", "", 0, f"A{number}*10", False),
+                    cell(f"G{number}", "3"),
+                    cell(f"H{number}", "4501", "", 7),
+                ],
+            )
+        ]
     return package(
         [
             ("[Content_Types].xml", _content_types(1, True, False, False)),
@@ -459,16 +480,25 @@ def typed_book() -> bytes:
             ("xl/_rels/workbook.xml.rels", _workbook_rels(1, True)),
             ("xl/styles.xml", _styles()),
             ("xl/sharedStrings.xml", _shared_strings(strings)),
-            ("xl/worksheets/sheet1.xml", sheet(body, dimension="A1:H3")),
+            (
+                "xl/worksheets/sheet1.xml",
+                sheet(body, dimension=f"A1:H{n_rows + 1}"),
+            ),
         ]
     )
 
 
-def titled_book(n_rows: int = 12) -> bytes:
+def titled_book(n_rows: int = BOOK_ROWS) -> bytes:
     """Blank rows, a title row and a merged header cell above the names.
 
     An all-empty row stands inside the data as well, which both readers
     keep as a record of nothing.
+
+    SO IT WRITES ONE ROW MORE THAN IT IS ASKED FOR (repair of landing
+    3.2). `n_rows` is how many records HOLD A VALUE, which is what the
+    population floor counts and what `BOOK_ROWS` promises; the record
+    of nothing stands on top of them, because counting it would be the
+    defect that repair closed.
     """
     strings = ["Cohort extract", "reading", "site", "amount", "recorded_on"]
     body: "list[tuple[int, list[str]]]" = [
@@ -483,7 +513,7 @@ def titled_book(n_rows: int = 12) -> bytes:
             ],
         ),
     ]
-    for place in range(n_rows):
+    for place in range(n_rows + 1):
         number = 5 + place
         if place == 4:
             body += [(number, [])]
@@ -520,7 +550,7 @@ def titled_book(n_rows: int = 12) -> bytes:
     )
 
 
-def hidden_first_book(n_rows: int = 20, notes_cells: int = 1) -> bytes:
+def hidden_first_book(n_rows: int = BOOK_ROWS, notes_cells: int = 1) -> bytes:
     """A hidden sheet first, so the chosen sheet is the second one.
 
     ``notes_cells`` is how many cells the notes page holds: one by
@@ -571,7 +601,7 @@ def hidden_first_book(n_rows: int = 20, notes_cells: int = 1) -> bytes:
     )
 
 
-def withheld_name_book(n_rows: int = 30) -> bytes:
+def withheld_name_book(n_rows: int = BOOK_ROWS) -> bytes:
     """A workbook whose chosen sheet's name may not be published.
 
     'Cohort extract' is not one of the generic names this version can
@@ -615,7 +645,7 @@ def withheld_name_book(n_rows: int = 30) -> bytes:
     )
 
 
-def second_sheet_book(n_rows: int = 30) -> bytes:
+def second_sheet_book(n_rows: int = BOOK_ROWS) -> bytes:
     """Two VISIBLE sheets, the table on the second one.
 
     Nothing about the file says which sheet holds the table, so reading
@@ -655,7 +685,7 @@ def second_sheet_book(n_rows: int = 30) -> bytes:
     )
 
 
-def epoch_book(n_rows: int = 10) -> bytes:
+def epoch_book(n_rows: int = BOOK_ROWS) -> bytes:
     """The 1904 date system, which shifts every date by 1,462 days."""
     strings = ["reading", "recorded_on"]
     body: "list[tuple[int, list[str]]]" = [
@@ -725,7 +755,7 @@ def subsecond_book(n_rows: int = 240, figures: bool = True) -> bytes:
     )
 
 
-def inline_book(n_rows: int = 20) -> bytes:
+def inline_book(n_rows: int = BOOK_ROWS) -> bytes:
     """Cells written inline, as pandas with openpyxl writes them."""
     names = ["reading", "site", "amount"]
     head: "list[str]" = []
@@ -869,7 +899,7 @@ def traversal_book() -> bytes:
     )
 
 
-def macro_book(n_rows: int = 10) -> bytes:
+def macro_book(n_rows: int = BOOK_ROWS) -> bytes:
     """A macro-enabled workbook: an ordinary table beside a code project."""
     strings = ["reading", "site"] + list(SITES)
     body: "list[tuple[int, list[str]]]" = [
@@ -920,7 +950,7 @@ def all_hidden_book() -> bytes:
     )
 
 
-def two_table_book(n_rows: int = 20, keep: str = "", third: str = "") -> bytes:
+def two_table_book(n_rows: int = BOOK_ROWS, keep: str = "", third: str = "") -> bytes:
     """Two sheets, each holding a TABLE, which synthtwin cannot twin.
 
     synthtwin describes ONE table, and the twin writes every other sheet

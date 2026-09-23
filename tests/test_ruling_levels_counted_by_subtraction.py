@@ -222,14 +222,29 @@ def test_the_smallest_raised_floor_reaches_it_too(
     publishes its own count where it is the only one. Two is the
     smallest floor that holds anything back at all.
     """
-    cells = ["yes"] * 20 + ["no"] * 20 + ["maybe"]
+    # THE TABLE IS WRITTEN AT THE POPULATION FLOOR (plan P4-D341): the
+    # command refuses a smaller one and writes nothing. The shape is
+    # TWO published levels and ONE row held back, so the one row stays
+    # one and the two levels take the rest of the floor between them --
+    # every count below is derived from that and from nothing a run
+    # printed.
+    held = 1
+    yes = (parsing.POPULATION_FLOOR - held) // 2
+    cells = (
+        ["yes"] * yes
+        + ["no"] * (parsing.POPULATION_FLOOR - held - yes)
+        + ["maybe"] * held
+    )
     random.Random(3).shuffle(cells)
     result = _round_trip(
         tmp_path, {"value": cells}, ("--smallest-group", "2")
     )
     column = _column(result)
     assert [level["label"] for level in column["levels"]] == ["no", "yes"]
-    assert (column["n_present"], column["n_missing"]) == (40, 1)
+    assert (column["n_present"], column["n_missing"]) == (
+        parsing.POPULATION_FLOOR - held,
+        held,
+    )
     assert _blank_cells(result) == 1
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
 

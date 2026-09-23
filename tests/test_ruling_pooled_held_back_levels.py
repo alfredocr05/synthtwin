@@ -98,7 +98,18 @@ def test_a_long_tail_publishes_its_pool_and_no_size(
 
 def test_the_loader_refuses_the_withdrawn_key(tmp_path: pathlib.Path) -> None:
     """A description still carrying the sizes is refused, naming the key."""
-    cells = ["north"] * 30 + ["south"] * 20 + ["west"] * 3 + ["east"] * 2
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. The shape is two levels that
+    # clear the floor of eleven and two that do not, so the held-back
+    # three and two stay exactly where they are and the two published
+    # levels take the rest of the floor between them.
+    held = ["west"] * 3 + ["east"] * 2
+    south = 20
+    cells = (
+        ["north"] * (parsing.POPULATION_FLOOR - south - len(held))
+        + ["south"] * south
+        + held
+    )
     result = _round_trip(tmp_path, {"value": cells}, ("--smallest-group", "11"))
     document = json.loads(pathlib.Path(result["profile"]).read_text("utf-8"))
     document["columns"][0]["suppressed_level_counts"] = [2, 3]

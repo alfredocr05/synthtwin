@@ -28,7 +28,27 @@ import pytest
 
 import crosscheck
 import fixtures
-from synthtwin import contract, dialect, errors, reading, sheetwriting, workbook
+from tests.test_stage2_round_trip import describe_with_the_producer
+from synthtwin import (
+    contract,
+    dialect,
+    errors,
+    parsing,
+    reading,
+    sheetwriting,
+    workbook,
+)
+
+# EVERY SHEET THIS FILE DESCRIBES THROUGH THE COMMAND IS WRITTEN AT THE
+# POPULATION FLOOR (plan P4-D341): `synthtwin profile` refuses a table
+# under it and writes nothing. None of the shapes here is a shape of a
+# ROW COUNT -- each is about a header, a sheet name, a format code, a
+# storage type or a census -- so each generator is simply run to the
+# floor and every count below is derived from that rule. The one
+# exception is the census of a table SHORTER than the line, whose
+# whole subject is its length; that one is described by the producer,
+# which refuses no table for its size.
+_FLOOR = parsing.POPULATION_FLOOR
 
 # -- a workbook written by hand ----------------------------------------
 
@@ -201,14 +221,28 @@ def _trip(
     suffix: str = ".xlsx",
     seed: int = 4,
     checked: "tuple[str, ...]" = (),
+    by_command: bool = True,
 ) -> "dict[str, object]":
-    """Describe, generate, describe the twin, and validate BOTH at exit 0."""
+    """Describe, generate, describe the twin, and validate BOTH at exit 0.
+
+    ``by_command`` FALSE DESCRIBES WITH THE PRODUCER (plan P4-D341),
+    for the one shape here whose subject is a table SHORTER than the
+    disclosure line: the command refuses a table under the population
+    floor, and growing that one past it is deleting the case. Nothing
+    else changes -- the twin is built, both files are checked and the
+    twin is described again by the commands, exactly as before.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     source = folder / f"{name}{suffix}"
     source.write_bytes(data)
-    code, said = _exit_of(["profile", str(source), "--out-dir", str(folder)] + list(flags))
-    assert code == 0, said[-600:]
     described = folder / f"{name}-profile.json"
+    if by_command:
+        code, said = _exit_of(
+            ["profile", str(source), "--out-dir", str(folder)] + list(flags)
+        )
+        assert code == 0, said[-600:]
+    else:
+        describe_with_the_producer(source, described, flags)
     code, said = _exit_of(["generate", str(described), "--seed", f"{seed}"])
     assert code == 0, said[-600:]
     twin = folder / f"{name}-twin{suffix}"
@@ -225,8 +259,15 @@ def _trip(
         ["validate", str(described), "--twin", str(twin), "--out-dir", str(twin_check)]
         + list(checked)
     )
-    code, said = _exit_of(["profile", str(twin), "--out-dir", str(again)] + list(flags))
-    assert code == 0, said[-600:]
+    if by_command:
+        code, said = _exit_of(
+            ["profile", str(twin), "--out-dir", str(again)] + list(flags)
+        )
+        assert code == 0, said[-600:]
+    else:
+        describe_with_the_producer(
+            twin, again / f"{name}-twin-profile.json", flags
+        )
     return {
         "source": source,
         "twin": twin,
@@ -271,7 +312,7 @@ def test_a_sparse_sheet_is_refused_before_its_table_is_built(
 # -- item 2: a blank header cell may not publish a person's row --------
 
 
-def _headed_with_a_blank(records: int = 31) -> bytes:
+def _headed_with_a_blank(records: int = _FLOOR) -> bytes:
     strings = ["record_key", "arm", "CASE-ZEBRA-471", "amber", "blue"]
     grid = {
         1: [_cell("A1", "0", "s"), _cell("C1", "1", "s")],
@@ -304,7 +345,7 @@ def test_a_header_with_a_blank_cell_is_the_header(tmp_path: pathlib.Path) -> Non
     assert [one["name"] for one in document["columns"]] == [
         "record_key", "Unnamed: 1", "arm",
     ]
-    assert document["n_rows"] == 31
+    assert document["n_rows"] == _FLOOR
     assert document["source"]["workbook"]["rows_above_header"] == 0
     assert b"CASE-ZEBRA-471" not in result["described"].read_bytes()
     # The twin's header leaves the same cell blank, so every reader names
@@ -328,7 +369,9 @@ def test_first_row_data_is_honoured_on_a_workbook(tmp_path: pathlib.Path) -> Non
     result = _trip(tmp_path, "data", _headed_with_a_blank(), ("--first-row", "data"))
     _held(result)
     document = result["document"]
-    assert document["n_rows"] == 32
+    # One more than the header reading keeps: the header row becomes a
+    # record, which is what `--first-row data` says.
+    assert document["n_rows"] == _FLOOR + 1
     assert document["source"]["header_source"] == "generated"
     assert [one["name"] for one in document["columns"]] == [
         "column_1", "column_2", "column_3",
@@ -380,13 +423,17 @@ def test_an_answer_of_data_overrides_a_typed_metadata_declaration(
     answer, and both rows were published as `header_rows`. Four records
     became two.
     """
+    # AT THE POPULATION FLOOR (plan P4-D341): the four records of the
+    # reproduction are the two named rows and the two below them, and
+    # the rest are the same shape repeated, so the count the command
+    # describes is derived from the rule.
     people = [
         "person,result",
         "Person-ZETA-000,private-result-000",
         '{"ImportId":"person"},{"ImportId":"result"}',
-        "Person-1,result-1",
-        "Person-2,result-2",
     ]
+    while len(people) - 1 < _FLOOR:
+        people += [f"Person-{len(people) - 2},result-{len(people) - 2}"]
     source = tmp_path / "real.csv"
     source.write_bytes(("\n".join(people) + "\n").encode())
     code, said = _exit_of(["profile", str(source), "--out-dir", str(tmp_path)])
@@ -405,7 +452,7 @@ def test_an_answer_of_data_overrides_a_typed_metadata_declaration(
     )
     assert code == 0, said[-400:]
     described = json.loads((second / "real-profile.json").read_text(encoding="utf-8"))
-    assert described["n_rows"] == 4
+    assert described["n_rows"] == _FLOOR
     assert described["source"]["dialect"]["header_rows"] == []
     assert b"Person-ZETA-000" not in (second / "real-profile.json").read_bytes()
 
@@ -413,14 +460,26 @@ def test_an_answer_of_data_overrides_a_typed_metadata_declaration(
 # -- item 4: no census reveals a count under the line ------------------
 
 
+# ONE ROW MORE THAN THE FLOOR, derived (repair of landing 3.2). The
+# table itself is at the floor either way, but the ONE boolean's class
+# count is withheld at a floor of five and its cell comes back EMPTY in
+# the twin -- so a source of exactly `POPULATION_FLOOR` rows has a twin
+# of one fewer that holds a value, and the twin's re-description is
+# refused. That is the product behaving correctly on a twin one row
+# short; what this case is about is the census, so it carries the extra
+# row. Sixty numbers stay sixty: it is the label run that grows.
+_MIXED_ROWS = parsing.POPULATION_FLOOR + 1
+_MIXED_NUMBERS = 60
+
+
 def _hundred_mixed() -> bytes:
     strings = ["value", "North", "South", "East"]
     grid = {1: [_cell("A1", "0", "s")]}
-    for place in range(100):
+    for place in range(_MIXED_ROWS):
         number = 2 + place
-        if place < 60:
+        if place < _MIXED_NUMBERS:
             grid[number] = [_cell(f"A{number}", f"{place}")]
-        elif place < 99:
+        elif place < _MIXED_ROWS - 1:
             grid[number] = [_cell(f"A{number}", f"{1 + place % 3}", "s")]
         else:
             grid[number] = [_cell(f"A{number}", "1", "b")]
@@ -444,10 +503,10 @@ def test_a_workbook_census_names_no_count_under_the_line(
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
     published = [one for one in census.values() if one is not None]
-    assert 1 not in published and 99 not in published, census
+    assert 1 not in published and _MIXED_ROWS - 1 not in published, census
     assert census["boolean"] is None
-    assert dialect.sheet_census_broken(census, 100, int(floor)) == ""
-    withheld = 100 - sum(published)
+    assert dialect.sheet_census_broken(census, _MIXED_ROWS, int(floor)) == ""
+    withheld = _MIXED_ROWS - sum(published)
     assert withheld == 0 or withheld >= dialect.sheet_line(int(floor)), census
     # The census the review measured is refused by name.
     measured = {
@@ -473,7 +532,7 @@ def test_a_workbook_census_names_no_count_under_the_line(
 # -- item 5 and 12: sheet names ----------------------------------------
 
 
-def _table_rows(records: int = 30) -> str:
+def _table_rows(records: int = _FLOOR) -> str:
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(records):
         number = 2 + place
@@ -547,17 +606,28 @@ def test_a_column_mixing_numbers_and_numeric_text_is_read(
     were which is not kept. A column whose NUMBERS wear a date format
     and a plain one is still refused.
     """
+    # HALF THE FLOOR OF EACH STORAGE TYPE (plan P4-D341): the shape is
+    # "as many numeric cells as text cells, all of them the same two
+    # values", and the table is written at the floor because the
+    # command refuses a smaller one.
+    half = _FLOOR // 2
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "2", "s")]}
-    for place in range(60):
+    for place in range(2 * half):
         number = 2 + place
-        value = _cell(f"A{number}", "10") if place < 30 else _cell(f"A{number}", "1", "s")
+        value = (
+            _cell(f"A{number}", "10") if place < half
+            else _cell(f"A{number}", "1", "s")
+        )
         grid[number] = [value, _cell(f"B{number}", f"{place % 3}")]
     result = _trip(tmp_path / "typed", "typed", _book([("Data", _rows(grid))], ["v", "1000", "k"]))
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
-    assert (census["number"], census["text"]) == (30, 30), census
+    assert (census["number"], census["text"]) == (half, half), census
     report = (tmp_path / "typed" / "typed-twin-report.txt").read_text(encoding="utf-8")
-    assert "stores 30 of its values as text and 30 as numbers," in report
+    assert (
+        f"stores {half} of its values as text and {half} as numbers,"
+        in report
+    )
 
     dated = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
     for place in range(20):
@@ -575,6 +645,13 @@ def test_a_column_mixing_numbers_and_numeric_text_is_read(
     assert "more than one kind of number format" in said, said[-500:]
 
 
+# Places enough that the two-in-three that HOLD a value reach the
+# population floor: `places - places // 3 >= POPULATION_FLOOR`, and
+# three halves of the floor is the smallest multiple of three that
+# clears it.
+_ODD_IN_THREE_PLACES = parsing.POPULATION_FLOOR * 3 // 2
+
+
 def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> None:
     """Files review merge pass, MAJOR 2 (plan P4-D166).
 
@@ -588,7 +665,13 @@ def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> No
     for name, odd in (("errors", lambda row: _cell(f"A{row}", "#N/A", "e")),
                       ("booleans", lambda row: _cell(f"A{row}", f"{row % 2}", "b"))):
         grid = {1: [_cell("A1", "0", "s")]}
-        for place in range(120):
+        # ONE ROW IN THREE IS THE ODD CELL, and in the `errors` shape
+        # that cell holds NO VALUE -- so the rows that hold one are two
+        # in three, and it is those the population floor counts (repair
+        # of landing 3.2). At 120 places the shape held 81 and the
+        # command refused it; the count is derived from the floor now,
+        # so a floor that moves moves the table with it.
+        for place in range(_ODD_IN_THREE_PLACES):
             number = 2 + place
             grid[number] = [odd(number) if place % 3 == 0 else _cell(
                 f"A{number}", f"{place % 3}", "s"
@@ -621,13 +704,13 @@ def test_a_colour_or_a_currency_does_not_make_a_date(
     missed nothing. An elapsed count in brackets is still elapsed.
     """
     grid = {1: [_cell("A1", "0", "s")]}
-    for place in range(60):
+    for place in range(_FLOOR):
         number = 2 + place
         grid[number] = [_cell(f"A{number}", f"{101.25 + place}", "", 1)]
     result = _trip(tmp_path, "coloured", _book([("Data", _rows(grid))], ["amount"], ("General", code)))
     _held(result)
     kinds = result["document"]["source"]["workbook"]["columns"][0]["format_kinds"]
-    assert kinds["plain"] == 60, kinds
+    assert kinds["plain"] == _FLOOR, kinds
     assert workbook.format_kind("[h]:mm:ss") == dialect.SHEET_FORMAT_ELAPSED
     assert workbook.format_kind("[mm]:ss") == dialect.SHEET_FORMAT_ELAPSED
     assert workbook.format_kind("[$-409]d-mmm-yy") == dialect.SHEET_FORMAT_DATE
@@ -759,7 +842,7 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
         '<si><r><t>be</t></r><r><t>ta</t></r><rPh sb="0" eb="2"><t>B</t></rPh></si>',
     ]
     grid = {1: [_cell("A1", "1", "s")]}
-    for place in range(30):
+    for place in range(_FLOOR):
         grid[2 + place] = [_cell(f"A{2 + place}", "0" if place % 2 else "2", "s")]
     phonetic = _trip(
         tmp_path / "phonetic", "phonetic", _book([("Data", _rows(grid))], items)
@@ -770,7 +853,7 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
     inline = '<row r="1"><c r="A1" t="inlineStr"><is><t>v</t></is></c></row>' + "".join(
         f'<row r="{2 + place}"><c r="A{2 + place}" t="inlineStr"><is>\n <t>North</t>\n'
         f' <rPh sb="0" eb="5"><t>NORTH</t></rPh>\n </is></c></row>'
-        for place in range(30)
+        for place in range(_FLOOR)
     )
     result = _trip(tmp_path / "inline", "inline", _book([("Data", inline)], []))
     _held(result)
@@ -778,7 +861,7 @@ def test_a_phonetic_run_and_indentation_are_not_data(tmp_path: pathlib.Path) -> 
     # Both twins are written before either is handed to the second reader.
     source = sorted(crosscheck.read_excel(phonetic["source"])["v"].tolist())
     assert sorted(crosscheck.read_excel(phonetic["twin"])["v"].tolist()) == source
-    assert crosscheck.read_excel(result["twin"])["v"].tolist() == ["North"] * 30
+    assert crosscheck.read_excel(result["twin"])["v"].tolist() == ["North"] * _FLOOR
 
 
 # -- item 11 and merge item 4: the table keeps its place ---------------
@@ -874,11 +957,11 @@ def test_a_split_pane_is_not_a_frozen_row_count(tmp_path: pathlib.Path) -> None:
         'topLeftCell="A10" activePane="bottomLeft" state="split"/></sheetView>'
         "</sheetViews>"
     )
-    result = _trip(tmp_path, "split", _book([("Data", _table_rows(60))], ["a", "b"], pane=pane))
+    result = _trip(tmp_path, "split", _book([("Data", _table_rows())], ["a", "b"], pane=pane))
     _held(result)
     assert result["document"]["source"]["workbook"]["frozen_rows"] == 0
     frozen = pane.replace('state="split"', 'state="frozen"').replace("3000", "2")
-    other = _trip(tmp_path / "frozen", "frozen", _book([("Data", _table_rows(60))], ["a", "b"], pane=frozen))
+    other = _trip(tmp_path / "frozen", "frozen", _book([("Data", _table_rows())], ["a", "b"], pane=frozen))
     assert other["document"]["source"]["workbook"]["frozen_rows"] == 2
 
 
@@ -953,7 +1036,7 @@ def test_a_carriage_return_in_a_header_is_written_back(tmp_path: pathlib.Path) -
         f'<sst xmlns="{_MAIN}"><si><t>line&#13;name</t></si><si><t>other</t></si></sst>'
     )
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
-    for place in range(30):
+    for place in range(_FLOOR):
         grid[2 + place] = [_cell(f"A{2 + place}", f"{place}"), _cell(f"B{2 + place}", f"{place % 4}")]
     data = _book([("Data", _rows(grid))], [])
     with zipfile.ZipFile(io.BytesIO(data)) as bundle:
@@ -1061,13 +1144,19 @@ def test_a_withheld_census_still_keeps_digit_codes_as_text(
     it the twin could not tell these texts from numbers, and pandas would
     read integers from the twin and strings from the source.
     """
-    strings = ["code", "k"] + [f"{place:05d}" for place in range(1, 61)]
+    # ONE ABSENT CELL BESIDE A FULL FLOOR OF TEXT CELLS (plan
+    # P4-D341): the property is that any count the census published
+    # would leave the one absent cell to be subtracted, which holds at
+    # any length, and the table is written at the floor because the
+    # command refuses a smaller one.
+    codes = _FLOOR
+    strings = ["code", "k"] + [f"{place:05d}" for place in range(1, codes + 1)]
     grid = {1: [_cell("A1", "0", "s"), _cell("B1", "1", "s")]}
-    for place in range(61):
+    for place in range(codes + 1):
         number = 2 + place
         cells = [_cell(f"B{number}", f"{place % 4}")]
         if place != 30:
-            cells = [_cell(f"A{number}", f"{2 + place % 60}", "s")] + cells
+            cells = [_cell(f"A{number}", f"{2 + place % codes}", "s")] + cells
         grid[number] = cells
     result = _trip(tmp_path, "codes", _book([("Data", _rows(grid))], strings))
     _held(result)
@@ -1116,14 +1205,26 @@ def test_a_mostly_empty_date_column_keeps_its_date_format(
 # rules, and a first header cell opening like a tag.
 
 
-def _one_name_over_text_records(pane: str = "", merged: bool = False) -> bytes:
-    """`subject` in A1 (B1, C1 blank) over forty-one records of three texts."""
+# The records `_one_name_over_text_records` writes under its one-word
+# header, counting the first: the population floor, because the command
+# describes no smaller table (plan P4-D341). It was forty-one.
+_ONE_NAME_RECORDS = _FLOOR
+
+
+def _one_name_over_text_records(
+    pane: str = "", merged: bool = False, records: int = _ONE_NAME_RECORDS
+) -> bytes:
+    """`subject` in A1 (B1, C1 blank) over records of three texts.
+
+    ``records`` records in all, the first of them the review's own
+    `CASE-ZEBRA-471`.
+    """
     strings = ["subject", "CASE-ZEBRA-471", "amber", "Northfield"]
     grid = {
         1: [_cell("A1", "0", "s")],
         2: [_cell("A2", "1", "s"), _cell("B2", "2", "s"), _cell("C2", "3", "s")],
     }
-    for place in range(40):
+    for place in range(records - 1):
         number = 3 + place
         strings += [f"CASE-{1000 + place}", ["red", "blue"][place % 2],
                     ["Eastham", "Westbury", "Southport"][place % 3]]
@@ -1187,7 +1288,7 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
     assert [one["name"] for one in document["columns"]] == [
         "subject", "Unnamed: 1", "Unnamed: 2",
     ]
-    assert document["n_rows"] == 41
+    assert document["n_rows"] == _ONE_NAME_RECORDS
     assert document["source"]["workbook"]["rows_above_header"] == 0
     assert b"ZEBRA" not in result["described"].read_bytes()
     # AND UNDECLARED IT IS UNMOVED TOO, which is the limit plan P4-D232
@@ -1198,7 +1299,7 @@ def test_a_header_of_one_name_is_read_as_the_names(tmp_path: pathlib.Path) -> No
         str(tmp_path / "declared" / "one-name.xlsx")
     )
     assert list(table.column_names) == ["subject", "Unnamed: 1", "Unnamed: 2"]
-    assert table.n_rows == 41
+    assert table.n_rows == _ONE_NAME_RECORDS
     assert table.first_row_seen == ""
     # Last: what a second reader names the twin's columns.
     assert list(crosscheck.read_excel(result["twin"]).columns) == list(
@@ -1234,8 +1335,17 @@ def test_a_title_the_sheet_marks_is_not_asked_about(tmp_path: pathlib.Path) -> N
         "subject", "Unnamed: 1", "Unnamed: 2",
     ]
     filtered = tmp_path / "filtered"
+    # ONE RECORD MORE THAN THE FROZEN SHEET (plan P4-D341). The filter
+    # on row 2 marks that row as the NAMES, so the records under it are
+    # one fewer than the sheet holds -- and the command describes a
+    # table of the population floor or more. The filter covers the
+    # names and every record under them: row 2 to the sheet's last row.
+    marked = _ONE_NAME_RECORDS + 1
     result = _trip(filtered, "filtered",
-                   _one_name_over_text_records(pane='<autoFilter ref="A2:C42"/>'),
+                   _one_name_over_text_records(
+                       pane=f'<autoFilter ref="A2:C{1 + marked}"/>',
+                       records=marked,
+                   ),
                    ("--smallest-group", "5"))
     _held(result)
     assert result["document"]["source"]["workbook"]["rows_above_header"] == 1
@@ -1275,7 +1385,18 @@ def test_a_table_shorter_than_the_line_loads_its_own_census(
     written. What a census with nothing published leaves to subtract
     from is the row count alone, which names nobody.
     """
-    result = _trip(tmp_path, "short", _short_table(rows), ("--smallest-group", floor))
+    # DESCRIBED BY THE PRODUCER (plan P4-D341). The subject here is a
+    # table SHORTER than the disclosure line: growing it to the
+    # population floor the COMMAND requires is deleting the case. The
+    # producer refuses no table for its size, and the loader -- which
+    # is what the reproduction was about -- still reads what it writes.
+    result = _trip(
+        tmp_path,
+        "short",
+        _short_table(rows),
+        ("--smallest-group", floor),
+        by_command=False,
+    )
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
     assert set(census.values()) == {None}, census

@@ -19282,3 +19282,234 @@ path that ran at a raised floor only when somebody asked.
 - **Wording.** The five sentences P4-D316 missed, the `--code` help --
   which promised every code's count where the default pools the rarer
   ones -- and ledger K-P4-22's name, which said the shipped floor is 1.
+
+## Landing 3.2 — the population floor and the person rule (2026-09-22)
+
+Decisions P4-D340 and P4-D341. Built on the default floor of 11 that
+landing 3.1 left on this branch. The disclosure floor is still counted
+in ROWS everywhere; counting it in PEOPLE is a later landing, and what
+this one builds is the key that landing reads and the one gate that
+uses it today.
+
+### P4-D340 The person is named by the declared identifiers that REPEAT
+
+**The rule.** A declared identifier NAMES A PERSON when some folded
+present value of it stands on two or more rows. One that is different
+on every present row names a ROW, and never a person. Where several
+repeat, they are a UNION: rows are one person when they share a folded
+value of ANY of them. Rows holding a present value of NONE of them are
+ONE unknown person between them. Identity is `parsing.folded` — trimmed
+and case-folded, the identity labels already use.
+
+**What it replaces, and why.** The subject design proposed the declared
+identifier with the FEWEST different present values. Its skeptic
+refuted that on a measured table of 150 subjects whose second
+identifier `sample_id` stood on 90 rows and was different on every one:
+the fewest-distinct rule chose `sample_id`, counted 91 people and
+REFUSED a table of 150 subjects; with `sample_id` on 120 rows it
+counted 121 people and named a group held by ONE real subject. Under
+this rule the same table gives `subject_id`, 150 people and no such
+group. Union-find over ALL declared identifiers was also measured and
+rejected by the design: with a per-row identifier declared beside the
+subject's it makes every row its own person. Restricting the union to
+the identifiers that REPEAT is what removes that, because a per-row
+identifier is exactly the one that does not repeat.
+
+**Leading zeros are not normalised.** `007` and `7` stay two people.
+That is the liberal direction and is stated as a limit rather than
+guessed at.
+
+**Recorded** as a new settings key `person_columns` (contract 4.4 and
+14.3; C6-20's key count moves from twenty-two to twenty-three), a
+sorted list of column names, empty where the population is counted in
+rows. It is DERIVED and never typed, and invariant S8b holds every name
+in it to `settings.forced_identifiers`. Its closed enumeration:
+`taxonomy.Settings`, `profile._settings_block`, `profile._STATED_RULES`,
+`contract.SETTINGS_KEYS`, the loader's settings reader,
+`contract.SettingsBlock`, `validation.settings_for`, the contract's
+settings section, the disposition registry and the settings
+completeness test.
+
+**Asking for the person.** Where NO column at all is declared as
+holding record numbers, a column is asked about when EITHER route
+holds. Route one:
+
+1. its present values REPEAT — at least two rows per different folded
+   value, counted and never divided; and
+2. it holds MORE DIFFERENT VALUES than a set of categories could have
+   had in a table of this many rows — `taxonomy.categories_ceiling`,
+   the line `categorical_share` and `categorical_ceiling` already
+   record in every description, asked rather than restated.
+
+Route two (added by this landing's repair pass, because route one
+cannot reach the case below):
+
+1. EVERY different folded value stands on at least two rows — two
+   each, not two on average, which is stricter than route one's first
+   condition; and
+2. every present cell is WRITTEN AS A CODE: inside the code alphabet
+   (`parsing.is_code_text`, the positive evidence the identifier rule
+   itself asks for) and carrying both a letter and a figure.
+
+Route two's second condition is what holds its cost down, and both
+halves of it were measured. Without the figure, every column of words
+clears it — `site`, `arm`, `North`, `yes`/`no`. Without the letter, a
+two-value column of `0` and `1` clears it, and so do a group coded
+1/2/3 and an ordinal 0 to 10.
+
+Roles read as a quantity (`count`, `continuous`,
+`numeric_unrepresentable`, `numbers_with_labels`, `joined_numbers`),
+the calendar and clock roles and the empty role are out: a column read
+as plain numbers is reached by the checklist question instead.
+
+**The line was chosen by measurement**, over the four realistic
+families of `tests/kpi_shapes.py` (twelve columns, run both as shipped
+and with every declaration removed) and five tables of the subject
+design (fixed 100x5, fixed 150x3, geometric 1,000, and 1-to-8 visits
+over 40 and over 22 subjects). The question is asked about the four
+`subject_id` columns and about NOTHING else: `dose` (40 different
+values over 400 cells) and `note` (9 over 400) are sets of categories
+and fall at condition 2, `record`, `subject` and `visit_id` are
+different on every row and fall at condition 1, and `score` (98 to 102
+different whole numbers repeating 3 to 28 times), `weight`, `amount`
+and both date columns are excluded by role. That last group is what
+makes the role test load-bearing rather than tidy: every bounded scale
+the owner named on 2026-09-22 — a pain score of 0 to 10, a risk
+grade, a rating item, a coma scale, ages in whole years — clears both
+measured conditions.
+
+**Why it is needed at all.** The only pointer at `--identifier` fires
+where `raw_distinct >= 0.95 x n_present`, which is the opposite shape
+and never happens for a repeated subject column. Measured by the
+design's skeptic: a table of 12 subjects over 1,196 rows passed the
+population floor on its rows with no notice, and `subject_id` was
+described as a set of categories with every subject's identifier
+published beside its visit count.
+
+**And route one could not reach that case either**, which this
+landing's skeptic measured and its repair pass fixed. Condition 2 is
+the exact COMPLEMENT of the rule that makes a column `categorical`
+over the same row count, so route one fires only on a column that
+publishes NO levels — never on the one publishing every subject's
+identifier beside its visit count. The cited table is asked about by
+route two, and `tests/test_p4d341_population_floor.py::test_a_subject
+_column_read_as_categories_is_asked_about` asserts both halves: that
+the column reads as `categorical` and publishes all twelve, and that
+the question is put.
+
+**What route two also reaches, accepted with the measurement** (ledger
+K-S3-02's `status_note`). A `ward-12`-shaped label column and a
+register of diagnosis-like codes are written exactly as a subject
+register is written, and nothing in the values tells them apart. On
+the 33-column battery the rule reads 4 false positives where route one
+alone read 2 — and route one's two were unmeasured until this pass,
+because the battery held neither shape. The cost of each is ONE
+question whose standing answer is `keep`; the cost of the miss it
+replaces was a description that published twelve people's identifiers.
+The measured limit of route two is recorded beside it: one subject
+with a single visit silences it.
+
+The answer becomes the `--identifier` declaration by the route every
+other answer takes, and where nobody has said, the screen says the
+population was counted in ROWS.
+
+### P4-D341 Under 100 refused, 100 to 999 noticed, and in `cli._run_profile` only
+
+**The rule.** The command counts the population — rows where
+`person_columns` is empty, otherwise people. Under
+`parsing.POPULATION_FLOOR` (100) it refuses with
+`errors.the_population_is_too_small` and writes nothing. From there to
+`parsing.POPULATION_NOTICE_LINE` (1,000) less one it runs, with ONE
+notice that cannot be silenced.
+
+**The rows counted are the rows that HOLD A VALUE** (repair of this
+landing). `taxonomy.people_in` counted the rows the reader returned,
+so twenty real records followed by eighty `,,` rows — or eighty
+`NA,NA,NA` rows — read as a hundred-row table, cleared the floor and
+were described, and every census, mean, spread and percentile in the
+description that came out was taken over the twenty. Three numbers
+padded to a hundred printed all three back verbatim. A row whose every
+cell is blank or is one of this format's spellings for "no value" is
+now counted nowhere: neither as a row of the population, nor as part
+of the one unknown person where an identifier is declared. The notice
+below then states the honest number, because the number it states is
+this count.
+
+**Where it lives, and what it may not touch.** `cli._run_profile` and
+nowhere else. `profile.build_document` describes a table of any size
+and refuses none; the reader, the loader and `synthtwin validate` are
+untouched. A library caller still describes five rows, and the
+validator still re-describes a 50-row file it was pointed at. A
+DESCRIPTION WRITTEN BEFORE THIS LANDING DOES NOT STILL LOAD, and the
+sentence here that said it did was wrong when it was written: the
+settings block gained a required key on this landing
+(`person_columns`), and contract rule C6-20 makes all twenty-three of
+its keys required, so the loader refuses an earlier build's v6
+description and names the entry that is missing. The break is
+sanctioned by amendment A-P4-41, which extends version 6 in place
+until the first release; such a description has to be made again. What
+the floor governs is the one act the command performs: turning a real
+table into files that leave the machine.
+
+**Asked twice.** Once after the read, with the identifiers typed on the
+command line and answered in the questions file — a necessary
+condition, because a declaration arriving later can only LOWER the
+count of people. Again after the on-screen answers' rebuild, with the
+final set, before anything is announced and before anything is
+written. A refusal at either gate costs one message and no files.
+
+**The notice is one sentence, in six places.** It is a new enumerated
+form, `population_under_a_thousand` (contract NF59, NG59), arity 2:
+the population and the WORD it was counted in, `rows` or `people`, two
+new members of the package-word vocabulary (14.4a; the vocabulary
+moves from 24 to 26 and the grammar from 58 forms and 96 positions to
+59 and 98). The description carries it as a publication note naming NO
+COLUMN — the first note of that kind, which S10 and S11 are widened
+for — and the screen, the plain-language summary, the questions file,
+the twin's report and the quality report all render it from there, so
+none of them can drift from the others. The twin's own TABLE carries
+nothing of it, which is what keeps code written against the twin
+running unchanged.
+
+**What the notice may not say.** It may not say that a size lifts an
+obligation. It says the opposite in as many words: the same rules
+produced the description, the smallest group size is the same number,
+and every obligation it states is the same obligation.
+
+**The headline example moves with the floor.** The 11-row forced-match
+example described a table synthtwin now refuses, so every surface that
+carried it — `cli._STATUS`, the summary, the twin's report,
+`src/synthtwin/__init__.py`, `CLAUDE.md`, `README.md` and `SECURITY.md`
+— states it at 100 rows, keeping the exact phrase the claim inventory
+requires.
+
+**What the tests cost.** Every test that drove the profile COMMAND on a
+table under 100 rows moved to 100 rows or more, with its expectation
+derived from the rule rather than copied off a run, or to
+`build_document` where the command was incidental to what it checks.
+
+Three ways, and which one a shape takes is decided by what the shape
+IS. Where the shape is a property of a column's PRESENT values, the
+table is padded to the floor with cells this format reads as "no
+value", which leaves every census, every count and every role over
+them exactly as they were. Where the shape is a property of the table
+the generator wrote, the case's own generator is run to the floor --
+never by repeating rows, because three cases here turn on their
+column's values being all DIFFERENT and a repeated row takes that
+evidence away. And TWO CLASSES cannot be grown at all: a column whose
+FEW different values are the shape, because the categorical ceiling is
+a share of the table's ROWS and a hundred rows read those values as a
+set of categories; and a column DECLARED with `--identifier` whose
+values repeat, because those values are then what the population is
+counted BY, so a code on fifteen rows is one person at any length.
+Both describe with `profile.build_document` and still build, report on
+and check their twin through `generate` and `validate`, which the
+floor does not govern. A description written that way says the
+population was counted in rows, which is what a caller who never ran
+the gate did.
+
+**The two ledger entries are stamped on the landing's own commit**,
+`52b9eee`, and recorded in the commit after it -- the route K-P4-20
+took on 2026-09-22. Neither value could have been taken on any earlier
+tree, because the population floor and the person question are what
+this landing built.

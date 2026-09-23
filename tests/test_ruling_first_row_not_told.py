@@ -36,7 +36,7 @@ Every table is built by seeded neutral code at runtime (plan D13).
 import json
 import pathlib
 
-from synthtwin import asking, cli
+from synthtwin import asking, cli, parsing
 from tests import workbooks
 
 _COLOURS = ("slate", "olive", "rust")
@@ -181,7 +181,14 @@ def test_a_title_over_a_real_header_is_still_read_as_names(
     outcome 3 is asked before the furniture rule for exactly that
     reason.
     """
-    rows = [f"p{index},{index + 20},north" for index in range(1, 30)]
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. What this pins is which row
+    # holds the names, and how many rows stand under them decides none
+    # of it.
+    rows = [
+        f"p{index},{index + 20},north"
+        for index in range(1, parsing.POPULATION_FLOOR + 1)
+    ]
     body = "Report: cohort extract\ncode,age,site\n" + "\n".join(rows) + "\n"
     assert _run(tmp_path, body) == 0
     document = _document(tmp_path)
@@ -190,7 +197,7 @@ def test_a_title_over_a_real_header_is_still_read_as_names(
         "age",
         "site",
     ]
-    assert document["n_rows"] == 29
+    assert document["n_rows"] == parsing.POPULATION_FLOOR
     assert _asked(tmp_path) == []
 
 
@@ -203,7 +210,8 @@ def test_a_blank_line_above_the_table_is_not_furniture(
     read `age` over four numbers as a headerless table of five records.
     """
     body = "\ncode,site\n" + "\n".join(
-        f"p{index},north" for index in range(1, 20)
+        f"p{index},north"
+        for index in range(1, parsing.POPULATION_FLOOR + 1)
     ) + "\n"
     assert _run(tmp_path, body) == 0
     document = _document(tmp_path)
@@ -293,7 +301,7 @@ def test_a_headerless_file_of_plain_words_is_the_stated_limit(
     assert document["source"]["header_by_convention"] is True
 
 
-def _titled_sheet_of_labels(rows: int = 40) -> bytes:
+def _titled_sheet_of_labels(rows: int = parsing.POPULATION_FLOOR) -> bytes:
     """A workbook: a title row of one cell, then records of three texts."""
     strings = ["Cohort extract"]
     for index in range(rows):
@@ -362,7 +370,7 @@ def test_a_titled_sheet_of_labels_names_no_column(
         "column_2",
         "column_3",
     ]
-    assert document["n_rows"] == 40
+    assert document["n_rows"] == parsing.POPULATION_FLOOR
     assert document["source"]["header_source"] == "generated"
     written = json.loads(
         (tmp_path / "book-questions.json").read_text("utf-8")

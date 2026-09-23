@@ -454,6 +454,104 @@ def subject_rows() -> "list[list[str]]":
     return [[f"SUBJ-{10000 + i}", f"{20 + (i * 7) % 60}"] for i in range(2000)]
 
 
+# -- the population floor's battery (ledger K-S3-01, plan P4-D341) ------
+
+
+def visits_table(rows: int, subjects: "int | None" = None) -> str:
+    """A repeated-measures table: ``rows`` visits over ``subjects`` people.
+
+    With no subject count every `subject_id` is different, which is a
+    column that names a ROW and never a person, so the table's
+    population is its rows. The other columns are the two shapes that
+    must never be mistaken for people: a set of categories and a
+    bounded whole-number scale.
+    """
+    draw = random.Random(4)
+    built: "list[list[str]]" = []
+    for place in range(rows):
+        who = place if subjects is None else place % subjects
+        built += [
+            [
+                f"P{who + 1:05d}",
+                ("north", "south", "east", "west")[place % 4],
+                f"{draw.randint(0, 100)}",
+            ]
+        ]
+    return delimited_text(["subject_id", "site", "score"], built)
+
+
+# The label shapes the person question mis-fires on, measured rather
+# than argued (ledger K-S3-02; the skeptic of landing 3.2). Every one
+# of them is a column of LABELS that nobody would call a person, and
+# each is here because some route of `asking._names_people` reaches it:
+# the first two by route one (more values than a set of categories may
+# hold, and a repeating free-text column), the last two by route two (a
+# register of codes each standing on two rows or more). They are the
+# battery's negatives and their count is what the ledger holds.
+PERSON_QUESTION_NEGATIVES = (
+    ("many wards", "ward", 60, 500),
+    ("repeating remarks", "remarks", 300, 600),
+    ("few wards", "ward", 8, 500),
+    ("diagnosis codes", "diagnosis", 30, 600),
+)
+
+
+def _label_pool(name: str, different: int) -> "list[str]":
+    """The `different` labels of one negative shape, in its own style."""
+    if name == "remarks":
+        draw = random.Random(31)
+        words = ["alpha", "bravo", "delta", "echo", "fox", "golf",
+                 "hotel", "india", "kilo", "lima"]
+        seen: "dict[str, int]" = {}
+        pool: "list[str]" = []
+        while len(pool) < different:
+            made = " ".join(draw.choice(words) for _ in range(6))
+            if made not in seen:
+                seen[made] = 1
+                pool += [made]
+        return pool
+    if name == "diagnosis":
+        letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        return [f"{letters[place % 26]}{place:02d}" for place in range(different)]
+    return [f"{name}-{place}" for place in range(different)]
+
+
+def label_table(name: str, different: int, rows: int) -> str:
+    """`rows` rows of `different` labels of one style, beside a scale.
+
+    The second column is a bounded whole-number scale, which is the
+    shape the person question must never reach and which keeps the
+    table from being one column wide.
+    """
+    draw = random.Random(11)
+    pool = _label_pool(name, different)
+    built: "list[list[str]]" = []
+    for place in range(rows):
+        built += [[pool[place % different], f"{draw.randint(0, 100)}"]]
+    return delimited_text([name, "score"], built)
+
+
+# Every size and person shape the population floor is measured over:
+# (name, rows, subjects or None, whether `subject_id` is declared). The
+# sizes sit at both ends of each band and one step outside it, so a
+# floor or a notice line that moved would change the counts.
+POPULATION_BATTERY = (
+    ("one row", 1, None, False),
+    ("half a floor", 50, None, False),
+    ("one short of the floor", 99, None, False),
+    ("at the floor", 100, None, False),
+    ("mid band", 500, None, False),
+    ("one short of the line", 999, None, False),
+    ("at the line", 1000, None, False),
+    ("well over the line", 1500, None, False),
+    ("people one short of the floor", 500, 99, True),
+    ("people at the floor", 500, 100, True),
+    ("people in the band", 1200, 300, True),
+    ("people over the line", 4000, 1000, True),
+    ("a declared identifier that never repeats", 500, None, True),
+)
+
+
 def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str], str, str]]":
     """The three shapes whose one named count of one stands (ledger K-2B-28 and K-2B-48).
 

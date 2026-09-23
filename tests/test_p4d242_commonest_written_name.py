@@ -50,10 +50,20 @@ def _moments(marks: "list[str]") -> "list[str]":
 
 
 def test_a_tie_names_a_mark_the_cells_wrote(tmp_path: pathlib.Path) -> None:
-    """Eight `T`, eight spaces and eight `t` at a floor of eleven."""
+    """Eight `T`, eight spaces and eight `t` at a floor of eleven.
+
+    THE TABLE REACHES THE POPULATION FLOOR ON ABSENT CELLS (plan
+    P4-D341): the command refuses a smaller one and writes nothing,
+    while the shape here is the twenty-four moments and the three marks
+    they wear. `NA` is one of this format's own spellings for "no
+    value", so the present moments -- and the census taken over them --
+    are exactly the twenty-four this witness was written with.
+    """
     marks = ["T"] * 8 + [" "] * 8 + ["t"] * 8
+    moments = _moments(marks)
+    moments += ["NA"] * (parsing.POPULATION_FLOOR - len(moments))
     result = _round_trip(
-        tmp_path, {"moment": _moments(marks)}, ("--smallest-group", "11")
+        tmp_path, {"moment": moments}, ("--smallest-group", "11")
     )
     census = _column(result, "moment")["datetime_separators"]
     assert census == {"lower_t": 24}

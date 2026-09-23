@@ -744,18 +744,29 @@ def test_a_zero_row_check_at_the_default_reads_empty_records_at_the_default(
 # -- 3. two places of one form at one record (plan P4-D319) --------------
 
 
-def _double_spaced(record: int = 17, records: int = 30) -> str:
+def _double_spaced(record: int = 17, records: int = 30, tail: int = 0) -> str:
     """The skeptic's shape: ``records`` records each followed by a blank line.
 
     Record ``record`` is followed by a line of three spaces and THEN the
     blank line, so its place is two runs of different text. At 30 records
     the places are published one by one; at 70 they stand in more places
     than `dialect.MAXIMUM_BLANK_PLACES` and the lines are counted.
+
+    ``tail`` ADDS PLAIN RECORDS WITH NO BLANK LINE AFTER THEM, and it
+    exists for plan P4-D341: the test that drives the COMMAND needs a
+    table of at least `parsing.POPULATION_FLOOR` rows, because a
+    smaller one is refused and nothing is written -- while the blank
+    PLACES have to stay at or under `dialect.MAXIMUM_BLANK_PLACES`, or
+    the description publishes their coarse spread instead of the places
+    this test is about. Thirty places and a plain tail satisfies both,
+    and the places are exactly the thirty they always were.
     """
     lines = ["id,site,value"]
     for index in range(1, records + 1):
         lines += [f"{index},{'north' if index % 2 else 'south'},{index * 3}"]
         lines += ["   ", ""] if index == record else [""]
+    for index in range(records + 1, records + tail + 1):
+        lines += [f"{index},{'north' if index % 2 else 'south'},{index * 3}"]
     return "\n".join(lines) + "\n"
 
 
@@ -933,16 +944,25 @@ def test_the_double_spaced_file_round_trips_at_the_default(
     `generate` and `validate` exited 1, refusing the producer's own
     description as a file changed since it was written -- and the real
     table validates against it too. The description publishes the
-    thirty places the rule above derives, one per record.
+    thirty places the rule above derives, one per record of the
+    double-spaced part, with the plain tail that clears the population
+    floor carrying none.
     """
     from tests.test_stage2_round_trip import _exit_of
 
-    table = fixtures.write(tmp_path, "t.csv", _double_spaced())
+    places = 30
+    table = fixtures.write(
+        tmp_path,
+        "t.csv",
+        _double_spaced(
+            records=places, tail=parsing.POPULATION_FLOOR - places
+        ),
+    )
     assert _exit_of(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
     written = tmp_path / "t-profile.json"
-    places = contract.load_profile(f"{written}").source.dialect.blank_lines
-    assert [(place.after, place.lines, place.text) for place in places] == [
-        (index, 1, "") for index in range(1, 31)
+    told = contract.load_profile(f"{written}").source.dialect.blank_lines
+    assert [(one.after, one.lines, one.text) for one in told] == [
+        (index, 1, "") for index in range(1, places + 1)
     ]
     assert _exit_of(["generate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
     assert _exit_of(["validate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0

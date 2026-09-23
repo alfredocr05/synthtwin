@@ -36,13 +36,16 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import profile, reading, summary, taxonomy
+from synthtwin import parsing, profile, reading, summary, taxonomy
 from synthtwin.cli import main
 
 SETTINGS = taxonomy.Settings()
 
-# The reviewer's own column and value.
-NARRATIVE = fixtures.prose(60)
+# The reviewer's own column and value. AT THE POPULATION FLOOR (plan
+# P4-D341), because the command refuses a smaller table and writes
+# nothing; what this file pins is what a DECLARATION may reach, and how
+# many rows the column has decides none of it.
+NARRATIVE = fixtures.prose(parsing.POPULATION_FLOOR)
 RARE_TOKEN = "withheld-token-417"
 
 
@@ -53,8 +56,17 @@ def _run(
     options: "list[str]",
     capsys: pytest.CaptureFixture[str],
 ) -> "tuple[dict, str, str]":
-    """Profile one column through the command; return document, JSON, screen."""
-    text = fixtures.single_column_table(name, values)
+    """Profile one column through the command; return document, JSON, screen.
+
+    THE KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, and a declaration here can
+    turn a column's own label into "no value" -- which is what these
+    shapes are about. The column under test is still the first.
+    """
+    text = fixtures.kept_column_table(
+        name, values, fixtures.declared_missing_in(options)
+    )
     table = fixtures.write(tmp_path, f"{name}.csv", text)
     assert main(["profile", f"{table}"] + options) == 0
     shown = capsys.readouterr().out
@@ -135,7 +147,13 @@ def test_a_declaration_cannot_publish_a_value_of_a_named_identifier(
     # A column the person declared with --identifier publishes no value
     # at all. A declaration naming one of its values must not be the way
     # round that.
-    values = [f"CASE_REF-{index:05d}" for index in range(40)] + ["CASE_REF-99999"] * 5
+    # The same reason, and the five declared-away cells stay five: what
+    # is pinned is that a declared spelling never leaves a silenced
+    # column, not how many cells wore it.
+    values = [
+        f"CASE_REF-{index:05d}"
+        for index in range(parsing.POPULATION_FLOOR)
+    ] + ["CASE_REF-99999"] * 5
     document, written, summary_text = _run(
         tmp_path,
         "record_code",
@@ -336,7 +354,7 @@ def test_the_disclosure_comes_before_the_files_exist(
     # Plan P1-D6: the person sees what the profile carries BEFORE it is
     # on disk. A sentence about declarations that arrived afterwards
     # would be a report, not a disclosure.
-    text = fixtures.single_column_table("narrative", NARRATIVE + [RARE_TOKEN])
+    text = fixtures.kept_column_table("narrative", NARRATIVE + [RARE_TOKEN])
     table = fixtures.write(tmp_path, "narrative.csv", text)
     assert main(["profile", f"{table}", "--missing-value", RARE_TOKEN]) == 0
     shown = capsys.readouterr().out
@@ -365,7 +383,7 @@ def test_the_summary_survives_a_document_written_under_the_older_shape(
     # The summary is rendered from the document. Handed the older shape,
     # where the key held a list of spellings, it must not fall over --
     # and it must not print a count it does not have.
-    text = fixtures.single_column_table("narrative", NARRATIVE)
+    text = fixtures.kept_column_table("narrative", NARRATIVE)
     table = reading.read_table(f"{fixtures.write(tmp_path, 'n.csv', text)}")
     document = profile.build_document(table, SETTINGS, [])
     settings = document["settings"]

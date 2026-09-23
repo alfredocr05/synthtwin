@@ -861,6 +861,34 @@ WIDE_RUNS = (
 # below it stays legal and keeps its lowered-floor alarm.
 DEFAULT_SMALL_CELL_FLOOR = 11
 
+# THE POPULATION FLOOR, AND THE LINE A NOTICE IS GIVEN UNDER (plan
+# P4-D341). A table whose population is under `POPULATION_FLOOR` is
+# refused by `synthtwin profile` and nothing is written; one from there
+# up to `POPULATION_NOTICE_LINE` less one is described, with a notice
+# on the screen and on every page the run writes. The population is
+# counted in ROWS THAT HOLD A VALUE where no declared identifier
+# repeats, and in PEOPLE where one does (`taxonomy.people_in`). A row
+# whose every cell is blank or means "no value" is counted nowhere:
+# the rows a reader returns are a property of the file, and what a
+# description's counts are counts over is the rows that hold something.
+#
+# THE TWO NUMBERS ARE A COMMAND'S RULE AND NOT A DOCUMENT'S. Nothing
+# in a description carries them, `build_document` never asks them, and
+# the loader and `validate` never apply them: a library caller still
+# describes five rows and the validator still re-describes a fifty-row
+# file it was pointed at. THAT IS THE WHOLE OF WHAT SURVIVES, and a
+# description written by an EARLIER BUILD does not: the settings block
+# gained a required key on this landing (`person_columns`, contract
+# rule C6-20, all twenty-three keys required), so the loader refuses a
+# v6 description made before it and says which entry is missing. That
+# break is sanctioned by amendment A-P4-41, which extends version 6 in
+# place until the first release; the description has to be made again.
+# They live in this module for the reason the floor above does --
+# every module that names them already imports this one, and this one
+# imports nothing.
+POPULATION_FLOOR = 100
+POPULATION_NOTICE_LINE = 1000
+
 
 def census_floor(floor: int) -> int:
     """The smallest count a spelling census publishes: two, or the floor.

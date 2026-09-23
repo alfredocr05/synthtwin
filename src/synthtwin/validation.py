@@ -1432,10 +1432,12 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
       Nothing is guessed. The read mode is NOT a settings key and is
       not decided here; it comes from `source.header_source`.
 
-    Every one of the fifteen keys the settings block carries is used,
-    and no sixteenth is invented: a skipped key would describe the file
-    under rules the description was not written under, which is the one
-    way the disclosure gate can be walked past.
+    Every key of the settings block that names a rule is used, and none
+    is invented: a skipped key would describe the file under rules the
+    description was not written under, which is the one way the
+    disclosure gate can be walked past. The count is not restated here,
+    because `contract.SETTINGS_KEYS` is where it is measured and a
+    count copied into a docstring is a count that goes stale.
 
     WHAT CONTRACT VERSION 5 CHANGED HERE, AND IT IS THE WHOLE OF THIS
     FUNCTION'S JOB (plan amendments A-P3-27, A-P3-28 and A-P3-29;
@@ -1487,6 +1489,15 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         near_threshold_slack=block.near_threshold_slack,
         day_first=block.day_first,
         long_tail_minimum_level=block.long_tail_minimum_level,
+        # WHO THE DESCRIBED TABLE'S ROWS WERE ABOUT (plan P4-D340).
+        # Carried like every other key of the block: a re-description
+        # made under settings missing one key is a re-description under
+        # rules the description was not written under, which is the one
+        # way the disclosure gate can be walked past. It changes no
+        # count today -- the floor is counted in rows everywhere -- and
+        # it is here so that the landing which counts the floor in
+        # people finds it already travelling.
+        person_columns=block.person_columns,
     )
 
 

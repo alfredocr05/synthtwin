@@ -30,7 +30,14 @@ import pytest
 
 from synthtwin import contract, generation, parsing
 from tests import fixtures
-from tests.test_stage2_round_trip import _exit_of, _round_trip
+from tests.test_stage2_round_trip import (
+    KEEPER_NAME,
+    KEEPER_VALUE,
+    _exit_of,
+    _round_trip,
+    at_the_floor,
+    rows_at_the_floor,
+)
 
 # How far the twin's numbers may sit from the table's: the mean within
 # this many of the table's standard deviations, and the standard deviation
@@ -410,9 +417,21 @@ def test_a_made_up_number_is_never_a_spelling_another_column_calls_absent(
     table = folder / "real.csv"
     value = ["alpha"] * 30 + ["4"] * 11 + ["6"] * 11 + ["7"] * 4
     other = ["5"] * 11 + ["beta"] * 45
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. Both columns are padded with
+    # `NA`, one of this format's own spellings for "no value", so the
+    # PRESENT values of each -- which are the whole shape -- are what
+    # they were, and the eleven `5`s the declaration reaches stay
+    # eleven.
+    # AND A KEEPER COLUMN (repair of landing 3.2): the population is
+    # the rows that HOLD A VALUE, and a row where BOTH columns are `NA`
+    # holds none, so the padding alone no longer reaches the floor.
+    value = at_the_floor(value)
+    other = at_the_floor(other)
     table.write_text(
         fixtures.rows_to_csv(
-            ["value", "other"], [[a, b] for a, b in zip(value, other)]
+            ["value", "other", KEEPER_NAME],
+            [[a, b, KEEPER_VALUE] for a, b in zip(value, other)],
         ),
         encoding="utf-8",
         newline="",
@@ -560,12 +579,19 @@ def test_a_number_carrying_an_end_spends_a_spelling_of_its_length(
     folder.mkdir()
     table = folder / "real.csv"
     draw = random.Random(71)
-    cells = [str(draw.randrange(0, 10)) for _each in range(40)] + [
-        " ".join(draw.choice(COMMENT_WORDS) for _word in range(3))
-        for _each in range(40)
-    ]
+    cells = at_the_floor(
+        [str(draw.randrange(0, 10)) for _each in range(40)]
+        + [
+            " ".join(draw.choice(COMMENT_WORDS) for _word in range(3))
+            for _each in range(40)
+        ]
+    )
+    # THE KEEPER COLUMN (repair of landing 3.2): eighty present cells
+    # padded to the floor with `NA` is a population of eighty, so the
+    # table needs a column that holds a value on every row.
+    names, built = rows_at_the_floor("value", cells)
     table.write_text(
-        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )
@@ -675,8 +701,18 @@ def test_the_class_split_takes_an_exact_subset_before_the_one_pass_walk(
         + ["retest"] * 5 + ["5.2"] * 3 + ["5.0"] * 3
     )
     draw.shuffle(cells)
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): this shape's ROLE is
+    # `long_tail_labels`, which a table grown to the population floor
+    # would lose -- the categorical ceiling is a share of the ROWS, so
+    # six different values in a hundred rows are a set of categories.
+    # The command's floor is not what this test is about.
     first, second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "split", cells, ("--smallest-group", "6"), True, "5"
+        tmp_path / "split",
+        cells,
+        ("--smallest-group", "6"),
+        True,
+        "5",
+        by_command=False,
     )
     assert first["role"] == "long_tail_labels"
     # The pool the table's own 3, 3 and 5 make (plan P4-D201); the twin
@@ -788,9 +824,20 @@ def test_a_label_of_five_thousand_figures_does_not_stop_the_command(
     `ValueError` and wrote nothing. Such a spelling is not plain, so the
     ladder is built from the ones that are.
     """
-    cells = ["1." + "0" * 5000] * 12 + ["not done"] * 20 + ["2.0"] * 3 + ["3.0"] * 2
+    cells = (
+        ["1." + "0" * 5000] * 12 + ["not done"] * 20
+        + ["2.0"] * 3 + ["3.0"] * 2
+    )
+    # ...and described by the producer for the same reason: four
+    # different values in a hundred rows are a set of categories, and
+    # `long_tail_labels` is the role this test is about.
     first, second, written, twin_exit, real_exit = _round_trip(
-        tmp_path / "long", cells, ("--smallest-group", "11"), True, "1"
+        tmp_path / "long",
+        cells,
+        ("--smallest-group", "11"),
+        True,
+        "1",
+        by_command=False,
     )
     assert first["role"] == "long_tail_labels"
     assert len(written) == len(cells)

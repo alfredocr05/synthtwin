@@ -39,19 +39,26 @@ import random
 import pytest
 
 import fixtures
-from synthtwin import profile, reading, summary, taxonomy
+from synthtwin import parsing, profile, reading, summary, taxonomy
 from synthtwin.cli import main
 
 SETTINGS = taxonomy.Settings()
 
 # The item's own reproduction: an amount with its unit written after the
 # number. Round 6 read this as record numbers.
-UNIT_AMOUNTS = [f"{index}mg" for index in range(1, 31)]
+# AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+# smaller table and writes nothing, and what these two columns pin is
+# that NOTHING in their values tells them apart.
+UNIT_AMOUNTS = [
+    f"{index}mg" for index in range(1, parsing.POPULATION_FLOOR + 1)
+]
 
 # A real record-code column of the SAME shape: one token, code alphabet,
 # all different, letters and digits mixed. Nothing in the values tells
 # these two columns apart, which is the whole argument.
-CODE_WORDS = [f"code{index}" for index in range(1, 31)]
+CODE_WORDS = [
+    f"code{index}" for index in range(1, parsing.POPULATION_FLOOR + 1)
+]
 
 # A column that is STILL declined, for the tests about what a decline
 # says. `1mg` and `code1` stopped being declined when the
@@ -593,7 +600,7 @@ def test_the_real_command_still_profiles_a_plain_table(
     # numbers, labels and dates keeps every statistic it had before.
     rows = [
         [str(index), fixtures.LABELS[index % 5], f"2024-01-{index % 28 + 1:02d}"]
-        for index in range(60)
+        for index in range(parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         tmp_path, "plain.csv", fixtures.rows_to_csv(["n", "group", "day"], rows)
@@ -608,7 +615,12 @@ def test_the_real_command_still_profiles_a_plain_table(
         "n": "count", "group": "categorical", "day": "datetime",
     }
     counts = document["columns"][0]
-    assert counts["percentiles"]["max"] == 59.0
+    # DERIVED from the rows the table was built with, which is the
+    # population floor (plan P4-D341): the column counts 0 upward, so
+    # its largest value is one less than the row count.
+    assert counts["percentiles"]["max"] == float(
+        parsing.POPULATION_FLOOR - 1
+    )
     assert counts["mean"] is not None
     assert "COLUMNS, ONE BY ONE" in out
     assert "identifier" not in out.replace("--identifier", "")

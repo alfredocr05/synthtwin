@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import contract, errors
+from synthtwin import contract, errors, parsing
 from tests import fixtures
 
 
@@ -37,9 +37,36 @@ def _exit_of(argv: "list[str]") -> int:
 def _described(
     folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]", *flags: str
 ) -> "dict[str, object]":
+    """Describe one table through the command, at the population floor.
+
+    THE TABLE IS PADDED WITH ABSENT ROWS AND A KEEPER COLUMN (plan
+    P4-D341, and the repair of landing 3.2). `synthtwin profile`
+    refuses a table whose POPULATION is under
+    `parsing.POPULATION_FLOOR`, and that population is the rows that
+    HOLD A VALUE -- so absent padding alone cannot reach it. Every
+    shape in this file is a shape of a column's PRESENT values: how
+    many cells wear a thousands mark, how many are bare, how many
+    moments stand off midnight. `NA` is one of this format's own
+    eighteen spellings for "no value", so every one of those counts,
+    and every census and refusal taken over them, is exactly what the
+    shape produced before; `held` carries a value on every row so the
+    table reaches the floor without any of the shapes moving, and it is
+    added LAST so the column under test keeps its place. A table
+    already at the floor is unchanged.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "t.csv"
-    table.write_text(fixtures.rows_to_csv(header, rows), encoding="utf-8", newline="")
+    padding = parsing.POPULATION_FLOOR - len(rows)
+    padded = list(rows) + [
+        ["NA"] * len(header) for _row in range(padding)
+    ]
+    names = list(header)
+    if padding > 0:
+        names = names + [fixtures.KEEPER_NAME]
+        padded = [list(row) + [fixtures.KEEPER_VALUE] for row in padded]
+    table.write_text(
+        fixtures.rows_to_csv(names, padded), encoding="utf-8", newline=""
+    )
     assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace", *flags]) == 0
     loaded: "dict[str, object]" = json.loads(
         (folder / "t-profile.json").read_text(encoding="utf-8")

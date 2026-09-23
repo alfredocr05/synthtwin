@@ -63,6 +63,20 @@ ONE_FIGURE_AMONG_SIGNS = ["7"] + ["-3"] * 20
 # groups of one and two; the default of 11 withholds or absorbs them.
 _FLOOR_ONE = 1
 
+# AND EVERY ROUND TRIP HERE IS DESCRIBED BY THE PRODUCER (plan P4-D341).
+# `synthtwin profile` refuses a table whose POPULATION is under the
+# floor and writes nothing, and none of these four shapes can reach it.
+# Each is a column of twelve to twenty-five cells whose exact counts --
+# eleven figures in twelve cells, twenty-five whole numbers, four
+# numerals out of range beside eleven contradictions, one figure-only
+# cell among twenty-one -- are the reading being packed, so adding rows
+# is adding a different shape; and three of them declare that column
+# with `--identifier`, whose repeated values are what the population
+# would be COUNTED BY, so `-463` on fifteen rows is one person and no
+# number of rows reaches a hundred people. `build_document` describes a
+# table of any size and refuses none; the twin is still built and both
+# files still checked through `generate` and `validate`.
+
 
 def _described(
     folder: pathlib.Path,
@@ -238,7 +252,9 @@ def test_eleven_figures_and_a_word_pack_as_published(
 
 def test_eleven_figures_and_a_word_round_trip(tmp_path: pathlib.Path) -> None:
     """Describe, build, describe the twin again, validate BOTH at exit 0."""
-    result = _round_trip(tmp_path, {"value": FIGURES_AND_A_WORD})
+    result = _round_trip(
+        tmp_path, {"value": FIGURES_AND_A_WORD}, by_command=False
+    )
     assert result["generated"] == 0
     assert (result["twin_exit"], result["real_exit"]) == (0, 0)
     assert "n_all_digits" not in result["report"]
@@ -309,7 +325,10 @@ def test_a_text_cell_counted_as_a_number_keeps_the_whole_number_fact(
     publishes the same four counts, and both files validate.
     """
     result = _round_trip(
-        tmp_path, {"code": TEXT_AMONG_NUMBERS}, ("--identifier", "code")
+        tmp_path,
+        {"code": TEXT_AMONG_NUMBERS},
+        ("--identifier", "code"),
+        by_command=False,
     )
     block = [
         one for one in result["document"]["columns"] if one["name"] == "code"
@@ -352,6 +371,7 @@ def test_a_code_cell_counted_as_a_contradiction_is_written_in_the_code(
         tmp_path,
         {"code": CODE_AMONG_CONTRADICTIONS},
         ("--identifier", "code", "--smallest-group", "1"),
+        by_command=False,
     )
     block = [
         one for one in result["document"]["columns"] if one["name"] == "code"
@@ -390,6 +410,7 @@ def test_a_one_figure_record_number_counted_away_is_not_refused(
         tmp_path,
         {"code": ONE_FIGURE_AMONG_SIGNS},
         ("--identifier", "code"),
+        by_command=False,
     )
     block = [
         one for one in result["document"]["columns"] if one["name"] == "code"

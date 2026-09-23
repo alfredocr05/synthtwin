@@ -56,7 +56,7 @@ import sys
 
 import pytest
 
-from synthtwin import asking, generation, reading, taxonomy
+from synthtwin import asking, generation, parsing, reading, taxonomy
 from tests import crosscheck, workbooks
 
 _FLOOR_ELEVEN = "11"
@@ -201,8 +201,11 @@ def test_a_pivoted_year_over_counts_is_still_a_header(
     rule declines it before looking at the column at all, which is what
     keeps this shape where plan P1-R6-F6 put it.
     """
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this pins is that a
+    # pivoted year header stays a header.
     lines = ["region,2019,2020"]
-    for index in range(40):
+    for index in range(parsing.POPULATION_FLOOR):
         lines += [f"area {index},{1234 + index},{1300 + index}"]
     read = _described(tmp_path, "\n".join(lines) + "\n")
     assert read["names"] == ["region", "2019", "2020"]

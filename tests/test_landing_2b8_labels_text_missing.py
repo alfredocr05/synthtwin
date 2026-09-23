@@ -21,7 +21,7 @@ import random
 import pytest
 
 from synthtwin import parsing
-from tests.test_stage2_round_trip import _round_trip
+from tests.test_stage2_round_trip import _round_trip, at_the_floor
 
 
 def _counted(cells: "list[str]") -> "dict[str, int]":
@@ -106,8 +106,14 @@ def test_a_rare_whole_number_beside_decimal_readings_stays_a_number(
         ["ab-cd"] * 20 + ["5.1"] * 11 + ["5.3"] * 11
         + ["5.2"] * 3 + ["7"] * 2 + ["retest"] * 4 + ["hold"]
     )
+    # AT THE FLOOR WITH ABSENT CELLS (plan P4-D341): the command
+    # refuses a smaller table and the shape above is what this pins.
     first, second, written, twin_exit, real_exit = _round_trip(
-        tmp_path / "tier", cells, ("--smallest-group", "11"), True, seed
+        tmp_path / "tier",
+        at_the_floor(cells),
+        ("--smallest-group", "11"),
+        True,
+        seed,
     )
     assert first["n_numeric"] == 27
     assert second["n_numeric"] == first["n_numeric"]
@@ -178,7 +184,7 @@ def test_a_column_publishing_exponents_is_not_told_it_published_none(
     folder = tmp_path / "exponents"
     cells = ["alpha"] * 30 + ["1.1e6"] * 11 + ["1.2e6"] * 11 + ["1.3e6"] * 4
     _first, _second, _written, _twin, _real = _round_trip(
-        folder, cells, ("--smallest-group", "11"), True, "4"
+        folder, at_the_floor(cells), ("--smallest-group", "11"), True, "4"
     )
     reports = sorted(folder.glob("*report*"))
     assert reports, sorted(folder.iterdir())
@@ -215,7 +221,11 @@ def test_a_text_stand_in_is_never_a_number_of_another_class(
     for value in spec:
         cells += [value] * spec[value]
     first, second, written, _twin_exit, real_exit = _round_trip(
-        tmp_path / "standins", cells, ("--smallest-group", "11"), True, "4"
+        tmp_path / "standins",
+        at_the_floor(cells),
+        ("--smallest-group", "11"),
+        True,
+        "4",
     )
     assert real_exit == 0
     # THE CLASS PARTITION ITSELF (G10.2), which is what the guard is for.

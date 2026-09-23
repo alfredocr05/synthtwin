@@ -54,6 +54,7 @@ import pathlib
 import random
 import sys
 
+from synthtwin import parsing
 from tests import fixtures
 
 
@@ -332,12 +333,26 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
     for day in range(20):
         mark = "T" if day < 10 else " "
         stamps += [f"2025-01-{day + 1:02d}{mark}00:00:00"]
+    # ...AND THE TABLE REACHES THE POPULATION FLOOR ON A KEEPER COLUMN
+    # (plan P4-D341, and the repair of landing 3.2). The command
+    # refuses a table under the floor, and the population is the rows
+    # that HOLD A VALUE -- so the `NA` padding cannot reach it here,
+    # and neither can `other`, every cell of which this run declares
+    # absent. The reviewer's shape is the TWENTY present moments and
+    # their two marks; `held` carries a value on every row so the table
+    # is a hundred rows that hold one, and `seen_at` is untouched.
+    filled = [
+        [stamp, "2025-01-01 00:00:00", fixtures.KEEPER_VALUE]
+        for stamp in stamps
+    ]
+    filled += [["NA", "NA", fixtures.KEEPER_VALUE]] * (
+        parsing.POPULATION_FLOOR - len(filled)
+    )
     rows = _twin_declaring(
         tmp_path,
         "absent",
         fixtures.rows_to_csv(
-            ["seen_at", "other"],
-            [[stamp, "2025-01-01 00:00:00"] for stamp in stamps],
+            ["seen_at", "other", fixtures.KEEPER_NAME], filled
         ),
         "2025-01-01 00:00:00",
         # FLOOR ONE (plan P4-D316): the reviewer's ten and ten marks are
@@ -346,5 +361,9 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
     )
     written = [row[0] for row in rows[1:]]
     assert "2025-01-01 00:00:00" not in written
-    assert sum(1 for cell in written if cell[10] == "T") == 10
-    assert sum(1 for cell in written if cell[10] == " ") == 10
+    # The moments the twin wrote, which are its present cells: the
+    # padding above is absent in the table and absent in the twin.
+    moments = [cell for cell in written if len(cell) > 10]
+    assert len(moments) == len(stamps)
+    assert sum(1 for cell in moments if cell[10] == "T") == 10
+    assert sum(1 for cell in moments if cell[10] == " ") == 10

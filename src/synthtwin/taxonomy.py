@@ -705,6 +705,22 @@ NOTE_LABELS_POOLED = "labels_pooled_below_the_floor"
 NOTE_FREE_TEXT_WITHHELD = "free_text_publishes_no_values"
 NOTE_IDENTIFIER_WITHHELD = "identifier_publishes_no_values"
 NOTE_HISTOGRAM_WITHHELD = "histogram_publishes_no_shape"
+# THE ONE NOTE THAT IS ABOUT THE WHOLE TABLE AND NOT ABOUT A COLUMN
+# (plan P4-D341). A table between the population floor and a thousand
+# is described, and every page it produces says so: the description
+# carries this sentence, and the summary, the twin's report and the
+# quality report all read it back out of the description. Its two
+# arguments are how large the population is and which UNIT it was
+# counted in.
+NOTE_SMALL_POPULATION = "population_under_a_thousand"
+
+# The two words a population is counted in, and the whole of that
+# vocabulary (plan P4-D341). They are this package's own words, chosen
+# from a closed pair, so a sentence carrying one says how the table was
+# counted and nothing about any cell of it.
+NOTE_UNIT_ROWS = "rows"
+NOTE_UNIT_PEOPLE = "people"
+NOTE_UNIT_WORDS = (NOTE_UNIT_ROWS, NOTE_UNIT_PEOPLE)
 
 # The detection evidence: why the column was given the role it has.
 EVIDENCE_EMPTY = "evidence_every_value_absent"
@@ -900,6 +916,8 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_FREE_TEXT_WITHHELD: 0,
     NOTE_IDENTIFIER_WITHHELD: 0,
     NOTE_HISTOGRAM_WITHHELD: 0,
+    # How large the population is, and the word it was counted in.
+    NOTE_SMALL_POPULATION: 2,
     EVIDENCE_EMPTY: 0,
     EVIDENCE_UNREPRESENTABLE: 3,
     EVIDENCE_ONE_VALUE: 1,
@@ -1020,7 +1038,10 @@ NOTE_CLOCK_WORDS = (
 )
 
 NOTE_ARGUMENT_WORDS = (
-    parsing.DATE_FORMATS + NOTE_CLOCK_WORDS + NOTE_READING_WORDS
+    parsing.DATE_FORMATS
+    + NOTE_CLOCK_WORDS
+    + NOTE_READING_WORDS
+    + NOTE_UNIT_WORDS
 )
 
 # What `note` and `rendered` say when they are handed something the
@@ -1346,6 +1367,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "is published anywhere in its description: only how many there "
             "are, how long they are, how often they repeat, and what "
             "synthtwin decided about them"
+        )
+    if form == NOTE_SMALL_POPULATION:
+        return (
+            f"this description was made from a table of "
+            f"{_whole(arguments, 0)} {_word(arguments, 1)}, which is "
+            f"fewer than a thousand. Every count here is a count over "
+            f"that population, so each one narrows who a row could be "
+            f"further than the same count would in a large table. "
+            f"Nothing in this description is excused by the size: the "
+            f"same rules produced it, the smallest group size is the "
+            f"same number, and every obligation it states is the same "
+            f"obligation"
         )
     if form == EVIDENCE_EMPTY:
         return (
@@ -2283,6 +2316,305 @@ class Settings:
     # It is on the document's face so that a later phase can move it
     # only in the open, by a change to that contract.
     long_tail_minimum_level: int = LONG_TAIL_LINE
+    # WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO (plan
+    # P4-D340). The declared identifiers that REPEAT -- those with some
+    # folded present value standing on two or more rows -- in rising
+    # order, each of them once. Empty means this table's population is
+    # counted in ROWS, which is what a table with no repeating declared
+    # identifier is counted in.
+    #
+    # IT IS DERIVED AND NOT TYPED. Nobody passes `--person`: the value
+    # is `repeating_identifiers` read off the declared identifiers and
+    # the cells, so a description records WHO the rows are about rather
+    # than who somebody meant them to be about. An identifier different
+    # on every present row names a ROW and not a person, and
+    # `repeating_identifiers` says at length what that cost when it was
+    # measured.
+    #
+    # WHAT READS IT TODAY: the command, to count the population it
+    # refuses under and gives notice about (plan P4-D341). The
+    # disclosure floor is still counted in rows everywhere; counting it
+    # in people is a later landing, and this key is what that landing
+    # reads.
+    person_columns: "tuple[str, ...]" = ()
+
+
+# -- who the rows are about (plan P4-D340) ----------------------------
+#
+# THE PERSON IS NAMED BY THE DECLARED IDENTIFIERS THAT REPEAT, and the
+# rule is written here once because three readers need one answer: the
+# command that counts the population, the settings block that records
+# the choice, and the landing that will count the disclosure floor in
+# people.
+
+
+def _column_named(
+    name: str, column_names: "list[str]", columns: "list[list[str]]"
+) -> "list[str] | None":
+    """The cells of the column called ``name``, or None where there is none.
+
+    A WALK AND NOT `column_names.index(name)`: the offline policy
+    accepts no method call on a value it cannot trace (plan D6.2), and
+    these two lists come from the reader through the command. The walk
+    also says what to do about a name the table does not have, which
+    `index` answers with an exception nobody here wants.
+    """
+    place = 0
+    for held in column_names:
+        if held == name and place < len(columns):
+            return columns[place]
+        place = place + 1
+    return None
+
+
+def _present_spellings(
+    cells: "list[str]", settings: Settings
+) -> "dict[str, int]":
+    """Which of a column's SPELLINGS are present, asked once each.
+
+    `split_missing` is a fixed function of a value and the settings, so
+    a spelling's fate is the same on every row that wears it. Asking
+    once per distinct spelling is what keeps a pass over a column of
+    200,000 rows a pass over its vocabulary.
+
+    Guarantees: accepts a column's cells and the settings; returns a
+    mapping whose keys are exactly the spellings that are PRESENT.
+    Determinism: a fixed function of the two. Raises nothing a caller
+    can provoke. No I/O of any kind.
+    """
+    distinct: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for value in cells:
+        if value in seen:
+            continue
+        seen[value] = 1
+        distinct += [value]
+    present, _absent = split_missing(distinct, settings)
+    standing: "dict[str, int]" = {}
+    for value in present:
+        standing[value] = 1
+    return standing
+
+
+def repeating_identifiers(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    declared: "list[str]",
+    settings: Settings,
+) -> "tuple[str, ...]":
+    """The declared identifiers that name a PERSON, in rising order.
+
+    An identifier REPEATS when some folded present value of it stands
+    on two or more rows. One that does not repeat names a ROW and never
+    a person, and counting people by it is not the cautious reading --
+    it is wrong in the dangerous direction. Measured by the subject
+    design's skeptic on a 150-subject table whose second identifier
+    `sample_id` stood on 90 rows and was different on every one of
+    them: the rule that picked the identifier with the fewest different
+    values chose `sample_id`, counted 91 people, and REFUSED a table of
+    150 subjects; with `sample_id` on 120 rows it counted 121 people
+    and named a group held by ONE real subject. The same table under
+    this rule gives `subject_id`, 150 people, and no such group.
+
+    SEVERAL REPEATING IDENTIFIERS ARE A UNION, not a choice between
+    them: rows are one person when they share a folded value of ANY of
+    them. That is the direction that can only lower the count of people
+    and so can only hold more back.
+
+    IDENTITY IS `parsing.folded` -- trimmed and case-folded, the
+    identity labels already use. Merging `A12` and `a12 ` can only
+    lower a count of people. Leading zeros are NOT normalised, so `007`
+    and `7` stay two people; that is the liberal direction and is
+    stated as a limit rather than guessed at.
+
+    Guarantees:
+
+    - Inputs: the table's column names, its columns as text in the same
+      order, the names declared with `--identifier`, and the settings
+      that say which spellings mean "no value".
+    - Determinism: a fixed function of the four. The answer rises and
+      holds each name once.
+    - Errors raised: none. A declared name that is not a column of this
+      table is skipped; the command refuses such a name before this
+      runs.
+    - Boundary: opens no file and publishes nothing. What it returns
+      are COLUMN NAMES, which the settings block already carries under
+      `forced_identifiers`, and no spelling of any cell.
+    """
+    found: "list[str]" = []
+    for name in sorted(declared):
+        if found and found[len(found) - 1] == name:
+            continue
+        cells = _column_named(name, column_names, columns)
+        if cells is None:
+            continue
+        standing = _present_spellings(cells, settings)
+        seen: "dict[str, int]" = {}
+        repeats = False
+        for value in cells:
+            if value not in standing:
+                continue
+            key = parsing.folded(value)
+            if key in seen:
+                repeats = True
+                break
+            seen[key] = 1
+        if repeats:
+            found += [name]
+    return tuple(found)
+
+
+def people_in(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    person_columns: "tuple[str, ...]",
+    settings: Settings,
+) -> int:
+    """How many PEOPLE the rows of this table are about.
+
+    Rows are one person when they share a folded present value of any
+    person column. Rows holding a present value of NONE of them are one
+    unknown person between them, counted once.
+
+    A ROW THAT HOLDS NO VALUE AT ALL IS NOT ANYBODY (repair of landing
+    3.2). The population is counted over the rows that hold a present
+    value in SOME column, and a row whose every cell is blank or one of
+    the spellings that mean "no value" is counted nowhere -- neither as
+    a row of the population where no identifier repeats, nor as part of
+    the one unknown person where one does. **Measured** before this
+    rule existed: twenty real records followed by eighty `,,` rows, or
+    by eighty `NA,NA,NA` rows, read as a hundred-row table, cleared the
+    population floor and were described -- and the description that
+    came out published mean, spread and every percentile over the
+    twenty, which is the description the floor exists to refuse. Three
+    numbers padded to a hundred printed all three back verbatim. The
+    rows the reader returns are a property of the FILE; what a
+    description's counts are counts over is the rows that hold
+    something, and those are what this returns.
+
+    WHY THE UNNAMED ROWS ARE ONE PERSON AND NOT ONE EACH. A row naming
+    nobody could belong to anybody, including somebody already counted,
+    so one person per such row counts people the table does not
+    evidence -- and this count decides whether a table is too small to
+    describe at all, where over-counting is the direction that lets a
+    small table through.
+
+    Guarantees:
+
+    - Inputs: the column names, the columns as text in the same order,
+      the person columns (empty means the ROWS are the population), and
+      the settings that say which spellings mean "no value".
+    - Determinism: a fixed function of the four.
+    - Errors raised: none.
+    - Boundary: opens no file, prints nothing and publishes nothing.
+      What it returns is one whole number.
+    """
+    rows = 0
+    for held in columns:
+        if len(held) > rows:
+            rows = len(held)
+    holding = _rows_holding_a_value(columns, rows, settings)
+    if not person_columns:
+        count = 0
+        for place in range(rows):
+            if holding[place]:
+                count = count + 1
+        return count
+    # `home[row]` is the row this one has been merged onto. Every merge
+    # points at the EARLIER row of the two, so the walk to a group's
+    # first row is short and the answer does not depend on the order
+    # the columns are read in.
+    home: "list[int]" = []
+    named: "list[bool]" = []
+    for place in range(rows):
+        home += [place]
+        named += [False]
+
+    def first_of(place: int) -> int:
+        while home[place] != place:
+            home[place] = home[home[place]]
+            place = home[place]
+        return place
+
+    for name in person_columns:
+        cells = _column_named(name, column_names, columns)
+        if cells is None:
+            continue
+        standing = _present_spellings(cells, settings)
+        earliest: "dict[str, int]" = {}
+        place = 0
+        for value in cells:
+            if value not in standing:
+                place = place + 1
+                continue
+            named[place] = True
+            key = parsing.folded(value)
+            if key not in earliest:
+                earliest[key] = place
+                place = place + 1
+                continue
+            one, two = first_of(earliest[key]), first_of(place)
+            if one != two:
+                if one < two:
+                    home[two] = one
+                else:
+                    home[one] = two
+            place = place + 1
+    people = 0
+    unknown = 0
+    for place in range(rows):
+        if not named[place]:
+            # ONLY A ROW THAT HOLDS SOMETHING joins the unknown person.
+            # A wholly absent row evidences nobody, so padding a table
+            # of ninety-nine people with blank rows may not buy it the
+            # hundredth.
+            if holding[place]:
+                unknown = 1
+            continue
+        if first_of(place) == place:
+            people = people + 1
+    return people + unknown
+
+
+def _rows_holding_a_value(
+    columns: "list[list[str]]", rows: int, settings: Settings
+) -> "list[bool]":
+    """Which rows hold a PRESENT value in some column (landing 3.2 repair).
+
+    The same `_present_spellings` pass `people_in` already makes over
+    the person columns, made over every column: a spelling's fate is
+    the same on every row that wears it, so each column costs one walk
+    over its vocabulary and one over its cells.
+
+    THE WALK STOPS EARLY. Once every row is known to hold something --
+    which one full column with no holes in it settles -- no further
+    column is read, so the ordinary table costs one column's pass
+    and not the whole table's.
+
+    Guarantees: accepts the columns as text, how many rows the longest
+    of them has, and the settings that say which spellings mean "no
+    value"; returns one truth value per row, in row order. A fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    holding: "list[bool]" = []
+    for _place in range(rows):
+        holding += [False]
+    outstanding = rows
+    for held in columns:
+        if not outstanding:
+            break
+        standing = _present_spellings(held, settings)
+        if not standing:
+            continue
+        place = 0
+        for value in held:
+            if place >= rows:
+                break
+            if not holding[place] and value in standing:
+                holding[place] = True
+                outstanding = outstanding - 1
+            place = place + 1
+    return holding
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -11498,10 +11830,26 @@ def _categorical_ceiling(cells: _Cells) -> int:
     at least ``categorical_floor``, decided by comparing whole numbers.
     Raises nothing. No I/O of any kind.
     """
-    settings = cells.settings
     # The table's ROWS, for the reasons in the docstring above (review
     # item P1-R6-F7).
-    share = _at_most(settings.categorical_share, cells.n_rows)
+    return categories_ceiling(cells.n_rows, cells.settings)
+
+
+def categories_ceiling(n_rows: int, settings: Settings) -> int:
+    """The same ceiling, for a caller that holds no tally (plan P4-D340).
+
+    `_categorical_ceiling` is this function over a column's own tally,
+    and the arithmetic lives here so that the one reader outside the
+    role rules -- the question that asks whether a column names people
+    -- asks the SAME line rather than restating it. A line restated is
+    a line that drifts, and this one is recorded in every description
+    under `categorical_share` and `categorical_ceiling`.
+
+    Guarantees: accepts a row count and the settings; returns a whole
+    number of at least ``categorical_floor``, decided by comparing
+    whole numbers. Raises nothing. No I/O of any kind.
+    """
+    share = _at_most(settings.categorical_share, n_rows)
     ceiling = min(settings.categorical_ceiling, share)
     return max(ceiling, settings.categorical_floor)
 

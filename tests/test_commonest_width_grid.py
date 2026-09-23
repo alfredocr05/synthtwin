@@ -26,7 +26,7 @@ import sys
 import pytest
 
 import fixtures
-from synthtwin import contract, generation
+from synthtwin import contract, generation, parsing
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 ORACLE = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
@@ -107,7 +107,12 @@ def _battery() -> "list[list[str]]":
     columns: "list[list[str]]" = []
     for seed in range(24):
         draw = random.Random(seed)
-        size = draw.choice((60, 200))
+        # THE SMALLER SIZE IS THE POPULATION FLOOR (plan P4-D341): the
+        # command refuses a smaller table and writes nothing, and what
+        # this battery varies is the SHAPE of a column's fractions --
+        # two sizes for variety, and neither of them a subject of the
+        # comparison below.
+        size = draw.choice((parsing.POPULATION_FLOOR, 200))
         kind = seed % 6
         cells: "list[str]" = []
         for _cell in range(size):

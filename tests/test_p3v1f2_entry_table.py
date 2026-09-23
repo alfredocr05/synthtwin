@@ -814,7 +814,7 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     import workbooks
 
     book = tmp_path / "book.xlsx"
-    book.write_bytes(workbooks.plain_book(60))
+    book.write_bytes(workbooks.plain_book())
     booked = contract.load_profile(
         str(
             fixtures.write_profile(

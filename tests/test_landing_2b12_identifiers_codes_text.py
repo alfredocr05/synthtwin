@@ -28,6 +28,7 @@ def _round_trip(
     cells: "list[str]",
     flags: "tuple[str, ...]" = (),
     seed: str = "4",
+    by_command: bool = True,
 ) -> "tuple[dict, dict, list[str], int, int]":
     """Describe, build, describe again, validate the twin AND the table.
 
@@ -39,6 +40,15 @@ def _round_trip(
     filler is what lets the shape be measured at all. It is the same
     helper `test_landing_2b8_labels_text_missing.py` uses, for the same
     reason.
+
+    ``by_command`` FALSE DESCRIBES WITH THE PRODUCER (plan P4-D341).
+    `synthtwin profile` refuses a table under the population floor and
+    writes nothing, and a shape whose ROLE depends on the table's ROW
+    count -- the categorical ceiling is a share of them -- becomes a
+    different shape if it is padded up to that floor. `build_document`
+    refuses no table for its size, so such a shape is described that
+    way and its twin is still built and checked through `generate` and
+    `validate`.
     """
     import csv
     import io
@@ -54,9 +64,14 @@ def _round_trip(
         encoding="utf-8",
         newline="",
     )
+    from tests.test_stage2_round_trip import describe_with_the_producer
+
     described = ["profile", str(table), "--out-dir", str(folder), "--replace"]
-    assert _exit_of(described + list(flags)) == 0
     profile_path = folder / "real-profile.json"
+    if by_command:
+        assert _exit_of(described + list(flags)) == 0
+    else:
+        describe_with_the_producer(table, profile_path, flags)
     assert _exit_of([
         "generate", str(profile_path), "--out-dir", str(folder),
         "--seed", seed, "--replace",
@@ -66,10 +81,15 @@ def _round_trip(
     again.mkdir()
     copied = again / "twin.csv"
     copied.write_bytes(twin.read_bytes())
-    assert _exit_of(
-        ["profile", str(copied), "--out-dir", str(again), "--replace"]
-        + list(flags)
-    ) == 0
+    if by_command:
+        assert _exit_of(
+            ["profile", str(copied), "--out-dir", str(again), "--replace"]
+            + list(flags)
+        ) == 0
+    else:
+        describe_with_the_producer(
+            copied, again / "twin-profile.json", flags
+        )
     first = json.loads(profile_path.read_text(encoding="utf-8"))["columns"][0]
     second = json.loads(
         (again / "twin-profile.json").read_text(encoding="utf-8")

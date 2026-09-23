@@ -283,6 +283,29 @@ keyboard -- a script, a pipeline, CI -- it never stops: it names those
 columns on screen, says what it assumed, and prints the `--code` line
 that corrects it.
 
+**How small a table synthtwin will describe.** `synthtwin profile`
+refuses a table of fewer than 100 and writes nothing at all, and
+describes one of 100 to 999 with a plain notice on the screen and on
+every page it writes. Every count a description publishes is a count
+over the population it was taken from, and below a hundred those
+counts describe the individuals in the table rather than a population.
+The notice cannot be turned off, it is on the description, the
+plain-language summary, the questions file, the twin's report and the
+quality report alike, and the twin's own table carries no trace of it,
+so code you write against the twin runs exactly as it ran before.
+
+**The population is counted in PEOPLE where you say who the rows are.**
+Name a column with `--identifier` and, if its values REPEAT, rows
+sharing a value of it are one person and rows holding no value of it
+count as one person between them -- so a table of 500 visits by 80
+subjects is 80, and is refused. An identifier that is different on
+every row names a row rather than a person and is not counted by.
+Where nothing is declared, the population is counted in rows, and
+where a column looks like it names people -- its values repeat, and
+there are more of them than a set of categories could have -- the
+questions file asks you about it and the screen says the count was
+taken in rows.
+
 **`--smallest-group`, and what lowering it does.** It changes how many
 rows a group needs before the profile names it. **The default is 11**:
 no group named anywhere in the profile covers fewer than eleven rows,
@@ -538,10 +561,12 @@ That is a statement about where the twin's values come from. It is not a
 promise that no row of the twin can equal a row of yours, and an earlier
 version of this page said otherwise, which was wrong. The profile
 publishes exact counts, and meeting them exactly can force a twin row to
-match a real one. The plainest case: a table of eleven rows with one
-column, whose single label is shared by all eleven rows, publishes that
-label with the count eleven -- so the twin writes that label in all
-eleven of its rows, and each of those rows is the row you have. Nothing
+match a real one. The plainest case: a table of 100 rows with one
+column, whose single label is shared by all 100 rows, publishes that
+label with the count 100 -- so the twin writes that label in all 100 of
+its rows, and each of those rows is the row you have. It is stated at
+100 rows because that is the smallest table `synthtwin profile` will
+describe: below 100 it refuses and writes nothing. Nothing
 was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
