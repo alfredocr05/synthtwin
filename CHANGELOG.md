@@ -6,6 +6,50 @@ exists).
 
 ## [Unreleased]
 
+### Changed: no sentence of a description carries a count its keys withhold (stage 3, 2026-09-22)
+
+**A count in a key was held to the smallest group size; the same count
+in a sentence was held to nothing.** A column with one grouped cell in
+four hundred read "1 of this column's values are written with a comma
+inside the number" -- a count of one, naming one row, in the plain
+prose part of the description. Over 56 descriptions at a smallest group
+size of eleven there were 252 sentences, 145 of them carrying numbers,
+and 29 numbers no key of the block beside them was allowed to print.
+
+Every argument of every sentence is now bound to what it is. Most of
+them restate a count the block already publishes, and those are checked
+against it, so the key's own rule covers the sentence. Thirteen do not
+restate anything: they are the sentence's own count -- how far a
+reading got, how many cells wore a mark -- and those now say "fewer
+than 11" where the group is too small to name. The description is
+refused before it is written if any sentence breaks either rule.
+
+Three more changes came with it. The words a count moves -- how the
+negatives were written, the mark between thousands, whether wide runs
+of figures are their own values' text -- are held to the same line as
+the counts, so one cell can no longer move a word about a whole column.
+The commonest number and its count are withheld where the cells that
+are NOT the commonest number are too few to name: 395 zeros among 400
+values used to publish 395 beside 400, which names the other five.
+And the counts this release deliberately leaves published -- how many
+cells were not numbers, out of range, contradictory, unparsed, zero or
+negative -- are now held at a ceiling in the KPI ledger, so they cannot
+quietly grow.
+
+Why those last ones stay: flooring them made code developed on the twin
+run clean where the real table raises, in 7 of 7 shapes measured, and
+the count could still be worked out from the published count of missing
+cells. This is a reversible call and goes to the owner.
+
+| a column of 400 values | before | after |
+|---|---|---|
+| one grouped cell, in the remark | "1 of this column's values..." | "fewer than 11 of this column's values..." |
+| a reading that reached 4 cells, in the remark | "4 of its values are numbers wearing..." | "Fewer than 11 of its values are numbers wearing..." |
+| 395 zeros: commonest number | `mode 0.0`, `mode_count 395` | both withheld |
+| one bracketed negative, `--smallest-group 1` | `negative_form: brackets` | `negative_form: minus` |
+| one grouped cell, `--smallest-group 1` | `group_separator: ","` | `group_separator: ""` |
+| cells that were not numbers | published | published (unchanged, and held at a ceiling) |
+
 ### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
 
 **A description `profile` wrote could be refused by `generate` and

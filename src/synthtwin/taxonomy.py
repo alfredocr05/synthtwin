@@ -730,12 +730,21 @@ EVIDENCE_COMPOUND_SMALL_SET = "evidence_numbers_with_a_few_labels"
 EVIDENCE_NO_READING_FITS = "evidence_no_reading_fits"
 EVIDENCE_DECLARED_IDENTIFIER = "evidence_declared_identifier"
 
-# Two fragments that appear inside a longer sentence rather than on
+# Three fragments that appear inside a longer sentence rather than on
 # their own. They are forms like any other, and they travel as
 # arguments of the sentences that carry them, so the whole sentence is
 # still rebuilt from enumerated parts.
 SAID_WRITTEN_AS_NUMBERS = "said_written_as_numbers"
 SAID_READ_AS_DATES = "said_read_as_dates"
+# THE THIRD FRAGMENT, and it is a privacy control rather than a phrase
+# (stage 3 landing 3.5, plan P4-D334). It stands where a sentence would
+# otherwise print a count NO KEY OF THE BLOCK PUBLISHES -- how far a
+# reading the column was not described by got, how many cells wore a
+# mark -- and the floor will not let it name. Its one argument is the
+# census LINE, which is a setting of the run and not a count of
+# anybody's rows, so the sentence says the SHAPE of the number and
+# never the number.
+SAID_FEWER_THAN_THE_LINE = "said_fewer_than_the_line"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
@@ -917,6 +926,10 @@ NOTE_ARITY: "dict[str, int]" = {
     EVIDENCE_DECLARED_IDENTIFIER: 0,
     SAID_WRITTEN_AS_NUMBERS: 2,
     SAID_READ_AS_DATES: 2,
+    # THE LINE, and nothing else (contract NF59). One argument, and it
+    # is the census floor the run was given rather than any count of
+    # the column, which is what makes this fragment sayable at all.
+    SAID_FEWER_THAN_THE_LINE: 1,
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
@@ -999,6 +1012,279 @@ NOTE_ARITY: "dict[str, int]" = {
 # The same names as a sorted tuple, for a reader and for the tests that
 # walk the whole vocabulary.
 NOTE_FORMS = tuple(sorted(NOTE_ARITY))
+
+# WHAT EVERY ARGUMENT OF EVERY SENTENCE IS BOUND TO (contract C6-143,
+# stage 3 landing 3.5, plan P4-D333). `NOTE_ARITY` above says HOW MANY
+# arguments a form takes; this table says what each one of them IS, and
+# it is closed over every form and every position for the same reason
+# that one is: a position nobody bound is a number a sentence may print
+# that no rule governs.
+#
+# WHY IT EXISTS AT ALL. A count in a sentence and a count in a key are
+# the same disclosure, and only the key was ever held to the floor.
+# Measured over 56 descriptions at a floor of eleven: 252 sentences,
+# 145 of them carrying whole numbers, and 29 arguments restating a
+# count or a complement the floor would not let a key print. The rule
+# this table makes checkable is one sentence long -- A SENTENCE MAY NOT
+# CARRY A COUNT A KEY WITHHOLDS -- and it is P4-D221's padded-remark
+# rule ("a count the map does not name is a count no sentence prints")
+# made general instead of written once per remark.
+#
+# The eleven kinds, and what each one means for the guard
+# (`profile._arguments_are_bound`):
+#
+# * `key` -- the argument must EQUAL the named key of the column block
+#   the sentence belongs to, so the key's own floor rule governs the
+#   sentence too and nothing more has to be asked here. The name is
+#   dotted where the key lives in a sub-block (`labels.n_distinct_folded`).
+# * `sum` and `difference` -- the argument must equal the sum, or the
+#   difference, of published keys of that block. Same reasoning: every
+#   part is already floored.
+# * `document` -- a key of the description itself rather than of a
+#   column, which is `n_rows` and nothing else today.
+# * `main_wrapper` -- `n_affixed` less every named wrapper's count: the
+#   cells wearing the wrapper the block publishes as its main one. The
+#   first draft of this table bound it to `n_affixed` and the guard
+#   caught the difference on a two-wrapper column, 380 against 400.
+# * `setting` -- a threshold of the run: the smallest group size, a
+#   ceiling, a detection line. It names no row of anybody's table.
+# * `levels_at_the_line` -- how many levels reached the long-tail line,
+#   which is the length of a list the block publishes.
+# * `vocabulary` -- a place in one of this package's own closed lists
+#   (which stand-in number, which time band), never a count.
+# * `structural` -- a column number.
+# * `value` -- a VALUE of the column restated in other words, which is
+#   the date the epoch-band remark reads the ends as. Governed by the
+#   stage-3 tail rule and never by a count rule; the tail landing moves
+#   these to the tail's own boundaries.
+# * `floored` -- THE THIRTEEN POSITIONS THAT ARE THE PUBLICATION. No
+#   key of the block carries these counts, so the floor has to be asked
+#   at the sentence: each is nought, or reaches `parsing.census_floor`,
+#   or carries `said_fewer_than_the_line` in the number's place.
+# * `word`, `nested` and `affix` -- the three argument classes that are
+#   not whole numbers at all (contract C6-119 classes 2, 3 and 4).
+#
+BIND_KEY = "key"
+BIND_SUM = "sum"
+BIND_DIFFERENCE = "difference"
+BIND_DOCUMENT = "document"
+BIND_MAIN_WRAPPER = "main_wrapper"
+BIND_SETTING = "setting"
+BIND_LEVELS_AT_THE_LINE = "levels_at_the_line"
+BIND_VOCABULARY = "vocabulary"
+BIND_STRUCTURAL = "structural"
+BIND_VALUE = "value"
+BIND_FLOORED = "floored"
+BIND_WORD = "word"
+BIND_NESTED = "nested"
+BIND_AFFIX = "affix"
+
+BINDING_KINDS = (
+    BIND_KEY,
+    BIND_SUM,
+    BIND_DIFFERENCE,
+    BIND_DOCUMENT,
+    BIND_MAIN_WRAPPER,
+    BIND_SETTING,
+    BIND_LEVELS_AT_THE_LINE,
+    BIND_VOCABULARY,
+    BIND_STRUCTURAL,
+    BIND_VALUE,
+    BIND_FLOORED,
+    BIND_WORD,
+    BIND_NESTED,
+    BIND_AFFIX,
+)
+
+# The three counts every "written as numbers" clause adds up, written
+# once because four forms restate the same sum and a sum spelled out
+# four times is a sum that disagrees with itself.
+_NUMERIC_LOOKING = ("n_numeric", "n_out_of_range", "n_contradictory")
+
+ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
+    (NOTE_ONE_VALUE_BELOW_FLOOR, 0): (BIND_SETTING, "smallest group size"),
+    (NOTE_ONE_OF_TWO_BELOW_FLOOR, 0): (BIND_KEY, "suppressed_levels"),
+    (NOTE_ONE_OF_TWO_BELOW_FLOOR, 1): (BIND_SETTING, "smallest group size"),
+    (NOTE_LABELS_POOLED, 0): (BIND_KEY, "suppressed_levels"),
+    (NOTE_LABELS_POOLED, 1): (BIND_SETTING, "smallest group size"),
+    (NOTE_LABELS_POOLED, 2): (BIND_KEY, "suppressed_rows"),
+    (EVIDENCE_UNREPRESENTABLE, 0): (BIND_SUM, _NUMERIC_LOOKING),
+    (EVIDENCE_UNREPRESENTABLE, 1): (BIND_KEY, "n_present"),
+    (EVIDENCE_UNREPRESENTABLE, 2): (BIND_KEY, "n_numeric"),
+    (EVIDENCE_ONE_VALUE, 0): (BIND_KEY, "n_present"),
+    (EVIDENCE_DATES, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
+    (EVIDENCE_DATES, 1): (BIND_KEY, "n_present"),
+    (EVIDENCE_DATES, 2): (BIND_WORD,),
+    (EVIDENCE_COUNTS, 0): (BIND_SUM, _NUMERIC_LOOKING),
+    (EVIDENCE_NUMBERS, 0): (BIND_SUM, _NUMERIC_LOOKING),
+    (EVIDENCE_NUMBERS, 1): (BIND_KEY, "n_present"),
+    (EVIDENCE_CATEGORIES, 0): (BIND_KEY, "n_distinct_folded"),
+    (EVIDENCE_CATEGORIES, 1): (BIND_SETTING, "category ceiling"),
+    (EVIDENCE_CATEGORIES, 2): (BIND_DOCUMENT, "n_rows"),
+    (EVIDENCE_LONG_TAIL, 0): (BIND_KEY, "n_distinct_folded"),
+    (EVIDENCE_LONG_TAIL, 1): (BIND_SETTING, "category ceiling"),
+    (EVIDENCE_LONG_TAIL, 2): (BIND_DOCUMENT, "n_rows"),
+    (EVIDENCE_LONG_TAIL, 3): (BIND_SETTING, "long-tail line"),
+    (EVIDENCE_LONG_TAIL, 4): (BIND_LEVELS_AT_THE_LINE,),
+    (EVIDENCE_COMPOUND, 0): (BIND_KEY, "n_numeric_cells"),
+    (EVIDENCE_COMPOUND, 1): (BIND_KEY, "n_label_cells"),
+    (EVIDENCE_COMPOUND, 2): (BIND_SETTING, "compound line"),
+    (EVIDENCE_COMPOUND, 3): (BIND_DOCUMENT, "n_rows"),
+    (EVIDENCE_COMPOUND_SMALL_SET, 0): (BIND_KEY, "n_numeric_cells"),
+    (EVIDENCE_COMPOUND_SMALL_SET, 1): (BIND_KEY, "n_label_cells"),
+    (EVIDENCE_COMPOUND_SMALL_SET, 2): (BIND_KEY, "labels.n_distinct_folded"),
+    (EVIDENCE_COMPOUND_SMALL_SET, 3): (BIND_DOCUMENT, "n_rows"),
+    (EVIDENCE_NO_READING_FITS, 0): (BIND_NESTED,),
+    (EVIDENCE_NO_READING_FITS, 1): (BIND_NESTED,),
+    (EVIDENCE_NO_READING_FITS, 2): (BIND_KEY, "n_distinct_folded"),
+    (EVIDENCE_NO_READING_FITS, 3): (BIND_SETTING, "category ceiling"),
+    (EVIDENCE_NO_READING_FITS, 4): (BIND_DOCUMENT, "n_rows"),
+    (SAID_WRITTEN_AS_NUMBERS, 0): (BIND_SUM, _NUMERIC_LOOKING),
+    (SAID_WRITTEN_AS_NUMBERS, 1): (BIND_KEY, "n_present"),
+    (SAID_READ_AS_DATES, 0): (BIND_FLOORED,),
+    (SAID_READ_AS_DATES, 1): (BIND_WORD,),
+    (SAID_FEWER_THAN_THE_LINE, 0): (BIND_SETTING, "census line"),
+    (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
+    (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
+    (EVIDENCE_CLOCK, 1): (BIND_WORD,),
+    (EVIDENCE_CLOCK, 2): (BIND_KEY, "n_unparsed"),
+    (EVIDENCE_AFFIXED, 0): (BIND_AFFIX,),
+    (EVIDENCE_AFFIXED, 1): (BIND_AFFIX,),
+    (EVIDENCE_AFFIXED, 2): (BIND_MAIN_WRAPPER,),
+    (EVIDENCE_JOINED, 0): (BIND_KEY, "n_joined"),
+    (EVIDENCE_JOINED, 1): (BIND_KEY, "n_parts"),
+    (EVIDENCE_JOINED, 2): (BIND_AFFIX,),
+    (REMARK_AFFIXED, 0): (BIND_AFFIX,),
+    (REMARK_AFFIXED, 1): (BIND_AFFIX,),
+    (REMARK_AFFIXED, 2): (BIND_MAIN_WRAPPER,),
+    (REMARK_CONTRADICTORY, 0): (BIND_KEY, "n_contradictory"),
+    (REMARK_RARE_SENTINELS, 0): (
+        BIND_KEY,
+        "n_sentinel_candidates_unpublished",
+    ),
+    (REMARK_UNREPRESENTABLE, 0): (BIND_KEY, "n_numeric"),
+    (REMARK_UNREPRESENTABLE, 1): (BIND_SUM, _NUMERIC_LOOKING),
+    (REMARK_DATES_ALSO_NUMBERS, 0): (
+        BIND_DIFFERENCE,
+        "n_present",
+        "n_unparsed",
+    ),
+    (REMARK_DATES_ALSO_NUMBERS, 1): (BIND_SUM, _NUMERIC_LOOKING),
+    # THE TWO READINGS' REACHES. They are floored like the other
+    # eleven and, like them, name no population (plan P4-D333): what a
+    # reader takes off the present cells here is the count of cells one
+    # reading did not parse, which is the class of number P4-D332
+    # leaves published. What they never carry is the FRAGMENT -- this
+    # rendering compares them to choose which of its three sentences to
+    # write, so a fragment standing in either would settle the sentence
+    # by a number nobody may print, and a reach below the line
+    # withdraws the remark instead.
+    (REMARK_SLASHED_EVIDENCE, 0): (BIND_FLOORED,),
+    (REMARK_SLASHED_EVIDENCE, 1): (BIND_FLOORED,),
+    (REMARK_SLASHED_EVIDENCE, 2): (BIND_FLOORED,),
+    (REMARK_SLASHED_EVIDENCE, 3): (BIND_FLOORED,),
+    (REMARK_SLASHED_EVIDENCE, 4): (BIND_WORD,),
+    (REMARK_NEAR_CATEGORY_LINE, 0): (BIND_KEY, "n_distinct_folded"),
+    (REMARK_NEAR_CATEGORY_LINE, 1): (BIND_SETTING, "category ceiling"),
+    (REMARK_TWO_READINGS_FIT, 0): (BIND_FLOORED,),
+    (REMARK_A_LETTER_NEEDS_A_DECLARATION, 0): (BIND_FLOORED,),
+    (REMARK_NO_READING_FITS, 0): (BIND_NESTED,),
+    (REMARK_NO_READING_FITS, 1): (BIND_NESTED,),
+    (REMARK_NO_READING_FITS, 2): (BIND_SETTING, "strict reading line"),
+    (REMARK_NO_READING_FITS, 3): (BIND_KEY, "n_distinct_folded"),
+    (REMARK_NO_READING_FITS, 4): (BIND_SETTING, "category ceiling"),
+    (REMARK_NO_READING_FITS, 5): (BIND_FLOORED,),
+    (REMARK_NO_READING_FITS, 6): (BIND_FLOORED,),
+    (REMARK_NO_READING_FITS, 7): (BIND_FLOORED,),
+    (REMARK_NO_READING_FITS, 8): (BIND_FLOORED,),
+    (REMARK_SOME_NOT_NUMBERS, 0): (BIND_KEY, "n_not_numeric"),
+    (REMARK_NEAR_NUMERIC_LINE, 0): (BIND_SUM, _NUMERIC_LOOKING),
+    (REMARK_NEAR_NUMERIC_LINE, 1): (BIND_KEY, "n_present"),
+    (REMARK_NEAR_NUMERIC_LINE, 2): (BIND_SETTING, "strict reading line"),
+    (REMARK_PADDED_NUMBERS, 0): (BIND_KEY, "numeric_styles.leading_zero"),
+    (REMARK_GROUP_COMMAS, 0): (BIND_FLOORED,),
+    (REMARK_GROUP_COMMAS, 1): (BIND_FLOORED,),
+    (REMARK_LABEL_IS_A_STAND_IN, 0): (BIND_VOCABULARY,),
+    (REMARK_EPOCH_BAND, 0): (BIND_VOCABULARY,),
+    (REMARK_EPOCH_BAND, 1): (BIND_VALUE,),
+    (REMARK_EPOCH_BAND, 2): (BIND_VALUE,),
+    (REMARK_EPOCH_BAND, 3): (BIND_VALUE,),
+    (REMARK_EPOCH_BAND, 4): (BIND_VALUE,),
+    (REMARK_EPOCH_BAND, 5): (BIND_VALUE,),
+    (REMARK_EPOCH_BAND, 6): (BIND_VALUE,),
+    (HEADER_NAMES_SHOWN_BY_COLUMN, 0): (BIND_STRUCTURAL,),
+}
+
+# THE TWO POSITIONS THE CONTRACT STATES AND THIS PRODUCER DOES NOT
+# EMIT. `tests/test_p4d27_note_grammar_matches_the_code.py` carries
+# both as named arity mismatches: contract 4.5.1 gives each of these
+# remarks an argument counting the present cells that share a value
+# with another row, and this producer raises them only where every
+# value differs, so the argument would be nought at every call site.
+# They are bound here all the same, because the contract's binding
+# column has to be complete for the guard that compares the two to mean
+# anything -- and the binding is the one the clause describes, a
+# difference of two published keys.
+ARGUMENT_BINDINGS_STATED_NOT_EMITTED: "dict[tuple[str, int], tuple[object, ...]]" = {
+    (REMARK_ALL_DIFFERENT_NUMBERS, 0): (
+        BIND_DIFFERENCE,
+        "n_present",
+        "n_distinct",
+    ),
+    (REMARK_ALL_DIFFERENT_TEXT, 0): (
+        BIND_DIFFERENCE,
+        "n_present",
+        "n_distinct",
+    ),
+}
+
+# Where a floored position carries the fragment rather than its own
+# digits, the producer puts it there. Read by the producer's own pass
+# and by the guard, so the two cannot disagree about which positions
+# the fragment may stand at.
+FLOORED_POSITIONS = tuple(
+    sorted(
+        place
+        for place in ARGUMENT_BINDINGS
+        if ARGUMENT_BINDINGS[place][0] == BIND_FLOORED
+    )
+)
+
+
+def argument_binding(form: str, place: int) -> "tuple[object, ...]":
+    """What one argument position of one form is bound to.
+
+    Guarantees: accepts a form name and a zero-based position; returns
+    the binding, or `()` where the table has none -- which is a defect
+    the guard reports rather than a state a document may reach.
+    Determinism: a lookup in a fixed table. No I/O of any kind.
+    """
+    if (form, place) in ARGUMENT_BINDINGS:
+        return ARGUMENT_BINDINGS[(form, place)]
+    return ()
+
+
+def unbound_argument_positions() -> "list[tuple[str, int]]":
+    """Every position of every form that this table does not bind.
+
+    THE CLOSURE CHECK, written beside the table it closes. A form added
+    to `NOTE_ARITY` with no binding for one of its arguments is a
+    sentence that may print a number no rule governs, and the guard
+    cannot invent one; the answer has to be a defect somebody sees.
+
+    Guarantees: returns the missing positions in sorted order, and
+    every position of `ARGUMENT_BINDINGS` that no form has. Determinism:
+    a fixed function of the two tables. No I/O of any kind.
+    """
+    missing: "list[tuple[str, int]]" = []
+    for form in sorted(NOTE_ARITY):
+        for place in range(NOTE_ARITY[form]):
+            if (form, place) not in ARGUMENT_BINDINGS:
+                missing += [(form, place)]
+    for bound in sorted(ARGUMENT_BINDINGS):
+        if bound[0] not in NOTE_ARITY or bound[1] >= NOTE_ARITY[bound[0]]:
+            missing += [bound]
+    return missing
 
 # The only WORDS an argument may be. Every other argument is a whole
 # number or another form, so this tuple is the whole of what a sentence
@@ -1270,6 +1556,71 @@ def _said(arguments: "tuple[object, ...]", place: int) -> str:
     return rendered(form, parts)
 
 
+def _count_said(arguments: "tuple[object, ...]", place: int) -> str:
+    """One argument as a count: its own digits, or the line fragment.
+
+    THE THIRTEEN POSITIONS WHERE A SENTENCE CARRIES A COUNT NO KEY OF
+    THE BLOCK PUBLISHES (contract C6-143, plan P4-D334). Everywhere
+    else a sentence restates a published key and the key's own floor
+    rule covers it; at these thirteen the sentence IS the publication,
+    so the number stands on its own and the floor has to be asked
+    here. Below the line the producer puts `said_fewer_than_the_line`
+    in the argument's place, and this accessor renders whichever of
+    the two is standing there.
+
+    Guarantees: accepts a form's arguments and a position; returns the
+    number's own digits, or the fragment's text. Raises TypeError for
+    anything that is neither. Determinism: a fixed function of the
+    two. No I/O of any kind.
+    """
+    if isinstance(arguments[place], tuple):
+        return _said(arguments, place)
+    return f"{_whole(arguments, place)}"
+
+
+def _fewer_than_the_line(line: int, opening: bool) -> str:
+    """NF59's words, written once, in the one case or the other.
+
+    The fragment stands inside another sentence, and at NF29 argument 6
+    it stands immediately after a full stop -- so a rendering with one
+    case would give the document one sentence that begins in the middle
+    of itself. Both cases are written HERE rather than one of them
+    being made from the other by moving a letter, because the second is
+    a rule about text and this is a rule about a sentence.
+    """
+    if opening:
+        return f"Fewer than {line}"
+    return f"fewer than {line}"
+
+
+def _count_said_opening(arguments: "tuple[object, ...]", place: int) -> str:
+    """`_count_said` where the count OPENS a sentence, so it is capitalised.
+
+    Only the fragment moves: a number's digits have no case, which is
+    why this reads as one branch rather than as a rule about text.
+    """
+    argument = arguments[place]
+    if not isinstance(argument, tuple):
+        return f"{_whole(arguments, place)}"
+    parts = argument[1]
+    if not isinstance(parts, tuple):
+        raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
+    return _fewer_than_the_line(_whole(parts, 0), True)
+
+
+def _count_is_named(arguments: "tuple[object, ...]", place: int) -> bool:
+    """Whether a `_count_said` position carries something to say.
+
+    The renderings at those positions branch on the count -- a clause
+    is written where it is nonzero and left out where it is not -- and
+    the fragment stands only where the count was one or more, so it is
+    named for the same reason a nonzero number is.
+    """
+    if isinstance(arguments[place], tuple):
+        return True
+    return _whole(arguments, place) != 0
+
+
 def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     """The exact text of one form, written from its arguments alone.
 
@@ -1452,12 +1803,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{written} of the {_whole(arguments, 1)} values are written "
             f"as numbers"
         )
+    if form == SAID_FEWER_THAN_THE_LINE:
+        # THE WHOLE OF THIS FRAGMENT'S WORDS (contract NF59). It says
+        # the count is one or more and below the line, which is all a
+        # reader may be told about a group the floor will not name, and
+        # the line itself is the setting the run was given.
+        return _fewer_than_the_line(_whole(arguments, 0), False)
     if form == SAID_READ_AS_DATES:
-        read = _whole(arguments, 0)
-        if not read:
+        if not _count_is_named(arguments, 0):
             return "none of them reads as a date in any form synthtwin knows"
         return (
-            f"{read} read as dates written as "
+            f"{_count_said(arguments, 0)} read as dates written as "
             f"{parsing.format_example(_word(arguments, 1))}"
         )
     if form == EVIDENCE_CLOCK:
@@ -1616,10 +1972,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # with only the other two, a producer on a tie must invent a
         # sentence or write a false one, since each of those claims one
         # reading parsed more than the other.
+        # THE TWO REACHES STAY WHOLE NUMBERS AND THE TWO CONTRADICTION
+        # COUNTS DO NOT (plan P4-D334). Arguments 1 and 2 are compared
+        # here to choose which of the three renderings applies, so a
+        # fragment standing in either would decide the sentence by a
+        # number nobody may print; where the floor will not let one of
+        # them be named -- or lets a reader take the other off it --
+        # the producer publishes no such remark at all. Arguments 3 and
+        # 4 are printed and never compared, so the fragment stands
+        # there.
         day = _whole(arguments, 0)
         month = _whole(arguments, 1)
-        day_only = _whole(arguments, 2)
-        month_only = _whole(arguments, 3)
         used = _word(arguments, 4)
         if day > month:
             first = (
@@ -1639,13 +2002,14 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             )
         if used != READING_DAY_FIRST and used != READING_MONTH_FIRST:
             raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
-        if day_only > 0 and month_only > 0:
+        if _count_is_named(arguments, 2) and _count_is_named(arguments, 3):
             # THE COMPOSITION IS EXACT: one space after the first
             # clause's closing stop, and no conjunction or joining word.
             return (
-                f"{first} This column contradicts itself: {day_only} "
+                f"{first} This column contradicts itself: "
+                f"{_count_said(arguments, 2)} "
                 f"values only a day-first reading accepts, and "
-                f"{month_only} only a month-first one."
+                f"{_count_said(arguments, 3)} only a month-first one."
             )
         return first
     if form == REMARK_TWO_READINGS_FIT:
@@ -1659,7 +2023,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # sentence that reached the person offered only the declaration
         # that would publish MORE of them.
         return (
-            f"{_whole(arguments, 0)} of this column's values are a "
+            f"{_count_said(arguments, 0)} of this column's values are a "
             f"number with a short word or letter beside it, and "
             f"synthtwin cannot tell from the values alone which of "
             f"three things that means. It may be a MEASUREMENT that "
@@ -1686,7 +2050,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == REMARK_A_LETTER_NEEDS_A_DECLARATION:
         return (
-            f"{_whole(arguments, 0)} of this column's values are a "
+            f"{_count_said(arguments, 0)} of this column's values are a "
             f"number with a letter written against it, and synthtwin "
             f"does not read such a column as a quantity unless it is "
             f"told to: `13.5H` is a flagged laboratory result and "
@@ -1729,7 +2093,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"plain numbers -- one column for the number, and the unit in "
             f"the "
             f"column name -- and run the command again. "
-            f"{_whole(arguments, 5)} of its values are numbers wearing "
+            f"{_count_said_opening(arguments, 5)} of its values are numbers wearing "
             f"one shared piece of text, which is the reading that came "
             f"closest{_removed_said(arguments, 6)}"
             f"{_later_clauses(arguments, 7, 8)}"
@@ -1779,15 +2143,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # would be the same false confidence in the other direction.
         # It says what it saw: this column CONTAINS values that cannot
         # be thousands-grouped.
-        if arguments[1]:
+        if _count_is_named(arguments, 1):
             return (
-                f"{_whole(arguments, 1)} of this column's values "
+                f"{_count_said(arguments, 1)} of this column's values "
                 f"cannot be read with the comma as a thousands "
                 f"separator -- a thousands group is exactly three "
                 f"figures and these are not -- so THIS COLUMN "
                 f"CONTAINS VALUES WRITTEN WITH A DECIMAL COMMA, and "
                 f"synthtwin does not read those as numbers at all. "
-                f"Of the rest, {_whole(arguments, 0)} could be read "
+                f"Of the rest, {_count_said(arguments, 0)} could be read "
                 f"either way and were read with the comma as a "
                 f"thousands separator, so `1,795` was read as one "
                 f"thousand seven hundred and ninety-five; every one "
@@ -1802,7 +2166,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
                 f"where the declaration does not"
             )
         return (
-            f"{_whole(arguments, 0)} of this column's values are "
+            f"{_count_said(arguments, 0)} of this column's values are "
             f"written with a comma inside the number that could be "
             f"read either way, and synthtwin read every one of them "
             f"with the comma as a thousands separator -- so `1,795` "
@@ -8971,11 +9335,27 @@ def _mode_of(cells: _Cells) -> "tuple[float | None, int]":
 def _mode_published(cells: _Cells, floor: int) -> dict[str, object]:
     """The mode pair a column may publish, or the withheld pair.
 
-    Two bounds, and each is a rule rather than a preference. A mode
+    Three bounds, and each is a rule rather than a preference. A mode
     held by fewer cells than the SMALL-CELL FLOOR is a small group and
     the floor exists for exactly that. A mode held by ONE cell is not a
     mode at all: every value ties, and the tie rule would publish the
     column's smallest number under a name that says it dominates.
+
+    AND THE COMPLEMENT IS A GROUP TOO (stage 3 landing 3.5, plan
+    P4-D335). The count was floored on ONE side, and a heap publishes
+    the other: measured at a floor of eleven, 395 zeros among 400
+    numbers published `mode_count: 395` beside `n_used_in_statistics:
+    400`, and the five cells that are not the heap are a group the
+    floor would never let a key name. It is `parsing.census_nameable`
+    asked of the count against the cells the statistics used -- the
+    same rule the spelling censuses ask -- so the pair is published
+    where the count is a group and what is left of the numbers is
+    nothing or a group, and withheld whole otherwise.
+
+    WITHHELD WHOLE, AND NOT THE COUNT ALONE, for the reason the floor
+    already withheld it whole: a value published without its count says
+    "this was the commonest number", which is the same fact in fewer
+    words.
 
     Guarantees: accepts a tally and a floor of zero or more; returns
     either both keys with a number and a count, or both keys withheld.
@@ -8983,6 +9363,8 @@ def _mode_published(cells: _Cells, floor: int) -> dict[str, object]:
     """
     value, count = _mode_of(cells)
     if value is None or count < 2 or count < floor:
+        return {"mode": None, "mode_count": 0}
+    if not parsing.census_nameable([count], [len(cells.numbers)], floor):
         return {"mode": None, "mode_count": 0}
     return {"mode": value, "mode_count": count}
 
@@ -9205,7 +9587,16 @@ def _group_separator(cells: _Cells) -> str:
     if best == "":
         return ""
     held = proven[best]
-    if held < cells.settings.small_cell_floor:
+    # AND THE LINE IS THE CENSUS FLOOR, NOT THE SETTINGS FLOOR (rule W
+    # of the stage-3 count inventory, plan P4-D335). The mark is a WORD
+    # MOVED BY A COUNT: it stands exactly where enough cells wore it, so
+    # a reader who knows how every other cell was written reads the last
+    # one's spelling off the word. At a settings floor of one that count
+    # was one, and `parsing.census_floor` is the one statement of "never
+    # one, whatever the floor" that `negative_form`, `wide_runs` and the
+    # spelling censuses beside it already read. At the default floor of
+    # eleven nothing here moves.
+    if held < parsing.census_floor(cells.settings.small_cell_floor):
         return ""
     if held <= others - held:
         return ""
@@ -9261,7 +9652,14 @@ def _negative_form(cells: _Cells) -> str:
     if best == parsing.NEGATIVE_MINUS:
         return best
     held = counts[best]
-    if held < cells.settings.small_cell_floor or held <= negatives - held:
+    # THE CENSUS FLOOR, for `_group_separator`'s reason (rule W, plan
+    # P4-D335): the notation is a word one group of cells moves, and a
+    # word one CELL can move tells the reader who knows every other cell
+    # what that cell wrote. Invariant NS1 reads the same line.
+    if (
+        held < parsing.census_floor(cells.settings.small_cell_floor)
+        or held <= negatives - held
+    ):
         return parsing.NEGATIVE_MINUS
     return best
 
@@ -9942,7 +10340,13 @@ def _wide_runs(cells: _Cells, styles: "dict[str, int]") -> str:
             digits = digits[1:]
         if _figures_past_the_pad(digits) != parsing.wide_run_figures(value):
             odd = odd + 1
-    floor = cells.settings.small_cell_floor
+    # THE CENSUS FLOOR ON BOTH OF THIS WORD'S LINES (rule W, plan
+    # P4-D335). The line BETWEEN the last two words already stood here,
+    # through `census_nameable` below; the line between `none` and the
+    # other two read the settings floor, so one wide run among 799
+    # charge amounts at a floor of one published `canonical` and named
+    # the form of exactly one cell. Both lines are the same line now.
+    floor = parsing.census_floor(cells.settings.small_cell_floor)
     if counted < 1 or counted < floor:
         return parsing.WIDE_NONE
     # NO ONE CELL MOVES THE WORD (plan P4-D140, the final Codex review's
@@ -14583,11 +14987,11 @@ def _removed_said(arguments: "tuple[object, ...]", place: int) -> str:
     they are holding. Where nothing was removed the clause is empty --
     naming a removal of none says something happened.
     """
-    removed = _whole(arguments, place)
-    if removed == 0:
+    if not _count_is_named(arguments, place):
         return ""
     return (
-        f", after {removed} of them were read as stand-ins for "
+        f", after {_count_said(arguments, place)} of them were read as "
+        f"stand-ins for "
         f"'no value' and taken out -- which is what moved this column "
         f"across a line, so the counts above are of what was left"
     )
@@ -14624,17 +15028,22 @@ def _later_clauses(
     them.
     """
     written: "list[str]" = []
-    reach = _whole(arguments, clock_place)
-    if reach:
+    if _count_is_named(arguments, clock_place):
         written += [
-            f"{reach} of these values read as a clock time, in a shape "
+            f"{_count_said(arguments, clock_place)} of these values read "
+            f"as a clock time, in a shape "
             f"synthtwin does not describe."
         ]
-    covered = _whole(arguments, advice_place)
-    if covered:
+    if _count_is_named(arguments, advice_place):
+        # THE COUNT IS NAMED ONCE AND POINTED AT AFTERWARDS. The
+        # second mention used to repeat the number, which reads as
+        # "if those fewer than 11 mean" once the fragment stands
+        # there; "those values" says the same thing and says it of
+        # either.
         written += [
-            f"{covered} more are written one of a few ways that repeat "
-            f"often enough to name. If those {covered} mean 'no "
+            f"{_count_said(arguments, advice_place)} more are written "
+            f"one of a few ways that repeat "
+            f"often enough to name. If those values mean 'no "
             f"value', run the command again with --missing-value and "
             f"this column's distribution will be described."
         ]
@@ -15946,17 +16355,6 @@ def profile_column(
 
     n_present = len(present)
     n_missing = n_rows - n_present
-    remarks: list[Note] = []
-    if cells.n_out_of_range:
-        remarks += [
-            note(REMARK_OUT_OF_RANGE, (cells.n_out_of_range,))
-        ]
-    if cells.n_contradictory:
-        remarks += [
-            note(REMARK_CONTRADICTORY, (cells.n_contradictory,))
-        ]
-    if unpublished:
-        remarks += [note(REMARK_RARE_SENTINELS, (unpublished,))]
 
     if not present:
         verdict = _Verdict(
@@ -16025,6 +16423,32 @@ def profile_column(
     numeric, out_of_range, contradictory, not_numeric = (
         _published_reading_split(cells, verdict.role)
     )
+    # THE TWO REMARKS THAT RESTATE A KEY READ THE KEY AS PUBLISHED
+    # (plan P4-D333). They were built from the TALLY, before the role
+    # was known, and the role decides whether the four-way reading
+    # split is published at all: on a declared identifier P4-D277
+    # absorbs it, so a column of 25 record numbers holding one `5e999`
+    # published `n_out_of_range: 0` and a remark saying one value was
+    # out of range -- a count of one that no key of the block carried,
+    # which is exactly what the binding guard refuses. The remark now
+    # says what the key says, and where the key says nought there is
+    # no remark: the reading it is about is one this role does not
+    # publish.
+    remarks: list[Note] = []
+    if out_of_range:
+        remarks += [note(REMARK_OUT_OF_RANGE, (out_of_range,))]
+    if contradictory:
+        remarks += [note(REMARK_CONTRADICTORY, (contradictory,))]
+    if unpublished:
+        remarks += [note(REMARK_RARE_SENTINELS, (unpublished,))]
+    # THE FLOOR, ASKED OF THE SENTENCES (plan P4-D334). Every count a
+    # sentence restates is a published key and the key answered for it
+    # already; the thirteen that no key carries are asked here, in the
+    # one place a column's sentences are finished, so a remark added
+    # anywhere upstream is covered without its author remembering.
+    said, said_remarks = sentences_at_the_line(
+        verdict.evidence, remarks + verdict.remarks, n_present, settings
+    )
     return ColumnProfile(
         name=name,
         position=position,
@@ -16032,7 +16456,7 @@ def profile_column(
         statistical_type=statistical_type,
         quality_state=quality_state,
         structural_role=structural_role,
-        detection_evidence=verdict.evidence,
+        detection_evidence=said,
         n_present=n_present,
         n_missing=n_missing,
         missing_by_source=by_source,
@@ -16041,7 +16465,7 @@ def profile_column(
         n_missing_withheld=n_withheld,
         details=details,
         publication_notes=verdict.notes,
-        remarks=remarks + verdict.remarks,
+        remarks=said_remarks,
         n_numeric=numeric,
         n_out_of_range=out_of_range,
         n_contradictory=contradictory,
@@ -16052,6 +16476,179 @@ def profile_column(
         n_sentinel_candidates_unpublished=unpublished,
         absent_spellings=_spellings_of(missing),
     )
+
+
+# THE TWO FLOORED POSITIONS THE RENDERING COMPARES WITH EACH OTHER.
+# NF36 chooses which of its three sentences to write by asking whether
+# the day-first reach is above, below or equal to the month-first one,
+# so a fragment standing in either would settle the sentence by a
+# number nobody may print -- and the reader could take one reach off
+# the present cells to recover the contradiction count the same
+# sentence's own floor withholds. Where the floor will not let both be
+# named, this remark is not written at all.
+_COMPARED_FLOORED_POSITIONS = (
+    (REMARK_SLASHED_EVIDENCE, 0),
+    (REMARK_SLASHED_EVIDENCE, 1),
+)
+
+# What `_floored_stands` answers.
+_STANDS_AS_WRITTEN = "as written"
+_STANDS_AS_THE_FRAGMENT = "the fragment"
+_STANDS_NOWHERE = "no sentence"
+
+
+def _floored_stands(
+    form: str, place: int, value: int, line: int, n_present: int
+) -> str:
+    """Whether one floored argument may be printed, and as what.
+
+    THE FLOOR, ASKED OF THE THIRTEEN POSITIONS NO KEY COVERS (plan
+    P4-D334). Everywhere else a sentence restates a key and the key's
+    own rule governs it; here the sentence IS the publication.
+
+    Three answers, and the reasons are the census's own:
+
+    * AS WRITTEN, for nought -- which names nobody -- and for a count
+      that reaches the line with nothing left below it.
+    * THE FRAGMENT, for one or more below the line: the reader is told
+      the shape of the number and never the number.
+    * NO SENTENCE, where the fragment cannot say it. That is three
+      cases. A LINE OF TWO, where "fewer than 2" beside a clause
+      asserting such cells exist is a count of one said in words --
+      which is what `parsing.census_floor` exists to refuse, at every
+      floor a person may ask for. A position the RENDERING COMPARES,
+      which would decide the sentence by the number it withholds. And
+      a count that reaches the line but leaves a group below it
+      against a population its BINDING names, where printing the count
+      would publish the remainder by subtraction. No binding names a
+      population today, for the reason contract C6-143 gives, so that
+      third case is the general rule standing ready for one that does.
+
+    Guarantees: accepts a form, a zero-based position, the count, the
+    census line and the block's present cells; returns one of the
+    three answers above. Determinism: a fixed function of the five.
+    Raises nothing. No I/O of any kind.
+    """
+    if value < 0:
+        return _STANDS_AS_WRITTEN
+    if 0 < value < line:
+        if line <= parsing.MIDNIGHT_DISCLOSURE_FLOOR:
+            return _STANDS_NOWHERE
+        if (form, place) in _COMPARED_FLOORED_POSITIONS:
+            return _STANDS_NOWHERE
+        return _STANDS_AS_THE_FRAGMENT
+    binding = argument_binding(form, place)
+    if len(binding) < 2 or not isinstance(binding[1], tuple):
+        return _STANDS_AS_WRITTEN
+    for population in binding[1]:
+        if population != "n_present":
+            continue
+        rest = n_present - value
+        if 0 < rest < line:
+            return _STANDS_NOWHERE
+    return _STANDS_AS_WRITTEN
+
+
+def _sentence_at_the_line(
+    sentence: Note, line: int, n_present: int, may_drop: bool
+) -> "Note | None":
+    """One sentence with every floored count the floor will not let it print.
+
+    Walks the form's own arguments and the arguments of every fragment
+    nested in them, because a count carried by a fragment is a count
+    the sentence prints. ``may_drop`` is false for the one sentence a
+    column must carry -- its detection evidence -- where the fragment
+    stands even at a line of two, which is what the digit standing
+    there does today and strictly less than it.
+
+    Guarantees: accepts a sentence, the census line, the block's
+    present cells and whether the sentence may be withdrawn; returns
+    the sentence, a rebuilt one, or None where it may not be published.
+    Determinism: a fixed function of the four. No I/O of any kind.
+    """
+    rebuilt = _arguments_at_the_line(
+        sentence.form, sentence.arguments, line, n_present, may_drop
+    )
+    if rebuilt is None:
+        return None
+    if rebuilt == sentence.arguments:
+        return sentence
+    return note(sentence.form, rebuilt)
+
+
+def _arguments_at_the_line(
+    form: str,
+    arguments: "tuple[object, ...]",
+    line: int,
+    n_present: int,
+    may_drop: bool,
+) -> "tuple[object, ...] | None":
+    """`_sentence_at_the_line` for one form's arguments, nested ones included."""
+    written: "list[object]" = []
+    for place in range(len(arguments)):
+        argument = arguments[place]
+        if isinstance(argument, tuple) and len(argument) == 2:
+            inner = argument[1]
+            if isinstance(argument[0], str) and isinstance(inner, tuple):
+                deeper = _arguments_at_the_line(
+                    argument[0], inner, line, n_present, may_drop
+                )
+                if deeper is None:
+                    return None
+                written += [(argument[0], deeper)]
+                continue
+        if isinstance(argument, bool) or not isinstance(argument, int):
+            written += [argument]
+            continue
+        if argument_binding(form, place)[:1] != (BIND_FLOORED,):
+            written += [argument]
+            continue
+        stands = _floored_stands(form, place, argument, line, n_present)
+        if stands == _STANDS_NOWHERE and may_drop:
+            return None
+        if stands == _STANDS_AS_WRITTEN or (
+            stands == _STANDS_NOWHERE and argument >= line
+        ):
+            written += [argument]
+            continue
+        written += [(SAID_FEWER_THAN_THE_LINE, (line,))]
+    return tuple(written)
+
+
+def sentences_at_the_line(
+    evidence: Note,
+    remarks: "list[Note]",
+    n_present: int,
+    settings: Settings,
+) -> "tuple[Note, list[Note]]":
+    """Every sentence of one column, with no count below the census line.
+
+    THE PRODUCER'S HALF of the binding guard (plan P4-D334). The guard
+    in `profile.check_publication` refuses a document whose sentence
+    carries a count a key withholds; this is what keeps the producer's
+    own documents clear of one, in the single place every column's
+    sentences are finished, so no call site can forget it.
+
+    A remark that cannot be written is WITHDRAWN rather than reworded:
+    its whole subject is a count the floor will not name, and a
+    sentence that said so in other words would be the same disclosure
+    with a longer sentence in front of it. The detection evidence is
+    never withdrawn -- a column block must say how it was read -- so
+    its floored counts take the fragment.
+
+    Guarantees: accepts a column's detection evidence, its remarks, its
+    present cells and the settings; returns the evidence and the
+    remarks that may be published, in their given order. Determinism: a
+    fixed function of the four. Raises nothing. No I/O of any kind.
+    """
+    line = parsing.census_floor(settings.small_cell_floor)
+    kept: "list[Note]" = []
+    for remark in remarks:
+        written = _sentence_at_the_line(remark, line, n_present, True)
+        if written is not None:
+            kept += [written]
+    said = _sentence_at_the_line(evidence, line, n_present, False)
+    return (evidence if said is None else said), kept
 
 
 def _spellings_of(missing: "list[tuple[str, str]]") -> "tuple[str, ...]":

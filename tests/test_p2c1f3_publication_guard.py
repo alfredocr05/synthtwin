@@ -557,7 +557,15 @@ def test_every_enumerated_form_writes_and_rewrites_the_same_words() -> None:
         arguments = _plausible_arguments(form)
         written = taxonomy.note(form, arguments)
         assert f"{written}" == taxonomy.rendered(form, arguments)
-        assert len(f"{written}") > 20, f"{form} writes nothing readable"
+        # THE ONE FORM WHOSE WHOLE TEXT IS THREE WORDS, and it is three
+        # words on purpose. `said_fewer_than_the_line` never stands on
+        # its own: it goes INSIDE another sentence in the place of a
+        # count the floor will not let that sentence print (plan
+        # P4-D334), so a length written for whole sentences would ask
+        # it for words it may not say. Its exact rendering is pinned in
+        # tests/test_p4d334_sentence_arguments.py.
+        least = 12 if form == taxonomy.SAID_FEWER_THAN_THE_LINE else 21
+        assert len(f"{written}") >= least, f"{form} writes nothing readable"
 
 
 def test_the_enumeration_and_the_arity_table_are_one_thing() -> None:

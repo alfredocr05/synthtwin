@@ -899,11 +899,22 @@ def test_a_withheld_pair_the_description_contradicts_is_not_read_as_the_floor(
     binary64, so a run of equal rungs proves that many equal ROUNDED
     values and says nothing about how often one exact value was held. The
     companion test below builds the column that separates the two.
+
+    AND THE HEAP READING HAS TO BE CLOSED BEFORE THE FLOOR TERM CAN
+    STAND (method G5.2a-2, stage 3 landing 3.5). The pair is withheld
+    on a second ground now -- a count whose complement against the
+    numbers the statistics used is a group below the line -- so a
+    withheld pair proves the SMALL reading only where the other bounds
+    already put the cap at or below `K - L`. The flat column is
+    therefore 60 cells of one value among 85 rather than among 66: at
+    66 the count bound is 60 and `K - L` is 55, so the withheld pair is
+    the heap reading and proves nothing, which is a true answer to a
+    different question than this test asks.
     """
     oracle = _oracle()
     draw = random.Random(11)
     free = [f"{draw.random():.3f}" for _ in range(900)]
-    flat = ["5"] * 60 + [str(value) for value in range(6, 12)]
+    flat = ["5"] * 60 + [str(value) for value in range(6, 31)]
     few = [str(draw.randint(1, 30)) for _ in range(400)]
     outcomes = {}
     for name, cells in (("free", free), ("flat", flat), ("few", few)):

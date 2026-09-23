@@ -5686,6 +5686,43 @@
     }
    },
    "nodes_min_collected": 78
+  },
+  {
+   "id": "K-S3-01",
+   "phase_stage": "Stage 3 landing 3.5 (P4-D332, P4-D334)",
+   "category": "PRIVACY",
+   "headline": true,
+   "name": "Counts of one to ten LEFT AS IS, and no floored sentence argument among them",
+   "status": "OPEN",
+   "rule": "over the 43 seeded shapes of tests/stage3_battery.py at floor 11: the unfloored `count` leaves holding 1..10 (settings and structural counts excluded) must not rise, and the FLOORED sentence arguments -- the thirteen positions no key of the block covers -- holding 1..10 must stay nought; target 0 for both",
+   "rule_kind": "at_most",
+   "expected": {
+    "count_leaves_1_to_10": 64,
+    "floored_sentence_arguments_1_to_10": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_01",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/stage3_battery.py, 43 seeded shapes, seed 20260922, floor 11",
+   "evidence": "64 count leaves at 1..10 across the battery, the largest families n_left_out_of_statistics 8, n_distinct and n_distinct_folded 5 each, n_unparsed 5, n_not_numeric 4, n_negative 4; of those, the DISTINCT and written-form leaves are exempt by class (contract 12.2) and the odd-kind, sign and pair counts are P4-D332's own call. Floored sentence arguments below the line: 0, where the same battery carried 8 before this landing (the comma remark's 1, the date reach's 3, the affix reach's 4 and 6)",
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "count_leaves_1_to_10": 64,
+     "floored_sentence_arguments_1_to_10": 0
+    }
+   },
+   "target": {
+    "count_leaves_1_to_10": 0
+   },
+   "target_stage": "none set: P4-D332 is the orchestrator's call of 2026-09-22, reversible, and goes to the owner on the board. Flooring these counts broke goal 1 in 7 of 7 probed shapes and the count still reached the reader through n_missing",
+   "status_note": "LEFT AS IS by P4-D332, extending the owner's K-2B-28 and K-2B-48 acceptances under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 64 so that a later landing cannot widen the exposure without moving this number and saying why.",
+   "nodes_min_collected": 0
   }
  ]
 }

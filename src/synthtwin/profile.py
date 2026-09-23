@@ -2639,6 +2639,324 @@ def _one_affix_note_is_bound(
             raise _refuse(("columns", "[]", "affix argument"))
 
 
+def _bound_key(block: object, dotted: str) -> "int | None":
+    """One published key of a column block, by its dotted name."""
+    if not isinstance(dotted, str):
+        raise TypeError("a published key was asked for by something else")
+    node: object = block
+    for step in dotted.split("."):
+        if not isinstance(node, dict) or step not in node:
+            return None
+        node = node[step]
+    if isinstance(node, bool) or not isinstance(node, int):
+        return None
+    return node
+
+
+def _main_wrapper_count(block: object) -> "int | None":
+    """`n_affixed` less every named wrapper: the main wrapper's own cells."""
+    if not isinstance(block, dict):
+        return None
+    affixed = _bound_key(block, "n_affixed")
+    if affixed is None:
+        return None
+    variants = block["affix_variants"] if "affix_variants" in block else []
+    if not isinstance(variants, list):
+        return None
+    named = 0
+    for wrapper in variants:
+        if not isinstance(wrapper, dict) or "count" not in wrapper:
+            return None
+        count = wrapper["count"]
+        if isinstance(count, bool) or not isinstance(count, int):
+            return None
+        named = named + count
+    return affixed - named
+
+
+def _is_the_fragment(argument: object, line: int) -> bool:
+    """Whether this argument is `said_fewer_than_the_line` carrying THE line.
+
+    The line and no other number: a fragment built with a smaller one
+    would say "fewer than 3" about a run whose smallest group is
+    eleven, which is a narrower claim than the floor allows and a
+    reader cannot tell from the truth.
+    """
+    if not isinstance(argument, tuple) or len(argument) != 2:
+        return False
+    if argument[0] != taxonomy.SAID_FEWER_THAN_THE_LINE:
+        return False
+    parts = argument[1]
+    return isinstance(parts, tuple) and parts == (line,)
+
+
+def _floored_argument_is_bound(
+    value: int,
+    binding: "tuple[object, ...]",
+    block: object,
+    line: int,
+    path: "tuple[str, ...]",
+) -> None:
+    """One floored position: nought, or a group, with no group left over."""
+    if value == 0:
+        return
+    if value < line:
+        raise _refuse(path)
+    if len(binding) < 2:
+        return
+    populations = binding[1]
+    if not isinstance(populations, tuple):
+        raise _refuse(path)
+    for named in populations:
+        name = f"{named}"
+        if not isinstance(name, str):
+            raise _refuse(path)
+        total = _bound_key(block, name)
+        if total is None:
+            raise _refuse(path)
+        rest = total - value
+        if rest != 0 and rest < line:
+            raise _refuse(path)
+
+
+def _one_argument_is_bound(
+    form: str,
+    place: int,
+    value: object,
+    block: object,
+    document: "dict[str, object]",
+    line: int,
+) -> None:
+    """One argument of one sentence, held to what the grammar binds it to."""
+    path = ("columns", _EACH, "sentence argument")
+    binding = taxonomy.argument_binding(form, place)
+    if not binding:
+        # A POSITION NOBODY BOUND. The table is closed over every form,
+        # so this is a form added without one -- a number a sentence
+        # may print that no rule governs -- and the answer is a refusal
+        # rather than a guess at which rule was meant.
+        raise _refuse(path)
+    kind = binding[0]
+    if kind == taxonomy.BIND_FLOORED:
+        if _is_the_fragment(value, line):
+            return
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise _refuse(path)
+        _floored_argument_is_bound(value, binding, block, line, path)
+        return
+    if kind in (
+        taxonomy.BIND_SETTING,
+        taxonomy.BIND_VOCABULARY,
+        taxonomy.BIND_STRUCTURAL,
+        taxonomy.BIND_LEVELS_AT_THE_LINE,
+        taxonomy.BIND_WORD,
+        taxonomy.BIND_NESTED,
+        taxonomy.BIND_AFFIX,
+        # A VALUE OF THE COLUMN SAID A SECOND WAY, which the stage-3
+        # tail rule governs and no count rule can: the epoch-band
+        # remark reads the two ends as calendar days, and the day is
+        # whatever the block publishes in place of the end. The date
+        # and clock landing moves those arguments onto the tail's own
+        # boundaries; until it lands there is nothing here to compare
+        # them with, and `tests/test_p4d334_sentence_arguments.py`
+        # carries the skipped check that names the dependency.
+        taxonomy.BIND_VALUE,
+    ):
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise _refuse(path)
+    if kind == taxonomy.BIND_DOCUMENT:
+        named = f"{binding[1]}"
+        stated = document[named] if named in document else None
+        if stated != value:
+            raise _refuse(path)
+        return
+    if block is None:
+        # A SENTENCE BOUND TO A COLUMN'S KEY AND STANDING NOWHERE NEAR
+        # ONE. `source.header_evidence` belongs to no column, so there
+        # is no block to bind it to and nothing that could make it
+        # right.
+        raise _refuse(("source", "header_evidence"))
+    if kind == taxonomy.BIND_KEY:
+        published = _bound_key(block, f"{binding[1]}")
+        if published is None or published != value:
+            raise _refuse(path)
+        return
+    if kind == taxonomy.BIND_SUM:
+        total = 0
+        summed = binding[1]
+        if not isinstance(summed, tuple):
+            raise _refuse(path)
+        for named in summed:
+            part = _bound_key(block, f"{named}")
+            if part is None:
+                raise _refuse(path)
+            total = total + part
+        if total != value:
+            raise _refuse(path)
+        return
+    if kind == taxonomy.BIND_DIFFERENCE:
+        left = _bound_key(block, f"{binding[1]}")
+        right = _bound_key(block, f"{binding[2]}")
+        if left is None or right is None or left - right != value:
+            raise _refuse(path)
+        return
+    if kind == taxonomy.BIND_MAIN_WRAPPER:
+        main = _main_wrapper_count(block)
+        if main is None or main != value:
+            raise _refuse(path)
+        return
+    raise _refuse(path)
+
+
+def _one_note_is_bound(
+    sentence: object,
+    block: object,
+    document: "dict[str, object]",
+    line: int,
+) -> None:
+    """Every argument of one sentence, nested fragments included."""
+    if not isinstance(sentence, taxonomy.Note):
+        return
+    _arguments_of_one_form_are_bound(
+        sentence.form, sentence.arguments, block, document, line
+    )
+
+
+def _arguments_of_one_form_are_bound(
+    form: str,
+    arguments: "tuple[object, ...]",
+    block: object,
+    document: "dict[str, object]",
+    line: int,
+) -> None:
+    """`_one_note_is_bound` for one form's arguments."""
+    for place in range(len(arguments)):
+        argument = arguments[place]
+        floored = taxonomy.argument_binding(form, place)[:1] == (
+            taxonomy.BIND_FLOORED,
+        )
+        nested = (
+            isinstance(argument, tuple)
+            and len(argument) == 2
+            and isinstance(argument[0], str)
+            and isinstance(argument[1], tuple)
+        )
+        # A FLOORED POSITION IS ASKED WHOLE, fragment or digits, and is
+        # never walked into. Walking in would ask the fragment's own
+        # argument -- the LINE, which is a setting and exempt -- and a
+        # fragment carrying any other number would pass on the strength
+        # of its own exemption. Measured while this landing was built:
+        # "fewer than 3" standing in a document whose smallest group is
+        # eleven was accepted by the first writing of this walk.
+        if nested and isinstance(argument, tuple) and not floored:
+            if argument[0] == taxonomy.SAID_FEWER_THAN_THE_LINE:
+                # AND THE FRAGMENT STANDS NOWHERE ELSE. It is the
+                # answer to one question -- what a sentence says in
+                # place of a count it may not print -- and a sentence
+                # that used it anywhere else would be saying "fewer
+                # than eleven" about something that is not a count.
+                raise _refuse(("columns", _EACH, "sentence argument"))
+            _arguments_of_one_form_are_bound(
+                f"{argument[0]}", tuple(argument[1]), block, document, line
+            )
+            continue
+        _one_argument_is_bound(
+            form, place, argument, block, document, line
+        )
+
+
+def _arguments_are_bound(document: "dict[str, object]") -> None:
+    """Refuse a sentence carrying a count the keys beside it withhold.
+
+    THE RULE IN ONE SENTENCE: a sentence may not carry a count a key
+    withholds. Every published count of a column block is held to the
+    smallest group size; a count written into a SENTENCE was held to
+    nothing, and the two are the same disclosure. Measured over 56
+    descriptions at a floor of eleven before this guard existed: 252
+    sentences, 145 of them carrying whole numbers, and 29 arguments
+    restating a count or a complement no key could have printed.
+
+    HOW IT IS CHECKED, and why it is a table rather than a rule per
+    remark. `taxonomy.ARGUMENT_BINDINGS` binds every argument position
+    of every form to what it IS -- a key of the block, a sum or a
+    difference of keys, a key of the document, the main wrapper's
+    cells, a setting, the levels at the line, a place in one of this
+    package's own lists, a column number, a value of the column said a
+    second way, or one of the thirteen counts no key carries. A bound
+    position must EQUAL what it is bound to, so the key's own floor
+    rule governs the sentence; a floored one is nought, or reaches
+    `parsing.census_floor` with no group left over against the
+    populations its binding names, or carries the fragment
+    `said_fewer_than_the_line`. This is plan P4-D221's padded-remark
+    rule -- "a count the map does not name is a count no sentence
+    prints" -- made general instead of written once per remark.
+
+    IT RUNS BESIDE `_affix_notes_are_bound` AND FOR THE SAME REASON:
+    both need the BLOCK the sentence belongs to, which the walk itself
+    does not carry.
+
+    Guarantees:
+
+    - Inputs: the finished document, publication notes lifted out.
+    - Determinism: the answer depends only on the document and on this
+      package's own binding table.
+    - Errors raised: ProfileError naming the place and never a value.
+    - Boundary: nothing is opened, nothing is written, and no value of
+      the table reaches the refusal.
+    """
+    floor = _publication_context(document).floor
+    line = parsing.census_floor(floor)
+    blocks = document["columns"] if "columns" in document else []
+    by_name: "dict[str, object]" = {}
+    if isinstance(blocks, list):
+        for block in blocks:
+            if isinstance(block, dict) and "name" in block:
+                name = block["name"]
+                if isinstance(name, str):
+                    by_name[name] = block
+    if isinstance(blocks, list):
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            said: "list[object]" = [
+                block["detection_evidence"]
+                if "detection_evidence" in block
+                else None
+            ]
+            remarks = block["remarks"] if "remarks" in block else None
+            if isinstance(remarks, list):
+                for remark in remarks:
+                    said += [remark]
+            for sentence in said:
+                _one_note_is_bound(sentence, block, document, line)
+    notes = (
+        document["publication_notes"]
+        if "publication_notes" in document
+        else None
+    )
+    if isinstance(notes, list):
+        for entry in notes:
+            if not isinstance(entry, dict):
+                continue
+            named = entry["column"] if "column" in entry else None
+            block = by_name[named] if isinstance(named, str) and named in by_name else None
+            _one_note_is_bound(
+                entry["note"] if "note" in entry else None,
+                block,
+                document,
+                line,
+            )
+    source = document["source"] if "source" in document else None
+    if isinstance(source, dict):
+        _one_note_is_bound(
+            source["header_evidence"] if "header_evidence" in source else None,
+            None,
+            document,
+            line,
+        )
+
+
 def _publication_context(document: dict[str, object]) -> _Publication:
     """The floor and the column names, read out before the walk.
 
@@ -2699,6 +3017,7 @@ def check_publication(document: dict[str, object]) -> None:
     context = _publication_context(document)
     _check_published(document, (), "", context)
     _affix_notes_are_bound(document)
+    _arguments_are_bound(document)
 
 
 def _is_mechanical_index(

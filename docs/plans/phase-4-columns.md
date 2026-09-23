@@ -19053,7 +19053,9 @@ pushes one pooled group a long way — is the next pass's work.
 
 Stage 3's landings take their numbers from this block. P4-D316 to
 P4-D318 are landing 3.1's and P4-D319 to P4-D321 its repair pass's;
-P4-D322 to P4-D339 are reserved for the stage's other landings.
+P4-D332 to P4-D335 are landing 3.5's, at the end of this file;
+P4-D322 to P4-D331 and P4-D336 to P4-D339 are reserved for the stage's
+other landings.
 
 ### P4-D316 The default smallest group is 11
 
@@ -19282,3 +19284,134 @@ path that ran at a raised floor only when somebody asked.
 - **Wording.** The five sentences P4-D316 missed, the `--code` help --
   which promised every code's count where the default pools the rarer
   ones -- and ledger K-P4-22's name, which said the shipped floor is 1.
+
+## Landing 3.5 — decisions P4-D332 to P4-D335 (2026-09-22)
+
+Landing 3.5 is the sentence half of the stage-3 count inventory: no
+sentence carries a count a key withholds, the words a count moves read
+the census line, and the mode's complement is a group. Its design is the
+count inventory of 2026-09-22 and its skeptic's verdict, which returned
+UNSOUND on the rules the orchestrator then declined to build.
+
+### P4-D332 The odd-kind, sign and pair counts stay published
+
+**The decision** (ORCHESTRATOR, 2026-09-22 — reversible, and to be put
+to the owner on the board). `n_not_numeric`, `n_out_of_range`,
+`n_contradictory`, `n_negative_unrepresentable`, the clock and joined
+`n_unparsed`, the affixed complement, `n_zero`, `n_negative` and
+`part_above` are NOT floored, absorbed or counted out. Rule M, rule V,
+rule I and the `rare_kinds` presence list of the design are not built.
+
+**Why, measured.** Flooring them broke goal 1 — code developed on the
+twin runs unchanged on the real table — in 7 of 7 probed shapes: the
+owner's program ran clean on the twin and raised on the real table,
+because the odd cell the real column holds was gone from the twin.
+`np.log(s.astype(float))` raises on a real column holding one `(-5)`
+and not on a twin without it; `str.split("/").astype(int)` the same;
+`pd.to_datetime(format="%H:%M")` the same. And the count did not even
+go away: the design's own measurement recovered it exactly from the
+published `n_missing` in 7 of 7 shapes, because a cell counted out is
+counted absent.
+
+**What it extends.** The owner's acceptances K-2B-28 (free text's
+`n_numeric` of one, a pooled label's `n_missing` of one) and K-2B-48 (a
+date column's `n_unparsed` of one), under the owner's own principle,
+verbatim: "What matters is not show the relation in a descriptive file,
+just showing that the value exist is not an issue."
+
+**What holds it.** KPI `K-S3-01`, a ceiling of 64 count leaves at 1 to
+10 over the 43 seeded shapes of `tests/stage3_battery.py` at floor 11.
+A later landing that widens this exposure moves that number and says
+why in the entry's `status_note`.
+
+### P4-D333 Every sentence argument is bound, and the thirteen that are not keys are floored
+
+**The decision.** `taxonomy.ARGUMENT_BINDINGS` binds every argument
+position of every form — all 97 of the contract's, the two it states
+and no producer emits included — to what it is: a key of the block, a
+sum or a difference of keys, a key of the document, the main wrapper's
+cells, a setting, the levels at the line, a place in one of this
+package's own lists, a column number, a value of the column said a
+second way, or one of THIRTEEN counts no key carries. The guard
+`profile._arguments_are_bound`, called from `check_publication` beside
+`_affix_notes_are_bound`, holds a bound position equal to what it is
+bound to and a floored one to the census line. Contract C6-143 states
+the same table and `tests/test_p4d27_note_grammar_matches_the_code.py`
+holds the two equal in a third direction.
+
+**The measurement that asked for it.** Over 56 descriptions at a floor
+of eleven: 252 sentences, 145 carrying whole numbers, and 29 arguments
+restating a count or a complement no key of the block could have
+printed. At a floor of one the same walk flagged 3, at five 7, at
+eleven 9.
+
+**What a floored position's complement is NOT held to.** No binding
+names a population. Every floored position's complement is the count of
+cells a competing reading did not reach, which is the class of number
+P4-D332 leaves published. The rule keeps its complement clause for the
+bindings that will name one -- the date and clock tail landing moves
+NF51's arguments onto the published boundaries -- and the landing's own
+test binds a population and asks it, so the clause is not a branch
+nothing exercises.
+
+### P4-D334 The fragment `said_fewer_than_the_line`
+
+**The decision.** A 59th form, arity 1, its argument the census line.
+It stands at a floored position where the count is one or more and
+below the line, and it renders "fewer than 11" — the shape of the
+number and never the number. Where the position opens a sentence (NF29
+argument 6) the first letter is capitalised. Where the line is two, a
+remark whose floored count falls below it is WITHDRAWN instead: "fewer
+than 2" beside a clause asserting such cells exist is a count of one
+said in words. The one sentence that cannot be withdrawn is a column's
+own detection evidence, which every block must carry; the fragment
+stands there, and says strictly less than the digits that stood there
+before.
+
+**Where it is used.** NF44's two counts, NF18's date reach, NF36's two
+contradiction counts, NF54, NF55 and NF29 arguments 6 to 9 — the
+thirteen FLOORED positions. NF36's two reaches never carry it, because
+the rendering compares them to choose which of its three sentences to
+write; where either reach is itself below the line that remark is
+withdrawn instead.
+
+**What it costs, measured.** At the default floor NF36's second clause
+reads "fewer than 11 ... and fewer than 11" on every shape that can
+reach it, because a cell only one reading accepts is a cell the other
+leaves unparsed and eleven of them on the losing side put the column
+below the parse line. The clause still tells its reader the column
+contradicts itself, which is what it is for.
+
+**Mutation.** Put the digit back where the fragment stands and
+`tests/test_p4d334_sentence_arguments.py` turns red; so does a fragment
+built with any number but the line, and a fragment standing at a
+position that is not floored.
+
+### P4-D335 Rule W, and the mode's complement
+
+**The decision, rule W.** `negative_form`, `group_separator` and
+`wide_runs` read `parsing.census_floor` rather than the settings floor,
+and so do the loader's NS1 and WR1. GS1 gains the floor clause its two
+siblings always had: a column names the mark between its thousands only
+where the forms map leaves room for at least the census floor of the
+cells a writer groups. D14 reads `census_floor` in place of its own
+rebuild of it. `_all_at_midnight` already read it, through
+`_midnight_count`. Nothing moves at the default floor of eleven; at a
+floor of one, one bracketed cell among 400 no longer publishes
+`brackets`, one grouped cell no longer publishes the mark, and one wide
+run no longer publishes `canonical`.
+
+**The decision, the mode.** `_mode_published` asks
+`parsing.census_nameable([mode_count], [n_used_in_statistics])`, so the
+pair is withheld where the count is a group but its COMPLEMENT is not:
+395 zeros among 400 numbers published `mode_count: 395` and named the
+five cells that are not the heap. Loader invariant Q18 holds the same
+rule.
+
+**What follows it.** A withheld pair no longer proves "no number was
+held by more than `floor - 1` cells" on its own, because a heap is
+withheld too. Method clause G5.2a-2 states the narrowing: the floor
+term stands only where the other bounds already put the cap at or below
+`K - L`. The generator's `_floored_cap`, the validator's
+`_stratum_bound` and the reference oracle each read that clause, and
+one frozen branch vector moves with it.
