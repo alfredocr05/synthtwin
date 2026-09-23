@@ -229,19 +229,22 @@ def test_marks_too_rare_to_name_are_said_as_a_count_and_never_as_a_mark(
     too rare to name. (Three hundred and eighty spaces beside ten of each
     letter, the shape this used, now name the space for all four hundred.)
     """
-    # AT THE POPULATION FLOOR ON ABSENT ROWS (plan P4-D341): the
-    # command describes no smaller table, while the shape here is the
-    # TEN, NINE and SEVEN marks -- each below the group size of fifteen,
-    # which is the whole reproduction. `NA` is one of this format's own
-    # spellings for "no value", so the census over the twenty-six
-    # present moments is the one this witness was written with.
+    # AT THE POPULATION FLOOR ON ABSENT ROWS AND A KEEPER COLUMN (plan
+    # P4-D341, and the repair of landing 3.2): the command describes no
+    # table whose POPULATION is under the floor, and that population is
+    # the rows that HOLD A VALUE, so the `NA` padding cannot reach it
+    # on its own. The shape here is the TEN, NINE and SEVEN marks --
+    # each below the group size of fifteen, which is the whole
+    # reproduction -- and `NA` leaves the twenty-six present moments
+    # exactly as they were while `held` carries a value on every row.
     stamps = _stamps(26, 34, " " * 10 + "T" * 9 + "t" * 7)
     rows = [[one] for one in stamps]
     rows += [["NA"]] * (parsing.POPULATION_FLOOR - len(rows))
+    rows = [row + [fixtures.KEEPER_VALUE] for row in rows]
     page, document = _profile_of(
         tmp_path,
         "pooled",
-        ["seen_at"],
+        ["seen_at", fixtures.KEEPER_NAME],
         rows,
         ["--smallest-group", "15"],
     )

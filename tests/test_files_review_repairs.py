@@ -460,14 +460,26 @@ def test_an_answer_of_data_overrides_a_typed_metadata_declaration(
 # -- item 4: no census reveals a count under the line ------------------
 
 
+# ONE ROW MORE THAN THE FLOOR, derived (repair of landing 3.2). The
+# table itself is at the floor either way, but the ONE boolean's class
+# count is withheld at a floor of five and its cell comes back EMPTY in
+# the twin -- so a source of exactly `POPULATION_FLOOR` rows has a twin
+# of one fewer that holds a value, and the twin's re-description is
+# refused. That is the product behaving correctly on a twin one row
+# short; what this case is about is the census, so it carries the extra
+# row. Sixty numbers stay sixty: it is the label run that grows.
+_MIXED_ROWS = parsing.POPULATION_FLOOR + 1
+_MIXED_NUMBERS = 60
+
+
 def _hundred_mixed() -> bytes:
     strings = ["value", "North", "South", "East"]
     grid = {1: [_cell("A1", "0", "s")]}
-    for place in range(100):
+    for place in range(_MIXED_ROWS):
         number = 2 + place
-        if place < 60:
+        if place < _MIXED_NUMBERS:
             grid[number] = [_cell(f"A{number}", f"{place}")]
-        elif place < 99:
+        elif place < _MIXED_ROWS - 1:
             grid[number] = [_cell(f"A{number}", f"{1 + place % 3}", "s")]
         else:
             grid[number] = [_cell(f"A{number}", "1", "b")]
@@ -491,10 +503,10 @@ def test_a_workbook_census_names_no_count_under_the_line(
     _held(result)
     census = result["document"]["source"]["workbook"]["columns"][0]["cell_classes"]
     published = [one for one in census.values() if one is not None]
-    assert 1 not in published and 99 not in published, census
+    assert 1 not in published and _MIXED_ROWS - 1 not in published, census
     assert census["boolean"] is None
-    assert dialect.sheet_census_broken(census, 100, int(floor)) == ""
-    withheld = 100 - sum(published)
+    assert dialect.sheet_census_broken(census, _MIXED_ROWS, int(floor)) == ""
+    withheld = _MIXED_ROWS - sum(published)
     assert withheld == 0 or withheld >= dialect.sheet_line(int(floor)), census
     # The census the review measured is refused by name.
     measured = {
@@ -633,6 +645,13 @@ def test_a_column_mixing_numbers_and_numeric_text_is_read(
     assert "more than one kind of number format" in said, said[-500:]
 
 
+# Places enough that the two-in-three that HOLD a value reach the
+# population floor: `places - places // 3 >= POPULATION_FLOOR`, and
+# three halves of the floor is the smallest multiple of three that
+# clears it.
+_ODD_IN_THREE_PLACES = parsing.POPULATION_FLOOR * 3 // 2
+
+
 def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> None:
     """Files review merge pass, MAJOR 2 (plan P4-D166).
 
@@ -646,7 +665,13 @@ def test_error_and_boolean_cells_keep_their_values(tmp_path: pathlib.Path) -> No
     for name, odd in (("errors", lambda row: _cell(f"A{row}", "#N/A", "e")),
                       ("booleans", lambda row: _cell(f"A{row}", f"{row % 2}", "b"))):
         grid = {1: [_cell("A1", "0", "s")]}
-        for place in range(120):
+        # ONE ROW IN THREE IS THE ODD CELL, and in the `errors` shape
+        # that cell holds NO VALUE -- so the rows that hold one are two
+        # in three, and it is those the population floor counts (repair
+        # of landing 3.2). At 120 places the shape held 81 and the
+        # command refused it; the count is derived from the floor now,
+        # so a floor that moves moves the table with it.
+        for place in range(_ODD_IN_THREE_PLACES):
             number = 2 + place
             grid[number] = [odd(number) if place % 3 == 0 else _cell(
                 f"A{number}", f"{place % 3}", "s"

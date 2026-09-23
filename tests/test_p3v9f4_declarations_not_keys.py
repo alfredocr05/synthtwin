@@ -98,13 +98,16 @@ _PROSE = fixtures.prose(200)
 
 
 # THE ROWS THAT ARE NOT THE SHAPE, counted from the rule (plan
-# P4-D341). `synthtwin profile` describes no table under the population
-# floor, and what every witness in this file is about is the TWELVE
-# cells of each declared spelling -- each of them a group at the default
-# floor of eleven. So the twelves stay twelve and the ordinary readings
-# beside them are counted up to the floor.
+# P4-D341, and the repair of landing 3.2). `synthtwin profile`
+# describes no table whose POPULATION is under the floor, and that
+# population is the rows that HOLD A VALUE -- so the declared cells,
+# which this file's runs turn into holes, reach it for nothing. What
+# every witness here is about is the TWELVE cells of each declared
+# spelling, each a group at the default floor of eleven; so the twelves
+# stay twelve, and the ORDINARY READINGS are counted to the floor on
+# their own with the twelves standing on top of them.
 _DECLARED = 12
-_READINGS = parsing.POPULATION_FLOOR - 2 * _DECLARED
+_READINGS = parsing.POPULATION_FLOOR
 
 
 def _two_columns(folder: pathlib.Path, name: str) -> pathlib.Path:

@@ -99,8 +99,20 @@ def _round_trip(
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
     holding = _at_the_floor(cells) if by_command else list(cells)
+    # THE KEEPER COLUMN (repair of landing 3.2). The population is the
+    # rows that HOLD A VALUE, so absent padding alone no longer reaches
+    # the floor; `rows_at_the_floor` adds a column holding one on every
+    # row exactly where the shape's own present cells fall short, and
+    # leaves a shape that already reaches the floor one column wide.
+    from tests.test_stage2_round_trip import rows_at_the_floor
+
+    names, built = (
+        rows_at_the_floor("value", holding)
+        if by_command
+        else (["value"], [[cell] for cell in holding])
+    )
     table.write_text(
-        fixtures.rows_to_csv(["value"], [[cell] for cell in holding]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )
@@ -531,8 +543,15 @@ def test_a_saturated_representable_grid_keeps_every_number(
         tmp_path / "subnormal", cells, ("--smallest-group", "11")
     )
     held = {value for value in _read(written)}
-    assert len(written) == 120
-    assert len(held) == 120, len(held)
+    # DERIVED, NOT STATED (repair of landing 3.2). The twin has one
+    # cell per row of the table it was described from, and that table
+    # is this case's own cells or the population floor, whichever is
+    # larger -- so a floor moved past this case's count moves this
+    # expectation with it instead of turning the file red. The count of
+    # different NUMBERS is the case's own, because `_read` keeps only
+    # the cells that read as numbers and the padding does not.
+    assert len(written) == max(len(cells), parsing.POPULATION_FLOOR)
+    assert len(held) == len(cells), len(held)
     assert twin_exit == 0 and real_exit == 0
 
 

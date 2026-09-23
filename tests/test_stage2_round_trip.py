@@ -80,6 +80,16 @@ def describe_with_the_producer(
     here counts a population: a description written by the producer
     says the population was counted in rows, which is what a caller who
     never ran the gate did.
+
+    AND IT REFUSES A FLAG IT DOES NOT IMPLEMENT (repair of landing
+    3.2). It read `--smallest-group` and `--identifier` and dropped
+    every other flag in silence, while `test_files_review_repairs._trip`
+    hands it whole `flags` tuples: a caller passing `--first-row`,
+    `--sheet`, `--code`, `--decimal-comma` or `--metadata-rows` would
+    have described a DIFFERENT table from the one its test named, with
+    nothing anywhere saying so. Every by_command=False call site passes
+    only the two today, so this refuses nothing that exists; what it
+    stops is the next one.
     """
     from synthtwin import profile as producer, reading, taxonomy
 
@@ -89,8 +99,16 @@ def describe_with_the_producer(
     for flag in flags:
         if flag == "--smallest-group":
             floor = int(flags[place + 1])
-        if flag == "--identifier":
+        elif flag == "--identifier":
             declared += [flags[place + 1]]
+        elif flag[:2] == "--":
+            raise AssertionError(
+                f"describe_with_the_producer does not implement {flag}: it "
+                f"builds the settings from --smallest-group and "
+                f"--identifier alone, so a table described here under any "
+                f"other flag is not the table the command would describe. "
+                f"Implement the flag here, or drive the case by_command"
+            )
         place = place + 1
     settings = taxonomy.Settings(small_cell_floor=floor)
     read = reading.read_table(
@@ -120,8 +138,25 @@ def at_the_floor(cells: "list[str]") -> "list[str]":
     one-column file would only be a blank line.
 
     Shapes already at the floor come back unchanged.
+
+    THE PADDING NO LONGER REACHES THE FLOOR ON ITS OWN (repair of
+    landing 3.2). The population is the rows that HOLD A VALUE, so a
+    column of twenty real cells followed by eighty `NA` cells is a
+    population of twenty and the command refuses it -- which is the
+    whole point of that repair, and this helper is the case its skeptic
+    named. What reaches the floor is the padding PLUS a column that
+    holds a value on every row, which `keeper_column` adds and every
+    harness here asks for through `rows_at_the_floor`.
     """
     return list(cells) + ["NA"] * (parsing.POPULATION_FLOOR - len(cells))
+
+
+# The keeper column lives in `tests/fixtures.py`, where every harness
+# that writes a one-column table can reach it; these names are the
+# ones this module's callers already import.
+KEEPER_NAME = fixtures.KEEPER_NAME
+KEEPER_VALUE = fixtures.KEEPER_VALUE
+rows_at_the_floor = fixtures.rows_at_the_floor
 
 
 def _round_trip(
@@ -148,8 +183,16 @@ def _round_trip(
     """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
+    # THE KEEPER COLUMN IS THE COMMAND'S PATH ONLY. The producer
+    # refuses no table for its size, so a shape described that way is
+    # written exactly as it always was and its document has one column.
+    names, built = (
+        rows_at_the_floor(header, cells)
+        if by_command
+        else ([header], [[cell] for cell in cells])
+    )
     table.write_text(
-        fixtures.rows_to_csv([header], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )
@@ -310,6 +353,32 @@ def _shapes() -> "dict[str, tuple[list[str], tuple[str, ...], bool, str]]":
         "dates at midnight with a T": (_days(ROWS, "T00:00:00", 20), (), True, ""),
         "dates at midnight with one offset": (_days(ROWS, "T00:00:00+02:00", 21), (), True, ""),
     }
+
+
+def test_the_producer_helper_refuses_a_flag_it_does_not_implement(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A flag dropped in silence describes a different table (landing 3.2).
+
+    The two it does implement go through; anything else stops the test
+    that asked for it rather than quietly describing something else.
+    """
+    folder = tmp_path / "flags"
+    folder.mkdir()
+    table = folder / "real.csv"
+    table.write_text(
+        fixtures.rows_to_csv(["value"], [["1"] for _ in range(ROWS)]),
+        encoding="utf-8",
+        newline="",
+    )
+    describe_with_the_producer(
+        table, folder / "real-profile.json", ("--smallest-group", "11")
+    )
+    with pytest.raises(AssertionError) as caught:
+        describe_with_the_producer(
+            table, folder / "other-profile.json", ("--first-row", "data")
+        )
+    assert "--first-row" in f"{caught.value}"
 
 
 @pytest.mark.parametrize("shape", sorted(_shapes()))
@@ -534,11 +603,18 @@ def test_labels_beside_decimal_comma_numbers_stay_labels(tmp_path: pathlib.Path)
 def test_a_grouped_end_is_not_mistaken_for_an_absent_spelling(tmp_path: pathlib.Path) -> None:
     """The review's reproduction: `-999.000` is a value, `-999,000` is absent."""
     # ...and at the floor for the same reason: the ten `-999,000` cells
-    # are the shape and the grouped numbers are counted up to it.
+    # are the shape and the grouped numbers are counted up to it. The
+    # ABSENT cells are counted on top of the floor and not inside it
+    # (repair of landing 3.2): the population is the rows that hold a
+    # value, and `--missing-value -999` is what makes these ten hold
+    # none, so a table of exactly the floor would be a population of
+    # ninety and the command would be right to refuse it. `keeper_column`
+    # cannot see this, because the spelling is absent only under a flag
+    # it is not given.
     absent = 10
     cells = [
         f"{-1000000 + 25 * place:,}".replace(",", ".")
-        for place in range(parsing.POPULATION_FLOOR - absent)
+        for place in range(parsing.POPULATION_FLOOR)
     ]
     cells += ["-999,000"] * absent
     first, second, _written, twin_exit, _real = _round_trip(

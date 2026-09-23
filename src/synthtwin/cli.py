@@ -1131,9 +1131,12 @@ _WHY_SHOWN = {
     # name the people the rows are about, which is a different question
     # with a different consequence, so it says so in its own words.
     asking.BECAUSE_REPEATS_AND_MANY: (
-        "its values repeat and there are many of them, which is how a "
-        "column naming the people the rows are about is written, and "
-        "no column at all was named with --identifier"
+        "its values repeat, and there are either more of them than a "
+        "set of categories could hold or every one of them is written "
+        "as a code of letters and figures standing on two rows or "
+        "more, which is how a column naming the people the rows are "
+        "about is written, and no column at all was named with "
+        "--identifier"
     ),
 }
 
@@ -1791,6 +1794,12 @@ def _population_of(
     none does, which is what `taxonomy.repeating_identifiers` decides
     and says why at length.
 
+    THE ROWS COUNTED ARE THE ROWS THAT HOLD A VALUE (repair of landing
+    3.2), which is `taxonomy.people_in`'s rule and not this function's:
+    a row whose every cell is blank or means "no value" is counted
+    nowhere, so twenty records padded to a hundred lines are a
+    population of twenty and are refused.
+
     Guarantees: accepts the table's column names, its columns as text
     in the same order, the settings in force and the columns declared
     with `--identifier`; returns the three. A fixed function of them.
@@ -1854,10 +1863,11 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
         f"one visit rather than one person, that count is larger than "
         f"the number of people in it.\n"
         f"\nThe questions file asks about "
-        f"{_joined(names, ' and ')}, whose values repeat and are many "
-        f"-- the shape a column that names people wears. Answer it "
-        f"there, or run the command again with --identifier and the "
-        f"column's name, and the population will be counted in people."
+        f"{_joined(names, ' and ')}, whose values repeat and are "
+        f"either many or written as codes -- the shape a column that "
+        f"names people wears. Answer it there, or run the command "
+        f"again with --identifier and the column's name, and the "
+        f"population will be counted in people."
     )
 
 

@@ -35,7 +35,7 @@ import sys
 
 import pytest
 
-from synthtwin import asking
+from synthtwin import asking, parsing
 
 ROWS = 120
 SITES = ("North", "South", "East", "West")
@@ -971,17 +971,25 @@ def test_a_record_of_nothing_but_spaces_holds_nothing(
     `bytes.empty-rows` -- an obligation no twin of that file could have
     met (plan P4-D84).
     """
-    data = ("a,b\n" + "Red,Oak\n" * 30 + " , \n" * 90).encode()
+    # THE RECORDS THAT HOLD SOMETHING REACH THE FLOOR ON THEIR OWN
+    # (repair of landing 3.2): the population is the rows that HOLD A
+    # VALUE, and the ninety records of spaces hold none -- which is the
+    # very thing this case is about -- so counting them towards the
+    # floor would be the defect that repair closed. `real` is the
+    # floor and the ninety stand on top of it.
+    real = parsing.POPULATION_FLOOR
+    empty = 90
+    data = ("a,b\n" + "Red,Oak\n" * real + " , \n" * empty).encode()
     result = _round_trip(tmp_path / "spaces", data)
     assert result["form"]["empty_rows"] == {
-        "interior": 0, "leading": 0, "trailing": 90,
+        "interior": 0, "leading": 0, "trailing": empty,
     }, result["form"]["empty_rows"]
     _held(result)
 
     # THE CONTROL: a cell holding a letter is not nothing, so the same
     # shape with one letter in each of those records publishes no
     # record holding nothing at all, and the rule can still fail.
-    other = ("a,b\n" + "Red,Oak\n" * 30 + " ,x\n" * 90).encode()
+    other = ("a,b\n" + "Red,Oak\n" * real + " ,x\n" * empty).encode()
     second = _round_trip(tmp_path / "spaces-and-one", other)
     assert second["form"]["empty_rows"] == {
         "interior": 0, "leading": 0, "trailing": 0,

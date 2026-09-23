@@ -4,19 +4,26 @@ THE GATE OF LANDING 3.2. `synthtwin profile` refuses a table whose
 population is under `parsing.POPULATION_FLOOR` and writes nothing;
 between there and `parsing.POPULATION_NOTICE_LINE` it runs and says so
 on the screen and on every page it writes; at or above the line it says
-nothing at all. The population is counted in ROWS where no declared
-identifier repeats and in PEOPLE where one does.
+nothing at all. The population is counted in ROWS THAT HOLD A VALUE
+where no declared identifier repeats, and in PEOPLE where one does.
 
 EVERY NUMBER IN THIS FILE IS DERIVED FROM THE RULE. The refusal band is
 `range(1, parsing.POPULATION_FLOOR)`, the notice band is
 `[parsing.POPULATION_FLOOR, parsing.POPULATION_NOTICE_LINE - 1]` and
 the silent band starts at the line, so moving either constant moves
 every expectation here with it and a run's output is never copied in.
+`_SUBJECTS` and `_REAL_RECORDS` below are derived for the same
+reason: both were bare literals, and the first of them turned the file
+red the moment the floor was moved in a mutation.
 
 WHAT THIS FILE ALSO REFUSES TO LET DRIFT. The floor is the COMMAND's,
 so `profile.build_document`, the loader and `synthtwin validate` still
 work on small files -- that is asserted here rather than left to be
-noticed when somebody puts the check in a shared place.
+noticed when somebody puts the check in a shared place. It is NOT the
+case that a description written before this landing still loads: the
+settings block gained a required key, so the loader refuses one and
+says which entry is missing. The test below named for that is what
+holds the corrected sentence true.
 """
 
 import json
@@ -32,6 +39,33 @@ import fixtures
 
 
 # -- tables ------------------------------------------------------------
+
+# HOW MANY SUBJECTS A REGISTER-SHAPED TABLE NEEDS, derived from the two
+# rules it has to clear rather than stated (repair of landing 3.2; it
+# was the bare literal 111, and this file's own docstring promised no
+# such literal existed). The two rules:
+#
+# * `subject_id` must NOT read as a set of categories, or the column
+#   publishes every identifier and the shape being measured is the
+#   other one below -- so MORE subjects than `categories_ceiling` of
+#   this many rows allows; and
+# * counted in people the table must clear `POPULATION_FLOOR`, or the
+#   command refuses it the moment an answer moves the count into
+#   people. The margin over the floor is one default smallest group, so
+#   a table one group short of the floor is never what is measured.
+_ASK_ROWS = 500
+_SUBJECTS = max(
+    parsing.POPULATION_FLOOR + parsing.DEFAULT_SMALL_CELL_FLOOR,
+    taxonomy.categories_ceiling(_ASK_ROWS, taxonomy.Settings()) + 1,
+)
+# AND THE SHAPE THE PLAN CITES AS THE RULE'S REASON FOR EXISTING
+# (P4-D340: "a table of 12 subjects over 1,196 rows"). Its property is
+# the opposite one: FEWER subjects than the ceiling allows, so the
+# column reads as `categorical` and publishes all twelve identifiers
+# beside their visit counts. The numbers are the plan's own citation;
+# what the tests below assert is the property.
+_FEW_ROWS = 1196
+_FEW_SUBJECTS = 12
 
 
 def _rows(count: int, subjects: "int | None" = None) -> "list[list[str]]":
@@ -125,6 +159,117 @@ def test_the_people_refusal_names_the_column_the_people_were_counted_by(
     assert "7 people" in said
     assert "'subject_id'" in said
     assert "--identifier" in said
+
+
+# -- the population is the rows that HOLD A VALUE ----------------------
+#
+# The repair of landing 3.2. The gate counted the rows the reader
+# returned, so twenty real records followed by eighty rows holding
+# nothing read as a hundred-row table, cleared the floor, and were
+# described -- and the description published mean, spread and every
+# percentile over the twenty. Both paddings the skeptic measured
+# passing before the repair -- `,,` rows and `NA` rows -- are cases
+# here, and a row of spaces is the third way a file arrives padded.
+
+
+def _padded(
+    folder: pathlib.Path, records: int, padding: str
+) -> pathlib.Path:
+    """`records` real rows, then rows of `padding` up to the floor.
+
+    The file is `POPULATION_FLOOR` lines long whatever the floor is, so
+    a reader counting lines finds a table at the floor exactly.
+    """
+    lines = ["subject_id,site,score"]
+    for row in _rows(records):
+        lines += [",".join(row)]
+    for _place in range(parsing.POPULATION_FLOOR - records):
+        lines += [padding]
+    return fixtures.write(folder, "clinic.csv", "\n".join(lines) + "\n")
+
+
+# A fifth of the floor: derived from it, so moving the floor moves this
+# with it, and far enough under it that no padding rule can be met by
+# the real rows alone.
+_REAL_RECORDS = parsing.POPULATION_FLOOR // 5
+
+
+@pytest.mark.parametrize("padding", [",,", "NA,NA,NA", " , , "])
+def test_rows_that_hold_nothing_do_not_count_towards_the_floor(
+    tmp_path: pathlib.Path, padding: str
+) -> None:
+    """Blank rows, rows of "no value" spellings, and rows of spaces.
+
+    All three reach `POPULATION_FLOOR` lines and all three are refused,
+    because the population is the rows that hold a value. The three
+    paddings are the three ways a table arrives padded: a file written
+    with trailing separators, a tool that writes its own word for "no
+    value", and one that writes a space.
+    """
+    folder = tmp_path / f"pad{len(padding)}"
+    folder.mkdir()
+    table = _padded(folder, _REAL_RECORDS, padding)
+    assert main(["profile", f"{table}", "--out-dir", f"{folder}"]) == 1
+    assert _pages(folder) == ["clinic.csv"]
+
+
+def test_the_refusal_says_the_honest_count_and_why(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The count named is the rows that hold a value, and it says so.
+
+    A person looking at a file of `POPULATION_FLOOR` lines and reading
+    a smaller number back is owed the reason in the same message.
+    """
+    folder = tmp_path / "why"
+    folder.mkdir()
+    table = _padded(folder, _REAL_RECORDS, "NA,NA,NA")
+    assert main(["profile", f"{table}", "--out-dir", f"{folder}"]) == 1
+    screen = capsys.readouterr()
+    said = screen.err + screen.out
+    assert f"{_REAL_RECORDS} rows" in said
+    assert "HOLD A VALUE" in said
+
+
+def test_a_table_of_whole_rows_still_clears_the_floor(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The other side of the same rule: nothing was taken away.
+
+    `POPULATION_FLOOR` rows that each hold a value are described, so
+    the repair refuses padding and not tables.
+    """
+    folder = tmp_path / "whole"
+    folder.mkdir()
+    table = _table(folder, parsing.POPULATION_FLOOR)
+    assert main(["profile", f"{table}", "--out-dir", f"{folder}"]) == 0
+
+
+def test_the_note_states_the_population_the_counts_rest_on(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A table over the floor, padded: the note names the honest count.
+
+    The published note (form NF59) says "a table of N rows ... Every
+    count here is a count over that population". With the rows counted
+    as the reader returned them, N overstated the basis by whatever
+    padding the file carried, in the direction that makes a description
+    look safer than it is.
+    """
+    folder = tmp_path / "note"
+    folder.mkdir()
+    holding = parsing.POPULATION_FLOOR * 2
+    lines = ["subject_id,site,score"]
+    for row in _rows(holding):
+        lines += [",".join(row)]
+    for _place in range(holding):
+        lines += ["NA,NA,NA"]
+    table = fixtures.write(folder, "clinic.csv", "\n".join(lines) + "\n")
+    assert main(["profile", f"{table}", "--out-dir", f"{folder}"]) == 0
+    assert f"{holding} rows" in _table_note(folder), (
+        "the note names the rows the reader returned rather than the "
+        "rows the counts are taken over"
+    )
 
 
 # -- the notice band ---------------------------------------------------
@@ -324,13 +469,36 @@ def test_rows_naming_nobody_are_one_unknown_person() -> None:
 
     Counting one person per such row would count people the table does
     not evidence, in the direction that lets a small table through.
+
+    THE TWELVE HOLD A SITE. A row that names nobody is a row all the
+    same, and it is one of those that joins the unknown person; a row
+    holding nothing in any column is nobody and is measured by the test
+    below (repair of landing 3.2).
     """
     subjects = [f"P{place % 20:05d}" for place in range(100)] + [""] * 12
+    sites = ["north"] * 112
     repeating, people = _people(
-        ["subject_id"], [subjects], ["subject_id"]
+        ["subject_id", "site"], [subjects, sites], ["subject_id"]
     )
     assert repeating == ("subject_id",)
     assert people == 21
+
+
+def test_rows_holding_nothing_at_all_are_nobody() -> None:
+    """The same twelve rows with every cell empty are not a person.
+
+    The repair of landing 3.2, on the people branch. An unknown person
+    is what a row that names nobody evidences; a row that holds nothing
+    evidences nobody, so padding a table of twenty people with blank
+    rows may not buy it a twenty-first.
+    """
+    subjects = [f"P{place % 20:05d}" for place in range(100)] + [""] * 12
+    sites = ["north"] * 100 + [""] * 12
+    repeating, people = _people(
+        ["subject_id", "site"], [subjects, sites], ["subject_id"]
+    )
+    assert repeating == ("subject_id",)
+    assert people == 20
 
 
 def test_several_repeating_identifiers_are_a_union() -> None:
@@ -426,6 +594,7 @@ def _asked_about(
 ) -> "list[str]":
     from synthtwin import reading
 
+    folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(
         folder,
         "ask.csv",
@@ -445,15 +614,144 @@ def _asked_about(
     return [question.name for question in person]
 
 
+def _subject_block(
+    folder: pathlib.Path, rows: "list[list[str]]"
+) -> "dict[str, object]":
+    """The `subject_id` block of a description of these rows."""
+    from synthtwin import reading
+
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(
+        folder,
+        "ask.csv",
+        fixtures.rows_to_csv(["subject_id", "site", "score"], rows),
+    )
+    settings = taxonomy.Settings()
+    read = reading.read_table(
+        f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+    )
+    document = profile.build_document(read, settings, [])
+    blocks = document["columns"]
+    assert isinstance(blocks, list)
+    for block in blocks:
+        if block["name"] == "subject_id":
+            return block
+    raise AssertionError("the description has no subject_id block")
+
+
 def test_a_subject_column_with_a_few_visits_each_is_asked_about(
     tmp_path: pathlib.Path,
 ) -> None:
-    """500 rows over 111 subjects, nothing declared: the question is put."""
+    """A register of subjects, nothing declared: the question is put.
+
+    Route ONE of the rule: more subjects than a set of categories may
+    hold in this many rows, so the column publishes no levels at all.
+    """
     folder = tmp_path / "ask"
     folder.mkdir()
-    assert _asked_about(folder, _rows(500, subjects=111), []) == [
+    assert _asked_about(folder, _rows(_ASK_ROWS, subjects=_SUBJECTS), []) == [
         "subject_id"
     ]
+
+
+def test_a_subject_column_read_as_categories_is_asked_about(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The case P4-D340 cites as the question's reason for existing.
+
+    ROUTE TWO, and the repair of landing 3.2. `subject_id` here holds
+    FEWER different values than `categories_ceiling` allows, so it
+    reads as a set of categories and publishes every subject's
+    identifier beside its visit count -- which is route one's condition
+    exactly inverted, so route one can never reach this shape. The two
+    halves are asserted together on purpose: a rule that asked here but
+    about a column publishing nothing would be the old rule again.
+    """
+    folder = tmp_path / "categorical"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    block = _subject_block(folder / "shape", rows)
+    assert block["role"] == taxonomy.ROLE_CATEGORICAL, (
+        "the shape this test is about is a subject column read as a set "
+        "of categories; this one was not, so the case is no longer the "
+        "one the plan cites"
+    )
+    levels = block["levels"]
+    assert isinstance(levels, list)
+    assert len(levels) == _FEW_SUBJECTS, (
+        "every subject's identifier is published, which is what makes "
+        "this the case the question exists for"
+    )
+    assert _asked_about(folder / "ask", rows, []) == ["subject_id"]
+
+
+def test_a_subject_column_of_codes_is_asked_about_whatever_it_is_called(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Route two reads the SHAPE of the values, never the column's name.
+
+    The same register under a name that says nothing. A rule that had
+    reached the cited case by matching `subject` would pass the test
+    above and fail this one.
+    """
+    folder = tmp_path / "unnamed"
+    folder.mkdir()
+    from synthtwin import reading
+
+    table = fixtures.write(
+        folder,
+        "ask.csv",
+        fixtures.rows_to_csv(
+            ["c1", "site", "score"], _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+        ),
+    )
+    settings = taxonomy.Settings()
+    read = reading.read_table(
+        f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+    )
+    document = profile.build_document(read, settings, [])
+    asked = asking.questions_for(document, read.columns, settings, [])
+    person = asking.person_questions(
+        document, read.columns, settings, [], [], asked
+    )
+    assert [question.name for question in person] == ["c1"]
+
+
+def test_a_register_holding_one_value_once_is_not_asked_about(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Route two's first condition: EVERY value on two rows or more.
+
+    One subject with a single visit silences route two, which is the
+    measured limit of the repair and is recorded here rather than left
+    to be discovered. Route one cannot reach the shape either, because
+    the subject count is under the categorical ceiling.
+    """
+    folder = tmp_path / "once"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    rows[0][0] = "P99999"
+    assert _asked_about(folder, rows, []) == []
+
+
+def test_a_column_of_bare_figures_is_not_a_register(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Route two's second condition: a code carries a letter AND a figure.
+
+    Without the letter a two-value column of `0` and `1` clears the
+    rule, which is measured: every level stands on hundreds of rows and
+    every cell is inside the code alphabet. The letter is what makes
+    the evidence positive rather than merely permissive.
+    """
+    folder = tmp_path / "figures"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row[0] = f"{place % 2}"
+        place = place + 1
+    assert _asked_about(folder, rows, []) == []
 
 
 def test_nothing_is_asked_once_an_identifier_is_declared(
@@ -463,7 +761,7 @@ def test_nothing_is_asked_once_an_identifier_is_declared(
     folder = tmp_path / "declared"
     folder.mkdir()
     assert _asked_about(
-        folder, _rows(500, subjects=111), ["subject_id"]
+        folder, _rows(_ASK_ROWS, subjects=_SUBJECTS), ["subject_id"]
     ) == []
 
 
@@ -480,7 +778,7 @@ def test_another_column_declared_silences_the_question_too(
     """
     folder = tmp_path / "other"
     folder.mkdir()
-    assert _asked_about(folder, _rows(500, subjects=111), ["site"]) == []
+    assert _asked_about(folder, _rows(_ASK_ROWS, subjects=_SUBJECTS), ["site"]) == []
 
 
 def test_a_label_column_and_a_scale_column_are_never_asked_about(
@@ -494,7 +792,7 @@ def test_a_label_column_and_a_scale_column_are_never_asked_about(
     """
     folder = tmp_path / "labels"
     folder.mkdir()
-    asked = _asked_about(folder, _rows(500, subjects=111), [])
+    asked = _asked_about(folder, _rows(_ASK_ROWS, subjects=_SUBJECTS), [])
     assert "site" not in asked
     assert "score" not in asked
 
@@ -505,7 +803,7 @@ def test_a_unique_column_is_never_asked_about(
     """Its values do not repeat, so it names a row and not a person."""
     folder = tmp_path / "unique"
     folder.mkdir()
-    assert _asked_about(folder, _rows(500), []) == []
+    assert _asked_about(folder, _rows(_ASK_ROWS), []) == []
 
 
 def test_the_question_offers_the_identifier_declaration(
@@ -520,7 +818,7 @@ def test_the_question_offers_the_identifier_declaration(
         folder,
         "ask.csv",
         fixtures.rows_to_csv(
-            ["subject_id", "site", "score"], _rows(500, subjects=111)
+            ["subject_id", "site", "score"], _rows(_ASK_ROWS, subjects=_SUBJECTS)
         ),
     )
     settings = taxonomy.Settings()
@@ -562,7 +860,7 @@ def test_the_screen_says_the_count_was_taken_in_rows_at_the_terminal(
     )
     folder = tmp_path / "silent"
     folder.mkdir()
-    table = _table(folder, 500, subjects=111)
+    table = _table(folder, _ASK_ROWS, subjects=_SUBJECTS)
     assert main(["profile", f"{table}"]) == 0
     said = capsys.readouterr()
     assert "counted in ROWS" in said.err
@@ -584,7 +882,7 @@ def test_the_question_reaches_the_questions_file_and_the_screen(
     """
     folder = tmp_path / "run"
     folder.mkdir()
-    table = _table(folder, 500, subjects=111)
+    table = _table(folder, _ASK_ROWS, subjects=_SUBJECTS)
     assert main(["profile", f"{table}"]) == 0
     screen = capsys.readouterr()
     written = json.loads(
@@ -679,7 +977,7 @@ def test_the_notice_and_the_question_carry_no_value_of_the_table(
     """
     folder = tmp_path / "secret"
     folder.mkdir()
-    rows = _rows(500, subjects=111)
+    rows = _rows(_ASK_ROWS, subjects=_SUBJECTS)
     for row in rows:
         row[0] = f"{row[0]}-GOLDFINCH"
     table = fixtures.write(
@@ -757,6 +1055,41 @@ def test_the_loader_refuses_a_person_column_nobody_declared(
     with pytest.raises(errors.ProfileError) as caught:
         contract.load_profile(f"{written}")
     assert "S8b" in f"{caught.value}"
+
+
+def test_a_description_without_person_columns_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A v6 description written BEFORE this landing does not still load.
+
+    The repair of landing 3.2. Both the plan and `parsing`'s own
+    comment said it did, beside the true half -- that the floor is the
+    COMMAND's, so `build_document` and `validate` still take a small
+    table. The settings block gained a required key, and membership
+    rule C6-20 makes every one of its keys required, so the bytes an
+    earlier build wrote are refused by name. The break is sanctioned
+    (amendment A-P4-41, version 6 extended in place until the first
+    release); what was not allowed is a sentence saying it did not
+    happen.
+    """
+    folder = tmp_path / "older"
+    folder.mkdir()
+    document = _described(folder, parsing.POPULATION_FLOOR)
+    settings = document["settings"]
+    assert isinstance(settings, dict)
+    assert "person_columns" in settings, (
+        "this test is about the key this landing ADDED; it is not here"
+    )
+    del settings["person_columns"]
+    written = fixtures.write(
+        folder, "older-profile.json", profile.serialize(document)
+    )
+    with pytest.raises(errors.ProfileError) as caught:
+        contract.load_profile(f"{written}")
+    assert "person_columns" in f"{caught.value}", (
+        "the refusal has to name the entry that is missing, or the "
+        "person holding an older description cannot act on it"
+    )
 
 
 def test_the_loader_refuses_a_table_wide_note_after_a_column_s(

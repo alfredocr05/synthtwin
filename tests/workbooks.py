@@ -493,6 +493,12 @@ def titled_book(n_rows: int = BOOK_ROWS) -> bytes:
 
     An all-empty row stands inside the data as well, which both readers
     keep as a record of nothing.
+
+    SO IT WRITES ONE ROW MORE THAN IT IS ASKED FOR (repair of landing
+    3.2). `n_rows` is how many records HOLD A VALUE, which is what the
+    population floor counts and what `BOOK_ROWS` promises; the record
+    of nothing stands on top of them, because counting it would be the
+    defect that repair closed.
     """
     strings = ["Cohort extract", "reading", "site", "amount", "recorded_on"]
     body: "list[tuple[int, list[str]]]" = [
@@ -507,7 +513,7 @@ def titled_book(n_rows: int = BOOK_ROWS) -> bytes:
             ],
         ),
     ]
-    for place in range(n_rows):
+    for place in range(n_rows + 1):
         number = 5 + place
         if place == 4:
             body += [(number, [])]

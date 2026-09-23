@@ -179,15 +179,20 @@ BECAUSE_JOINED = "two-numbers"
 # looks like.
 BECAUSE_GROUPED_FIXED_WIDTH = "grouped-fixed-width"
 BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
-# ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340). Asked
-# of a column whose values REPEAT and are MANY, and only where nothing
-# at all was declared as holding record numbers: that shape is how a
+# ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340, and
+# the repair of landing 3.2). Asked of a column whose values REPEAT
+# and are either MANY or written as CODES, and only where nothing at
+# all was declared as holding record numbers: that shape is how a
 # table with several rows per subject is written, and nothing else in
 # this tool can reach it. The uniqueness pointer cannot -- it fires
 # only where almost every value differs, which is the opposite shape --
 # so a table of 12 subjects over 1,196 rows was described with every
 # subject's identifier published beside its visit count and nothing
-# said about it.
+# said about it. ONE REASON COVERS BOTH ROUTES on purpose: what the
+# person is being asked is the same question with the same two
+# answers, and `_shape_of` renders what was actually seen -- how many
+# different values over how many cells -- rather than restating the
+# route that found it. `asking._names_people` holds both routes.
 BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 
 # A fixed-width all-digit column is asked about from three digits up.
@@ -1462,7 +1467,11 @@ def _names_people(
 ) -> bool:
     """Whether this column looks like it names the people the rows are about.
 
-    TWO CONDITIONS, BOTH MEASURED (plan P4-D340).
+    TWO ROUTES, EITHER OF WHICH ASKS. The first was the whole rule when
+    landing 3.2 was written and could not reach the case the plan cites
+    as its reason for existing; the second is the repair.
+
+    ROUTE ONE -- MANY VALUES, REPEATING (plan P4-D340).
 
     * Its present values REPEAT: at least `PERSON_ROWS_PER_VALUE` rows
       per different folded value, on average. A value on one row each
@@ -1471,13 +1480,52 @@ def _names_people(
       HAVE HAD in a table of this many rows -- `taxonomy.
       categories_ceiling`, the line `categorical_share` and
       `categorical_ceiling` already record in every description. That
-      is the line, asked rather than restated, and it is what keeps a
-      two-value demographic column, `site`, `arm`, `ward`, a units
-      column and a diagnosis-like register of labels out: every one of
-      them is a set of categories by that same line, so none can clear
-      it.
+      is the line, asked rather than restated.
 
-    MEASURED ON THE TWO BATTERIES THE RULE WAS CHOSEN ON. Over the four
+    ROUTE TWO -- A REGISTER OF CODES, EVERY ONE OF THEM REPEATING
+    (repair of landing 3.2). Route one's second condition is the exact
+    COMPLEMENT of the rule that makes a column `categorical`
+    (`_categorical_ceiling` over the same row count), so route one can
+    only ever fire on a column that publishes NO levels -- and the
+    column the plan was written about publishes every one of them. 12
+    subjects over 1,196 rows read as `categorical`, and `subject_id`
+    came back with all twelve identifiers beside their visit counts and
+    no question asked. So a column also clears the rule when
+
+    * EVERY different folded value stands on at least
+      `PERSON_ROWS_PER_VALUE` rows -- not two on average but two each,
+      which is stricter than route one's test and is what keeps a
+      register holding some value once out; and
+    * every present cell is WRITTEN AS A CODE: inside the code alphabet
+      (`parsing.is_code_text`, which is the positive evidence the
+      identifier rule itself asks for) and carrying both a letter and a
+      figure. The letter is what keeps a bare-figure column out -- a
+      binary 0/1, a group coded 1/2/3, an ordinal 0 to 10 -- and the
+      figure is what keeps a column of words out, `site`, `arm`,
+      `North`, `yes`/`no`. Measured: with the figure alone required, a
+      0/1 column clears the rule; with both required, no column of the
+      battery that is not a code does.
+
+    WHAT ROUTE TWO ALSO REACHES, AND IS ACCEPTED (ledger K-S3-02). A
+    `ward-12`-shaped label column and a register of diagnosis-like
+    codes are written exactly as a subject register is written, and
+    nothing in the values tells them apart. They are asked about. The
+    cost of a false positive here is ONE question whose standing answer
+    is `keep`, and the cost of the miss it replaces was a description
+    that published twelve people's identifiers; the trade is taken
+    deliberately and the count is held at its measured value in the
+    ledger. Route one already asked about a 60-ward column over 500
+    rows and about a repeating free-text remarks column before this
+    repair, which is why the docstring that said `ward` could not
+    clear this rule was wrong when it was written.
+
+    THE LIMIT OF ROUTE TWO, MEASURED. "Every value on at least two
+    rows" means one subject with a single visit silences it: a register
+    of 12 subjects over 1,196 rows where one subject has one row is not
+    asked about by route two, and is not asked about by route one
+    either where the value count sits under the categorical ceiling.
+
+    MEASURED ON THE BATTERIES THE RULE WAS CHOSEN ON. Over the four
     realistic families of `tests/kpi_shapes.py` (twelve columns, run
     with the declarations they ship and with every declaration removed)
     and five tables of the subject design -- fixed 100x5, fixed 150x3,
@@ -1485,10 +1533,10 @@ def _names_people(
     the rule is true of the five `subject_id` columns and of nothing
     else: `dose`
     (40 different values over 400 cells) and `note` (9 over 400) are
-    sets of categories and fall at the second condition; `record`,
-    `subject` and `visit_id` are different on every row and fall at the
-    first; `score`, `weight`, `amount` and both date columns are
-    excluded by role.
+    sets of categories, fall at route one's second condition and are
+    not written as codes; `record`, `subject` and `visit_id` are
+    different on every row and fall at both first conditions; `score`,
+    `weight`, `amount` and both date columns are excluded by role.
 
     Guarantees: accepts the present cells, the role the column holds,
     the table's rows and the settings; returns a truth value. A fixed
@@ -1501,13 +1549,52 @@ def _names_people(
         return False
     different: "dict[str, int]" = {}
     for value in present:
-        different[parsing.folded(value)] = 1
+        key = parsing.folded(value)
+        if key in different:
+            different[key] = different[key] + 1
+        else:
+            different[key] = 1
     # COUNTED, never divided: `len(present) / len(different) >= 2` is
     # the same question as this one and asks a float to decide a
     # question about rows.
-    if len(present) < PERSON_ROWS_PER_VALUE * len(different):
+    if len(present) >= PERSON_ROWS_PER_VALUE * len(different):
+        if len(different) > taxonomy.categories_ceiling(n_rows, settings):
+            return True
+    return _a_register_of_codes(present, different)
+
+
+def _a_register_of_codes(
+    present: "list[str]", different: "dict[str, int]"
+) -> bool:
+    """Route two: every value on two rows or more, and every cell a code.
+
+    Split out so that each half of the rule can be mutated on its own
+    and so that the loop over the cells stops at the first cell that is
+    not a code rather than folding the whole column first.
+
+    Guarantees: accepts the present cells and the tally of folded
+    values against how many cells wore each; returns a truth value. A
+    fixed function of the two. Raises nothing. No I/O, and no cell
+    reaches anything it returns.
+    """
+    if not different:
         return False
-    return len(different) > taxonomy.categories_ceiling(n_rows, settings)
+    for key in different:
+        if different[key] < PERSON_ROWS_PER_VALUE:
+            return False
+    for value in present:
+        if not parsing.is_code_text(value):
+            return False
+        figure = False
+        letter = False
+        for character in value:
+            if "0" <= character <= "9":
+                figure = True
+            elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+                letter = True
+        if not figure or not letter:
+            return False
+    return True
 
 
 def person_questions(
@@ -1530,7 +1617,11 @@ def person_questions(
     table of 12 subjects over 1,196 rows passed the population floor on
     its rows with no notice, and `subject_id` was described as a set of
     categories with every subject's identifier published beside its
-    visit count.
+    visit count. THAT EXACT CASE was still unreachable when landing 3.2
+    was written -- the rule's second condition was the complement of
+    the one that makes a column `categorical`, so it could fire only on
+    a column publishing no levels -- and route two of
+    `_names_people` is what reaches it.
 
     Guarantees:
 

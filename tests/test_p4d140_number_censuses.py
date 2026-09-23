@@ -576,16 +576,25 @@ def test_a_plus_is_never_padded_past_the_census_of_padded_plus_cells(
     bound the second tier made up the count with `+01`, a spelling no cell
     of the source wore.
     """
-    # AT THE POPULATION FLOOR ON ABSENT CELLS (plan P4-D341): the
-    # command refuses a smaller table and writes nothing, while the
-    # shape here is the NINE padded cells and the sixteen unpadded ones
-    # beside them. `NA` is one of this format's own spellings for "no
-    # value", so the padded census -- and the twin's draw against it --
-    # are exactly what the shape produced before.
+    # AT THE POPULATION FLOOR ON ABSENT CELLS AND A KEEPER COLUMN (plan
+    # P4-D341, and the repair of landing 3.2): the command refuses a
+    # table whose POPULATION is under the floor, and that population is
+    # the rows that HOLD A VALUE -- so the `NA` padding cannot reach it
+    # on its own. The shape here is the NINE padded cells and the
+    # sixteen unpadded ones beside them; `NA` leaves those exactly as
+    # they were, and `held` carries a value on every row so the table
+    # reaches the floor without the census moving.
     rows = [["+1"]] * 8 + [["-99"]] * 8 + [["-02"]] * 9
     rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - len(rows))
+    rows = [row + [fixtures.KEEPER_VALUE] for row in rows]
     for seed in ("3", "11", "29"):
-        run = _round_trip(tmp_path / f"signed{seed}", ["reading"], rows, seed, floor="1")
+        run = _round_trip(
+            tmp_path / f"signed{seed}",
+            ["reading", fixtures.KEEPER_NAME],
+            rows,
+            seed,
+            floor="1",
+        )
         assert run["first"]["pad_widths"] == {"2": 9}
         written = {row[0] for row in run["rows"] if row[0]}
         assert not [cell for cell in written if cell[:2] == "+0"], written
@@ -697,13 +706,15 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
     missed `pads.published.4` at exit 3.
     """
     # THE EIGHT VALUES STAY EIGHT AND THE TABLE REACHES THE POPULATION
-    # FLOOR ON ABSENT CELLS (plan P4-D341). The shape is that the eight
-    # plainly written cells are BELOW the floor of eleven and so are
-    # held back into the commonest form; grown to thirty-four values
-    # they clear it, publish `leading_zero` themselves and the
-    # reproduction is gone. `NA` is one of this format's own spellings
-    # for "no value", so every numeric census over the twenty-four
-    # present cells is the one this witness was written with.
+    # FLOOR ON ABSENT CELLS AND A KEEPER COLUMN (plan P4-D341, and the
+    # repair of landing 3.2). The shape is that the eight plainly
+    # written cells are BELOW the floor of eleven and so are held back
+    # into the commonest form; grown to thirty-four values they clear
+    # it, publish `leading_zero` themselves and the reproduction is
+    # gone. `NA` leaves every numeric census over the twenty-four
+    # present cells exactly as it was, and `held` carries a value on
+    # every row -- which the population, being the rows that HOLD A
+    # VALUE, is what the command now counts.
     values = 8
     rows = []
     for value in range(100, 100 + values):
@@ -711,7 +722,10 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
             rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
     present = len(rows)
     rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - present)
-    run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
+    rows = [row + [fixtures.KEEPER_VALUE] for row in rows]
+    run = _round_trip(
+        tmp_path / "pooled", ["offset", fixtures.KEEPER_NAME], rows, "4"
+    )
     # THE EIGHT PADDED CELLS ARE COUNTED INTO THE PLUS-SIGNED FORM (plan
     # P4-D222; stage 2 closed by the owner rulings of 2026-09-17), where
     # plan P4-D221 pooled the whole map with them. Counting the sixteen

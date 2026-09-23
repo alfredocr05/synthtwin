@@ -76,10 +76,16 @@ def _description_bytes(folder: pathlib.Path, cells: "list[str]", floor: int) -> 
     """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
+    # THE KEEPER COLUMN (repair of landing 3.2): the population is the
+    # rows that HOLD A VALUE, so absent padding alone no longer reaches
+    # the floor. `rows_at_the_floor` adds a column holding one on every
+    # row exactly where the shape's own present cells fall short, and
+    # leaves a shape that already reaches the floor one column wide.
+    from tests.test_stage2_round_trip import rows_at_the_floor
+
+    names, built = rows_at_the_floor("value", at_the_floor(list(cells)))
     table.write_text(
-        fixtures.rows_to_csv(
-            ["value"], [[cell] for cell in at_the_floor(list(cells))]
-        ),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )

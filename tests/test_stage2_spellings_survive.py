@@ -333,18 +333,27 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
     for day in range(20):
         mark = "T" if day < 10 else " "
         stamps += [f"2025-01-{day + 1:02d}{mark}00:00:00"]
-    # ...AND THE TABLE REACHES THE POPULATION FLOOR ON ABSENT CELLS
-    # (plan P4-D341): the command refuses a smaller table and writes
-    # nothing, while the reviewer's shape is the TWENTY present moments
-    # and their two marks. `NA` is one of this format's own spellings
-    # for "no value", so the present values -- and every count over
-    # them -- are exactly the reviewer's.
-    filled = [[stamp, "2025-01-01 00:00:00"] for stamp in stamps]
-    filled += [["NA", "NA"]] * (parsing.POPULATION_FLOOR - len(filled))
+    # ...AND THE TABLE REACHES THE POPULATION FLOOR ON A KEEPER COLUMN
+    # (plan P4-D341, and the repair of landing 3.2). The command
+    # refuses a table under the floor, and the population is the rows
+    # that HOLD A VALUE -- so the `NA` padding cannot reach it here,
+    # and neither can `other`, every cell of which this run declares
+    # absent. The reviewer's shape is the TWENTY present moments and
+    # their two marks; `held` carries a value on every row so the table
+    # is a hundred rows that hold one, and `seen_at` is untouched.
+    filled = [
+        [stamp, "2025-01-01 00:00:00", fixtures.KEEPER_VALUE]
+        for stamp in stamps
+    ]
+    filled += [["NA", "NA", fixtures.KEEPER_VALUE]] * (
+        parsing.POPULATION_FLOOR - len(filled)
+    )
     rows = _twin_declaring(
         tmp_path,
         "absent",
-        fixtures.rows_to_csv(["seen_at", "other"], filled),
+        fixtures.rows_to_csv(
+            ["seen_at", "other", fixtures.KEEPER_NAME], filled
+        ),
         "2025-01-01 00:00:00",
         # FLOOR ONE (plan P4-D316): the reviewer's ten and ten marks are
         # each below the default floor of 11, which withholds the census.

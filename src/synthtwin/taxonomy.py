@@ -2476,6 +2476,22 @@ def people_in(
     person column. Rows holding a present value of NONE of them are one
     unknown person between them, counted once.
 
+    A ROW THAT HOLDS NO VALUE AT ALL IS NOT ANYBODY (repair of landing
+    3.2). The population is counted over the rows that hold a present
+    value in SOME column, and a row whose every cell is blank or one of
+    the spellings that mean "no value" is counted nowhere -- neither as
+    a row of the population where no identifier repeats, nor as part of
+    the one unknown person where one does. **Measured** before this
+    rule existed: twenty real records followed by eighty `,,` rows, or
+    by eighty `NA,NA,NA` rows, read as a hundred-row table, cleared the
+    population floor and were described -- and the description that
+    came out published mean, spread and every percentile over the
+    twenty, which is the description the floor exists to refuse. Three
+    numbers padded to a hundred printed all three back verbatim. The
+    rows the reader returns are a property of the FILE; what a
+    description's counts are counts over is the rows that hold
+    something, and those are what this returns.
+
     WHY THE UNNAMED ROWS ARE ONE PERSON AND NOT ONE EACH. A row naming
     nobody could belong to anybody, including somebody already counted,
     so one person per such row counts people the table does not
@@ -2497,8 +2513,13 @@ def people_in(
     for held in columns:
         if len(held) > rows:
             rows = len(held)
+    holding = _rows_holding_a_value(columns, rows, settings)
     if not person_columns:
-        return rows
+        count = 0
+        for place in range(rows):
+            if holding[place]:
+                count = count + 1
+        return count
     # `home[row]` is the row this one has been merged onto. Every merge
     # points at the EARLIER row of the two, so the walk to a group's
     # first row is short and the answer does not depend on the order
@@ -2543,11 +2564,57 @@ def people_in(
     unknown = 0
     for place in range(rows):
         if not named[place]:
-            unknown = 1
+            # ONLY A ROW THAT HOLDS SOMETHING joins the unknown person.
+            # A wholly absent row evidences nobody, so padding a table
+            # of ninety-nine people with blank rows may not buy it the
+            # hundredth.
+            if holding[place]:
+                unknown = 1
             continue
         if first_of(place) == place:
             people = people + 1
     return people + unknown
+
+
+def _rows_holding_a_value(
+    columns: "list[list[str]]", rows: int, settings: Settings
+) -> "list[bool]":
+    """Which rows hold a PRESENT value in some column (landing 3.2 repair).
+
+    The same `_present_spellings` pass `people_in` already makes over
+    the person columns, made over every column: a spelling's fate is
+    the same on every row that wears it, so each column costs one walk
+    over its vocabulary and one over its cells.
+
+    THE WALK STOPS EARLY. Once every row is known to hold something --
+    which one full column with no holes in it settles -- no further
+    column is read, so the ordinary table costs one column's pass
+    and not the whole table's.
+
+    Guarantees: accepts the columns as text, how many rows the longest
+    of them has, and the settings that say which spellings mean "no
+    value"; returns one truth value per row, in row order. A fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    holding: "list[bool]" = []
+    for _place in range(rows):
+        holding += [False]
+    outstanding = rows
+    for held in columns:
+        if not outstanding:
+            break
+        standing = _present_spellings(held, settings)
+        if not standing:
+            continue
+        place = 0
+        for value in held:
+            if place >= rows:
+                break
+            if not holding[place] and value in standing:
+                holding[place] = True
+                outstanding = outstanding - 1
+            place = place + 1
+    return holding
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":

@@ -253,16 +253,23 @@ def test_the_out_of_range_spread_survives_the_command_line(
 ) -> None:
     # THE THREE NUMBERS, AND A TABLE THE COMMAND WILL DESCRIBE (plan
     # P4-D341): it refuses one under the population floor and writes
-    # nothing. The rest of the rows are `NA`, one of this format's own
+    # nothing. The rest of `reading` is `NA`, one of this format's own
     # spellings for "no value", so the numeric population is exactly
     # the three values whose variance saturates and every number below
     # is the number this shape produced before.
+    #
+    # AND THE TABLE REACHES THE FLOOR ON A KEEPER COLUMN (repair of
+    # landing 3.2), not on the `NA` rows: the population is the rows
+    # that HOLD A VALUE, so padding one column with absent cells is a
+    # population of three and the command refuses it -- which is
+    # exactly the case this file was cited for. `reading` is still the
+    # first column and still holds nothing but its three numbers.
     padded = list(SATURATING_SPREAD)
     padded += ["NA"] * (parsing.POPULATION_FLOOR - len(padded))
     table = fixtures.write(
         tmp_path,
         "spread.csv",
-        fixtures.single_column_table("reading", padded),
+        fixtures.kept_column_table("reading", padded),
     )
     assert cli.main(["profile", str(table)]) == 0
     printed = capsys.readouterr().out

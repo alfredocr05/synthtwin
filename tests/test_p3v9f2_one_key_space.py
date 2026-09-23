@@ -141,11 +141,18 @@ def test_every_named_space_is_answered_yes_at_a_real_index() -> None:
 def _described(
     folder: pathlib.Path, values: "list[str]", *declared: str
 ) -> "tuple[pathlib.Path, dict]":
-    """Describe one column at a floor of one; return the path and document."""
+    """Describe one column at a floor of one; return the path and document.
+
+    WITH A KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, and a `--missing-value`
+    declaration here turns a column's own spellings into holes. The
+    column under test is still the first, and its cells are untouched.
+    """
     table = fixtures.write(
         folder,
         "reading.csv",
-        fixtures.single_column_table("reading", values),
+        fixtures.kept_column_table("reading", values, tuple(declared)),
     )
     command = ["profile", f"{table}", "--smallest-group", "1"]
     for word in declared:

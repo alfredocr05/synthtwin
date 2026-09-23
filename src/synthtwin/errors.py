@@ -1221,6 +1221,14 @@ def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     `--identifier`, so it carries nothing of the table that they did
     not put on the command line themselves.
 
+    AND IT SAYS WHICH ROWS WERE COUNTED (repair of landing 3.2). The
+    count is the rows that HOLD A VALUE and not the rows the reader
+    returned, so somebody looking at a file of a hundred lines and
+    reading "20 rows" here is owed the reason in the same breath: the
+    other eighty are blank, or hold nothing but spellings that mean "no
+    value", and every count a description would publish over them is a
+    count over twenty.
+
     Guarantees: accepts the population, the word it was counted in, and
     the column the people were counted by (empty where the rows were
     counted); returns one paragraph. Determinism: a fixed function of
@@ -1230,17 +1238,20 @@ def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     by = (
         " Check that this is the table you meant to describe and that "
         "it was read the way you expect: the count above is the rows "
-        "synthtwin read, and --first-row data adds one where your first "
-        "line is a record rather than the column names."
+        "that HOLD A VALUE -- a row whose every cell is blank, or is a "
+        "spelling that means no value, is counted nowhere -- and "
+        "--first-row data adds one where your first line is a record "
+        "rather than the column names."
     )
     if column:
         by = (
             f" The people were counted by '{_shown(column)}', the "
             f"column you named with --identifier: rows sharing a value "
-            f"of it are one person, and rows holding no value of it "
-            f"count as one person between them. Check that this is the "
-            f"column you meant, and that the values in it are written "
-            f"the same way on every row of one person."
+            f"of it are one person, rows holding no value of it count "
+            f"as one person between them, and a row that holds no value "
+            f"in ANY column counts as nobody at all. Check that this is "
+            f"the column you meant, and that the values in it are "
+            f"written the same way on every row of one person."
         )
     return (
         f"This table holds {counted}, and synthtwin describes a table "

@@ -52,9 +52,23 @@ READINGS = [f"{index}" for index in range(1, 200)]
 COPIES = 15
 
 
-def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:
-    """One column on disk, and its path as a person would type it."""
-    text = fixtures.single_column_table(name, values)
+def _written(
+    tmp_path: pathlib.Path,
+    name: str,
+    values: list[str],
+    options: "list[str] | None" = None,
+) -> str:
+    """One column on disk, and its path as a person would type it.
+
+    WITH A KEEPER COLUMN where the shape's own present cells fall under
+    the population floor (repair of landing 3.2): the command refuses a
+    table on the rows that HOLD A VALUE, so a shape padded with `NA` is
+    a population of its real readings and would be refused. The column
+    under test is still the first, and its values are untouched.
+    """
+    text = fixtures.kept_column_table(
+        name, values, fixtures.declared_missing_in(list(options or []))
+    )
     return f"{fixtures.write(tmp_path, f'{name}.csv', text)}"
 
 
@@ -79,7 +93,7 @@ def _run(
     capsys: pytest.CaptureFixture[str],
 ) -> dict:
     """Profile one column through the command; return its block."""
-    table = _written(tmp_path, "reading", values)
+    table = _written(tmp_path, "reading", values, options)
     assert main(["profile", table] + options) == 0, capsys.readouterr().err
     capsys.readouterr()
     document = json.loads(

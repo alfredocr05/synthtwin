@@ -78,7 +78,16 @@ def _run(
     escapes escapes into a FILE, and asserting on the object the
     profiler returned would not have caught this item.
     """
-    text = fixtures.single_column_table(name, values)
+    # THE KEEPER COLUMN where the shape's own present cells fall under
+    # the population floor (repair of landing 3.2): the command refuses
+    # a table on the rows that HOLD A VALUE, and the shapes here are
+    # shapes of ONE COLUMN -- one of them holds no value at all, which
+    # is the point of it. `fixtures.kept_column_table` adds a column
+    # holding a value on every row exactly where it is needed, and the
+    # column under test is still the first.
+    text = fixtures.kept_column_table(
+        name, values, fixtures.declared_missing_in(options)
+    )
     table = f"{fixtures.write(tmp_path, f'{name}.csv', text)}"
     assert main(["profile", table] + options) == 0
     capsys.readouterr()

@@ -6,6 +6,64 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: the population floor counts the rows that hold a value, and the person question reaches the case it was built for (stage 3, landing 3.2's repair pass, 2026-09-23)
+
+**A table padded with empty rows no longer walks past the floor.** The
+population was counted on the rows the reader returned, so twenty real
+records followed by eighty `,,` lines -- or eighty `NA,NA,NA` lines --
+read as a hundred-row table, cleared the floor and were described. The
+description that came out published the mean, the spread and every
+percentile over the twenty; three numbers padded to a hundred printed
+all three back verbatim. **A row whose every cell is blank, or is one
+of this format's spellings for "no value", is now counted nowhere** --
+neither as a row of the population, nor as part of the one unknown
+person where an identifier is declared. The refusal says which rows it
+counted, and the published notice then names the population the
+description's counts actually rest on.
+
+**The person question now reaches a subject column read as a set of
+categories.** Its rule asked for more different values than a set of
+categories could hold -- which is the exact complement of the rule that
+makes a column `categorical`, so it could fire only on a column that
+publishes no labels, and never on the case plan P4-D340 cites as its
+reason for existing: 12 subjects over 1,196 rows, with every subject's
+identifier published beside its visit count. A second route asks where
+every value stands on two rows or more AND every cell is written as a
+code -- inside the code alphabet, carrying both a letter and a figure.
+The letter is what keeps a two-value `0`/`1` column, a group coded
+1/2/3 and an ordinal scale out; the figure is what keeps `site`, `arm`
+and `yes`/`no` out. `K-S3-02`'s battery gained the four label shapes
+the rule mis-fires on and now reads 4 false positives over 33 columns,
+accepted with the measurement in its `status_note`: route one alone
+read 2 of those 4, and the battery simply did not hold them.
+
+**Corrected, in three places: a description written before landing 3.2
+does NOT still load.** The settings block gained a required key, and
+contract rule C6-20 makes all twenty-three required, so the loader
+refuses an earlier build's v6 description and names the entry that is
+missing. The break is sanctioned by A-P4-41; the sentence saying it had
+not happened was not. What IS still true, and stays: the floor is the
+command's, `build_document` still describes a five-row table and
+`synthtwin validate` still checks a 50-row file.
+
+**And four smaller repairs.** `K-P0-10`'s `status_note` records that
+this landing raised the suite's tables, that the seconds were not
+re-taken and that the sharded sums suggest the suite grew by about a
+quarter, so the next quiet-machine run re-stamps it. The subject counts
+in `tests/test_p4d341_population_floor.py` and in the KPI test are
+derived from the floor and the categories ceiling instead of stated, as
+is the cell count in `tests/test_extra_round_numbers.py`.
+`describe_with_the_producer` raises on a flag it does not implement
+rather than dropping it. A stray `.;` left the ledger's measurement
+note.
+
+**What it cost the suite.** A one-column shape padded with absent cells
+is now a population of its present cells, which is the repair working;
+the harnesses that padded that way add a keeper column holding a value
+on every row, exactly where the shape's own present cells fall short.
+Twenty-three cases across six files moved that way, each still driving
+the command.
+
 ### Recorded: landing 3.2's two KPIs against its own commit (stage 3, 2026-09-22)
 
 `K-S3-01` and `K-S3-02` are re-measured on `52b9eee`, the commit that

@@ -31,9 +31,12 @@ import pytest
 from synthtwin import contract, generation, parsing
 from tests import fixtures
 from tests.test_stage2_round_trip import (
+    KEEPER_NAME,
+    KEEPER_VALUE,
     _exit_of,
     _round_trip,
     at_the_floor,
+    rows_at_the_floor,
 )
 
 # How far the twin's numbers may sit from the table's: the mean within
@@ -420,11 +423,15 @@ def test_a_made_up_number_is_never_a_spelling_another_column_calls_absent(
     # PRESENT values of each -- which are the whole shape -- are what
     # they were, and the eleven `5`s the declaration reaches stay
     # eleven.
+    # AND A KEEPER COLUMN (repair of landing 3.2): the population is
+    # the rows that HOLD A VALUE, and a row where BOTH columns are `NA`
+    # holds none, so the padding alone no longer reaches the floor.
     value = at_the_floor(value)
     other = at_the_floor(other)
     table.write_text(
         fixtures.rows_to_csv(
-            ["value", "other"], [[a, b] for a, b in zip(value, other)]
+            ["value", "other", KEEPER_NAME],
+            [[a, b, KEEPER_VALUE] for a, b in zip(value, other)],
         ),
         encoding="utf-8",
         newline="",
@@ -579,8 +586,12 @@ def test_a_number_carrying_an_end_spends_a_spelling_of_its_length(
             for _each in range(40)
         ]
     )
+    # THE KEEPER COLUMN (repair of landing 3.2): eighty present cells
+    # padded to the floor with `NA` is a population of eighty, so the
+    # table needs a column that holds a value on every row.
+    names, built = rows_at_the_floor("value", cells)
     table.write_text(
-        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(names, built),
         encoding="utf-8",
         newline="",
     )

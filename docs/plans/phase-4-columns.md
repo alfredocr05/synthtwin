@@ -19331,7 +19331,8 @@ settings section, the disposition registry and the settings
 completeness test.
 
 **Asking for the person.** Where NO column at all is declared as
-holding record numbers, a column is asked about when both hold:
+holding record numbers, a column is asked about when EITHER route
+holds. Route one:
 
 1. its present values REPEAT — at least two rows per different folded
    value, counted and never divided; and
@@ -19339,6 +19340,22 @@ holding record numbers, a column is asked about when both hold:
    had in a table of this many rows — `taxonomy.categories_ceiling`,
    the line `categorical_share` and `categorical_ceiling` already
    record in every description, asked rather than restated.
+
+Route two (added by this landing's repair pass, because route one
+cannot reach the case below):
+
+1. EVERY different folded value stands on at least two rows — two
+   each, not two on average, which is stricter than route one's first
+   condition; and
+2. every present cell is WRITTEN AS A CODE: inside the code alphabet
+   (`parsing.is_code_text`, the positive evidence the identifier rule
+   itself asks for) and carrying both a letter and a figure.
+
+Route two's second condition is what holds its cost down, and both
+halves of it were measured. Without the figure, every column of words
+clears it — `site`, `arm`, `North`, `yes`/`no`. Without the letter, a
+two-value column of `0` and `1` clears it, and so do a group coded
+1/2/3 and an ordinal 0 to 10.
 
 Roles read as a quantity (`count`, `continuous`,
 `numeric_unrepresentable`, `numbers_with_labels`, `joined_numbers`),
@@ -19369,6 +19386,29 @@ population floor on its rows with no notice, and `subject_id` was
 described as a set of categories with every subject's identifier
 published beside its visit count.
 
+**And route one could not reach that case either**, which this
+landing's skeptic measured and its repair pass fixed. Condition 2 is
+the exact COMPLEMENT of the rule that makes a column `categorical`
+over the same row count, so route one fires only on a column that
+publishes NO levels — never on the one publishing every subject's
+identifier beside its visit count. The cited table is asked about by
+route two, and `tests/test_p4d341_population_floor.py::test_a_subject
+_column_read_as_categories_is_asked_about` asserts both halves: that
+the column reads as `categorical` and publishes all twelve, and that
+the question is put.
+
+**What route two also reaches, accepted with the measurement** (ledger
+K-S3-02's `status_note`). A `ward-12`-shaped label column and a
+register of diagnosis-like codes are written exactly as a subject
+register is written, and nothing in the values tells them apart. On
+the 33-column battery the rule reads 4 false positives where route one
+alone read 2 — and route one's two were unmeasured until this pass,
+because the battery held neither shape. The cost of each is ONE
+question whose standing answer is `keep`; the cost of the miss it
+replaces was a description that published twelve people's identifiers.
+The measured limit of route two is recorded beside it: one subject
+with a single visit silences it.
+
 The answer becomes the `--identifier` declaration by the route every
 other answer takes, and where nobody has said, the screen says the
 population was counted in ROWS.
@@ -19382,14 +19422,34 @@ population was counted in ROWS.
 `parsing.POPULATION_NOTICE_LINE` (1,000) less one it runs, with ONE
 notice that cannot be silenced.
 
+**The rows counted are the rows that HOLD A VALUE** (repair of this
+landing). `taxonomy.people_in` counted the rows the reader returned,
+so twenty real records followed by eighty `,,` rows — or eighty
+`NA,NA,NA` rows — read as a hundred-row table, cleared the floor and
+were described, and every census, mean, spread and percentile in the
+description that came out was taken over the twenty. Three numbers
+padded to a hundred printed all three back verbatim. A row whose every
+cell is blank or is one of this format's spellings for "no value" is
+now counted nowhere: neither as a row of the population, nor as part
+of the one unknown person where an identifier is declared. The notice
+below then states the honest number, because the number it states is
+this count.
+
 **Where it lives, and what it may not touch.** `cli._run_profile` and
 nowhere else. `profile.build_document` describes a table of any size
 and refuses none; the reader, the loader and `synthtwin validate` are
-untouched. A library caller still describes five rows, the validator
-still re-describes a 50-row file it was pointed at, and a description
-written before this landing still loads. What the floor governs is the
-one act the command performs: turning a real table into files that
-leave the machine.
+untouched. A library caller still describes five rows, and the
+validator still re-describes a 50-row file it was pointed at. A
+DESCRIPTION WRITTEN BEFORE THIS LANDING DOES NOT STILL LOAD, and the
+sentence here that said it did was wrong when it was written: the
+settings block gained a required key on this landing
+(`person_columns`), and contract rule C6-20 makes all twenty-three of
+its keys required, so the loader refuses an earlier build's v6
+description and names the entry that is missing. The break is
+sanctioned by amendment A-P4-41, which extends version 6 in place
+until the first release; such a description has to be made again. What
+the floor governs is the one act the command performs: turning a real
+table into files that leave the machine.
 
 **Asked twice.** Once after the read, with the identifiers typed on the
 command line and answered in the questions file — a necessary

@@ -742,6 +742,91 @@ def single_column_table(name: str, values: list[str]) -> str:
     return rows_to_csv([name], [[value] for value in values])
 
 
+# THE KEEPER COLUMN (repair of landing 3.2). `synthtwin profile`
+# refuses a table whose POPULATION is under `parsing.POPULATION_FLOOR`,
+# and the population is the rows that HOLD A VALUE -- so a one-column
+# shape padded with cells this format reads as "no value", or made
+# wholly of them, is a population of its present cells and is refused.
+# A shape whose subject is a COLUMN and not a table reaches the floor
+# by carrying a second column that holds a value on every row.
+#
+# ONE VALUE ON EVERY ROW, so the keeper is a CONSTANT: it publishes
+# one label and no count of any group smaller than the whole table, it
+# is no shape any test measures, and no question can be asked about it
+# -- route two of the person rule wants a figure and this value has
+# none, route one wants more values than a set of categories may hold
+# and this column has one.
+KEEPER_NAME = "held"
+KEEPER_VALUE = "kept"
+
+
+def needs_a_keeper(
+    values: "list[str]", declared_missing: "tuple[str, ...]" = ()
+) -> bool:
+    """Whether a one-column shape of ``values`` falls under the floor.
+
+    The command's rule asked rather than restated: the population is
+    the rows that hold a present value, so a shape holding fewer than
+    `parsing.POPULATION_FLOOR` of them needs the keeper.
+
+    ``declared_missing`` IS NOT OPTIONAL WHERE THE RUN DECLARES ONE.
+    A spelling named with `--missing-value` holds no value on that run,
+    and the default settings cannot know it -- so a column of two
+    hundred `ZZ-777` cells looks full here and is refused there. Every
+    caller that passes `--missing-value` passes those spellings too.
+    """
+    from synthtwin import parsing, taxonomy
+
+    settings = taxonomy.Settings(
+        declared_missing_values=tuple(declared_missing)
+    )
+    present, _absent = taxonomy.split_missing(list(values), settings)
+    return len(present) < parsing.POPULATION_FLOOR
+
+
+def rows_at_the_floor(
+    name: str,
+    values: "list[str]",
+    declared_missing: "tuple[str, ...]" = (),
+) -> "tuple[list[str], list[list[str]]]":
+    """The header and rows of a one-column shape, keeper included.
+
+    Where the shape's own present cells already reach the floor the
+    table is the one column it always was, so nothing about the shapes
+    that never needed a keeper moves.
+    """
+    if not needs_a_keeper(values, declared_missing):
+        return [name], [[value] for value in values]
+    return ([name, KEEPER_NAME], [[value, KEEPER_VALUE] for value in values])
+
+
+def kept_column_table(
+    name: str,
+    values: "list[str]",
+    declared_missing: "tuple[str, ...]" = (),
+) -> str:
+    """`single_column_table`, with the keeper column where it is needed."""
+    names, built = rows_at_the_floor(name, values, declared_missing)
+    return rows_to_csv(names, built)
+
+
+def declared_missing_in(options: "list[str]") -> "tuple[str, ...]":
+    """The spellings a command line names with `--missing-value`.
+
+    Both spellings of the option -- `--missing-value X` and
+    `--missing-value=X` -- because both are used here.
+    """
+    named: "list[str]" = []
+    place = 0
+    for word in options:
+        if word == "--missing-value" and place + 1 < len(options):
+            named += [options[place + 1]]
+        elif word[:16] == "--missing-value=":
+            named += [word[16:]]
+        place = place + 1
+    return tuple(named)
+
+
 def numbers(seed: int, count: int, low: int, high: int) -> list[str]:
     """``count`` whole numbers written as text, drawn with ``seed``."""
     rng = random.Random(seed)
