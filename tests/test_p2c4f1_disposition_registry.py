@@ -777,23 +777,38 @@ def test_an_authorization_the_plan_does_not_carry_is_refused() -> None:
     assert _authorization_violations(borrowed, regions) != []
 
 
-def test_the_registry_authorizes_nothing_for_the_two_ends() -> None:
+def test_the_registry_authorizes_nothing_for_the_two_tails() -> None:
     """The vacuity floor for the check above, on the disputed fact.
 
     An authorization list that was empty for every fact would make the
     scan below trivially strict and would pass whatever the plan said.
-    These four are the ones the plan authorizes nothing for, and they
-    are the four this item is about.
+    THE DISPUTED FACT IS THE OUTERMOST PUBLISHED VALUE OF A COLUMN OF
+    DATES, and stage 3 moved it: `earliest` and `latest` are published
+    nowhere, and what stands at the outside of the column now is each
+    tail's BOUNDARY, with the count of rows beyond it and -- where the
+    tail publishes them -- the values it holds. Those are the entries
+    the plan authorizes nothing for, on both roles that carry a tail,
+    and lowering one of them would be this item's lowering written
+    against the field that inherited it.
     """
-    for field in (
-        "earliest",
-        "latest",
-        "date_percentiles.min",
-        "date_percentiles.max",
-    ):
-        fact = dispositions.BY_KEY[("datetime", field)]
-        assert fact.authorized == (), field
-        assert fact.disposition == dispositions.EXACT_OBSERVABLE, field
+    for group in ("datetime", "clock"):
+        for field in (
+            "low_tail.boundary",
+            "high_tail.boundary",
+            "low_tail.rows",
+            "high_tail.rows",
+            "low_tail.values",
+            "high_tail.values",
+        ):
+            fact = dispositions.BY_KEY[(group, field)]
+            assert fact.authorized == (), f"{group}/{field}"
+            assert fact.disposition == dispositions.EXACT_OBSERVABLE, (
+                f"{group}/{field}"
+            )
+    # ...and the two ladder ends this item was also about are published
+    # nowhere now, so no entry disposes them at all.
+    for field in ("date_percentiles.min", "date_percentiles.max"):
+        assert ("datetime", field) not in dispositions.BY_KEY, field
     assert dispositions.BY_KEY[("numeric", "n_distinct")].authorized != ()
 
 
@@ -2000,24 +2015,24 @@ def test_an_invented_miss_of_an_exact_fact_is_refused() -> None:
 # collection of special cases about one field.
 LOWERINGS = (
     (
-        "round 1, the endpoint made REPORT-ONLY",
+        "round 1, the outermost published value made REPORT-ONLY",
         CONTRACT,
         (
-            "| `earliest`, `latest` | REPORT-ONLY where the ordinal space has "
-            "no room for the value |"
+            "| `low_tail.boundary`, `high_tail.boundary` | REPORT-ONLY where "
+            "the ordinal space has no room for the value |"
         ),
-        ("datetime", "earliest"),
+        ("datetime", "low_tail.boundary"),
     ),
     (
-        "round 2, the endpoint met as far as it could be",
+        "round 2, the outermost published value met as far as it could be",
         METHOD,
         (
-            "**What remains.** A hand-made description can still publish an "
-            "endpoint no cell of its own recorded shape can show, and there "
-            "the generator meets what it can, recounts the endpoint from the "
-            "written cell, and names it in the report."
+            "**What remains.** A hand-made description can still publish a "
+            "tail boundary no cell of its own recorded shape can show, and "
+            "there the generator meets what it can, recounts the boundary "
+            "from the written cell, and names it in the report."
         ),
-        ("datetime", "latest"),
+        ("datetime", "high_tail.boundary"),
     ),
     (
         "round 3, the packing fallback, aimed at a fact it never reached",
@@ -2034,11 +2049,11 @@ LOWERINGS = (
         METHOD,
         (
             "It still has one description the loader accepts and no cell can "
-            "show: an endpoint within one offset's distance of either year "
-            "the canonical form runs between. That one is recounted from the "
-            "written cell and named in the report."
+            "show: a tail boundary within one offset's distance of either "
+            "year the canonical form runs between. That one is recounted "
+            "from the written cell and named in the report."
         ),
-        ("datetime", "earliest"),
+        ("datetime", "low_tail.boundary"),
     ),
     (
         "a different obligation: the label levels",
@@ -2149,12 +2164,16 @@ def test_the_guard_reddens_when_the_plan_itself_is_softened(
             "`n_zero`, `n_negative`, `std_unrepresentable`",
             "`n_zero` APPROXIMATED, `n_negative`, `std_unrepresentable`",
         ),
-        # The sentence the registry quotes.
+        # The sentence the registry quotes. The two ends it used to be
+        # written against are published nowhere since stage 3, so the
+        # softening is put to the ladder sentence the registry still
+        # quotes on the same role -- a class weakened where the plan
+        # states the bar in words rather than beside a name.
         (
-            "`earliest`, `latest` EXACT-OBSERVABLE in the",
+            "`date_percentiles` interior rungs APPROXIMATED",
             (
-                "`earliest`, `latest` REPORT-ONLY at the calendar's ends "
-                "and EXACT-OBSERVABLE otherwise in the"
+                "`date_percentiles` interior rungs REPORT-ONLY on a column "
+                "the construction cannot fill"
             ),
         ),
     ]:

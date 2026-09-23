@@ -595,6 +595,30 @@ def test_the_inventory_is_read_out_of_the_matrix_and_misses_no_clause(
     assert "n_distinct_folded" in APPROXIMATED["continuous"]
 
 
+def _published_rung(column: contract.ColumnBlock, fact: str) -> bool:
+    """Whether a named fact is a rung this column actually publishes.
+
+    Every fact that is not a ladder rung passes; a rung passes only
+    where the description carries a value at it (stage 3, contract D11
+    and T2).
+    """
+    for key, ladder in (
+        ("date_percentiles.", "date_percentiles"),
+        ("clock_percentiles.", "clock_percentiles"),
+    ):
+        if not fact.startswith(key):
+            continue
+        facts = column.facts
+        published = getattr(facts, ladder, None)
+        if published is None:
+            return False
+        rung = fact[len(key):]
+        if ladder == "clock_percentiles":
+            return published[rung] is not None
+        return getattr(published, rung) is not None
+    return True
+
+
 def test_every_approximated_fact_of_every_role_is_measured(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
@@ -633,7 +657,18 @@ def test_every_approximated_fact_of_every_role_is_measured(
                 f"n_core_{one[2:]}" if one.startswith("n_distinct") else one
                 for one in owed
             ]
-        assert measured == owed, f"{column.name} ({column.role})"
+        # A RUNG THE TAIL RULE WITHHOLDS IS NOT AN APPROXIMATED FACT OF
+        # THIS COLUMN (stage 3, plan P4-D328): the description publishes
+        # `null` there, so there is no number to bound and the report
+        # measures none. The matrix names every rung a ladder CAN carry,
+        # so the ones this column withholds come out of the list here.
+        owed = [one for one in owed if _published_rung(column, one)]
+        # COMPARED BY IDENTITY, not by the order the two happen to use:
+        # the report writes the ladder's bounds before the tails' and
+        # the matrix states the tails' row first, and what this asserts
+        # is that the sets are the same -- no fact missing, and none
+        # measured that the matrix does not give the role.
+        assert sorted(measured) == sorted(owed), f"{column.name} ({column.role})"
 
 
 def test_every_approximated_fact_of_the_compound_role_is_measured(
@@ -1152,10 +1187,18 @@ def test_the_shape_bound_refuses_a_column_whose_tail_is_the_wrong_way(
 def test_the_date_rung_bound_refuses_a_twin_that_wrote_one_date(
     every_role: contract.Profile
 ) -> None:
-    """A generator that met both published ends and nothing between them."""
+    """A generator that met both published BOUNDARIES and nothing between.
+
+    The two ends went with stage 3 (plan P4-D328), so the column a
+    collapsed twin is built from is the two tail boundaries: every cell
+    on the low one but the last, which stands on the high one.
+    """
     facts = every_role.columns[_place_of(every_role, "recorded_on")].facts
     assert isinstance(facts, contract.DatetimeFacts)
-    collapsed = [facts.earliest for _step in range(239)] + [facts.latest]
+    assert facts.low_tail is not None and facts.high_tail is not None
+    collapsed = [facts.low_tail.boundary for _step in range(239)] + [
+        facts.high_tail.boundary
+    ]
     measured = _measure(every_role, "recorded_on", collapsed)
     outside = [
         record.fact
@@ -1174,7 +1217,10 @@ def test_the_date_cardinality_bound_refuses_a_collapsed_column(
     """The lower end of G12.5: the published ladder forces values apart."""
     facts = every_role.columns[_place_of(every_role, "recorded_on")].facts
     assert isinstance(facts, contract.DatetimeFacts)
-    collapsed = [facts.earliest for _step in range(239)] + [facts.latest]
+    assert facts.low_tail is not None and facts.high_tail is not None
+    collapsed = [facts.low_tail.boundary for _step in range(239)] + [
+        facts.high_tail.boundary
+    ]
     measured = _measure(every_role, "recorded_on", collapsed)
     assert not _found(measured, "n_distinct").inside
     assert not _found(measured, "n_distinct_folded").inside

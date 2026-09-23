@@ -6,6 +6,39 @@ exists).
 
 ## [Unreleased]
 
+### Changed: a column of dates or clock times publishes tails, not ends (stage 3, 2026-09-22)
+
+**No date or time a description publishes is one of the column's
+outermost cells any more.** `earliest`, `latest`, `earliest_utc_offset`
+and `latest_utc_offset` are gone from the `datetime` role, `earliest`
+and `latest` from `time_of_day`, and each ladder publishes `null` at
+`min` and `max` and at every rung whose rank falls inside a tail. Each
+side of such a column publishes a TAIL instead: the boundary -- the
+smallest value with at least a smallest group's worth of cells strictly
+below it, mirrored above -- the count of rows beyond it, and how far
+those rows stand, as a mean and a root-mean-square distance in the
+column's own `tail_unit`. A tail holding few different values, or one
+whose two distances would settle a count below the floor, publishes
+those values instead, existence only and never a count. A column too
+small or too tied for a boundary on each side publishes no value of the
+table at all, and its twin is a made-up ramp from 1970-01-01 (plans
+P4-D328 to P4-D332).
+
+| on a 400-row column of dates, at a floor of eleven   | before | after |
+|------------------------------------------------------|--------|-------|
+| published values held by one row                     | 2      | 0     |
+| published facts naming one of the 11 outermost cells  | 4      | 0     |
+| rungs published between the two boundaries           | 9      | 7     |
+| the twin's spread of a lone far value, against the real column | +7.92% to +26.02% | -0.24% to +0.46% |
+| checkable obligations the twin misses                | 0      | 0     |
+
+**What it costs.** Two rungs of an eleven-rung ladder are withheld on a
+column of four hundred rows, and all nine on a column of fewer than
+forty-five; a column of fewer than twenty-three rows publishes no date
+at all. What it buys is that a column's rarest dates -- a date of death,
+a date of birth at the edge of a cohort -- are no longer written down in
+a file that travels.
+
 ### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
 
 **A description made without `--smallest-group` no longer names a group

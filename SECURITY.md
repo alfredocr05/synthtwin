@@ -285,7 +285,12 @@ Stated here so that no reader has to discover them independently:
   table, but it is not anonymous: it publishes labels that at least
   `small_cell_floor` rows share, the smallest and largest values of
   numeric columns and the points between them, and counts about groups
-  nobody is named in. **`small_cell_floor` is 11 by default** (owner,
+  nobody is named in. **A column of dates or clock times publishes
+  neither end** (stage 3): each side of it is a TAIL -- a boundary with
+  at least `small_cell_floor` cells beyond it, how many those are, and
+  how far they lie -- so no date in the file is the rarest one the
+  column held, and a tail that lists its few different dates says
+  nothing about how many rows hold each. **`small_cell_floor` is 11 by default** (owner,
   2026-09-22), so by default it publishes a label only where at least
   eleven rows share it, with how many rows did, and pools the rest into
   a count that names none of them. `--smallest-group` lowers it, down to

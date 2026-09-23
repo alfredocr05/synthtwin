@@ -340,15 +340,22 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # its floor-eleven count of decimals no longer meets the floor-one
     # fraction census and is refused.
     #
-    # AND `stamped_at`'s LADDER, which is statistics and not a census: its
-    # rows at a rare offset are read at the commonest offset where the
-    # census counts them into it, so the instants the ladder is read off
-    # move with the floor. A ladder carries no count a floor holds back,
-    # and no invariant ties it to the floor.
+    # AND `stamped_at`'s LADDER LEFT THIS LIST IN STAGE 3. It was here
+    # for a reason that was true when it was written: a ladder is
+    # statistics and not a census, its rows at a rare offset are read at
+    # the commonest offset where the census counts them into it, so the
+    # instants it is read off move with the floor while no invariant
+    # tied it to anything the floor governs. The tail rule (plan
+    # P4-D328) ties it: the contract's D11' publishes the ladder
+    # BETWEEN the two tail boundaries and nowhere else, and the
+    # boundaries are where the floor puts them, so the floor-eleven
+    # ladder grafted into a floor-one document now names rungs outside
+    # that column's own tails and is refused in those words. The two
+    # tails are refused there beside it. What is left silent is the
+    # three below.
     assert silent == [
         ("columns", 3, "field_widths"),
         ("columns", 3, "sentinel_verdicts"),
-        ("columns", 5, "date_percentiles"),
         ("columns", 5, "utc_offsets"),
     ], (
         f"a position the floor moves has stopped being recorded by the "

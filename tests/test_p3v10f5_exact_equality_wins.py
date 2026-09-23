@@ -343,8 +343,17 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "table-quality.txt").read_text("utf-8")
     assert "0  MISSED" in report
-    # ...and the line the reviewer read is now HELD.
-    assert "date-ladder.p99 [datetime.date_percentiles]: HELD" in report
+    # ...and the line the reviewer read is now HELD. THE RUNG MOVED IN
+    # STAGE 3 (plan P4-D328): `p99` is a rank inside this column's high
+    # tail, which a description publishes as null and the report LISTS
+    # rather than checks, so the topmost rung a report of this column
+    # still carries is `p95` -- and it is the line asserted here, on the
+    # same terms. That `p99` is listed and not checked is asserted too,
+    # so the move is stated rather than left as a line that quietly
+    # stopped being read.
+    assert "date-ladder.p95 [datetime.date_percentiles]: HELD" in report
+    assert "date-ladder.p99 [datetime.date_percentiles]: HELD" not in report
+    assert "'recorded_on' -- date-ladder.p99 [datetime.date_percentiles]" in report
     assert "the file was found to hold: that same value" in report
     # ...with a window that misses its own value still explaining itself
     # underneath, on the column of times that reaches that corner.

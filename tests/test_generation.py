@@ -362,6 +362,61 @@ def test_the_two_ends_of_a_ladder_are_exact(
         assert max(held) == facts.percentiles.maximum, column.name
 
 
+def test_the_two_tail_boundaries_are_exact(
+    every_role: contract.Profile, twin: generation.Twin
+) -> None:
+    """What stands where a column of dates or clock times had its ends.
+
+    Stage 3, plan P4-D328. The two ends are published nowhere; each side
+    of such a column publishes a BOUNDARY, the count of rows beyond it
+    and how far they stand. The boundary is EXACT-OBSERVABLE (contract
+    section 9.6), so it is recounted here from the twin's own cells: the
+    cell at `low_tail.rows` ranks in from the bottom stands on the low
+    boundary, the cell at `high_tail.rows` ranks in from the top on the
+    high one, and the counts of cells strictly beyond them are the two
+    published `rows`.
+    """
+    seen = 0
+    for column in every_role.columns:
+        facts = column.facts
+        clock = isinstance(facts, contract.ClockFacts)
+        if not clock and not isinstance(facts, contract.DatetimeFacts):
+            continue
+        if facts.low_tail is None or facts.high_tail is None:
+            continue
+        written = _present(_cells(twin, column.name), column)
+        read: "list[str]" = []
+        for cell in written:
+            if clock:
+                ordinal = parsing.clock_ordinal(cell, facts.clock_form)
+                if ordinal is not None:
+                    read += [parsing.clock_spelling(ordinal, facts.clock_form)]
+                continue
+            found = parsing.parse_datetime(cell, facts.parser_family)
+            if found is None:
+                continue
+            if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
+                shifted = parsing.utc_canonical(found[0], found[1])
+                if shifted is None:
+                    continue
+                read += [shifted]
+                continue
+            read += [found[0]]
+        ordered = sorted(read)
+        low = facts.low_tail
+        high = facts.high_tail
+        assert ordered[low.rows] == low.boundary, column.name
+        assert ordered[len(ordered) - 1 - high.rows] == high.boundary, column.name
+        assert sum(1 for value in ordered if value < low.boundary) == low.rows, (
+            column.name
+        )
+        assert sum(1 for value in ordered if value > high.boundary) == high.rows, (
+            column.name
+        )
+        seen += 1
+    assert seen >= 2, "no column of dates or clock times carried a tail"
+
+
 def test_every_value_lies_between_the_two_published_ends(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
@@ -788,9 +843,20 @@ def _format_for(resolution: str) -> str:
     return "iso-date"
 
 
-def test_the_two_ends_of_a_date_ladder_are_exact(
+def test_the_published_rungs_of_a_date_ladder_are_exact(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
+    """Each rung the tail rule publishes, read off the rank it is selected from.
+
+    THE LADDER'S TWO ENDS ARE GONE (stage 3, plan P4-D328): they are
+    `null` in every description this version writes, and what stands at
+    the outside of the column is a tail, recounted by
+    `test_the_two_tail_boundaries_are_exact` above. What is left to hold
+    here is the rung: the profiler SELECTS it at a rank, and the twin
+    pins that rank to it, so the twin's own cell at that rank is the
+    published rung character for character.
+    """
+    seen = 0
     for column in every_role.columns:
         facts = column.facts
         if not isinstance(facts, contract.DatetimeFacts):
@@ -800,8 +866,18 @@ def test_the_two_ends_of_a_date_ladder_are_exact(
             found = parsing.parse_datetime(cell, _format_for(facts.resolution))
             if found is not None:
                 instants.append(found[0])
-        assert min(instants)[:10] == facts.earliest[:10], column.name
-        assert max(instants)[:10] == facts.latest[:10], column.name
+        ordered = sorted(instants)
+        assert facts.date_percentiles.rungs[0] is None, column.name
+        assert facts.date_percentiles.rungs[10] is None, column.name
+        for place in range(1, 10):
+            rung = facts.date_percentiles.rungs[place]
+            if rung is None:
+                continue
+            percent = (1, 5, 10, 25, 50, 75, 90, 95, 99)[place - 1]
+            rank = min(len(ordered) - 1, ((len(ordered) - 1) * percent) // 100)
+            assert ordered[rank][:10] == rung[:10], (column.name, percent)
+            seen += 1
+    assert seen >= 1, "no column of dates published an interior rung"
 
 
 def test_the_word_budget_is_a_function_of_the_published_facts(
@@ -1215,9 +1291,15 @@ def _one_column(
     return _described(folder, fixtures.single_column_table(name, values))
 
 
-def test_a_column_of_quarters_keeps_its_form_and_its_ends(
+def test_a_column_of_quarters_keeps_its_form_and_its_boundaries(
     tmp_path: pathlib.Path,
 ) -> None:
+    """Its cells are quarters, and its two TAIL BOUNDARIES are exact.
+
+    The two ends went with stage 3 (plan P4-D328): what the column
+    publishes at its outside is a boundary on each side, with the count
+    of rows beyond it, and those are what a twin of it must give back.
+    """
     values = [f"{2020 + index % 5}-Q{index % 4 + 1}" for index in range(60)]
     described = _one_column(tmp_path / "q", "period", values)
     facts = _block(described, "period").facts
@@ -1227,8 +1309,13 @@ def test_a_column_of_quarters_keeps_its_form_and_its_ends(
     cells = _present(_cells(built, "period"))
     for cell in cells:
         assert parsing.parse_datetime(cell, "year-quarter") is not None, cell
-    assert min(cells) == facts.earliest
-    assert max(cells) == facts.latest
+    assert facts.low_tail is not None and facts.high_tail is not None
+    ordered = sorted(cells)
+    assert ordered[facts.low_tail.rows] == facts.low_tail.boundary
+    assert (
+        ordered[len(ordered) - 1 - facts.high_tail.rows]
+        == facts.high_tail.boundary
+    )
 
 
 def test_an_offset_bearing_column_keeps_its_instants_and_its_offsets(
@@ -1255,10 +1342,16 @@ def test_an_offset_bearing_column_keeps_its_instants_and_its_offsets(
         instant = parsing.utc_canonical(found[0], found[1])
         assert instant is not None
         instants.append(instant)
-    # The two ends are EXACT-OBSERVABLE as instants, which is only true
-    # if the wall clock of each cell was written on its own offset.
-    assert min(instants) == facts.earliest
-    assert max(instants) == facts.latest
+    # THE TWO TAIL BOUNDARIES are EXACT-OBSERVABLE as instants (stage 3,
+    # plan P4-D328), which is only true if the wall clock of each cell
+    # was written on its own offset.
+    assert facts.low_tail is not None and facts.high_tail is not None
+    ordered = sorted(instants)
+    assert ordered[facts.low_tail.rows] == facts.low_tail.boundary
+    assert (
+        ordered[len(ordered) - 1 - facts.high_tail.rows]
+        == facts.high_tail.boundary
+    )
     assert carried == facts.utc_offsets
     # A twin that lost the offset diversity would re-read as a column on
     # one clock, which is the corner method G7.4 names.

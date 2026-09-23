@@ -645,12 +645,20 @@ section 7.13, landing 2b.18 part 2, plan P4-D123).
 label and count), `suppressed_levels`, `suppressed_level_counts`,
 `suppressed_rows` EXACT-OBSERVABLE; `level_ceiling` LOADER-ONLY.
 
-**Datetime**: `earliest`, `latest` EXACT-OBSERVABLE in the
-representation owner decision 5 fixes; `date_percentiles` endpoints
-exact and interior rungs APPROXIMATED; `resolution`, `time_precision`,
-`subsecond_digits`, `utc_offsets`, `earliest_utc_offset`,
-`latest_utc_offset` EXACT-OBSERVABLE. Two dispositions revision 3 got
-backwards are corrected here (P2-R4-F3):
+**Datetime**: `date_percentiles` interior rungs APPROXIMATED;
+`resolution`, `time_precision`, `subsecond_digits`, `utc_offsets`
+EXACT-OBSERVABLE in the representation owner decision 5 fixes. **The two ends and
+the two end offsets left the role in stage 3** (plan P4-D328):
+`earliest`, `latest`, `earliest_utc_offset` and `latest_utc_offset` are
+published nowhere, the ladder's two end rungs are null in every
+description and oblige no cell of any file, and the two TAILS that
+stand in their place are disposed in the decision that added them, for
+this role and the clock role together — with **both tail boundaries
+EXACT-OBSERVABLE in the representation owner decision 5 fixes**, the
+published moment's own fields written back character for character, so
+the obligation moved with the fact it is about and was not lowered on
+the way. Two dispositions revision 3 got backwards are corrected here
+(P2-R4-F3):
 
 - **`format` is EXACT-OBSERVABLE since the reversal of owner decision
   5.** It names the real file's parser family — `compact-date`,

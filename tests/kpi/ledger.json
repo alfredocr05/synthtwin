@@ -1152,9 +1152,9 @@
    "phase_stage": "Phase 2 (G10, G5.3)",
    "category": "STATS",
    "headline": false,
-   "name": "Exact counts and both ends are recounted exactly from the twin's own cells",
+   "name": "Exact counts are recounted exactly from the twin's own cells, and so are the numeric ladder's two ends and every tail boundary",
    "status": "GREEN",
-   "rule": "exact equality",
+   "rule": "exact equality. THE TWO ENDS THIS ENTRY NAMED WERE THE LADDER'S (plan P2-D6): the numeric ladder still publishes min and max and they are still recounted here, and a column of dates or clock times publishes neither since stage 3 (plan P4-D328) -- what stands at its outside is a TAIL, whose boundary and count of rows beyond it are recounted from the twin's own cells by the node added below",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -1165,13 +1165,14 @@
     "tests/test_generation.py::test_n_present_and_n_missing_are_recounted_exactly",
     "tests/test_generation.py::test_the_four_class_counts_are_recounted_exactly",
     "tests/test_generation.py::test_the_two_ends_of_a_ladder_are_exact",
+    "tests/test_generation.py::test_the_two_tail_boundaries_are_exact",
     "tests/test_generation.py::test_every_value_lies_between_the_two_published_ends"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "every-role twin 240 rows, seed 7",
-   "evidence": "90 of 90 presence and class recounts equal; every numeric and date column hits both published ends, nothing outside",
+   "evidence": "90 of 90 presence and class recounts equal; every numeric column hits both published ends, nothing outside; and both tail boundaries of the demonstration's date and clock columns are the twin's own cells at the ranks their rows fix",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -1180,7 +1181,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 4
+   "nodes_min_collected": 5
   },
   {
    "id": "K-P2-09",

@@ -100,7 +100,11 @@ def test_a_placeholder_stops_being_the_column_s_last_value() -> None:
     assert block["role"] == "datetime"
     assert block["n_present"] == 228
     assert block["n_missing"] == 12
-    assert block["latest"] == "2024-12-28"
+    # STAGE 3: no end is published, so what says the placeholder is out
+    # of the column's own values is that no tail and no rung mentions
+    # it, and the high tail stands inside 2024.
+    assert block["high_tail"]["boundary"].startswith("2024-")
+    assert FAR not in f"{block['high_tail']}"
     assert FAR not in f"{block['date_percentiles']}"
     assert block["missing_by_class"]["(date-sentinel)"] == 12
     assert described.columns[0].missing_by_class.date_sentinel == 12
@@ -232,7 +236,9 @@ def test_a_declared_placeholder_is_data_and_says_so() -> None:
     )
     block = document["columns"][0]
     assert block["n_missing"] == 0
-    assert block["latest"] == FAR
+    # Kept as data, so the twelve rows on that day are a group of the
+    # column's own values: the high tail holds them and says so.
+    assert FAR in f"{block['high_tail']}"
     verdicts = block["sentinel_verdicts"]
     assert len(verdicts) == 1
     assert verdicts[0]["reason"] == "kept_by_you"
@@ -269,8 +275,10 @@ def test_both_placeholders_are_judged_against_the_same_others() -> None:
     assert block["n_missing"] == 24
     named = [entry["candidate"] for entry in block["sentinel_verdicts"]]
     assert named == [NEAR, FAR]
-    assert block["earliest"] == "2024-01-01"
-    assert block["latest"] == "2024-12-28"
+    assert block["low_tail"]["boundary"].startswith("2024-")
+    assert block["high_tail"]["boundary"].startswith("2024-")
+    assert NEAR not in f"{block['low_tail']}"
+    assert FAR not in f"{block['high_tail']}"
 
 
 # -- the sixth class, on every block ----------------------------------
@@ -338,7 +346,7 @@ def test_the_declaration_names_a_spelling_of_your_table() -> None:
     )
     block = document["columns"][0]
     assert block["n_missing"] == 0
-    assert block["latest"] == FAR
+    assert FAR in f"{block['high_tail']}"
     assert block["sentinel_verdicts"][0]["reason"] == "kept_by_you"
 
 

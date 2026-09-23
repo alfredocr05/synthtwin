@@ -80,6 +80,7 @@ its own window admits.
 import ast
 import importlib.util
 import json
+import math
 import pathlib
 import sys
 import typing
@@ -175,6 +176,18 @@ SEVENTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-7.json"
 )
+# THE TENTH FILE (stage 3, plan P4-D328): the three cases the tail
+# landing grew past the room their own files had. Grown in place they
+# carried the second file to 261857 bytes and the first to 258476
+# against the manifest's 250000-byte cap.
+EIGHTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_8.py"
+)
+EIGHTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-8.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -244,6 +257,10 @@ def _seventh_branch_document() -> dict:
     return json.loads(SEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
+def _eighth_branch_document() -> dict:
+    return json.loads(EIGHTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
 # The nine cases method section G14.3 names, and the four the review of
 # 158c811 added beside them (plans P4-D130, P4-D132, P4-D133), and the two
 # its skeptic added (plan P4-D138), which live in this file because it
@@ -276,12 +293,6 @@ BRANCH_CASES = (
     # universal class counts answer for the CELLS and the quantitative
     # block for the CORES, and they are not the same set.
     "affixed_brackets",
-    # THE SECOND FROZEN CASE FOR A ROLE PHASE 4 ADDED (residual
-    # R-P4-17), and the first for a role whose method section did not
-    # exist until 2026-08-27. Eleven seconds hold eleven parsed cells,
-    # so the all-different repair of G7A.4 has no slack and every
-    # interior rank must land on the one ordinal left for it.
-    "clock_ladder",
     # THE CENSUS OF SPELLINGS OF A COUNT COLUMN (landing 2b.18 part 2,
     # plan P4-D123). Every count case before it wrote each number one
     # way, so it publishes an empty census and the rule could be
@@ -326,11 +337,11 @@ BRANCH_CASES = (
     # THE CASE OF A LETTER (landing 2b.18 part 2, plan P4-D121). Every
     # label case before it publishes a census blind to case.
     "lower_case_stand_ins",
-    # THE TWO CASES FOR THE SPELLING OF A MOMENT (plan P4-D39, stage 2).
-    # One pins the day-unit rule of a column that stands wholly at
-    # midnight; the other pins the evenly spread rotation of marks, its
-    # tie rule and the withheld pool.
-    "midnight_days",
+    # THE CASE FOR THE SPELLING OF A MOMENT that stayed here (plan
+    # P4-D39, stage 2): the evenly spread rotation of marks, its tie
+    # rule and the withheld pool. Its neighbour, the day-unit case,
+    # moved to the tenth file at the tail landing for the room it
+    # needed there.
     # THE ONE CASE IN ANY OF THE THREE FILES THAT NAMES MORE THAN ONE
     # CONVENTION (landing 2b.7, plan P4-D65.2). A census naming ONE
     # notation or ONE mark cannot pin the allocators that spend it: the
@@ -410,14 +421,14 @@ SECOND_BRANCH_CASES = (
     # numbers, gaps first -- could be withdrawn with every committed byte
     # unchanged.
     "label_numbers",
-    "midnight_bare_offsets",
-    # THE FIVE CASES OF LANDING 2b.3: bare dates beside midnight moments,
-    # midnight on two offsets, a column partly at midnight, a withheld pool
-    # spent on the unnamed marks, and a slashed stamp's one permitted mark.
+    # THREE OF THE FIVE CASES OF LANDING 2b.3 stayed here: midnight on
+    # two offsets, a withheld pool spent on the unnamed marks, and a
+    # slashed stamp's one permitted mark. The bare dates beside midnight
+    # moments and the column partly at midnight moved to the tenth file
+    # at the tail landing, for the room they needed there.
     "midnight_mixed_forms",
     "midnight_two_offsets",
     "narrow_spaced",
-    "partial_midnight",
     "pooled_marks",
     "quoted_trailing_minus",
     "slashed_pool",
@@ -549,6 +560,15 @@ SEVENTH_BRANCH_CASES = (
     "saturated_grid_alone",
 )
 
+# THE TENTH FILE'S FOUR (stage 3, plan P4-D328): the cases the tail
+# landing grew past the room their own files had.
+EIGHTH_BRANCH_CASES = (
+    "clock_ladder",
+    "midnight_bare_offsets",
+    "midnight_days",
+    "partial_midnight",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -559,6 +579,7 @@ ALL_CASES = tuple(
         + FIFTH_BRANCH_CASES
         + SIXTH_BRANCH_CASES
         + SEVENTH_BRANCH_CASES
+        + EIGHTH_BRANCH_CASES
     )
 )
 
@@ -734,7 +755,9 @@ DECLARED_IDENTIFIERS = frozenset(
 
 def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
-    if name in SEVENTH_BRANCH_CASES:
+    if name in EIGHTH_BRANCH_CASES:
+        document = _eighth_branch_document()
+    elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
         document = _sixth_branch_document()
@@ -958,9 +981,9 @@ def test_the_oracle_is_present_and_says_what_it_is() -> None:
 def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     """No file may be read as the whole of the oracle.
 
-    The three carry disjoint case sets and together carry every case
+    The ten carry disjoint case sets and together carry every case
     method section G14.3 names, and each one's own account says where
-    the other two live -- so a reader who opens any of them is told at
+    the others live -- so a reader who opens any of them is told at
     once that it is part of one artifact rather than all of it.
     """
     named = _document()
@@ -971,6 +994,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     fifth = _fifth_branch_document()
     sixth = _sixth_branch_document()
     seventh = _seventh_branch_document()
+    eighth = _eighth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -979,8 +1003,12 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(fifth["cases"])) == FIFTH_BRANCH_CASES
     assert tuple(sorted(sixth["cases"])) == SIXTH_BRANCH_CASES
     assert tuple(sorted(seventh["cases"])) == SEVENTH_BRANCH_CASES
+    assert tuple(sorted(eighth["cases"])) == EIGHTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
-    every = (named, branch, second, third, fourth, fifth, sixth, seventh, papers)
+    every = (
+        named, branch, second, third, fourth, fifth, sixth, seventh, eighth,
+        papers,
+    )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
             assert not set(every[index]["cases"]) & set(every[other]["cases"])
@@ -997,6 +1025,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (fifth, FIFTH_BRANCH_VECTORS),
         (sixth, SIXTH_BRANCH_VECTORS),
         (seventh, SEVENTH_BRANCH_VECTORS),
+        (eighth, EIGHTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1280,6 +1309,10 @@ SIXTH_BRANCH_PUBLISHED_NUMBERS = 321
 SIXTH_BRANCH_NAMED_COUNTS = 365
 SEVENTH_BRANCH_PUBLISHED_NUMBERS = 866
 SEVENTH_BRANCH_NAMED_COUNTS = 357
+# The tenth file's four cases publish the two distances of each tail
+# they carry and nothing else that is a number rather than a count.
+EIGHTH_BRANCH_PUBLISHED_NUMBERS = 16
+EIGHTH_BRANCH_NAMED_COUNTS = 110
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1326,6 +1359,12 @@ COMMITTED_FILES = (
         SIXTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        EIGHTH_BRANCH_VECTORS,
+        gen.EIGHTH_BRANCH_PART,
+        EIGHTH_BRANCH_PUBLISHED_NUMBERS,
+        EIGHTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         SEVENTH_BRANCH_VECTORS,
         gen.SEVENTH_BRANCH_PART,
         SEVENTH_BRANCH_PUBLISHED_NUMBERS,
@@ -1345,7 +1384,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1387,7 +1426,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1406,7 +1445,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-7", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -1686,6 +1725,124 @@ def _marks_on_the_positive_side_alone(column, *arguments):
     return gen_grouped_enough(unsigned, *arguments)
 
 
+# -- the rival rules the tails could have taken (stage 3, plan P4-D328)
+#
+# Four cases were frozen for branches the stage-3 format puts out of
+# their reach: a column publishes no end any more, so a rank tied at an
+# end is nothing to hold, and a column whose outer cells stand in a tail
+# no longer falls short of a distinct count the way the mark spend and
+# the two merges were witnessed by. Each of those cases now holds up a
+# rule of the TAILS instead -- machinery this landing added, which needs
+# a frozen witness of its own -- and the coverage each one leaves is
+# stated in the method's G14.3 beside its row rather than left to be
+# discovered.
+
+
+# The real rules, bound before any mutant replaces them, so a rival
+# that keeps part of one calls what the method states and not itself.
+_real_tail_distances = gen.tail_distances
+_real_tail_step = gen.tail_step_of
+_real_ramp_places = gen.ramp_places
+
+
+def _stratum_end_instead(shape, rows, mean, root, edge):
+    """G7.3b step 3 withdrawn: the end at its stratum's root-mean-square.
+
+    The rival the clause names and measures: instead of solving both
+    moment equations together, the outermost rank stands at the
+    root-mean-square of the shape over its own stratum and the ranks
+    inside it are not stretched at all. It is what the tail did before
+    the moment-matched end, and on a lone far value it misses the
+    published mean square by 14 to 22 per cent.
+    """
+    inner = (rows - 1) / rows
+    end = math.sqrt(
+        max(rows * (gen.squares_upto(shape, 1.0) - gen.squares_upto(shape, inner)), 0.0)
+    )
+    return 1.0, min(end, float(edge))
+
+
+def _never_apart(rows, mean, root, floor, edge, apart, words):
+    """G7.3b step 5's two-pass step withdrawn: the tail may fold onto one value.
+
+    The ranks are raised to the one inside them and no further, so a
+    column whose own values were all different comes back holding two
+    of its tail's ranks on one value.
+    """
+    return _real_tail_distances(rows, mean, root, floor, edge, False, words)
+
+
+def _no_day_of_room(column):
+    """G7.3b step 8's widening withdrawn: a tail rank keeps its stratum alone.
+
+    Where one tail unit is a day of the shared clock the rank's room is
+    the whole day it may be moved inside; the mutant leaves it the two
+    distances its own construction gives it, and the move onto a local
+    midnight has nowhere to take it.
+    """
+    step, _half = _real_tail_step(column)
+    return step, 0
+
+
+def _ramp_over_the_ranks(column, parsed):
+    """G7.3d's step count withdrawn: the ramp spread over the RANKS.
+
+    The rule puts rank `P - 1` at `D - 1` steps from 1970-01-01, `D` the
+    column's published count of different values; the mutant puts it at
+    `P - 1` steps, so the ramp spreads one rank to a step and the counts
+    of different values, of widths and of marks are reached elsewhere or
+    not at all.
+    """
+    step = 86400 if gen.ordinal_space(column) == "datetime" else 1
+    pins = {0: 0}
+    if parsed >= 2:
+        pins[parsed - 1] = (parsed - 1) * step
+    return pins
+
+
+def _ramp_from_one(column, parsed):
+    """G7.3d's START withdrawn: the ramp begins one step later.
+
+    Rank nought stands at 1970-01-01, ordinal nought in every space of
+    G7.1, and the mutant starts the whole ramp one step along -- which is
+    the same shape a step later, and every cell of the column moves.
+    """
+    pins = dict(_real_ramp_places(column, parsed))
+    for rank in sorted(pins):
+        pins[rank] = pins[rank] + 1
+    return pins
+
+
+def _always_apart(rows, mean, root, floor, edge, apart, words):
+    """G7A.4's CONDITION withdrawn: every tail kept apart, all-different or not.
+
+    The two-pass step belongs to a column whose own values all differ;
+    the mutant runs it on every column, so a tail whose real cells
+    shared a value comes back holding as many different ones as it has
+    ranks.
+    """
+    return _real_tail_distances(rows, mean, root, floor, edge, True, words)
+
+
+def _no_fold_guard(rows, mean, root, floor, edge, apart, words):
+    """G7.3b step 5's ordering withdrawn: each rank at its own stratum alone.
+
+    The distances are left exactly as the shape gives them, with no rank
+    raised to the one inside it, so a tail can fold back on itself where
+    two neighbouring strata round to the same whole unit.
+    """
+    shape = gen.mixture_of(rows, mean, root)
+    stretch, end = gen.stretched_end(shape, rows, mean, root, edge)
+    found = [min(max(1, gen.whole_unit(end)), edge)]
+    for index in range(1, rows):
+        word = words.get(index, 0)
+        share = ((rows - 1 - index) * gen.TWO64 + word) / (rows * gen.TWO64)
+        found.append(
+            min(max(1, gen.whole_unit(stretch * gen.mixture_at(shape, share))), edge)
+        )
+    return found
+
+
 class Mutant(typing.NamedTuple):
     """One case's own branch, put back the way the method rules out.
 
@@ -1751,7 +1908,35 @@ def _pool_shared_evenly(held_back, rows, numbers, words, floor=11):
     return [base] * (held_back - extra) + [base + 1] * extra
 
 
-def _stratified_ranks(rungs, parsed, words):
+def _rungs_of(column, parsed):
+    """The ladder a withdrawn placement reads, from what the column publishes.
+
+    The two TAIL BOUNDARIES stand where the two ends stood (stage 3,
+    plan P4-D328) and a rung the tail rule withholds is not published at
+    all, so a rule that wants eleven rungs is given the boundary in its
+    place -- which is what the ladder said about those ranks before the
+    tails took them.
+    """
+    space = gen.ordinal_space(column)
+    low, high = column["low_tail"], column["high_tail"]
+    if low is None or high is None:
+        return [0] * len(gen.LADDER_KEYS)
+    first = gen.ordinal_of(low["boundary"], space)
+    last = gen.ordinal_of(high["boundary"], space)
+    found = []
+    for place, key in enumerate(gen.LADDER_KEYS):
+        rung = column[
+            "clock_percentiles" if column["role"] == "time_of_day"
+            else "date_percentiles"
+        ][key]
+        if rung is None:
+            found.append(first if place * 2 < len(gen.LADDER_KEYS) else last)
+        else:
+            found.append(gen.ordinal_of(rung, space))
+    return found
+
+
+def _stratified_ranks(column, parsed, words):
     """G7.3's WITHDRAWN placement: one cell per rank in its own stratum.
 
     THE RULE LANDING 2b.6 REPLACED, restored here so the case that pins
@@ -1767,12 +1952,12 @@ def _stratified_ranks(rungs, parsed, words):
     every column generated after it and make the case fail for a second
     reason.
     """
+    rungs = _rungs_of(column, parsed)
+    pins = gen.date_pins(column, parsed)[0]
     ordinals = []
     for rank in range(parsed):
-        if rank == 0:
-            ordinals.append(rungs[0])
-        elif rank == parsed - 1 and parsed >= 2:
-            ordinals.append(rungs[len(gen.PCT) - 1])
+        if rank in pins:
+            ordinals.append(pins[rank])
         else:
             ordinals.append(
                 gen.interpolated_ordinal(
@@ -1782,7 +1967,7 @@ def _stratified_ranks(rungs, parsed, words):
     return ordinals
 
 
-def _inclusive_gap_draws(rungs, parsed, words):
+def _inclusive_gap_draws(column, parsed, words):
     """G7.3 as it shipped at 158c811: every gap drawn over its two pinned days.
 
     Each rank between two pins takes one word over `[low, high]`
@@ -1793,7 +1978,7 @@ def _inclusive_gap_draws(rungs, parsed, words):
     ordinals = [0] * parsed
     if parsed <= 0:
         return ordinals
-    pins = gen.ordinal_pins(rungs, parsed)
+    pins = gen.date_pins(column, parsed)[0]
     for rank, value in pins.items():
         ordinals[rank] = value
     places = sorted(pins)
@@ -2001,16 +2186,31 @@ def _every_rank_a_moment(column, parsed):
     return [False] * parsed
 
 
-def _no_move_onto_midnight(column, ordinals, shifts):
+def _no_move_onto_midnight(column, ordinals, shifts, bounds=None):
     """Landing 2b.3's move onto a midnight withdrawn: the interpolated instants kept."""
     return list(ordinals)
 
 
 def _ends_alone(column, parsed):
-    """The repair pass withdrawn: only the two ends settle their form and offset."""
-    fixed = {0: (column["earliest_utc_offset"],)}
-    if parsed >= 2:
-        fixed[parsed - 1] = (column["latest_utc_offset"],)
+    """The repair pass withdrawn: only the two BOUNDARY ranks settle theirs.
+
+    The two ends went with stage 3 (plan P4-D328), so what the withdrawn
+    rule leaves is the two ranks the description still names a value
+    for: the low boundary and the high one, each with the offsets its
+    own instant stands at a local midnight under. Every rung rank and
+    every rank between two pinned ranks of one instant is left to the
+    rotation, which is the defect the repair pass closed.
+    """
+    fixed = {}
+    low, high = column.get("low_tail"), column.get("high_tail")
+    if low is None or high is None or parsed == 0:
+        return fixed
+    for rank, text in (
+        (low["rows"], low["boundary"]),
+        (parsed - 1 - high["rows"], high["boundary"]),
+    ):
+        seconds = gen.ordinal_of(text, "datetime")
+        fixed[rank] = gen.midnight_offsets(seconds, column)
     return fixed
 
 
@@ -2580,14 +2780,19 @@ def _judged_keys_written_blank(column: dict) -> list:
 
 CASE_MUTANTS = {
     "date_absorbed_mark": Mutant(
-        branch="G7.9's spend of a mark the census left unnamed, where ruling "
-        "6's absorption put the published folded distinct count out of the "
-        "construction's reach (plan P4-D245, ledger K-2B-51); the mutant "
-        "withdraws the spend, and the twin writes 125 spaces over two days "
-        "-- two different values against a published three, a twin that "
-        "reads back as binary rather than as a column of dates",
-        attribute="marks_bought_for_the_shortfall",
-        replacement=lambda column, cells, holes, floor=11: list(cells),
+        branch="G7.3d's RAMP (stage 3, plan P4-D330), which is what this "
+        "column publishes now: two days hold all 125 of its cells, so the "
+        "two boundaries would cross, the description publishes no value "
+        "of the table at all, and the twin spreads its ranks evenly from "
+        "1970-01-01 over the published count of different values. The "
+        "mutant spreads them over the RANKS instead, and every cell "
+        "moves. G7.9's spend of an absorbed mark, which this case was "
+        "frozen for, is out of its reach here: the ramp reaches the "
+        "published count of different values by itself, so there is no "
+        "shortfall for a mark to buy, and G14.3 records that loss beside "
+        "this row",
+        attribute="ramp_places",
+        replacement=_ramp_over_the_ranks,
         outcome=CHANGES_THE_CELLS,
     ),
     "free_text_absorbed_figures": Mutant(
@@ -2644,17 +2849,23 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_midnight_traded": Mutant(
-        branch="the MIDNIGHT half of P4-D258's paid merge (item 2 of the "
-        "dates pass of the second Codex round, 2026-09-19); the mutant "
-        "keeps the width trade and withdraws the midnight one, the "
-        "stranded run of non-midnight ranks has no merge of any kind, and "
-        "the twin holds four different instants against three",
-        attribute="traded_merges",
-        replacement=lambda column, ordinals, pinned, lows, highs, day, step,
-        unit, held, widths, word, owed, clock=False: 0 if clock else gen_traded(
-            column, ordinals, pinned, lows, highs, day, step, unit, held,
-            widths, word, owed,
-        ),
+        branch="G7.3b step 3's MOMENT-MATCHED END (stage 3, plan "
+        "P4-D328), which both of this column's tails are drawn through. "
+        "The stretch on the drawn ranks and the outermost rank's own "
+        "distance solve the two moment equations together, so the "
+        "expected sum of the tail's distances and of their squares are "
+        "the two published numbers; the mutant puts the end back where "
+        "the tail had it before -- the root-mean-square of the shape "
+        "over the outermost stratum, with no stretch on the ranks inside "
+        "it, which on a lone far value misses the published mean square "
+        "by 14 to 22 per cent -- and every tail cell of the column "
+        "moves. The MIDNIGHT half of P4-D258's paid merge, which this "
+        "case was frozen for, is out of its reach here: a tail rank "
+        "moves only inside its own stratum, so the merge that settles for "
+        "a stranded run has nowhere to take one, and G14.3 records that "
+        "loss beside this row",
+        attribute="stretched_end",
+        replacement=_stratum_end_instead,
         outcome=CHANGES_THE_CELLS,
     ),
     "held_back_dressed": Mutant(
@@ -2765,11 +2976,16 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_endpoint_ties": Mutant(
-        branch="plan P4-D255's hold on the ranks tied at an end; the mutant "
-        "holds none of them, and the interior ranks standing on the latest "
-        "instant take the offset that out-sorts the published one",
-        attribute="endpoint_tie_offsets",
-        replacement=lambda *arguments: {},
+        branch="the CONDITION on G7A.4's two-pass step inside a tail "
+        "(stage 3, plan P4-D328): the step keeps a tail's ranks apart on "
+        "a column whose own values all differ, and on no other. The "
+        "mutant runs it on every column, and this column's tail cells "
+        "move. Plan P4-D255's hold on the ranks tied at an end, which "
+        "this case was frozen for, is gone with the two ends themselves: "
+        "the description names no offset for an end row because it "
+        "describes no end row, and G14.3 records that beside this row",
+        attribute="tail_distances",
+        replacement=_always_apart,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_second_field_class": Mutant(
@@ -2825,12 +3041,20 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_two_kinds_nonadjacent": Mutant(
-        branch="plan P4-D258's merge onto a held unit that is no rank "
-        "neighbour; the mutant offers the neighbours alone, and the run "
-        "whose neighbours are both of the other kind stays where it was "
-        "drawn, five different dates against four",
-        attribute="nearest_held_unit",
-        replacement=lambda *arguments: None,
+        branch="G7.3d's START (stage 3, plan P4-D330), which is what "
+        "this column publishes now: three days hold all thirty-six of "
+        "its cells, so the two boundaries would cross and the "
+        "description publishes no value of the table at all. Rank "
+        "nought of its ramp stands at 1970-01-01, ordinal nought in "
+        "every space of G7.1; the mutant starts the ramp one step "
+        "later and every cell moves. Plan P4-D258's merge onto a held "
+        "unit that is no rank neighbour, which this case was frozen "
+        "for, is out of its reach here: the ramp places one rank to a "
+        "step over the published count of different values, so no run "
+        "is left needing a merge, and G14.3 records that loss beside "
+        "this row",
+        attribute="ramp_places",
+        replacement=_ramp_from_one,
         outcome=CHANGES_THE_CELLS,
     ),
     # THE JOINT WORD OF A RANK SHOWING BOTH FIELDS (the repair pass of the
@@ -3616,24 +3840,29 @@ def _no_unit_past_the_neighbours(*arguments, **named):
     ("name", "attribute", "replacement"),
     [
         ("date_two_kinds_traded", "_traded_merges", lambda *arguments: 0),
-        (
-            "date_two_kinds_nonadjacent",
-            "_nearest_held_unit",
-            _no_unit_past_the_neighbours,
-        ),
     ],
 )
 def test_the_generator_s_own_merge_writes_the_two_kinds_cases(
     name: str, attribute: str, replacement, tmp_path: pathlib.Path, monkeypatch
 ) -> None:
-    """P4-D258's two merges, withdrawn from the IMPLEMENTATION this time.
+    """P4-D258's traded merge, withdrawn from the IMPLEMENTATION this time.
 
-    The mutant table above withdraws each merge from the oracle. This is
+    The mutant table above withdraws the merge from the oracle. This is
     the same question asked of `synthtwin.generation`: its own traded
-    merge, and its own offer of a held unit past the rank neighbours,
-    are what write these two committed columns, so either withdrawn
-    writes different cells -- which is what makes the pair a pin on the
+    merge is what writes this committed column, so withdrawing it writes
+    different cells -- which is what makes the case a pin on the
     generator and not only on the oracle beside it.
+
+    THE SECOND ROW OF THIS TABLE IS GONE (stage 3, plan P4-D328). It
+    asked the same of P4-D258's offer of a held unit past the rank
+    NEIGHBOURS, on `date_two_kinds_nonadjacent` -- a column of
+    thirty-six dates on three days, which at a floor of eleven now
+    publishes no tail, no rung and no value of the table at all
+    (P4-D330). Its twin is the ramp, which places one rank to a step
+    over the published count of different values, so no run is left for
+    any merge to move and neither implementation reaches the branch. The
+    loss is recorded in the generation method's G14.3 beside that case's
+    row, and the case holds up the ramp's own START instead.
     """
     case = _case(name)
     profile = _load(case, name, tmp_path)
@@ -4471,6 +4700,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (FIFTH_BRANCH_VECTORS, _fifth_branch_document()),
         (SIXTH_BRANCH_VECTORS, _sixth_branch_document()),
         (SEVENTH_BRANCH_VECTORS, _seventh_branch_document()),
+        (EIGHTH_BRANCH_VECTORS, _eighth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

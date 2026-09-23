@@ -179,10 +179,31 @@ def test_slash_dates_report_the_month_first_reading() -> None:
     assert any("month first" in remark for remark in described.remarks)
 
 
-def test_earliest_and_latest_are_canonical_and_ordered() -> None:
-    described = describe(["2024-03-17", "2023-01-01", "2024-12-31"] * 10)
-    assert described.details["earliest"] == "2023-01-01"
-    assert described.details["latest"] == "2024-12-31"
+def test_the_tail_boundaries_are_canonical_and_ordered() -> None:
+    """Stage 3: the two tail boundaries stand where the floor puts them.
+
+    A column of thirty different days at a floor of eleven publishes the
+    twelfth value from the bottom and the twelfth from the top -- the
+    smallest value with eleven cells strictly below it, and the mirror --
+    each as canonical text, with the count of cells beyond it. Neither is
+    one of the eleven outermost values, and the ladder's own two ends are
+    empty, because the ranks they would be read from are inside the two
+    tails.
+    """
+    days = [f"2024-01-{index + 1:02d}" for index in range(30)]
+    described = describe(days)
+    low = described.details["low_tail"]
+    high = described.details["high_tail"]
+    assert isinstance(low, dict) and isinstance(high, dict)
+    assert low["boundary"] == days[11]
+    assert high["boundary"] == days[len(days) - 12]
+    assert low["rows"] == 11 and high["rows"] == 11
+    assert low["boundary"] < high["boundary"]
+    assert low["mean_distance"] == 6.0 and high["mean_distance"] == 6.0
+    ladder = described.details["date_percentiles"]
+    assert isinstance(ladder, dict)
+    assert ladder["min"] is None and ladder["max"] is None
+    assert ladder["p50"] == days[14]
 
 
 def test_whole_non_negative_numbers_are_counts() -> None:

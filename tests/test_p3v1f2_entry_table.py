@@ -34,8 +34,8 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(measured on 2026-09-19: 1403 rows over 1313 sites, 252 curated and
-1151 derived); each derived row
+(measured on 2026-09-22: 1401 rows over 1311 sites, 247 curated and
+1154 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -1402,8 +1402,10 @@ def _clock_piled(
     if not isinstance(facts, contract.ClockFacts):
         return ""
     form = facts.clock_form
-    low = parsing.clock_ordinal(facts.earliest, form)
-    high = parsing.clock_ordinal(facts.latest, form)
+    if facts.low_tail is None or facts.high_tail is None:
+        return ""
+    low = parsing.clock_ordinal(facts.low_tail.boundary, form)
+    high = parsing.clock_ordinal(facts.high_tail.boundary, form)
     if low is None or high is None:
         return ""
     half = (high - low) // 2
@@ -1414,15 +1416,18 @@ def _clock_piled(
     written = [row for row in range(first, len(rows)) if rows[row][index]]
     if len(written) < 12:
         return ""
+    # EVERY CELL OUTSIDE THE TWO BOUNDARIES STAYS WHERE THE TWIN PUT IT
+    # (stage 3, plan P4-D328). The two ends are published nowhere now;
+    # what the description publishes at the outside of the column is a
+    # tail on each side, and moving one of its cells would make a tail
+    # check do the catching instead of the rung this perturbation is
+    # about. So the tails and the two boundary cells are left alone and
+    # only the interior is piled.
     keep: "set[int]" = set()
     for row in written:
-        if rows[row][index] == facts.earliest:
+        ordinal = parsing.clock_ordinal(rows[row][index], form)
+        if ordinal is None or ordinal <= low or ordinal >= high:
             keep.add(row)
-            break
-    for row in written:
-        if rows[row][index] == facts.latest and row not in keep:
-            keep.add(row)
-            break
     corner = high - half if at_the_top else low
     place = 0
     for row in written:
@@ -1562,8 +1567,10 @@ def _ladder_piled(
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return ""
-    low = generation._ordinal_of(facts.earliest, facts.resolution)
-    high = generation._ordinal_of(facts.latest, facts.resolution)
+    if facts.low_tail is None or facts.high_tail is None:
+        return ""
+    low = generation._ordinal_of(facts.low_tail.boundary, facts.resolution)
+    high = generation._ordinal_of(facts.high_tail.boundary, facts.resolution)
     half = (high - low) // 2
     if half < 4:
         return ""
@@ -1572,20 +1579,26 @@ def _ladder_piled(
     written = [row for row in range(first, len(rows)) if rows[row][index]]
     if len(written) < 12:
         return ""
-    # The two ends are kept where the twin put them -- WHEREVER it put
-    # them. Keeping the first and last WRITTEN cells instead would keep
-    # whatever the twin happens to hold at those two rows, and a twin
-    # does not write its values in order, so the ends moved with
-    # everything else and the two end checks did the catching.
+    # EVERY CELL OUTSIDE THE TWO BOUNDARIES IS KEPT WHERE THE TWIN PUT
+    # IT -- WHEREVER it put it (stage 3, plan P4-D328). The column
+    # publishes no end any more: what stands at its outside is a tail
+    # on each side, whose rows and distances a moved cell would break,
+    # so the two tails would do the catching instead of the rungs this
+    # perturbation is about. Keeping the first and last WRITTEN cells
+    # instead would keep whatever the twin happens to hold at those two
+    # rows, and a twin does not write its values in order.
     keep: set[int] = set()
     for row in written:
-        if rows[row][index] == facts.earliest:
+        read = parsing.parse_datetime(rows[row][index], facts.parser_family)
+        if read is None:
+            # A stand-in stays a stand-in: it is not a value of this
+            # column's own space and moving it would change how many
+            # cells read as dates at all.
             keep.add(row)
-            break
-    for row in written:
-        if rows[row][index] == facts.latest and row not in keep:
+            continue
+        ordinal = generation._ordinal_of(read[0], facts.resolution)
+        if ordinal <= low or ordinal >= high:
             keep.add(row)
-            break
     corner = high - half if at_the_top else low
     place = 0
     for row in written:
@@ -1599,6 +1612,230 @@ def _ladder_piled(
             "T",
         )
         place = place + 1
+    return _rebuilt(rows)
+
+
+def _tail_readings(
+    described: contract.Profile, rows: "list[list[str]]", index: int
+) -> "list[tuple[int, int, str]]":
+    """Each record row that reads as a date or a clock time, by rank.
+
+    A row, the unit its cell stands at, and the offset it wears (empty
+    for a clock). Ordered by the unit, which is the order the tail
+    checks read the file in.
+
+    THE READING IS THE SHIPPED ONE (`validation._tail_units_of`) and not
+    a second one written here. An edit aimed at a tail has to put its
+    hand on the cell that stands where the description's boundary
+    stands, and the offsets a datetime column wears move a cell's rank:
+    a reader of this file's own would be a second answer to the question
+    the check asks, and an edit aimed by it would miss the site it is
+    registered against on the day the two answers differed.
+    """
+    facts = described.columns[index].facts
+    first = _first_record(described)
+    cells = [rows[row][index] for row in range(first, len(rows))]
+    found: "list[tuple[int, int, str]]" = []
+    if isinstance(facts, contract.DatetimeFacts):
+        units = validation._tail_units_of(facts, cells)
+        for place in range(len(cells)):
+            unit = units[place]
+            if unit is None:
+                continue
+            read = parsing.parse_datetime(cells[place], facts.parser_family)
+            found += [(first + place, unit, "" if read is None else read[1])]
+    elif isinstance(facts, contract.ClockFacts):
+        for place in range(len(cells)):
+            reading = parsing.clock_ordinal(cells[place], facts.clock_form)
+            if reading is None:
+                continue
+            found += [(first + place, reading, "")]
+    return sorted(found, key=lambda entry: entry[1])
+
+
+def _tail_boundaries(
+    described: contract.Profile, index: int
+) -> "tuple[int, int] | None":
+    """The two PUBLISHED boundaries of a column's tails, in its own unit."""
+    facts = described.columns[index].facts
+    if isinstance(facts, contract.DatetimeFacts):
+        if facts.low_tail is None or facts.high_tail is None:
+            return None
+        reading = facts.datetimes_read_at
+        return (
+            taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
+            taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
+        )
+    if isinstance(facts, contract.ClockFacts):
+        if facts.low_tail is None or facts.high_tail is None:
+            return None
+        low = parsing.clock_ordinal(facts.low_tail.boundary, facts.clock_form)
+        high = parsing.clock_ordinal(facts.high_tail.boundary, facts.clock_form)
+        if low is None or high is None:
+            return None
+        return (low, high)
+    return None
+
+
+def _tail_source(
+    rows: "list[list[str]]",
+    index: int,
+    readings: "list[tuple[int, int, str]]",
+    value: int,
+    offset: str,
+) -> str:
+    """The text of a cell the column already holds at `value`.
+
+    A tail edit moves a cell by writing a spelling the column itself
+    writes, preferring one worn at the offset the moved cell wore: a
+    cell composed here could spell an instant in a shape this column
+    never uses, and the file would then be answering for its shape
+    rather than for its tail.
+    """
+    best = ""
+    for row, unit, worn in readings:
+        if unit != value:
+            continue
+        if worn == offset:
+            return rows[row][index]
+        if not best:
+            best = rows[row][index]
+    return best
+
+
+def _tail_stepped(
+    described: contract.Profile, cell: str, index: int, step: int
+) -> str:
+    """One date or clock cell moved one value of its own kind outward.
+
+    Written with the GENERATOR's own writer, which a test may import and
+    the validator may not, so the cell is spelled the way this column's
+    own kind spells it. Empty where the cell does not read, or where the
+    step would leave the clock's own day.
+    """
+    facts = described.columns[index].facts
+    if isinstance(facts, contract.DatetimeFacts):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            return ""
+        ordinal = generation._ordinal_of(read[0], facts.resolution)
+        return generation._cell_of_ordinal(
+            ordinal + step,
+            facts.resolution,
+            facts.time_precision,
+            facts.subsecond_digits,
+            "T",
+        )
+    if isinstance(facts, contract.ClockFacts):
+        reading = parsing.clock_ordinal(cell, facts.clock_form)
+        if reading is None:
+            return ""
+        span = 1440 if facts.clock_form == contract.CLOCK_FORMS[0] else 86400
+        if not 0 <= reading + step < span:
+            return ""
+        return parsing.clock_spelling(reading + step, facts.clock_form)
+    return ""
+
+
+def _tail_edited(
+    described: contract.Profile, text: str, index: int, rule: str
+) -> str:
+    """A date or clock column edited AT its two published tails.
+
+    THE EDITS THE TAILS ANSWER FOR ON THEIR OWN (stage 3, plan P4-D328).
+    What a date column publishes at its outside is a tail on each side:
+    a boundary, how many cells lie beyond it, and how far they lie. The
+    perturbations the ladder carries all keep the cells outside the two
+    boundaries exactly where the twin put them -- they have to, or the
+    tails would do the catching instead of the rung under test -- so
+    without these three nothing in this battery moves a tail at all and
+    the sites the tails file would be covered by nothing.
+
+    Each rule is aimed at one of the three obligations, and the cells it
+    does not aim at are left where they stand:
+
+    - `shifted` moves every cell standing ON a boundary one value
+      inward. The count beyond and the distances are untouched, so the
+      BOUNDARY, which is now a different value, is what is left to catch
+      the file.
+    - `drawn` moves the innermost cell of each tail onto the boundary.
+      The boundary still stands where it stood -- the cell that moved is
+      now one of the cells standing on it -- and what changes is how
+      many ROWS lie beyond it.
+    - `piled` moves every cell of each tail except the outermost onto
+      the outermost. The count beyond and the boundary are untouched and
+      every distance becomes the largest one, so the two DISTANCES, and
+      the set of values where a tail publishes them, are what is left.
+    - `stretched` moves every cell of each tail ONE value further out.
+      The count beyond and the boundary are untouched again and every
+      distance grows by one, which is the edit a tail whose cells all
+      stand on ONE value answers to: piling such a tail onto its own
+      outermost value moves nothing at all, and a column of quarters has
+      tails of exactly that shape.
+
+    The first three move a cell by writing a spelling the column already
+    holds at the value it is moved to; the fourth has to write a value
+    the column does not hold, and writes it with the generator's own
+    writer. Either way the file stays one this column's own kind could
+    have been written as.
+    """
+    boundaries = _tail_boundaries(described, index)
+    if boundaries is None:
+        return ""
+    at_low, at_high = boundaries
+    if at_low >= at_high:
+        return ""
+    rows = _rows_of(text)
+    readings = _tail_readings(described, rows, index)
+    if len(readings) < 12:
+        return ""
+    inside = [entry for entry in readings if at_low < entry[1] < at_high]
+    if not inside:
+        return ""
+    edited = 0
+    for side in ("low", "high"):
+        at = at_low if side == "low" else at_high
+        beyond = [
+            entry
+            for entry in readings
+            if (entry[1] < at if side == "low" else entry[1] > at)
+        ]
+        if side == "low":
+            # INNERMOST FIRST on both sides, so one rule reads the same
+            # way whichever side of the column it is working on.
+            beyond = list(reversed(beyond))
+        if not beyond:
+            continue
+        if rule == "stretched":
+            for row, _unit, _offset in beyond:
+                stepped = _tail_stepped(
+                    described, rows[row][index], index, -1 if side == "low" else 1
+                )
+                if not stepped:
+                    continue
+                rows[row][index] = stepped
+                edited = edited + 1
+            continue
+        targets: "list[tuple[int, int, str]]" = []
+        value = at
+        if rule == "shifted":
+            targets = [entry for entry in readings if entry[1] == at]
+            value = inside[0][1] if side == "low" else inside[-1][1]
+        if rule == "drawn":
+            targets = [beyond[0]]
+        if rule == "piled":
+            if len(beyond) < 2:
+                continue
+            targets = beyond[0 : len(beyond) - 1]
+            value = beyond[-1][1]
+        for row, _unit, offset in targets:
+            written = _tail_source(rows, index, readings, value, offset)
+            if not written:
+                continue
+            rows[row][index] = written
+            edited = edited + 1
+    if not edited:
+        return ""
     return _rebuilt(rows)
 
 
@@ -3018,6 +3255,38 @@ def _column_perturbations(
                 _dated(described, twin, index, "subsecond"),
             ),
         ]
+    if column.role in ("datetime", "time_of_day"):
+        # THE THREE EDITS THE TWO TAILS ANSWER FOR (stage 3, plan
+        # P4-D328), and they belong to both roles that carry tails. A
+        # date column publishes no end any more: what stands at its
+        # outside is a tail a side, and every OTHER edit in this battery
+        # keeps the cells out there exactly where the twin put them --
+        # deliberately, or a tail would catch the file the rungs are
+        # under test on. So these three are the whole of what can make a
+        # tail miss, one per obligation: the boundary, the rows beyond
+        # it, and the distances they lie at.
+        built = built + [
+            (
+                f"tail-shifted-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "shifted"),
+            ),
+            (
+                f"tail-drawn-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "drawn"),
+            ),
+            (
+                f"tail-piled-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "piled"),
+            ),
+            (
+                f"tail-stretched-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "stretched"),
+            ),
+        ]
     if column.role == "free_text":
         built = built + [
             (
@@ -3556,13 +3825,12 @@ NAMED_RED_CASES = (
         "numeric.numeric_styles",
         f"styles.at-least.{parsing.STYLE_EXPONENT_LOWER}",
     ),
-    RedCase(
-        "every-role",
-        "moved-recorded_on",
-        "recorded_on",
-        "datetime.date_percentiles.min",
-        "date-ladder.min",
-    ),
+    # THE LADDER'S LOW END WAS CURATED HERE, and it left the table with
+    # the fact (stage 3, plan P4-D328): a description this version
+    # writes publishes no `min` rung, so there is no entry to name. What
+    # stands at the outside of a column of dates is a tail a side, and
+    # the ten obligations the two of them carry are registered in
+    # `COVERING_RED_CASES` below, one edit per obligation.
     RedCase(
         "every-role",
         "timed-recorded_on",
@@ -3584,22 +3852,24 @@ NAMED_RED_CASES = (
         "datetime.n_unparsed",
         "counts.n_unparsed",
     ),
-    RedCase(
-        "every-role",
-        "mixed-recorded_on",
-        "recorded_on",
-        "datetime.earliest_utc_offset",
-        "offsets.earliest",
-    ),
-    # THE NINE RUNGS BETWEEN THE ENDS, ON THEIR OWN TERMS (review item
-    # P3-V3-F4). A file whose ladder is moved wholesale is caught by the
-    # two ENDS, so the interior rungs could be asleep behind them and
-    # nothing here would say so. `crushed` keeps both ends, the role,
-    # the resolution and the precision exactly where the description
-    # puts them and piles the middle low, so the only checks left to
-    # catch it are the nine -- and on the quarter fixture the two counts
-    # of how many different values the column holds, which were WITHHELD
-    # on every file before this repair.
+    # AND THE ENDPOINT OFFSET WAS CURATED HERE, and left with its own
+    # fact on the same day: a column publishes the offset its dates were
+    # read at and the map of the offsets they wear, and no offset of an
+    # end it no longer names.
+    #
+    # THE RUNGS BETWEEN THE TAILS, ON THEIR OWN TERMS (review item
+    # P3-V3-F4). A file whose ladder is moved wholesale used to be
+    # caught by the two ENDS, so the interior rungs could be asleep
+    # behind them and nothing here would say so. `crushed` keeps the
+    # role, the resolution, the precision and every cell outside the two
+    # tail boundaries exactly where the description puts them and piles
+    # the middle low, so the only checks left to catch it are the rungs
+    # -- and on the quarter fixture the two counts of how many different
+    # values the column holds, which were WITHHELD on every file before
+    # this repair. Since stage 3 what stands outside the boundaries is a
+    # tail rather than an end, and the rungs a tail takes in are not
+    # published at all: the quarter fixture's `p99` was one of them and
+    # its row went with it.
     RedCase(
         "every-role",
         "crushed-recorded_on",
@@ -3613,13 +3883,6 @@ NAMED_RED_CASES = (
         "when",
         "datetime.date_percentiles",
         "date-ladder.p50",
-    ),
-    RedCase(
-        "quarters",
-        "crushed-when",
-        "when",
-        "datetime.date_percentiles",
-        "date-ladder.p99",
     ),
     # MOVED FROM `crushed` TO `flattened` AT LANDING 2b.6, because the
     # bound these two answer to changed. G12.5's lower end used to count
@@ -3642,14 +3905,11 @@ NAMED_RED_CASES = (
         "datetime.n_distinct_folded",
         "distinct.n_distinct_folded",
     ),
-    RedCase(
-        "quarters",
-        "moved-when",
-        "when",
-        "datetime.date_percentiles.min",
-        "date-ladder.min",
-    ),
-    RedCase("quarters", "moved-when", "when", "datetime.latest", "ends.latest"),
+    # THE QUARTER FIXTURE'S TWO ENDS WERE CURATED HERE and left with
+    # their facts in stage 3, on the terms written at the datetime rows
+    # above: a description publishes no `min` rung and no `latest`, and
+    # the two tails that stand in their place carry their obligations in
+    # `COVERING_RED_CASES`.
     RedCase(
         "quarters",
         "timed-when",
@@ -4333,12 +4593,29 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('quoted-dose', 'bytes.quoting'),
         ),
         "seen_at": (
-            # THE CLOCK ROLE. Three edits are its own: the two halves
+            # THE CLOCK ROLE. Six edits are its own: the two halves
             # of the ladder, piled low and piled high, because a rung
             # near the bottom is falsifiable only upward and one near
-            # the top only downward; and every cell rewritten in the
+            # the top only downward; every cell rewritten in the
             # OTHER form, which moves the published form and the four
-            # values written in it without moving a single time.
+            # values written in it without moving a single time; and
+            # the three the two TAILS answer for (stage 3, plan
+            # P4-D328), each aimed at one of their obligations.
+            #
+            # THE ROWS THE TAIL RULE MOVED, chosen again over the
+            # battery as it now stands (measured, 2026-09-22). The
+            # ladder's two ends and the rungs inside a tail are null in
+            # every description this version writes, so `clock-ladder`
+            # min, max, p01, p05 and p99 are no longer checks at all and
+            # their rows went with them; `ends.earliest` and
+            # `ends.latest` are published nowhere. `clock-ladder.p95`
+            # sits INSIDE the high tail's cells, which every other edit
+            # here keeps where the twin put them, so the tail edit that
+            # moves a boundary cell is what still reaches it. The two
+            # distinctness counts were `one-worded-seen_at`: one cell
+            # spelling a word is counted back now, and the narrowest
+            # own-column edit that moves them is the whole column
+            # rewritten.
             ("renamed-seen_at", "position.at"),
             ("blanked-seen_at", "presence.n_present"),
             ("blanked-seen_at", "presence.n_missing"),
@@ -4349,23 +4626,24 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-seen_at", "counts.n_not_numeric"),
             ("one-overflowed-seen_at", "counts.n_out_of_range"),
             ("one-contradicted-seen_at", "counts.n_contradictory"),
-            ("one-worded-seen_at", "distinct.n_distinct"),
-            ("one-worded-seen_at", "distinct.n_distinct_folded"),
+            ("rewritten-seen_at", "distinct.n_distinct"),
+            ("rewritten-seen_at", "distinct.n_distinct_folded"),
             ("reformed-seen_at", "form.clock_form"),
-            ("reformed-seen_at", "ends.earliest"),
-            ("reformed-seen_at", "ends.latest"),
             ("marked-seen_at", "counts.n_unparsed"),
-            ("reformed-seen_at", "clock-ladder.min"),
-            ("reformed-seen_at", "clock-ladder.max"),
-            ("lifted-seen_at", "clock-ladder.p01"),
-            ("crushed-seen_at", "clock-ladder.p05"),
+            ("tail-shifted-seen_at", "tails.low.boundary"),
+            ("tail-shifted-seen_at", "tails.high.boundary"),
+            ("tail-drawn-seen_at", "tails.low.rows"),
+            ("tail-drawn-seen_at", "tails.high.rows"),
+            ("tail-piled-seen_at", "tails.low.mean_distance"),
+            ("tail-piled-seen_at", "tails.low.rms_distance"),
+            ("tail-piled-seen_at", "tails.high.mean_distance"),
+            ("tail-piled-seen_at", "tails.high.rms_distance"),
             ("crushed-seen_at", "clock-ladder.p10"),
             ("crushed-seen_at", "clock-ladder.p25"),
             ("crushed-seen_at", "clock-ladder.p50"),
             ("crushed-seen_at", "clock-ladder.p75"),
             ("crushed-seen_at", "clock-ladder.p90"),
-            ("crushed-seen_at", "clock-ladder.p95"),
-            ("crushed-seen_at", "clock-ladder.p99"),
+            ("tail-shifted-seen_at", "clock-ladder.p95"),
             ('quoted-seen_at', 'bytes.quoting'),
         ),
         "reading": (
@@ -4475,21 +4753,34 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-recorded_on", "counts.n_not_numeric"),
             ("one-bracketed-recorded_on", "counts.n_numeric"),
             ("one-overflowed-recorded_on", "counts.n_out_of_range"),
-            ("moved-recorded_on", "date-ladder.max"),
-            ("moved-recorded_on", "date-ladder.p01"),
-            ("crushed-recorded_on", "date-ladder.p05"),
+            # THE ROWS THE TAIL RULE MOVED (stage 3, plan P4-D328),
+            # chosen again over the battery as it now stands (measured,
+            # 2026-09-22). The ladder's two ends and the rungs a tail
+            # takes in are null in every description this version
+            # writes, so `date-ladder` min, max, p01, p05 and p99 are no
+            # longer checks and their rows went with them; `ends` and
+            # the two endpoint offsets are published nowhere.
+            # `date-ladder.p95` stands among the high tail's own cells,
+            # which every other edit here leaves where the twin put
+            # them, so the tail edit that moves a boundary cell is what
+            # reaches it. The ten rows below are the two tails, one edit
+            # per obligation.
             ("crushed-recorded_on", "date-ladder.p10"),
             ("crushed-recorded_on", "date-ladder.p25"),
             ("crushed-recorded_on", "date-ladder.p75"),
             ("crushed-recorded_on", "date-ladder.p90"),
-            ("crushed-recorded_on", "date-ladder.p95"),
-            ("crushed-recorded_on", "date-ladder.p99"),
+            ("tail-shifted-recorded_on", "date-ladder.p95"),
             ("rewritten-recorded_on", "distinct.n_distinct"),
             ("rewritten-recorded_on", "distinct.n_distinct_folded"),
-            ("moved-recorded_on", "ends.earliest"),
-            ("moved-recorded_on", "ends.latest"),
+            ("tail-shifted-recorded_on", "tails.low.boundary"),
+            ("tail-shifted-recorded_on", "tails.high.boundary"),
+            ("tail-drawn-recorded_on", "tails.low.rows"),
+            ("tail-drawn-recorded_on", "tails.high.rows"),
+            ("tail-piled-recorded_on", "tails.low.mean_distance"),
+            ("tail-piled-recorded_on", "tails.low.rms_distance"),
+            ("tail-piled-recorded_on", "tails.high.mean_distance"),
+            ("tail-piled-recorded_on", "tails.high.rms_distance"),
             ("one-worded-recorded_on", "offsets.(none)"),
-            ("offset-recorded_on", "offsets.latest"),
             ("mixed-recorded_on", "offsets.read-at"),
             ("renamed-recorded_on", "position.at"),
             ("timed-recorded_on", "precision.resolution"),
@@ -5245,18 +5536,29 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-bracketed-when", "counts.n_numeric"),
             ("one-overflowed-when", "counts.n_out_of_range"),
             ("subsecond-when", "counts.subsecond_digits"),
-            ("timed-when", "date-ladder.max"),
-            ("moved-when", "date-ladder.p01"),
-            ("moved-when", "date-ladder.p05"),
-            ("lifted-when", "date-ladder.p10"),
+            # THE ROWS THE TAIL RULE MOVED (stage 3, plan P4-D328),
+            # chosen again over the battery as it now stands (measured,
+            # 2026-09-22), and this column shows the rule at its
+            # coarsest. A quarter is a wide unit, so both of its tails
+            # stand on ONE value each and publish that value rather than
+            # a root-mean-square distance: piling such a tail onto its
+            # own outermost cell moves nothing, and what moves it is the
+            # tail stretched one quarter further out. `date-ladder.p10`
+            # and `date-ladder.p90` are rungs among the tails' own
+            # cells, which every edit but these leaves standing, so the
+            # tail edit that moves a boundary cell is what reaches them.
             ("crushed-when", "date-ladder.p25"),
             ("crushed-when", "date-ladder.p75"),
-            ("crushed-when", "date-ladder.p90"),
-            ("crushed-when", "date-ladder.p95"),
-            ("timed-when", "ends.earliest"),
+            ("tail-shifted-when", "date-ladder.p10"),
+            ("tail-shifted-when", "date-ladder.p90"),
+            ("tail-shifted-when", "tails.low.boundary"),
+            ("tail-shifted-when", "tails.high.boundary"),
+            ("tail-drawn-when", "tails.low.rows"),
+            ("tail-drawn-when", "tails.high.rows"),
+            ("tail-piled-when", "tails.low.values"),
+            ("tail-stretched-when", "tails.high.values"),
+            ("tail-stretched-when", "tails.high.mean_distance"),
             ("blanked-when", "offsets.(none)"),
-            ("offset-when", "offsets.earliest"),
-            ("offset-when", "offsets.latest"),
             ("mixed-when", "offsets.read-at"),
             ("renamed-when", "position.at"),
             ("timed-when", "precision.time_precision"),
@@ -5829,12 +6131,30 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("clock", "counts.n_numeric"): "universal.n_numeric",
     ("clock", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("clock", "counts.n_unparsed"): "clock.n_unparsed",
-    ("clock", "clock-ladder.max"): "clock.clock_percentiles.max",
-    ("clock", "clock-ladder.min"): "clock.clock_percentiles.min",
     ("clock", "distinct.n_distinct"): "clock.n_distinct",
     ("clock", "distinct.n_distinct_folded"): "clock.n_distinct_folded",
-    ("clock", "ends.earliest"): "clock.earliest",
-    ("clock", "ends.latest"): "clock.latest",
+    # THE LADDER'S TWO ENDS are null in every description this version
+    # writes (stage 3, contract T2), so they are LISTED under the ladder
+    # they belong to rather than checked against a value nobody
+    # published; the registry disposes the ladder and no longer carries
+    # a fact of their own.
+    ("clock", "clock-ladder.max"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.min"): "clock.clock_percentiles",
+    # THE TWO TAILS, in place of the two ends and the two ladder-end
+    # rungs (stage 3, plan P4-D328). One fact name carries five
+    # subchecks, whose classes differ -- a boundary and a count are
+    # exact, the two distances are approximated -- so the registry key
+    # is read off the SUBCHECK here, exactly as the ladder's ends were.
+    ("clock", "tails.low.boundary"): "clock.low_tail.boundary",
+    ("clock", "tails.low.rows"): "clock.low_tail.rows",
+    ("clock", "tails.low.values"): "clock.low_tail.values",
+    ("clock", "tails.low.mean_distance"): "clock.low_tail.mean_distance",
+    ("clock", "tails.low.rms_distance"): "clock.low_tail.rms_distance",
+    ("clock", "tails.high.boundary"): "clock.high_tail.boundary",
+    ("clock", "tails.high.rows"): "clock.high_tail.rows",
+    ("clock", "tails.high.values"): "clock.high_tail.values",
+    ("clock", "tails.high.mean_distance"): "clock.high_tail.mean_distance",
+    ("clock", "tails.high.rms_distance"): "clock.high_tail.rms_distance",
     ("clock", "form.clock_form"): "clock.clock_form",
     ("clock", "position.at"): "universal.position",
     ("clock", "presence.n_missing"): "universal.n_missing",
@@ -5859,8 +6179,8 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("datetime", "counts.n_unparsed"): "datetime.n_unparsed",
     ("datetime", "counts.subsecond_digits"): "datetime.subsecond_digits",
-    ("datetime", "date-ladder.max"): "datetime.date_percentiles.max",
-    ("datetime", "date-ladder.min"): "datetime.date_percentiles.min",
+    ("datetime", "date-ladder.max"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.min"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p01"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p05"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p10"): "datetime.date_percentiles",
@@ -5872,12 +6192,23 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "date-ladder.p99"): "datetime.date_percentiles",
     ("datetime", "distinct.n_distinct"): "datetime.n_distinct",
     ("datetime", "distinct.n_distinct_folded"): "datetime.n_distinct_folded",
-    ("datetime", "ends.earliest"): "datetime.earliest",
-    ("datetime", "ends.latest"): "datetime.latest",
     ("datetime", "offsets.(none)"): "datetime.utc_offsets",
-    ("datetime", "offsets.earliest"): "datetime.earliest_utc_offset",
-    ("datetime", "offsets.latest"): "datetime.latest_utc_offset",
     ("datetime", "offsets.map"): "datetime.utc_offsets",
+    # THE TWO TAILS, on the terms the clock role's carry above.
+    ("datetime", "tails.low.boundary"): "datetime.low_tail.boundary",
+    ("datetime", "tails.low.rows"): "datetime.low_tail.rows",
+    ("datetime", "tails.low.values"): "datetime.low_tail.values",
+    ("datetime", "tails.low.mean_distance"): "datetime.low_tail.mean_distance",
+    ("datetime", "tails.low.rms_distance"): "datetime.low_tail.rms_distance",
+    ("datetime", "tails.high.boundary"): "datetime.high_tail.boundary",
+    ("datetime", "tails.high.rows"): "datetime.high_tail.rows",
+    ("datetime", "tails.high.values"): "datetime.high_tail.values",
+    ("datetime", "tails.high.mean_distance"): (
+        "datetime.high_tail.mean_distance"
+    ),
+    ("datetime", "tails.high.rms_distance"): (
+        "datetime.high_tail.rms_distance"
+    ),
     ("datetime", "offsets.read-at"): "datetime.datetimes_read_at",
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
@@ -7076,31 +7407,21 @@ def test_the_corner_listings_are_reached_by_this_walk_and_nowhere_else(
 ) -> None:
     """The corner entries are IN the binding proof, and were not.
 
-    REVIEW ITEM P3-V4-F6's named witness. Nine entries exist only where
-    a corner sends a fact to REPORT-ONLY -- four offset facts, three
-    identifier cardinalities and two distinctness bars -- and no fixture
-    the proof walked filed one of them. This asserts two things at once:
-    that the corner runs file every one of the nine, and that the six
-    ordinary fixtures and the four predicates file none of the four
-    offset ones, so the walk cannot be narrowed back to them and stay
-    green.
+    REVIEW ITEM P3-V4-F6's named witness. Nine entries existed only
+    where a corner sends a fact to REPORT-ONLY -- four offset facts,
+    three identifier cardinalities and two distinctness bars -- and no
+    fixture the proof walked filed one of them. SEVEN remain: stage 3
+    removed the two END offsets from the role, so the corner reaches
+    the census and the reading and no longer reaches an endpoint's own
+    offset, there being none. This asserts two things at once: that the
+    corner runs file every one of the seven, and that the six ordinary
+    fixtures and the four predicates file neither of the two offset
+    ones, so the walk cannot be narrowed back to them and stay green.
     """
     ordinary = walked_ordinary
     with_corners = walked_with_corners
     owed = {
         ("withheld-offsets", "recorded_on", "datetime.utc_offsets", "offsets.map"),
-        (
-            "withheld-offsets",
-            "recorded_on",
-            "datetime.earliest_utc_offset",
-            "offsets.earliest",
-        ),
-        (
-            "withheld-offsets",
-            "recorded_on",
-            "datetime.latest_utc_offset",
-            "offsets.latest",
-        ),
         (
             "withheld-offsets",
             "recorded_on",
@@ -7959,7 +8280,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
     up. The registration is now total over the shipped sites -- measured
-    on 2026-09-19, 1403 rows over 1313 sites, 252 curated and 1151
+    on 2026-09-22, 1401 rows over 1311 sites, 247 curated and 1154
     derived -- each derived one an edit aimed at the site it covers.
     89 sites carry more than one row. Some do so on purpose:
     `columns.order` carries three on `every-role`, because it is the
@@ -7969,7 +8290,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     taken out and a row added; and the headerless `header.presence`
     carries the plain edit and the compensating one that used to defeat
     it. At every such site deleting one row is not enough to turn this
-    red; each of the other 1224 is on its own.
+    red; each of the other 1222 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The

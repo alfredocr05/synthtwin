@@ -1145,11 +1145,18 @@ finest grain the contract governs.
 
 **V3.2 The subcheck grain, stated so it cannot be quietly coarsened.**
 Each of the eleven percentile rungs separately, the two ends exact and
-the nine interior rungs each against its own window. Each published
+the nine interior rungs each against its own window on a numeric ladder;
+on a ladder of dates or of clock times each PUBLISHED rung against its
+own window, a rung the tail rule withholds being a listing entry and
+never a check (stage 3, plan P4-D328). Each side of a column's TAIL
+separately, and four obligations on each: its boundary, the count of
+cells beyond it, and each of its two distances — or, where the tail
+publishes which values it holds, those values as a set and its mean
+distance exactly. Each published
 style key. Each published level with its count, its `variants` map and
-its `variants_withheld` multiplicity map. Each offset key and each of
-the two endpoint offsets. Each length and word extreme. Each
-absent-cell obligation. Each byte-level rule of V6.
+its `variants_withheld` multiplicity map. Each offset key. Each length
+and word extreme. Each absent-cell obligation. Each byte-level rule of
+V6.
 
 **V3.3 Three kinds, and the partition is total over OBLIGATIONS.**
 
@@ -1639,8 +1646,8 @@ amendment A-P3-9 clauses 2 and 3 are the ruling and this follows it).
 A1 fixed the space every published instant is read into and said
 nothing about the arithmetic done in it, and three readings then
 diverged from the G12 construction they check: the rank windows of
-G12.4 were drawn without the pinning that fixes the first and last
-ranks at the published `earliest` and `latest`, the reading allowance
+G12.4 were drawn without the pinning that fixes the ranks the tail
+pins, the reading allowance
 `u` was one step of the published PRECISION rather than one unit of the
 ordinal SPACE, and the ladder was read with the floating-point reader
 the numeric ladder uses rather than with the whole-number interpolation
@@ -1648,6 +1655,19 @@ G7.3 builds cells with. Each produced a verdict the generator
 contradicts, in both directions: a file passing a distinctness bound its
 own construction forbids, and a conforming twin missing a rung by less
 than one ordinal unit.
+
+**AND THE TAIL'S OWN WINDOW IS WRITTEN OUT THE SAME WAY** (stage 3,
+plan P4-D328). G12.14's window is the construction of G7.3b run twice,
+once with every drawn rank's word at nought and once at the largest
+word; this module writes that construction from the method's own text --
+the mixture, the moment-matched end, the rounding halves up, the tie
+group, the step off a hole, the move onto a midnight, the two-pass
+all-different step and the clamp to the readable window -- in the
+binary64 arithmetic the clause fixes, operation by operation and in the
+order written. It is compared with the generator's writing of it in the
+suite, rank by rank: a validator whose derived end differs from the
+generator's by one unit would MISS 23 of 128 conforming sides of the
+design's own battery (the skeptic of the tail design, B7).
 
 **So a window this method cites is written out from the cited clause,
 in the whole-number arithmetic that clause fixes, and the two writings
@@ -1736,12 +1756,16 @@ four above — an obligation the description itself empties:
   case: all the plain cells together supply one identity, so a column
   that has collapsed onto one repeated value lands inside the bar and
   so does every count above it;
-- `offsets.earliest` and `offsets.latest`, where the publication floor
-  held that END's own offset back and the description publishes the
-  withheld label in its place. The description then names no offset for
-  that end, and the comparison that stood asked whether the measured
-  file's OWN floor had suppressed the same end — a fact about how many
-  rows shared an offset rather than about the file's dates.
+- every rung of a ladder of dates or of clock times that the TAIL RULE
+  withholds, both ends included (stage 3, plan P4-D328). The
+  description publishes nothing at those ranks — they hold the column's
+  outermost values — so there is nothing for a file to carry and a
+  comparison of a null with a null could not fail on any file of the
+  same depth. Each is listed with the rule that withholds it
+  (contract D11, T2), and a column with no tails at all lists both
+  tails the same way;
+- the two endpoint offsets, which stood here until stage 3 and are gone
+  from the format with the ends they described.
 
 **V3.5-A2 And a count the description names only PART of is a window,
 not a point** (2026-08-15, review item P3-V7-F2's battery; the plan's
@@ -1964,12 +1988,13 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   repairs it. The summed reach can miss that, because it lets the
   smallest published groups answer for every band at once.
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
-  `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`,
-  both endpoint offsets and `datetimes_read_at` are REPORT-ONLY, and
-  the two ends are not. **A map naming real offsets whose own earliest
-  or latest END is withheld is a different shape and not this corner**:
-  it is V3.5-A1's listing for that one endpoint, and every offset the
-  description does name is still checked.
+  `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`
+  and `datetimes_read_at` are REPORT-ONLY, and the two TAILS are not:
+  a boundary is an instant, which a cell carrying no offset still gives
+  back exactly. *Stage 3 (plan P4-D328): the two endpoint offsets this
+  corner also named are gone from the format, and so is the shape that
+  stood beside it -- a map naming real offsets whose own end offset was
+  withheld -- because no end is described any more.*
 - **label-variants-short** (P2-D6): a label column whose published
   variants and withheld-variant multiset do not settle the published raw
   `n_distinct`. Then raw `n_distinct` falls to the G12.7 envelope.

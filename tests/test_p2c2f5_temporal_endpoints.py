@@ -80,6 +80,7 @@ import pytest
 
 import fixtures
 from synthtwin import (
+    parsing,
     contract,
     errors,
     generation,
@@ -97,8 +98,17 @@ PLAN = REPO_ROOT / "docs" / "plans" / "phase-2-generator.md"
 # The obligation, in the ratified plan's own words (P2-D6, the datetime
 # paragraph). Both specifications carry it character for character, so
 # one document cannot drift from the other or from the plan.
+#
+# THE FACT IT IS ABOUT MOVED IN STAGE 3 AND THE OBLIGATION MOVED WITH IT
+# (plan P4-D328). `earliest` and `latest` are published nowhere now: the
+# published moments of a column of dates are its two tail boundaries, so
+# the plan states the same disposition over them and both specifications
+# carry the same words. What this file exists to refuse -- a published
+# moment met by something other than what was published -- is refused of
+# whatever fact carries the moment, so the phrase is re-derived from the
+# rule rather than deleted with the fact it used to name.
 PLAN_WORDS = (
-    "`earliest`, `latest` exact-observable in the representation owner "
+    "both tail boundaries exact-observable in the representation owner "
     "decision 5 fixes"
 )
 SHARED_WORDS = "exact-observable in the representation owner decision 5 fixes"
@@ -168,8 +178,25 @@ def _loaded(
 
 
 def _rows(values: "list[str]", copies: int) -> "list[str]":
-    """Enough rows of a small set of values to clear the smallest group."""
-    return [values[index % len(values)] for index in range(copies)]
+    """Enough DIFFERENT values of one shape for both tails to exist.
+
+    STAGE 3 (plan P4-D328). These shapes were four values repeated ten
+    times each, which publishes no tail at all at a floor of eleven: ties
+    at both ends leave no value between the two boundaries (contract
+    TL2), so the boundary this file is about would not exist. Each row
+    keeps its shape's own resolution, precision and clock and takes a day
+    of its own, which is what a tail needs.
+    """
+    made: "list[str]" = []
+    for index in range(copies):
+        value = values[index % len(values)]
+        if value[4:5] == "-" and value[5:6] == "Q":
+            made += [f"{1990 + index // 4:04d}-Q{1 + index % 4}"]
+            continue
+        month = f"{1 + index // 28:02d}"
+        day = f"{1 + index % 28:02d}"
+        made += [f"{value[0:5]}{month}-{day}{value[10:]}"]
+    return made
 
 
 def _named(twin: generation.Twin) -> "dict[str, generation.Deviation]":
@@ -184,15 +211,19 @@ def _named(twin: generation.Twin) -> "dict[str, generation.Deviation]":
 # -- the behaviour: the end a real reader can hand us ------------------
 
 
-def test_a_published_leap_second_end_is_written_back_unchanged(
+def test_a_published_leap_second_boundary_is_written_back_unchanged(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The review item's own scenario, and it now holds the end exactly.
+    """The review item's own scenario, on the value stage 3 publishes.
 
-    Forty rows, a genuine description, an end whose seconds field is 60,
-    seed 3. The item's twin wrote the following minute and named the
-    miss; a boundary filter written against that twin admitted a row the
-    real table's own end excludes.
+    Forty rows, a genuine description, a TAIL BOUNDARY whose seconds
+    field is 60, seed 3. The item's twin wrote the following minute and
+    named the miss; a boundary filter written against that twin admitted
+    a row the real table's own boundary excludes. No end is published
+    since plan P4-D328, and what carries the same obligation is the
+    boundary: an exact value of a real cell, written from its own
+    published fields (G7.5) rather than through the whole-second space
+    the ranks around it travel in.
     """
     folder = tmp_path / "held"
     folder.mkdir(parents=True, exist_ok=True)
@@ -202,17 +233,19 @@ def test_a_published_leap_second_end_is_written_back_unchanged(
     assert block["datetimes_read_at"] == "local"
     assert block["time_precision"] == "second"
 
-    end = f"{block['latest'][0:17]}60"
-    block["latest"] = end
-    block["date_percentiles"]["max"] = end
+    boundary = block["high_tail"]["boundary"]
+    leap = f"{boundary[0:17]}60"
+    block["high_tail"]["boundary"] = leap
+    for name in taxonomy.LADDER_NAMES:
+        if block["date_percentiles"][name] == boundary:
+            block["date_percentiles"][name] = leap
     twin = generation.generate(_loaded(folder, document, "held.json"), 3)
 
-    assert "latest" not in _named(twin)
+    assert "high_tail.rows" not in _named(twin)
     written = [cell for cell in twin.columns[0] if cell != ""]
-    # The source wrote its stamps with a space, and since plan P4-D39 the
-    # end keeps the source's own mark.
-    assert "2024-11-02 04:55:60" in written
-    assert max(written) == "2024-11-02 04:55:60"
+    # The source wrote its stamps with a space, and since plan P4-D39 a
+    # pinned rank keeps the source's own mark.
+    assert leap in written
 
 
 def test_every_other_end_keeps_the_bytes_it_already_had(
@@ -238,7 +271,13 @@ def test_every_other_end_keeps_the_bytes_it_already_had(
             for key in sorted(facts.utc_offsets)
             if generation._is_real_offset(key)
         ]
-        for published in [facts.earliest, facts.latest]:
+        boundaries = [
+            tail.boundary
+            for tail in (facts.low_tail, facts.high_tail)
+            if tail is not None
+        ]
+        assert boundaries
+        for published in boundaries:
             for offset in carried or [""]:
                 moved = generation._ordinal_of(published, "datetime")
                 if facts.datetimes_read_at == "utc":
@@ -274,21 +313,21 @@ def test_the_end_no_cell_of_this_shape_can_show_is_refused(
     document = _document(folder, _rows(IN_TWO_OFFSETS, 40))
     assert document["columns"][0]["datetimes_read_at"] == "utc"
     edited = copy.deepcopy(document)
-    end = f"{edited['columns'][0]['latest'][0:17]}60"
-    edited["columns"][0]["latest"] = end
-    edited["columns"][0]["date_percentiles"]["max"] = end
+    boundary = edited["columns"][0]["high_tail"]["boundary"]
+    leap = f"{boundary[0:17]}60"
+    edited["columns"][0]["high_tail"]["boundary"] = leap
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, edited, "cannot.json")
     message = f"{raised.value}"
     assert "D10" in message
-    assert end in message
+    assert leap in message
     assert "when" in message
 
     # The same description without that one edit loads and reports no
-    # end at all, so the refusal above is the pair's and not the base's.
+    # tail at all, so the refusal above is the pair's and not the base's.
     ordinary = generation.generate(_loaded(folder, document, "ok.json"), 3)
-    assert "latest" not in _named(ordinary)
-    assert "earliest" not in _named(ordinary)
+    assert "high_tail.rows" not in _named(ordinary)
+    assert "low_tail.rows" not in _named(ordinary)
 
 
 def test_the_generator_writes_the_published_seconds_on_both_clocks(
@@ -309,36 +348,42 @@ def test_the_generator_writes_the_published_seconds_on_both_clocks(
     facts = _loaded(folder, document, "clocks.json").columns[0].facts
     assert isinstance(facts, contract.DatetimeFacts)
     assert facts.datetimes_read_at == "utc"
-    shared = dataclasses.replace(facts, latest=f"{facts.latest[0:17]}60")
-    written = generation._endpoint_cell(shared, shared.latest, "-05:00", "T")
+    high = facts.high_tail
+    assert high is not None
+    leap = f"{high.boundary[0:17]}60"
+    shared = dataclasses.replace(
+        facts, high_tail=dataclasses.replace(high, boundary=leap)
+    )
+    written = generation._endpoint_cell(shared, leap, "-05:00", "T")
     assert written is not None
     assert written[17:19] == "60"
 
     local = dataclasses.replace(shared, datetimes_read_at="local")
-    on_the_wall = generation._endpoint_cell(
-        local, local.latest, "-05:00", "T"
-    )
+    on_the_wall = generation._endpoint_cell(local, leap, "-05:00", "T")
     assert on_the_wall is not None
     assert on_the_wall[17:19] == "60"
 
 
-def test_a_ladder_end_that_is_not_the_column_s_own_end_is_refused(
+def test_a_ladder_rung_the_tail_rule_withholds_is_refused(
     tmp_path: pathlib.Path,
 ) -> None:
-    """`date_percentiles` ends and the column's ends are one pair (D11).
+    """The ladder is published between the two boundaries (D11).
 
-    The matrix calls both pairs exact and says they are the same two
-    instants; nothing enforced it. A ladder beginning before `earliest`
-    loaded, and the twin then held instants before its own published
+    The matrix calls the boundary exact and the ladder around it a rule;
+    nothing enforced the OLD pair either, and a ladder beginning before
+    `earliest` loaded, so the twin held instants before its own published
     earliest instant with nothing named -- an exact fact missed in
-    silence, which is worse than the reported one this item is about.
+    silence. Stage 3's D11 is the same protection one step further in:
+    the ranks the ladder may speak at are exactly the ranks between the
+    two boundaries.
     """
     folder = tmp_path / "tied"
     folder.mkdir(parents=True, exist_ok=True)
     document = _document(folder, _rows(AT_THE_SECOND, 40))
     edited = copy.deepcopy(document)
-    edited["columns"][0]["date_percentiles"]["min"] = "2020-01-01 00:00:00"
-    edited["columns"][0]["date_percentiles"]["p01"] = "2020-01-01 00:00:00"
+    edited["columns"][0]["date_percentiles"]["min"] = (
+        edited["columns"][0]["low_tail"]["boundary"]
+    )
     with pytest.raises(errors.ProfileError) as raised:
         _loaded(folder, edited, "tied.json")
     assert "D11" in f"{raised.value}"
@@ -377,13 +422,19 @@ SHAPES = {
 END_EDITS = ["as published", "a leap second at the end", "seconds at the end"]
 
 
-def _with_end(document: Document, seconds: str) -> Document:
-    """The same description with its last value's seconds field changed."""
+def _with_boundary(document: Document, seconds: str) -> Document:
+    """The same description with its high boundary's seconds field changed."""
     edited = copy.deepcopy(document)
     block = edited["columns"][0]
-    end = f"{block['latest'][0:17]}{seconds}"
-    block["latest"] = end
-    block["date_percentiles"]["max"] = end
+    tail = block["high_tail"]
+    if not isinstance(tail, dict):
+        return edited
+    boundary = tail["boundary"]
+    moved = f"{boundary[0:17]}{seconds}"
+    tail["boundary"] = moved
+    for name in taxonomy.LADDER_NAMES:
+        if block["date_percentiles"][name] == boundary:
+            block["date_percentiles"][name] = moved
     return edited
 
 
@@ -399,18 +450,18 @@ def _redescribed(folder: pathlib.Path, twin: generation.Twin) -> Document:
     return typing.cast(Document, json.loads(json.dumps(again)))
 
 
-def test_every_description_the_loader_accepts_gives_both_ends_back(
+def test_every_description_the_loader_accepts_gives_both_boundaries_back(
     tmp_path: pathlib.Path,
 ) -> None:
     """The obligation itself, over the whole space, on the written bytes.
 
     The wording checks below read what the documents SAY. This reads what
     the run DOES, and it is the half that no prose can satisfy: for every
-    shape of temporal column and every end a reader can publish, either
-    the description is refused -- which is what D10 does with the two
-    pairs no cell can show -- or the twin is described again and gives
-    back the same `earliest`, the same `latest`, and the same two ladder
-    ends. There is no third outcome, and an exception added to either
+    shape of temporal column and every boundary a reader can publish,
+    either the description is refused -- which is what D10 does with the
+    two pairs no cell can show -- or the twin is described again and
+    gives back the same two boundaries and the same counts beyond them.
+    There is no third outcome, and an exception added to either
     specification would have to make one.
     """
     accepted = 0
@@ -425,9 +476,9 @@ def test_every_description_the_loader_accepts_gives_both_ends_back(
             if edit != "as published" and block["resolution"] != "datetime":
                 continue
             if edit == "a leap second at the end":
-                document = _with_end(document, "60")
+                document = _with_boundary(document, "60")
             elif edit == "seconds at the end":
-                document = _with_end(document, "37")
+                document = _with_boundary(document, "37")
             try:
                 described = _loaded(folder, document, "described.json")
             except errors.ProfileError as raised:
@@ -437,21 +488,19 @@ def test_every_description_the_loader_accepts_gives_both_ends_back(
             accepted = accepted + 1
             facts = described.columns[0].facts
             assert isinstance(facts, contract.DatetimeFacts)
+            assert facts.low_tail is not None and facts.high_tail is not None
             twin = generation.generate(described, 3)
             named = _named(twin)
-            for fact in [
-                "earliest",
-                "latest",
-                "date_percentiles.min",
-                "date_percentiles.max",
-            ]:
+            for fact in ["low_tail.rows", "high_tail.rows"]:
                 assert fact not in named, (shape, edit, fact)
             again = _redescribed(folder, twin)["columns"][0]
-            assert again["earliest"] == facts.earliest, (shape, edit)
-            assert again["latest"] == facts.latest, (shape, edit)
-            assert again["date_percentiles"]["min"] == facts.earliest
-            assert again["date_percentiles"]["max"] == facts.latest
-            if facts.latest[17:19] == "60":
+            for side, tail in (
+                ("low_tail", facts.low_tail),
+                ("high_tail", facts.high_tail),
+            ):
+                assert again[side]["boundary"] == tail.boundary, (shape, edit)
+                assert again[side]["rows"] == tail.rows, (shape, edit, side)
+            if facts.high_tail.boundary[17:19] == "60":
                 carried_a_leap_second = carried_a_leap_second + 1
 
     # The floor under the count: the space is really walked, the refusals
@@ -463,113 +512,100 @@ def test_every_description_the_loader_accepts_gives_both_ends_back(
     assert carried_a_leap_second >= 3, carried_a_leap_second
 
 
-def test_an_end_whose_offset_leaves_the_calendar_is_refused(
+def test_no_twin_cell_leaves_what_its_own_column_can_write(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The third pair, refused in BOTH directions (review item P2-C4-F1).
+    """The calendar's edge, kept by the GENERATOR (stage 3, plan P4-D331).
 
-    This is the scenario round 4 ran. A shared-clock column whose first
-    instant is inside the first day the canonical form can spell, with an
-    endpoint offset behind that clock, asks for a cell outside the years
-    `0001` to `9999`, which reads back as no date at all. The repair
-    before this one wrote that cell, named the end in the report and
-    called the calendar's own end something other than an exception --
-    the fourth lowering of one obligation. The loader holds the end, its
-    offset and the clock, so D10 settles the pair where it is decided,
-    and the upper end is settled with it.
+    This was the third pair D10 refused: a shared-clock end whose own
+    endpoint offset carried its cell outside the years `0001` to `9999`.
+    Neither field is published any more, so there is nothing for a loader
+    to refuse -- and the obligation did not disappear with them, it moved
+    to where the cell is now derived. Method G7.3e keeps every rank of a
+    tail inside the days the column's own member and clock can write and
+    read back, so a column sitting against the calendar's first day, on
+    the shared clock, with an offset behind it, has a twin every cell of
+    which reads back as a date.
+
+    The same clause covers the two-figure year, whose reader settles the
+    century at 1969..2068: a twin that wrote 1968 as `68` would be read
+    back as 2068 (the skeptic of the tail design, B2).
     """
     folder = tmp_path / "calendar"
     folder.mkdir(parents=True, exist_ok=True)
-    document = _document(folder, _rows(IN_TWO_OFFSETS, 40))
-    assert document["columns"][0]["datetimes_read_at"] == "utc"
+    edge = [
+        f"0001-01-{1 + index:02d} 00:30:00{offset}"
+        for index in range(20)
+        for offset in ("+02:00", "-05:00")
+    ]
+    document = _document(folder, edge)
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["datetimes_read_at"] == "utc"
+    described = _loaded(folder, document, "calendar.json")
+    twin = generation.generate(described, 3)
+    written = [cell for cell in twin.columns[0] if cell != ""]
+    assert written
+    for cell in written:
+        assert parsing.parse_datetime(cell, block["format"]) is not None, cell
+    again = _redescribed(folder, twin)["columns"][0]
+    assert again["low_tail"]["boundary"] == block["low_tail"]["boundary"]
+    assert again["low_tail"]["rows"] == block["low_tail"]["rows"]
 
-    for name, key, instant, offset, rung in [
-        ("lower", "earliest", "0001-01-01 00:00:00", "-05:00", "min"),
-        ("upper", "latest", "9999-12-31 23:59:59", "+02:00", "max"),
-    ]:
-        edited = copy.deepcopy(document)
-        block = edited["columns"][0]
-        block[key] = instant
-        block[f"{key}_utc_offset"] = offset
-        block["date_percentiles"][rung] = instant
-        block["date_percentiles"]["p01" if rung == "min" else "p99"] = instant
-        with pytest.raises(errors.ProfileError) as raised:
-            _loaded(folder, edited, f"calendar-{name}.json")
-        message = f"{raised.value}"
-        assert "D10" in message, name
-        assert instant in message, name
-        assert offset in message, name
-        assert "0001 to 9999" in message, name
-
-    # The same description without that one edit loads and writes both
-    # ends exactly, so the refusals above are the pair's and not the
-    # shape's.
-    ordinary = generation.generate(_loaded(folder, document, "ok.json"), 3)
-    assert "earliest" not in _named(ordinary)
-    assert "latest" not in _named(ordinary)
+    # And the same at the other edge of a two-figure year's window.
+    second = tmp_path / "pivot"
+    second.mkdir(parents=True, exist_ok=True)
+    early = [
+        f"{1 + index % 28:02d}/{1 + index // 28:02d}/69" for index in range(40)
+    ]
+    pivoted = _document(second, early)
+    assert pivoted["columns"][0]["format"] in parsing.TWO_FIGURE_MEMBERS
+    built = generation.generate(_loaded(second, pivoted, "pivot.json"), 3)
+    for cell in [cell for cell in built.columns[0] if cell != ""]:
+        year = parsing.parse_datetime(cell, pivoted["columns"][0]["format"])
+        assert year is not None, cell
+        assert 1969 <= int(year[0][0:4]) <= 2068, cell
 
 
-def test_an_end_this_tool_fails_to_write_is_still_printed(
+def test_a_tail_this_tool_fails_to_write_is_still_printed(
     tmp_path: pathlib.Path,
 ) -> None:
     """The read-back check can fail, and says so when it does.
 
-    Every description the loader accepts now has an end G7.5 writes
-    exactly, so the check cannot be reached by a description any more.
-    That is precisely when a check quietly becomes decoration, so this
-    puts the defect back: the writing rule is reverted to the ordinal
-    route -- the round-1 behaviour -- and the run has to catch its own
-    end, name it under the contract's field name, and print both values.
+    Every description the loader accepts has tails G7.3b writes exactly,
+    so the check cannot be reached by a description any more. That is
+    precisely when a check quietly becomes decoration, so this puts a
+    defect back: the tail's distances are reverted to nought -- every
+    outer rank on the boundary itself -- and the run has to catch its own
+    tail, name it under the contract's field name, and print both counts.
     The report entry is a defect notice, not a disposition: no
     description asked for it.
     """
     folder = tmp_path / "detector"
     folder.mkdir(parents=True, exist_ok=True)
     document = _document(folder, _rows(AT_THE_SECOND, 40))
-    block = document["columns"][0]
-    end = f"{block['latest'][0:17]}60"
-    block["latest"] = end
-    block["date_percentiles"]["max"] = end
     described = _loaded(folder, document, "detector.json")
 
-    kept = generation._endpoint_cell
+    kept = generation._tail_distances
 
-    def reverted(
-        facts: contract.DatetimeFacts,
-        published: str,
-        offset: str,
-        mark: str,
-        style: object = None,
-    ) -> str:
-        """The withdrawn rule: an end through the whole-second space.
+    def collapsed(
+        shape: "generation._TailShape", words: "dict[int, int]"
+    ) -> "list[int]":
+        """The withdrawn behaviour: every outer rank on the boundary."""
+        return [0 for _index in range(shape.rows)]
 
-        The mark rides through unchanged, so the mutant differs from the
-        real rule only in the route and never in the separator.
-        """
-        moved = generation._ordinal_of(published, facts.resolution)
-        if facts.datetimes_read_at == "utc":
-            moved = moved + generation._offset_seconds(offset)
-        return generation._cell_of_ordinal(
-            moved,
-            facts.resolution,
-            facts.time_precision,
-            facts.subsecond_digits,
-            mark,
-        )
-
-    generation._endpoint_cell = reverted  # type: ignore[assignment]
+    generation._tail_distances = collapsed  # type: ignore[assignment]
     try:
         twin = generation.generate(described, 3)
     finally:
-        generation._endpoint_cell = kept  # type: ignore[assignment]
+        generation._tail_distances = kept  # type: ignore[assignment]
 
     named = _named(twin)
-    assert "latest" in named, "the read-back check missed a changed end"
-    assert named["latest"].published == end
-    assert named["latest"].achieved == "2024-11-02 04:56:00"
+    assert "low_tail.rows" in named, "the read-back check missed a lost tail"
+    assert named["low_tail.rows"].published == f"{described.columns[0].facts.low_tail.rows}"
+    assert named["low_tail.rows"].achieved == "0"
     printed = rendering.report(described, twin)
-    assert end in printed
-    assert "2024-11-02 04:56:00" in printed
+    assert "low_tail.rows" in printed
 
 
 # -- the wording: what the two documents are allowed to say ------------
@@ -633,20 +669,28 @@ def test_both_documents_state_the_plan_s_own_obligation() -> None:
         assert SHARED_WORDS in _text(path), path.name
 
 
-def test_the_method_states_how_an_end_is_written() -> None:
-    """G7.5 fixes the exact representation, so an implementer can build it."""
+def test_the_method_states_how_a_published_moment_is_written() -> None:
+    """G7.5 fixes the exact representation, so an implementer can build it.
+
+    STAGE 3: the published moments of a column of dates are the two tail
+    boundaries and the values a few-valued tail lists, so the sentences
+    this reads are the ones stated over them. The obligation is the same
+    one, moved with the fact it is about (plan P4-D328).
+    """
     body = _text(METHOD)
 
     assert (
-        "the two endpoint cells are built from the published endpoint's "
-        "own fields, not from its ordinal" in body
+        "built from the published moment's own fields, not from its "
+        "ordinal" in body
     )
     assert "write the published `ss` back into the seconds field" in body
     assert (
-        "both endpoints are therefore exact-observable, with no "
+        "both tail boundaries are therefore exact-observable, with no "
         "leap-second exception" in body
     )
-    assert "these two cells are built by g7.5's endpoint rule" in body
+    assert (
+        "each used exactly as published" in body
+    )
 
 
 def test_both_documents_state_the_refusal_that_makes_it_true() -> None:
@@ -831,6 +875,17 @@ METHOD_PASSAGES = {
         "spellings are declared absent it declines to invent a third "
         "and G12 names the loss, which is the behaviour every other "
         "passage here describes"
+    ),
+    # THE PASSAGE STAGE 3 WROTE, when the two ends left the role.
+    "**and two left the index in stage 3**": (
+        "the deviation key index's record of `earliest` and `latest` "
+        "LEAVING it (plan P4-D328). It reaches this guard's vocabulary "
+        "because it names both ends beside the word 'fail', and what it "
+        "says is the opposite of an excuse: neither instant is published "
+        "any more, so no run can name one in a report at all, and the "
+        "fact that stands where they stood -- a tail's BOUNDARY -- is "
+        "exact, written from the published moment's own fields, with "
+        "only the two distances left to the construction window"
     ),
     # THREE PASSAGES THE STAGE-2b LANDINGS WROTE, each reaching this
     # guard's vocabulary in a sense that is not a temporal end (measured

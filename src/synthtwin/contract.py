@@ -513,25 +513,33 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
 # The clock role's own five, and the two forms its cells can wear.
 # Nothing else joins them: these five are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
-# a sixth.
+# a sixth. STAGE 3 (plan P4-D328): the earliest and latest time went,
+# and the two tails took their places.
 CLOCK_KEYS = (
     "clock_form",
     "clock_percentiles",
-    "earliest",
-    "latest",
+    "high_tail",
+    "low_tail",
     "n_unparsed",
 )
 CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
+
+# THE KEYS OF ONE TAIL OBJECT (stage 3, contract TL1), read from the one
+# place they are written.
+TAIL_KEYS = parsing.TAIL_KEYS
+TAIL_UNITS = parsing.TAIL_UNITS
 
 DATETIME_KEYS = (
     "date_percentiles",
     "resolution_mix",
     "datetimes_read_at",
-    "earliest",
-    "earliest_utc_offset",
     "format",
-    "latest",
-    "latest_utc_offset",
+    # STAGE 3 (plan P4-D328): the two tails and the unit they are counted
+    # in, in place of the first and last value and the offsets those two
+    # rows wore.
+    "high_tail",
+    "low_tail",
+    "tail_unit",
     "n_unparsed",
     "resolution",
     "subsecond_digits",
@@ -1286,10 +1294,6 @@ INVARIANTS = {
     ),
     "M4": "a repetition pattern counts one thing or more at each size",
     "L1": "the eleven points of a ladder never go down",
-    "L3": (
-        "a point of a ladder of dates is always a date, and never "
-        "nothing"
-    ),
     "E1": "a column is empty exactly when it holds no value",
     "U1": (
         "every value of a column of numbers too large to hold is "
@@ -1371,10 +1375,6 @@ INVARIANTS = {
         "size of rows carried it, and never by fewer than two, and offsets "
         "are held back only all together"
     ),
-    "D4": (
-        "the offset of the first or last value is never one the "
-        "description is holding back"
-    ),
     "D5": (
         "dates written under two or more different offsets are "
         "published on the shared clock"
@@ -1393,12 +1393,38 @@ INVARIANTS = {
         "publishes a date AND a time of day for it to move"
     ),
     "D10": (
-        "the first and last values of a column of dates are ones a cell "
+        "every value a tail of a column of dates publishes is one a cell "
         "of that column's own recorded detail and clock can show"
     ),
     "D11": (
-        "the two ends of the ladder of dates are the column's first and "
-        "last values themselves"
+        "the ladder of dates is published between the two tail boundaries "
+        "and nowhere else: its two ends are empty, a rung read from inside "
+        "a tail or from a column with no tails is empty, a rung read off a "
+        "boundary's own rank is that boundary, and every published rung "
+        "lies between the two boundaries"
+    ),
+    "TL1": (
+        "a tail is nothing at all, or a boundary, how many cells lie beyond "
+        "it and how far beyond on average, publishing either both of its "
+        "distances or the values it holds beside at most its mean"
+    ),
+    "TL3": (
+        "every distance a tail publishes is at least one unit, its "
+        "root-mean-square distance is never below its mean, and the values "
+        "it publishes are different, in ascending order, beyond its "
+        "boundary and no more than the cells it holds"
+    ),
+    "TL2": (
+        "a column publishes both of its tails or neither, each holding at "
+        "least the smallest group size of cells, together leaving at least "
+        "one cell between them, with the low boundary never after the "
+        "high one"
+    ),
+    "TL4": (
+        "the unit a column's tails are counted in follows from what it "
+        "publishes: a quarter or a month for those two, a day for dates "
+        "and for moments that all stand at midnight, a minute for moments "
+        "written to the minute and a second otherwise"
     ),
     "D12": (
         "a mark between a moment's day and its clock is named only when at "
@@ -1666,8 +1692,8 @@ INVARIANTS = {
         "way this column's own times were written"
     ),
     "T2": (
-        "the ladder of clock times begins at the column's earliest "
-        "time and ends at its latest"
+        "the ladder of clock times is published between the two tail "
+        "boundaries and nowhere else, exactly as the ladder of dates is"
     ),
     "T3": (
         "the ladder of clock times never goes backwards"
@@ -2159,21 +2185,45 @@ class NumberLadder:
 class DateLadder:
     """The eleven rungs over the ordered instants (contract 5.6).
 
-    No rung of a date ladder is ever null (L3), so every field is text.
+    STAGE 3 (contract D11): a rung is null exactly where the rank it is
+    selected from lies inside a tail, so `minimum` and `maximum` are
+    always null and a column with no tails publishes no rung at all.
     """
 
-    rungs: "tuple[str, ...]"
-    minimum: str
-    p01: str
-    p05: str
-    p10: str
-    p25: str
-    p50: str
-    p75: str
-    p90: str
-    p95: str
-    p99: str
-    maximum: str
+    rungs: "tuple[str | None, ...]"
+    minimum: "str | None"
+    p01: "str | None"
+    p05: "str | None"
+    p10: "str | None"
+    p25: "str | None"
+    p50: "str | None"
+    p75: "str | None"
+    p90: "str | None"
+    p95: "str | None"
+    p99: "str | None"
+    maximum: "str | None"
+
+
+@dataclasses.dataclass(frozen=True)
+class TailFacts:
+    """One tail of a column of dates or clock times (contract TL1).
+
+    `boundary` is canonical text of the value the tail is measured from,
+    held by a real cell that is not one of the outer ones; `rows` how
+    many cells lie strictly beyond it. `mean_distance` and
+    `rms_distance` are the mean and the root-mean-square distance of
+    those cells beyond the boundary, in the tail's unit. `values` is
+    None, or the sorted canonical text of every different value the
+    tail holds, published in place of `rms_distance` where the tail holds
+    few values or its numbers would pin a count below the floor; beside
+    it `mean_distance` is None where it would do that.
+    """
+
+    boundary: str
+    rows: int
+    mean_distance: "float | None"
+    rms_distance: "float | None"
+    values: "tuple[str, ...] | None"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2336,10 +2386,13 @@ class DatetimeFacts:
     time_precision: str
     subsecond_digits: int
     datetimes_read_at: str
-    earliest: str
-    latest: str
-    earliest_utc_offset: str
-    latest_utc_offset: str
+    # THE TWO TAILS AND THEIR UNIT (stage 3, plan P4-D328), in place of
+    # the first and last value and the offsets those two rows wore. Both
+    # tails are None together on a column too small, or too tied, for a
+    # boundary to exist on each side (contract TL2).
+    tail_unit: str
+    low_tail: "TailFacts | None"
+    high_tail: "TailFacts | None"
     date_percentiles: DateLadder
     n_unparsed: int
     utc_offsets: "dict[str, int]"
@@ -2683,19 +2736,21 @@ class ClockFacts:
     """A column of clock times (contract section 6, the clock role).
 
     FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
-    earliest and latest value, the eleven-rung ladder over the values
-    that parsed, and how many present cells no clock reading accepted.
+    two tails, the eleven-rung ladder over the values that parsed, and
+    how many present cells no clock reading accepted.
 
     Every clock value here is written in the form `clock_form` names,
     two digits a field. The ladder is SELECTION -- eleven order
-    statistics of cells the column really holds -- so its two ends ARE
-    the endpoints, which the loader checks rather than assumes.
+    statistics of cells the column really holds -- and since stage 3
+    (contract T2) a rung is published only between the two tail
+    boundaries, so its two ends are always null. A tail's distances are
+    in the form's own unit: minutes for `hh-mm`, seconds for `hh-mm-ss`.
     """
 
     clock_form: str
-    earliest: str
-    latest: str
-    clock_percentiles: "dict[str, str]"
+    low_tail: "TailFacts | None"
+    high_tail: "TailFacts | None"
+    clock_percentiles: "dict[str, str | None]"
     n_unparsed: int
 
 
@@ -3973,26 +4028,26 @@ def _date_ladder(
     Guarantees: accepts the value under ``key`` and the form the dates
     are published in; returns the ladder as a typed object. Raises
     ProfileError when it is not a block of entries (R15), when its keys
-    are not exactly the eleven rungs (L4), when a rung is not text (L3
-    -- a rung of a date ladder is never null), when a rung is not in the
-    canonical form for this resolution (R16), or when the rungs go down
-    (L1). The comparison is plain text comparison, which is why the
-    canonical forms are chosen to sort as text.
+    are not exactly the eleven rungs (L4), when a rung is neither text
+    nor null, when a rung is not in the canonical form for this
+    resolution (R16), or when the published rungs go down (L1). The
+    comparison is plain text comparison, which is why the canonical forms
+    are chosen to sort as text. Which rungs are null is D11's question,
+    asked beside the tails.
     """
     mapping = _mapping(value, key, where)
     _keys(mapping, where, LADDER_KEYS, "every ladder of dates")
-    rungs: list[str] = []
+    rungs: "list[str | None]" = []
     previous = ""
     previous_name = ""
     for name in LADDER_KEYS:
         rung = mapping[name]
         if rung is None:
-            raise _broken(
-                "L3",
-                where,
-                f"the rung '{name}' of {key} holds nothing",
-                "a ladder of dates has a date at every rung",
-            )
+            # WITHHELD BY THE TAIL RULE (stage 3, contract D11): which rungs
+            # may be null, and which must be, is asked beside the tails
+            # (`_tails_hold`), where the parsed count is in hand.
+            rungs += [None]
+            continue
         found = _canonical_datetime(rung, f"{key} -> {name}", where, resolution)
         rungs += [found]
         if previous and found < previous:
@@ -8134,65 +8189,37 @@ def _datetime_facts(
                 f"the offset '{key}' is named for a value of the column",
                 f"its values are published as '{resolution}'",
             )
-    earliest_offset = _endpoint_offset(
-        mapping["earliest_utc_offset"], "earliest_utc_offset", where, offsets
-    )
-    latest_offset = _endpoint_offset(
-        mapping["latest_utc_offset"], "latest_utc_offset", where, offsets
-    )
-    if parser_family in CLOCK_FORM_MEMBERS:
-        # The two ENDPOINT offset fields, held to the same rule as the
-        # map above and asked here because this is where they are read
-        # (review item P4-DATE4-F1).
-        for key, field in (
-            (earliest_offset, "earliest_utc_offset"),
-            (latest_offset, "latest_utc_offset"),
-        ):
-            if key == WITHHELD or key == NO_OFFSET:
-                continue
-            raise _broken(
-                "D9",
-                where,
-                f"{field} names the offset '{key}'",
-                f"the dates were read as '{parser_family}', which reads "
-                f"no offset at all",
-            )
-    earliest = _canonical_datetime(
-        mapping["earliest"], "earliest", where, resolution
-    )
-    latest = _canonical_datetime(mapping["latest"], "latest", where, resolution)
     ladder = _date_ladder(
         mapping["date_percentiles"], "date_percentiles", where, resolution
     )
-    _endpoints_a_cell_can_show(
-        where,
-        resolution,
-        precision,
-        clock,
-        earliest,
-        latest,
-        earliest_offset,
-        latest_offset,
-    )
-    if ladder.minimum != earliest:
-        raise _broken(
-            "D11",
-            where,
-            f"the ladder of dates begins at {ladder.minimum}",
-            f"the column's first value is {earliest}",
-        )
-    if ladder.maximum != latest:
-        raise _broken(
-            "D11",
-            where,
-            f"the ladder of dates ends at {ladder.maximum}",
-            f"the column's last value is {latest}",
-        )
     midnight = _truth(mapping["all_at_midnight"], "all_at_midnight", where)
+    # THE TWO TAILS (stage 3, plan P4-D328; contract TL1 to TL4). The first
+    # and last value and the offsets those two rows wore are no longer
+    # published, so D4 went with them.
+    unit = _one_of(mapping["tail_unit"], "tail_unit", where, TAIL_UNITS)
+    wanted_unit = _tail_unit_of(resolution, precision, midnight)
+    if unit != wanted_unit:
+        raise _broken(
+            "TL4",
+            where,
+            f"the tails are counted in '{unit}'",
+            (
+                f"a column published as '{resolution}' at '{precision}'"
+                f"{' standing at midnight' if midnight else ''} counts them "
+                f"in '{wanted_unit}'"
+            ),
+        )
+    low = _tail_object(mapping["low_tail"], "low_tail", where, resolution, "")
+    high = _tail_object(mapping["high_tail"], "high_tail", where, resolution, "")
+    _tails_hold(
+        where, floor, n_present - unparsed, low, high, ladder.rungs,
+        "date_percentiles", "D11",
+    )
+    _boundaries_a_cell_can_show(where, resolution, precision, clock, low, high)
     if midnight:
         _stands_at_midnight(
             where, floor, resolution, clock, n_present - unparsed,
-            earliest, latest, ladder, offsets, earliest_offset, latest_offset,
+            low, high, ladder, offsets,
         )
     at_midnight = _whole_or_nothing(
         mapping["n_at_midnight"], "n_at_midnight", where
@@ -8266,10 +8293,9 @@ def _datetime_facts(
         time_precision=precision,
         subsecond_digits=digits,
         datetimes_read_at=clock,
-        earliest=earliest,
-        latest=latest,
-        earliest_utc_offset=earliest_offset,
-        latest_utc_offset=latest_offset,
+        tail_unit=unit,
+        low_tail=low,
+        high_tail=high,
         date_percentiles=ladder,
         n_unparsed=unparsed,
         resolution_mix=mix,
@@ -8586,7 +8612,62 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
         "iso-date" in facts.resolution_mix and facts.resolution_mix["iso-date"] > 0
     ):
         return False
-    return column.n_distinct == column.n_distinct_folded
+    if column.n_distinct != column.n_distinct_folded:
+        return False
+    # ...AND THE TAILS HAVE TO LEAVE THE PASS SOMEWHERE TO PUT THEM
+    # (stage 3, plan P4-D328). A tail publishing its VALUES fixes every
+    # rank it holds on one of them, and the body runs between the two
+    # boundaries, so the units the construction can write at all are
+    # the tails' values and the units between the boundaries. Where the
+    # published count asks for more than that, the pass cannot reach it
+    # however many rounds it runs, and the count falls to the envelope
+    # of G12.5 like any other approximated fact. Measured: 36 dates on
+    # three days, 14 of them written two ways, whose low tail lists one
+    # value and whose two boundaries are one day -- the twin can hold
+    # three different spellings and the description publishes four.
+    low, high = facts.low_tail, facts.high_tail
+    if low is not None and high is not None:
+        reach = _units_between(low.boundary, high.boundary, facts)
+        reach = reach + (
+            len(low.values) if low.values is not None else low.rows
+        )
+        reach = reach + (
+            len(high.values) if high.values is not None else high.rows
+        )
+        if column.n_distinct - facts.n_unparsed > reach:
+            return False
+    return True
+
+
+def _units_between(low: str, high: str, facts: "DatetimeFacts") -> int:
+    """How many different instants the two boundaries hold between them.
+
+    At the column's own precision, both ends included: days on a column
+    of dates, and minutes or seconds on a column of moments.
+    """
+    if facts.resolution == "date":
+        return (
+            parsing.days_from_civil(int(high[0:4]), int(high[5:7]), int(high[8:10]))
+            - parsing.days_from_civil(int(low[0:4]), int(low[5:7]), int(low[8:10]))
+            + 1
+        )
+    step = 60 if facts.time_precision == "minute" else 1
+    return (_seconds_of(high) - _seconds_of(low)) // step + 1
+
+
+def _seconds_of(text: str) -> int:
+    """One canonical moment as a whole number of seconds."""
+    seconds = 86400 * parsing.days_from_civil(
+        int(text[0:4]), int(text[5:7]), int(text[8:10])
+    )
+    if len(text) >= 19:
+        seconds = (
+            seconds
+            + 3600 * int(text[11:13])
+            + 60 * int(text[14:16])
+            + int(text[17:19])
+        )
+    return seconds
 
 
 def written_forms_of_an_instant(facts: "DatetimeFacts") -> int:
@@ -8889,12 +8970,10 @@ def _stands_at_midnight(
     resolution: str,
     clock: str,
     parsed: int,
-    earliest: str,
-    latest: str,
+    low: "TailFacts | None",
+    high: "TailFacts | None",
     ladder: DateLadder,
     offsets: "dict[str, int]",
-    earliest_offset: str,
-    latest_offset: str,
 ) -> None:
     """D14: a column said to stand at midnight can be one.
 
@@ -8906,9 +8985,11 @@ def _stands_at_midnight(
     ON THE SHARED CLOCK TOO (landing 2b.3). A published instant is then a
     moment on the shared clock, and it stands at midnight of its own day
     where some offset the map names moves it there -- `2024-03-09
-    23:00:00` under `+01:00`; each END under the offset published for
-    that end. A map holding an offset back is refused, because a pooled
-    offset is written with none and no midnight of it can be written.
+    23:00:00` under `+01:00`. A map holding an offset back is refused,
+    because a pooled offset is written with none and no midnight of it
+    can be written. SINCE STAGE 3 (plan P4-D328) the moments asked are the
+    two tail boundaries, every value a tail publishes and every rung that
+    is not null; no end, and no end's offset, is published any more.
 
     Guarantees: accepts the facts already read; returns nothing. Raises
     ProfileError for D14. No I/O of any kind.
@@ -8935,26 +9016,26 @@ def _stands_at_midnight(
             f"all {parsed} values are said to stand at midnight",
             f"a column saying so holds at least {least} of them",
         )
-    for moment, offset in ((earliest, earliest_offset), (latest, latest_offset)):
-        keys: "tuple[str, ...]" = (offset,)
-        if clock == "local":
-            keys = (NO_OFFSET,)
-        if not _local_midnight_under(moment, keys):
-            raise _broken(
-                "D14",
-                where,
-                f"the column's value {moment} is published",
-                "every value is said to stand at midnight",
-            )
     named: "tuple[str, ...]" = (NO_OFFSET,)
     if clock != "local":
         named = tuple(sorted(offsets))
+    moments: "list[str]" = []
+    for tail in (low, high):
+        if tail is None:
+            continue
+        moments += [tail.boundary]
+        if tail.values is not None:
+            for value in tail.values:
+                moments += [value]
     for rung in ladder.rungs:
-        if not _local_midnight_under(rung, named):
+        if rung is not None:
+            moments += [rung]
+    for moment in moments:
+        if not _local_midnight_under(moment, named):
             raise _broken(
                 "D14",
                 where,
-                f"the ladder of dates holds {rung}",
+                f"the column publishes the value {moment}",
                 "every value is said to stand at midnight",
             )
 
@@ -9014,128 +9095,319 @@ _FIRST_MINUTE = -62135596800
 _LAST_MINUTE = 253402300740
 
 
-def _endpoints_a_cell_can_show(
+def _boundaries_a_cell_can_show(
     where: str,
     resolution: str,
     precision: str,
     clock: str,
-    earliest: str,
-    latest: str,
-    earliest_offset: str,
-    latest_offset: str,
+    low: "TailFacts | None",
+    high: "TailFacts | None",
 ) -> None:
-    """D10: an end no cell of this column's own shape could show.
+    """D10: a published moment no cell of this column's own shape could show.
 
-    Both ends of a column of dates are exact facts with no corner and no
-    exception (contract 9.6), so a pair of published facts that no cell
-    can show AT ONCE is settled here, where it is decided, rather than
-    paid for in the twin -- exactly as D6 settles the whole-date-beside-
-    date-and-time pair. There are three such pairs, and the producer
-    writes none of them:
+    Every moment a tail publishes -- its boundary and each of its values
+    -- is a real cell's value and an EXACT-OBSERVABLE fact, so a pair of
+    published facts no cell can show AT ONCE is settled here, where it is
+    decided, rather than paid for in the twin -- exactly as D6 settles
+    the whole-date-beside-date-and-time pair. There are two such pairs,
+    and the producer writes neither of them:
 
-    * the finest detail the column writes is a whole minute while an end
-      carries seconds. A cell written to the minute has no seconds field
-      to put them in, and the finest detail is the finest ANY cell
-      writes, so a column that wrote seconds somewhere does not record
-      the minute;
-    * an end whose seconds field is 60 while the column's values are
-      published on the shared clock. There the end names the instant on
-      that clock, and reading any wall-clock cell back onto it moves a
+    * the finest detail the column writes is a whole minute while a
+      published moment carries seconds. A cell written to the minute has
+      no seconds field to put them in, and the finest detail is the
+      finest ANY cell writes;
+    * a moment whose seconds field is 60 while the column's values are
+      published on the shared clock. There the moment names the instant
+      on that clock, and reading any wall-clock cell back onto it moves a
       sixtieth second to the following minute, whatever cell carried it.
-      A column reaches the shared clock only by having its ends put on
-      that clock first, which is where a sixtieth second is resolved;
-    * an end published on the shared clock whose own offset moves its
-      cell off either end of the calendar this form can spell (review
-      item P2-C4-F1). A column on the shared clock writes each cell on
-      the wall clock its offset names, so an end within one offset's
-      distance of the first or last minute of the years 0001 to 9999
-      asks for a cell no reader can read back. Both directions are
-      refused: an early end behind the shared clock and a late end ahead
-      of it.
 
-    The third pair was the fourth lowering of this one obligation, and
-    the reason it is here: the loader holds the end, its offset and the
-    clock, so the pair is decidable in the description and the twin owes
-    nobody a lesser answer. Refusing costs the last second of a leap
-    minute nothing on the local clock -- which is every column but the
-    few that mix offsets -- where it is accepted and written back
-    unchanged (review item P2-C3-F2).
+    THE CALENDAR'S EDGE IS NO LONGER A PUBLISHED FACT'S QUESTION (stage 3,
+    plan P4-D331). It was asked of the two published ends, each moved by
+    the offset published for it; no end and no end offset is published
+    now, and the outer values the twin derives are the generator's to keep
+    inside what the column's member can write (method G7.3c).
     """
     if resolution != "datetime":
         return
-    for key, published, offset in [
-        ("earliest", earliest, earliest_offset),
-        ("latest", latest, latest_offset),
-    ]:
-        seconds = published[17:19]
-        if precision == "minute" and seconds != "00":
-            raise _broken(
-                "D10",
-                where,
-                f"the column's {key} value is {published}",
-                (
-                    "the finest detail it writes is a whole minute, which "
-                    "leaves no place to write those seconds"
-                ),
-            )
-        if clock == "utc" and seconds == "60":
-            raise _broken(
-                "D10",
-                where,
-                f"the column's {key} value is {published}",
-                (
-                    "its values are published on the shared clock, on "
-                    "which no value reads back as a sixtieth second"
-                ),
-            )
-        if clock != "utc":
+    for key, tail in (("low_tail", low), ("high_tail", high)):
+        if tail is None:
             continue
-        moved = _minute_of(published) + _offset_seconds(offset)
-        if moved < _FIRST_MINUTE or moved > _LAST_MINUTE:
-            raise _broken(
-                "D10",
-                where,
-                (
-                    f"the column's {key} value is {published} and the "
-                    f"offset it was written under is '{offset}'"
-                ),
-                (
-                    "moving that value onto the clock that offset names "
-                    "leaves the years 0001 to 9999, which no value of "
-                    "this form can spell"
-                ),
-            )
+        moments = [tail.boundary]
+        if tail.values is not None:
+            for value in tail.values:
+                moments += [value]
+        for published in moments:
+            seconds = published[17:19]
+            if precision == "minute" and seconds != "00":
+                raise _broken(
+                    "D10",
+                    where,
+                    f"the {key} publishes the value {published}",
+                    (
+                        "the finest detail the column writes is a whole "
+                        "minute, which leaves no place to write those seconds"
+                    ),
+                )
+            if clock == "utc" and seconds == "60":
+                raise _broken(
+                    "D10",
+                    where,
+                    f"the {key} publishes the value {published}",
+                    (
+                        "its values are published on the shared clock, on "
+                        "which no value reads back as a sixtieth second"
+                    ),
+                )
 
 
-def _endpoint_offset(
-    value: object, key: str, where: str, offsets: "dict[str, int]"
-) -> str:
-    """One endpoint's offset, which may not out-name the map (D4).
+def _tail_unit_of(resolution: str, precision: str, midnight: bool) -> str:
+    """TL4: the unit a column of dates counts its tails in.
 
-    An endpoint holds `(none)` when that endpoint's cell carried no
-    offset at all; otherwise it holds that offset when the map names it,
-    and `(withheld)` when the map is holding it back. A value published
-    in one field of a block that another field of the same block
-    promises to withhold is a contradiction the contract forbids.
+    Written here from the contract's own words rather than imported from
+    the producer, which this module does not read; the suite holds the
+    two to agreeing on every combination.
     """
-    found = _text(value, key, where)
-    if not _is_an_offset(found):
-        raise _out_of_range(
-            key,
-            where,
-            f"'{found}'",
-            "'Z', a signed offset like '+02:00', '(none)', or '(withheld)'",
-        )
-    if found == NO_OFFSET:
-        return found
-    if found not in offsets:
+    if resolution == "quarter":
+        return "quarter"
+    if resolution == "month":
+        return "month"
+    if resolution == "date" or midnight:
+        return "day"
+    if precision == "minute":
+        return "minute"
+    return "second"
+
+
+def _tail_value(
+    value: object, key: str, where: str, resolution: str, form: str
+) -> str:
+    """One published moment of a tail: a clock time in `form` where a form
+    is named (T1), and otherwise canonical text of `resolution` (6.6.2)."""
+    if form:
+        return _clock_value(value, key, where, form)
+    return _canonical_datetime(value, key, where, resolution)
+
+
+def _tail_object(
+    value: object,
+    key: str,
+    where: str,
+    resolution: str,
+    form: str,
+) -> "TailFacts | None":
+    """TL1: one tail, or nothing at all.
+
+    Null, or a block of exactly `TAIL_KEYS`: a boundary and each of the
+    values in the column's own form (`_tail_value`), a
+    whole count of at least one cell, and two distances each a number or
+    null. A tail publishes its values in place of its root-mean-square
+    distance or not at all; beside its values the mean distance may be
+    null, and without them both distances are numbers. Every distance is
+    at least one unit, because each outer cell lies at least one unit
+    beyond the boundary, and the root-mean-square distance is never below
+    the mean (with a relative allowance of one part in 2**50, for the two
+    roundings).
+    """
+    if value is None:
+        return None
+    mapping = _mapping(value, key, where)
+    _keys(mapping, where, TAIL_KEYS, "every tail")
+    boundary = _tail_value(
+        mapping["boundary"], f"{key} -> boundary", where, resolution, form
+    )
+    rows = _whole(mapping["rows"], f"{key} -> rows", where, 1)
+    mean = _figure_or_nothing(
+        mapping["mean_distance"], f"{key} -> mean_distance", where
+    )
+    root = _figure_or_nothing(
+        mapping["rms_distance"], f"{key} -> rms_distance", where
+    )
+    values: "tuple[str, ...] | None" = None
+    if mapping["values"] is not None:
+        listed = _listing(mapping["values"], f"{key} -> values", where)
+        found: "list[str]" = []
+        for item in listed:
+            found += [_tail_value(item, f"{key} -> values", where, resolution, form)]
+        values = tuple(found)
+    if values is None and (mean is None or root is None):
         raise _broken(
-            "D4",
+            "TL1",
             where,
-            f"the offset at that end is given as '{found}'",
-            "the counted offsets of the column do not include it",
+            f"the {key} publishes no values",
+            "a tail without its values publishes both of its distances",
         )
-    return found
+    if values is not None:
+        if root is not None:
+            raise _broken(
+                "TL1",
+                where,
+                f"the {key} publishes its values",
+                "a tail publishing its values does not publish its "
+                "root-mean-square distance",
+            )
+        if not values or len(values) > rows:
+            raise _broken(
+                "TL3",
+                where,
+                f"the {key} publishes {len(values)} values",
+                f"it holds {rows} cells, and at least one value",
+            )
+        for place in range(1, len(values)):
+            if values[place] <= values[place - 1]:
+                raise _broken(
+                    "TL3",
+                    where,
+                    f"the {key} publishes {values[place - 1]} before "
+                    f"{values[place]}",
+                    "its values are different and in ascending order",
+                )
+        for item in values:
+            beyond = item < boundary if key == "low_tail" else item > boundary
+            if not beyond:
+                raise _broken(
+                    "TL3",
+                    where,
+                    f"the {key} publishes the value {item}",
+                    f"every value of it lies beyond its boundary {boundary}",
+                )
+    if mean is not None and (not math.isfinite(mean) or mean < 1.0):
+        raise _broken(
+            "TL3",
+            where,
+            f"the {key}'s mean distance is {mean}",
+            "every cell of a tail lies at least one unit beyond its boundary",
+        )
+    if root is not None:
+        least = 1.0 if mean is None else mean * (1.0 - _TAIL_ROUNDING)
+        if not math.isfinite(root) or root < least:
+            raise _broken(
+                "TL3",
+                where,
+                f"the {key}'s root-mean-square distance is {root}",
+                "it is never below the mean distance, nor below one unit",
+            )
+    return TailFacts(
+        boundary=boundary,
+        rows=rows,
+        mean_distance=mean,
+        rms_distance=root,
+        values=values,
+    )
+
+
+# The relative allowance TL1 gives the root-mean-square distance against
+# the mean: both are rounded once to the nearest binary64, so the root
+# can sit a few units in the last place below a mean it equals exactly.
+_TAIL_ROUNDING = 2.0 ** -50
+
+
+def _tails_hold(
+    where: str,
+    floor: int,
+    parsed: int,
+    low: "TailFacts | None",
+    high: "TailFacts | None",
+    rungs: "tuple[str | None, ...]",
+    ladder_key: str,
+    rule: str,
+) -> None:
+    """TL2 and the ladder around the tails (D11 for dates, T2 for clocks).
+
+    TL2: the two tails are null together; each holds at least the
+    smallest group size of cells; together they leave at least one cell
+    between them, and where they leave exactly one they share it, so their
+    two boundaries are the same value; the low boundary is not after the
+    high one.
+
+    The ladder: `min` and `max` are null; an interior rung is null
+    exactly where the rank it is selected from, `((P - 1) * c) // 100`
+    over the `P` parsed cells, lies below the low tail's `rows` or above
+    `P - 1 -` the high tail's, or where there are no tails at all; a rung
+    read off a boundary's own rank IS that boundary; and every published
+    rung lies between the two boundaries. The loader holds `P`, the rows
+    and the floor, so every one of these is decided here.
+    """
+    if (low is None) != (high is None):
+        raise _broken(
+            "TL2",
+            where,
+            "one tail is published and the other is not",
+            "a column publishes both of its tails or neither",
+        )
+    if low is not None and high is not None:
+        for key, tail in (("low_tail", low), ("high_tail", high)):
+            if tail.rows < floor:
+                raise _broken(
+                    "TL2",
+                    where,
+                    f"the {key} holds {tail.rows} cells",
+                    f"a tail holds at least {floor}, the smallest group size",
+                )
+        if low.rows + high.rows > parsed - 1:
+            raise _broken(
+                "TL2",
+                where,
+                f"the two tails hold {low.rows + high.rows} cells",
+                f"{parsed} values read, which leaves room for "
+                f"{max(0, parsed - 1)} beyond the boundaries",
+            )
+        if low.boundary > high.boundary or (
+            low.rows + high.rows == parsed - 1
+            and low.boundary != high.boundary
+        ):
+            raise _broken(
+                "TL2",
+                where,
+                f"the low boundary is {low.boundary} and the high one "
+                f"{high.boundary}",
+                "the low boundary is not after the high one, and two tails "
+                "leaving one cell between them share it",
+            )
+    for place in range(len(LADDER_KEYS)):
+        name = LADDER_KEYS[place]
+        rung = rungs[place]
+        wanted = False
+        at_boundary = ""
+        if low is not None and high is not None and 0 < place < len(LADDER_KEYS) - 1:
+            rank = min(parsed - 1, ((parsed - 1) * LADDER_PERCENTS[place]) // 100)
+            wanted = low.rows <= rank <= parsed - 1 - high.rows
+            if rank == low.rows:
+                at_boundary = low.boundary
+            elif rank == parsed - 1 - high.rows:
+                at_boundary = high.boundary
+        if wanted and rung is None:
+            raise _broken(
+                rule,
+                where,
+                f"the rung '{name}' of {ladder_key} holds nothing",
+                "a rung read from between the two tail boundaries is published",
+            )
+        if not wanted and rung is not None:
+            raise _broken(
+                rule,
+                where,
+                f"the rung '{name}' of {ladder_key} is published",
+                "a rung read from inside a tail, or from a column with no "
+                "tails, holds nothing",
+            )
+        if rung is None or low is None or high is None:
+            continue
+        if at_boundary and rung != at_boundary:
+            raise _broken(
+                rule,
+                where,
+                f"the rung '{name}' of {ladder_key} is {rung}",
+                f"it is read off the boundary's own rank, which holds "
+                f"{at_boundary}",
+            )
+        if rung < low.boundary or rung > high.boundary:
+            raise _broken(
+                rule,
+                where,
+                f"the rung '{name}' of {ladder_key} is {rung}",
+                f"every published rung lies between the boundaries "
+                f"{low.boundary} and {high.boundary}",
+            )
 
 
 # EXACTLY THE KEYS ONE WRAPPER OF A SET CARRIES, AND NO OTHERS (plan
@@ -11780,16 +12052,16 @@ def _clock_shape_said(form: str) -> str:
 
 def _clock_ladder(
     value: object, key: str, where: str, form: str
-) -> "dict[str, str]":
+) -> "dict[str, str | None]":
     """The eleven rungs of a column of clock times (contract 5.6).
 
     Guarantees: accepts the value under ``key`` and the form the column
     publishes; returns the ladder as a mapping from rung name to clock
-    text. Raises ProfileError when it is not a block of entries (R15),
-    when its keys are not exactly the eleven rungs (L4), when a rung
-    holds nothing -- a rung of a clock ladder is never null -- when a
+    text or None. Raises ProfileError when it is not a block of entries
+    (R15), when its keys are not exactly the eleven rungs (L4), when a
     rung is not a clock time in this column's form (T1), or when the
-    rungs go DOWN (T3).
+    published rungs go DOWN (T3). Which rungs are null is T2's question,
+    asked beside the tails.
 
     T3 IS A PLAIN TEXT COMPARISON, and that is sound rather than
     convenient: both forms are fixed width and zero padded, so
@@ -11799,18 +12071,16 @@ def _clock_ladder(
     """
     mapping = _mapping(value, key, where)
     _keys(mapping, where, LADDER_KEYS, "every ladder of clock times")
-    ladder: "dict[str, str]" = {}
+    ladder: "dict[str, str | None]" = {}
     previous = ""
     previous_name = ""
     for name in LADDER_KEYS:
         rung = mapping[name]
         if rung is None:
-            raise _broken(
-                "T1",
-                where,
-                f"the rung '{name}' of {key} holds nothing",
-                "a ladder of clock times has a time at every rung",
-            )
+            # WITHHELD BY THE TAIL RULE (stage 3, contract T2), asked
+            # beside the tails where the parsed count is in hand.
+            ladder[name] = None
+            continue
         found = _clock_value(rung, f"{key} -> {name}", where, form)
         ladder[name] = found
         if previous and found < previous:
@@ -11838,34 +12108,18 @@ def _clock_facts(
     form, and asking that question without the form first would either
     accept both shapes or invent one.
 
-    The five invariants, each raised in the words of the rule it broke:
-    T1 every published clock value is written in the column's own form;
-    T2 the ladder's two ends ARE the endpoints; T3 the rungs never go
-    backwards; T4 some cell parsed; T5 enough of them did.
+    The invariants, each raised in the words of the rule it broke: T1
+    every published clock value is written in the column's own form; T2
+    the ladder is published between the two tail boundaries and nowhere
+    else (stage 3); T3 the rungs never go backwards; T4 some cell parsed;
+    T5 enough of them did; and TL1 and TL2 over the two tails.
     """
     form = _one_of(mapping["clock_form"], "clock_form", where, CLOCK_FORMS)
-    earliest = _clock_value(mapping["earliest"], "earliest", where, form)
-    latest = _clock_value(mapping["latest"], "latest", where, form)
     ladder = _clock_ladder(
         mapping["clock_percentiles"], "clock_percentiles", where, form
     )
-    # T2. Both ends of the ladder ARE the endpoints. Untied, a twin
-    # pinned to the ladder could hold values earlier than the earliest
-    # this description publishes.
-    if ladder["min"] != earliest:
-        raise _broken(
-            "T2",
-            where,
-            f"the ladder of clock times begins at {ladder['min']}",
-            f"the column's earliest time is {earliest}",
-        )
-    if ladder["max"] != latest:
-        raise _broken(
-            "T2",
-            where,
-            f"the ladder of clock times ends at {ladder['max']}",
-            f"the column's latest time is {latest}",
-        )
+    low = _tail_object(mapping["low_tail"], "low_tail", where, "", form)
+    high = _tail_object(mapping["high_tail"], "high_tail", where, "", form)
     unparsed = _whole(mapping["n_unparsed"], "n_unparsed", where, 0)
     # T4. Some cell parsed, and this is NOT implied by T5: at a parse
     # rate of zero the line is zero and T5 says nothing, and this is
@@ -11888,10 +12142,18 @@ def _clock_facts(
             f"{n_present - unparsed} of this column's values are clock times",
             f"at least {line} of them had to be for it to be read this way",
         )
+    # T2 (stage 3): the ladder around the two tails, and TL2 over them.
+    rungs: "list[str | None]" = []
+    for name in LADDER_KEYS:
+        rungs += [ladder[name]]
+    _tails_hold(
+        where, frame.floor, n_present - unparsed, low, high, tuple(rungs),
+        "clock_percentiles", "T2",
+    )
     return ClockFacts(
         clock_form=form,
-        earliest=earliest,
-        latest=latest,
+        low_tail=low,
+        high_tail=high,
         clock_percentiles=ladder,
         n_unparsed=unparsed,
     )

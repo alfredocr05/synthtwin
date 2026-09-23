@@ -5791,6 +5791,69 @@ PRECISION_ORDER = (
 )
 
 
+# THE UNIT A DATE OR CLOCK TAIL IS MEASURED IN (stage 3, plan P4-D328).
+# A column of dates publishes how far its outer values stand beyond each
+# tail boundary, and it says in which unit rather than leaving a reader
+# to combine the resolution, the precision and the midnight flag: a day
+# for dates and for moments that all stand at midnight, a month or a
+# quarter for those two resolutions, and a minute or a second for every
+# other moment. The words are this package's own and form a closed list.
+TAIL_UNIT_DAY = "day"
+TAIL_UNIT_MONTH = "month"
+TAIL_UNIT_QUARTER = "quarter"
+TAIL_UNIT_MINUTE = "minute"
+TAIL_UNIT_SECOND = "second"
+TAIL_UNITS = (
+    TAIL_UNIT_DAY,
+    TAIL_UNIT_MONTH,
+    TAIL_UNIT_QUARTER,
+    TAIL_UNIT_MINUTE,
+    TAIL_UNIT_SECOND,
+)
+
+# The keys of one published tail object, in the order a document writes
+# them (contract TL1): the boundary, how many cells lie beyond it, their
+# mean and root-mean-square distance from it, and -- where the tail holds
+# few values -- which values those are.
+TAIL_KEYS = ("boundary", "rows", "mean_distance", "rms_distance", "values")
+
+# THE DAYS A COLUMN'S OWN SPELLING CAN READ BACK (stage 3, plan P4-D331).
+# A twin that writes a date its own member reads as another century, or a
+# workbook cell its date system cannot store, writes a value the twin's own
+# description does not hold: a two-figure year of 1968 is read back as
+# 2068, and a workbook day before the system's first day is stored as
+# text. So a tail's outer values are placed only inside these days.
+_TWO_FIGURE_FIRST_YEAR = 1969
+_TWO_FIGURE_LAST_YEAR = 2068
+_SHEET_FIRST_YEAR = {"1900": 1900, "1904": 1904}
+
+
+def readable_days(format_name: str, date_system: str = "") -> "tuple[int, int]":
+    """The first and last day a column of this member can write and read.
+
+    The years 0001 to 9999 for every member; 1969 to 2068 for a member
+    that writes a two-figure year, whose century the reader settles with
+    `TWO_DIGIT_YEAR_PIVOT`; and from the first day of the date system
+    for a workbook column whose cells store days (`date_system` names
+    that system, "1900" or "1904", and is empty for a column of text).
+
+    Guarantees: accepts a member name and the date system; returns two
+    day numbers of `days_from_civil`, the first not after the last.
+    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    """
+    first_year = 1
+    last_year = 9999
+    if format_name in TWO_FIGURE_MEMBERS:
+        first_year = _TWO_FIGURE_FIRST_YEAR
+        last_year = _TWO_FIGURE_LAST_YEAR
+    if date_system in _SHEET_FIRST_YEAR:
+        first_year = max(first_year, _SHEET_FIRST_YEAR[date_system])
+    return (
+        days_from_civil(first_year, 1, 1),
+        days_from_civil(last_year, 12, 31),
+    )
+
+
 def is_digit_text(text: str) -> bool:
     """True when ``text`` is one or more ASCII digits and nothing else.
 

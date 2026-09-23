@@ -454,10 +454,10 @@ def test_the_free_search_answers_as_the_walk_does(
     assert reached["midnight_days_away"] >= 35, reached
 
 
-def test_the_free_search_on_one_stray_time_among_values_at_midnight_asks_little(
+def test_the_free_search_is_not_asked_at_all_for_one_stray_time(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """999 values at midnight and one stray time, seed 4: round trip, ceiling.
+    """999 values at midnight and one stray time, seed 4: nothing to search.
 
     The shape `tests/test_stage2_timestamp_spellings.py` holds at a stray
     time among values at midnight; at seed 4 the restoration splits
@@ -466,8 +466,22 @@ def test_the_free_search_on_one_stray_time_among_values_at_midnight_asks_little(
     calls, measured on e53d5f4, and 450 s to generate on the shared
     machine. It was slow before the held-unit search arrived (164.8 s at
     c5d09d5); the free search it uses came with 4c430b0. The day-at-a-
-    time search asks 4,330 questions over the same 763 calls. The
-    ceiling is ten a call over at most one call per row, 10,000.
+    time search asks 4,330 questions over the same 763 calls, a ceiling
+    of ten a call over at most one call per row, 10,000.
+
+    **AND THE SEARCH IS NOT REACHED ON THIS COLUMN ANY MORE** (stage 3,
+    plan P4-D328), which is asserted here rather than left as a ceiling
+    nothing tests. G12.4 now places a run whose gap must hold a midnight
+    into a gap that can hold one before any split asks where a free unit
+    is, so the restoration finds nothing to search for: measured on
+    2026-09-22, 0 calls and 0 questions, where e53d5f4 made 763 calls.
+    A regression that puts the splitting back makes a call here and
+    turns this red, and the CEILING the file exists for is measured on
+    the month-first column below, which still reaches the search 2,193
+    times. The figures above are kept because the searches' own
+    docstrings cite them and
+    `test_the_figures_the_searches_cite_are_the_ones_counted_here`
+    holds this file to carrying every one.
     """
     tally = {"calls": 0}
     _Counting.asked = 0
@@ -486,9 +500,8 @@ def test_the_free_search_on_one_stray_time_among_values_at_midnight_asks_little(
     )
     assert (twin_exit, real_exit) == (0, 0)
     assert len(written) == 1000
-    assert 0 < tally["calls"] <= 1000, tally
-    assert _Counting.asked <= 10 * tally["calls"], (_Counting.asked, tally)
-    assert _Counting.asked <= 10000, _Counting.asked
+    assert tally["calls"] == 0, tally
+    assert _Counting.asked == 0, _Counting.asked
 
 
 # ---------------------------------------------------------------------------
@@ -644,18 +657,32 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
     13,445,643 questions (the same on e53d5f4); with the gap and its kind
     as the key, 3,008 times, 9 of them None, asking 973,675. On this
     column the free search was called 3,979 times, 1,792 of them None,
-    and asked 748,633 questions; now it is called 2,195 times, 8 of them
-    None, asking 299,675. The rule this asserts is exact: within one
+    and asked 748,633 questions; with the memo it was called 2,195
+    times, 8 of them None, asking 299,675, and since the tail rule it is
+    called 2,193 times asking 299,389. The rule this asserts is exact:
+    within one
     pass, no gap is found full twice for one width kind -- the days held
     only grow while ranks split, so a gap found full stays full, and a
     rank searched again because an earlier split took its day is
     answered from what was found. Keeping the memo out of that second
-    search leaves 16 None here, 8 of them a gap found full again. The
-    twin is the one e53d5f4 wrote.
+    search leaves 16 None here, 8 of them a gap found full again.
+
+    **AND THE CEILING IS MEASURED HERE SINCE STAGE 3** (plan P4-D328).
+    It stood on the one-stray-time column above, which the tail rule's
+    own placement now builds without asking the search at all; this
+    column still asks it, so the ceiling moved to the shape that reaches
+    it. Measured on 2026-09-22: 2,193 calls and 299,389 questions of the
+    held-unit table, where the same column asked 748,633 before the
+    memo, so the ceiling is half a million questions over at most one
+    call a row. The twin's bytes moved with the tail rule -- its ranks
+    are drawn inside the two tail boundaries now -- and the digest below
+    is the one this landing measured.
     """
     search = generation._nearest_free_unit
     reached = generation._distinct_reached
     passes = {"now": 0, "none": 0, "again": 0}
+    tally = {"calls": 0}
+    _Counting.asked = 0
     seen: "dict[tuple[int, int, int, bool], bool]" = {}
 
     def counting_pass(*args: typing.Any) -> bool:
@@ -663,7 +690,10 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
         return reached(*args)
 
     def counting(*args: typing.Any) -> "int | None":
-        found = search(*args)
+        tally["calls"] = tally["calls"] + 1
+        given = list(args)
+        given[7] = _Counting(given[7])
+        found = search(*given)
         if found is None:
             kind = bool(args[8]) and generation._counts_into_width(
                 args[0], args[1] // args[4], args[9]
@@ -686,12 +716,16 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
     assert first["n_distinct"] == second["n_distinct"]
     assert passes["none"] >= 1, passes
     assert passes["again"] == 0, passes
+    assert 0 < tally["calls"] <= 4000, tally
+    assert _Counting.asked <= 500000, (_Counting.asked, tally)
     twin = (folder / "real-twin.csv").read_bytes()
     assert hashlib.sha256(twin).hexdigest() == _MONTH_FIRST_TWIN
 
 
-# sha256 of the twin e53d5f4 writes for `_month_first(4000, 7, 800)` at seed 4.
-_MONTH_FIRST_TWIN = "80fe7e4e2b0e285d4a2cff29689758163401ec8de47ee07e43d819402ceca88d"
+# sha256 of the twin this landing writes for `_month_first(4000, 7, 800)`
+# at seed 4. It was e53d5f4's until the tail rule (plan P4-D328) drew the
+# ranks inside the two published boundaries.
+_MONTH_FIRST_TWIN = "9e51fd6c70353bf7b07fe8db9921a0c5c99eeae53a9f0b77f88824201bdcfee7"
 
 
 def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:

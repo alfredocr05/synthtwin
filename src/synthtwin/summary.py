@@ -676,6 +676,63 @@ def _datetime_separator_lines(
     ]
 
 
+def _tail_lines(
+    column: "dict[str, object]", unit: str, clock: str
+) -> "list[str]":
+    """Where a column of dates or clock times runs, once its tails are set aside.
+
+    STAGE 3 (plan P4-D328): a column of dates publishes no first or last
+    value, so this page says what it does publish -- the two tail
+    boundaries, how many values lie beyond each, and how far beyond them on
+    average -- in one of three fixed forms: with both distances, with the
+    count of different values a tail holds where it publishes them, or
+    with nothing where the column has no tails at all. Every figure is one
+    the description itself carries.
+
+    Guarantees: accepts one datetime or clock block, the tail unit's word
+    and the clock clause; returns the lines. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    low = column["low_tail"]
+    high = column["high_tail"]
+    if not isinstance(low, dict) or not isinstance(high, dict):
+        return [
+            (
+                "    too few values, or too many of them tied at either end, "
+                "for this description to publish any value of this column; "
+                "the twin writes stand-in values that keep its counts"
+            )
+        ]
+    lines = [
+        (
+            f"    from {_text_of(low['boundary'])} to "
+            f"{_text_of(high['boundary'])} once the "
+            f"{_count_of(low['rows'])} earliest and "
+            f"{_count_of(high['rows'])} latest values are set aside{clock}"
+        )
+    ]
+    parts: "list[str]" = []
+    for side, tail in (("earliest", low), ("latest", high)):
+        values = tail["values"]
+        mean = tail["mean_distance"]
+        said = f"the {side} lie"
+        if isinstance(values, list):
+            said = (
+                f"{said} on {len(values)} different value(s), which the "
+                f"description lists"
+            )
+            if mean is not None:
+                said = f"{said}, on average {_text_of(mean)} {unit}(s) beyond"
+        else:
+            said = (
+                f"{said} on average {_text_of(mean)} {unit}(s) beyond "
+                f"(root-mean-square {_text_of(tail['rms_distance'])})"
+            )
+        parts += [said]
+    lines += [f"    {parts[0]}; {parts[1]}"]
+    return lines
+
+
 def _midnight_lines(column: "dict[str, object]") -> "list[str]":
     """Said where every value of a column of moments stood at midnight.
 
@@ -936,14 +993,18 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 "  (written in more than one time zone, so these are "
                 "given at UTC)"
             )
-        lines += [
-            (
-                f"    earliest: {_text_of(column['earliest'])};   "
-                f"latest: {_text_of(column['latest'])}{clock}"
-            )
-        ]
+        lines = lines + _tail_lines(
+            column, _text_of(column["tail_unit"]), clock
+        )
         lines = lines + _datetime_separator_lines(column, floor)
         lines = lines + _midnight_lines(column)
+    if role == taxonomy.ROLE_CLOCK:
+        # THE SAME LINE FOR A COLUMN OF CLOCK TIMES (stage 3), counted in
+        # the form's own unit.
+        unit = "minute"
+        if _text_of(column["clock_form"]) != parsing.CLOCK_FORMS[0]:
+            unit = "second"
+        lines = lines + _tail_lines(column, unit, "")
     if role == taxonomy.ROLE_IDENTIFIER:
         # A column is here because the reader of this summary put it
         # here. Saying so keeps the words honest: synthtwin never works

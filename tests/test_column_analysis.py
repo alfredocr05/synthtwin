@@ -482,11 +482,26 @@ def test_a_lone_differently_cased_row_is_not_a_level_of_its_own() -> None:
 
 
 def test_two_date_columns_with_opposite_shapes_differ_in_the_profile() -> None:
+    """The same three days, two shapes, two descriptions (P1-R1-F9).
+
+    Stage 3 publishes no first or last value, so what tells the two apart
+    is the tail rule and the ladder around it: the column split evenly at
+    the two ends has a boundary on each side, with its middle day
+    published as the rung between them, while the column heaped in the
+    middle has ninety-eight of its hundred cells on one day -- so the
+    boundary on each side falls past the other, no tail exists, and it
+    publishes no day at all. Both hold the same three days.
+    """
     early = ["2020-01-01"] * 49 + ["2020-06-15"] * 2 + ["2020-12-31"] * 49
     middle = ["2020-01-01"] + ["2020-06-15"] * 98 + ["2020-12-31"]
     first, second = describe(early), describe(middle)
-    assert first.details["earliest"] == second.details["earliest"]
-    assert first.details["latest"] == second.details["latest"]
+    low = first.details["low_tail"]
+    high = first.details["high_tail"]
+    assert isinstance(low, dict) and isinstance(high, dict)
+    assert low["boundary"] == "2020-06-15" and high["boundary"] == "2020-06-15"
+    assert low["rows"] == 49 and high["rows"] == 49
+    assert second.details["low_tail"] is None
+    assert second.details["high_tail"] is None
     assert first.details["date_percentiles"] != second.details["date_percentiles"]
 
 
@@ -549,12 +564,23 @@ def test_datetimes_are_ordered_by_the_instant_they_name() -> None:
     # `earliest` read later than `latest`, which is what a generator
     # comparing them as text would have to act on.
     assert described.details["datetimes_read_at"] == "utc"
-    assert described.details["earliest"] == "2023-12-31 10:00:00"
-    assert described.details["latest"] == "2024-01-01 11:58:00"
-    assert described.details["earliest"] < described.details["latest"]
-    assert described.details["earliest_utc_offset"] == "+14:00"
-    assert described.details["latest_utc_offset"] == "-12:00"
-    rungs = list(described.details["date_percentiles"].values())
+    # Stage 3 publishes no end and no end's offset: what the order
+    # decides now is which cells the two tails hold, so the low tail's
+    # boundary is the twelfth instant of the shared clock -- a value the
+    # `+14:00` half wrote -- and the high tail's the twelfth from the
+    # top, out of the `-12:00` half. Sorting the local text would put the
+    # two the other way round.
+    low = described.details["low_tail"]
+    high = described.details["high_tail"]
+    assert isinstance(low, dict) and isinstance(high, dict)
+    assert low["boundary"] == "2023-12-31 10:11:00"
+    assert high["boundary"] == "2024-01-01 11:47:00"
+    assert low["boundary"] < high["boundary"]
+    rungs = [
+        rung
+        for rung in described.details["date_percentiles"].values()
+        if rung is not None
+    ]
     assert rungs == sorted(rungs)
 
 

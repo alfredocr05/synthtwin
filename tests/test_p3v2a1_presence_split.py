@@ -317,6 +317,24 @@ def test_nothing_a_file_holds_decides_which_obligations_it_owes(
 # a shape the producer publishes, and has no deviation it can state.
 _SPREAD_SUBCHECKS = ("moments.std",)
 
+# ...and the measurements a column's own TAILS decide the existence of
+# (stage 3, plan P4-D328). A date or clock ladder is published BETWEEN
+# the two tail boundaries and nowhere else (contract D11'), so which
+# rungs a description carries follows from where its own tails end: a
+# file holding fewer cells beyond a boundary than the description
+# publishes has a tail reaching further in, its own description
+# publishes nothing at that rank, and the rung goes quiet. The check
+# that DECIDES it is the count of rows beyond that boundary, or the
+# boundary itself, and the two named below are what a report must carry
+# as MISSED for the silence to be accounted for.
+_LADDER_PREFIXES = ("date-ladder.", "clock-ladder.")
+_TAIL_DECIDING = (
+    "tails.low.boundary",
+    "tails.low.rows",
+    "tails.high.boundary",
+    "tails.high.rows",
+)
+
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
 ) -> None:
@@ -345,7 +363,14 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
       so its role is HELD and its role is right, and the producer
       publishes for it that the spread CANNOT be held -- which is a
       published fact of its own, is reported as a MISSED check of its
-      own, and is exactly the reason no spread is shown. Either way a
+      own, and is exactly the reason no spread is shown. AND SINCE
+      STAGE 3 there is a third (plan P4-D328): a rung of a date or
+      clock ladder is published BETWEEN that column's two tail
+      boundaries and nowhere else (contract D11'), so a file whose own
+      tail reaches further in than the description's publishes nothing
+      at that rank and the rung goes quiet -- and what decides it, the
+      count of rows beyond that boundary, is a published obligation of
+      its own that the same run reports MISSED by name. Either way a
       reader is never told nothing: the report says out loud, in a
       verdict, why the rest of the column went quiet.
 
@@ -433,6 +458,19 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     check.column,
                     "type.std_unrepresentable",
                 ) in missed:
+                    continue
+                # ...and a ladder rung the file's OWN tail takes in, on
+                # the same terms: the deciding fact is the tail, it is a
+                # published obligation of its own, and the same run
+                # reports it MISSED by name.
+                decided = False
+                for prefix in _LADDER_PREFIXES:
+                    if not check.subcheck.startswith(prefix):
+                        continue
+                    for subcheck in _TAIL_DECIDING:
+                        if (check.column, subcheck) in missed:
+                            decided = True
+                if decided:
                     continue
                 unexplained = unexplained + [
                     (

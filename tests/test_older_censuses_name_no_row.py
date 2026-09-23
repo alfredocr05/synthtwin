@@ -252,16 +252,16 @@ def test_a_short_column_whose_offsets_pool_says_no_clock_and_no_end(
     other = list(cells)
     other[5] = other[5][:-6] + "Z"
     two = json.loads(_description_bytes(tmp_path / "other", other, 11))
-    for key in (
-        "utc_offsets", "datetimes_read_at", "earliest_utc_offset", "latest_utc_offset"
-    ):
+    for key in ("utc_offsets", "datetimes_read_at"):
         assert one["columns"][0][key] == two["columns"][0][key], key
     column = one["columns"][0]
     assert column["utc_offsets"] == {"(withheld)": 8}
     assert column["datetimes_read_at"] == "utc"
-    assert column["earliest_utc_offset"] == "(withheld)"
-    # ...AND A NAIVE END IS HELD BACK TOO: eight values with no offset,
-    # one of them written at `Z`, publish the same ends as eight with none.
+    # ...AND NEITHER COLUMN PUBLISHES A VALUE AT ALL: eight values are
+    # below `2k + 1` at a floor of eleven, so both tails are empty and
+    # every rung with them (stage 3, contract TL2). The two end fields
+    # that used to name the pool here are gone from the format.
+    assert column["low_tail"] is None and column["high_tail"] is None
     naive = _moments(rows=8)
     zoned = list(naive)
     zoned[3] = zoned[3] + "Z"
@@ -270,8 +270,8 @@ def test_a_short_column_whose_offsets_pool_says_no_clock_and_no_end(
         for name, cells in (("naive", naive), ("zoned", zoned))
     ]
     for column in ends:
-        assert column["earliest_utc_offset"] == "(withheld)", column
-        assert column["latest_utc_offset"] == "(withheld)", column
+        assert column["low_tail"] is None, column
+        assert column["high_tail"] is None, column
 
 
 def _loaded_with(
@@ -301,8 +301,6 @@ def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Pa
     _refused_by(
         tmp_path / "offset", 1, "D3",
         utc_offsets={"+01:00": 1, "Z": 399},
-        latest_utc_offset="(withheld)",
-        earliest_utc_offset="(withheld)",
         datetimes_read_at="utc",
         zulu_case={},
     )
@@ -332,8 +330,6 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
     loaded = _loaded_with(
         tmp_path / "alone", 1,
         utc_offsets={"(withheld)": ROWS},
-        earliest_utc_offset="(withheld)",
-        latest_utc_offset="(withheld)",
         datetimes_read_at="utc",
         zulu_case={},
     )

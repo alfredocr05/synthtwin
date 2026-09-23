@@ -19052,8 +19052,9 @@ pushes one pooled group a long way — is the next pass's work.
 ## Stage 3 — decisions P4-D316 to P4-D339 (2026-09-22)
 
 Stage 3's landings take their numbers from this block. P4-D316 to
-P4-D318 are landing 3.1's; P4-D319 to P4-D339 are reserved for the
-stage's other landings.
+P4-D318 are landing 3.1's; P4-D328 to P4-D332 are landing 3.4's, the
+date and clock tails; the rest are reserved for the stage's other
+landings.
 
 ### P4-D316 The default smallest group is 11
 
@@ -19162,3 +19163,226 @@ the old code and seen red.
 - **Written-form extremes stay published**, as an accepted limit.
 - **A column's real average and spread stay published**, and the tail
   carries the outer cells' mean and mean-square distance.
+
+### P4-D328 A column of dates or clock times publishes tails, not ends
+
+**The decision.** `earliest`, `latest`, `earliest_utc_offset` and
+`latest_utc_offset` are removed from the `datetime` role and `earliest`
+and `latest` from `time_of_day`. Each role publishes two TAILS instead,
+`low_tail` and `high_tail`, each
+`{boundary, rows, mean_distance, rms_distance, values}`, and `datetime`
+publishes `tail_unit` beside them. The boundary is the smallest value
+with at least a smallest group's worth of cells strictly below it,
+mirrored above; `rows` counts the cells strictly beyond it; the two
+distances are the mean and the ROOT-MEAN-SQUARE distance of those cells
+from the boundary, in the tail's own unit, each an exact whole-number
+sum rounded once. The eleven-rung ladder keeps its keys and publishes a
+rung only between the two boundaries, both ends always null (contract
+D11, T2). No published value is one of the k outermost cells any more,
+and the stage-3 gate -- no published number held by fewer than the floor
+-- is met for these two roles.
+
+**Why the root-mean-square and not the mean square** (the numeric
+sibling's skeptic, break 4): a mean square of distances in seconds
+overflows binary64 on a column of moments far apart and underflows on
+one of tiny values, and the loader's own invariant then refuses a
+description the producer wrote. The root is in the column's own unit, so
+it cannot leave the range its values live in, and the shape reads
+`r = (rms / mean)**2` from it.
+
+**What the twin does.** Method G7.3b: the two boundary ranks are pinned
+at the two boundaries, each published rung at its own value, and each
+tail is drawn through ONE SHAPE -- the mixture
+`a(s) = E * s**n * (w + (1 - w) * s)` the numeric tail is read through,
+with `n` decided by exact rational comparison -- whose mean and mean
+square over a uniform share are the two published distances. The
+outermost rank stands at a MOMENT-MATCHED end: the stretch on the drawn
+ranks and the end's own distance solve the two moment equations
+together, which on a lone far value misses the published numbers by 0.1
+to 3.9 per cent where a stratum mean misses by 14 to 22. Each rank's gap
+is its own stratum, so every later pass -- the counts of different
+values and widths, the moves onto and off midnight, the step off a hole
+-- keeps every tail fact inside the window of G12.14, which the
+validator draws from the same construction.
+
+**The word budget does not move** (G3, G4). A column of dates is handed
+`P - 2` content words as it always was; a pinned rank reads none, and a
+clock column's boundary ranks and tie group read theirs and set them
+aside, so no column generated after a date or clock column moves.
+
+**What each new key owes a twin** (plan P2-D6's matrix, for the keys
+this decision adds, on `datetime` and on `time_of_day` alike; the four
+keys it removes take their dispositions with them). A boundary is an
+exact value of a real cell and a count beyond it is a recount, so
+`low_tail.boundary`, `high_tail.boundary`, `low_tail.rows` and
+`high_tail.rows` are EXACT-OBSERVABLE, in the representation owner
+decision 5 fixes. Which values a tail holds is a set a re-description
+gives back cell for cell, so `low_tail.values` and `high_tail.values`
+are EXACT-OBSERVABLE as well, each published value held by at least one
+cell beyond the boundary. The two distances are consequences of a
+construction that places ranks inside strata rather than targets it
+hits, so `low_tail.mean_distance`, `high_tail.mean_distance`,
+`low_tail.rms_distance` and `high_tail.rms_distance` are APPROXIMATED,
+under the two-sided window of G12.14 -- except on a tail publishing its
+values, where every rank stands on a published value, the counts are
+solved to reach the published mean, and the mean is owed exactly. And
+`tail_unit` names the unit the two tails are counted in, follows from
+the block's own resolution, precision and midnight fields by TL4, and
+obliges no cell of any file, so it is LOADER-ONLY: the loader settles
+it when the description is read, each of the three fields it follows
+from is checked in its own right, and a verdict of its own would be a
+second reading of theirs. The two containers
+themselves, `low_tail` and `high_tail`, are STRUCTURAL: each is a block
+whose membership is the five keys above, every one of them disposed in
+its own right, and the key carries no value obligation besides theirs.
+
+**The eleven-rung ladder of each role keeps its dispositions** and loses two rows
+each: `date_percentiles.min`, `date_percentiles.max`,
+`clock_percentiles.min` and `clock_percentiles.max` are null in every
+description this version writes, so they oblige no cell of any file and
+no document disposes them. Every rung a tail rule withholds is null on
+the same terms; the rungs that remain are APPROXIMATED as they were.
+
+**Measured** over the design's battery -- its seventeen shapes and the
+skeptic's four more, at two sizes and up to three seeds each, 105 cases
+at a floor of eleven -- through the real producer, generator and
+checker, and recorded as ledger entry K-S3-01
+(`tools/measurements/kpi_stage3_tail_leak.py`): boundary and rows exact
+on both sides of every twin; NO checkable obligation missed on any twin
+or on any real table of the battery; NO published value, summary line
+or report line equal to one of the eleven outermost values of any case,
+by whole-token scan, counting a tail's own published values and the
+member's fixed example as the publications they are; and NO tail whose
+published rows, mean and root-mean-square distance leave one multiset
+of distances by back-solve -- the tightest leaves two, on a column of
+quarters. Against the old generator the spread of a lone-far-value
+column comes back at -0.24 to +0.46 per cent where the shipped
+construction gave +7.92 to +26.02.
+
+**Three things the suite found after the design was written**, recorded
+here because the landing is what the suite says it is:
+
+- **a tail's BOUNDARY is MISSED, never withheld, where the file holds no
+  cell at that rank.** The rank is counted from the outside of the
+  file's own dates, so a file holding fewer of them than the description
+  publishes has no cell standing where the boundary stands -- an
+  obligation it does not meet, not a measurement its own description
+  would decline to carry. Reporting it withheld said the disclosure gate
+  had closed on a column whose ROLE the same report held, which is
+  silence bought by making a file worse (validation method V5.3):
+  measured on four precision perturbations of one column, eight
+  obligations went quiet with nothing in the report saying why.
+- **and a tail is counted over the cells the file's own description
+  counts as VALUES** (amendment A-P3-5 clause 2). A placeholder day the
+  producer judges to mean "no value" is a date to a reader and a hole to
+  the description: twenty cells of `1900-01-01` beside 449 consecutive
+  days put twenty instants below a boundary published over the 449
+  values the description holds, and the table that description was
+  written from was told it missed four obligations at exit 3.
+- **and two committed MUTANTS lost their outcome**, which is written
+  down rather than repaired away: P4-D258's midnight trade withdrawn no
+  longer strands a fourth value in the twin, and the free unit search is
+  no longer asked at all on the one-stray-time column, because G12.4's
+  own placement and the tails' published values reach those cells first.
+  Both tests keep the mutation and assert the property that replaced it,
+  and the loss is recorded where the branch losses of this landing are,
+  in `docs/spec/generation-method-v1.md` G14.3.
+
+### P4-D329 A tail that publishes which values it holds
+
+**The decision** (the owner's ruling of 2026-09-22, quoted in P4-D318:
+"what matters is not show the relation in a descriptive file, just
+showing that the value exist is not an issue"). Where a tail holds at
+most `taxonomy.TAIL_FEW_VALUES` different values -- quarters, months, a
+few days -- or where a LATTICE CHECK finds that its published numbers
+would settle its outermost value or any count below the floor, the tail
+publishes its sorted distinct `values` in place of its root-mean-square
+distance, and its mean distance beside them only where that settles no
+count below the floor either. The twin then writes the tail on those
+values and nowhere else, each at least once, with the counts solved to
+reach the published mean exactly (G7.3c).
+
+**The lattice check** is the back-solve a reader can run, run by the
+producer first (the skeptic of the tail design, blocker B1). A reader
+gives back the whole sum of the distances and of their squares from
+`rows`, the two distances and the tail unit; every distance is a whole
+number of units from one to the space's own edge; where the column
+publishes `n_distinct == n_present` the distances are distinct too; and
+where `rows` exceeds the floor the innermost `rows - floor + 1` cells
+share one distance. The producer searches for WITNESSES -- another
+allowed multiset whose largest distance differs, and for each count the
+floor protects another whose count there differs -- with a bounded
+depth-first walk (`taxonomy.TAIL_LATTICE_STEPS`), and where it cannot
+find one it answers "pinned", the answer that publishes less. Without
+it, 18 of 20 seeds of a quarters column published a tail from which the
+exact maximum and its count of three cells follow by arithmetic.
+
+**Its limit, stated.** The check is exact within its budget and
+conservative outside it, so a tail it cannot decide publishes its values
+rather than its spread. It is run on the two tails of every column of
+dates or clock times; measured over the battery it decides every side in
+under a millisecond.
+
+### P4-D330 A column with no tails publishes no value at all
+
+**The decision.** Where the column holds fewer than `2k + 1` parsed
+cells, or where ties at an end leave no value between the two
+boundaries, it publishes `low_tail` and `high_tail` as null and every
+rung as null (contract TL2). It is the date and clock half of the
+numeric sibling's block floor: below the floor nothing value-bearing is
+published, and between the floor and `2k + 1` there is no tail and no
+rung. A death date present in 15 rows of 2,000 is the common case.
+
+**What the twin does** (G7.3d): a made-up RAMP from 1970-01-01, one
+unit a rank -- a whole day for a column of moments -- spread over the
+column's published count of different values, so the counts beside it
+are still met: `n_distinct`, `n_at_midnight`, `resolution_mix` and the
+four written-form censuses go through the ordinary passes. What cannot
+be met is LISTED by the quality report as withheld rather than missed
+(validation method V3.5).
+
+### P4-D331 Every tail rank stays inside what the column can write back
+
+**The decision** (the skeptic of the tail design, B2 and B3). A tail's
+ranks and its derived end are placed only where the column's own
+spelling reads them back: the calendar for an ordinary member, 1969 to
+2068 for a member writing a two-figure year (`TWO_DIGIT_YEAR_PIVOT`),
+and the workbook date system's first day where the twin's cells are
+stored as days. On the shared clock the edges come in by the widest
+offset the census names. **The calendar itself is not inset on the local
+clock**: a heap of `0001-01-01 00:00:00` -- the "no date" value of two
+common systems, floor-safe at 40 cells -- comes back written exactly,
+where a one-day inset wrote none of them. The moment solve is
+clamp-aware: an end past the edge stands AT the edge and the rest of the
+tail is stretched to keep the published mean, which is the point mass
+the real column has.
+
+**D10 moves with it.** The loader's calendar-edge clause asked about an
+endpoint moved onto the clock its own endpoint offset named; neither
+field exists now, so the clause is the generator's obligation (G7.3e)
+and D10 keeps the two clauses a loader can still decide -- the seconds
+field of a published moment against the column's own precision and
+clock.
+
+### P4-D332 An advisory remark may not outlive the facts it quotes
+
+**The decision.** NF51, the time-band remark, writes the smallest and
+the largest value of a `count` column a second way, as two days. It is
+admitted only because both are facts the same block already publishes.
+This landing stopped publishing the end of a date or clock column, and
+the `count` role's ladder follows in the sibling landing, so the
+sentence's two ends are that block's **low and high tail boundaries**
+from the day the ladder stops naming `min` and `max`. The remark keeps
+its arity of seven, its argument classes and its wording: a band, then
+a year, a month and a day twice over.
+
+**Why it is recorded here and not built here.** The numeric block of
+this branch still publishes `min` and `max`, so its remark quotes
+published facts and leaks nothing; a producer here may read either, and
+`taxonomy._epoch_band_reading` already walks the column's own values
+rather than the ladder, so it needs no change to follow the ladder.
+What the rule forbids is the state in between: a block whose ends are
+gone and whose remark still names them would publish the two extreme
+values of a floored column in prose, which is the one disclosure this
+stage exists to close. A block with neither end nor boundary -- a
+column too small for a tail -- carries no remark at all.

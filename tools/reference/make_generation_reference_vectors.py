@@ -4372,22 +4372,16 @@ def written_fields(column, ordinals, offsets, parsed, space, resolution):
     """The month and day every rank will WRITE (method G7.5, 2b.6).
 
     Asked of the cell about to be written and not of the ordinal alone:
-    the two ends are written from their own published fields, and a rank
-    of a column on the shared clock is written on its own offset's wall
-    clock, which can carry it into another day.
+    a rank of a column on the shared clock is written on its own
+    offset's wall clock, which can carry it into another day.  No rank
+    is written from published fields any more except the one leap second
+    G7.3 leaves to them, which names the same month and day its ordinal
+    does.
     """
     fields = []
     for rank in range(parsed):
         if resolution in ("quarter", "month"):
             fields.append((1, 1))
-            continue
-        end = None
-        if rank == 0:
-            end = column["earliest"]
-        elif rank == parsed - 1 and parsed >= 2:
-            end = column["latest"]
-        if end is not None and len(end) >= 10:
-            fields.append((int(end[5:7]), int(end[8:10])))
             continue
         local = ordinals[rank]
         if (
@@ -7275,10 +7269,6 @@ def _datetime_content(column):
     # `midnight_days` mutant) withdraws the midnight writing with it.
     midnight = space == "date" and resolution == "datetime"
     parsed = column["n_present"] - column["n_unparsed"]
-    rungs = [
-        ordinal_of(column["date_percentiles"][key], space)
-        for key in LADDER_KEYS
-    ]
     # A column mixing bare dates with moments whose every value stands at
     # midnight writes its bare-date ranks as bare dates (landing 2b.3);
     # the census of marks is spent over the ranks that write a clock.
@@ -7287,8 +7277,9 @@ def _datetime_content(column):
     # Every rank's instant first, one word per interior rank exactly as
     # before (landing 2b.3); the tail's ranks take their PUBLISHED values
     # and every other rank is drawn inside its own gap (landing 2b.6).
-    ordinals = spread_ordinals(rungs, parsed, words)
-    gap_lows, gap_highs = pin_bounds(rungs, parsed)
+    ordinals = spread_ordinals(column, parsed, words)
+    gap_lows, gap_highs = pin_bounds(column, parsed)
+    pinned_at, pinned_text, body_pins, _sides = date_pins(column, parsed)
     snapping = snaps_to_midnight(column)
     offset_pins = {}
     if snapping:
@@ -7299,17 +7290,6 @@ def _datetime_content(column):
         for rank, keys in instant_offsets(column, parsed).items():
             if 0 < rank < parsed - 1 and keys:
                 offset_pins[rank] = keys
-    # ...AND EVERY RANK STANDING ON AN END'S OWN INSTANT is held to an
-    # offset that cannot out-sort that end's (plan P4-D255); where such a
-    # rank already carries the midnight pins above, the two are met
-    # together, and the midnight pin stands where nothing meets both.
-    for rank, keys in endpoint_tie_offsets(column, ordinals, parsed).items():
-        if rank not in offset_pins:
-            offset_pins[rank] = keys
-            continue
-        together = tuple(key for key in offset_pins[rank] if key in keys)
-        if together:
-            offset_pins[rank] = together
     offsets = _offset_allocation(
         column, parsed, whole, offset_pins,
         (gap_lows, gap_highs) if snapping else None,
@@ -7321,7 +7301,9 @@ def _datetime_content(column):
             offset_form(offsets[rank])[1] if column["datetimes_read_at"] == "utc" else 0
             for rank in range(parsed)
         ]
-        ordinals = snapped_to_midnight(column, ordinals, shifts)
+        ordinals = snapped_to_midnight(
+            column, ordinals, shifts, (gap_lows, gap_highs)
+        )
     # A withheld count at midnight kept on its side (plan P4-D191), and
     # the counts of different values and of widths reached (P4-D192).
     ordinals = kept_off_midnight(column, ordinals, parsed, whole, gap_lows, gap_highs, offsets=offsets)
@@ -7340,15 +7322,21 @@ def _datetime_content(column):
     )
     content = []
     for rank in range(parsed):
-        # Ranks 0 and P-1 are the two published ends, and they are built
-        # from the endpoint's own fields rather than from an ordinal
-        # (G7.5): the ordinal space has no place for an `SS` of `60`.
-        endpoint = None
+        # A PINNED RANK CARRYING A SIXTIETH SECOND is written from its own
+        # published fields rather than from an ordinal (G7.3, G7.5): the
+        # ordinal space of G7.1 has no place for a leap second, and a
+        # tail boundary, a rung and a listed tail value are each
+        # published TEXT.  Every other rank is written from its ordinal.
         ordinal = ordinals[rank]
-        if rank == 0:
-            endpoint = column["earliest"]
-        elif rank == parsed - 1 and parsed >= 2:
-            endpoint = column["latest"]
+        endpoint = None
+        standing = pinned_text.get(rank)
+        if (
+            standing is not None
+            and resolution == "datetime"
+            and standing[17:19] == "60"
+            and ordinal == pinned_at.get(rank)
+        ):
+            endpoint = standing
         suffix, shift = offset_form(offsets[rank])
         moved = shift if (
             column["datetimes_read_at"] == "utc"
@@ -7427,12 +7415,15 @@ def _datetime_content(column):
             # G7.5's step off a unit that wears only absent spellings: the
             # nearest unit, earlier before later, first inside this rank's
             # own window and then inside the published range.
-            first = ordinal_of(column["earliest"], space)
-            last = ordinal_of(column["latest"], space)
-            # The window is the rank's own GAP (landing 2b.6): the rank
-            # was drawn between the two pinned ranks either side of it.
-            window = (max(first, gap_lows[rank]), min(last, gap_highs[rank]))
-            for low, high in (window, (first, last)):
+            # The window is the rank's own GAP (landing 2b.6), and the
+            # fallback is the BODY (stage 3): a tail rank never leaves
+            # its stratum, so the tail's own facts stay inside the
+            # validator's window, and a body rank may reach anywhere
+            # between the two boundaries and never past one.
+            windows = [(gap_lows[rank], gap_highs[rank])]
+            if body_pins and min(body_pins) <= rank <= max(body_pins):
+                windows.append((body_pins[min(body_pins)], body_pins[max(body_pins)]))
+            for low, high in windows:
                 chosen = None
                 for away in range(1, len(holes) + 2):
                     for other in (ordinal - away, ordinal + away):
@@ -7565,6 +7556,333 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
     return written
 
 
+# ------------------------------------- the tails of a date or clock column
+#
+# Stage 3, plan P4-D328.  Written from method sections G7.3b, G7.3c,
+# G7.3d, G7.3e and G7A.4 as those clauses stand, in the order they state
+# their steps.  Nothing here is read from the shipped generator: the
+# shape's three parameters, the moment-matched end, the strata and the
+# two-pass all-different step are each the clause's own arithmetic,
+# written once and used by both roles.
+
+TAIL_KEYS = ("boundary", "rows", "mean_distance", "rms_distance", "values")
+
+# The ordinals of the first and last day every member can write back
+# (G7.3e).  A member writing a two-figure year settles the century at
+# the pivot, so its window is the hundred years the pivot names.
+TWO_FIGURE_MEMBERS = (
+    "two-digit-month-first-date",
+    "two-digit-day-first-date",
+    "dotted-two-digit-month-first-date",
+    "compact-two-digit-date",
+)
+TWO_FIGURE_FIRST = (1969, 1, 1)
+TWO_FIGURE_LAST = (2068, 12, 31)
+CALENDAR_FIRST = (1, 1, 1)
+CALENDAR_LAST = (9999, 12, 31)
+WORKBOOK_FIRST = {"1900": (1900, 1, 1), "1904": (1904, 1, 1)}
+
+
+def readable_days(member, system=""):
+    """The first and last DAY this column's own spelling reads back (G7.3e)."""
+    first, last = CALENDAR_FIRST, CALENDAR_LAST
+    if member in TWO_FIGURE_MEMBERS:
+        first, last = TWO_FIGURE_FIRST, TWO_FIGURE_LAST
+    elif system in WORKBOOK_FIRST:
+        first = WORKBOOK_FIRST[system]
+    return days_from_civil(*first), days_from_civil(*last)
+
+
+def unit_ordinal(text, unit, reading):
+    """One published instant as a whole number of TAIL UNITS (contract TL4)."""
+    year = int(text[0:4])
+    spans = {
+        "quarter": lambda: 4 * (year - 1970) + int(text[6]) - 1,
+        "month": lambda: 12 * (year - 1970) + int(text[5:7]) - 1,
+    }
+    if unit in spans:
+        return spans[unit]()
+    days = days_from_civil(year, int(text[5:7]), int(text[8:10]))
+    timed = len(text) >= 19
+    if unit == "day" and (reading != "utc" or not timed):
+        return days
+    clock = (
+        3600 * int(text[11:13]) + 60 * int(text[14:16]) + int(text[17:19])
+        if timed
+        else 0
+    )
+    seconds = 86400 * days + clock
+    counted = {"minute": seconds // 60, "second": seconds}
+    return counted.get(unit, (seconds + 43200) // 86400)
+
+
+def tail_window(column):
+    """The first and last tail unit this column's member can write (G7.3e)."""
+    unit = column["tail_unit"]
+    first, last = readable_days(column["format"], column.get("_date_system", ""))
+    if unit in ("month", "quarter"):
+        months = [
+            12 * (civil_from_days(day)[0] - 1970) + civil_from_days(day)[1] - 1
+            for day in (first, last)
+        ]
+        return (
+            (months[0], months[1])
+            if unit == "month"
+            else (months[0] // 3, months[1] // 3)
+        )
+    widest = max(
+        [0]
+        + [
+            3600 * int(key[1:3]) + 60 * int(key[4:6])
+            for key in column["utc_offsets"]
+            if column["datetimes_read_at"] == "utc"
+            and len(key) == 6
+            and key[0] in "+-"
+        ]
+    )
+    if unit == "day":
+        return (first + 1, last - 1) if widest else (first, last)
+    low, high = 86400 * first + widest, 86400 * last + 86399 - widest
+    return (-(-low // 60), high // 60) if unit == "minute" else (low, high)
+
+
+def whole_unit(value):
+    """A binary64 distance as a whole number of units, halves UP, exactly.
+
+    Taken on the value itself, as an exact rational, so nothing is
+    rounded twice (G7.3b step 5).
+    """
+    if value <= 0.0:
+        return 0
+    halves = 2 * F(value) + 1
+    return halves.numerator // (2 * halves.denominator)
+
+
+def raised_power(base, exponent):
+    """``base ** exponent`` by squaring and multiplying, most significant bit first."""
+    result = 1.0
+    for bit in format(max(exponent, 0), "b"):
+        result = result * result * (base if bit == "1" else 1.0)
+    return result
+
+
+def mixture_of(rows, mean, root):
+    """G7.3b step 1: the power, the weight and the scale one tail is drawn through."""
+    ratio = 1.0
+    if mean > 0.0:
+        quotient = root / mean
+        ratio = quotient * quotient
+    if ratio < 1.0:
+        ratio = 1.0
+    exact = F(ratio)
+    top, bottom = exact.numerator, exact.denominator
+    power = 0
+    while (power + 2) ** 2 * bottom <= top * (2 * power + 3):
+        power += 1
+    a2 = 1.0 / (power + 2)
+    de = 1.0 / ((power + 1) * (power + 2))
+    b1 = 1.0 / (2 * power + 1)
+    middle = 1.0 / (power + 1)
+    b2 = 1.0 / (2 * power + 3)
+    qa = ((b1 - middle) + b2) - ((ratio * de) * de)
+    qb = (middle - (2.0 * b2)) - (((2.0 * ratio) * a2) * de)
+    qc = b2 - ((ratio * a2) * a2)
+    weight = 0.0
+    if qc > 0.0:
+        disc = (qb * qb) - ((4.0 * qa) * qc)
+        if disc < 0.0:
+            disc = 0.0
+        spread = math.sqrt(disc)
+        half = -0.5 * (qb + spread) if qb >= 0.0 else -0.5 * (qb - spread)
+        offered = []
+        if qa != 0.0:
+            offered.append(half / qa)
+        if half != 0.0:
+            offered.append(qc / half)
+        inside = [one for one in offered if -1e-12 <= one <= 1.0 + 1e-12]
+        weight = min(min(inside), 1.0) if inside else 1.0
+        if weight < 0.0:
+            weight = 0.0
+    scale = mean / (a2 + (weight * de))
+    return (power, weight, scale)
+
+
+def mixture_at(shape, share):
+    """``a(s)`` of G7.3b step 1."""
+    power, weight, scale = shape
+    return scale * (raised_power(share, power) * (weight + ((1.0 - weight) * share)))
+
+
+def mixture_upto(shape, share):
+    """``A(s)``: the integral of ``a`` from nought to ``share`` (G7.3b step 1)."""
+    power, weight, scale = shape
+    risen = raised_power(share, power + 1)
+    return scale * (
+        ((weight * risen) / (power + 1)) + (((1.0 - weight) * (risen * share)) / (power + 2))
+    )
+
+
+def squares_upto(shape, share):
+    """``B(s)``: the integral of ``a**2`` from nought to ``share``."""
+    power, weight, scale = shape
+    risen = raised_power(share, 2 * power + 1)
+    return (scale * scale) * (
+        (
+            ((weight * weight) * risen) / (2 * power + 1)
+            + (((2.0 * weight) * (1.0 - weight)) * (risen * share)) / (2 * power + 2)
+        )
+        + ((((1.0 - weight) * (1.0 - weight)) * ((risen * share) * share)) / (2 * power + 3))
+    )
+
+
+def stretched_end(shape, rows, mean, root, edge):
+    """G7.3b steps 3 and 4: the stretch on the drawn ranks and the outermost distance.
+
+    The two moment equations are solved together, so the expected sum of
+    the tail's distances is ``rows * mean`` and the expected sum of their
+    squares is ``rows * root**2``.  Of the two roots the one nearest one
+    counts, the first on a tie, and only where the stretch is above
+    nought and the end is not inside rank one's own reach.  Where neither
+    counts the end is the root-mean-square of the shape over the
+    outermost stratum at a stretch of one.  An end past the readable
+    window stands AT the window and the rest is stretched to keep the
+    published mean.
+    """
+    total = rows * mean
+    squares = rows * (root * root)
+    inner = (rows - 1) / rows
+    first = rows * mixture_upto(shape, inner)
+    second = rows * squares_upto(shape, inner)
+    reach = mixture_at(shape, inner)
+    qa = (first * first) + second
+    qb = -2.0 * (total * first)
+    qc = (total * total) - squares
+    stretch, end = 1.0, -1.0
+    if qa > 0.0:
+        disc = (qb * qb) - ((4.0 * qa) * qc)
+        if disc >= 0.0:
+            spread = math.sqrt(disc)
+            for candidate in ((-qb - spread) / (2.0 * qa), (-qb + spread) / (2.0 * qa)):
+                far = total - (candidate * first)
+                if candidate > 0.0 and far >= candidate * reach:
+                    if end < 0.0 or abs(candidate - 1.0) < abs(stretch - 1.0):
+                        stretch, end = candidate, far
+    if end < 0.0:
+        stretch = 1.0
+        end = math.sqrt(max(rows * (squares_upto(shape, 1.0) - squares_upto(shape, inner)), 0.0))
+    if end > edge:
+        end = float(edge)
+        if first > 0.0:
+            stretch = (total - end) / first
+    return stretch, end
+
+
+def tail_distances(rows, mean, root, floor, edge, apart, words):
+    """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
+
+    ``words`` maps an outer index to the word that rank read; an index
+    with no word stands at its stratum's own start.  The outermost rank
+    takes the derived end, the ranks from ``floor - 1`` inward share the
+    tie group's one distance where the tail holds more cells than the
+    floor and its ranks need not differ, and every other rank stands at
+    the shape's value over its own share.
+    """
+    shape = mixture_of(rows, mean, root)
+    stretch, end = stretched_end(shape, rows, mean, root, edge)
+    grouped = rows
+    group = 0
+    if rows > floor >= 1 and not apart:
+        grouped = floor - 1
+        share = (rows - grouped) / rows
+        group = min(max(1, whole_unit(
+            stretch * ((rows * mixture_upto(shape, share)) / (rows - grouped))
+        )), edge)
+    found = [min(max(1, whole_unit(end)), edge)] + [0] * (rows - 1)
+    if grouped == 0:
+        found[0] = group
+    for index in range(1, rows):
+        if index >= grouped:
+            found[index] = group
+            continue
+        word = words.get(index, 0)
+        share = ((rows - 1 - index) * TWO64 + word) / (rows * TWO64)
+        found[index] = max(1, whole_unit(stretch * mixture_at(shape, share)))
+    for index in range(rows - 2, -1, -1):
+        found[index] = max(found[index], found[index + 1])
+    if apart:
+        for index in range(rows - 2, -1, -1):
+            if found[index] <= found[index + 1]:
+                found[index] = found[index + 1] + 1
+            found[index] = min(found[index], edge)
+        for index in range(1, rows):
+            if found[index] >= found[index - 1]:
+                found[index] = max(1, found[index - 1] - 1)
+    return [min(distance, edge) for distance in found]
+
+
+def value_shares(distances, rows, total):
+    """G7.3c: how many ranks each published value of a tail takes.
+
+    Every value takes at least one rank.  With a mean published, each
+    value from the outermost inward takes the fewest ranks that still
+    leave the values inside it able to reach the published sum exactly,
+    and the innermost takes the rest; where no count can, or where no
+    mean is published, the ranks are shared as evenly as the values
+    allow, the outer values first.
+    """
+    count = len(distances)
+    evenly = [0] * count
+    for index in range(rows):
+        evenly[(index * count) // rows] += 1
+    if total is None or count == 0:
+        return evenly
+    left, owed = rows - count, total - sum(distances)
+    if min(left, owed) < 0:
+        return evenly
+    taken = [1] * count
+    place = 0
+    while place + 1 < count:
+        fits = [
+            extra
+            for extra in range(left + 1)
+            if extra * distances[place] <= owed
+            and reachable_sum(
+                distances[place + 1:],
+                left - extra,
+                owed - extra * distances[place],
+            )
+        ]
+        if not fits:
+            return evenly
+        taken[place], left, owed = (
+            taken[place] + fits[0],
+            left - fits[0],
+            owed - fits[0] * distances[place],
+        )
+        place += 1
+    if left * distances[count - 1] != owed:
+        return evenly
+    taken[count - 1] += left
+    return taken
+
+
+def reachable_sum(distances, ranks, owed):
+    """Whether ``ranks`` more ranks over these values can add to ``owed`` exactly."""
+    if not distances:
+        return ranks == 0 and owed == 0
+    reached = {0: True}
+    for _rank in range(ranks):
+        stepped = {}
+        for made in reached:
+            for distance in distances:
+                if made + distance <= owed:
+                    stepped[made + distance] = True
+        reached = stepped
+        if not reached:
+            return False
+    return owed in reached
+
+
 def ordinal_space(column):
     """The resolution a column's ordinals are counted in (plan P4-D39).
 
@@ -7597,50 +7915,219 @@ def rung_rank(percent, parsed):
     return min(parsed - 1, ((parsed - 1) * percent) // 100)
 
 
-def ordinal_pins(rungs, parsed):
-    """Every rank the published tail PINS, with its published ordinal
-    (method G7.3, landing 2b.6).
+def tail_step_of(column):
+    """How many space ordinals one tail unit is, and its half-unit widening.
 
-    The two ends, which the contract's D11 makes the ladder's own ends,
-    and each of the nine interior rungs at the rank it is selected from.
-    Two rungs selecting off one rank keep the LOWER rung's value, so the
-    pins stay in rank order whatever ladder a description carries.
+    One for a column counted in days, months or quarters; sixty for
+    moments written to the minute; a whole day, widened by half a day
+    either way, for moments counted in days of the shared clock; one
+    second otherwise (G7.3b step 6).
     """
-    pins = {}
-    if parsed <= 0:
-        return pins
-    pins[0] = rungs[0]
+    steps = {"day": (86400, 43200), "minute": (60, 0), "second": (1, 0)}
+    if ordinal_space(column) != "datetime":
+        return (1, 0)
+    return steps[column["tail_unit"]]
+
+
+def tail_side_plan(column, side, low_side, parsed, words):
+    """One tail of a column of dates, laid out in the column's own space.
+
+    Returns the ordinal of every rank of the tail, outermost first, the
+    distances it stands at and which of its outer indices read a word.
+    A tail publishing its values stands on them and reads none (G7.3c);
+    every other tail is drawn through the shape its two published
+    distances fix (G7.3b).
+    """
+    space = ordinal_space(column)
+    unit, half = tail_step_of(column)
+    boundary = ordinal_of(side["boundary"], space)
+    anchor = ((boundary + half) // unit) * unit if half else boundary
+    reading = column["datetimes_read_at"]
+    at = unit_ordinal(side["boundary"], column["tail_unit"], reading)
+    first, last = tail_window(column)
+    edge = max(1, at - first if low_side else last - at)
+    rows = side["rows"]
+    if side["values"] is not None:
+        listed = list(side["values"])
+        if not low_side:
+            listed.reverse()
+        gaps = [
+            (at - unit_ordinal(text, column["tail_unit"], reading)) if low_side
+            else (unit_ordinal(text, column["tail_unit"], reading) - at)
+            for text in listed
+        ]
+        owed = None
+        if side["mean_distance"] is not None:
+            owed = whole_unit(rows * float_of(side["mean_distance"]))
+        shares = value_shares(gaps, rows, owed)
+        spots, stood, texts = [], [], []
+        for place, count in enumerate(shares):
+            for _copy in range(count):
+                spots.append(ordinal_of(listed[place], space))
+                stood.append(gaps[place])
+                texts.append(listed[place])
+        return {
+            "spots": spots, "distances": stood, "texts": texts,
+            "drawn": (), "near": stood, "far": stood,
+        }
+    apart = column["n_distinct"] - column["n_unparsed"] >= parsed
+    mean = float_of(side["mean_distance"]) if side["mean_distance"] is not None else 1.0
+    root = float_of(side["rms_distance"]) if side["rms_distance"] is not None else mean
+    shape = mixture_of(rows, mean, root)
+    grouped = rows
+    if rows > CASE_SMALL_CELL_FLOOR >= 1 and not apart:
+        grouped = CASE_SMALL_CELL_FLOOR - 1
+    drawn = tuple(index for index in range(1, grouped))
+    stood = tail_distances(
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words
+    )
+    near = tail_distances(
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
+        {index: 0 for index in drawn},
+    )
+    far = tail_distances(
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
+        {index: TWO64 - 1 for index in drawn},
+    )
+    places = [
+        anchor - distance * unit if low_side else anchor + distance * unit
+        for distance in stood
+    ]
+    return {
+        "spots": places, "distances": stood, "texts": [None] * rows,
+        "drawn": drawn, "near": near, "far": far, "anchor": anchor,
+        "unit": unit, "half": half, "shape": shape, "grouped": grouped,
+    }
+
+
+def float_of(field):
+    """The binary64 a published field carries, wrapper or bare."""
+    if isinstance(field, dict):
+        return field[FLOAT64]
+    return float(field)
+
+
+def ramp_places(column, parsed):
+    """G7.3d: the made-up ramp of a column that publishes no tail.
+
+    Rank nought stands at 1970-01-01 and rank ``P - 1`` at ``D - 1``
+    steps later, ``D`` the published count of different values less the
+    cells that read as no date, capped at ``P`` and at least one, the
+    step one unit of the space -- a whole DAY where the space counts
+    seconds, so the passes onto and off midnight have a midnight of each
+    day to reach.
+    """
+    different = max(1, min(parsed, column["n_distinct"] - column["n_unparsed"]))
+    step = 86400 if ordinal_space(column) == "datetime" else 1
+    pins = {0: 0}
     if parsed >= 2:
-        pins[parsed - 1] = rungs[len(PCT) - 1]
-    for place in range(1, len(PCT) - 1):
-        rank = rung_rank(PCT[place], parsed)
-        if 0 < rank < parsed - 1 and rank not in pins:
-            pins[rank] = rungs[place]
+        pins[parsed - 1] = (different - 1) * step
     return pins
 
 
-def pin_bounds(rungs, parsed):
-    """The pinned value below and above every rank -- the rank's GAP.
+def date_pins(column, parsed, words=None):
+    """Every rank of a column of dates that draws no word, and where it stands.
 
-    Read by the construction below and by the step off a unit whose
-    every spelling is absent, so the two cannot disagree about the room
-    a rank has.  A pinned rank's two bounds are its own value.
+    The two TAIL BOUNDARY ranks, each published rung between them, and
+    each tail's word-less ranks -- its outermost rank, its group, and
+    every rank of a tail standing on its published values (G7.3, G7.3b,
+    G7.3c).  A column publishing no tails pins the two ends of G7.3d's
+    ramp.  ``words`` is the word each drawn tail rank read, keyed by
+    rank; with none given every drawn rank stands at its stratum's start,
+    which is where the pins are read from.
+
+    Returns (pins, texts, body, sides): the pinned ordinals, the
+    published text a pin stands for where it stands for one, the body's
+    own pins -- the two boundaries and the rungs -- and the two tail
+    plans keyed "low" and "high".
+    """
+    space = ordinal_space(column)
+    if parsed <= 0:
+        return {}, {}, {}, {}
+    low_side, high_side = column["low_tail"], column["high_tail"]
+    if low_side is None or high_side is None:
+        pins = ramp_places(column, parsed)
+        return pins, {}, dict(pins), {}
+    low_rank = low_side["rows"]
+    high_rank = parsed - 1 - high_side["rows"]
+    pins, texts = {}, {}
+    sides = {}
+    for name, side, is_low in (("low", low_side, True), ("high", high_side, False)):
+        mine = {}
+        if words is not None:
+            for index in range(1, side["rows"]):
+                rank = index if is_low else parsed - 1 - index
+                if rank in words:
+                    mine[index] = words[rank]
+        plan = tail_side_plan(column, side, is_low, parsed, mine)
+        sides[name] = plan
+        for index in range(side["rows"]):
+            rank = index if is_low else parsed - 1 - index
+            if index in plan["drawn"]:
+                continue
+            pins[rank] = plan["spots"][index]
+            if plan["texts"][index] is not None:
+                texts[rank] = plan["texts"][index]
+    body = {low_rank: ordinal_of(low_side["boundary"], space),
+            high_rank: ordinal_of(high_side["boundary"], space)}
+    texts[low_rank] = low_side["boundary"]
+    texts[high_rank] = high_side["boundary"]
+    for place in range(1, len(PCT) - 1):
+        rung = column["date_percentiles"][LADDER_KEYS[place]]
+        if rung is None:
+            continue
+        rank = rung_rank(PCT[place], parsed)
+        if low_rank < rank < high_rank and rank not in body:
+            body[rank] = ordinal_of(rung, space)
+            texts[rank] = rung
+    pins.update(body)
+    return pins, texts, body, sides
+
+
+def pin_bounds(column, parsed):
+    """The room every rank has -- the rank's GAP (method G12.4, G7.3b step 8).
+
+    A body rank's room runs between the two body pins either side of it;
+    a tail rank's is its own stratum, widened by half a unit either way
+    where one tail unit is a day of the shared clock; a pin's is its own
+    place.
     """
     lows = [0] * parsed
     highs = [0] * parsed
     if parsed <= 0:
         return lows, highs
-    pins = ordinal_pins(rungs, parsed)
-    below = pins[0]
+    pins, _texts, body, sides = date_pins(column, parsed)
+    below = pins[min(pins)]
     for rank in range(parsed):
-        if rank in pins:
-            below = pins[rank]
+        if rank in body:
+            below = body[rank]
         lows[rank] = below
     above = pins[max(pins)]
     for rank in reversed(range(parsed)):
-        if rank in pins:
-            above = pins[rank]
+        if rank in body:
+            above = body[rank]
         highs[rank] = above
+    for name in sides:
+        plan = sides[name]
+        low_side = name == "low"
+        anchor = plan.get("anchor", 0)
+        unit = plan.get("unit", 1)
+        half = plan.get("half", 0)
+        for index in range(len(plan["spots"])):
+            rank = index if low_side else parsed - 1 - index
+            if plan["texts"][index] is not None:
+                lows[rank] = highs[rank] = plan["spots"][index]
+                continue
+            near, far = plan["near"][index], plan["far"][index]
+            first = anchor - far * unit if low_side else anchor + near * unit
+            second = anchor - near * unit if low_side else anchor + far * unit
+            # WIDENED TO THE WHOLE DAY the rank may be moved inside where
+            # one tail unit is a day of the shared clock: half a day
+            # below and one unit less than half a day above, so the room
+            # is exactly one day wide and two neighbouring ranks' rooms
+            # never name one instant twice (G7.3b step 8).
+            lows[rank] = min(first, second) - half
+            highs[rank] = max(first, second) + max(half - 1, 0)
     return lows, highs
 
 
@@ -7756,45 +8243,38 @@ def bend_of_places(pins, at):
     return bend
 
 
-def spread_ordinals(rungs, parsed, words):
-    """Every rank's instant -- method G7.3 as landing 2b.6 rewrites it.
+def spread_ordinals(column, parsed, words):
+    """Every rank's instant -- method G7.3 as stage 3 rewrites it.
 
-    The published tail pins the two ends and the nine interior rungs to
-    their published values.  Every OTHER rank takes an INDEPENDENT draw
-    inside the gap between the two pinned ranks either side of it, across
-    the stretch between the two pins' places (``pin_places``, P4-D130), in
-    the column's own ordinal space, and the draws inside one gap are
-    sorted, so the ranks stay ascending.
+    The two TAIL BOUNDARY ranks and each published rung between them are
+    pinned to their published values; every other BODY rank takes an
+    independent draw inside the gap between the two body pins either
+    side of it, across the stretch between their places (``pin_places``,
+    plan P4-D130), and the draws inside one gap are sorted so the ranks
+    stay ascending.  Each TAIL stands where G7.3b or G7.3c puts it: its
+    outermost rank at the derived end, its group at one distance, and
+    every rank between them inside its own stratum, one word each.
 
-    ONE WORD PER UNPINNED RANK, AND NONE FOR A PINNED ONE, taken in
-    rank order.  The budget is unchanged -- the column is handed `P - 2`
-    content words and the pins leave up to nine of them unread -- so
-    the shared stream stays in step and no column after a column of
-    dates moves.  (The repair pass of landing 2b.6 amended this
-    paragraph, which had said that a pinned rank draws its word and
-    discards it; the shipped construction reads 389 words of a 400-row
-    column's 398, and this mirror follows the method's amended rule.)
-
-    What it replaces: one cell per rank inside its own `1 / P` stratum,
-    which gave each day almost exactly its expected count -- a
-    below-Poisson spread, where a real table's per-day counts vary at
-    least Poisson.
+    ONE WORD PER RANK THAT IS NOT PINNED, in rank order: the low tail's
+    drawn ranks first, then each body gap, then the high tail's.  The
+    budget is unchanged -- the column is handed ``P - 2`` content words
+    and the pins leave the rest unread.
     """
     ordinals = [0] * parsed
     if parsed <= 0:
         return ordinals
-    pins = ordinal_pins(rungs, parsed)
-    for rank, value in pins.items():
-        ordinals[rank] = value
-    places = sorted(pins)
-    steps = pin_places(pins)
+    pins, _texts, body, sides = date_pins(column, parsed)
+    drawn_words = {}
+    if "low" in sides:
+        for index in sides["low"]["drawn"]:
+            drawn_words[index] = next(words)
+    places = sorted(body)
+    steps = pin_places(body)
+    body_draws = {}
     for step in range(len(places) - 1):
-        below = places[step]
-        above = places[step + 1]
-        low = ordinals[below]
-        high = ordinals[above]
-        start = steps[below]
-        stop = steps[above]
+        below, above = places[step], places[step + 1]
+        start, stop = steps[below], steps[above]
+        low, high = body[below], body[above]
         drawn = []
         for _rank in range(below + 1, above):
             word = next(words)
@@ -7802,18 +8282,48 @@ def spread_ordinals(rungs, parsed, words):
             drawn.append(min(max(place // PIN_STEPS, low), high))
         drawn.sort()
         for place, value in enumerate(drawn):
-            ordinals[below + 1 + place] = value
+            body_draws[below + 1 + place] = value
+    high_words = {}
+    if "high" in sides:
+        # IN RANK ORDER, which on the high side runs from the INNERMOST
+        # outer index outward: the words run through the column exactly
+        # as its ranks do (G7.3b step 2).
+        for index in reversed(sides["high"]["drawn"]):
+            high_words[index] = next(words)
+    by_rank = {}
+    for index, word in drawn_words.items():
+        by_rank[index] = word
+    for index, word in high_words.items():
+        by_rank[parsed - 1 - index] = word
+    pins, _texts, body, sides = date_pins(column, parsed, by_rank)
+    for rank, value in pins.items():
+        ordinals[rank] = value
+    for rank, value in body_draws.items():
+        ordinals[rank] = value
+    for name in sides:
+        plan = sides[name]
+        for index in plan["drawn"]:
+            rank = index if name == "low" else parsed - 1 - index
+            ordinals[rank] = plan["spots"][index]
     return ordinals
 
 
-def ranks_the_tail_pins(parsed):
-    """The ranks the published tail pins: the two ends and each rung's rank."""
+def ranks_the_tail_pins(column, parsed):
+    """Which ranks NEVER MOVE, one flag per rank (landing 2b.3, stage 3).
+
+    Every rank the layout pins -- drawing no word -- whose gap is its own
+    single place: the two boundary ranks, each published rung between
+    them, and each tail's outermost rank, its group and its published
+    values where each stands at one place.  A tail rank counted in days
+    of the shared clock is NOT among them: its gap is its whole day,
+    inside which the move onto a local midnight may take it anywhere.
+    """
     flags = [False] * parsed
-    if parsed:
-        flags[0] = True
-        flags[parsed - 1] = True
-        for percent in PCT[1:-1]:
-            flags[rung_rank(percent, parsed)] = True
+    pins, _texts, _body, _sides = date_pins(column, parsed)
+    lows, highs = pin_bounds(column, parsed)
+    for rank in pins:
+        if 0 <= rank < parsed and lows[rank] == highs[rank]:
+            flags[rank] = True
     return flags
 
 
@@ -7834,12 +8344,11 @@ def rung_pins(column, parsed):
     """Each interior rung's rank, with the rung's own instant and every
     offset it stands at a local midnight under (none where it stands at none)."""
     pins = {}
-    for place in range(1, len(PCT) - 1):
-        rank = rung_rank(PCT[place], parsed)
-        if rank <= 0 or rank >= parsed - 1 or rank in pins:
-            continue
-        seconds = ordinal_of(column["date_percentiles"][LADDER_KEYS[place]], "datetime")
-        pins[rank] = (seconds, midnight_offsets(seconds, column))
+    flags = ranks_the_tail_pins(column, parsed)
+    places = date_pins(column, parsed)[0]
+    for rank in sorted(places):
+        if 0 <= rank < parsed and flags[rank]:
+            pins[rank] = (places[rank], midnight_offsets(places[rank], column))
     return pins
 
 
@@ -7849,73 +8358,22 @@ def written_offset(key):
     return "" if key in ("(none)", "(withheld)") else key
 
 
-def endpoint_tie_offsets(column, ordinals, parsed):
-    """Which offsets a rank standing ON an end's instant may wear (P4-D255).
-
-    The describing step orders the parsed cells by (instant, text,
-    offset) and reads ``latest_utc_offset`` off the LAST of them, so
-    where several cells share the latest instant the offset published is
-    the largest of theirs, and ``earliest_utc_offset`` is the smallest of
-    the first instant's.  A rank whose instant IS an end's may therefore
-    wear only an offset that cannot out-sort that end's published one:
-    not above it at the latest, not below it at the earliest.  An end
-    whose offset the census holds back constrains nothing.
-    """
-    tied = {}
-    if parsed < 3:
-        return tied
-    keys = sorted(
-        column["utc_offsets"],
-        key=lambda name: (name in ("(none)", "(withheld)"), name),
-    )
-    least = (
-        written_offset(column["earliest_utc_offset"])
-        if column["earliest_utc_offset"] != "(withheld)"
-        else None
-    )
-    most = (
-        written_offset(column["latest_utc_offset"])
-        if column["latest_utc_offset"] != "(withheld)"
-        else None
-    )
-    for rank in range(1, parsed - 1):
-        at_first = ordinals[rank] == ordinals[0]
-        at_last = ordinals[rank] == ordinals[parsed - 1]
-        if not at_first and not at_last:
-            continue
-        allowed = []
-        for key in keys:
-            written = written_offset(key)
-            if at_first and least is not None and written < least:
-                continue
-            if at_last and most is not None and written > most:
-                continue
-            allowed.append(key)
-        if allowed:
-            tied[rank] = tuple(allowed)
-    return tied
-
-
 def instant_offsets(column, parsed):
-    """The ranks whose instant the published tail fixes, with their offsets
-    (repair pass of landing 2b.3), written from the statement.
+    """The ranks whose instant the layout fixes at ONE PLACE, with their
+    offsets (method G7.4 step 1 as stage 3 rewrites it).
 
-    The two ends, each with its published offset.  On a column moved onto
-    a midnight, also each rung rank and each rank strictly between two
-    pinned ranks -- the ends and the rung ranks -- that stand on one
-    instant, each with every offset that instant is a midnight under.
+    NO END TAKES AN OFFSET OF ITS OWN any more: the description names no
+    offset for an end row because it describes no end row.  What remains
+    is the midnight rule -- on a column moved onto a midnight, each rank
+    the layout of G7.3 fixes at one place (a boundary rank, a published
+    rung's rank, a tail's derived end or its group) and each rank
+    standing between two such ranks of one instant, with every offset
+    that instant is a local midnight under.
     """
     fixed = {}
-    if parsed == 0:
+    if parsed == 0 or not snaps_to_midnight(column):
         return fixed
-    fixed[0] = (column["earliest_utc_offset"],)
-    if parsed >= 2:
-        fixed[parsed - 1] = (column["latest_utc_offset"],)
-    if not snaps_to_midnight(column):
-        return fixed
-    instants = {0: ordinal_of(column["earliest"], "datetime")}
-    if parsed >= 2:
-        instants[parsed - 1] = ordinal_of(column["latest"], "datetime")
+    instants = {}
     for rank, (seconds, keys) in rung_pins(column, parsed).items():
         instants[rank] = seconds
         fixed[rank] = keys
@@ -7963,7 +8421,7 @@ def nearest_midnight(ordinal, shift, lowest, highest):
     return min(max(day, first), last) - shift
 
 
-def snapped_to_midnight(column, ordinals, shifts):
+def snapped_to_midnight(column, ordinals, shifts, bounds=None):
     """The move onto a midnight (landing 2b.3), written from its statement.
 
     Pinned ranks never move; every other rank is first brought inside the
@@ -7982,19 +8440,13 @@ def snapped_to_midnight(column, ordinals, shifts):
     if parsed == 0:
         return moved
     step = 60 if column["time_precision"] == "minute" else 1
-    pinned = ranks_the_tail_pins(parsed)
-    lows = [0] * parsed
-    highs = [0] * parsed
-    below = moved[0]
-    for rank in range(parsed):
-        if pinned[rank]:
-            below = moved[rank]
-        lows[rank] = below
-    above = moved[parsed - 1]
-    for rank in reversed(range(parsed)):
-        if pinned[rank]:
-            above = moved[rank]
-        highs[rank] = above
+    pinned = ranks_the_tail_pins(column, parsed)
+    # EVERY RANK IS KEPT INSIDE ITS OWN GAP, which is the one statement
+    # of the room a rank has (G7.3b step 8): a body rank's is between the
+    # two body pins either side of it and a TAIL rank's is its stratum,
+    # which is what keeps a tail's published distances inside the window
+    # the validator draws from the same strata.
+    lows, highs = bounds if bounds is not None else pin_bounds(column, parsed)
     for rank in range(parsed):
         if not pinned[rank]:
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
@@ -8078,7 +8530,7 @@ def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_S
         return ordinals
     step = 60 if column["time_precision"] == "minute" else 1
     line = max(2, floor)
-    pinned = ranks_the_tail_pins(parsed)
+    pinned = ranks_the_tail_pins(column, parsed)
     shifts = [
         offset_form(offsets[rank])[1]
         if column["datetimes_read_at"] == "utc" and offsets is not None else 0
@@ -8224,7 +8676,7 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
     pinned = [
         flag or lows[rank] >= highs[rank]
-        for rank, flag in enumerate(ranks_the_tail_pins(parsed))
+        for rank, flag in enumerate(ranks_the_tail_pins(column, parsed))
     ]
     census = column.get("date_field_widths", {})
     widths = None
@@ -9014,6 +9466,15 @@ def _offset_allocation(column, parsed, whole=None, pins=None, bounds=None):
     ``bounds`` is the gap `pin_bounds` states, handed in by the snapping
     path alone, so a column every one of whose offsets is feasible is
     allocated exactly as before.
+
+    AND THOSE RANKS ARE VISITED SCARCEST FIRST (G7.4 step 2, stage 3).
+    Each of them is counted for how many keys both have a count left and
+    put a midnight inside its own gap, and they are taken in ascending
+    order of that count, ties in ascending rank: a key feasible for
+    nearly every rank must not be spent on a rank that has another while
+    a rank with one feasible key waits.  Where every key is feasible for
+    every rank the counts are equal and the order is ascending rank
+    again.
     """
     remaining = dict(column["utc_offsets"])
     allocated = [None] * parsed
@@ -9025,13 +9486,6 @@ def _offset_allocation(column, parsed, whole=None, pins=None, bounds=None):
                 remaining[key] -= 1
                 break
         allocated[rank] = "(none)"
-    for rank, field in ((0, "earliest_utc_offset"), (parsed - 1, "latest_utc_offset")):
-        named = column[field]
-        if allocated[rank] is not None:
-            continue
-        if remaining.get(named, 0) > 0:
-            allocated[rank] = named
-            remaining[named] -= 1
     for rank, keys in sorted((pins or {}).items()):
         for key in keys:
             if allocated[rank] is None and remaining.get(key, 0) > 0:
@@ -9039,7 +9493,22 @@ def _offset_allocation(column, parsed, whole=None, pins=None, bounds=None):
                 remaining[key] -= 1
     def key(name):
         return (name in ("(none)", "(withheld)"), name)
-    for rank in range(parsed):
+    order = [rank for rank in range(parsed) if allocated[rank] is None]
+    if bounds is not None:
+        counted = []
+        for rank in order:
+            fits = 0
+            for name in remaining:
+                if remaining[name] <= 0:
+                    continue
+                shift = 0
+                if column["datetimes_read_at"] == "utc":
+                    shift = offset_form(name)[1]
+                if a_midnight_inside(shift, bounds[0][rank], bounds[1][rank]):
+                    fits += 1
+            counted.append((fits, rank))
+        order = [rank for _fits, rank in sorted(counted)]
+    for rank in order:
         if allocated[rank] is not None:
             continue
         taken = None
@@ -13341,6 +13810,119 @@ def _distinct_numbers_of(content, prefix="", suffix=""):
     return len(seen)
 
 
+# WHAT A CASE'S TWO STATED ENDS BECOME (stage 3, plan P4-D328).
+#
+# A case states a column of dates or clock times the way this file has
+# always stated one: by its two ends and its eleven-rung ladder.  The
+# format publishes neither end any more -- each side of the column is a
+# TAIL, with a boundary, a count of rows beyond it and how far they
+# stand -- so the two stated ends BECOME the two boundaries and the
+# ladder is published only between them.  The rule is written out here,
+# once, so that every case keeps the column it always described and no
+# case has to state a tail by hand:
+#
+# * a column of fewer than `2F + 1` parsed cells publishes no tail and
+#   no rung at all, and its twin is the ramp of G7.3d;
+# * otherwise each tail holds `F` rows, the smallest group size, so the
+#   two boundary ranks are `F` and `P - 1 - F`;
+# * an interior rung whose rank lies outside those two is `null`; one
+#   read off a boundary's own rank IS that boundary, character for
+#   character (contract D11);
+# * the distances are the fixture's own: a mean of three units and a
+#   root-mean-square of four.  The ratio is 16/9, so the mixture of
+#   G7.3b takes the power ONE and the weight its quadratic gives, which
+#   is an ordinary tail rather than a degenerate one -- a tail whose two
+#   distances were equal would take the power nought and witness a
+#   corner of the shape rather than the shape.
+CASE_TAIL_MEAN = "3"
+CASE_TAIL_RMS = "4"
+
+
+def case_tail_unit(block):
+    """The unit contract TL4 counts a column's tails in."""
+    if block["resolution"] in ("quarter", "month"):
+        return block["resolution"]
+    if block["resolution"] == "date" or block.get("all_at_midnight"):
+        return "day"
+    return "minute" if block["time_precision"] == "minute" else "second"
+
+
+def _case_tails(block, ladder_key, floor=CASE_SMALL_CELL_FLOOR):
+    """The two tails and the ladder a case's stated ends publish.
+
+    Returns the fields to write into the block and the proofs for the
+    two numbers each tail carries.  Every case of a column of dates or
+    clock times goes through this, so the shape of what those roles
+    publish is stated once.
+    """
+    parsed = block["n_present"] - block["n_unparsed"]
+    written = {}
+    claims = {}
+    if parsed < 2 * floor + 1:
+        written["low_tail"] = None
+        written["high_tail"] = None
+        written[ladder_key] = {key: None for key in LADDER_KEYS}
+        return written, claims
+    low_text, high_text = block["earliest"], block["latest"]
+    low_rank, high_rank = floor, parsed - 1 - floor
+    published = {key: None for key in LADDER_KEYS}
+    for place in range(1, len(PCT) - 1):
+        key = LADDER_KEYS[place]
+        rank = rung_rank(PCT[place], parsed)
+        if rank < low_rank or rank > high_rank:
+            continue
+        if rank == low_rank:
+            published[key] = low_text
+        elif rank == high_rank:
+            published[key] = high_text
+        else:
+            published[key] = block[ladder_key][key]
+    written[ladder_key] = published
+    for side, text in (("low_tail", low_text), ("high_tail", high_text)):
+        block_of = {"boundary": text, "rows": floor, "values": None}
+        for key, decimal in (
+            ("mean_distance", CASE_TAIL_MEAN), ("rms_distance", CASE_TAIL_RMS)
+        ):
+            field, claim = nearest_field(decimal)
+            block_of[key] = field
+            claims[("column", side, key)] = claim
+        written[side] = {key: block_of[key] for key in TAIL_KEYS}
+    return written, claims
+
+
+def _tail_fields(low, high):
+    """Two tails a case states ITSELF, as proved fields with their claims.
+
+    A case whose column is the description the producer really writes of
+    its own cells states its tails here rather than having them built
+    from two ends it no longer publishes (`_case_tails`).  Each side is
+    a mapping of the keys TL1 fixes, with the two distances as exact
+    decimal TEXT, and every number is proved where it is built.
+    """
+    published = {}
+    claims = {}
+    for name, side in (("low_tail", low), ("high_tail", high)):
+        if side is None:
+            published[name] = None
+            continue
+        block = {
+            "boundary": side["boundary"],
+            "rows": side["rows"],
+            "values": side.get("values"),
+            "mean_distance": None,
+            "rms_distance": None,
+        }
+        for key in ("mean_distance", "rms_distance"):
+            text = side.get(key)
+            if text is None:
+                continue
+            field, claim = nearest_field(text)
+            block[key] = field
+            claims[("column", name, key)] = claim
+        published[name] = {key: block[key] for key in TAIL_KEYS}
+    return published, claims
+
+
 def _universal(name, role, statistical_type, structural_role, quality_state, **facts):
     block = {
         "name": name,
@@ -13372,6 +13954,21 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         "remarks": [],
     }
     block.update(facts)
+    # THE TWO TAILS, in place of the two ends a case states (stage 3,
+    # plan P4-D328).  The proofs of the two numbers each tail carries
+    # travel with the block and are merged into the case's own claims
+    # where the case is assembled.
+    if role in ("datetime", "time_of_day") and "earliest" in block:
+        ladder_key = (
+            "clock_percentiles" if role == "time_of_day" else "date_percentiles"
+        )
+        written, tail_claims = _case_tails(block, ladder_key)
+        for key in ("earliest", "latest", "earliest_utc_offset", "latest_utc_offset"):
+            block.pop(key, None)
+        if role == "datetime":
+            block["tail_unit"] = case_tail_unit(block)
+        block.update(written)
+        block["_tail_claims"] = tail_claims
     # The census of fraction widths (contract C6-27 to C6-30), on the
     # three roles that carry a forms map and on no other: a block that
     # publishes no forms map has no decimal cells to take a census of,
@@ -13571,8 +14168,9 @@ def clock_repair(ordinal, last, ceiling):
     makes two ranks that interpolated onto one time different -- the
     later one takes the next ordinal, which is what the source column
     itself did -- and the clamp is what keeps that step inside the
-    published `latest`.  Clamping first and stepping after would carry
-    a rank past the published end.
+    body, which ends one unit below the HIGH BOUNDARY since stage 3
+    (plan P4-D328).  Clamping first and stepping after would carry a
+    rank onto the boundary's own rank.
     """
     if ordinal <= last:
         ordinal = last + 1
@@ -14174,45 +14772,163 @@ def _affixed_content(column):
     return [prefix + core_text + suffix for core_text in cores]
 
 
+def clock_capacity(form):
+    """How many different times this form can write: a day's own count."""
+    return 1440 if form == "hh-mm" else 86400
+
+
+def clock_knots(column, parsed):
+    """The knots a clock column's body is interpolated between (G7A.4).
+
+    The low boundary at position ``m_lo``, each PUBLISHED rung at
+    ``P * PCT[j] / 100`` and the high boundary at ``m_hi + 1``, every
+    position in hundredths of a rank times ``2**64``.  A rung the tail
+    rule withholds is not a knot.
+    """
+    form = column["clock_form"]
+    low, high = column["low_tail"], column["high_tail"]
+    knots = [
+        (100 * low["rows"] * TWO64, clock_ordinal_of(low["boundary"], form)),
+        (
+            100 * (parsed - high["rows"]) * TWO64,
+            clock_ordinal_of(high["boundary"], form),
+        ),
+    ]
+    for place in range(1, len(PCT) - 1):
+        rung = column["clock_percentiles"][LADDER_KEYS[place]]
+        if rung is None:
+            continue
+        knots.append(
+            (parsed * PCT[place] * TWO64, clock_ordinal_of(rung, form))
+        )
+    knots.sort()
+    return knots
+
+
+def clock_body_at(knots, position):
+    """One body rank's ordinal, read off the knots by floor division (G7A.4)."""
+    below, above = knots[0], knots[len(knots) - 1]
+    for place in range(len(knots) - 1):
+        if knots[place][0] <= position:
+            below, above = knots[place], knots[place + 1]
+    span = above[0] - below[0]
+    if span <= 0:
+        return above[1]
+    share = min(max(position - below[0], 0), span)
+    return below[1] + (share * (above[1] - below[1])) // span
+
+
 def _clock_content(column):
     """The content list of a clock column -- method section G7A.
 
-    The same stratified inverse transform the date role uses, with the
-    ladder read in the form's OWN unit, plus the one repair that belongs
-    to this role alone: where the column's values were all different, so
-    are the twin's, because a closed finite space of times has a place
-    for each of them.
+    THE TAILS AND THE BODY BETWEEN THEIR BOUNDARIES (stage 3, plan
+    P4-D328).  Each tail is placed by G7.3b in the form's own unit, or
+    by G7.3c where it publishes its values, against the day's own ends;
+    the two boundary ranks carry their published TEXT; every body rank
+    is interpolated between the knots.  A column with no tails spreads
+    its ranks evenly over its count of different values from `00:00`
+    (the ramp of G7.3d).
+
+    EVERY INTERIOR RANK READS ONE WORD, AS IT ALWAYS HAS: rank nought
+    and rank ``P - 1`` draw none, and a boundary rank or a tail's group
+    reads its word and sets it aside, so no column generated after this
+    one moves.
+
+    The one repair that belongs to this role alone: where the column's
+    values were all different, so are the twin's, because a closed
+    finite space of times has a place for each of them.
     """
     form = column["clock_form"]
     parsed = column["n_present"] - column["n_unparsed"]
-    rungs = [
-        clock_ordinal_of(column["clock_percentiles"][key], form)
-        for key in LADDER_KEYS
-    ]
-    # G7A.4's condition, stated on the published counts alone.  The
-    # obligation is EXACT for this role where every other shape's
-    # distinctness falls to an envelope.
     apart = column["n_distinct"] - column["n_unparsed"] >= parsed
-    ceiling = clock_ordinal_of(column["latest"], form)
-    last = clock_ordinal_of(column["earliest"], form)
     words = iter(column["_content_words"])
+    low, high = column["low_tail"], column["high_tail"]
+    ordinals = [0] * parsed
+    if low is None or high is None:
+        different = max(1, min(parsed, column["n_distinct"] - column["n_unparsed"]))
+        for rank in range(parsed):
+            if 0 < rank < parsed - 1:
+                next(words)
+            ordinals[rank] = (rank * different) // max(parsed, 1)
+    else:
+        low_rank, high_rank = low["rows"], parsed - 1 - high["rows"]
+        knots = clock_knots(column, parsed)
+        edge = clock_capacity(form) - 1
+        sides = {}
+        for name, side, is_low in (("low", low, True), ("high", high, False)):
+            at = clock_ordinal_of(side["boundary"], form)
+            room = max(1, at if is_low else edge - at)
+            sides[name] = {"at": at, "edge": room, "side": side, "words": {}}
+        # The words in RANK order, kept for the tail ranks that use them.
+        last = clock_ordinal_of(low["boundary"], form)
+        body = {}
+        for rank in range(1, parsed - 1):
+            word = next(words)
+            if rank < low_rank:
+                sides["low"]["words"][rank] = word
+                continue
+            if rank > high_rank:
+                sides["high"]["words"][parsed - 1 - rank] = word
+                continue
+            if rank == low_rank or rank == high_rank:
+                continue
+            ordinal = clock_body_at(knots, 100 * (rank * TWO64 + word))
+            if apart:
+                # G7A.4's all-different repair, in the body: step up from
+                # the rank before, THEN clamp -- to one unit below the
+                # high boundary, which is where the body ends now that
+                # the column publishes no latest value.
+                ordinal = clock_repair(ordinal, last, sides["high"]["at"] - 1)
+            last = ordinal
+            body[rank] = ordinal
+        for name in ("low", "high"):
+            plan = sides[name]
+            side, at, room = plan["side"], plan["at"], plan["edge"]
+            is_low = name == "low"
+            if side["values"] is not None:
+                listed = list(side["values"])
+                if not is_low:
+                    listed.reverse()
+                gaps = [
+                    (at - clock_ordinal_of(text, form)) if is_low
+                    else (clock_ordinal_of(text, form) - at)
+                    for text in listed
+                ]
+                owed = None
+                if side["mean_distance"] is not None:
+                    owed = whole_unit(side["rows"] * float_of(side["mean_distance"]))
+                stood = []
+                for place, count in enumerate(value_shares(gaps, side["rows"], owed)):
+                    stood.extend([gaps[place]] * count)
+            else:
+                mean = (
+                    float_of(side["mean_distance"])
+                    if side["mean_distance"] is not None else 1.0
+                )
+                root = (
+                    float_of(side["rms_distance"])
+                    if side["rms_distance"] is not None else mean
+                )
+                stood = tail_distances(
+                    side["rows"], mean, root, CASE_SMALL_CELL_FLOOR, room,
+                    apart, plan["words"],
+                )
+            for index in range(side["rows"]):
+                rank = index if is_low else parsed - 1 - index
+                ordinals[rank] = at - stood[index] if is_low else at + stood[index]
+        for rank, ordinal in body.items():
+            ordinals[rank] = ordinal
+        ordinals[low_rank] = sides["low"]["at"]
+        ordinals[high_rank] = sides["high"]["at"]
     content = []
     for rank in range(parsed):
-        # The two ends are the published TEXT and not a re-spelling of
-        # an ordinal, and neither costs a word.
-        if rank == 0:
-            content.append(column["earliest"])
+        if low is not None and high is not None and rank == low["rows"]:
+            content.append(low["boundary"])
             continue
-        if rank == parsed - 1 and parsed >= 2:
-            content.append(column["latest"])
+        if low is not None and high is not None and rank == parsed - 1 - high["rows"]:
+            content.append(high["boundary"])
             continue
-        ordinal = interpolated_ordinal(
-            rank * TWO64 + next(words), parsed * TWO64, rungs
-        )
-        if apart:
-            ordinal = clock_repair(ordinal, last, ceiling)
-        last = ordinal
-        content.append(clock_spelling_of(ordinal, form))
+        content.append(clock_spelling_of(ordinals[rank], form))
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
     # as a clock time in NEITHER form, so the exclusion that belongs to
     # this role is met by construction rather than by a search.
@@ -14223,8 +14939,8 @@ def _clock_content(column):
 def _date_only():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
-        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        n_present=26, n_missing=0, n_distinct=26, n_distinct_folded=26,
+        n_numeric=0, n_not_numeric=26, n_out_of_range=0, n_contradictory=0,
         format="iso-date", resolution="date", time_precision="date",
         subsecond_digits=0, datetimes_read_at="local",
         earliest="2020-01-01", latest="2020-12-31",
@@ -14235,14 +14951,14 @@ def _date_only():
             "p75": "2020-09-01", "p90": "2020-11-15", "p95": "2020-12-01",
             "p99": "2020-12-20", "max": "2020-12-31",
         },
-        n_unparsed=0, utc_offsets={"(none)": 12},
+        n_unparsed=0, utc_offsets={"(none)": 26},
     )
     return {
         "why": "the date form of G7.5, both endpoints exact, and the floor "
         "rounding of the ordinal transform: ten interior ranks each take one "
         "word and land on a whole day, never between two.",
         "column": column,
-        "rows": 12,
+        "rows": 26,
         "identifier_declared": False,
     }
 
@@ -14339,14 +15055,14 @@ def _date_peak_heap():
     ]
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=40, n_missing=0, n_distinct=6, n_distinct_folded=6,
-        n_numeric=0, n_not_numeric=40, n_out_of_range=0, n_contradictory=0,
+        n_present=60, n_missing=0, n_distinct=6, n_distinct_folded=6,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
         format="iso-date", resolution="date", time_precision="date",
         subsecond_digits=0, datetimes_read_at="local",
         earliest=rungs[0], latest=rungs[10],
         earliest_utc_offset="(none)", latest_utc_offset="(none)",
         date_percentiles=dict(zip(LADDER_KEYS, rungs)),
-        n_unparsed=0, utc_offsets={"(none)": 40},
+        n_unparsed=0, utc_offsets={"(none)": 60},
     )
     return {
         "why": "G7.3's heaps (plan P4-D138): two or more pins on a day holding "
@@ -14355,7 +15071,7 @@ def _date_peak_heap():
         "peak's day kept only the ranks its pins span -- 0.74 of a peaked "
         "fortnight's real peak -- and that is this case's mutant.",
         "column": column,
-        "rows": 40,
+        "rows": 60,
         "identifier_declared": False,
     }
 
@@ -14562,8 +15278,8 @@ def _offset_bearing():
 def _leap_second_endpoint():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
-        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        n_present=26, n_missing=0, n_distinct=26, n_distinct_folded=26,
+        n_numeric=0, n_not_numeric=26, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="local",
         earliest="2016-12-31 23:00:00", latest="2016-12-31 23:59:60",
@@ -14576,7 +15292,7 @@ def _leap_second_endpoint():
             "p95": "2016-12-31 23:55:00", "p99": "2016-12-31 23:58:00",
             "max": "2016-12-31 23:59:60",
         },
-        n_unparsed=0, utc_offsets={"(none)": 12},
+        n_unparsed=0, utc_offsets={"(none)": 26},
     )
     return {
         "why": "the endpoint route of G7.5, on the one published end the "
@@ -14597,7 +15313,7 @@ def _leap_second_endpoint():
         "byte of this case unchanged, which is exactly the regression this "
         "case is frozen to stop.",
         "column": column,
-        "rows": 12,
+        "rows": 26,
         "identifier_declared": False,
     }
 
@@ -14606,8 +15322,8 @@ def _leap_second_endpoint():
 def _midnight_days():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
-        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        n_present=26, n_missing=0, n_distinct=26, n_distinct_folded=26,
+        n_numeric=0, n_not_numeric=26, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="local",
         earliest="2024-01-08 00:00:00", latest="2024-12-16 00:00:00",
@@ -14620,8 +15336,8 @@ def _midnight_days():
             "p95": "2024-12-08 00:00:00", "p99": "2024-12-15 00:00:00",
             "max": "2024-12-16 00:00:00",
         },
-        n_unparsed=0, utc_offsets={"(none)": 12},
-        datetime_separators={"space": 12}, all_at_midnight=True,
+        n_unparsed=0, utc_offsets={"(none)": 26},
+        datetime_separators={"space": 26}, all_at_midnight=True,
     )
     return {
         "why": "the day-unit rule of plan P4-D39. Every moment of this column "
@@ -14635,7 +15351,7 @@ def _midnight_days():
         "regression this case is frozen to stop, and its mutant is exactly "
         "that.",
         "column": column,
-        "rows": 12,
+        "rows": 26,
         "identifier_declared": False,
     }
 
@@ -16439,6 +17155,11 @@ SIXTH_BRANCH_PART = "branches-6"
 # would have stood past the 250000-byte cap.
 SEVENTH_BRANCH_PART = "branches-7"
 
+# The TENTH file (stage 3, plan P4-D328): the three cases the tail
+# landing grew past the room their own files had. Its entry point is
+# `tools/reference/make_generation_branch_vectors_8.py`.
+EIGHTH_BRANCH_PART = "branches-8"
+
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
     # THE FOUR CASES OF THE REVIEW OF 158c811 (plans P4-D130, P4-D132 and
@@ -16465,48 +17186,57 @@ NAMED_CASE_BUILDERS = {
 }
 
 def _clock_ladder():
-    """A clock column whose span is exactly as wide as its values."""
+    """A clock column whose BODY is exactly as wide as its ranks (stage 3).
+
+    Forty cells parse, eleven on each side stand in a tail, and the
+    eighteen ranks between the two boundaries hold the eighteen seconds
+    from `08:00:00` to `08:00:17` -- exactly as many ordinals as ranks,
+    so G7A.4's all-different repair has no slack in the body at all.
+    """
     column = _universal(
         "column_1", "time_of_day", "time_of_day", "data", "ok",
-        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
-        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        n_present=41, n_missing=0, n_distinct=41, n_distinct_folded=41,
+        n_numeric=0, n_not_numeric=41, n_out_of_range=0, n_contradictory=0,
         clock_form="hh-mm-ss",
         clock_percentiles={
             "min": "08:00:00", "p01": "08:00:00", "p05": "08:00:00",
-            "p10": "08:00:01", "p25": "08:00:02", "p50": "08:00:05",
-            "p75": "08:00:07", "p90": "08:00:09", "p95": "08:00:09",
-            "p99": "08:00:09", "max": "08:00:10",
+            "p10": "08:00:00", "p25": "08:00:00", "p50": "08:00:08",
+            "p75": "08:00:17", "p90": "08:00:17", "p95": "08:00:17",
+            "p99": "08:00:17", "max": "08:00:17",
         },
-        earliest="08:00:00", latest="08:00:10", n_unparsed=1,
+        earliest="08:00:00", latest="08:00:17", n_unparsed=1,
         detection_evidence=(
-            "11 value(s) are clock times written as hours, minutes and "
+            "40 value(s) are clock times written as hours, minutes and "
             "seconds, `09:30:00`, and 1 value(s) are not"
         ),
     )
     return {
         "why": "the first frozen case for the clock role, and the one "
         "that reaches its own repair rather than only its ladder. "
-        "ELEVEN SECONDS HOLD ELEVEN PARSED CELLS: the ends are "
-        "`08:00:00` and `08:00:10`, the eleven ordinals between them "
-        "inclusive are exactly as many as the cells that parsed, and "
-        "the column publishes every value different. So the all-"
-        "different obligation of G7A.4 -- EXACT for this role where "
-        "every other shape's distinctness falls to an envelope -- has "
-        "no slack at all: each interior rank must land on the one "
-        "ordinal left for it. Measured against the shipped generator "
-        "with the step-up removed, the same column comes out holding "
-        "`08:00:01` and `08:00:06` twice each, so the repair is doing "
-        "the work here and not merely present.\n\n"
-        "It also carries a cell that is not a clock time at all, which "
-        "is what makes `n_unparsed` non-zero and puts a stand-in "
-        "beside the parsed cells (G7A.5). The two ends are the "
-        "published TEXT and cost no word, so the budget is the nine "
-        "interior ranks, and the ladder is read in SECONDS OF DAY -- "
-        "the form's own unit -- which is the whole of what makes this "
-        "role different from the date role it borrows its transform "
-        "from.",
+        "EIGHTEEN SECONDS HOLD THE EIGHTEEN RANKS OF THE BODY: the two "
+        "boundaries are `08:00:00` and `08:00:17`, the eighteen "
+        "ordinals between them inclusive are exactly as many as the "
+        "ranks the two tails leave, and the column publishes every "
+        "value different. So the all-different obligation of G7A.4 -- "
+        "EXACT for this role where every other shape's distinctness "
+        "falls to an envelope -- has no slack at all: each body rank "
+        "must land on the one ordinal left for it. Measured against "
+        "the shipped generator with the step-up removed, the same "
+        "column comes out holding times twice over, so the repair is "
+        "doing the work here and not merely present.\n\n"
+        "Its two TAILS (stage 3, plan P4-D328) hold the eleven cells "
+        "on each side of those boundaries, drawn through the shape "
+        "G7.3b fixes and kept apart by the two-pass step the same "
+        "obligation asks for there. It also carries a cell that is not "
+        "a clock time at all, which is what makes `n_unparsed` "
+        "non-zero and puts a stand-in beside the parsed cells (G7A.5). "
+        "Rank nought and rank `P - 1` cost no word, a boundary rank "
+        "reads its word and sets it aside, and the ladder is read in "
+        "SECONDS OF DAY -- the form's own unit -- which is the whole "
+        "of what makes this role different from the date role it "
+        "borrows its transform from.",
         "column": column,
-        "rows": 12,
+        "rows": 41,
     }
 
 
@@ -16962,8 +17692,8 @@ def _midnight_mixed_forms():
 def _partial_midnight():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=24, n_missing=0, n_distinct=24, n_distinct_folded=24,
-        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        n_present=60, n_missing=0, n_distinct=60, n_distinct_folded=60,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="local",
         earliest="2024-03-01 00:00:00", latest="2024-03-30 15:31:16",
@@ -16981,15 +17711,15 @@ def _partial_midnight():
             "p99": "2024-03-29 00:00:00",
             "max": "2024-03-30 15:31:16",
         },
-        n_unparsed=0, utc_offsets={"(none)": 24},
-        resolution_mix={"iso-datetime": 24},
-        datetime_separators={"space": 24},
-        all_at_midnight=False, n_at_midnight=12,
+        n_unparsed=0, utc_offsets={"(none)": 60},
+        resolution_mix={"iso-datetime": 60},
+        datetime_separators={"space": 60},
+        all_at_midnight=False, n_at_midnight=30,
     )
     return {
         "why": (
-            "the move onto midnight of landing 2b.3. Twenty-four moments to the "
-            "second, twelve of them at midnight: the ranks are interpolated in "
+            "the move onto midnight of landing 2b.3. Sixty moments to the "
+            "second, thirty of them at midnight: the ranks are interpolated in "
             "seconds, each rung rank takes its published rung, the values at midnight still "
             "owed are spread over the other ranks by the smooth rotation, and each "
             "chosen rank moves to its nearest midnight without passing a pinned "
@@ -16997,7 +17727,7 @@ def _partial_midnight():
             "part-way through a day, is this case's mutant."
         ),
         "column": column,
-        "rows": 24,
+        "rows": 60,
         "identifier_declared": False,
     }
 
@@ -17048,8 +17778,8 @@ def _midnight_two_offsets():
 def _midnight_bare_offsets():
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=24, n_missing=0, n_distinct=12, n_distinct_folded=12,
-        n_numeric=0, n_not_numeric=24, n_out_of_range=0, n_contradictory=0,
+        n_present=60, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=60, n_out_of_range=0, n_contradictory=0,
         format="iso-mixed", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="utc",
         earliest="2024-04-30 22:00:00", latest="2024-05-07 00:00:00",
@@ -17067,15 +17797,15 @@ def _midnight_bare_offsets():
             "p99": "2024-05-06 22:00:00",
             "max": "2024-05-07 00:00:00",
         },
-        n_unparsed=0, utc_offsets={"(none)": 13, "+02:00": 11},
-        resolution_mix={"iso-date": 13, "iso-datetime": 11},
-        datetime_separators={"upper_t": 11},
-        all_at_midnight=True, n_at_midnight=24,
+        n_unparsed=0, utc_offsets={"(none)": 33, "+02:00": 27},
+        resolution_mix={"iso-date": 33, "iso-datetime": 27},
+        datetime_separators={"upper_t": 27},
+        all_at_midnight=True, n_at_midnight=60,
     )
     return {
         "why": (
-            "the repair pass of landing 2b.3. Twenty-four values at local midnight read "
-            "jointly on the shared clock, thirteen bare dates and eleven moments at "
+            "the repair pass of landing 2b.3. Sixty values at local midnight read "
+            "jointly on the shared clock, thirty-three bare dates and twenty-seven moments at "
             "T00:00:00+02:00, whose rungs stand at 22:00 where a moment stood and at "
             "00:00 where a bare date did, with seven ranks between p25 and p50 on one "
             "22:00 instant and five between p75 and p95 on one midnight of the shared "
@@ -17085,7 +17815,7 @@ def _midnight_bare_offsets():
             "before and moments at T02:00:00+02:00, is this case's mutant."
         ),
         "column": column,
-        "rows": 24,
+        "rows": 60,
         "identifier_declared": False,
     }
 
@@ -22015,6 +22745,7 @@ _DOCUMENT_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -22195,10 +22926,10 @@ BRANCH_CASE_BUILDERS = {
     "unrepresentable_joint": _unrepresentable_joint,
     "unrepresentable_exponent": _unrepresentable_exponent,
     "long_tail_levels": _long_tail_levels,
-    "clock_ladder": _clock_ladder,
+    # `clock_ladder` moved to the tenth file at the tail landing.
     "affixed_brackets": _affixed_brackets,
     "joined_readings": _joined_readings,
-    "midnight_days": _midnight_days,
+    # `midnight_days` moved to the tenth file at the tail landing.
     "mixed_marks": _mixed_marks,
     # ...and the case that pins the two MIXED-CONVENTION censuses of
     # landing 2b.7 (plan P4-D65.2). It goes in this file rather than the
@@ -22221,7 +22952,7 @@ SECOND_BRANCH_CASE_BUILDERS = {
     "pooled_marks": _pooled_marks,
     "slashed_pool": _slashed_pool,
     "midnight_mixed_forms": _midnight_mixed_forms,
-    "partial_midnight": _partial_midnight,
+    # `partial_midnight` moved to the tenth file at the tail landing.
     "midnight_two_offsets": _midnight_two_offsets,
     # The case of landing 2b.3's repair pass that survives: bare dates beside
     # moments at local midnight on a real offset, whose published instants settle
@@ -22229,7 +22960,8 @@ SECOND_BRANCH_CASE_BUILDERS = {
     # a column publishing a nought, went with the nought at landing 2b.6: no
     # column publishes a count of values at midnight of nought any more, so there
     # is no rule left for a case to pin.
-    "midnight_bare_offsets": _midnight_bare_offsets,
+    # ...and `midnight_bare_offsets`, which moved to the tenth file
+    # at the tail landing for the room it needed there.
     # The spellings of a number landing 2b.2 publishes and freezes.
     "grouped_charges": _grouped_charges,
     "grouped_decimal_comma": _grouped_decimal_comma,
@@ -22295,11 +23027,17 @@ def _midnight_feasible_offsets():
     each rank takes decides whether the pass that moves ranks onto
     a midnight can move it at all.
     """
+    # THE THREE PUBLISHED PLACES OF THE BODY, an hour apart (stage 3):
+    # the two boundaries and the two rungs the tail rule leaves between
+    # them, so each gap of the body holds a local midnight under ONE of
+    # the three offsets and none under the other two. The rungs the rule
+    # withholds are written here as the value their rank stands beside,
+    # exactly as a ladder that goes nowhere backwards must.
     rungs = [
         "2024-02-29 23:00:00", "2024-02-29 23:00:00", "2024-02-29 23:00:00",
-        "2024-02-29 23:00:00", "2024-03-01 00:00:00", "2024-03-01 05:00:00",
-        "2024-03-02 00:00:00", "2024-03-02 05:00:00", "2024-03-02 05:00:00",
-        "2024-03-02 05:00:00", "2024-03-02 05:00:00",
+        "2024-02-29 23:00:00", "2024-02-29 23:00:00", "2024-03-01 00:00:00",
+        "2024-03-01 05:00:00", "2024-03-02 00:00:00", "2024-03-02 00:00:00",
+        "2024-03-02 00:00:00", "2024-03-02 00:00:00",
     ]
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
@@ -22335,34 +23073,56 @@ def _midnight_traded_merge():
     """The MIDNIGHT half of P4-D258's paid merge (the dates pass of the
     second Codex round, 2026-09-19).
 
-    A hundred and twenty moments on three instants, forty each:
-    `2024-03-01T00:00:00`, `2024-03-02T00:00:00` and
-    `2024-03-03T12:00:00`.  Eighty of them stand at midnight and forty do
-    not, the column writes no width at all, and the count passes leave one
-    run of non-midnight ranks stranded between midnight pins -- its gap
-    holds no unit off midnight anywhere.  The width trade returns at its
-    first line on a column whose width census is not held, so before the
-    midnight trade there was no merge of any kind for it and the twin held
-    a fourth instant.
+    A hundred and twenty moments on TEN instants: eleven cells on each
+    side of the column spread over four days, forty-nine at
+    `2024-03-01T00:00:00` and forty-nine at `2024-03-02T12:00:00`.
+    Seventy-one of them stand at midnight and forty-nine do not, the
+    column writes no width at all, and the count passes leave a run of
+    non-midnight ranks stranded between midnight pins -- its gap holds
+    no unit off midnight anywhere.  The width trade returns at its first
+    line on a column whose width census is not held, so before the
+    midnight trade there was no merge of any kind for it and the twin
+    held an instant the description does not publish.
+
+    STATED AS THE PRODUCER STATES IT (stage 3, plan P4-D328): each side
+    is a TAIL of eleven rows drawn through the shape its two published
+    distances fix (G7.3b), and the ladder publishes the five rungs whose
+    ranks fall between the two boundaries.
     """
-    rungs = [
-        "2024-03-01 00:00:00", "2024-03-01 00:00:00", "2024-03-01 00:00:00",
-        "2024-03-01 00:00:00", "2024-03-01 00:00:00", "2024-03-02 00:00:00",
-        "2024-03-03 12:00:00", "2024-03-03 12:00:00", "2024-03-03 12:00:00",
-        "2024-03-03 12:00:00", "2024-03-03 12:00:00",
-    ]
+    # THE DESCRIPTION THE PRODUCER REALLY WRITES OF THESE CELLS at a
+    # floor of eleven (stage 3, plan P4-D328): three instants, forty
+    # cells each, so each tail holds forty rows and publishes the ONE
+    # value it holds (G7.3c) beside the mean distance of its rows, and
+    # the ladder publishes one rung -- the p50 rank, which is the
+    # boundary's own.
+    tails, tail_claims = _tail_fields(
+        {
+            "boundary": "2024-03-01 00:00:00", "rows": 11,
+            "mean_distance": "133527.27272727274",
+            "rms_distance": "158459.49295984418", "values": None,
+        },
+        {
+            "boundary": "2024-03-02 12:00:00", "rows": 11,
+            "mean_distance": "90327.27272727272",
+            "rms_distance": "124253.3482263337", "values": None,
+        },
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    for key in ("p10", "p25", "p50"):
+        ladder[key] = "2024-03-01 00:00:00"
+    for key in ("p75", "p90"):
+        ladder[key] = "2024-03-02 12:00:00"
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
-        n_present=120, n_missing=0, n_distinct=3, n_distinct_folded=3,
+        n_present=120, n_missing=0, n_distinct=10, n_distinct_folded=10,
         n_numeric=0, n_not_numeric=120, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="local",
-        earliest=rungs[0], latest=rungs[10],
-        earliest_utc_offset="(none)", latest_utc_offset="(none)",
-        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        tail_unit="second", date_percentiles=ladder,
         n_unparsed=0, utc_offsets={"(none)": 120},
         datetime_separators={"upper_t": 120},
-        all_at_midnight=False, n_at_midnight=80,
+        all_at_midnight=False, n_at_midnight=71,
+        **tails,
     )
     return {
         "why": "the MIDNIGHT half of P4-D258's paid merge (item 2 of the "
@@ -22379,6 +23139,7 @@ def _midnight_traded_merge():
         "column": column,
         "rows": 120,
         "identifier_declared": False,
+        "claims": tail_claims,
     }
 
 
@@ -22600,20 +23361,19 @@ def _two_kinds_nonadjacent_merge():
     can publish by the carried date items of 2026-09-18, and rebuilt from
     the producer's own description by the repair pass of the same day.
     """
-    rungs = [
-        "2020-08-15", "2020-08-15", "2020-08-15", "2020-08-15", "2020-08-15",
-        "2020-08-22", "2020-10-05", "2020-10-05", "2020-10-05", "2020-10-05",
-        "2020-10-05",
-    ]
+    # NO TAIL AND NO RUNG (stage 3, plan P4-D330), which is what the
+    # producer writes of these cells at a floor of eleven: three days
+    # hold all thirty-six, so the two boundaries would cross and the
+    # column publishes no value of the table. Its twin is the ramp of
+    # G7.3d, over which the width passes run exactly as they did.
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
         n_present=36, n_missing=0, n_distinct=4, n_distinct_folded=4,
         n_numeric=0, n_not_numeric=36, n_out_of_range=0, n_contradictory=0,
         format="month-first-date", resolution="date", time_precision="date",
         subsecond_digits=0, datetimes_read_at="local",
-        earliest=rungs[0], latest=rungs[10],
-        earliest_utc_offset="(none)", latest_utc_offset="(none)",
-        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        tail_unit="day", low_tail=None, high_tail=None,
+        date_percentiles={key: None for key in LADDER_KEYS},
         n_unparsed=0, utc_offsets={"(none)": 36},
         date_field_widths={"first-field-padded": 23},
     )
@@ -22696,16 +23456,21 @@ def _date_absorbed_mark():
     the shape where the shortfall the description itself publishes buys
     one rank a mark the census leaves unnamed.
     """
-    rungs = ["2025-01-01 00:00:00"] * 6 + ["2025-01-02 00:00:00"] * 5
+    # NO TAIL AND NO RUNG (stage 3, plan P4-D330), which is what the
+    # producer really writes of these cells at a floor of eleven: two
+    # different days hold all 125 of them, so the low boundary would
+    # stand above the high one and the column publishes no value of the
+    # table at all. Its twin is the ramp of G7.3d, whose count of
+    # different values is the published one -- and reaching that count
+    # in SPELLINGS is what the mark spend below is about.
     column = _universal(
         "column_1", "datetime", "datetime", "data", "ok",
         n_present=125, n_missing=0, n_distinct=3, n_distinct_folded=3,
         n_numeric=0, n_not_numeric=125, n_out_of_range=0, n_contradictory=0,
         format="iso-datetime", resolution="datetime", time_precision="second",
         subsecond_digits=0, datetimes_read_at="local",
-        earliest=rungs[0], latest=rungs[10],
-        earliest_utc_offset="(none)", latest_utc_offset="(none)",
-        date_percentiles=dict(zip(LADDER_KEYS, rungs)),
+        tail_unit="day", low_tail=None, high_tail=None,
+        date_percentiles={key: None for key in LADDER_KEYS},
         n_unparsed=0, utc_offsets={"(none)": 125},
         datetime_separators={"space": 125},
         all_at_midnight=True, n_at_midnight=125,
@@ -22803,6 +23568,24 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "date_midnight_traded": _midnight_traded_merge,
 }
 
+EIGHTH_BRANCH_CASE_BUILDERS = {
+    # THE THREE THAT MOVED HERE AT THE TAIL LANDING (stage 3, plan
+    # P4-D328). Each of them grew: a column of dates or clock times
+    # needs `2F + 1` cells to publish a tail at all, and a case whose
+    # rule lives BETWEEN the two boundaries needs a body of several
+    # ranks besides. Grown in place, the second file stood at 261857
+    # bytes and the first at 258476 against the manifest's 250000-byte
+    # cap, so the three move here whole and both files fall back under
+    # it. No case was dropped and no cap was raised, which is the reason
+    # the fourth to the ninth files exist.
+    "clock_ladder": _clock_ladder,
+    "partial_midnight": _partial_midnight,
+    "midnight_bare_offsets": _midnight_bare_offsets,
+    # ...and the day-unit case, which grew with them and left the first
+    # file 169 bytes past the cap on its own.
+    "midnight_days": _midnight_days,
+}
+
 SEVENTH_BRANCH_CASE_BUILDERS = {
     # The four of the carried numbers pass of 2026-09-18: the band fill of
     # G6.5a, and the two generator rules the round left unmirrored, the
@@ -22821,6 +23604,7 @@ SEVENTH_BRANCH_CASE_BUILDERS = {
 }
 
 CASE_SETS = {
+    EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     SEVENTH_BRANCH_PART: SEVENTH_BRANCH_CASE_BUILDERS,
@@ -22833,6 +23617,7 @@ CASE_SETS = {
 }
 
 CASE_BUILDERS = {
+    **EIGHTH_BRANCH_CASE_BUILDERS,
     **NAMED_CASE_BUILDERS,
     **BRANCH_CASE_BUILDERS,
     **SECOND_BRANCH_CASE_BUILDERS,
@@ -22872,6 +23657,7 @@ _NAMED_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -22906,6 +23692,7 @@ _BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -22931,6 +23718,7 @@ _SECOND_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -22954,6 +23742,7 @@ _THIRD_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -22980,6 +23769,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -23004,6 +23794,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     " Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -23037,6 +23828,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     "276235 bytes against the provenance manifest's 250000-byte cap. No "
     "case was dropped, no proof was shortened and the cap was not raised."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
+    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
     " And, added here by the dates pass of the second Codex round of"
     " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
     " of three instants, eighty of them at midnight, on a column writing"
@@ -23045,6 +23837,30 @@ _SIXTH_BRANCH_ACCOUNT = (
     " count back. It goes in this file because plan P4-D295 sends the"
     " next case to the eighth while its output stands under 200000"
     " bytes, which it did, at 191318."
+)
+
+_EIGHTH_BRANCH_ACCOUNT = (
+    "cases the tail landing of stage 3 grew past the room their own "
+    "files had (plan P4-D328): the clock role's own case, the column "
+    "partly at midnight, the bare dates beside midnight moments on a "
+    "real offset, and the day-unit case. A column of dates or clock times needs `2F + 1` "
+    "cells to publish a tail at all, and a case whose rule lives "
+    "between the two boundaries needs a body of several ranks besides, "
+    "so each of the three grew; grown in place they carried the second "
+    "file to 261857 bytes and the first to 258476 against the "
+    "250000-byte cap, and they move here whole. They are built by the "
+    "same oracle and the same proof layer as every other file, and "
+    "live in a tenth file for the reason the fourth to the ninth "
+    "exist: no cap is raised and no case is dropped. The other nine are "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json and "
+    "tests/reference/generation-document-vectors.json."
 )
 
 _SEVENTH_BRANCH_ACCOUNT = (
@@ -23065,7 +23881,8 @@ _SEVENTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-branch-vectors-3.json, "
     "tests/reference/generation-branch-vectors-4.json, "
     "tests/reference/generation-branch-vectors-5.json, "
-    "tests/reference/generation-branch-vectors-6.json and "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-8.json and "
     "tests/reference/generation-document-vectors.json, and live in a ninth "
     "file because the eighth's output had passed 200000 bytes, the line "
     "plan P4-D295 draws for opening the next entry point; the first four "
@@ -23075,6 +23892,9 @@ _SEVENTH_BRANCH_ACCOUNT = (
 )
 
 CASE_SET_ACCOUNTS = {
+    EIGHTH_BRANCH_PART: (
+        f"The {len(EIGHTH_BRANCH_CASE_BUILDERS)} {_EIGHTH_BRANCH_ACCOUNT}"
+    ),
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
     ),
@@ -24168,7 +24988,20 @@ GIVEN_WORDS = {
         18191266426893455499, 2844670899663405278, 11703772692705477423,
         7065468433315722716, 385531002873873270, 5614027444090623099,
         10561073587658038565, 1483354294859502419, 6996927556167716518,
-        10118285601421975715, 13817057510851749147,
+        10118285601421975715, 13817057510851749147, 7677749318967877956,
+        6632329933237789641, 9473987093617657703, 2367267366360214175,
+        6444748811702815773, 15605797762683638316, 3157246185139204423,
+        5643045700968154144, 13630391311456854735, 5059038831786017269,
+        9779164916497698416, 17199998238876423718, 13772067561398969128,
+        12575142471366239236, 566959314779941416, 14486429725152709250,
+        11231424505703658759, 11699939168876570237, 12816052535041179846,
+        17852505784571646451, 59526951252713661, 10566678096416162984,
+        17313878089637956108, 7624021429870432415, 10435853133657354513,
+        4875753033953705830, 13087335186221385389, 14187205787083160963,
+        15633990189530966029, 6403612990274129290, 16894684915505096556,
+        6363195181045349869, 6953601391314936727, 15089921521483616133,
+        3785483679859177806, 17419953189657398173, 12898375395650670794,
+        10966389774582001748, 51966089132370953, 1414882770716882788,
     ),
     "date_thinning_week": (
         11079678160230914977, 4954812553690575453, 16055455646014030800,
@@ -24584,6 +25417,16 @@ GIVEN_WORDS = {
         8689532878278713804, 568260631324672868, 16506113449883541490,
         10581652359165407223, 7199916538783650088, 6542673427813023417,
         12026779432949751174, 6401544535132643203, 9363196662584741243,
+        6842555975698719782, 1018312918902553094, 4619234432184249119,
+        15513029941269503926, 15092285099369343530, 12309981351652217969,
+        8680808857249834655, 17890473148422167737, 15500075083843920430,
+        4520696738538074521, 10469395907704501742, 17634188005278652823,
+        14492086153870394936, 6813310083767210272, 8668561599799323803,
+        9552218957424606361, 16636996762842354839, 13176427122932972090,
+        7344348381090077354, 8523158528811039168, 1702815368086632189,
+        9076442941914941572, 4224716932480798377, 1717982684756842292,
+        1683760141440816104, 3981277016488178629, 12896605609470079394,
+        3305347092416929985,
     ),
     "identifier_fold_collisions": (
         15790298876938276606, 11663417973422657062, 2174973634102678219,
@@ -24640,7 +25483,26 @@ GIVEN_WORDS = {
         16171205420250064347, 1348050307520104417, 14805382045011159389,
         12528853194802204718, 7870325075990001275, 8800084849072185159,
         11241460431909986162, 9287835057163713957, 11122896599893611155,
-        15231939135091175662, 12051230916723616950,
+        15231939135091175662, 12051230916723616950, 18323356846554412965,
+        15963754806235375736, 10080093135316790511, 2404007321397159518,
+        11369017693442423100, 4839724143905762905, 9895012435803908608,
+        12397651837802819803, 2855092501197994033, 11709421914164544555,
+        5751297302332389335, 13230338017325094760, 7531269083490862867,
+        15616388772892546788, 15669112940583723585, 8788872287339796006,
+        17206729075875958940, 4010808474929541860, 14138445421311259354,
+        11125850112918163618, 8642417627326424463, 1352186558711881288,
+        16484571583052998486, 10386356243718155489, 6809201294785227509,
+        201402982949104636, 4913813009504454354, 11365893770635046399,
+        17759811199563953206, 5715060028785642516, 2658135760158536249,
+        1433194295673127867, 18402316817167299050, 6505094866108038933,
+        17010567275434742793, 693313395294807154, 14333760779170214418,
+        3238663419738065081, 7426933938044621501, 6289425456324278775,
+        9902136438530139258, 6696257531401400005, 15371001415237228845,
+        2090045365719658867, 10668875654232582869, 8910853772383191650,
+        7646603391075063816, 16513403246976950296, 12881363888294146286,
+        13108302931160442787, 4528119605674148047, 11991405351135922269,
+        16557302150338381886, 12235529694560830551, 14241143834932832180,
+        1508408641730963707, 15274171490231284263, 13565760541916668828,
     ),
     "label_numbers": (
         14485363227759379260, 14496546446215838655, 17877404087858154871,
@@ -24912,6 +25774,16 @@ GIVEN_WORDS = {
         10286796248990847147, 3073121396252394582, 5850044163583767416,
         18384416552906420653, 15259945026574340491, 1508198782665164068,
         17439788078174870154, 7339215063107649377, 9204310222248724882,
+        15559107477254044802, 7991936714211770077, 2539437212643484746,
+        4062052637934460323, 5140235368132147656, 9507922136212515916,
+        188470885596750068, 1543946655921846606, 14705923592548002731,
+        18337769679302126735, 2062865810067552184, 13336188254488881338,
+        6403283765372763487, 1882026787591822466, 8841182926849159694,
+        449592574740526837, 14315731861014344211, 18035333422767411392,
+        418590338853899504, 68787480733765907, 15072647170492125674,
+        620370200951506583, 11918822847094141119, 7417841315839401386,
+        2012877081157450573, 9354779009704827579, 7849106559322250261,
+        7172629100527966695,
     ),
     # The twelve words of the pooled-spelling case (owner decision
     # 11): one content word and eleven placement words, drawn in
@@ -24970,6 +25842,16 @@ GIVEN_WORDS = {
         11691978854857713329, 2605788068526521694, 15564275702978365942,
         9295767331320370689, 4588766561642468171, 10672129521899455171,
         1873019329306020848, 1526646873211970272, 11345087966265059162,
+        10689211866718369641, 6371677458851543700, 16608482894542171666,
+        5367783369522189668, 15399040868952717221, 5238447562537402342,
+        15301620751342926007, 636523719713189495, 14561686047348980262,
+        15769642073959148933, 9645263350671525000, 6561806133720033707,
+        6718850062223180847, 7133109831808142488, 6084278294035932235,
+        6044450539815454880, 11415121436693170652, 6944505736210453563,
+        520944498687415636, 14302121322714061147, 18094631137555337007,
+        6221820984587859480, 4253970712516123949, 8131828758234864168,
+        2913073134995531769, 15020399310460798922, 1987508781042964330,
+        15041146062217382391,
     ),
     "mixed_marks": (
         12587170189557361101, 992822559630912803, 4064922177151560342,
@@ -25044,6 +25926,30 @@ GIVEN_WORDS = {
         12775844997860775945, 8647740450583316597, 17918419582921289744,
         8290940002445848808, 16147188500045453846, 10018618111265336882,
         10632733031110977480, 3763983169410323083, 15701824487642497391,
+        7092480356505390338, 11156769045392932508, 4646301020891146691,
+        13447260263512601343, 10135943541448860708, 11844121347084265561,
+        10178119400062730238, 908557191794432003, 7436268713710562103,
+        5098368869898327160, 7291758244537198276, 10761526223435209087,
+        6837599533899301562, 3844036424902152479, 13628181096267732175,
+        16879623648095288185, 7146280546669229607, 16564170531050988786,
+        15515972705046110726, 85129585582925059, 1506282501555604867,
+        11915152334250351275, 3734044400315626200, 6726869832128803564,
+        17098915124253048748, 4123011682239462555, 7761791091375486457,
+        6181343399747983657, 12412648530276990943, 361205454613922998,
+        5046727180072874440, 9187032597669073272, 10854395347794418567,
+        5070468163244198943, 16307371268711132067, 8733970823521992761,
+        16495564785308922193, 943735677742514283, 8823298640912157939,
+        8089448057742546826, 18127409917358102289, 17202607954903705980,
+        11433679340992005261, 9299450787633031074, 4763424785599598616,
+        14753250624021812681, 10249436676276518181, 12666370231309808821,
+        6799260956169531250, 1977467090816338369, 11677987627010714317,
+        18333476920844844745, 17446094027509229854, 5541038803194471514,
+        1284940989043462797, 4343290328082285076, 4457362865245522117,
+        1628123520974590313, 16586708532520500872, 15182922543212835740,
+        13434188549931065744, 10182845439843578658, 14274991612120187933,
+        15869820030777142532, 13981034341276713608, 15084878912790277719,
+        8210752417459659113, 12846746692768335596, 7783438086491904057,
+        7385793709509822124, 11677493677861187921, 8082165346472241983,
     ),
     "midnight_two_offsets": (
         12159711863008289878, 8709007662888919493, 7997898239127022494,
@@ -25078,6 +25984,30 @@ GIVEN_WORDS = {
         15170548298862574888, 18078340560188216414, 17961755548169570166,
         1709256287998433444, 2601830613986780518, 16802502615291089435,
         5371919591216636188, 10726450709361837683, 10163254344864448410,
+        4073080788989495860, 8830861361934260591, 13645219561808469510,
+        11168447140676260447, 5040383618010769196, 17180097662265623952,
+        3123292223131605248, 6026853990267607990, 2992558913219956546,
+        14257157485389395049, 10922573408539610889, 3632776723639021005,
+        5747362866458567703, 11659870280808168023, 16618189425462817517,
+        3072931905762425757, 6428895354868323070, 3188136768164908309,
+        2967120598624467040, 907979788369664911, 17595266401184543504,
+        5023719206561185016, 3414477534663662556, 15319847977258583941,
+        9091821143813810020, 2998577802451774629, 1197083421631620199,
+        16041658596773422339, 5646289406862512147, 11471506627239072254,
+        16240774521575603517, 13975498115991570055, 2296658416691942214,
+        16361516772274463092, 13367975548936828143, 14470538468464691229,
+        17820747893678707529, 1396204735873639887, 9903266668898860960,
+        9654448892206771448, 2062175034683003646, 13629809935339127124,
+        18189888110986126897, 11523715714206338083, 9711667177594241424,
+        3355274956931167306, 14542096468906662175, 16216893924033975671,
+        11226735300626610662, 4597459422186148997, 12289650823831541534,
+        809505880099213383, 2648945441273467287, 940021100117614358,
+        3806374610165274271, 1129487144534916041, 8700991490775908729,
+        4240159255361186960, 6756577633726004412, 1485996540511604821,
+        14509098371548254360, 5966495791610171746, 13842679358987390932,
+        5099455674919460332, 2547965118153097847, 7605568152618093885,
+        12423366587763366785, 14644382549905143749, 711384555831994399,
+        8295704725337340583, 9733563784860055081, 18332216520300631148,
     ),
     "grouped_charges": (
         14485363227759379260, 14496546446215838655, 17877404087858154871,
@@ -25404,6 +26334,13 @@ def whole_number_fields(document):
             if inside == ("suppressed_numbers", "n_cells"):
                 allowed.add(path)
                 continue
+            # A TAIL'S COUNT OF ROWS (contract TL1) is a whole number
+            # beside two binary64 distances, exactly as the pool's own
+            # `n_cells` stands beside its mean.
+            if len(inside) == 2 and inside[0] in ("low_tail", "high_tail"):
+                if inside[1] == "rows":
+                    allowed.add(path)
+                    continue
             if (
                 len(inside) == 2
                 and inside[0] in INTEGER_COLUMN_ENDS
@@ -25566,6 +26503,11 @@ def build_case(name):
         csv_field(cell, one_column, cell == "") + "\n" for cell in cells
     )
     claims = dict(spec.get("claims", {}))
+    # The proofs of the two numbers each tail carries, built where the
+    # block was (`_case_tails`) and merged here, where a case's claims
+    # are collected.
+    for key, claim in column.pop("_tail_claims", {}).items():
+        claims[key] = claim
     published_chain = []
     for index, record in enumerate(chain):
         entry = {"stratum": record["stratum"], "segment": record["segment"]}
@@ -25767,10 +26709,12 @@ DEFINITIONS = {
     "subnormal -- so a 400-digit whole number is out of range and whole, and "
     "a fraction below that point is out of range and a fraction (G10.2, "
     "G10.5).",
-    "offset_form": "rank 0 takes earliest_utc_offset and rank P-1 takes "
-    "latest_utc_offset where each names a real offset; the rest are spent "
-    "over the remaining ranks in ascending rank, taking the keys in the "
-    "profile's own sorted order with (none) and (withheld) last. A cell "
+    "offset_form": "no end takes an offset of its own since stage 3, the "
+    "description naming no end row at all; the counts are spent over the "
+    "ranks the layout does not pin, taking the keys in the profile's own "
+    "sorted order with (none) and (withheld) last, in ascending rank -- "
+    "or, on a column moved onto a midnight, the ranks with the fewest "
+    "feasible keys first. A cell "
     "allocated either of those is written with no offset. Under the utc "
     "clock a datetime cell is written on its own offset's wall clock, "
     "local_ordinal = ordinal + offset_in_seconds (G7.4).",

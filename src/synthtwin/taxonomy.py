@@ -2532,6 +2532,17 @@ def _rounded_ratio(numerator: int, denominator: int) -> float:
     size = math.ldexp(float(digits), exponent)
     return -size if negative else size
 
+def rounded_ratio(numerator: int, denominator: int) -> float:
+    """`_rounded_ratio`, public for the validator's tail check (stage 3):
+    the file's mean distance is the producer's own rounding of its sum."""
+    return _rounded_ratio(numerator, denominator)
+
+
+def rounded_root_ratio(numerator: int, denominator: int) -> float:
+    """`_rounded_root`, public for the validator's tail check (stage 3)."""
+    return _rounded_root(numerator, denominator)
+
+
 def _rounded_root(numerator: int, denominator: int) -> float:
     """The binary64 number nearest to the square root of a fraction.
 
@@ -2953,12 +2964,781 @@ def _ordinal_rung(ordered: list[str], num: int, den: int) -> str:
     return ordered[lower]
 
 
-def _date_ladder(ordered: list[str]) -> dict[str, str]:
-    """The eleven-point ladder of a datetime column, as canonical text."""
-    ladder: dict[str, str] = {}
+def _date_ladder(
+    ordered: "list[str]", ranks: "tuple[int, int] | None"
+) -> "dict[str, str | None]":
+    """The eleven-point ladder of a date or clock column, around its tails.
+
+    STAGE 3 (plan P4-D328): a rung is published only where the rank it is
+    selected from lies between the two tail boundaries, both included, so
+    no rung is ever one of the outer values each tail holds. `min` and
+    `max` are therefore always null, and a column with no tails at all
+    (`ranks` None) publishes no rung. A published rung is still a
+    SELECTED cell, so it is a value some row of the column holds.
+
+    Guarantees: accepts the ordered canonical texts and the two boundary
+    ranks (or None); returns the eleven rungs, each canonical text or
+    None. Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    ladder: "dict[str, str | None]" = {}
+    count = len(ordered)
     for label, num, den in LADDER:
-        ladder[label] = _ordinal_rung(ordered, num, den)
+        rung: "str | None" = None
+        if ranks is not None and count >= 1:
+            rank = min(count - 1, ((count - 1) * num) // den)
+            if ranks[0] <= rank <= ranks[1]:
+                rung = _ordinal_rung(ordered, num, den)
+        ladder[label] = rung
     return ladder
+
+
+# -- the date and clock tails (stage 3, plans P4-D328 to P4-D331) -------
+#
+# A COLUMN OF DATES OR CLOCK TIMES NO LONGER PUBLISHES ITS FIRST AND LAST
+# VALUE. Each side publishes a TAIL instead: a boundary that does not
+# depend on the outer cells, how many cells lie strictly beyond it, and
+# how far beyond it they lie on average -- a mean distance and a root-
+# mean-square distance in the tail's own unit. The boundary is the
+# smallest value with at least the floor's number of cells strictly below
+# it (mirrored above), so it is a value held by a real cell that is never
+# one of the outer ones, and every rung published beside it lies between
+# the two boundaries. Where the outer cells hold few different values, or
+# where the published numbers would pin the outermost value or a count
+# below the floor, the tail publishes which values it holds instead of
+# its root-mean-square distance (owner ruling of 2026-09-22: showing that
+# a value exists is not an issue; showing how many hold it is).
+
+# The keys of one tail object, read from the one place they are written.
+TAIL_KEYS = parsing.TAIL_KEYS
+
+# A tail holding at most this many different values publishes them
+# (plan P4-D329): quarters, months and a few days are read better as the
+# values they are than through a shape, and the owner ruled their
+# existence publishable.
+TAIL_FEW_VALUES = 3
+
+# How many steps the search of `_tail_pinned` may take on one side before
+# it gives up and answers "pinned", which is the answer that publishes
+# less. Measured on the design's shapes, no side needs more than a few
+# hundred.
+TAIL_LATTICE_STEPS = 131072
+
+# The largest whole sum `_values_mean_pins` tabulates. Beyond it the mean
+# beside a tail's values is withheld, the answer that publishes less.
+TAIL_MEAN_TABLE_LIMIT = 16777216
+
+
+def tail_unit(resolution: str, precision: str, all_at_midnight: bool) -> str:
+    """The unit a column of dates measures its tails in (contract TL4).
+
+    A quarter or a month for those two resolutions; a day for dates and
+    for moments that all stand at midnight; a minute for moments written
+    to the minute; a second for every other moment.
+
+    Guarantees: accepts the published resolution, precision and midnight
+    flag; returns a member of `parsing.TAIL_UNITS`. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if resolution == RESOLUTION_QUARTER:
+        return parsing.TAIL_UNIT_QUARTER
+    if resolution == RESOLUTION_MONTH:
+        return parsing.TAIL_UNIT_MONTH
+    if resolution == RESOLUTION_DATE or all_at_midnight:
+        return parsing.TAIL_UNIT_DAY
+    if precision == parsing.PRECISION_MINUTE:
+        return parsing.TAIL_UNIT_MINUTE
+    return parsing.TAIL_UNIT_SECOND
+
+
+def tail_ordinal(canonical: str, unit: str, reading: str) -> int:
+    """One published instant as a whole number of tail units (contract TL4).
+
+    Quarters and months are counted from 1970 as the generator counts
+    them; a day is `parsing.days_from_civil` of the date, except that a
+    moment on the SHARED clock is counted as the nearest midnight of that
+    clock, which is its own local day for any offset within twelve
+    hours; a minute and a second count the instant itself.
+
+    Guarantees: accepts canonical text in the form its resolution fixes,
+    the unit and the clock it is written on; returns a whole number.
+    Determinism: whole-number arithmetic on the text. Raises nothing for
+    canonical text. No I/O of any kind.
+    """
+    year = int(canonical[0:4])
+    if unit == parsing.TAIL_UNIT_QUARTER:
+        return 4 * (year - 1970) + int(canonical[6]) - 1
+    if unit == parsing.TAIL_UNIT_MONTH:
+        return 12 * (year - 1970) + int(canonical[5:7]) - 1
+    days = parsing.days_from_civil(
+        year, int(canonical[5:7]), int(canonical[8:10])
+    )
+    seconds = days * 86400
+    if len(canonical) >= 19:
+        seconds = (
+            seconds
+            + 3600 * int(canonical[11:13])
+            + 60 * int(canonical[14:16])
+            + int(canonical[17:19])
+        )
+    if unit == parsing.TAIL_UNIT_DAY:
+        if reading == READ_AT_UTC and len(canonical) >= 19:
+            return (seconds + 43200) // 86400
+        return days
+    if unit == parsing.TAIL_UNIT_MINUTE:
+        return seconds // 60
+    return seconds
+
+
+def tail_ranks(ordinals: "list[int]", floor: int) -> "tuple[int, int] | None":
+    """The ranks of the two tail boundaries, or None (contract TL2).
+
+    The low boundary is the smallest value with at least `floor` values
+    strictly below it, and it is read at the first rank holding that
+    value; the high boundary mirrors it. None where either does not exist
+    or where the two would cross, which is every column of fewer than
+    `2 * floor + 1` values and a column whose ties leave no value between
+    the two.
+
+    Guarantees: accepts the whole ordinals in ascending order and the
+    smallest group size; returns (low rank, high rank) with
+    `floor <= low <= high <= count - 1 - floor`, or None. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    count = len(ordinals)
+    least = max(1, floor)
+    low = least
+    if low >= count:
+        return None
+    while low < count and ordinals[low] == ordinals[low - 1]:
+        low = low + 1
+    high = count - 1 - least
+    if high < 0:
+        return None
+    while high >= 0 and ordinals[high] == ordinals[high + 1]:
+        high = high - 1
+    if low >= count or high < 0 or low > high:
+        return None
+    return (low, high)
+
+
+@dataclasses.dataclass
+class _Lattice:
+    """The search `_tail_pinned` runs, and how far it has got.
+
+    What a reader knows of one tail: how many cells it holds, the whole
+    sum of their distances and of their squares, the furthest a distance
+    can reach, whether the column's values are all different and how
+    many innermost cells must share one distance. `dead` remembers every
+    remainder already shown to have no answer.
+    """
+
+    size: int
+    total: int
+    squares: int
+    edge: int
+    distinct: bool
+    tie: int
+    steps: int = 0
+    spent: bool = False
+    dead: "dict[tuple[int, int, int, int, int, int], bool]" = dataclasses.field(
+        default_factory=dict
+    )
+
+
+def _lattice_widest(count: int, total: int, least: int, most: int) -> int:
+    """The largest sum of squares `count` whole numbers in [least, most] summing to `total` reach."""
+    width = most - least
+    if width <= 0:
+        return count * least * least
+    extra = total - count * least
+    full = extra // width
+    if full >= count:
+        return count * most * most
+    rest = extra - full * width
+    return (
+        full * most * most
+        + (least + rest) * (least + rest)
+        + (count - full - 1) * least * least
+    )
+
+
+def _lattice_fill(
+    lattice: _Lattice,
+    count: int,
+    total: int,
+    squares: int,
+    least: int,
+    most: int,
+    barred: int,
+) -> "list[int] | None":
+    """`count` whole distances in [least, most], none equal to `barred`,
+    with this sum and this sum of squares -- largest first -- or None.
+
+    A depth-first walk from the largest distance down, each step bounded
+    by what the remainder can still reach: its sum between its smallest
+    and largest spreads, its squares between the most even split and the
+    most uneven, and the parity a sum of squares shares with its sum.
+    Every call is a step of the budget; once it is spent every call
+    answers None and `lattice.spent` says why.
+    """
+    if lattice.spent:
+        return None
+    lattice.steps = lattice.steps + 1
+    if lattice.steps > TAIL_LATTICE_STEPS:
+        lattice.spent = True
+        return None
+    if count == 0:
+        if total == 0 and squares == 0:
+            return []
+        return None
+    if total < 0 or squares < 0:
+        return None
+    most = min(most, lattice.edge)
+    room = squares - (count - 1) * least * least
+    if room < 0:
+        return None
+    most = min(most, _root_of(room))
+    if most < least:
+        return None
+    if lattice.distinct:
+        if most - least + 1 < count:
+            return None
+        low_sum = count * least + (count * (count - 1)) // 2
+        high_sum = count * most - (count * (count - 1)) // 2
+    else:
+        low_sum = count * least
+        high_sum = count * most
+    if total < low_sum or total > high_sum:
+        return None
+    if (squares - total) % 2 != 0:
+        return None
+    even, spare = divmod(total, count)
+    if squares < (count - spare) * even * even + spare * (even + 1) * (even + 1):
+        return None
+    if squares > _lattice_widest(count, total, least, most):
+        return None
+    key = (count, total, squares, least, most, barred)
+    if key in lattice.dead:
+        return None
+    if count == 1:
+        if total != barred and total * total == squares:
+            return [total]
+        lattice.dead[key] = True
+        return None
+    if count == 2:
+        spread = 2 * squares - total * total
+        if spread >= 0:
+            root = _root_of(spread)
+            if root * root == spread and (total + root) % 2 == 0:
+                big = (total + root) // 2
+                small = total - big
+                if (
+                    least <= small <= big <= most
+                    and big != barred
+                    and small != barred
+                    and (not lattice.distinct or big > small)
+                ):
+                    return [big, small]
+        lattice.dead[key] = True
+        return None
+    lowest = -(-total // count)
+    highest = (
+        total + _root_of((count - 1) * (count * squares - total * total))
+    ) // count
+    value = min(most, total - (count - 1) * least, highest)
+    while value >= lowest:
+        if value != barred:
+            below = value - 1 if lattice.distinct else value
+            rest = _lattice_fill(
+                lattice,
+                count - 1,
+                total - value,
+                squares - value * value,
+                least,
+                below,
+                barred,
+            )
+            if rest is not None:
+                found = [value]
+                found += rest
+                return found
+            if lattice.spent:
+                return None
+        value = value - 1
+    if not lattice.spent:
+        lattice.dead[key] = True
+    return None
+
+
+def _lattice_with_top(lattice: _Lattice, top: int) -> "list[int] | None":
+    """A multiset the reader cannot rule out whose largest distance is `top`."""
+    if lattice.tie <= 1:
+        below = top - 1 if lattice.distinct else top
+        rest = _lattice_fill(
+            lattice,
+            lattice.size - 1,
+            lattice.total - top,
+            lattice.squares - top * top,
+            1,
+            below,
+            0,
+        )
+        if rest is None:
+            return None
+        found = [top]
+        found += rest
+        return found
+    left = lattice.size - 1 - lattice.tie
+    for low in range(1, min(top - 1, lattice.total // lattice.size) + 1):
+        if left < 0:
+            break
+        rest = _lattice_fill(
+            lattice,
+            left,
+            lattice.total - top - lattice.tie * low,
+            lattice.squares - top * top - lattice.tie * low * low,
+            low,
+            top,
+            0,
+        )
+        if rest is not None:
+            found = [top]
+            found += rest
+            found += [low] * lattice.tie
+            return found
+        if lattice.spent:
+            return None
+    if (
+        lattice.size * top == lattice.total
+        and lattice.size * top * top == lattice.squares
+    ):
+        return [top] * lattice.size
+    return None
+
+
+def _lattice_with_count(
+    lattice: _Lattice, value: int, count: int
+) -> "list[int] | None":
+    """A multiset the reader cannot rule out holding `value` exactly `count` times."""
+    if lattice.distinct and count > 1:
+        return None
+    total = lattice.total - count * value
+    squares = lattice.squares - count * value * value
+    if lattice.tie <= 1:
+        rest = _lattice_fill(
+            lattice, lattice.size - count, total, squares, 1, lattice.edge, value
+        )
+        if rest is None:
+            return None
+        found = [value] * count
+        found += rest
+        return found
+    for low in range(1, lattice.total // lattice.size + 1):
+        head: "list[int]" = []
+        if low == value:
+            if count < lattice.tie:
+                continue
+            rest = _lattice_fill(
+                lattice,
+                lattice.size - count,
+                total,
+                squares,
+                value + 1,
+                lattice.edge,
+                0,
+            )
+            head = [value] * count
+        elif low < value:
+            left = lattice.size - lattice.tie - count
+            if left < 0:
+                continue
+            rest = _lattice_fill(
+                lattice,
+                left,
+                total - lattice.tie * low,
+                squares - lattice.tie * low * low,
+                low,
+                lattice.edge,
+                value,
+            )
+            head = [value] * count
+            head += [low] * lattice.tie
+        else:
+            if count != 0:
+                continue
+            rest = _lattice_fill(
+                lattice,
+                lattice.size - lattice.tie,
+                lattice.total - lattice.tie * low,
+                lattice.squares - lattice.tie * low * low,
+                low,
+                lattice.edge,
+                value,
+            )
+            head = [low] * lattice.tie
+        if rest is not None:
+            head += rest
+            return head
+        if lattice.spent:
+            return None
+    return None
+
+
+def _tally_of(values: "list[int]") -> "dict[int, int]":
+    """How many times each whole number occurs in the list."""
+    counts: "dict[int, int]" = {}
+    for value in values:
+        if value in counts:
+            counts[value] = counts[value] + 1
+        else:
+            counts[value] = 1
+    return counts
+
+
+def _held_in(values: "list[int]", wanted: int) -> int:
+    """How many times one whole number occurs in the list."""
+    held = 0
+    for value in values:
+        if value == wanted:
+            held = held + 1
+    return held
+
+
+def _tail_pinned(
+    distances: "list[int]", floor: int, edge: int, distinct: bool
+) -> bool:
+    """Whether the published tail would pin what the floor protects (P4-D329).
+
+    THE BACK-SOLVE A READER CAN RUN, run here first (the skeptic of the
+    tail design, blocker B1). A reader gives back the whole sum of the
+    distances and of their squares from `rows`, the mean distance and
+    the root-mean-square distance, and every distance is a whole number
+    of units from 1 to `edge`; where the column's values are all
+    different so are the distances, and where `rows` exceeds the floor
+    the innermost `rows - floor + 1` cells share one distance. The tail
+    is PINNED where every multiset those facts allow gives the outermost
+    distance, held by fewer than the floor, the same value -- or gives
+    some distance the same count between one and the floor less one.
+    Such a tail publishes which values it holds instead (`_tail_side`).
+
+    The search looks for WITNESSES: another allowed multiset whose
+    largest distance differs, and for each count the floor protects,
+    another whose count there differs. Where it cannot find one within
+    `TAIL_LATTICE_STEPS` it answers True, the answer that publishes
+    less.
+
+    Guarantees: accepts the real distances, the floor, the furthest a
+    distance can reach and whether they must be all different; returns a
+    bool. Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    size = len(distances)
+    if size == 0:
+        return False
+    counts = _tally_of(distances)
+    top = max(distances)
+    open_top = counts[top] < floor
+    guarded: "dict[int, bool]" = {}
+    for distance in sorted(counts):
+        if counts[distance] < floor:
+            guarded[distance] = True
+    if not open_top and not guarded:
+        return False
+    total = 0
+    squares = 0
+    for distance in distances:
+        total = total + distance
+        squares = squares + distance * distance
+    tie = 1
+    if size > floor:
+        tie = size - floor + 1
+    lattice = _Lattice(size, total, squares, edge, distinct, tie)
+    witnesses: "list[list[int]]" = []
+    if open_top:
+        # THE CANDIDATES ARE WALKED OUTWARD FROM THE REAL LARGEST
+        # DISTANCE, the nearer first and the smaller of a pair first, so
+        # a witness close to the truth is found first where one exists.
+        # The walk is bounded by the budget: every candidate costs at
+        # least one step of it.
+        below = top - 1
+        above = top + 1
+        lowest = -(-total // size)
+        highest = min(edge, _root_of(max(0, squares - (size - 1))))
+        while open_top and (below >= lowest or above <= highest):
+            candidate = below if below >= lowest else above
+            if below >= lowest:
+                below = below - 1
+            else:
+                above = above + 1
+            found = _lattice_with_top(lattice, candidate)
+            if found is not None:
+                witnesses += [found]
+                open_top = False
+            elif lattice.spent:
+                return True
+        if open_top:
+            return True
+    for distance in sorted(guarded):
+        held = counts[distance]
+        settled = False
+        for witness in witnesses:
+            if _held_in(witness, distance) != held:
+                settled = True
+                break
+        fewer = held - 1
+        more = held + 1
+        while not settled and (fewer >= 0 or more <= size):
+            other = fewer if fewer >= 0 else more
+            if fewer >= 0:
+                fewer = fewer - 1
+            else:
+                more = more + 1
+            found = _lattice_with_count(lattice, distance, other)
+            if found is not None:
+                witnesses += [found]
+                settled = True
+            elif lattice.spent:
+                return True
+        if not settled:
+            return True
+    return False
+
+
+def _values_mean_pins(
+    counts: "dict[int, int]", size: int, total: int, floor: int
+) -> bool:
+    """Whether the mean distance beside a tail's values pins a small count.
+
+    A tail publishing which values it holds tells a reader that each
+    holds at least one cell. Where it also publishes its mean distance,
+    the counts must add to `rows` AND weight to the whole sum, and with
+    two values that settles both counts exactly -- the skeptic's case of
+    three cells at one quarter and nine at the next. So the mean is
+    withheld where some value's count is then the only one possible and
+    lies between one and the floor less one (plan P4-D329).
+
+    Settled exactly by counting, for each value, which counts the other
+    values leave room for: a table over how many extra cells the others
+    hold and what those cells add, in whole numbers.
+
+    Guarantees: accepts the count of each distance, the tail's size and
+    whole sum and the floor; returns a bool. Determinism: a function of
+    the four. Raises nothing. No I/O of any kind.
+    """
+    values = sorted(counts)
+    if len(values) <= 1 or size == len(values):
+        return False
+    if total > TAIL_MEAN_TABLE_LIMIT:
+        return True
+    for place in range(len(values)):
+        value = values[place]
+        held = counts[value]
+        if held >= floor:
+            continue
+        others = [values[index] for index in range(len(values)) if index != place]
+        spare = size - len(values)
+        base = 0
+        for other in others:
+            base = base + other
+        limit = total + 1
+        mask = (1 << limit) - 1
+        reach = [0 for _count in range(spare + 1)]
+        reach[0] = 1
+        for other in others:
+            for extra in range(1, spare + 1):
+                reach[extra] = reach[extra] | ((reach[extra - 1] << other) & mask)
+        possible = 0
+        for count in range(1, spare + 2):
+            extra = spare + 1 - count
+            left = total - count * value - base
+            if left < 0 or extra < 0:
+                continue
+            if (reach[extra] >> left) & 1:
+                possible = possible + 1
+        if possible == 1:
+            return True
+    return False
+
+
+def _tail_side(
+    distances: "list[int]",
+    texts: "list[str]",
+    boundary: str,
+    floor: int,
+    edge: int,
+    distinct: bool,
+) -> "dict[str, object]":
+    """The published object of one tail (contract TL1).
+
+    `distances` are the outer cells' whole distances beyond the boundary
+    and `texts` the canonical text of each of those cells, in the same
+    order. The mean distance is the whole sum over the cell count and
+    the root-mean-square distance the square root of the whole sum of
+    squares over it, each rounded once to the nearest binary64. A tail
+    holding at most `TAIL_FEW_VALUES` different values, or one the
+    published numbers would pin (`_tail_pinned`), publishes its sorted
+    values in place of the root-mean-square distance, and its mean too
+    unless that would pin a count below the floor (`_values_mean_pins`).
+
+    Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    size = len(distances)
+    total = 0
+    squares = 0
+    for distance in distances:
+        total = total + distance
+        squares = squares + distance * distance
+    counts = _tally_of(distances)
+    # ONE TEXT TO A DISTANCE, OR NO VALUES AT ALL (stage 3). A tail's
+    # values are published by DISTANCE, in the tail's own unit, and on
+    # the shared clock a day holds cells two hours apart: a column of
+    # bare dates beside midnight moments has both a `2021-12-31 22:00`
+    # and a `2022-01-01 00:00` one day below its boundary. Publishing
+    # one text for that distance would tell a twin to write every one of
+    # those cells at one instant, and the column's own census of offsets
+    # could not then be met -- measured: 900 cells over five days, 13 of
+    # them written `T22:00:00` with no offset, missing `all_at_midnight`,
+    # `n_at_midnight` and the mark census on a file whose own source met
+    # all three. Where a distance carries more than one text the tail
+    # publishes its two DISTANCES instead, which say the same thing
+    # about where its cells lie and leave the twin free to write each of
+    # them on its own instant.
+    one_text: "dict[int, str]" = {}
+    single = True
+    for place in range(size):
+        distance = distances[place]
+        if distance in one_text:
+            if one_text[distance] != texts[place]:
+                single = False
+        else:
+            one_text[distance] = texts[place]
+    few = single and len(counts) <= TAIL_FEW_VALUES
+    if not few and not (single and _tail_pinned(distances, floor, edge, distinct)):
+        return {
+            "boundary": boundary,
+            "rows": size,
+            "mean_distance": _rounded_ratio(total, size),
+            "rms_distance": _rounded_root(squares, size),
+            "values": None,
+        }
+    first: "dict[int, str]" = {}
+    for place in range(size):
+        distance = distances[place]
+        if distance not in first or texts[place] < first[distance]:
+            first[distance] = texts[place]
+    values = sorted(first[distance] for distance in first)
+    mean: "float | None" = _rounded_ratio(total, size)
+    if _values_mean_pins(counts, size, total, floor):
+        mean = None
+    return {
+        "boundary": boundary,
+        "rows": size,
+        "mean_distance": mean,
+        "rms_distance": None,
+        "values": values,
+    }
+
+
+def ordered_tails(
+    ordered: "list[str]",
+    ordinals: "list[int]",
+    floor: int,
+    edges: "tuple[int, int]",
+    distinct: bool,
+) -> "tuple[dict[str, object] | None, dict[str, object] | None, tuple[int, int] | None]":
+    """Both tails of an ordered column, and the two boundary ranks.
+
+    `ordered` is the canonical text of every parsed cell in the order the
+    column is published in, `ordinals` the same cells in tail units, and
+    `edges` the first and last unit the column's own member can write.
+    Returns (None, None, None) where the column has no tails
+    (`tail_ranks`).
+
+    Guarantees: a function of the arguments; raises nothing; no I/O.
+    """
+    ranks = tail_ranks(ordinals, floor)
+    if ranks is None:
+        return (None, None, None)
+    low_rank, high_rank = ranks
+    count = len(ordinals)
+    low_distances = [
+        ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
+    ]
+    low_texts = [ordered[rank] for rank in range(low_rank)]
+    high_distances = [
+        ordinals[rank] - ordinals[high_rank]
+        for rank in range(high_rank + 1, count)
+    ]
+    high_texts = [ordered[rank] for rank in range(high_rank + 1, count)]
+    # ALL DIFFERENT AS TEXT IS NOT ALL DIFFERENT AS DISTANCES: two
+    # spellings of one day, or one day under two offsets, are two values
+    # of the column and one distance. The reader's constraint applies only
+    # where it is true of the tail itself.
+    low = _tail_side(
+        low_distances,
+        low_texts,
+        ordered[low_rank],
+        floor,
+        max(1, ordinals[low_rank] - edges[0]),
+        distinct and len(set(low_distances)) == len(low_distances),
+    )
+    high = _tail_side(
+        high_distances,
+        high_texts,
+        ordered[high_rank],
+        floor,
+        max(1, edges[1] - ordinals[high_rank]),
+        distinct and len(set(high_distances)) == len(high_distances),
+    )
+    return (low, high, ranks)
+
+
+def tail_edges(
+    format_name: str,
+    unit: str,
+    reading: str,
+    offsets: "dict[str, int]",
+    date_system: str = "",
+) -> "tuple[int, int]":
+    """The first and last tail unit this column's own member can write.
+
+    `parsing.readable_days` in tail units: the day itself, the month or
+    quarter holding it, or its first and last second (minute). On the
+    shared clock every cell is written on its own offset's wall clock,
+    so the edges come in by the widest offset the census names, and a
+    day counted on that clock by one whole day.
+
+    Guarantees: returns two whole numbers, the first not after the
+    last. Determinism: a function of the arguments. Raises nothing.
+    """
+    first_day, last_day = parsing.readable_days(format_name, date_system)
+    if unit == parsing.TAIL_UNIT_QUARTER or unit == parsing.TAIL_UNIT_MONTH:
+        first_year, first_month, _day = parsing.civil_from_days(first_day)
+        last_year, last_month, _end = parsing.civil_from_days(last_day)
+        if unit == parsing.TAIL_UNIT_QUARTER:
+            return (
+                4 * (first_year - 1970) + (first_month - 1) // 3,
+                4 * (last_year - 1970) + (last_month - 1) // 3,
+            )
+        return (
+            12 * (first_year - 1970) + first_month - 1,
+            12 * (last_year - 1970) + last_month - 1,
+        )
+    widest = 0
+    if reading == READ_AT_UTC:
+        for key in offsets:
+            if len(key) == 6 and key[0] in "+-":
+                shift = 3600 * int(key[1:3]) + 60 * int(key[4:6])
+                widest = max(widest, shift)
+    if unit == parsing.TAIL_UNIT_DAY:
+        if widest > 0:
+            return (first_day + 1, last_day - 1)
+        return (first_day, last_day)
+    low = first_day * 86400 + widest
+    high = last_day * 86400 + 86399 - widest
+    if unit == parsing.TAIL_UNIT_MINUTE:
+        return (-(-low // 60), high // 60)
+    return (low, high)
 
 
 
@@ -10743,8 +11523,14 @@ def _datetime_details(
     sources: list[str],
     unparsed: int,
     settings: Settings,
+    distinct: bool = False,
 ) -> dict[str, object]:
-    """The published description of a datetime column."""
+    """The published description of a datetime column.
+
+    `distinct` says whether every present cell of the column differs
+    from every other, which the universal counts publish, so the tail's
+    back-solve can hold a reader to it (`_tail_pinned`).
+    """
     # Order by the INSTANT each value names, not by its local text. Two
     # values written in different offsets sorted the wrong way round
     # before this (review item P1-R1-F9).
@@ -10777,10 +11563,6 @@ def _datetime_details(
         reading = READ_AT_UTC
     placed = ordered_moments(pairs, reading)
     canonical_order = placed[0]
-    earliest = placed[1]
-    latest = placed[2]
-    earliest_offset = placed[3]
-    latest_offset = placed[4]
     digits = 0
     for value in sources:
         digits = max(digits, parsing.subsecond_digits(value, format_name))
@@ -10797,30 +11579,42 @@ def _datetime_details(
         resolution = RESOLUTION_QUARTER
     if format_name == "iso-month":
         resolution = RESOLUTION_MONTH
-    # An offset is NAMED only where at least `small_cell_floor` rows
-    # carry it. Publishing the endpoint's offset unconditionally beside a
-    # floored `utc_offsets` map named the one rare zone the map had just
-    # pooled into `(withheld)` -- a value published in one field of the
-    # same block that another field promises to withhold, which is
-    # exactly the contradiction review item P1-R1-F10 found.
+    precision = _finest_precision(sources, format_name)
+    midnight = _all_at_midnight(
+        format_name, resolution, reading, sources, offsets, settings
+    )
+    # THE TAILS, IN PLACE OF THE FIRST AND LAST VALUE (stage 3, plan
+    # P4-D328). The end offsets went with the ends: they described the
+    # two end ROWS, and no end row is described any more.
+    unit = tail_unit(resolution, precision, midnight)
+    ordinals = [
+        tail_ordinal(moment, unit, reading) for moment in canonical_order
+    ]
+    low_tail, high_tail, ranks = ordered_tails(
+        canonical_order,
+        ordinals,
+        settings.small_cell_floor,
+        tail_edges(format_name, unit, reading, offsets),
+        distinct,
+    )
     return {
         "format": format_name,
         "resolution_mix": _resolution_mix(format_name, sources),
         "resolution": resolution,
-        "time_precision": _finest_precision(sources, format_name),
+        "time_precision": precision,
         "subsecond_digits": digits,
-        # Which clock `earliest`, `latest` and `date_percentiles` are
-        # written on. A reader never has to guess, and never has to
-        # combine two fields to know what it is holding.
+        # Which clock the tails and `date_percentiles` are written on. A
+        # reader never has to guess, and never has to combine two fields
+        # to know what it is holding.
         "datetimes_read_at": reading,
-        "earliest": earliest,
-        "latest": latest,
-        "earliest_utc_offset": _named_offset(earliest_offset, offsets),
-        "latest_utc_offset": _named_offset(latest_offset, offsets),
-        # The eleven-point ladder over the ordered values. Two columns
-        # with the same first and last date and opposite shapes used to
-        # serialise identically (review item P1-R1-F9).
-        "date_percentiles": _date_ladder(canonical_order),
+        "tail_unit": unit,
+        "low_tail": low_tail,
+        "high_tail": high_tail,
+        # The eleven-point ladder over the ordered values, between the two
+        # tail boundaries. Two columns with the same boundaries and
+        # opposite shapes used to serialise identically (review item
+        # P1-R1-F9).
+        "date_percentiles": _date_ladder(canonical_order, ranks),
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
         "datetime_separators": _separator_counts(sources, format_name, settings),
@@ -10832,9 +11626,7 @@ def _datetime_details(
         "month_name_styles": _name_style_counts(sources, format_name, settings),
         "quarter_marker_case": _marker_counts(sources, format_name, settings),
         "zulu_case": _zulu_counts(sources, format_name, offsets, settings),
-        "all_at_midnight": _all_at_midnight(
-            format_name, resolution, reading, sources, offsets, settings
-        ),
+        "all_at_midnight": midnight,
         "n_at_midnight": _midnight_count(
             format_name, resolution, reading, sources, offsets, settings
         ),
@@ -11391,22 +12183,6 @@ def ordered_moments(
         "",
         "",
     )
-
-
-def _named_offset(offset: str, published_offsets: dict[str, int]) -> str:
-    """One endpoint's UTC offset, named only if the floor let it be named.
-
-    Beside a census held back whole the endpoint is held back too, `(none)`
-    included (plan P4-D222): a pool of offsets says no value's offset, and
-    `(none)` beside it told a naive end from a zoned one.
-    """
-    if parsing.MISSING_WITHHELD in published_offsets:
-        return parsing.MISSING_WITHHELD
-    if not offset:
-        return "(none)"
-    if offset in published_offsets:
-        return offset
-    return parsing.MISSING_WITHHELD
 
 
 def _finest_precision(sources: list[str], format_name: str) -> str:
@@ -12189,11 +12965,25 @@ def _clock_verdict(
     same ladder model today. The rungs stay exact cells either way.
     """
     ordered = sorted(clock.values)
+    # THE TAILS, IN PLACE OF THE EARLIEST AND LATEST TIME (stage 3, plan
+    # P4-D328), measured in the form's own unit: minutes of the day for
+    # `hh-mm`, seconds for `hh-mm-ss`.
+    ordinals: "list[int]" = []
+    for value in ordered:
+        found = parsing.clock_ordinal(value, clock.form)
+        ordinals += [0 if found is None else found]
+    low_tail, high_tail, ranks = ordered_tails(
+        ordered,
+        ordinals,
+        cells.settings.small_cell_floor,
+        (0, parsing.CLOCK_CAPACITY[clock.form] - 1),
+        cells.raw_distinct == len(cells.present),
+    )
     details: "dict[str, object]" = {
         "clock_form": clock.form,
-        "earliest": ordered[0],
-        "latest": ordered[len(ordered) - 1],
-        "clock_percentiles": _date_ladder(ordered),
+        "low_tail": low_tail,
+        "high_tail": high_tail,
+        "clock_percentiles": _date_ladder(ordered, ranks),
         "n_unparsed": clock.n_unparsed,
     }
     if _all_different(cells):
@@ -14034,7 +14824,12 @@ def _decide(
         if matched is not None:
             format_name, pairs, sources, unparsed, evidence = matched
             details = _datetime_details(
-                format_name, pairs, sources, unparsed, settings
+                format_name,
+                pairs,
+                sources,
+                unparsed,
+                settings,
+                cells.raw_distinct == len(cells.present),
             )
             if numeric_looking >= strict_needed:
                 # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE

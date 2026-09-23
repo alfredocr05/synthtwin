@@ -474,8 +474,19 @@ def test_nothing_that_varies_between_runs_is_written(
 # digest in tests/test_twin_golden.py did not move at all -- none of
 # this demonstration's columns publishes a pooled scale, so nothing
 # placed any of its made-up numbers before or after.
+# MOVED AT THE TAIL LANDING (stage 3, plan P4-D328). The producer
+# publishes no `earliest`, no `latest` and no end offset on a column of
+# dates or clock times, and no `min` or `max` rung on either ladder;
+# what stands in their place is a TAIL on each side -- a boundary, the
+# count of rows beyond it, their mean and root-mean-square distance, or
+# the values the tail holds -- beside `tail_unit` on the datetime role.
+# Every rung whose rank lies inside a tail is `null`, which on this
+# demonstration's date columns leaves the middle rungs alone. Checked by
+# reading the new description against contract v6's D11, TL1 to TL4 and
+# section 9.6, and by the round trip: the demonstration's twin and its
+# own table both validate with nothing missed.
 GOLDEN_SHA256 = (
-    "d77dedf9a06f2e79a1f951333ef6ef10969f8b433b79bbb5d8cdc22b582ec0bc"
+    "ae1256edd0f1d4ceba3237376aba112b84d46361a0dd7715837de22ba15f5f5b"
 )
 
 

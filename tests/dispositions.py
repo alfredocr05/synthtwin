@@ -242,9 +242,10 @@ class Fact(typing.NamedTuple):
     # several roles at once -- and name that region instead.
     plan_region: str = ""
     # Extra phrases by which a passage speaks about this fact without
-    # writing its name. `earliest` and `latest` carry one because the
+    # writing its name. The two removed ends carried one because the
     # paragraph that survived two reviews called them "the endpoint" and
-    # named neither field.
+    # named neither field; the mechanism stays for the next fact a
+    # document names in words rather than by its key.
     aliases: "tuple[str, ...]" = ()
     # Lesser outcomes the RATIFIED PLAN names for this fact. Each entry
     # is (phrase as the specifications write it, the plan's own words for
@@ -257,6 +258,59 @@ class Fact(typing.NamedTuple):
 def _facts(group: str, disposition: str, *fields: str) -> "list[Fact]":
     """Every field of one group that shares one disposition."""
     return [Fact(group, field, disposition) for field in fields]
+
+
+# The two tails a calendar or clock column publishes in place of its two
+# ends (stage 3, plan P4-D328), and what each of their keys owes. Both
+# roles publish the same five keys per side under the same bars, and the
+# plan states them once, in the decision that added them -- so they are
+# built once here as well, and a role that lowered one of them for
+# itself would have to write the lowering into that decision.
+_TAIL_PLAN = "### P4-D328 A column of dates or clock times publishes tails"
+
+_TAIL_CLASSES = (
+    ("boundary", EXACT_OBSERVABLE),
+    ("rows", EXACT_OBSERVABLE),
+    ("values", EXACT_OBSERVABLE),
+    ("mean_distance", APPROXIMATED),
+    ("rms_distance", APPROXIMATED),
+)
+
+
+# How a document speaks about a boundary without writing either key.
+# The two ends carried "the endpoint" for the same reason: a lowering
+# is written in prose, and prose calls this fact what a person calls
+# it. It is the OUTERMOST PUBLISHED VALUE of the column, so a sentence
+# that gives it a lesser outcome is this file's own history repeated
+# against the field that inherited it.
+_TAIL_ALIASES = {"boundary": ("tail boundary",)}
+
+
+def _tail_facts(group: str) -> "list[Fact]":
+    """One group's two tail blocks and the ten keys inside them."""
+    found: "list[Fact]" = []
+    for side in ("low", "high"):
+        # The container itself, which carries no value obligation: its
+        # membership is the five keys below it and each is disposed in
+        # its own right, exactly as `free_text`'s `length` and `words`
+        # are.
+        found += [
+            Fact(group, f"{side}_tail", STRUCTURAL, plan_region="tails")
+        ]
+        for key, disposition in _TAIL_CLASSES:
+            aliases = ()
+            if key in _TAIL_ALIASES:
+                aliases = _TAIL_ALIASES[key]
+            found += [
+                Fact(
+                    group,
+                    f"{side}_tail.{key}",
+                    disposition,
+                    plan_region="tails",
+                    aliases=aliases,
+                )
+            ]
+    return found
 
 
 # The plan's own paragraph markers inside P2-D6, and the two owner
@@ -310,6 +364,10 @@ PLAN3_REGIONS = {
 PLAN4_REGIONS = {
     "affixed": "### P4-D4.1 The affixed-number role",
     "clock": "### P4-D4.2 The time-of-day role",
+    # The stage-3 decision that replaced both roles' ends with tails
+    # states what every tail key owes, for `datetime` and `time_of_day`
+    # alike, so both groups' tail facts are looked for there.
+    "tails": _TAIL_PLAN,
     "clock-cardinality": (
         "## Amendment A-P4-20 — the clock role's distinctness is "
         "approximated, under its own envelope"
@@ -975,12 +1033,12 @@ REGISTRY += (
 # block read over the cores and is registered above under `numeric`;
 # these are the five it adds, and every one is a count or a spelling a
 # written twin carries in plain sight.
-# THE CLOCK ROLE'S FIVE. Four are exactly observable off a written
-# twin -- the form its cells wear, its two ends, and how many cells no
-# clock reading accepted -- and the ladder is the one approximated
-# fact, for the reason the date ladder is: the construction writes a
-# value per rank, so an interior rung lands inside a window rather than
-# on the published value.
+# THE CLOCK ROLE'S THREE, AND ITS TWO TAILS. The form its cells wear
+# and how many cells no clock reading accepted are exactly observable
+# off a written twin; the ladder is the one approximated fact, for the
+# reason the date ladder is: the construction writes a value per rank,
+# so an interior rung lands inside a window rather than on the
+# published value.
 REGISTRY += [
     Fact(
         "clock",
@@ -989,22 +1047,17 @@ REGISTRY += [
         plan_words="an eleven-rung ordinal ladder",
         plan_region="clock",
     )
-    for field in ("clock_form", "earliest", "latest", "n_unparsed")
+    for field in ("clock_form", "n_unparsed")
 ]
-# The ladder's two ENDS are exact, and its interior is not: T2 makes
-# the ends the column's own two endpoints, which a written twin carries
-# character for character, while every rank between them is
-# interpolated into a window.
-REGISTRY += [
-    Fact(
-        "clock",
-        f"clock_percentiles.{end}",
-        EXACT_OBSERVABLE,
-        plan_words="an eleven-rung ordinal ladder",
-        plan_region="clock",
-    )
-    for end in ("min", "max")
-]
+# THE TWO ENDS ARE GONE (stage 3, plan P4-D328), and the ladder's two
+# END RUNGS with them: `clock_percentiles.min` and `.max` are null in
+# every description this version writes, so they oblige no cell of any
+# file and no document disposes them. What stands in their place is a
+# TAIL on each side, whose boundary and count of rows beyond it a
+# written twin carries exactly, whose values -- where it publishes
+# them -- come back cell for cell, and whose two distances are a
+# consequence of where the construction places the ranks between them.
+REGISTRY += _tail_facts("clock")
 REGISTRY += [
     Fact(
         "clock",
@@ -1424,26 +1477,25 @@ _WITHHELD_OFFSETS = (
     "against the producer)"
 )
 
+# THE TWO ENDS AND THE TWO END OFFSETS ARE GONE (stage 3, plan
+# P4-D328): the four fields are removed from the role, and the ladder's
+# two end rungs are null in every description this version writes, so
+# nothing here disposes them. The TAILS stand in their place, disposed
+# once for both roles in the decision that added them.
+REGISTRY += _tail_facts("datetime")
 REGISTRY += [
+    # LOADER-ONLY AND NOT EXACT-CONTROL, which the entry table settled:
+    # a fact of this class must reach a verdict, and the only verdict
+    # this one could carry is a second reading of `resolution`,
+    # `time_precision` and `all_at_midnight`, which TL4 settles it from
+    # at load time. So its whole obligation lives on the profile, and
+    # `validation.INPUT_SIDE_ENTRIES` is where the shipped table binds it.
     Fact(
         "datetime",
-        field,
-        EXACT_OBSERVABLE,
-        plan_words="`earliest`, `latest` EXACT-OBSERVABLE in the "
-        "representation owner decision 5 fixes",
-        aliases=("endpoint", "end of a column of dates"),
-    )
-    for field in ("earliest", "latest")
-]
-REGISTRY += [
-    Fact(
-        "datetime",
-        field,
-        EXACT_OBSERVABLE,
-        plan_words="`date_percentiles` endpoints exact",
-        aliases=("ladder end",),
-    )
-    for field in ("date_percentiles.min", "date_percentiles.max")
+        "tail_unit",
+        LOADER_ONLY,
+        plan_region="tails",
+    ),
 ]
 REGISTRY += [
     Fact(
@@ -1456,17 +1508,12 @@ REGISTRY += [
 REGISTRY += [
     Fact(
         "datetime",
-        field,
+        "utc_offsets",
         EXACT_OBSERVABLE,
         authorized=(
             ("withheld", _WITHHELD_OFFSETS),
         ),
-    )
-    for field in (
-        "utc_offsets",
-        "earliest_utc_offset",
-        "latest_utc_offset",
-    )
+    ),
 ]
 REGISTRY += [
     Fact(
@@ -1802,8 +1849,6 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.
     ("datetime", "utc_offsets", "withheld"): ("P2-D9", REPORT_ONLY),
-    ("datetime", "earliest_utc_offset", "withheld"): ("P2-D9", REPORT_ONLY),
-    ("datetime", "latest_utc_offset", "withheld"): ("P2-D9", REPORT_ONLY),
     ("datetime", "datetimes_read_at", "withheld"): ("P2-D9", REPORT_ONLY),
     # Owner decision 6's infeasible corner, and the three distinctness
     # facts P2-D6 names inside it.
