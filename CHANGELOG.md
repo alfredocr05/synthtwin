@@ -89,10 +89,10 @@ tail leaves a reader trying to back-solve it: 2 different multisets of
 distances, on a column of quarters. How many tails still LIST their
 values rather than publish a shape: 12, all of them quarters, months or
 the forty-cell `0001-01-01` heap. How many of the real table's own
-published distances the checker's window does not reach: 2 of 105
-columns, the one place where the real table meets an obligation by
-holding the published value exactly and the window around it is no
-help. And how many tails the published pair settles to ONE arithmetic
+published distances the checker's window does not reach: 2, on a
+quarters column at 400 rows and a months column at 1,500, and those are
+the two places where the real table meets an obligation by holding the
+published value exactly and the window around it is no help. And how many tails the published pair settles to ONE arithmetic
 once a reader also uses the column's own all-different remark and the
 tail's own edge: 4, every one of them a side of an all-different clock
 column of 900 rows whose tail is pressed against the end of the day.
