@@ -173,7 +173,7 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _table(folder: pathlib.Path, markers: int) -> pathlib.Path:
     """Sixty ordinary numbers and ``markers`` cells wearing MARKER."""
-    values = [str(row) for row in range(60)] + [MARKER] * markers
+    values = [str(row) for row in range(parsing.POPULATION_FLOOR)] + [MARKER] * markers
     return fixtures.write(
         folder, "reading.csv", fixtures.single_column_table("reading", values)
     )
@@ -395,7 +395,7 @@ def _two_spellings(
     two spellings of one word.
     """
     values = (
-        [str(row) for row in range(60)]
+        [str(row) for row in range(parsing.POPULATION_FLOOR)]
         + [MARKER] * FLOOR
         + [f" {MARKER.upper()} "] * FLOOR
     )
@@ -475,7 +475,7 @@ def test_two_real_declarations_are_still_counted_as_two(
     """
     second = "another-marker-of-my-own"
     values = (
-        [str(row) for row in range(60)]
+        [str(row) for row in range(parsing.POPULATION_FLOOR)]
         + [MARKER] * FLOOR
         + [second] * FLOOR
     )

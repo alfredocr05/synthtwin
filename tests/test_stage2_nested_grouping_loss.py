@@ -6,6 +6,19 @@ import pytest
 
 from tests.test_stage2_round_trip import _round_trip
 
+# EVERY SHAPE HERE IS DESCRIBED BY THE PRODUCER (plan P4-D341).
+# `synthtwin profile` refuses a table under the population floor and
+# writes nothing, and none of these shapes can be grown to it: each is
+# a column of TEN to thirty cells whose few different values are the
+# whole point, and the categorical ceiling is a share of the table's
+# ROWS -- so a table padded up to a hundred rows reads those values as
+# a set of categories and the numeric block these tests are about does
+# not exist. Measured rather than assumed: padded to the floor with
+# absent cells, the affixed column below comes back `categorical`.
+# `build_document` describes a table of any size and refuses none, and
+# the twin is still built, reported on and re-described through
+# `generate`, which the floor does not govern.
+#
 # TWO CELLS ARE WRITTEN AT ONE PLACE, so the column is on no single grid
 # and plan P4-D185's move of a stratum across a thousand does not reach it:
 # that move keeps the mark these tests need lost.
@@ -35,7 +48,11 @@ def test_an_affixed_twin_too_small_to_prove_its_mark_says_so(
 ) -> None:
     folder = tmp_path / "affixed"
     first, second, _written, _t, _r = _round_trip(
-        folder, [wrap.format(cell) for cell in SMALL], ("--smallest-group", "2"), False
+        folder,
+        [wrap.format(cell) for cell in SMALL],
+        ("--smallest-group", "2"),
+        False,
+        by_command=False,
     )
     assert first["role"] == "affixed_number" and second["role"] == "affixed_number"
     assert first["group_separator"] == ","
@@ -52,7 +69,12 @@ def test_one_wrapper_of_a_set_too_small_to_prove_its_mark_says_so(
     folder = tmp_path / "set"
     cells = [f"{1000 + 437 * i:,.1f} kg" for i in range(20)] + [c + " lb" for c in SMALL]
     first, second, _written, _t, _r = _round_trip(
-        folder, cells, ("--smallest-group", "2"), False, seed="8"
+        folder,
+        cells,
+        ("--smallest-group", "2"),
+        False,
+        seed="8",
+        by_command=False,
     )
     assert first["affix_suffix"] == " kg"
     assert first["group_separator"] == "," and second["group_separator"] == ","
@@ -78,7 +100,12 @@ def test_the_numbers_beside_labels_too_small_to_prove_their_mark_say_so(
     # came back -- the precondition below, not the rule it is about.
     cells = [f"{100 + 47.3 * i:.2f}" for i in range(16)] + ["3.25e0", "4.75e0"] + ["1,040.16", "1,091.80"] + ["pending"] * 5
     first, second, _written, _t, _r = _round_trip(
-        folder, cells, ("--smallest-group", "2"), False, seed="1"
+        folder,
+        cells,
+        ("--smallest-group", "2"),
+        False,
+        seed="1",
+        by_command=False,
     )
     assert first["role"] == "numbers_with_labels" and second["role"] == "numbers_with_labels"
     assert first["numbers"]["group_separator"] == ","
@@ -92,7 +119,12 @@ def test_a_wrapped_twin_warns_exactly_when_its_mark_is_lost(
 ) -> None:
     folder = tmp_path / "sweep"
     first, second, _written, _t, _r = _round_trip(
-        folder, ["$" + cell for cell in SMALL], ("--smallest-group", "2"), False, seed=seed
+        folder,
+        ["$" + cell for cell in SMALL],
+        ("--smallest-group", "2"),
+        False,
+        seed=seed,
+        by_command=False,
     )
     lost = first["group_separator"] != second["group_separator"]
     assert lost == ("'value' -- group_separator\n" in _report(folder))

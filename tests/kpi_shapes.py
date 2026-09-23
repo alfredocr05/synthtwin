@@ -454,6 +454,53 @@ def subject_rows() -> "list[list[str]]":
     return [[f"SUBJ-{10000 + i}", f"{20 + (i * 7) % 60}"] for i in range(2000)]
 
 
+# -- the population floor's battery (ledger K-S3-01, plan P4-D341) ------
+
+
+def visits_table(rows: int, subjects: "int | None" = None) -> str:
+    """A repeated-measures table: ``rows`` visits over ``subjects`` people.
+
+    With no subject count every `subject_id` is different, which is a
+    column that names a ROW and never a person, so the table's
+    population is its rows. The other columns are the two shapes that
+    must never be mistaken for people: a set of categories and a
+    bounded whole-number scale.
+    """
+    draw = random.Random(4)
+    built: "list[list[str]]" = []
+    for place in range(rows):
+        who = place if subjects is None else place % subjects
+        built += [
+            [
+                f"P{who + 1:05d}",
+                ("north", "south", "east", "west")[place % 4],
+                f"{draw.randint(0, 100)}",
+            ]
+        ]
+    return delimited_text(["subject_id", "site", "score"], built)
+
+
+# Every size and person shape the population floor is measured over:
+# (name, rows, subjects or None, whether `subject_id` is declared). The
+# sizes sit at both ends of each band and one step outside it, so a
+# floor or a notice line that moved would change the counts.
+POPULATION_BATTERY = (
+    ("one row", 1, None, False),
+    ("half a floor", 50, None, False),
+    ("one short of the floor", 99, None, False),
+    ("at the floor", 100, None, False),
+    ("mid band", 500, None, False),
+    ("one short of the line", 999, None, False),
+    ("at the line", 1000, None, False),
+    ("well over the line", 1500, None, False),
+    ("people one short of the floor", 500, 99, True),
+    ("people at the floor", 500, 100, True),
+    ("people in the band", 1200, 300, True),
+    ("people over the line", 4000, 1000, True),
+    ("a declared identifier that never repeats", 500, None, True),
+)
+
+
 def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str], str, str]]":
     """The three shapes whose one named count of one stands (ledger K-2B-28 and K-2B-48).
 

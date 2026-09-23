@@ -25,7 +25,7 @@ import tracemalloc
 
 import pytest
 
-from synthtwin import cli, errors, profile, reading
+from synthtwin import cli, errors, parsing, profile, reading
 
 
 def _write(folder: pathlib.Path, body: bytes, name: str = "table.csv"):
@@ -148,9 +148,18 @@ def test_the_agreement_check_is_silent_on_well_formed_files(
 # P1-R1-F5: the header decision
 # --------------------------------------------------------------------
 
+# THE FIRST ROW IS THE SUBJECT, so each shape keeps its first row and
+# is written long enough for `synthtwin profile` to describe it at all
+# (plan P4-D341): the command refuses a table under the population
+# floor and writes nothing. Where a test drives the READER rather than
+# the command the length changes nothing, and where it drives the
+# command it is what makes the run happen.
+_HEADERLESS_ROWS = parsing.POPULATION_FLOOR
 _HEADERLESS = {
-    "identifier beside a measurement": b"P001,34\nP002,35\nP003,36\n"
-    b"P004,37\nP005,38\nP006,39\n",
+    "identifier beside a measurement": b"".join(
+        b"P%03d,%d\n" % (index, 33 + index)
+        for index in range(1, _HEADERLESS_ROWS + 1)
+    ),
     "all text": b"".join(
         b"pa-%03d,site-%d\n" % (index, index % 3) for index in range(1, 30)
     ),
@@ -227,7 +236,7 @@ def test_first_row_data_keeps_every_record_and_names_the_columns(
 ) -> None:
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
     table = reading.read_table(str(target), reading.FIRST_ROW_DATA)
-    assert table.n_rows == 6, "not one record may be lost"
+    assert table.n_rows == _HEADERLESS_ROWS, "not one record may be lost"
     assert table.column_names == ["column_1", "column_2"]
     assert table.columns[0][0] == "P001"
     assert table.header_source == reading.HEADER_GENERATED
@@ -239,7 +248,7 @@ def test_first_row_names_still_reads_the_first_row_as_names(
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
     table = reading.read_table(str(target), reading.FIRST_ROW_NAMES)
     assert table.column_names == ["P001", "34"]
-    assert table.n_rows == 5
+    assert table.n_rows == _HEADERLESS_ROWS - 1
     assert table.header_source == reading.HEADER_FROM_FILE
 
 
@@ -252,11 +261,11 @@ def test_the_command_refuses_and_then_accepts_the_answer(
     target = _write(tmp_path, _HEADERLESS["identifier beside a measurement"])
     assert cli.main(["profile", str(target)]) == 0
     taken = capsys.readouterr().out
-    assert "6 rows" in taken, taken
+    assert f"{_HEADERLESS_ROWS} rows" in taken, taken
     assert "column_1" in taken, taken
     assert cli.main(["profile", str(target), "--first-row", "data"]) == 0
     written = capsys.readouterr().out
-    assert "6 rows" in written, written
+    assert f"{_HEADERLESS_ROWS} rows" in written, written
     assert "column_1" in written, written
 
 
@@ -304,7 +313,10 @@ def test_the_authoritative_pass_does_not_hold_every_row(
 def test_running_out_of_memory_in_the_checking_pass_is_a_refusal(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    target = _write(tmp_path, b"a,b\n" + _numbered(20, b"%d,x\n"))
+    target = _write(
+        tmp_path,
+        b"a,b\n" + _numbered(parsing.POPULATION_FLOOR, b"%d,x\n"),
+    )
 
     def out_of_memory(*_args: object, **_kwargs: object) -> None:
         raise MemoryError("simulated")
@@ -320,7 +332,10 @@ def test_running_out_of_memory_while_describing_is_not_a_traceback(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    target = _write(tmp_path, b"a,b\n" + _numbered(20, b"%d,x\n"))
+    target = _write(
+        tmp_path,
+        b"a,b\n" + _numbered(parsing.POPULATION_FLOOR, b"%d,x\n"),
+    )
 
     def out_of_memory(*_args: object, **_kwargs: object) -> None:
         raise MemoryError("simulated")

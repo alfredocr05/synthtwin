@@ -200,6 +200,7 @@ SETTINGS_KEYS = (
     "near_threshold_slack",
     "day_first",
     "long_tail_minimum_level",
+    "person_columns",
     "sentinel_minimum_share",
     "sentinel_outlier_iqr_multiple",
     "small_cell_floor",
@@ -1178,14 +1179,21 @@ INVARIANTS = {
         "no column is named as writing its numbers with a comma and "
         "also as holding codes or record numbers"
     ),
+    "S8b": (
+        "every column named as holding the people the rows belong to is "
+        "also declared as holding record numbers"
+    ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
         "the largest"
     ),
-    "S10": "every note is about a column of this table",
+    "S10": (
+        "every note is about a column of this table, or about the whole "
+        "table and names no column"
+    ),
     "S11": (
         "the notes are grouped by column, in the order the columns come "
-        "in the table"
+        "in the table, with the notes about the whole table first"
     ),
     "C5-S13": (
         "a description made with a smallest group size of one holds "
@@ -1889,6 +1897,13 @@ class SettingsBlock:
     near_threshold_slack: int
     day_first: bool
     long_tail_minimum_level: int
+    # WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO (plan
+    # P4-D340). Not a declaration: it is DERIVED from the declared
+    # identifiers and the cells -- those with some folded present value
+    # on two or more rows -- so every name here is also in
+    # `forced_identifiers`, which invariant S8b holds it to. Empty
+    # means this table's population was counted in ROWS.
+    person_columns: "tuple[str, ...]"
     forced_identifiers: "tuple[str, ...]"
     # THE SECOND DECLARATION (plan P4-D19). Columns the person named as
     # holding codes rather than measurements. Unlike the record-number
@@ -5502,6 +5517,39 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared += [found]
         place = place + 1
+    # WHO THE ROWS ARE ABOUT (plan P4-D340, invariant S8b). Read after
+    # the declared identifiers, because every person column has to be
+    # one of them: the value is derived from the declarations and the
+    # cells, so a person column naming a column nobody declared is a
+    # document this contract does not describe. That check is HERE and
+    # not with the schema rules, because both lists are entries of this
+    # one block and a refusal belongs beside its cause.
+    people_named: list[str] = []
+    person_names = _listing(
+        mapping["person_columns"], "person_columns", where
+    )
+    place = 0
+    for name in person_names:
+        found = _text(name, f"person_columns[{place}]", where)
+        if people_named and found <= people_named[len(people_named) - 1]:
+            raise _out_of_range(
+                "person_columns",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        if found not in declared:
+            raise _broken(
+                "S8b",
+                where,
+                f"'{found}' is named as holding the people the rows "
+                f"belong to",
+                "no column of that name is declared as holding record "
+                "numbers, and the people can only be counted by a "
+                "column that was",
+            )
+        people_named += [found]
+        place = place + 1
     declared_measurements: list[str] = []
     measured_names = _listing(
         mapping["forced_measurements"], "forced_measurements", where
@@ -5609,6 +5657,7 @@ def _settings(value: object) -> SettingsBlock:
             where,
             LONG_TAIL_LINE,
         ),
+        person_columns=tuple(people_named),
         forced_identifiers=tuple(declared),
         forced_codes=tuple(declared_codes),
         forced_measurements=tuple(declared_measurements),
@@ -13099,6 +13148,21 @@ def _cross_checks(
     place = 0
     for note in notes:
         seat = f"in note number {place + 1} of the notes about what was held back"
+        # A NOTE ABOUT THE WHOLE TABLE NAMES NO COLUMN (plan P4-D341),
+        # and it sits at place nought -- before every column's notes --
+        # so S11's order still holds over one list.
+        if note.column == "":
+            if previous:
+                raise _broken(
+                    "S11",
+                    seat,
+                    "the note is about the whole table",
+                    f"the note before it is about the column at place "
+                    f"{previous}, and a note about the whole table "
+                    f"comes before every column's",
+                )
+            place = place + 1
+            continue
         if note.column not in places:
             raise _broken(
                 "S10",

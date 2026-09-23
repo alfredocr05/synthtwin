@@ -237,7 +237,13 @@ def test_a_number_declaration_does_not_match_by_spelling(
     # honest: `-999` names a NUMBER, so it does not reach a cell that
     # merely reads like it. Nothing in this column is a number, so
     # nothing is declared away.
-    values = [f"code-999-{index}" for index in range(60)]
+    # AT THE POPULATION FLOOR (plan P4-D341), because the command
+    # refuses a smaller table: what this pins is that `-999` reaches no
+    # cell of a column holding no number, and how many such cells there
+    # are decides nothing.
+    values = [
+        f"code-999-{index}" for index in range(parsing.POPULATION_FLOOR)
+    ]
     document = _run(
         tmp_path, "codes", values, ["--missing-value", "-999"], capsys
     )
@@ -449,7 +455,10 @@ def test_the_declared_value_never_reaches_a_withholding_column(
     # A declaration is still a value of the real table, so it obeys the
     # publication rule like every other: a column that publishes nothing
     # names no spelling, not even one the person typed.
-    values = fixtures.prose(50)
+    # ...and so is this one, for the same reason: what it pins is that
+    # a column publishing nothing names no spelling, and the one cell
+    # the declaration reaches is the one counted below.
+    values = fixtures.prose(parsing.POPULATION_FLOOR)
     document = _run(
         tmp_path,
         "comment",

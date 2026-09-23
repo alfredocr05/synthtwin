@@ -1755,6 +1755,46 @@ def _verdict_lines() -> "list[str]":
     ]
 
 
+def _table_notes(profile: contract.Profile) -> "list[str]":
+    """The description's notes about the WHOLE TABLE, in its own order.
+
+    A note naming no column is about the table (plan P4-D341), and this
+    report RENDERS IT FROM THE DESCRIPTION rather than deciding
+    anything: the population floor is the command's rule, applied once
+    where the table is read, and every page of the run repeats the one
+    sentence the description carries. A report that worked the notice
+    out for itself would be a second place for the rule to live, and a
+    twin built from an older description would carry a sentence that
+    description never said.
+    """
+    found: "list[str]" = []
+    for note in profile.publication_notes:
+        if note.column == "":
+            found += [note.note]
+    return found
+
+
+def _small_population_lines(profile: contract.Profile) -> "list[str]":
+    """The table-wide notes as a section of this report, or nothing.
+
+    Conditional for `_lowered_floor_lines`' reason: a line saying the
+    table was large enough, printed on every ordinary run, is how a
+    report trains its reader to skip the paragraph that matters.
+    """
+    said = _table_notes(profile)
+    if not said:
+        return []
+    lines = [
+        _RULE,
+        "ABOUT THE TABLE THIS TWIN WAS DESCRIBED FROM",
+        _RULE,
+        "",
+    ]
+    for sentence in said:
+        lines += [f"{sentence}."]
+    return lines
+
+
 def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
     """Said only where the description was made under a lowered floor.
 
@@ -1865,12 +1905,13 @@ def _handling_lines() -> "list[str]":
         "",
         "It does NOT say that no row of the twin can equal a row of your",
         "table. The description publishes counts, and holding a count",
-        "exactly can force a twin row to match a real one. A table of 11",
-        "rows and one column, whose single label is shared by enough rows",
-        "to be published, publishes that label with the count 11 -- so the",
-        "twin holds it in all 11 rows, and every row matches. Nothing was",
-        "copied; there was nothing else to write. The smaller the table and",
-        "the fewer its columns, the more often that happens.",
+        "exactly can force a twin row to match a real one. A table of 100",
+        "rows and one column, whose single label is shared by all of them,",
+        "publishes that label with the count 100 -- so the twin holds it",
+        "in all 100 rows, and every row matches. Nothing was copied; there",
+        "was nothing else to write. 100 rows is the smallest table",
+        "synthtwin describes. The smaller the table and the fewer its",
+        "columns, the more often that happens.",
         "",
         "HOW TO KEEP THESE FILES. All six files of a full run -- the",
         "description, the plain-language summary beside it, the",
@@ -1962,6 +2003,13 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     lowered = _lowered_floor_lines(profile)
     if lowered:
         lines = lines + [""] + lowered
+    # AND THE SAME PLACE FOR THE SAME REASON (plan P4-D341): what the
+    # reader is holding, high enough in the page to meet a reader who
+    # stops after one screen, and nothing at all where the description
+    # carries no such note.
+    population = _small_population_lines(profile)
+    if population:
+        lines = lines + [""] + population
     lines += [
         "",
         _RULE,

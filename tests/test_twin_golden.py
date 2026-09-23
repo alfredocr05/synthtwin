@@ -1367,8 +1367,14 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # moved: none of this demonstration's columns publishes a pooled scale
 # at all, so nothing placed any of its made-up numbers before or after.
 
+# RE-RECORDED BY PLAN P4-D340. The description gained the settings key
+# `person_columns`, reading `[]` on this demonstration because nothing
+# was declared with --identifier, so its population is counted in rows.
+# The twin's cells did not move -- no generator rule reads that key --
+# and GOLDEN_TWIN_SHA256 is unchanged; the REPORT digest moved because
+# the report quotes the description's own bytes back.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "544cd155c1824540f065b20937efc443420a21d64963a7bed568146a81123a61"
+    "c325e87aceb82116991381374aa096d6b8e07e073bed097a8f06c4e53e9ce71e"
 )
 
 
@@ -2133,7 +2139,7 @@ GOLDEN_REPORT_SHA256 = (
     # demonstration holds back WORDS, so all eight lines say that this
     # column publishes no such scale. The twin's own digest above did
     # NOT move, so not one cell of the twin changed with it.
-    "470b3fe3dde34358a16312220be5c7ff00e84eb0a112405f7b40c20a80616928"
+    "f5e681750377ededc16df415edb928dfaedfad60bbaebdf5c31e3b595d0f08c5"
 )
 
 

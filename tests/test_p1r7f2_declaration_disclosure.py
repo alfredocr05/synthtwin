@@ -36,13 +36,16 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import profile, reading, summary, taxonomy
+from synthtwin import parsing, profile, reading, summary, taxonomy
 from synthtwin.cli import main
 
 SETTINGS = taxonomy.Settings()
 
-# The reviewer's own column and value.
-NARRATIVE = fixtures.prose(60)
+# The reviewer's own column and value. AT THE POPULATION FLOOR (plan
+# P4-D341), because the command refuses a smaller table and writes
+# nothing; what this file pins is what a DECLARATION may reach, and how
+# many rows the column has decides none of it.
+NARRATIVE = fixtures.prose(parsing.POPULATION_FLOOR)
 RARE_TOKEN = "withheld-token-417"
 
 
@@ -135,7 +138,13 @@ def test_a_declaration_cannot_publish_a_value_of_a_named_identifier(
     # A column the person declared with --identifier publishes no value
     # at all. A declaration naming one of its values must not be the way
     # round that.
-    values = [f"CASE_REF-{index:05d}" for index in range(40)] + ["CASE_REF-99999"] * 5
+    # The same reason, and the five declared-away cells stay five: what
+    # is pinned is that a declared spelling never leaves a silenced
+    # column, not how many cells wore it.
+    values = [
+        f"CASE_REF-{index:05d}"
+        for index in range(parsing.POPULATION_FLOOR)
+    ] + ["CASE_REF-99999"] * 5
     document, written, summary_text = _run(
         tmp_path,
         "record_code",

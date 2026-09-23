@@ -881,7 +881,11 @@ def test_a_format_that_shows_the_figures_still_owes_them(
     folder = tmp_path / "shown"
     folder.mkdir()
     book = folder / "real.xlsx"
-    book.write_bytes(workbooks.subsecond_book(24))
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this asks is a
+    # question about the FORMAT CODE, which the row count settles
+    # nothing about.
+    book.write_bytes(workbooks.subsecond_book(parsing.POPULATION_FLOOR))
     assert _exit_of(
         ["profile", str(book), "--out-dir", str(folder), "--replace"]
     ) == 0

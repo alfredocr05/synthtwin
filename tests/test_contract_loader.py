@@ -517,6 +517,17 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            # WHO THE ROWS ARE ABOUT, NAMED BY NOBODY (plan P4-D340).
+            # `person_columns` is DERIVED from the columns declared
+            # with `--identifier` and the cells, so every name in it is
+            # also under `forced_identifiers`. A name that is not says
+            # the rows were counted by a column whose values the
+            # description never looked at that way, which is a document
+            # no producer of this contract writes.
+            "S8b", "a person column that nobody declared",
+            edit_in("settings", person_columns=["amount"]),
+        ),
+        Mutation(
             "S9", "more categories allowed at the floor than at the ceiling",
             edit_in("settings", categorical_floor=2000),
         ),

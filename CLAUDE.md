@@ -159,13 +159,15 @@ though it existed:
   seed. That says where the twin's values come from. It does not say
   that no twin row can equal a real one, and any wording that says so is
   a defect in this repository, not a nuance. Allocating published counts
-  exactly can force a twin row to match a real one: an 11-row
-  single-column table whose one label clears the disclosure floor
-  publishes that label with the count 11, so the twin holds it in all 11
-  rows, and each of those rows is a row the real table has. Nothing was
-  copied; the arithmetic left no other answer. The categorical form of
-  this claim is retired everywhere, and a test asserts its absence on
-  every public surface.
+  exactly can force a twin row to match a real one: a single-column
+  table of 100 rows whose one label is shared by all 100 publishes that
+  label with the count 100, so the twin holds it in all 100 rows, and
+  each of those rows is a row the real table has. Nothing was copied;
+  the arithmetic left no other answer. The example is stated at 100
+  rows because that is the smallest table `synthtwin profile` will
+  describe: under that it refuses and writes nothing (plan P4-D341).
+  The categorical form of this claim is retired everywhere, and a test
+  asserts its absence on every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
   All six files a full run leaves behind - the profile, the

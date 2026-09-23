@@ -39,7 +39,7 @@ import pytest
 
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy
 from tests import fixtures
-from tests.test_stage2_round_trip import _exit_of, _round_trip
+from tests.test_stage2_round_trip import _exit_of, _round_trip, at_the_floor
 
 ROWS = 400
 LONE = 137
@@ -65,11 +65,21 @@ def _respelled(cells: "list[str]", mark: str, place: int = LONE) -> "list[str]":
 
 
 def _description_bytes(folder: pathlib.Path, cells: "list[str]", floor: int) -> str:
-    """What `synthtwin profile` writes for a one-column table, as text."""
+    """What `synthtwin profile` writes for a one-column table, as text.
+
+    THE TABLE IS PADDED TO THE POPULATION FLOOR with `NA` cells (plan
+    P4-D341): the command refuses a smaller table and writes nothing,
+    while every shape this file states is a shape of the column's
+    PRESENT values -- which the padding leaves exactly as they were, so
+    every census, every end and every count over them is the one the
+    shape produced before.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
     table.write_text(
-        fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
+        fixtures.rows_to_csv(
+            ["value"], [[cell] for cell in at_the_floor(list(cells))]
+        ),
         encoding="utf-8",
         newline="",
     )

@@ -1778,10 +1778,26 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         ]
     lines = lines + _declaration_lines(document)
     notes = _list_of(document["publication_notes"])
-    if notes:
+    # A NOTE THAT NAMES NO COLUMN IS ABOUT THE WHOLE TABLE (plan
+    # P4-D341), and it is said FIRST and under its own heading: a
+    # sentence about the table's population read out of a list headed
+    # "column by column" is a sentence a reader takes for a column's.
+    about_table: "list[str]" = []
+    about_columns: "list[dict[str, object]]" = []
+    for entry in notes:
+        note = _map_of(entry)
+        if not _text_of(note["column"]):
+            about_table += [_text_of(note["note"])]
+            continue
+        about_columns += [note]
+    if about_table:
+        lines += ["  About this table as a whole:"]
+        for sentence in about_table:
+            lines += [f"    {sentence}"]
+        lines += [""]
+    if about_columns:
         lines += ["  What was left out, column by column:"]
-        for entry in notes:
-            note = _map_of(entry)
+        for note in about_columns:
             lines += [
                 f"    {_text_of(note['column'])}: {_text_of(note['note'])}"
             ]
@@ -2065,12 +2081,14 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         # column does.
         "One thing that sentence does NOT say. Because the twin has to",
         "match the counts in this description exactly, the arithmetic can",
-        "force a twin row to match a real one. If your table had eleven",
-        "rows and one column, and all eleven rows shared one label, this",
-        "description publishes that label with the count eleven -- so the",
-        "twin has to write it in all eleven of its rows, and each of those",
+        "force a twin row to match a real one. If your table had 100 rows",
+        "and one column, and all 100 rows shared one label, this",
+        "description publishes that label with the count 100 -- so the",
+        "twin has to write it in all 100 of its rows, and each of those",
         "rows is the row you have. Nothing was copied; there was no other",
-        "answer. synthtwin offers no formal privacy guarantee.",
+        "answer. 100 rows is the smallest table synthtwin describes, so",
+        "that is the smallest table this can happen to.",
+        "synthtwin offers no formal privacy guarantee.",
         "",
         _RULE,
         "COLUMNS, ONE BY ONE",

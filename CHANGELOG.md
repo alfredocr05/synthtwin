@@ -6,6 +6,57 @@ exists).
 
 ## [Unreleased]
 
+### Added: synthtwin will not describe a table of fewer than 100, and says so from 100 to 999 (stage 3, 2026-09-22)
+
+**`synthtwin profile` now refuses a table that is too small to describe
+as a population.** Under 100 it writes nothing at all and tells you the
+count, the line and what to do. From 100 to 999 it describes the table
+and says so, in one plain sentence that cannot be turned off: on the
+screen, in the description, in the plain-language summary, in the
+questions file, in the twin's report and in the quality report. The
+sentence says what it means, and it does not say that a small table is
+excused anything -- the same rules produced the description, the same
+smallest group size applies, and every obligation it states is the same
+obligation. **The twin's own table carries no trace of it**, so code
+you write against the twin runs exactly as it ran before (plan
+P4-D341).
+
+**The count is taken in PEOPLE where you have said who the rows are.**
+Name a column with `--identifier` and, if its values repeat, rows
+sharing a value of it are one person; rows holding no value of it count
+as one person between them. An identifier that is different on every
+row names a row rather than a person and is never counted by -- which
+is what stops a table of 150 subjects being refused because a sparse
+sample number sat beside the subject number. Where you have named
+nothing and a column looks like it names people -- its values repeat,
+and there are more of them than a set of categories could have -- the
+questions file asks you about it, and the screen says the count was
+taken in rows (plan P4-D340). The choice is written into the
+description under a new settings key, `person_columns`.
+
+| a table of                                    | before                     | after                              |
+|-----------------------------------------------|----------------------------|------------------------------------|
+| 1 row                                         | described, 3 files written | refused, nothing written           |
+| 99 rows                                       | described, 3 files written | refused, nothing written           |
+| 100 rows                                      | described, silently        | described, with the notice on all 5 pages |
+| 999 rows                                      | described, silently        | described, with the notice         |
+| 1,000 rows                                    | described, silently        | described, silently (unchanged)    |
+| 500 visits by 99 subjects, `--identifier` given | described, silently      | refused, nothing written           |
+| 500 visits by 100 subjects, `--identifier` given | described, silently     | described, with the notice, counted in people |
+
+**What has NOT changed.** The floor is the command's and not the
+format's: `build_document` still describes a five-row table, a
+description of a small table still loads, and `synthtwin validate`
+still checks a 50-row file against one. New KPIs `K-S3-01` and
+`K-S3-02` hold the bands over a battery of thirteen sizes and person
+shapes, and hold the person question to no false positive on the
+realistic shapes.
+
+**The worked example moved with the floor.** Every page that explained
+how meeting a published count exactly can force a twin row to match a
+real one used an 11-row table -- a table synthtwin now refuses. It is
+stated at 100 rows.
+
 ### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
 
 **A description `profile` wrote could be refused by `generate` and

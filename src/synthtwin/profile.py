@@ -424,6 +424,39 @@ def _named_once(names: "list[str]") -> "list[str]":
     return once
 
 
+def notes_for_a_small_population(
+    population: int, unit: str, line: int
+) -> "list[taxonomy.Note]":
+    """The table-wide note a small population carries, or none (P4-D341).
+
+    ONE SENTENCE, BUILT ONCE. It is an enumerated form like every other
+    sentence of a description, so `check_publication` rebuilds it from
+    its two arguments -- the population and the word it was counted in
+    -- and refuses the document if it cannot. The description carries
+    it and every page of a run renders it from there, so the screen and
+    the pages cannot say two different things.
+
+    THE LINE IS PASSED IN and is not this module's. Which populations
+    get a notice is the COMMAND's rule and is applied where the table
+    is read; nothing here refuses a table, and `build_document` still
+    describes one of any size. This function renders what it is told
+    to.
+
+    Guarantees: accepts the population, the unit word and the line;
+    returns one note below the line and none at or above it.
+    Determinism: a fixed function of the three. Errors raised:
+    ValueError where the unit is not one of this package's two words,
+    which is `taxonomy.note`'s own refusal. No I/O of any kind.
+    """
+    if population >= line:
+        return []
+    return [
+        taxonomy.note(
+            taxonomy.NOTE_SMALL_POPULATION, (population, unit)
+        )
+    ]
+
+
 def _settings_block(
     settings: taxonomy.Settings,
     forced_identifiers: list[str],
@@ -471,6 +504,13 @@ def _settings_block(
         "near_threshold_slack": settings.near_threshold_slack,
         "day_first": settings.day_first,
         "long_tail_minimum_level": settings.long_tail_minimum_level,
+        # WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO
+        # (plan P4-D340). Derived, never typed: the declared
+        # identifiers that repeat. Empty means this table's population
+        # is counted in rows. Every name here is also in
+        # `forced_identifiers` below, so this key publishes no column
+        # name the block did not already carry.
+        "person_columns": _named_once(list(settings.person_columns)),
         "forced_identifiers": _named_once(forced_identifiers),
         # THE SECOND DECLARATION (plan P4-D19). Named columns are read
         # as labels and never as numbers, dates, clock times or
@@ -763,6 +803,15 @@ _SENTENCE = "sentence"
 _WORD = "word"
 _TABLE_NAME = "column-name"
 _KNOWN_NAME = "a-name-of-this-table"
+# THE SAME CLASS, WIDENED BY ONE VALUE: the empty spelling, which names
+# no column and means the note is about the WHOLE TABLE (plan P4-D341).
+# It is a class of its own rather than a relaxation of `_KNOWN_NAME`,
+# because exactly one path may write a note about no column and every
+# other path must still be held to a column this table has. The empty
+# spelling is not a value of anybody's table: it is the absence of a
+# name, and a note carrying it is checked by the same sentence rule as
+# every other note.
+_KNOWN_NAME_OR_THE_TABLE = "a-name-of-this-table-or-the-table"
 _SPELLING = "authorized-spelling"
 # The ONE exception in the ranges class: an affixed column publishes the
 # shared text its cells wore, on two keys and no others. It is a rule of
@@ -893,6 +942,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "near_threshold_slack"): _COUNT,
     ("settings", "day_first"): _FLAG,
     ("settings", "long_tail_minimum_level"): _COUNT,
+    ("settings", "person_columns"): _ARRAY,
+    ("settings", "person_columns", _EACH): _KNOWN_NAME,
     ("settings", "forced_identifiers"): _ARRAY,
     ("settings", "forced_identifiers", _EACH): _KNOWN_NAME,
     ("settings", "forced_codes"): _ARRAY,
@@ -1070,7 +1121,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # The notes, AFTER they were lifted here out of the column blocks.
     ("publication_notes",): _ARRAY,
     ("publication_notes", _EACH): _OBJECT,
-    ("publication_notes", _EACH, "column"): _KNOWN_NAME,
+    ("publication_notes", _EACH, "column"): _KNOWN_NAME_OR_THE_TABLE,
     ("publication_notes", _EACH, "note"): _SENTENCE,
     # The columns.
     ("columns",): _ARRAY,
@@ -2272,6 +2323,14 @@ def _leaf_is_published(
         return isinstance(value, str) and bool(parsing.trimmed(value))
     if kind == _KNOWN_NAME:
         return isinstance(value, str) and value in context.names
+    if kind == _KNOWN_NAME_OR_THE_TABLE:
+        # A note about the whole table names no column, and the empty
+        # spelling is how it says so (plan P4-D341). Every other value
+        # is held to the columns this table has, exactly as
+        # `_KNOWN_NAME` holds them.
+        if value == "":
+            return True
+        return isinstance(value, str) and value in context.names
     if kind == _SPELLING:
         # A value of the real table, at one of the few paths the
         # disposition matrix authorizes: a published label, one of its
@@ -2970,6 +3029,7 @@ def build_document(
     forced_delimiter: str = "",
     kept_placeholder_days: "dict[str, tuple[str, ...]] | None" = None,
     judged_candidates: "dict[str, tuple[str, ...]] | None" = None,
+    table_notes: "list[taxonomy.Note] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -3077,6 +3137,15 @@ def build_document(
     columns: list[dict[str, object]] = []
     absent_spellings: "list[tuple[str, ...]]" = []
     notes: list[dict[str, str]] = []
+    # THE NOTES ABOUT THE WHOLE TABLE COME FIRST (plan P4-D341), each
+    # naming no column. They are PASSED IN and never decided here: this
+    # function describes a table of any size and refuses none, so
+    # nothing about a table's population is judged in it. The command
+    # is the one place that judges, and it hands the sentence it has
+    # already printed on the screen so that the page and the screen
+    # cannot say two different things.
+    for spoken in table_notes if table_notes else []:
+        notes += [{"column": "", "note": spoken}]
     for position, name in enumerate(table.column_names, start=1):
         described = taxonomy.profile_column(
             name,

@@ -179,6 +179,16 @@ BECAUSE_JOINED = "two-numbers"
 # looks like.
 BECAUSE_GROUPED_FIXED_WIDTH = "grouped-fixed-width"
 BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
+# ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340). Asked
+# of a column whose values REPEAT and are MANY, and only where nothing
+# at all was declared as holding record numbers: that shape is how a
+# table with several rows per subject is written, and nothing else in
+# this tool can reach it. The uniqueness pointer cannot -- it fires
+# only where almost every value differs, which is the opposite shape --
+# so a table of 12 subjects over 1,196 rows was described with every
+# subject's identifier published beside its visit count and nothing
+# said about it.
+BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -1178,6 +1188,20 @@ def _shape_of(
     Raises nothing. No I/O. **No cell of the column appears in what it
     returns.**
     """
+    if reason == BECAUSE_REPEATS_AND_MANY:
+        # THE TWO COUNTS THE RULE WAS MEASURED ON, and nothing else: how
+        # many different values the column holds and how many cells
+        # they stand on. Both are counts a description publishes about
+        # every column anyway (`n_distinct_folded` and `n_present`), so
+        # the file carries nothing here it does not carry there -- and
+        # no cell of the column reaches this sentence.
+        different: "dict[str, int]" = {}
+        for value in present:
+            different[parsing.folded(value)] = 1
+        return (
+            f"{len(different)} different value(s) over {len(present)} "
+            f"cell(s), so each one stands on more than one row"
+        )
     if reason == BECAUSE_PADDED:
         padded = 0
         for value in present:
@@ -1399,6 +1423,198 @@ def checklist_for(
     return listed
 
 
+# THE ROLES A COLUMN THAT NAMES PEOPLE CAN HOLD (plan P4-D340): every
+# role EXCEPT the ones whose description is a distribution over the
+# numbers themselves, the calendar and clock roles, and the empty one.
+# A subject number is written `P00017`, `SUBJ0004` or `A-1000` and is
+# read as numbers wearing an affix, or as text, or as labels; a column
+# read as plain numbers, as a date or as a clock time is reached by the
+# checklist question instead, which lists every column read as a
+# number so that a register of codes can be named there.
+#
+# WHY THE NUMERIC ROLES ARE OUT, measured rather than assumed. On the
+# subject design's tables a `score` of whole numbers 0 to 100 repeats
+# 3 to 28 times per value and a `weight` repeats 1.6 to 5.1 times, both
+# with more different values than a set of categories may hold -- so
+# every bounded scale the owner named on 2026-09-22 -- a pain score of
+# 0 to 10, a risk grade, a rating item, a coma scale, ages in whole
+# years -- would be asked about on this rule if the role did not
+# exclude it.
+_PERSON_ROLES_EXCLUDED = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_COUNT,
+    taxonomy.ROLE_CONTINUOUS,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_COMPOUND,
+    taxonomy.ROLE_JOINED,
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+)
+
+# HOW OFTEN A VALUE HAS TO STAND ON A ROW before the column can be
+# naming people: two rows per different value on average. One is a key
+# with a row each, which names nobody.
+PERSON_ROWS_PER_VALUE = 2
+
+
+def _names_people(
+    present: "list[str]", role: str, n_rows: int, settings: taxonomy.Settings
+) -> bool:
+    """Whether this column looks like it names the people the rows are about.
+
+    TWO CONDITIONS, BOTH MEASURED (plan P4-D340).
+
+    * Its present values REPEAT: at least `PERSON_ROWS_PER_VALUE` rows
+      per different folded value, on average. A value on one row each
+      names a row, not a person.
+    * It holds MORE DIFFERENT VALUES THAN A SET OF CATEGORIES COULD
+      HAVE HAD in a table of this many rows -- `taxonomy.
+      categories_ceiling`, the line `categorical_share` and
+      `categorical_ceiling` already record in every description. That
+      is the line, asked rather than restated, and it is what keeps a
+      two-value demographic column, `site`, `arm`, `ward`, a units
+      column and a diagnosis-like register of labels out: every one of
+      them is a set of categories by that same line, so none can clear
+      it.
+
+    MEASURED ON THE TWO BATTERIES THE RULE WAS CHOSEN ON. Over the four
+    realistic families of `tests/kpi_shapes.py` (twelve columns, run
+    with the declarations they ship and with every declaration removed)
+    and five tables of the subject design -- fixed 100x5, fixed 150x3,
+    geometric 1,000, and 1 to 8 visits over 40 and over 22 subjects --
+    the rule is true of the five `subject_id` columns and of nothing
+    else: `dose`
+    (40 different values over 400 cells) and `note` (9 over 400) are
+    sets of categories and fall at the second condition; `record`,
+    `subject` and `visit_id` are different on every row and fall at the
+    first; `score`, `weight`, `amount` and both date columns are
+    excluded by role.
+
+    Guarantees: accepts the present cells, the role the column holds,
+    the table's rows and the settings; returns a truth value. A fixed
+    function of those. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
+    """
+    if role in _PERSON_ROLES_EXCLUDED:
+        return False
+    if not present:
+        return False
+    different: "dict[str, int]" = {}
+    for value in present:
+        different[parsing.folded(value)] = 1
+    # COUNTED, never divided: `len(present) / len(different) >= 2` is
+    # the same question as this one and asks a float to decide a
+    # question about rows.
+    if len(present) < PERSON_ROWS_PER_VALUE * len(different):
+        return False
+    return len(different) > taxonomy.categories_ceiling(n_rows, settings)
+
+
+def person_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    declared_identifiers: "list[str]",
+    already: "list[str]",
+    asked: "list[Question]",
+) -> "list[Question]":
+    """The question about who the rows are, where nobody has said.
+
+    ASKED ONLY WHERE NO COLUMN AT ALL IS DECLARED as holding record
+    numbers. A person who named one has said who the rows are about,
+    and `taxonomy.repeating_identifiers` reads the answer off what they
+    named; asking again would say their answer had not been heard.
+
+    ASKING IS PART OF THE PRODUCT (amendments A-P4-56 and A-P4-58), and
+    this is the column class nothing else reaches. Until it existed a
+    table of 12 subjects over 1,196 rows passed the population floor on
+    its rows with no notice, and `subject_id` was described as a set of
+    categories with every subject's identifier published beside its
+    visit count.
+
+    Guarantees:
+
+    - Inputs: the profile document, the table's columns as text in the
+      same order, the settings that produced it, the columns declared
+      with `--identifier`, the names already declared any way at all,
+      and the questions already asked so no column is asked twice.
+    - Determinism: a fixed function of the arguments, in the table's
+      own column order.
+    - Errors raised: none.
+    - Boundary: opens no file, prints nothing, and no cell of any
+      column appears in what it returns.
+    """
+    if declared_identifiers:
+        return []
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    spoken: "list[str]" = []
+    for question in asked:
+        spoken += [question.name]
+    rows = document["n_rows"]
+    if not isinstance(rows, int):
+        return []
+    found: "list[Question]" = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or name in spoken:
+            position = position + 1
+            continue
+        if position >= len(table_columns):
+            position = position + 1
+            continue
+        present, _absent = taxonomy.split_missing(
+            table_columns[position], settings
+        )
+        if _names_people(present, role, rows, settings):
+            found += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_REPEATS_AND_MANY,
+                    _shape_of(
+                        BECAUSE_REPEATS_AND_MANY,
+                        present,
+                        settings.small_cell_floor,
+                    ),
+                    _person_choices(role, settings.small_cell_floor),
+                    ANSWER_KEEP,
+                )
+            ]
+        position = position + 1
+    return found
+
+
+def _person_choices(role: str, floor: int) -> "list[Choice]":
+    """The two answers the person question may take.
+
+    `keep` is first because it is what standing still gives: nobody
+    declared this column, so the reading in force is the one it already
+    has, and a list whose first entry is not the standing reading
+    misleads whatever the words underneath say.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "not a person -- it repeats for some other reason, and the "
+            "reading it has now is right",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "the people the rows are about -- rows sharing a value of "
+            "it are one person, and it is a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
+
+
 # The one question the checklist puts, in the words every surface uses.
 CHECKLIST_QUESTION = (
     "Which of these columns hold codes or record numbers rather than "
@@ -1456,6 +1672,7 @@ def questions_document(
     asked: "list[Question]",
     listed: "list[Question]",
     about_file: "list[Question] | None" = None,
+    about_table: "list[str] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -1493,11 +1710,23 @@ def questions_document(
     listed_entries: list[dict[str, object]] = []
     for question in listed:
         listed_entries += [_question_entry(question)]
+    said: list[str] = []
+    for sentence in about_table if about_table else []:
+        said += [f"{sentence}"]
     return {
         "what_this_is": (
             "synthtwin could not settle these columns from their values "
             "alone, so it is asking you rather than guessing."
         ),
+        # WHAT THIS RUN SAID ABOUT THE TABLE AS A WHOLE, not about any
+        # column (plan P4-D341). Empty on almost every table: it holds
+        # the population notice, which the description carries as a
+        # note of its own and every page of the run repeats. It is
+        # HERE as well because this file travels on its own -- a person
+        # hands it to a colleague or opens it on another machine -- and
+        # a page that names the columns of a small table without saying
+        # it is a small table says less than the other four do.
+        "about_your_table": said,
         "what_this_file_carries": FILE_CARRIES,
         "how_to_answer": HOW_TO_ANSWER,
         "table": table_name,

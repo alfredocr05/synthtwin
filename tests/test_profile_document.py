@@ -474,8 +474,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # digest in tests/test_twin_golden.py did not move at all -- none of
 # this demonstration's columns publishes a pooled scale, so nothing
 # placed any of its made-up numbers before or after.
+# RE-RECORDED BY PLAN P4-D340, AND ONE KEY ADDED is the whole of this
+# difference: every settings block now carries `person_columns`, which
+# names the declared columns whose values REPEAT and so name the people
+# the rows belong to. Nothing was declared on this demonstration, so it
+# reads `[]` -- the population is counted in rows -- and no other key of
+# any column or of the document moved. The twin digest in
+# tests/test_twin_golden.py moved with it only because the description
+# it is built from did; not one cell of the twin changed, since a
+# settings key no generator rule reads places nothing.
 GOLDEN_SHA256 = (
-    "d77dedf9a06f2e79a1f951333ef6ef10969f8b433b79bbb5d8cdc22b582ec0bc"
+    "79b321809c24be04312f6ebfed2bee811a1e35cc991d15c4195ea577decbdb06"
 )
 
 

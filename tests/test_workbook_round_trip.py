@@ -666,7 +666,7 @@ def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
     """
     import zipfile
 
-    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book(30))
+    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book())
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "hidden-profile.json"
     first = _block_of(described)
@@ -707,7 +707,7 @@ def test_a_sheet_that_is_not_the_tables_is_the_same_shape_in_the_twin(
     # worth anything: the same description, measured against the same
     # workbook with that sheet left EMPTY -- which is what the writer
     # used to produce -- misses the obligation by name.
-    bare = _written(tmp_path, "bare.xlsx", workbooks.hidden_first_book(30, 0))
+    bare = _written(tmp_path, "bare.xlsx", workbooks.hidden_first_book(notes_cells=0))
     found = _verdicts(tmp_path / "bare-check", described, bare)
     assert "workbook.sheet-extents" in found.get("MISSED", []), found
 
@@ -747,7 +747,7 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
     sentence asks, and names --sheet on a copy without the other table's
     sheet -- and that copy is described below, on each sheet in turn.
     """
-    path = _written(tmp_path, "two.xlsx", workbooks.two_table_book(20))
+    path = _written(tmp_path, "two.xlsx", workbooks.two_table_book())
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(path))
     spoken = f"{raised.value}"
@@ -778,7 +778,7 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
     # `site` stands again further down its own column.)
     for named in ("Data", "Codebook"):
         copy = _written(
-            tmp_path, f"copy-{named}.xlsx", workbooks.two_table_book(20, named)
+            tmp_path, f"copy-{named}.xlsx", workbooks.two_table_book(keep=named)
         )
         (tmp_path / named).mkdir()
         assert _quiet(
@@ -802,7 +802,7 @@ def test_a_workbook_with_three_tables_is_not_called_two(
     holding a table, on both paths.
     """
     path = _written(
-        tmp_path, "three.xlsx", workbooks.two_table_book(20, "", "Labs")
+        tmp_path, "three.xlsx", workbooks.two_table_book(third="Labs")
     )
     for positions in (False, True):
         with pytest.raises(errors.ProfileError) as raised:
@@ -831,7 +831,7 @@ def test_a_delimiter_declared_on_a_workbook_is_refused(
     file, and a declaration a tool quietly ignores is worse than one it
     refuses, so the reader refuses it by name before describing a cell.
     """
-    path = _written(tmp_path, "plain.xlsx", workbooks.plain_book(30))
+    path = _written(tmp_path, "plain.xlsx", workbooks.plain_book())
     with pytest.raises(errors.ProfileError) as raised:
         reading.read_table(str(path), declared_delimiter=",")
     spoken = f"{raised.value}"
@@ -908,7 +908,7 @@ def test_a_workbook_whose_table_is_not_on_the_first_sheet_round_trips(
     """The whole gate on the hidden-first shape, which used to refuse its twin."""
     import zipfile
 
-    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book(30))
+    path = _written(tmp_path, "hidden.xlsx", workbooks.hidden_first_book())
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "hidden-profile.json"
     first = _block_of(described)
@@ -951,7 +951,7 @@ def test_a_withheld_sheet_name_round_trips_and_the_twin_carries_none_of_it(
     """A name that may not be published: the twin is neutral AND valid."""
     import zipfile
 
-    path = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book(30))
+    path = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book())
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "cohort-profile.json"
     first = _block_of(described)
@@ -986,7 +986,7 @@ def test_a_macro_workbook_gets_a_twin_that_validates(
     """The macro fact is NAMED rather than held against the twin."""
     import zipfile
 
-    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book(30))
+    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book())
     assert _quiet(["profile", str(path)]) == 0
     described = tmp_path / "macro-profile.json"
     assert _block_of(described)["macro_project"] is True
@@ -1028,7 +1028,7 @@ def test_the_summary_says_which_sheet_was_read_and_names_a_macro_project(
     the plan says the report names each withheld fact. A workbook was
     described with none of it said anywhere.
     """
-    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book(30))
+    path = _written(tmp_path, "macro.xlsm", workbooks.macro_book())
     assert _quiet(["profile", str(path)]) == 0
     page = (tmp_path / "macro-profile.txt").read_text(encoding="utf-8")
     assert "sheet 1 of 1" in page, page[:600]
@@ -1036,7 +1036,7 @@ def test_the_summary_says_which_sheet_was_read_and_names_a_macro_project(
 
     other = tmp_path / "other"
     other.mkdir()
-    named = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book(30))
+    named = _written(tmp_path, "cohort.xlsx", workbooks.withheld_name_book())
     assert _quiet(["profile", str(named), "--out-dir", str(other)]) == 0
     page = (other / "cohort-profile.txt").read_text(encoding="utf-8")
     assert "withheld" in page, page[:600]
@@ -1067,7 +1067,7 @@ def test_validate_reads_the_sheet_the_person_names(
     tmp_path: pathlib.Path,
 ) -> None:
     """`--sheet` reaches `validate`, where it used to be accepted and dropped."""
-    path = _written(tmp_path, "second.xlsx", workbooks.second_sheet_book(30))
+    path = _written(tmp_path, "second.xlsx", workbooks.second_sheet_book())
     assert _quiet(["profile", str(path), "--sheet", "Data"]) == 0
     described = tmp_path / "second-profile.json"
 
@@ -1130,11 +1130,11 @@ def test_a_workbook_withholding_never_swallows_a_real_miss(
     whole workbook census, and withholding a fact beside them -- each of
     which turns this test red.
     """
-    described_path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(60))
+    described_path = _written(tmp_path, "titled.xlsx", workbooks.titled_book())
     assert _quiet(["profile", str(described_path)]) == 0
     described = tmp_path / "titled-profile.json"
 
-    other = _written(tmp_path, "other.xlsx", workbooks.plain_book(60))
+    other = _written(tmp_path, "other.xlsx", workbooks.plain_book())
     found = _verdicts(tmp_path / "against", described, other)
 
     # The real misses stand. The census of classes is not among them any
@@ -1281,7 +1281,7 @@ def test_a_lone_record_holding_nothing_is_held_to_the_smallest_group(
     were measured on this shape: eight `workbook.cell-classes` misses at
     a floor of eleven on the landing's own commit, none now.
     """
-    path = _written(tmp_path, "titled.xlsx", workbooks.titled_book(60))
+    path = _written(tmp_path, "titled.xlsx", workbooks.titled_book())
     assert _quiet(["profile", str(path), "--smallest-group", "11"]) == 0
     described = tmp_path / "titled-profile.json"
     first = _block_of(described)

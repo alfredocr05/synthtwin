@@ -44,7 +44,7 @@ import pytest
 
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy, validation
 from tests import fixtures
-from tests.test_stage2_round_trip import _exit_of, _round_trip
+from tests.test_stage2_round_trip import _exit_of, _round_trip, at_the_floor
 
 ROWS = 1200
 CENSUSES = ("numeric_styles", "fraction_widths", "pad_widths", "field_widths")
@@ -573,8 +573,15 @@ def test_rare_point_carrying_cells_counted_into_a_padded_form_pass_both_ways(
     its own description.
     """
     cells = [f"{index * 13 + 1:04d}" for index in range(40)] + ["1.23E2", "4.56E2", "2.5"]
+    # AT THE FLOOR WITH ABSENT CELLS (plan P4-D341): the command
+    # refuses a smaller table, and the padding leaves the column's
+    # present values -- the forty padded codes, the two exponents and
+    # the decimal -- exactly as they are, which is the whole shape.
     first, _second, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "padded", cells, ("--smallest-group", f"{floor}"), True
+        tmp_path / "padded",
+        at_the_floor(cells),
+        ("--smallest-group", f"{floor}"),
+        True,
     )
     if floor == 11:
         assert first["numeric_styles"] == {"leading_zero": 43}

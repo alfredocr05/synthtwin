@@ -614,7 +614,7 @@ appear; a loader refuses one that does, naming it.
 | `n_columns` | integer ≥ 1 | how many columns the table has | EXACT-OBSERVABLE |
 | `n_rows` | integer ≥ 0 | how many data rows the table has, not counting a header row | EXACT-OBSERVABLE |
 | `profile_version` | integer | the contract version. In this contract, exactly `6` | LOADER-ONLY |
-| `publication_notes` | array of objects | per-column plain-language notes about what was held back and why | LOADER-ONLY |
+| `publication_notes` | array of objects | plain-language notes about what was held back and why: one per column, and since plan P4-D341 one that names NO column and is about the whole table | LOADER-ONLY |
 | `relationships` | object | the reserved cross-column manifest; eight keys, every one `null` | LOADER-ONLY |
 | `settings` | object | the rules that produced this profile | LOADER-ONLY |
 | `source` | object | how the table was read | **STRUCTURAL** |
@@ -1203,7 +1203,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty-two keys. Its whole subtree is
+An object with exactly these twenty-three keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -1232,16 +1232,17 @@ claim.
 | `identifier_uniqueness` | number | 0.0 ≤ x ≤ 1.0 | how different a column's values have to be before synthtwin SAYS SO. It decides no role: nothing decides the identifier role but the person who owns the table |
 | `kept_values` | object | exactly the five keys below | the declaration record for `--keep-value` |
 | `long_tail_minimum_level` | integer | exactly `11` | the long-tail detection line, recorded on the document's own face |
+| `person_columns` | array of strings | names of columns of this table, in rising order, each of them once, every one of them also in `forced_identifiers` (S8b); possibly empty | WHICH DECLARED COLUMNS NAME THE PEOPLE THE ROWS BELONG TO (plan P4-D340). It is NOT a declaration and nobody types it: it is DERIVED from the columns named with `--identifier` and the cells of the table — those with some folded present value standing on two or more rows. An identifier different on every present row names a ROW and never a person, so it is not here; several that repeat are all here, and rows sharing a folded value of ANY of them are one person, with rows holding a value of none of them counted as ONE unknown person between them. Empty means the table's population was counted in ROWS. What it governs today is the command's population floor (P4-D341) and nothing in this document: every count a description publishes is still a count of ROWS, and a later version counts the disclosure floor in people by this key |
 | `minimum_parse_rate` | number | 0.0 ≤ x ≤ 1.0 | THE line for the numeric roles and for the datetime role, and the only one: at least this share of the present values must read as numbers this format can hold before the column is described as numbers, and at least this share must parse under one date format before it is described as dates. Applied as a COUNT, never as a compared share, so no rounding of a division decides a role |
 | `near_threshold_slack` | integer | ≥ 0 | a column is reported as borderline when this many values, or fewer, separate it from a different reading. Counting values rather than comparing shares keeps the report meaningful at the ends of the scale |
 | `sentinel_minimum_share` | number | 0.0 ≤ x ≤ 1.0 | the share of present cells a stand-in candidate must reach to count as frequent |
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY-TWO keys are REQUIRED. No other key
+**C6-20 (membership).** All TWENTY-THREE keys are REQUIRED. No other key
 may appear under `settings`; a loader refuses one that does, naming
-it. A block of twenty-one keys or of twenty-three — one of the
-twenty-two skipped, or a key of somebody's own added — is a document
+it. A block of twenty-two keys or of twenty-four — one of the
+twenty-three skipped, or a key of somebody's own added — is a document
 this contract does not describe. (It said TWENTY while section 4.4
 said twenty-one and the producer wrote twenty-one, from the landing
 that added `forced_metadata_rows` until landing 2b.17's repair pass
@@ -1482,6 +1483,19 @@ The three ROLE declarations are governed separately and more strictly,
 because they are three answers to one question: no column may carry two
 of them at all. That rule is stated with them in 4.4.
 
+**Invariant S8b (the person columns are declared columns).** Every name
+under `settings.person_columns` also stands under
+`settings.forced_identifiers`, in rising order and each of them once.
+`person_columns` is not a declaration and nobody types it: it is
+DERIVED from the columns the person named with `--identifier` and the
+cells of the table -- those with some folded present value standing on
+two or more rows (plan P4-D340). A name here that nobody declared is
+therefore a document no producer of this contract writes: it would say
+the rows were counted by a column whose values the description never
+looked at that way. It carries its own code, and not S8's, for S8a's
+reason: S8 says a declared name is not a column of this table, and this
+says the name is not declared at all.
+
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
 #### The floor, its minimum, and what a floor of one means
@@ -1694,18 +1708,25 @@ An array, possibly empty, of objects each having exactly two keys:
 
 | key | JSON type | meaning |
 |---|---|---|
-| `column` | string | the `name` of the column the note is about |
+| `column` | string | the `name` of the column the note is about, or EMPTY where the note is about the WHOLE TABLE |
 | `note` | string | one plain-language sentence about what was held back and why |
 
 No third key may appear; a loader refuses one, naming it.
 
 **Invariant S10.** Every `column` value is the `name` of some column
-block.
+block, or the empty string. THE EMPTY STRING NAMES NO COLUMN and says
+the note is about the whole table (plan P4-D341): the one form that is
+about a table rather than a column is `population_under_a_thousand`
+(NF59), which says how large the described table's population was.
+The empty spelling is not a value of anybody's table -- it is the
+absence of a name -- and the note itself is held to the note grammar
+like every other.
 
 **Invariant S11.** The notes appear grouped by column in schema order,
-and within one column in the order the producer emitted them. Order is
-part of the canonical bytes; a loader does not need to re-derive it, but
-a producer may not shuffle it between runs.
+and within one column in the order the producer emitted them, with
+every note about the WHOLE TABLE before them all. Order is part of the
+canonical bytes; a loader does not need to re-derive it, but a producer
+may not shuffle it between runs.
 
 **The publication guard.** Every string in the finished document —
 `publication_notes` included, because the producer lifts these notes
@@ -1855,8 +1876,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 58 forms and 96 argument positions.
-Of those, 83 are whole numbers, 4 are package words, 4 are nested
+**The census.** The table holds 59 forms and 98 argument positions.
+Of those, 84 are whole numbers, 5 are package words, 4 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1953,6 +1974,28 @@ admitted it.
 > holds fewer rows than your smallest group size, and a shape published
 > in part would say less than nothing — it names some stretches and
 > leaves the reader to guess where the rest of the values sit
+
+**NF59. `population_under_a_thousand` — the table-wide note** — arity
+2. Argument 1: how large the population of the described table is.
+Argument 2: the WORD it was counted in, one of the two package words
+`rows` and `people` (14.4a), and `people` exactly where
+`settings.person_columns` is not empty. It is the ONE form that is
+about the whole table rather than about a column, so a note carrying
+it stands under `publication_notes` with its `column` EMPTY (S10), and
+before every column's note (S11).
+
+> this description was made from a table of N rows, which is fewer
+> than a thousand. Every count here is a count over that population, so
+> each one narrows who a row could be further than the same count would
+> in a large table. Nothing in this description is excused by the size:
+> the same rules produced it, the smallest group size is the same
+> number, and every obligation it states is the same obligation
+
+Nothing in this document decides WHEN it is written: which populations
+carry it is the command's rule (plan P4-D341), applied once where the
+table is read, and a loader accepts a conforming document with it or
+without it at any row count. What this clause fixes is its grammar and
+its place.
 
 ---
 
@@ -3161,7 +3204,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 58 in section 4.5.1 |
+| NG14 | the form is one of the 59 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -10503,12 +10546,13 @@ a document, so no document can violate it.
 | S8 | every name in each of the four declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas` — is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
 | S8a | no name is in `forced_decimal_commas` and also in `forced_codes` or `forced_identifiers`; those two silence the numeric reading, so the comma declaration could never be used and would be recorded and ignored | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
-| S10 | every `publication_notes[i].column` is some column's `name` | yes |
-| S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
+| S10 | every `publication_notes[i].column` is some column's `name`, or is EMPTY and the note is about the whole table | yes |
+| S11 | `publication_notes` is grouped by column in schema order, and within one column in producer emission order, with the notes about the whole table before them all; the grouping is decidable, the within-column order canonical bytes a loader does not re-derive | yes |
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map -- save the six censuses plans P4-D220 and P4-D221 took off it (owner rulings of 2026-09-17), whose pools stand at any floor and, since plan P4-D222, only alone. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty-two keys; twenty-one or twenty-three is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-three keys; twenty-two or twenty-four is a document this contract does not describe | yes |
+| S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -10886,7 +10930,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 58 the note grammar enumerates |
+| NG14 | for every form: one of the 59 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -10981,7 +11025,7 @@ find one".
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
-| `settings` | LOADER-ONLY | whole subtree: all seventeen keys, `day_first` and `long_tail_minimum_level` among them, and both declaration records with all five of their keys — `built_in_dates` included |
+| `settings` | LOADER-ONLY | whole subtree: all twenty-three keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
@@ -12038,7 +12082,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 58 closed forms: 96 argument positions, of which 83 are whole numbers, 4 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 59 closed forms: 98 argument positions, of which 84 are whole numbers, 5 package words, 4 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -12933,7 +12977,7 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 22** (4.4), in the ascending code-point order every
+**`settings` keys — 23** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
@@ -12942,7 +12986,7 @@ object of a canonical document takes: `categorical_ceiling`,
 `forced_measurements`, `forced_metadata_rows`,
 `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
-`near_threshold_slack`, `sentinel_minimum_share`,
+`near_threshold_slack`, `person_columns`, `sentinel_minimum_share`,
 `sentinel_outlier_iqr_multiple`, `small_cell_floor`.
 
 **`settings.declaration_matching` — 1 permitted value:**
@@ -13088,10 +13132,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 58 forms
+### 14.8 The note grammar — 59 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 96 argument positions: 83 whole numbers, 4 package words, 4
+argument. 98 argument positions: 84 whole numbers, 5 package words, 4
 nested forms, 5 bound affix strings.
 
 | # | form | arity |
@@ -13154,12 +13198,14 @@ nested forms, 5 bound affix strings.
 | NG56 | `remark_brackets_around_the_affix` | 0 |
 | NG57 | `remark_a_minus_after_the_figures` | 0 |
 | NG58 | `header_names_could_not_be_told` | 0 |
+| NG59 | `population_under_a_thousand` | 2 |
 
-**The package-word vocabulary — 24**, the whole of the second argument
+**The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
 and `month-first`, the two reading names the day-and-month remark
 needs, plus `hours_and_minutes` and `hours_minutes_and_seconds`, the
-two clock words NF46 names a form by. **The count read nineteen and
+two clock words NF46 names a form by, plus `rows` and `people`, the
+two units NF59 counts a population in (14.4a). **The count read nineteen and
 omitted the two clock words until 2026-08-26**, while the shipped
 producer had carried twenty-one since the clock role landed -- so a
 producer written to this document would have refused the clock
@@ -13167,9 +13213,17 @@ evidence sentence the tool writes. The two clock words are NOT
 `format` members and never appear in a `format` key.
 No other string is a word of this class, and membership alone does not
 admit a word: a `format` member stands only at `evidence_dates`
-argument 3 or `said_read_as_dates` argument 2, and `day-first` or
+argument 3 or `said_read_as_dates` argument 2, `day-first` or
 `month-first` only at
-`remark_slashed_dates_read_against_your_declaration` argument 5.
+`remark_slashed_dates_read_against_your_declaration` argument 5, and
+`rows` or `people` only at `population_under_a_thousand` argument 2.
+
+#### 14.4a The two units a population is counted in — 2 members
+
+`rows` and `people`. They are this package's own words, they are not
+`format` members, and neither ever appears in a `format` key. Which of
+the two a description carries is fixed by `settings.person_columns`:
+`people` where it names a column and `rows` where it is empty.
 
 The four sentence paths, and no other leaf of the document is a
 sentence: `source.header_evidence`, `publication_notes[].note`,

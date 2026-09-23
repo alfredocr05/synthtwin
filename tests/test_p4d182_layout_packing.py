@@ -42,6 +42,18 @@ SEEDS = ("1", "4", "7")
 # this file (plan P4-D320).
 _DECLARED = ("--identifier", "value", "--smallest-group", "1")
 
+# EVERY COLUMN HERE IS DESCRIBED BY THE PRODUCER (plan P4-D341). It is
+# DECLARED with `--identifier` and its values REPEAT, so those values
+# are what the command counts the population BY: the review column is
+# seventeen people over forty-nine rows and the scaled one ninety-seven
+# over 760, and neither reaches the floor of a hundred however long the
+# table is made. The census each of them publishes is the shape, so
+# neither can be widened either. `build_document` refuses no table for
+# its size; the twin is still built and both files still checked
+# through `generate` and `validate`, which is where the packing has to
+# come back.
+_BY_THE_PRODUCER = False
+
 
 def _review_column() -> "list[str]":
     """The declared-identifier column of the disposition registry battery."""
@@ -96,6 +108,7 @@ def test_the_layout_census_comes_back_exactly(
             cells,
             _DECLARED,
             seed=seed,
+            by_command=_BY_THE_PRODUCER,
         )
         assert first["role"] == "identifier"
         assert first["layout_forms"], name
@@ -123,7 +136,10 @@ def test_the_first_packing_alone_leaves_the_review_column_short(
     """The vacuity floor: without the packing the defect is still there."""
     monkeypatch.setattr(generation, "_layout_packed", lambda *_a: None)
     first, second, _written, twin_exit, _real = _round_trip(
-        tmp_path / "withdrawn", _review_column(), _DECLARED
+        tmp_path / "withdrawn",
+        _review_column(),
+        _DECLARED,
+        by_command=_BY_THE_PRODUCER,
     )
     assert second["layout_forms"] != first["layout_forms"]
     assert twin_exit == 3
@@ -158,6 +174,7 @@ def test_the_review_column_keeps_its_layout_census_at_the_default(
         _review_column(),
         ("--identifier", "value"),
         seed=seed,
+        by_command=_BY_THE_PRODUCER,
     )
     if first["layout_forms"] != _DEFAULT_CENSUS or real_exit != 0:
         pytest.fail(

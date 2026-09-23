@@ -344,8 +344,18 @@ def test_a_small_file_is_withheld_and_not_missed(tmp_path: pathlib.Path) -> None
     # put the column on one grid.
     cells = ["1,040.16", "1,091.80", "801.65", "766.75", "229.5",
              "540.78", "283.64", "180.77", "115.02", "222.4"]
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): TEN four-figure numbers
+    # is the shape -- too few for the twin to show the mark at the group
+    # size -- and a table at the population floor the command requires
+    # has room to show it. The producer refuses no table for its size,
+    # and the twin is still built and both files still checked by the
+    # commands, which is where the WITHHELD verdict has to appear.
     first, second, _written, _twin_exit, real_exit = _round_trip(
-        tmp_path / "small", cells, ("--smallest-group", "2"), True
+        tmp_path / "small",
+        cells,
+        ("--smallest-group", "2"),
+        True,
+        by_command=False,
     )
     assert first["group_separator"] == ","
     assert real_exit == 0

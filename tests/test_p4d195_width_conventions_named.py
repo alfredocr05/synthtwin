@@ -22,6 +22,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from synthtwin import parsing
 from tests.test_files_review_repairs import _held, _trip
 
 
@@ -140,19 +141,30 @@ def test_the_real_table_s_own_census_of_two_widths_is_held_count_for_count(
 # each named field the OTHER way, and a field the census names no word for
 # padded (method G7.5 step 1).
 
+# THE TWO COUNTS THIS SHAPE IS MADE OF, and the table is written at the
+# population floor because `synthtwin profile` describes no smaller one
+# (plan P4-D341). `_FEW` is the unnamed remainder's two words, each of
+# which must stay BELOW the default floor of eleven -- that is the whole
+# reproduction -- so it is unmoved at seven; `_MANY` is the two cells
+# that show the named word, counted up to the floor from it.
+_FEW = 7
+_MANY = (parsing.POPULATION_FLOOR - 2 * _FEW) // 2
+
 _BOTH_FIELDS_REMAINDER = {
     # Month first: the named word pads the MONTH, so the third of March
     # is written with the month unpadded and the day in the padded
     # default.
     "month-first": (
-        (("03/19/2020", 11), ("04/10/2020", 11), ("3/3/2020", 7), ("3/03/2020", 7)),
+        (("03/19/2020", _MANY), ("04/10/2020", _MANY),
+         ("3/3/2020", _FEW), ("3/03/2020", _FEW)),
         "first-field-padded",
         "3/03/2020",
     ),
     # Day first: the second field is the MONTH, the named word pads it,
     # and the day -- the first field, named by no word -- stays padded.
     "day-first": (
-        (("19/03/2020", 11), ("10/04/2020", 11), ("3/3/2020", 7), ("03/3/2020", 7)),
+        (("19/03/2020", _MANY), ("10/04/2020", _MANY),
+         ("3/3/2020", _FEW), ("03/3/2020", _FEW)),
         "second-field-padded",
         "03/3/2020",
     ),
@@ -183,12 +195,14 @@ def test_a_one_field_census_with_its_remainder_on_both_fields_validates(
         flags=("--smallest-group", "11"), suffix=".csv", seed=seed,
     )
     _held(result)
-    # Twenty-two cells show the named word; the fourteen of the third of
-    # March are the unnamed remainder, two words of seven, each below the
-    # line of eleven.
-    assert result["document"]["columns"][0]["date_field_widths"] == {named: 22}
+    # `2 * _MANY` cells show the named word; the `2 * _FEW` of the third
+    # of March are the unnamed remainder, two words of seven, each below
+    # the line of eleven.
+    assert result["document"]["columns"][0]["date_field_widths"] == {
+        named: 2 * _MANY
+    }
     again = result["again"]["columns"][0]["date_field_widths"]
-    assert again[named] == 22
+    assert again[named] == 2 * _MANY
     # Every cell the twin writes on the third of March -- its day and its
     # month are both three, in either field order -- is written the one
     # way the rule gives.

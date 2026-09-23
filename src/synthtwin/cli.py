@@ -244,10 +244,11 @@ never handed your table, does not open one, and samples or copies no row
 of it. That says where the twin's values come from. It does not say that
 no row of the twin can equal a row of yours: the description publishes
 exact counts, and meeting them exactly can force a twin row to match a
-real one. A table of eleven rows with one column, whose single label all
-eleven rows share, publishes that label with the count eleven -- so the
-twin writes it in all eleven of its rows. synthtwin offers no formal
-privacy guarantee.
+real one. A table of 100 rows with one column, whose single label all
+100 rows share, publishes that label with the count 100 -- so the twin
+writes it in all 100 of its rows. 100 rows is the smallest table
+synthtwin describes: under that, `synthtwin profile` refuses and writes
+nothing. synthtwin offers no formal privacy guarantee.
 
 All six files -- the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report --
@@ -1125,6 +1126,15 @@ _WHY_SHOWN = {
         "other value is below a thousand, which is also how a point "
         "between thousands is written"
     ),
+    # WHY THE PERSON QUESTION IS BEING PUT (plan P4-D340). Its reason is
+    # not that the column might be a code: it is that the column might
+    # name the people the rows are about, which is a different question
+    # with a different consequence, so it says so in its own words.
+    asking.BECAUSE_REPEATS_AND_MANY: (
+        "its values repeat and there are many of them, which is how a "
+        "column naming the people the rows are about is written, and "
+        "no column at all was named with --identifier"
+    ),
 }
 
 
@@ -1416,6 +1426,12 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # be the false sentence the comment above records once already.
     paired: list[asking.Question] = []
     pointed: list[asking.Question] = []
+    # ...AND THE ONE QUESTION THAT IS NOT ABOUT A READING AT ALL (plan
+    # P4-D340). It asks who the rows are about, and falling through to
+    # the numeric block told a person their subject number was being
+    # averaged and offered them `--code`, which is the wrong answer to
+    # a question nobody had asked them.
+    people: list[asking.Question] = []
     for question in questions:
         if question.reason == asking.BECAUSE_JOINED:
             if asking.reads_each_number(question.role):
@@ -1424,6 +1440,8 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
                 joined += [question]
         elif question.reason == asking.BECAUSE_POINT_THOUSANDS:
             pointed += [question]
+        elif question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            people += [question]
         else:
             numeric += [question]
 
@@ -1525,6 +1543,22 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"thousand times too small, and only you know which it is.\n\n"
             f"If any of them writes a point between thousands, run the "
             f"command again naming them:\n  {flags}"
+        ]
+    if people:
+        flags = _joined(
+            [f"--identifier {_shown(one.name)}" for one in people], " "
+        )
+        blocks += [
+            f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
+            f"{_listing(people, False)}\n\n"
+            f"Nothing was named with --identifier, so this table's "
+            f"population was counted in ROWS. If one row is one visit "
+            f"rather than one person, that count is larger than the "
+            f"number of people in the table, and synthtwin cannot tell "
+            f"which it is: a column whose values repeat can be a "
+            f"subject number or a ward.\n\n"
+            f"If any of them names people, run the command again naming "
+            f"them:\n  {flags}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so
@@ -1730,6 +1764,136 @@ def _lowered_floor_warning(given: int) -> str:
         f"IF YOU DID NOT MEAN THIS, run the command again without "
         f"--smallest-group, or with a larger number, and delete what "
         f"this run writes."
+    )
+
+
+# -- the population floor (plan P4-D341) ------------------------------
+#
+# IT LIVES IN THIS COMMAND AND NOWHERE ELSE. `profile.build_document`
+# describes a table of any size, the loader reads a description of one,
+# and `synthtwin validate` checks a file of one -- so a library caller
+# keeps describing five rows, the validator keeps re-describing whatever
+# it was pointed at, and a description written before this landing still
+# loads. What the floor governs is the one act this command performs:
+# turning somebody's real table into files that leave the machine.
+
+
+def _population_of(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    settings: object,
+    declared: "list[str]",
+) -> "tuple[tuple[str, ...], int, str]":
+    """The person columns, the population and the word it is counted in.
+
+    Returns (person columns, how many, the unit word). The unit is
+    `people` where some declared identifier REPEATS and `rows` where
+    none does, which is what `taxonomy.repeating_identifiers` decides
+    and says why at length.
+
+    Guarantees: accepts the table's column names, its columns as text
+    in the same order, the settings in force and the columns declared
+    with `--identifier`; returns the three. A fixed function of them.
+    Raises TypeError where the settings are not settings, which is an
+    internal invariant. Opens no file and prints nothing.
+    """
+    from synthtwin import taxonomy
+
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    people = taxonomy.repeating_identifiers(
+        column_names, columns, declared, settings
+    )
+    counted = taxonomy.people_in(column_names, columns, people, settings)
+    unit = taxonomy.NOTE_UNIT_ROWS
+    if people:
+        unit = taxonomy.NOTE_UNIT_PEOPLE
+    return people, counted, unit
+
+
+def _table_sentences(document: "dict[str, object]") -> "list[str]":
+    """The description's notes about the WHOLE TABLE, in its own order.
+
+    Read back out of the document rather than kept in a variable beside
+    it (plan P4-D341): the questions file then carries exactly what the
+    description carries, and a rebuild that changed the note cannot
+    leave the two disagreeing.
+    """
+    notes = document["publication_notes"]
+    said: "list[str]" = []
+    if not isinstance(notes, list):
+        return said
+    for entry in notes:
+        if not isinstance(entry, dict):
+            continue
+        if entry["column"] != "":
+            continue
+        said += [f"{entry['note']}"]
+    return said
+
+
+def _counted_in_rows_notice(names: "list[str]") -> str:
+    """What the screen says when nobody has said who the rows are about.
+
+    Printed beside the person question (plan P4-D340), and only where
+    no column at all is declared as holding record numbers. The
+    question asks whether a column names people; this says what the run
+    did in the meantime, which is the half a person cannot see: the
+    population was counted in ROWS, and a table of several rows per
+    subject therefore passed a floor its subjects might not have.
+
+    Guarantees: accepts the columns asked about; returns one paragraph.
+    A fixed function of the names, which are the table's own column
+    names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
+        f"Nothing was named with --identifier, so this table's "
+        f"population was counted in ROWS. If one row of your table is "
+        f"one visit rather than one person, that count is larger than "
+        f"the number of people in it.\n"
+        f"\nThe questions file asks about "
+        f"{_joined(names, ' and ')}, whose values repeat and are many "
+        f"-- the shape a column that names people wears. Answer it "
+        f"there, or run the command again with --identifier and the "
+        f"column's name, and the population will be counted in people."
+    )
+
+
+def _small_population_notice(spoken: str, person_columns: str) -> str:
+    """The notice a table between the floor and the line gets, on the screen.
+
+    ONE NOTICE, AND IT CANNOT BE SILENCED (plan P4-D341). There is no
+    option that turns it off, it is not conditional on anybody being at
+    the keyboard, and the sentence in it is the same sentence the
+    description carries: the screen and the five pages a full run
+    leaves cannot say two different things about how large the table
+    was, because all of them render the one note.
+
+    Guarantees: accepts the note's rendered sentence and the person
+    columns named, if any; returns one paragraph. A fixed function of
+    the two. Raises nothing, opens no file, and carries no value of the
+    table -- the names in it are ones the person typed after
+    `--identifier`.
+    """
+    by = ""
+    if person_columns:
+        by = (
+            f" The people were counted by {person_columns}: rows "
+            f"sharing a value there are one person, and rows holding no "
+            f"value there count as one person between them."
+        )
+    return (
+        f"\nABOUT THE SIZE OF THIS TABLE\n"
+        f"{spoken}.{by}\n"
+        f"\nThis notice is on the screen and on every page this run "
+        f"writes. The description carries it as a note of its own, and "
+        f"the plain-language summary, the questions file, the twin's "
+        f"report and the quality report all read it back from there. "
+        f"Nothing turns it off. The twin's own table carries no trace "
+        f"of it, so code you write against the twin runs exactly as it "
+        f"ran before."
     )
 
 
@@ -2103,6 +2267,33 @@ def _run_profile(
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
+    # THE POPULATION FLOOR, ASKED FIRST WITH WHAT IS DECLARED SO FAR
+    # (plan P4-D341): the columns typed after `--identifier` and the
+    # ones answered in the questions file, both of which were settled
+    # before the table was opened. A declaration that arrives later --
+    # on the screen, at the interview below -- can only LOWER the count
+    # of people, because a repeating identifier splits the rows into
+    # more groups than one, so this check is a necessary condition and
+    # the one after the rebuild is the final one.
+    #
+    # NOTHING HAS BEEN WRITTEN AT THIS POINT and nothing has been
+    # described. A table under the floor therefore costs the person one
+    # message and no files at all.
+    person_columns, population, unit = _population_of(
+        read.column_names, read.columns, settings, forced_identifiers
+    )
+    if population < parsing.POPULATION_FLOOR:
+        _warn(
+            errors.the_population_is_too_small(
+                population, unit, _joined(list(person_columns), " and ")
+            )
+        )
+        return 1
+    settings = dataclasses.replace(settings, person_columns=person_columns)
+    population_notes = profile.notes_for_a_small_population(
+        population, unit, parsing.POPULATION_NOTICE_LINE
+    )
+
     document = profile.build_document(
         read,
         settings,
@@ -2112,6 +2303,7 @@ def _run_profile(
         forced_decimal_commas,
         forced_metadata_rows=metadata_rows,
         forced_delimiter=declared_delimiter,
+        table_notes=population_notes,
     )
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
@@ -2163,6 +2355,20 @@ def _run_profile(
         already_answered,
         tuple(forced_decimal_commas),
     )
+    # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
+    # Asked only where NOTHING was declared as holding record numbers,
+    # of a column whose values repeat and are many -- the shape a table
+    # with several rows per subject wears. Until it existed, such a
+    # table was counted in rows with nothing said and every subject's
+    # identifier published beside its visit count.
+    asked_about = asked_about + asking.person_questions(
+        document,
+        read.columns,
+        settings,
+        forced_identifiers,
+        already_answered,
+        asked_about,
+    )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
     # above are the columns whose VALUES raised a question; these
@@ -2177,6 +2383,7 @@ def _run_profile(
         asked_about,
     )
     answered = False
+    assumptions_said = False
     if asked_about:
         if _there_is_somebody_to_ask():
             given = _put_the_questions(asked_about)
@@ -2246,6 +2453,35 @@ def _run_profile(
                     _warn(
                         errors.the_comma_declaration_was_answered_away(named)
                     )
+                # THE POPULATION FLOOR AGAIN, WITH THE FINAL SET (plan
+                # P4-D341), and this time it is final: the person has
+                # just said on the screen which columns hold record
+                # numbers, so a table counted in rows a moment ago may
+                # be counted in people now and may be too small. It is
+                # asked HERE, before anything is announced and before
+                # anything is written, so a refusal still costs one
+                # message and no files.
+                person_columns, population, unit = _population_of(
+                    read.column_names,
+                    read.columns,
+                    settings,
+                    forced_identifiers,
+                )
+                if population < parsing.POPULATION_FLOOR:
+                    _warn(
+                        errors.the_population_is_too_small(
+                            population,
+                            unit,
+                            _joined(list(person_columns), " and "),
+                        )
+                    )
+                    return 1
+                settings = dataclasses.replace(
+                    settings, person_columns=person_columns
+                )
+                population_notes = profile.notes_for_a_small_population(
+                    population, unit, parsing.POPULATION_NOTICE_LINE
+                )
                 document = profile.build_document(
                     read,
                     settings,
@@ -2255,6 +2491,7 @@ def _run_profile(
                     forced_decimal_commas,
                     forced_metadata_rows=metadata_rows,
                     forced_delimiter=declared_delimiter,
+                    table_notes=population_notes,
                 )
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
@@ -2272,6 +2509,11 @@ def _run_profile(
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about)}\n")
+            # THAT NOTICE ALREADY SAYS THE POPULATION WAS COUNTED IN
+            # ROWS, in its own block, so the sentence below is not said
+            # a second time (plan P4-D340). One fact, one place, on the
+            # screen as well as on a page.
+            assumptions_said = True
     # THE CHECKLIST IS SHOWN ONCE PER RUN, WHOEVER IS THERE (review
     # round 1 of landing L17a, item 1). It hung off the scripted notice
     # above, which fires only where a column's VALUES raised a question
@@ -2282,6 +2524,30 @@ def _run_profile(
     # that should depend on another column raising a question.
     if listed_about:
         _say(f"\n{_checklist_notice(listed_about)}\n")
+    # HOW LARGE THE TABLE IS, SAID ONCE, WHOEVER IS THERE (plan
+    # P4-D341). It is printed here because here the count is final:
+    # the interview above is the last thing that can change which
+    # columns name people, and nothing has been announced or written
+    # yet. The sentence is the one the description carries, rendered
+    # from the note itself rather than written again at this call site,
+    # so the screen cannot drift from the five pages.
+    for spoken in population_notes:
+        _warn(
+            _small_population_notice(
+                f"{spoken}", _joined(list(person_columns), " and ")
+            )
+        )
+    # AND WHERE NOBODY HAS SAID WHO THE ROWS ARE, THE SCREEN SAYS SO
+    # (plan P4-D340). A person asked about a column that might name
+    # people has to be told what this run did in the meantime, or the
+    # question reads as a request for information rather than a
+    # decision with a standing answer.
+    person_asked: "list[str]" = []
+    for question in asked_about:
+        if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            person_asked += [question.name]
+    if person_asked and not person_columns and not assumptions_said:
+        _warn(_counted_in_rows_notice(person_asked))
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
@@ -2496,6 +2762,18 @@ def _run_profile(
     asked_about = asking.questions_for(
         document, read.columns, settings, settled, tuple(forced_decimal_commas)
     )
+    # ...AND THE PERSON QUESTION, recomputed from the FINAL
+    # declarations like every other (plan P4-D340). A column answered
+    # `identifier` at the terminal is declared now, so the file that
+    # replaces this one no longer asks about it.
+    asked_about = asked_about + asking.person_questions(
+        document,
+        read.columns,
+        settings,
+        forced_identifiers,
+        settled,
+        asked_about,
+    )
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled, asked_about
     )
@@ -2552,6 +2830,13 @@ def _run_profile(
                         # are what the FILE showed, and no cell of it.
                         read.first_row_seen,
                     ),
+                    # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
+                    # WHOLE (plan P4-D341). The population notice, in
+                    # the description's own words, because this file
+                    # travels on its own and a page naming the columns
+                    # of a small table without saying it is a small
+                    # table says less than the other four do.
+                    _table_sentences(document),
                 )
             ),
             sources=guarded_questions,

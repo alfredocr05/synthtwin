@@ -75,11 +75,18 @@ def test_readings_beside_words_settle_their_whole_form_debt(
     `synthtwin validate` exited 3 on the twin and 0 on the table.
     """
     cells = _readings_beside_words()
+    # DESCRIBED BY THE PRODUCER (plan P4-D341): the command refuses a
+    # table under the population floor, and this column's seven
+    # different values over sixty-three rows are what the shape is --
+    # padded up to a hundred rows they would be a set of categories,
+    # because the categorical ceiling is a share of the ROWS, and the
+    # form census this test is about would not exist.
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / f"readings-{seed}",
         cells,
         flags=("--smallest-group", "11"),
         seed=seed,
+        by_command=False,
     )
     published = first["shape_forms"]
     worn = _worn(written, published)
@@ -216,11 +223,16 @@ def test_an_unplaced_exponent_form_is_left_unpaid_and_says_so(
     is what `9.6E6` did at 7.4 times it.
     """
     cells = _amounts_in_exponent_notation()
+    # ...and described by the producer for the same reason as the
+    # readings above (plan P4-D341): the shape is the column's few
+    # different values, and a table padded to the population floor
+    # reads them as a set of categories instead.
     first, second, written, twin_exit, real_exit = _round_trip(
         tmp_path / f"amounts-{seed}",
         cells,
         flags=("--smallest-group", "11"),
         seed=seed,
+        by_command=False,
     )
 
     # NOT ONE made-up cell reaches past the numbers the table holds.
@@ -266,6 +278,7 @@ def test_an_anchored_exponent_form_is_settled_inside_the_published_ends(
         cells,
         flags=("--smallest-group", "11"),
         seed=seed,
+        by_command=False,
     )
     published = first["shape_forms"]
     worn = _worn(written, published)
@@ -476,6 +489,7 @@ def test_a_held_back_levels_own_spelling_is_nowhere_in_the_description(
         cells,
         flags=("--smallest-group", "11"),
         seed="4",
+        by_command=False,
     )
     document = json.dumps(first)
     for spelling in ("5.2", "retest", "hold"):

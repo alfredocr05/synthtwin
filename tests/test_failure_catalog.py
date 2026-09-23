@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import errors
+from synthtwin import errors, parsing
 
 # The builders and one set of plausible arguments for each. Adding a
 # builder to errors.py without adding it here fails the completeness
@@ -37,6 +37,12 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_folder_missing": ("/reports",),
     "output_not_writable": ("/reports/out.json", "read-only file system"),
     "floor_not_positive": ("0",),
+    # THE POPULATION FLOOR (plan P4-D341). Registered with the landing
+    # that added it, because a refusal nobody has read is a refusal
+    # nobody has checked. Two shapes, and the people one carries the
+    # column the person typed after --identifier: the rows one names
+    # no column at all.
+    "the_population_is_too_small": (48, "rows", ""),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     # The same three refusals for a file `synthtwin validate` was only
@@ -856,8 +862,16 @@ def _a_described_table(folder: "pathlib.Path") -> "pathlib.Path":
     import fixtures
     from synthtwin.cli import main
 
+    # A HUNDRED ROWS AND NOT FORTY-EIGHT (plan P4-D341). The command
+    # refuses a table under the population floor and writes nothing, so
+    # a helper that describes one describes no table at all. The number
+    # is derived from the rule -- `parsing.POPULATION_FLOOR` is the
+    # smallest population the command describes -- and not copied off a
+    # run: what this helper needs is a described table, and the
+    # smallest one the command makes is the cheapest.
     rows = [
-        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+        [fixtures.REGIONS[index % 4], f"{index % 7}"]
+        for index in range(parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         folder, "clinic.csv", fixtures.rows_to_csv(["region", "visits"], rows)
@@ -1179,11 +1193,24 @@ def _the_description_no_file_can_be_the_twin_of(folder, description, undo):
     import fixtures
     from synthtwin.cli import main
 
+    # EACH VALUE ON SEVERAL ROWS, SO THE TABLE CLEARS THE POPULATION
+    # FLOOR (plan P4-D341). The condition this fixture needs is a
+    # property of the COLUMN -- twenty-six different values where the
+    # code alphabet can write twenty-five -- and not of the row count,
+    # so the rows are raised until the command describes the table at
+    # all and the property is left exactly as it was. The copies are
+    # derived: enough of them for `parsing.POPULATION_FLOOR` rows, which
+    # is four at a hundred. No value reaches the floor of eleven either
+    # way, so the description is the one this fixture had before.
     values = [chr(0x100 + 2 * index) for index in range(26)]
+    copies = -(-parsing.POPULATION_FLOOR // len(values))
     table = fixtures.write(
         folder,
         "note.csv",
-        fixtures.rows_to_csv(["note"], [[value] for value in values]),
+        fixtures.rows_to_csv(
+            ["note"],
+            [[value] for value in values for _each in range(copies)],
+        ),
     )
     assert main(["profile", f"{table}"]) == 0
     ordinary = fixtures.write(folder, "any.csv", "note\nx\n")

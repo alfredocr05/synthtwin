@@ -52,7 +52,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import profile, taxonomy
+from synthtwin import parsing, profile, taxonomy
 from synthtwin.cli import main
 
 # THE FLOOR THIS FILE ASKS ITS QUESTIONS AT, NAMED RATHER THAN ASSUMED.
@@ -339,7 +339,12 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    narrative = fixtures.prose(60)
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. The twenty declared cells stay
+    # twenty -- what this pins is that a role withholds a spelling
+    # twenty rows share, and how many other rows the column has decides
+    # nothing.
+    narrative = fixtures.prose(parsing.POPULATION_FLOOR)
     token = "withheld-token-417"
     document, written, summary_text = _run(
         tmp_path,

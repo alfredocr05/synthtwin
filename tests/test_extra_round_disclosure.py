@@ -274,7 +274,13 @@ def test_a_column_name_that_is_not_a_number_still_speaks(
     tmp_path: pathlib.Path,
 ) -> None:
     """The ordinary export is untouched: no header cell here carries a figure."""
-    rows = [[f"S{index:03}", f"{index}", "east"] for index in range(1, 40)]
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this pins is that a
+    # title line above a real header leaves the header where it is.
+    rows = [
+        [f"S{index:03}", f"{index}", "east"]
+        for index in range(1, parsing.POPULATION_FLOOR + 1)
+    ]
     table = tmp_path / "real.csv"
     tmp_path.mkdir(parents=True, exist_ok=True)
     table.write_text(

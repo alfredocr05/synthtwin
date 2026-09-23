@@ -77,14 +77,14 @@ def _reinstated(monkeypatch: pytest.MonkeyPatch) -> None:
         reinstate(monkeypatch)
 
 
-def _readings(holes: int, ordinary: int = 60) -> "list[str]":
+def _readings(holes: int, ordinary: int = parsing.POPULATION_FLOOR) -> "list[str]":
     """Ordinary decimals, with ``holes`` cells wearing the marker."""
     values = [f"{10 + index * 3}.5" for index in range(ordinary)]
     return values + [MARKER] * holes
 
 
 def _table(
-    folder: pathlib.Path, name: str, holes: int, ordinary: int = 60
+    folder: pathlib.Path, name: str, holes: int, ordinary: int = parsing.POPULATION_FLOOR
 ) -> pathlib.Path:
     return fixtures.write(
         folder,
@@ -128,7 +128,11 @@ def test_the_description_names_the_spelling_its_holes_wore(
     table = _table(tmp_path, "reading.csv", 12)
     _written, description = _described(tmp_path, table)
     column = description.columns[0]
-    assert column.n_present == 60
+    # The ordinary cells, counted from the rule that built them: the
+    # table is written at the population floor (plan P4-D341) because
+    # the command refuses a smaller one, and the twelve holes are
+    # beside it.
+    assert column.n_present == parsing.POPULATION_FLOOR
     assert column.n_missing == 12
     assert column.missing_by_source == {MARKER: 12}
     assert column.n_missing_withheld == 0
@@ -196,7 +200,7 @@ def test_every_built_in_word_the_description_names_comes_off_the_pin(
         for spelling in parsing.built_in_missing_texts()
         if spelling
     ]
-    values = [f"{10 + index * 3}.5" for index in range(60)]
+    values = [f"{10 + index * 3}.5" for index in range(parsing.POPULATION_FLOOR)]
     for word in words:
         values = values + [word] * 12
     table = fixtures.write(
@@ -270,7 +274,7 @@ def test_pooled_words_count_as_absent_so_the_table_holds_its_counts(
     as holes up to the pool's total of twelve, and nothing is missed on
     the table or on its twin.
     """
-    values = [f"{10 + index * 3}.5" for index in range(60)]
+    values = [f"{10 + index * 3}.5" for index in range(parsing.POPULATION_FLOOR)]
     values = values + ["n/a"] * 6 + ["N/A"] * 6
     table = fixtures.write(
         tmp_path,
@@ -301,9 +305,10 @@ def test_the_guard_checks_the_pool_s_total(tmp_path: pathlib.Path) -> None:
     holes -- but spells eighteen of them `n/a` and six `N/A`: twenty-four
     spelled holes against a pool of twelve. The twelve past the pool are
     counted as the values the split reads them as, so `presence.n_present`
-    finds 72 against 60 and both presence counts miss.
+    finds twelve more than the description asks for, and both presence
+    counts miss.
     """
-    values = [f"{10 + index * 3}.5" for index in range(60)]
+    values = [f"{10 + index * 3}.5" for index in range(parsing.POPULATION_FLOOR)]
     table = _split_witness(
         tmp_path, "pooled.csv",
         values + ["n/a"] * 6 + ["N/A"] * 6 + [""] * 12,
@@ -319,4 +324,8 @@ def test_the_guard_checks_the_pool_s_total(tmp_path: pathlib.Path) -> None:
     assert "presence.n_present [universal.n_present]: MISSED" in report
     assert "presence.n_missing [universal.n_missing]: MISSED" in report
     after = report.split("presence.n_present [universal.n_present]: MISSED")
-    assert "the file was found to hold: 72" in after[1][:200]
+    # DERIVED, not copied: the description asks for the ordinary cells
+    # and the checked file holds those plus the twelve spelled holes
+    # the split reads as values.
+    found = parsing.POPULATION_FLOOR + 12
+    assert f"the file was found to hold: {found}" in after[1][:200]

@@ -330,7 +330,15 @@ def test_an_ordinary_run_says_nothing_about_working_files(
     )
     assert "tidy up by hand" not in captured.err
     assert "tidy up by hand" not in captured.out
-    assert captured.err == "", "an ordinary run has nothing to caution about"
+    # WHAT AN ORDINARY RUN HAS NOTHING TO SAY ABOUT IS ITS OWN WORKING
+    # FILES, and that is what is asserted (plan P4-D341). It read
+    # `captured.err == ""`, which is a claim about every notice the
+    # command has rather than about this one: the table here is in the
+    # population band, so the run says how large it is -- on purpose,
+    # and on every page it writes. The caution this test exists for is
+    # named instead.
+    assert "could not be removed" not in captured.err, captured.err
+    assert "working file" not in captured.err, captured.err
 
 
 def _assert_the_caution_shows_the_control(told: str) -> None:

@@ -799,6 +799,12 @@ def _settings(declared: list, commas: "list | None" = None) -> dict:
         "near_threshold_slack": 0,
         "day_first": False,
         "long_tail_minimum_level": 11,
+        # WHO THE ROWS ARE ABOUT (plan P4-D340). Empty on every case
+        # here, which says the population was counted in ROWS: the
+        # oracle's tables are columns of cells and not people's
+        # records, and no case turns on a person column -- the
+        # disclosure floor is counted in rows whatever this key says.
+        "person_columns": [],
         "forced_identifiers": declared,
         # The second declaration (plan P4-D19). The oracle declares no
         # code column: every case here is built from the generation

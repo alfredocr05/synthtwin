@@ -116,6 +116,24 @@ The layers:
 
 Stated here so that no reader has to discover them independently:
 
+- **A TABLE OF FEWER THAN A HUNDRED IS REFUSED, AND ONE UNDER A
+  THOUSAND CARRIES A NOTICE** (plan P4-D341). `synthtwin profile`
+  counts the population -- in rows, or in PEOPLE where a declared
+  `--identifier` repeats -- and writes nothing at all below a hundred.
+  From a hundred to 999 it describes the table and says so, on the
+  screen and on all five pages a full run writes, in a sentence that
+  cannot be turned off. **The notice is not a mitigation and does not
+  claim to be one**: it states that nothing in the description is
+  excused by the size, and the same smallest group size and the same
+  obligations apply. The residual risk it names is the one arithmetic
+  cannot remove -- every published count is a count over a small
+  population, so each one narrows who a row could be further than the
+  same count would in a large table. The floor is the COMMAND's, and
+  deliberately not the format's: a description of a small table made
+  by a library caller, or by the validator re-describing a file it was
+  pointed at, still loads and is still checked, so nothing here is a
+  guarantee about a description that reaches you from elsewhere.
+
 - **THE SMALL-CELL FLOOR DEFAULTS TO ELEVEN, AND A PERSON MAY LOWER IT
   TO ONE** (owner, 2026-09-22, returning the default to the value it
   held before 2026-08-25; plan P4-D316). At the default no group named
@@ -245,10 +263,12 @@ Stated here so that no reader has to discover them independently:
   flat assertion that a twin holds nothing of yours - which was
   withdrawn everywhere in Phase 2, because reproducing published counts
   exactly can force a twin row to match a real one with nothing copied
-  anywhere. The shortest true example: an
-  11-row single-column table whose one label clears the small-cell floor
-  publishes that label with the count 11, so the twin writes it in all
-  11 rows, and each of those rows is a row the real table has. The same
+  anywhere. The shortest true example: a single-column table of 100
+  rows whose one label is shared by all 100 publishes that label with
+  the count 100, so the twin writes it in all 100 rows, and each of
+  those rows is a row the real table has. It is stated at 100 rows
+  because that is the smallest table `synthtwin profile` describes at
+  all -- under 100 it refuses and writes nothing -- and the same
   applies to any column whose published facts pin it completely. Two
   consequences follow and are stated rather than left to be worked out.
   synthtwin offers **no formal privacy guarantee** and claims no

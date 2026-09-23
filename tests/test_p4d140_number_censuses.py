@@ -576,7 +576,14 @@ def test_a_plus_is_never_padded_past_the_census_of_padded_plus_cells(
     bound the second tier made up the count with `+01`, a spelling no cell
     of the source wore.
     """
+    # AT THE POPULATION FLOOR ON ABSENT CELLS (plan P4-D341): the
+    # command refuses a smaller table and writes nothing, while the
+    # shape here is the NINE padded cells and the sixteen unpadded ones
+    # beside them. `NA` is one of this format's own spellings for "no
+    # value", so the padded census -- and the twin's draw against it --
+    # are exactly what the shape produced before.
     rows = [["+1"]] * 8 + [["-99"]] * 8 + [["-02"]] * 9
+    rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - len(rows))
     for seed in ("3", "11", "29"):
         run = _round_trip(tmp_path / f"signed{seed}", ["reading"], rows, seed, floor="1")
         assert run["first"]["pad_widths"] == {"2": 9}
@@ -689,10 +696,21 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
     the twin -- writing the held-back cells as their own values are --
     missed `pads.published.4` at exit 3.
     """
+    # THE EIGHT VALUES STAY EIGHT AND THE TABLE REACHES THE POPULATION
+    # FLOOR ON ABSENT CELLS (plan P4-D341). The shape is that the eight
+    # plainly written cells are BELOW the floor of eleven and so are
+    # held back into the commonest form; grown to thirty-four values
+    # they clear it, publish `leading_zero` themselves and the
+    # reproduction is gone. `NA` is one of this format's own spellings
+    # for "no value", so every numeric census over the twenty-four
+    # present cells is the one this witness was written with.
+    values = 8
     rows = []
-    for value in range(100, 108):
+    for value in range(100, 100 + values):
         for turn in range(3):
             rows += [[f"+0{value}" if turn % 2 == 0 else f"0{value}"]]
+    present = len(rows)
+    rows = rows + [["NA"]] * (parsing.POPULATION_FLOOR - present)
     run = _round_trip(tmp_path / "pooled", ["offset"], rows, "4")
     # THE EIGHT PADDED CELLS ARE COUNTED INTO THE PLUS-SIGNED FORM (plan
     # P4-D222; stage 2 closed by the owner rulings of 2026-09-17), where
@@ -700,14 +718,14 @@ def test_a_held_back_padded_form_publishes_no_width_its_twin_misses(
     # plus-signed padded cells as padded would leave eight plus-signed
     # cells unpadded by subtraction, so the padded census counts none and
     # the twin misses no width.
-    assert run["first"]["numeric_styles"] == {"leading_plus": 24}
+    assert run["first"]["numeric_styles"] == {"leading_plus": present}
     assert run["first"]["pad_widths"] == {}
     assert run["twin_exit"] == 0, run["twin_missed"]
     assert run["real_exit"] == 0, run["real_missed"]
     # ...AND THE LOADER REFUSES THE CENSUS THAT WOULD LEAVE EIGHT BY
     # SUBTRACTION (P5b).
     document = json.loads(run["described"].read_text(encoding="utf-8"))
-    document["columns"][0]["pad_widths"] = {"4": 16}
+    document["columns"][0]["pad_widths"] = {"4": 2 * values}
     edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     with pytest.raises(errors.ProfileError) as stopped:
         contract.load_profile(str(edited))

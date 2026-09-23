@@ -54,6 +54,7 @@ import pathlib
 import random
 import sys
 
+from synthtwin import parsing
 from tests import fixtures
 
 
@@ -332,13 +333,18 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
     for day in range(20):
         mark = "T" if day < 10 else " "
         stamps += [f"2025-01-{day + 1:02d}{mark}00:00:00"]
+    # ...AND THE TABLE REACHES THE POPULATION FLOOR ON ABSENT CELLS
+    # (plan P4-D341): the command refuses a smaller table and writes
+    # nothing, while the reviewer's shape is the TWENTY present moments
+    # and their two marks. `NA` is one of this format's own spellings
+    # for "no value", so the present values -- and every count over
+    # them -- are exactly the reviewer's.
+    filled = [[stamp, "2025-01-01 00:00:00"] for stamp in stamps]
+    filled += [["NA", "NA"]] * (parsing.POPULATION_FLOOR - len(filled))
     rows = _twin_declaring(
         tmp_path,
         "absent",
-        fixtures.rows_to_csv(
-            ["seen_at", "other"],
-            [[stamp, "2025-01-01 00:00:00"] for stamp in stamps],
-        ),
+        fixtures.rows_to_csv(["seen_at", "other"], filled),
         "2025-01-01 00:00:00",
         # FLOOR ONE (plan P4-D316): the reviewer's ten and ten marks are
         # each below the default floor of 11, which withholds the census.
@@ -346,5 +352,9 @@ def test_a_spelling_declared_absent_is_never_written_as_a_moment(
     )
     written = [row[0] for row in rows[1:]]
     assert "2025-01-01 00:00:00" not in written
-    assert sum(1 for cell in written if cell[10] == "T") == 10
-    assert sum(1 for cell in written if cell[10] == " ") == 10
+    # The moments the twin wrote, which are its present cells: the
+    # padding above is absent in the table and absent in the twin.
+    moments = [cell for cell in written if len(cell) > 10]
+    assert len(moments) == len(stamps)
+    assert sum(1 for cell in moments if cell[10] == "T") == 10
+    assert sum(1 for cell in moments if cell[10] == " ") == 10

@@ -1063,6 +1063,114 @@ def test_k_2b_46(
         )
 
 
+# -- Stage 3 (landing 3.2: the population floor and the person rule) --------
+
+
+def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
+    """The population floor over a battery of sizes and person shapes.
+
+    Every case runs through `cli.main`, so what is measured is the
+    shipped command and not a function beside it. Three counts come
+    back -- how many of the battery were REFUSED, how many ran with the
+    NOTICE and how many ran SILENT -- and a fourth that is the whole
+    point of the first: how many refused runs left a file behind.
+    """
+    bands = {"refused": 0, "noticed": 0, "silent": 0}
+    wrote_after_refusing = 0
+    for name, rows, subjects, declared in S.POPULATION_BATTERY:
+        folder = tmp_path / name.replace(" ", "_")
+        folder.mkdir(parents=True)
+        table = fixtures.write(
+            folder, "real.csv", S.visits_table(rows, subjects)
+        )
+        flags = ["--identifier", "subject_id"] if declared else []
+        code = S.quiet_cli(["profile", f"{table}"] + flags)
+        left = sorted(one.name for one in folder.iterdir())
+        if code != 0:
+            bands["refused"] += 1
+            if left != ["real.csv"]:
+                wrote_after_refusing += 1
+            continue
+        document = json.loads(
+            (folder / "real-profile.json").read_text(encoding="utf-8")
+        )
+        said = [
+            note for note in document["publication_notes"]
+            if note["column"] == ""
+        ]
+        bands["noticed" if said else "silent"] += 1
+    _kpi(
+        record_property,
+        "K-S3-01",
+        {
+            "cases": len(S.POPULATION_BATTERY),
+            "refused": bands["refused"],
+            "noticed": bands["noticed"],
+            "silent": bands["silent"],
+            "files_written_after_a_refusal": wrote_after_refusing,
+        },
+        ", ".join(f"{k}={v}" for k, v in sorted(bands.items())),
+    )
+
+
+def test_k_s3_02(record_property, tmp_path: pathlib.Path) -> None:
+    """The person question's false positives on the realistic shapes.
+
+    Every column of the four realistic families and of the every-role
+    table is offered to the rule, with the declarations those families
+    ship and with every declaration removed. NONE of them names people,
+    so every column asked about is a false positive. The same rule is
+    then run on a repeated-measures table whose `subject_id` DOES name
+    people, so a rule that asks about nothing at all is not mistaken
+    for a rule that asks about the right thing.
+    """
+    from synthtwin import asking, profile as profile_module, reading
+
+    settings = taxonomy.Settings()
+
+    def asked(folder: pathlib.Path, text: str, declared: "list[str]") -> "list[str]":
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(folder, "real.csv", text)
+        read = reading.read_table(
+            f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+        )
+        document = profile_module.build_document(read, settings, list(declared))
+        raised = asking.questions_for(
+            document, read.columns, settings, list(declared)
+        )
+        person = asking.person_questions(
+            document, read.columns, settings, list(declared),
+            list(declared), raised,
+        )
+        return [one.name for one in person]
+
+    columns = 0
+    false_positives: "list[str]" = []
+    place = 0
+    for family in S.eight_shape_tables():
+        text = S.delimited_text(family["names"], family["rows"])
+        columns += len(family["names"])
+        for declared in ([family["identifier"]] if family["identifier"] else [], []):
+            place += 1
+            for name in asked(tmp_path / f"fam{place}", text, declared):
+                false_positives += [f"{family['family']}:{name}"]
+    every = fixtures.every_role_table()
+    columns += len(every.splitlines()[0].split(","))
+    for name in asked(tmp_path / "every_role", every, []):
+        false_positives += [f"every_role:{name}"]
+    found = asked(tmp_path / "visits", S.visits_table(500, 111), [])
+    _kpi(
+        record_property,
+        "K-S3-02",
+        {
+            "columns_measured": columns,
+            "false_positives": len(false_positives),
+            "subject_column_asked_about": len(found),
+        },
+        ", ".join(sorted(set(false_positives))) or "none",
+    )
+
+
 # -- Stage 6 (a baseline measured now) --------------------------------------
 
 

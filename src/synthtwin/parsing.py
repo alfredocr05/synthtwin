@@ -861,6 +861,25 @@ WIDE_RUNS = (
 # below it stays legal and keeps its lowered-floor alarm.
 DEFAULT_SMALL_CELL_FLOOR = 11
 
+# THE POPULATION FLOOR, AND THE LINE A NOTICE IS GIVEN UNDER (plan
+# P4-D341). A table whose population is under `POPULATION_FLOOR` is
+# refused by `synthtwin profile` and nothing is written; one from there
+# up to `POPULATION_NOTICE_LINE` less one is described, with a notice
+# on the screen and on every page the run writes. The population is
+# counted in ROWS where no declared identifier repeats, and in PEOPLE
+# where one does (`taxonomy.people_in`).
+#
+# THE TWO NUMBERS ARE A COMMAND'S RULE AND NOT A DOCUMENT'S. Nothing
+# in a description carries them, `build_document` never asks them, and
+# the loader and `validate` never apply them: a description of a small
+# table made by an older version, by a library caller or by the
+# validator's own re-description of a checked file still loads and
+# still checks. They live in this module for the reason the floor
+# above does -- every module that names them already imports this one,
+# and this one imports nothing.
+POPULATION_FLOOR = 100
+POPULATION_NOTICE_LINE = 1000
+
 
 def census_floor(floor: int) -> int:
     """The smallest count a spelling census publishes: two, or the floor.

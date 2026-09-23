@@ -251,10 +251,18 @@ def test_the_out_of_range_spread_reaches_the_profile_file(
 def test_the_out_of_range_spread_survives_the_command_line(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # THE THREE NUMBERS, AND A TABLE THE COMMAND WILL DESCRIBE (plan
+    # P4-D341): it refuses one under the population floor and writes
+    # nothing. The rest of the rows are `NA`, one of this format's own
+    # spellings for "no value", so the numeric population is exactly
+    # the three values whose variance saturates and every number below
+    # is the number this shape produced before.
+    padded = list(SATURATING_SPREAD)
+    padded += ["NA"] * (parsing.POPULATION_FLOOR - len(padded))
     table = fixtures.write(
         tmp_path,
         "spread.csv",
-        fixtures.single_column_table("reading", SATURATING_SPREAD),
+        fixtures.single_column_table("reading", padded),
     )
     assert cli.main(["profile", str(table)]) == 0
     printed = capsys.readouterr().out

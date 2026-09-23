@@ -1204,6 +1204,58 @@ def floor_not_positive(given: str) -> str:
     )
 
 
+def the_population_is_too_small(count: int, unit: str, column: str) -> str:
+    """Message for a table with too few rows, or too few people, to describe.
+
+    WHAT HAPPENED, THE COUNT AND THE LINE, WHAT TO DO, AND THAT NOTHING
+    WAS WRITTEN (plan P4-D341). The population floor is the one refusal
+    that is about the SIZE of somebody's table rather than about
+    anything they typed, so it has to say why a size is the reason:
+    every count a description publishes is a count over the population
+    it was taken from, and under a hundred there are not enough people
+    in the table for those counts to describe a population at all
+    rather than the individuals in it.
+
+    IT NAMES THE COLUMN WHERE THE PEOPLE WERE COUNTED, or nothing where
+    the rows were counted. That name is one the person typed after
+    `--identifier`, so it carries nothing of the table that they did
+    not put on the command line themselves.
+
+    Guarantees: accepts the population, the word it was counted in, and
+    the column the people were counted by (empty where the rows were
+    counted); returns one paragraph. Determinism: a fixed function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    counted = f"{count} {unit}"
+    by = (
+        " Check that this is the table you meant to describe and that "
+        "it was read the way you expect: the count above is the rows "
+        "synthtwin read, and --first-row data adds one where your first "
+        "line is a record rather than the column names."
+    )
+    if column:
+        by = (
+            f" The people were counted by '{_shown(column)}', the "
+            f"column you named with --identifier: rows sharing a value "
+            f"of it are one person, and rows holding no value of it "
+            f"count as one person between them. Check that this is the "
+            f"column you meant, and that the values in it are written "
+            f"the same way on every row of one person."
+        )
+    return (
+        f"This table holds {counted}, and synthtwin describes a table "
+        f"of {parsing.POPULATION_FLOOR} {unit} or more.{by} Every count "
+        f"a description publishes is a count over the population it was "
+        f"taken from, and below {parsing.POPULATION_FLOOR} {unit} those "
+        f"counts describe the individuals in the table rather than a "
+        f"population: a larger smallest group size cannot repair that, "
+        f"because the whole table is already smaller than the groups a "
+        f"description is meant to be read as. Then describe the fuller "
+        f"table, or pool it with the rest of the data it belongs to, "
+        f"and run the command again. Nothing was written."
+    )
+
+
 def column_declared_twice(name: str) -> str:
     """Message for a column named as BOTH a record number and a code.
 

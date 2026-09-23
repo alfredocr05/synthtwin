@@ -32,7 +32,7 @@ import re
 
 import pytest
 
-from synthtwin import contract, generation, profile, reading, rendering
+from synthtwin import contract, generation, parsing, profile, reading, rendering
 from synthtwin import taxonomy, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of
@@ -351,7 +351,7 @@ def test_a_twin_scaled_by_three_or_five_percent_is_caught_inside_the_ladder(
 def test_the_skew_range_the_residual_was_opened_on_is_printed_once(
     tmp_path: pathlib.Path,
 ) -> None:
-    """R-P4-61's own shape: sixty evenly spaced values, generated at seed 7.
+    """R-P4-61's own shape: evenly spaced values, generated at seed 7.
 
     The twin report gave the skew range of the values 1 to 60 as
     -2.282203333063573 to 2.2822033330635745 and the quality report as
@@ -363,9 +363,18 @@ def test_the_skew_range_the_residual_was_opened_on_is_printed_once(
     saturated integer grid with its integers in order, so the twin of 1
     to 60 holds every rung and every moment exactly and prints no window
     to compare; the odd numbers 1 to 119 are the same flat shape on a
-    grid with room, and both reports print a skew window again.
+    grid with room, and both reports print a skew window again. Since
+    plan P4-D341 the odd numbers run to the population floor, because
+    the command describes no smaller table; the shape is unchanged.
     """
-    cells = [str(value) for value in range(1, 121, 2)]
+    # AT THE POPULATION FLOOR (plan P4-D341): the command describes no
+    # smaller table. The shape is the EVENLY SPACED odd numbers on a
+    # grid with room, which is the same shape at any length, so the
+    # count is read from the rule and the spacing is unchanged.
+    cells = [
+        str(value)
+        for value in range(1, 2 * parsing.POPULATION_FLOOR + 1, 2)
+    ]
     _table, described, twin = _described_files(tmp_path, cells, "7")
     printed = _twin_windows(_one_file(tmp_path, "*report*.txt"))
     code, quality = _validated(described, twin, tmp_path / "check")

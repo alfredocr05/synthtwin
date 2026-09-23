@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import contract, errors
+from synthtwin import contract, errors, parsing
 from tests import fixtures
 
 
@@ -37,9 +37,27 @@ def _exit_of(argv: "list[str]") -> int:
 def _described(
     folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]", *flags: str
 ) -> "dict[str, object]":
+    """Describe one table through the command, at the population floor.
+
+    THE TABLE IS PADDED WITH ABSENT ROWS (plan P4-D341). `synthtwin
+    profile` refuses a table under `parsing.POPULATION_FLOOR` and writes
+    nothing, while every shape in this file is a shape of a column's
+    PRESENT values -- how many cells wear a thousands mark, how many are
+    bare, how many moments stand off midnight. `NA` is one of this
+    format's own eighteen spellings for "no value", so every one of
+    those counts, and every census and refusal taken over them, is
+    exactly what the shape produced before. A table already at the floor
+    is unchanged.
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "t.csv"
-    table.write_text(fixtures.rows_to_csv(header, rows), encoding="utf-8", newline="")
+    padded = list(rows) + [
+        ["NA"] * len(header)
+        for _row in range(parsing.POPULATION_FLOOR - len(rows))
+    ]
+    table.write_text(
+        fixtures.rows_to_csv(header, padded), encoding="utf-8", newline=""
+    )
     assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace", *flags]) == 0
     loaded: "dict[str, object]" = json.loads(
         (folder / "t-profile.json").read_text(encoding="utf-8")

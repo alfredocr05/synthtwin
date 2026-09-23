@@ -32,6 +32,14 @@ from synthtwin import parsing
 from tests.test_landing_2b12_identifiers_codes_text import _round_trip
 
 # The floor every column here is described under: eleven rows.
+# EVERY SHAPE HERE IS DESCRIBED BY THE PRODUCER (plan P4-D341). Each
+# of them is a column of a few different values whose ROLE depends on
+# how many rows the table has -- the categorical ceiling is a share of
+# them -- so a table padded up to the population floor the COMMAND
+# requires would read those values as a set of categories, and the
+# form debts these tests are about would not exist. `build_document`
+# describes a table of any size and refuses none; the twin is still
+# built and checked through `generate` and `validate`.
 _FLOOR = ("--smallest-group", "11")
 
 
@@ -96,7 +104,7 @@ def test_an_unanchored_exponent_column_settles_its_form_debt(
     """
     cells = _amounts_in_scientific_notation()
     _first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     worn = _worn(written)
     assert worn["%.%&%"] == 26
@@ -128,7 +136,7 @@ def test_the_close_is_not_an_accident_of_one_exponent(
         + ["4.6e2"] * 4
     )
     _first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
@@ -180,7 +188,7 @@ def test_a_span_with_no_reachable_spelling_still_goes_short_and_says_so(
         + ["1.3e6"] * 4
     )
     _first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
@@ -212,7 +220,7 @@ def test_p4_d92_is_not_withdrawn_where_the_ladder_has_its_own_ends(
         + ["5.5e6"] * 4
     )
     _first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
@@ -264,7 +272,7 @@ def test_a_held_back_level_below_the_span_is_paid_from_inside_it(
     """
     cells = _amounts_with_the_rare_level_below_the_span()
     _first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert _worn(written)["%.%&%"] == 26
     assert twin_exit == 0
@@ -297,7 +305,7 @@ def test_the_report_says_where_the_made_up_numbers_were_held(
     """
     cells = _amounts_in_scientific_notation()
     _first, _second, written, twin_exit, _real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert twin_exit == 0
     # Lower case since landing 2b.18 part 2 (P4-D121): the column wrote
@@ -364,7 +372,7 @@ def test_the_anchored_bound_keeps_its_own_narrower_ends(
     """
     cells = _rungs_narrower_than_the_published_values()
     first, _second, written, twin_exit, real_exit = _round_trip(
-        tmp_path, cells, _FLOOR, seed
+        tmp_path, cells, _FLOOR, seed, by_command=False
     )
     assert first["shape_forms"]["%.%&%"] == 15
     assert _worn(written)["%.%&%"] == 15

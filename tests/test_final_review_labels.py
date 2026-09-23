@@ -51,7 +51,7 @@ import pytest
 
 from synthtwin import contract, errors, generation, parsing
 from tests import fixtures
-from tests.test_stage2_round_trip import _exit_of
+from tests.test_stage2_round_trip import _exit_of, describe_with_the_producer
 
 ROWS = 800
 
@@ -61,12 +61,24 @@ def _round_trip(
     columns: "dict[str, list[str]]",
     flags: "tuple[str, ...]" = (),
     seed: str = "4",
+    by_command: bool = True,
 ) -> dict:
     """Describe, build, validate the twin AND the table; hand back all four.
 
     A second column stands beside a column under test unless the caller
     gives one, because a one-column table holding an empty cell is
     refused (plan P4-D74).
+
+    ``by_command`` FALSE DESCRIBES WITH THE PRODUCER (plan P4-D341).
+    `synthtwin profile` refuses a table whose POPULATION is under the
+    floor and writes nothing, and a column declared with `--identifier`
+    whose values repeat is what the population is counted by -- so a
+    shape built from a handful of repeated record numbers is a handful
+    of PEOPLE however many rows it has, and no padding reaches the
+    floor. `build_document` describes a table of any size and refuses
+    none, so such a shape is described that way; the twin is still
+    built and both files still checked through `generate` and
+    `validate`, which the floor does not govern.
     """
     folder.mkdir(parents=True, exist_ok=True)
     names = list(columns)
@@ -80,9 +92,13 @@ def _round_trip(
     table.write_text(
         fixtures.rows_to_csv(names, rows), encoding="utf-8", newline=""
     )
-    assert _exit_of(
-        ["profile", str(table), "--out-dir", str(folder), "--replace", *flags]
-    ) == 0
+    if by_command:
+        assert _exit_of(
+            ["profile", str(table), "--out-dir", str(folder), "--replace",
+             *flags]
+        ) == 0
+    else:
+        describe_with_the_producer(table, folder / "real-profile.json", flags)
     described = folder / "real-profile.json"
     generated = _exit_of(
         ["generate", str(described), "--out-dir", str(folder), "--seed", seed,
@@ -494,9 +510,17 @@ def test_the_oracle_and_the_product_walk_the_lone_nought_alike(
     from tests.test_generation_reference import gen
 
     cells = [f"{number}" for number in range(first, first + rows)]
+    # THE ELEVEN-CELL CASE IS DESCRIBED BY THE PRODUCER (plan P4-D341):
+    # the command refuses a table under the population floor and writes
+    # nothing, and eleven cells is the shape -- `1` to `11` at a floor
+    # of three is what pools both layouts and puts the lone 0 after
+    # every published length. Grown to a hundred it is a different
+    # walk. The 102-cell case is over the floor and is the command's,
+    # which keeps one of the two on the shipped path.
     result = _round_trip(
         tmp_path, {"value": cells},
         ("--identifier", "value", "--smallest-group", floor),
+        by_command=rows >= parsing.POPULATION_FLOOR,
     )
     _both_pass(result)
     written = sorted(set(result["twin"]["value"]))
@@ -755,9 +779,19 @@ def test_a_file_spelling_a_description_s_empty_holes_is_still_missed(
     OWN description would pool, and the presence counts are taken by
     blankness and missed.
     """
-    values = [f"{10 + index * 3}.5" for index in range(60)]
+    # THIRTY HOLES, AND VALUES ENOUGH TO REACH THE POPULATION FLOOR
+    # (plan P4-D341): the command refuses a smaller table and writes
+    # nothing. What this witness needs is thirty empty holes and a
+    # measured file that spells them 25 and 5 -- the pool and the
+    # pooled -- so the holes stay thirty and the values are counted up
+    # to the floor from them.
+    _HOLES = 30
+    values = [
+        f"{10 + index * 3}.5"
+        for index in range(parsing.POPULATION_FLOOR - _HOLES)
+    ]
     result = _round_trip(
-        tmp_path / "described", {"value": values + [""] * 30},
+        tmp_path / "described", {"value": values + [""] * _HOLES},
         ("--smallest-group", "11"),
     )
     assert _column(result)["n_missing_withheld"] == 0

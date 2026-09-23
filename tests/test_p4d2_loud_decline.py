@@ -70,6 +70,7 @@ import fixtures
 from synthtwin import (
     cli,
     contract,
+    parsing,
     generation,
     profile,
     reading,
@@ -373,7 +374,7 @@ def test_both_counts_print_when_a_twin_invents_nothing(
     rather than told only that somebody thought it worth printing.
     """
     header = ["flag"]
-    rows = [["yes" if place % 2 else "no"] for place in range(60)]
+    rows = [["yes" if place % 2 else "no"] for place in range(parsing.POPULATION_FLOOR)]
     loaded = _described(tmp_path, fixtures.rows_to_csv(header, rows))
     page = rendering.report(loaded, generation.generate(loaded, SEED))
     assert "0 of the 1 column(s) hold nothing but values" in page
@@ -407,7 +408,7 @@ def test_the_screen_line_reaches_a_person_running_the_command(
 ) -> None:
     """`synthtwin generate` says it on the screen, not only in the file."""
     header = ["note"]
-    rows = [[_PROSE[place % len(_PROSE)]] for place in range(60)]
+    rows = [[_PROSE[place % len(_PROSE)]] for place in range(parsing.POPULATION_FLOOR)]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )
@@ -427,7 +428,7 @@ def test_the_summary_tells_a_person_before_they_generate_anything(
 ) -> None:
     """The producer's own page says what a twin of it would hold."""
     header = ["note"]
-    rows = [[_PROSE[place % len(_PROSE)]] for place in range(60)]
+    rows = [[_PROSE[place % len(_PROSE)]] for place in range(parsing.POPULATION_FLOOR)]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(header, rows)
     )

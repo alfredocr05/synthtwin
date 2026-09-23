@@ -22,7 +22,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import dialect, errors, reading, workbook
+from synthtwin import dialect, errors, parsing, reading, workbook
 from tests.test_files_review_repairs import _book, _cell, _held, _rows, _trip
 
 
@@ -89,13 +89,25 @@ def test_a_title_row_is_counted_and_not_asked_about(
     hold every obligation they are set.
     """
     names = ["subject", "colour", "place"]
-    result = _trip(tmp_path / where, "titled", _titled(title, names, _records(40)),
-                   ("--smallest-group", "5"))
+    # ONE ROW SHORT OF THE POPULATION FLOOR IN RECORDS (plan P4-D341),
+    # because the row under the title is KEPT as a record and counted
+    # too: the command refuses a table under the floor and writes
+    # nothing, and the count below is derived from that -- records plus
+    # the kept row -- rather than read off a run. Nothing this witness
+    # is about changes with the count: the title is still one row of
+    # furniture, the kept row's three words are still lone values at a
+    # floor of five, and every code is still different.
+    result = _trip(
+        tmp_path / where,
+        "titled",
+        _titled(title, names, _records(parsing.POPULATION_FLOOR - 1)),
+        ("--smallest-group", "5"),
+    )
     document = result["document"]
     assert [one["name"] for one in document["columns"]] == [
         "column_1", "column_2", "column_3"
     ]
-    assert document["n_rows"] == 41
+    assert document["n_rows"] == parsing.POPULATION_FLOOR
     assert document["source"]["workbook"]["rows_above_header"] == 1
     assert result["again"]["source"]["workbook"]["rows_above_header"] == 1
     _held(result)

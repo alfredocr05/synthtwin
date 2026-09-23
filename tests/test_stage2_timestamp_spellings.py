@@ -39,7 +39,7 @@ import pytest
 
 from synthtwin import contract, generation, parsing, validation
 from tests import fixtures
-from tests.test_stage2_round_trip import _exit_of, _round_trip
+from tests.test_stage2_round_trip import _exit_of, _round_trip, at_the_floor
 
 
 def _minutes(count: int, mark: str, seed: int, days: int = 280) -> "list[str]":
@@ -1061,9 +1061,20 @@ def test_a_column_too_short_to_name_a_mark_pools_them_all(
     rulings of 2026-09-17) the pool is split evenly again, five, four and
     four, the remainder going to `T` first.
     """
+    # AT THE POPULATION FLOOR ON ABSENT CELLS (plan P4-D341): the
+    # command refuses a smaller table, while the shape here is the
+    # THIRTEEN stamps -- fewer values than the line of twenty, which is
+    # the whole reproduction. `at_the_floor` pads with `NA`, so the
+    # present stamps and the census over them are exactly the thirteen
+    # this witness was written with, and the padding is too short to
+    # carry a mark.
     cells = _minutes(13, "T", 1)
     first, second, written, twin_exit, real_exit = _round_trip(
-        tmp_path / "short", cells, ("--smallest-group", "20"), True, seed
+        tmp_path / "short",
+        at_the_floor(cells),
+        ("--smallest-group", "20"),
+        True,
+        seed,
     )
     assert first["role"] == "datetime", first["role"]
     assert first["datetime_separators"] == {"(withheld)": 13}
@@ -1110,9 +1121,12 @@ def test_a_pooled_mark_meeting_an_absent_spelling_keeps_a_mark_the_census_leaves
     for spelling in declared:
         holes += [spelling] * 25
         flags = flags + ("--missing-value", spelling)
+    # ...and at the floor for the same reason: the fifteen `T`, the
+    # fifteen `t` and the twenty-five declared holes are the shape, and
+    # `NA` leaves every one of them where it is.
     cells = _shuffled(stamps(15, "T") + stamps(15, "t") + holes, 6)
     first, second, written, twin_exit, real_exit = _round_trip(
-        tmp_path / "offer", cells, flags, True, seed
+        tmp_path / "offer", at_the_floor(cells), flags, True, seed
     )
     assert first["datetime_separators"] == {"(withheld)": 30}
     assert second["datetime_separators"] == first["datetime_separators"]
