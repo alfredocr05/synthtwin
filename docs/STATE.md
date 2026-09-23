@@ -103,7 +103,13 @@ ones.
   identifier has little spare room; held-back rare values can be rebuilt
   (63 of 251 cells, `K-2B-19`, accepted again on 2026-09-22: "just
   showing that the value exists is not an issue; what matters is not
-  showing the relation in a descriptive file"); an autofilter can still make an ambiguous first row the header; a
+  showing the relation in a descriptive file") -- and that ruling is
+  about BOUNDED SCALES, so one rule asks its premise before any tail
+  lists its values, on every role (plan P4-D346); **a warning whose
+  count would hand back a withheld cell keeps the warning and drops
+  the number** (2026-09-23, plan P4-D347), which is what brought the
+  decimal-comma warning back on 1,199 grouped prices beside one bare
+  cell; an autofilter can still make an ambiguous first row the header; a
   workbook date cell naming no day is read; free text's "one cell is a
   number" and a pooled label's one missing cell stay published.
   **Judge any such question by its effect on the owner's code and
@@ -132,7 +138,10 @@ cannot get worse unseen.
   used to name is named: `K-P4-22` reads 147 published levels of one row
   AT A FLOOR OF ONE and 0 at the default, and `K-S3-11` walks 105 cases
   of the tail battery without one published value, summary line or
-  report line equal to an outermost value of the real column. A floor
+  report line equal to an outermost value of the real column. Its one
+  stated residual is closed too: `edge_pinned` is 0, where the
+  published pair of an all-different clock tail used to leave a reader
+  exactly one arithmetic (plan P4-D346). A floor
   lowered to one still names what it always named, which is what
   lowering it asks for.
 - ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing

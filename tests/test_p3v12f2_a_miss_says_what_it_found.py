@@ -100,7 +100,26 @@ _THE_TWO_RULES = (
     # tuple in the commit that adds it, which is what the walk below
     # holds.
     "_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE",
+    # ...AND THE FOURTH (plan P4-D346): a LISTED tail's values, which
+    # are numbers of the file with the file's own end among them. The
+    # numeric role printed them beside the description's list until this
+    # pass, which is what the third rule's own paragraph says never
+    # happens; the date and clock role had kept them back all along.
+    "_NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE",
 )
+
+def _reasons() -> "tuple[tuple[str, ...], ...]":
+    """The paragraphs of `_THE_TWO_RULES`, read off the module itself.
+
+    Named once above and read here, so that a rule added to the module
+    and to that tuple is held to the bar by the same edit, and a fourth
+    copy of the list cannot fall behind the first (plan P4-D346).
+    """
+    found: "tuple[tuple[str, ...], ...]" = ()
+    for name in _THE_TWO_RULES:
+        found = found + (getattr(validation, name),)
+    return found
+
 
 # What a reader must find under a blind MISSED line, whichever rule it
 # is. Read as substrings of the joined note rather than whole sentences:
@@ -144,10 +163,14 @@ _FAMILIES = (
     # nothing to show in their place is a TAIL BOUNDARY (plan P4-D328).
     # Each key of a tail is its own fact, and the other four print what
     # they found: the rows beyond the boundary and the two distances are
-    # counts and numbers of the file, and a few-valued tail's values are
-    # compared as a set and reported by their number.
+    # counts and numbers of the file. A LISTED tail's values are blind
+    # on both roles since plan P4-D346 -- the numeric one printed the
+    # file's own list until then -- so the numeric pair joins this
+    # floor.
     "datetime.low_tail.boundary",
     "datetime.high_tail.boundary",
+    "numeric.tails.low.values",
+    "numeric.tails.high.values",
     "free_text.n_distinct_by_occurrences",
 )
 
@@ -401,6 +424,31 @@ def _corpus(root: pathlib.Path) -> "list[tuple[str, validation.Outcome]]":
     )
     measured = measured + [
         ("plain numbers, dressed", validation.measure(numbers, f"{worn}"))
+    ]
+
+    # A BOUNDED SCALE WHOSE LOW TAIL LISTS ITS VALUES, against a file
+    # holding the same scale with its lowest step never used. The values
+    # a listed tail names are numbers of the FILE and the file's own end
+    # is among them, so the measured side of that obligation is kept
+    # back on both roles (plan P4-D346) -- and the high side of it is
+    # reached by the pair above while the low side was reached by
+    # nothing, so this pair is here for the low one.
+    scale = [f"{index % 11}" for index in range(242)]
+    bounded, _table = _described(
+        root / "scale",
+        "scale.csv",
+        fixtures.single_column_table("pain", scale),
+    )
+    lifted = fixtures.write(
+        root / "scale",
+        "lifted.csv",
+        fixtures.single_column_table(
+            "pain", [f"{max(1, index % 11)}" for index in range(242)]
+        ),
+    )
+    measured = measured + [
+        ("a scale with its lowest step unused",
+         validation.measure(bounded, f"{lifted}"))
     ]
 
     # Labels: one file whose rare spellings the floor holds back, and
@@ -709,11 +757,7 @@ def test_every_missed_obligation_names_one_of_the_two_rules(
             if check.note == validation._NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY:
                 fell = fell + [f"{name}: {check.subcheck} [{check.fact}]"]
                 continue
-            assert check.note in (
-                validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
-            ), (
+            assert check.note in _reasons(), (
                 f"{name}: {check.subcheck} keeps its measured side back "
                 f"and gives a reason that is neither of the two this "
                 f"repository states"
@@ -823,10 +867,7 @@ def test_a_held_obligation_is_left_silent(
         for check in outcome.checks:
             if check.verdict != validation.HELD:
                 continue
-            if check.note in (
-                validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-                validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
+            if check.note in _reasons() + (
                 validation._NOT_SHOWN_AND_THIS_LINE_CANNOT_SAY_WHY,
             ):
                 noisy = noisy + [f"{name}: {check.subcheck}"]
@@ -851,11 +892,7 @@ def test_the_two_reasons_carry_nothing_measured(
         for check in _blind(outcome):
             seen.add(check.note)
     assert seen, "no blind MISSED verdict in the corpus at all"
-    assert seen <= {
-        validation._NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-        validation._NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE,
-        validation._NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
-    }, (
+    assert seen <= set(_reasons()), (
         "a reason printed under a missed obligation differs between "
         "files, so it is carrying something measured"
     )

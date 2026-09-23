@@ -750,7 +750,18 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
 # ranks inside the two published boundaries, and 9e51fd6's until plan
 # P4-D342 stopped this column's low tail listing `2020-01-01`, its own
 # earliest date, held by 4 of its 4,000 rows.
-_MONTH_FIRST_TWIN = "f615e52fcda95b6c327761533f4c578fb4fcb55a2b9be1b14dd0e2f4b3c070d0"
+#
+# AND IT MOVED AGAIN FOR PLAN P4-D346, read before it was written: this
+# column's two published pairs SETTLED their tails to one multiset each
+# -- the reader's own arithmetic, with the calendar's edge and the
+# column's all-different remark -- so both boundaries move inward until
+# a second multiset fits. Low `2020-01-03` to `2020-01-04` and 13 rows
+# to 18; high `2022-03-07` to `2022-03-06` and 13 rows to 20. That is
+# five and seven more rows withheld of four thousand, and it is what
+# `edge_pinned` reaching nought costs on a column this size. Every
+# assertion above this digest still holds: neither tail lists, the
+# column's earliest date is named nowhere, and both files validate.
+_MONTH_FIRST_TWIN = "8e4f04daadb2e009ed3e87bf6a00065ecdf77d9323d231342569a57a6e23aa44"
 
 
 def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:

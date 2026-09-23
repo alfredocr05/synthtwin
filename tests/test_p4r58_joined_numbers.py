@@ -93,25 +93,37 @@ def test_each_position_publishes_a_block_that_is_now_measured(
         "number 2 ladder.p50",
     ):
         assert owed in subchecks, sorted(subchecks)
-    # THE SHAPE OF A POSITION IS NAMED, AND ON THIS COLUMN IT IS NAMED
-    # AS NOT CHECKABLE. Both positions' `moments.skew` was checked
-    # before landing 3.3 at position 1 and listed at position 2; the
-    # tail rule publishes a group where the outer rungs stood, the
-    # description is coarser there, and G12.3's window for the shape
-    # widened to the range EVERY sample of this many values lies in.
-    # `_skew_admits_every_value` is the rule that says so, and the
-    # repository's answer to a window that admits everything is a
-    # census line rather than a pass -- so what is pinned here is that
-    # the obligation is still NAMED, and named for that reason.
+    # THE SHAPE OF A POSITION IS NAMED, AND THE RULE SAYS WHICH WAY.
+    # `moments.skew` was checked at position 1 and listed at position 2
+    # before landing 3.3; the tail rule published a group where the
+    # outer rungs stood, the description went coarser there, and
+    # G12.3's window widened to the range EVERY sample of this many
+    # values lies in -- so BOTH were listed as not checkable, which is
+    # this repository's answer to a window that admits everything.
+    #
+    # POSITION 1 IS CHECKED AGAIN SINCE PLAN P4-D346, and that is the
+    # listing rule paying something back: a tail the rule admits is one
+    # every value of which stands on at least two cells, so the counts
+    # `contract._listed_counts` solves for now start from that number
+    # too -- the twin's own first position is finer for it, and G12.3's
+    # window is narrow enough to fail on again. It comes back
+    # WITHIN-BOUND here. Position 2's window still admits every value
+    # and is still named as not checkable. The rule
+    # `_skew_admits_every_value` is asked of each, so neither side of
+    # this is asserted from the outcome alone.
     listed = {one.subcheck for one in outcome.listings}
-    for place in (0, 1):
-        owed = f"number {place + 1} moments.skew"
-        assert owed not in subchecks, owed
-        assert owed in listed, sorted(listed)
-        numbers = described.columns[0].facts.parts[place]
-        assert validation._skew_admits_every_value(
-            described.columns[0], numbers, FLOOR
-        ), place
+    numbers = described.columns[0].facts.parts[0]
+    assert not validation._skew_admits_every_value(
+        described.columns[0], numbers, FLOOR
+    ), "position 1's window admits every value again"
+    assert "number 1 moments.skew" in subchecks
+    assert "number 1 moments.skew" not in listed
+    numbers = described.columns[0].facts.parts[1]
+    assert validation._skew_admits_every_value(
+        described.columns[0], numbers, FLOOR
+    ), "position 2's window no longer admits every value"
+    assert "number 2 moments.skew" not in subchecks
+    assert "number 2 moments.skew" in listed, sorted(listed)
 
     # AND EACH IS BOUND TO ITS OWN POSITION'S FACT, so two positions
     # cannot hide behind one identity.

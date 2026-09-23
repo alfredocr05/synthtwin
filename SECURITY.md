@@ -315,17 +315,26 @@ Stated here so that no reader has to discover them independently:
   those are, and how far they lie -- so no date in the file is the
   rarest one the column held. An end at least that many rows share is
   published as itself, because it is a value of a group. A tail may
-  LIST the values it holds instead of publishing its shape, never with
-  a count beside them, and THE TWO ROLES LIST ON DIFFERENT TERMS. A
-  NUMERIC tail on a published grid is listed where it holds no more
-  than six different values, or where its published shape would settle
-  its outermost value anyway -- the list is then the reading that says
-  LESS. A DATE or CLOCK tail is listed only where the owner's ruling of
-  2026-09-22 reaches it: every value it would list held by at least two
-  of its cells and the column's dates standing on a small fixed set
-  rather than a fine grid. Anywhere else -- a column of clock times, a
-  column of days over years -- it publishes its shape and lists
-  nothing. What the shape still allows is stated
+  LIST the values it holds instead of publishing its shape, and ONE
+  RULE decides that for every role: the owner's ruling of 2026-09-22
+  reaches a tail only where every value it would list is held by at
+  least two of the tail's own cells AND the column's values come from a
+  small fixed set rather than a fine grid, or where every listed value
+  is held by a whole smallest group. Anywhere else -- a column of clock
+  times, a column of days over years, a fine numeric grid, a tail whose
+  values are one row's own apiece -- it publishes its shape and lists
+  nothing. Where the rule admits a tail, each role has its own reason
+  to list: a handful of different values, or a published shape that
+  would settle the tail's outermost value anyway, so that the list is
+  the reading that says LESS. **A listed tail writes down no count, and
+  the counts are not thereby secret**: this package ships the
+  arithmetic that works them out from the listed values and the
+  distances beside them, because the generator needs it, and over the
+  ordinal battery it recovered 22 of 22 exactly. What is published is
+  WHICH values the tail holds, and, to a reader who does that
+  arithmetic, how many rows hold each -- which is what the owner
+  accepted for bounded scales and why the rule asks first whether the
+  column is one. What the shape still allows is stated
   rather than claimed away: on a column of all-different clock times
   whose tail is pressed against the end of the day, a reader who works
   through every arithmetic the two published distances admit is left

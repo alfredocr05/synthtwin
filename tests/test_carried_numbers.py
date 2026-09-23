@@ -242,14 +242,24 @@ def _point_free_tenths_cells() -> "list[str]":
     needed came off `-0.2`, which is neither a tail nor point-free, so
     the census this test reads is the same: fourteen plain and
     eighty-eight decimal of one hundred and two.
+
+    AND EVERY VALUE EITHER TAIL NAMES STANDS ON TWO CELLS OR MORE,
+    which the listing rule of plan P4-D346 asks before any tail lists:
+    the owner's ruling of 2026-09-22 is about values many people share,
+    and it does not reach a value one row holds. `-0.5` and `2.6` held
+    ONE cell each here, so the rule refused both tails and took this
+    witness's two listed tails with them. One cell moved onto each from
+    `-0.4` and `2.8` -- neither point-free, both already outside the
+    plain census -- so the column is the same hundred and two cells over
+    the same thirty-four numbers and both tails are listed ones again.
     """
     counts = {
-        "-0.5": 1, "-0.4": 14, "-0.3": 11, "-0.2": 5, "-0.1": 1,
+        "-0.5": 2, "-0.4": 13, "-0.3": 11, "-0.2": 5, "-0.1": 1,
         "0": 1, "0.1": 1, "0.2": 1, "0.3": 1, "0.4": 1, "0.5": 1,
         "0.6": 1, "0.7": 1, "0.8": 8, "0.9": 1, "1": 12, "1.1": 1,
         "1.2": 1, "1.3": 1, "1.4": 1, "1.5": 4, "1.6": 12, "1.7": 1,
         "1.8": 1, "1.9": 1, "2": 1, "2.1": 1, "2.2": 1, "2.3": 1,
-        "2.4": 1, "2.5": 1, "2.6": 1, "2.7": 4, "2.8": 7,
+        "2.4": 1, "2.5": 1, "2.6": 2, "2.7": 4, "2.8": 6,
     }
     return [text for text in counts for _copy in range(counts[text])]
 

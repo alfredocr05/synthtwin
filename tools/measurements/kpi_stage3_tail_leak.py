@@ -426,6 +426,86 @@ def _table(name, cells):
     return out.getvalue()
 
 
+def _ordered_cells(cells, member, reading_at, clock_form=""):
+    """Every parsed cell of a column, ordered by the instant it names.
+
+    Never by its text: a column written `17-MAR-2021` sorts by month
+    name as text, which puts April before January and makes the ends of
+    the column something else entirely. THE ROLE DECIDES WHICH PARSER
+    ORDERS IT -- a `time_of_day` block publishes `clock_form` and no
+    `format`, and the ISO-date parser returns None for every one of its
+    cells.
+    """
+    parsed = []
+    for cell in cells:
+        if not cell:
+            continue
+        if clock_form:
+            found = parsing.clock_ordinal(cell, clock_form)
+            if found is None:
+                continue
+            parsed += [(found, cell)]
+            continue
+        found = parsing.parse_datetime(cell, member)
+        if found is None:
+            continue
+        instant = found[0]
+        if reading_at == "utc":
+            shifted = parsing.utc_canonical(found[0], found[1])
+            if shifted is None:
+                continue
+            instant = shifted
+        parsed += [(instant, cell)]
+    return [cell for _instant, cell in sorted(parsed)]
+
+
+def _the_rule_allows(block, ordered, floor):
+    """The listed values the LISTING RULE exempts, and no others.
+
+    NOT "the tail listed it" (plan P4-D346). Membership was the old
+    exemption and it could not see a producer whose listing rule had
+    drifted: whatever a tail chose to list became allowed, so `literal`
+    could not go non-zero on a tail naming a value one cell holds --
+    which is exactly the blocker this landing's skeptic found. The
+    exemption is now the rule's own two conditions, asked from the
+    COLUMN's own cells: `taxonomy.tail_may_list` admits the tail, and
+    the value stands on at least `taxonomy.TAIL_SHARED_CELLS` of that
+    tail's cells. A tail the rule does not admit exempts nothing, and a
+    value it lists is counted as the leak it would be.
+
+    Returns the allowed values and how many tails published a list.
+    """
+    allowed = set()
+    listed = 0
+    cells = len(ordered)
+    distinct = len(set(ordered))
+    for side, key in (("low", "low_tail"), ("high", "high_tail")):
+        tail = block.get(key)
+        if not isinstance(tail, dict) or not tail.get("values"):
+            continue
+        listed += 1
+        rows = tail["rows"]
+        beyond = ordered[:rows] if side == "low" else ordered[cells - rows:]
+        held = {}
+        for cell in beyond:
+            held[cell] = held.get(cell, 0) + 1
+        if not taxonomy.tail_may_list(
+            [held[value] for value in sorted(held)], floor, distinct, cells
+        ):
+            # ...AND THE SECOND ROAD, on the producer's own terms: a
+            # tail of at most `TAIL_SETTLED_VALUES` values is settled by
+            # its own published rows and two distances, so what it lists
+            # the description names either way.
+            if len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES:
+                for value in tail["values"]:
+                    allowed.add(value)
+            continue
+        for value in tail["values"]:
+            if held.get(value, 0) >= taxonomy.TAIL_SHARED_CELLS:
+                allowed.add(value)
+    return allowed, listed
+
+
 def _outermost(cells, member, reading_at, floor, clock_form=""):
     """The `floor` outermost values of a column that the floor protects.
 
@@ -852,19 +932,22 @@ def _case(folder, shape, rows, seed):
         ),
     ]
     # WHAT A TAIL PUBLISHES ON PURPOSE IS NOT A LEAK (the owner's ruling
-    # of 2026-09-22, plan P4-D329): a tail holding few different values
-    # publishes them, existence only and never a count, and the report
-    # may print what the description publishes. Every OTHER outer value
-    # is what this counts -- in the description, in the summary and in
-    # either report.
-    allowed = set()
-    listed = 0
-    for side in ("low_tail", "high_tail"):
-        tail = block.get(side)
-        if isinstance(tail, dict) and tail.get("values"):
-            listed += 1
-            for value in tail["values"]:
-                allowed.add(value)
+    # of 2026-09-22, plan P4-D329) -- BUT ONLY WHERE THE RULE ADMITS IT
+    # (plan P4-D346). The exemption was MEMBERSHIP until this pass, so
+    # it moved with whatever the producer listed and could never catch a
+    # listing rule that had drifted. It is the rule's own conditions
+    # now: `_the_rule_allows`. Every OTHER outer value is what this
+    # counts -- in the description, in the summary and in either report.
+    allowed, listed = _the_rule_allows(
+        block,
+        _ordered_cells(
+            cells,
+            member,
+            block.get("datetimes_read_at", "local"),
+            block.get("clock_form", ""),
+        ),
+        FLOOR,
+    )
     # ...AND NEITHER IS THE MEMBER'S OWN FIXED EXAMPLE. The detection
     # evidence shows what the column's spelling LOOKS like -- "dates
     # written as 2024-03" -- and that text is a constant of the member,

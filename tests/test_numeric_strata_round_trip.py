@@ -219,7 +219,32 @@ SHAPES = [
 # mover is not, so it walks the points not whole to the free `38.5`,
 # five strata, the downward way being refused by the whole `37.0`. 32 + 2
 # = 34, the published count, so nothing is carried.
+#
+# AND ONE CASE IS CARRIED AGAIN, by plan P4-D346's listing rule. The
+# narrow spreadsheet column of 500 rows holds `38.5` ONCE, so its HIGH
+# tail names a value one row of the column holds and the rule refuses
+# that tail its list -- which is the disclosure the rule exists to stop.
+# The cost lands on the other side: `_listed_needs` gives the positive
+# band a stratum for every value a LISTED tail names, and with the high
+# tail saying its shape instead the band's share falls from ten to five,
+# so the low tail's own four values are no longer each a stratum of
+# their own and the twin misses `tails.low.values` at all three seeds.
+# Measured: the real table still passes its own description, no cell is
+# written outside the published census, and nothing else of the
+# seventy-three obligations moves. The assertion below turns red the
+# moment the share reaches the listed tail again.
 CARRIED_SHORT: "dict[tuple[str, int, str], int]" = {}
+
+# AND ONE CASE MISSES ONE OBLIGATION WITHOUT LOSING A NUMBER, carried
+# here by name for the reason above it. It is a different cost from
+# `CARRIED_SHORT`: the twin holds every one of its description's
+# numbers and still misses `tails.low.values`, so the two are counted
+# apart and neither hides the other.
+CARRIED_MISSED: "dict[tuple[str, int, str], tuple[str, ...]]" = {
+    ("spreadsheet_narrow", 500, "1"): ("numeric.tails.low.values",),
+    ("spreadsheet_narrow", 500, "7"): ("numeric.tails.low.values",),
+    ("spreadsheet_narrow", 500, "23"): ("numeric.tails.low.values",),
+}
 
 # ONE CASE COMES BACK ONE NUMBER OVER, AND IT IS CARRIED BY NAME
 # (integration repair). The 4,000-row column of changes writes nought as
@@ -336,7 +361,14 @@ def test_the_numeric_facts_come_back_from_the_twin(
             tmp_path / seed, cells, check_real=seed == SEEDS[0], seed=seed
         )
         short = CARRIED_SHORT.get((name, rows, seed), 0)
-        assert (twin_exit == 0) == (short == 0), (name, rows, seed, twin_exit)
+        owed = CARRIED_MISSED.get((name, rows, seed), ())
+        assert (twin_exit == 0) == (short == 0 and not owed), (
+            name, rows, seed, twin_exit
+        )
+        if owed:
+            assert set(_missed_facts(tmp_path / seed)) == set(owed), (
+                name, rows, seed, sorted(_missed_facts(tmp_path / seed))
+            )
         assert real_exit == 0, (name, rows, seed, "the real table missed")
         # THE MODE PAIR IS PUBLISHED WHERE THE COMMONEST NUMBER REACHES
         # THE FLOOR, and withheld whole below it.

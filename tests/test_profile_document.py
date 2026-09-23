@@ -502,7 +502,7 @@ def test_nothing_that_varies_between_runs_is_written(
 # publication notes shifting by one because `visits` gains the
 # histogram-withheld note. No key of any other role moved.
 GOLDEN_SHA256 = (
-    "4fcb7905c4c6f55a988c8d4fb67905a483a74aaf465e901ff67a45e8aa762492"
+    "161182641ec0f8fe7dd2f10f63b5698e4cf2bc6c2bad76bc9686acf3edaaefcd"
 )
 
 

@@ -224,8 +224,10 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
                 )
             lines += [
                 (
-                    f"      the values that end lies on: {shown} -- how "
-                    f"many rows hold each is not published"
+                    f"      the values that end lies on: {shown} -- the "
+                    f"description names which values, and how many rows "
+                    f"hold each follows from them and the distances "
+                    f"printed above"
                 )
             ]
     return lines

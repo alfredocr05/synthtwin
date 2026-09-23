@@ -223,10 +223,20 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
 # cross; `even-pressure-1500-seed-7` (real top 9, twin 11) is the one at
 # the row count the replaced case used, and it validates at exit 0 on
 # both files.
+# AND ONE WAS RE-CHOSEN A THIRD TIME AT PLAN P4-D346: one listing rule
+# now decides which tail of which role may name its values, and a
+# position of this column whose tail named a value one row of it holds
+# says its shape instead -- so a twin's repeats fall where the shape
+# puts them and `even-pressure-1500-seed-7` (twin top repeat 9) no
+# longer crosses. Searched the same way over 1,200 to 1,600
+# even-rounded rows at every data seed from 3 to 25:
+# `even-pressure-1500-seed-10` (real top 10, twin 11) is the one at the
+# row count the replaced case used, and it validates at exit 0 on both
+# files. `even-pressure-1400-seed-9` still crosses and is untouched.
 NEAR_THE_LINE = [
     ("pressure-5000-seed-3", "plain", 5000, 3, "3"),
     ("pressure-4500-seed-8", "plain", 4500, 8, "3"),
-    ("even-pressure-1500-seed-7", "even", 1500, 7, "3"),
+    ("even-pressure-1500-seed-10", "even", 1500, 10, "3"),
     ("even-pressure-1400-seed-9", "even", 1400, 9, "3"),
 ]
 

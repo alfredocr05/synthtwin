@@ -982,9 +982,15 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     # column of numbers (contract 6.7a), so the values its strata take
     # beyond each boundary are the tail's own rather than the outermost
     # readings, and the arrangement the walk starts from moves with
-    # them again. What this case is about -- that the walk names the
-    # moved position's OWN pairs -- is unchanged.
-    assert started == [21, 5, 0, 1, 1, 0], started
+    # them again. AND THREE CLOSER SINCE PLAN P4-D346: one listing rule
+    # now decides which tail of which role may name its values, and a
+    # position of this column whose tail names a value one row of it
+    # holds says its shape instead -- so the strata beyond that boundary
+    # take the shape's values and the arrangement starts three pairs
+    # nearer its target. What this case is about -- that the walk names
+    # the moved position's OWN pairs -- is unchanged, and so is every
+    # other seat.
+    assert started == [18, 5, 0, 1, 1, 0], started
 
     # WHAT EACH MOVABLE POSITION IS OWED: its own pairs' gaps, in the
     # order the walk's `moved` list builds them, which is seat order.
@@ -996,19 +1002,19 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
         ]
         for place in range(1, facts.n_parts)
     }
-    # The first entry moved from 18 to 17 with amendment A-P4-55 and
-    # from 17 to 21 with landing 3.3, for the reason the arrangement
-    # above did: the column's positions hold slightly different values
-    # now. The SHAPE this asserts -- which pairs belong to which
-    # position -- is untouched.
-    assert owed == {1: [21, 1, 1], 2: [5, 1, 0], 3: [0, 1, 0]}, owed
+    # The first entry moved from 18 to 17 with amendment A-P4-55, from
+    # 17 to 21 with landing 3.3, and back to 18 with plan P4-D346, for
+    # the reason the arrangement above did: the column's positions hold
+    # slightly different values now. The SHAPE this asserts -- which
+    # pairs belong to which position -- is untouched.
+    assert owed == {1: [18, 1, 1], 2: [5, 1, 0], 3: [0, 1, 0]}, owed
     # AND THE FIXTURE REALLY CAN TELL THE TWO APART, asserted instead
     # of assumed: a vector indexed by its own place in the moved list
     # reads the first three seats, and that is no position's pairs. A
     # column whose gaps happened to coincide would leave this test
     # vacuous without saying so.
     by_step = started[: facts.n_parts - 1]
-    assert by_step == [21, 5, 0], by_step
+    assert by_step == [18, 5, 0], by_step
     assert by_step not in owed.values(), (by_step, owed)
 
     assert marks, "the walk never consulted the acceptance rule"

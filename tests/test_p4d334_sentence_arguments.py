@@ -312,19 +312,26 @@ def test_the_fragment_is_capitalised_where_it_opens_a_sentence(
     assert "again. Fewer than 11 of its values are numbers wearing" in remarks
 
 
-def test_where_the_line_is_two_the_remark_is_withdrawn(
+def test_where_the_line_is_two_the_remark_keeps_its_warning_and_no_count(
     tmp_path: pathlib.Path,
 ) -> None:
     """"fewer than 2" beside "such cells exist" is a count of one.
 
-    At `--smallest-group 1` or 2 the census line is two, so the
-    fragment cannot say anything the digit did not. A remark whose
-    floored count falls there is not written at all.
+    At `--smallest-group 1` or 2 the census line is two, so NF60 cannot
+    say anything the digit did not. The remark used to be withdrawn
+    there; since the owner's ruling of 2026-09-23 (plan P4-D347) it
+    keeps its warning and drops the number, so NF61 stands instead --
+    true of the same cells, and carrying no argument to read.
     """
     document = battery.described(tmp_path, "numeric_one_grouped_comma", 1)
     remarks = " ".join(document["columns"][0]["remarks"])
-    assert "comma inside the number" not in remarks
-    assert "fewer than 2" not in remarks
+    assert "comma inside the number" in remarks, (
+        "the decimal-comma warning is withdrawn again at a line of two"
+    )
+    assert "fewer than 2" not in remarks, (
+        "'fewer than 2' is the count of one said in other words"
+    )
+    assert "some but not all" in remarks
 
 
 # -- the complement, and the fragment that names no number -------------
@@ -525,17 +532,22 @@ def test_the_sentence_a_block_cannot_lose_says_less_instead_of_the_digits(
     assert nested[1][0] == (taxonomy.SAID_SOME_BUT_NOT_ALL, ())
 
 
-def test_a_remark_whose_complement_falls_below_the_line_is_withdrawn(
+def test_a_remark_whose_complement_falls_below_the_line_keeps_its_warning(
     tmp_path: pathlib.Path,
 ) -> None:
-    """1,199 grouped prices beside one bare cell: the comma remark goes.
+    """1,199 grouped prices beside one bare cell: the warning stays, the count goes.
 
-    A remark CAN be withdrawn, and the rule of `sentences_at_the_line`
-    is that one which cannot be written is withdrawn rather than
-    reworded. THE COST IS REAL AND IS STATED IN THE CHANGELOG: this is
-    a load-bearing warning about 1,199 cells that may be a thousand
-    times their real size, and one ungrouped cell withdraws it. What
-    it buys is that no reader takes 1,200 - 1,199 off the block.
+    THE OWNER'S RULING OF 2026-09-23 (plan P4-D347). The remark was
+    withdrawn whole until this pass, and the cost was a load-bearing
+    warning about 1,199 cells that may be a thousand times their real
+    size, bought with the single ungrouped cell a reader would take off
+    the published `n_present`. The warning comes back with no number in
+    it, which costs nothing: NF61 carries no argument at all.
+
+    AND NOTHING CAN BE SUBTRACTED FROM IT, which is what the withdrawal
+    was for and is asserted here rather than assumed: no figure of the
+    remark's own text is 1,199 or 1,200, and the only numbers on the
+    line are the ones this repository's fixed prose carries.
     """
     document = battery.described(
         tmp_path, "numeric_all_but_one_grouped_comma", 11
@@ -543,9 +555,51 @@ def test_a_remark_whose_complement_falls_below_the_line_is_withdrawn(
     profile.check_publication(document)
     block = document["columns"][0]
     assert block["n_present"] == 1200
-    for remark in block["remarks"]:
-        assert remark.form != taxonomy.REMARK_GROUP_COMMAS
-        assert "1199" not in f"{remark}"
+    said = [
+        remark
+        for remark in block["remarks"]
+        if remark.form == taxonomy.REMARK_GROUP_COMMAS
+    ]
+    assert len(said) == 1, (
+        "the decimal-comma warning is withdrawn again on the shape the "
+        "owner ruled on"
+    )
+    text = f"{said[0]}"
+    assert "some but not all" in text
+    # NOTHING TO SUBTRACT, asserted twice over. First on the ARGUMENTS:
+    # every floored position either carries the fragment or carries a
+    # count whose complement against `n_present` is nought or reaches
+    # the line, which is `profile._floored_argument_is_bound`'s own
+    # test and the one the guard above just ran.
+    line = parsing.census_floor(11)
+    for place in range(taxonomy.NOTE_ARITY[taxonomy.REMARK_GROUP_COMMAS]):
+        argument = said[0].arguments[place]
+        if not isinstance(argument, int) or isinstance(argument, bool):
+            continue
+        rest = block["n_present"] - argument
+        assert rest == 0 or rest >= line, (
+            f"argument {place} of the warning is {argument}, and "
+            f"{block['n_present']} less it is {rest} -- the group the "
+            f"floor holds back, handed back in prose"
+        )
+    # And then on the TEXT: the same warning built from a DIFFERENT
+    # count in the same case -- 899 grouped cells of 900 beside one bare
+    # -- renders character for character alike. A sentence carrying a
+    # count of its column could not.
+    settings = taxonomy.Settings(small_cell_floor=11)
+    written = []
+    for grouped, present in ((1199, 1200), (899, 900)):
+        _evidence, kept = taxonomy.sentences_at_the_line(
+            taxonomy.note(taxonomy.EVIDENCE_NUMBERS, (present, present)),
+            [taxonomy.note(taxonomy.REMARK_GROUP_COMMAS, (grouped, 0))],
+            present,
+            settings,
+        )
+        written += [f"{kept[0]}"]
+    assert written[0] == written[1] == text, (
+        "the warning differs between 1,199 grouped cells of 1,200 and "
+        "899 of 900, so it is carrying a count of its column"
+    )
 
 
 def test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling(

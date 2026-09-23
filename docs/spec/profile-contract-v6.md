@@ -3299,8 +3299,9 @@ zeros on the left:
 
 > every value in this column is a whole number, and every one of them
 > sits in the band a computer writes a moment in time into when it
-> counts UNIT from the 1st of January 1970. Read that way this column
-> runs from «2»-«3»-«4» to «5»-«6»-«7». synthtwin read them as plain
+> counts UNIT from the 1st of January 1970. Read that way, and with the
+> outermost values at each end set aside, this column reaches from
+> «2»-«3»-«4» to «5»-«6»-«7». synthtwin read them as plain
 > numbers and describes them as a count of things. THIS SENTENCE
 > DECIDES NOTHING and moves nothing: no rule of synthtwin reads a
 > number as a moment in time, and no declaration makes one. It changes
@@ -3326,7 +3327,10 @@ converting the twin's column to dates the way the source column would
 be converted gives dates over the same span. What was missing was never
 fidelity; it was the person being told (residual R-P4-9).
 
-**Both ends are facts the block already publishes.** They are the
+**Both ends are facts the block already publishes, and since plan
+P4-D346 the sentence says which** -- "with the outermost values at each
+end set aside ... reaches from", because a tail boundary is not an end
+and "runs from" claimed the span the tail rule withholds. They are the
 outermost values the same block publishes, written a second way, so the
 sentence discloses nothing the description does not already hold. While
 that block's ladder publishes `min` and `max`, they are `min` and `max`.
@@ -3604,15 +3608,22 @@ whole column — so it adds no number to the document.
 for NF60's reason: NF29 argument 6 stands immediately after a full
 stop.
 
-**It is written only where the sentence cannot be withdrawn.** A remark
-whose floored count falls in this case is not written at all, on the
-same rule that withdraws a remark whose count is below the line. The
-one sentence a block may not lose is its detection evidence, so that is
-where this fragment stands. The cost of the withdrawal is real and is
-recorded rather than argued away: 1,199 comma-grouped prices beside one
-bare cell lose the decimal-comma warning entirely, and what buys that
-is the one cell a reader would otherwise take off the published
-`n_present`.
+**It is written in every sentence whose count falls in this case**
+(owner, 2026-09-23; plan P4-D347), and NO SENTENCE IS WITHDRAWN. It
+stood only in the one sentence a block may not lose -- its detection
+evidence -- while a remark in the same case was withdrawn whole, and
+the cost of that was real: 1,199 comma-grouped prices beside one bare
+cell lost the decimal-comma warning entirely, a warning that 1,199
+values may have been read as a thousand times their real size, bought
+with the one cell a reader would otherwise take off the published
+`n_present`. The owner ruled that the warning is worth more than the
+number, so the sentence keeps its place and this fragment stands where
+the count would have.
+
+**AND AT A CENSUS LINE OF TWO IT STANDS IN NF60'S PLACE.** A floored
+count that reaches either fragment is one or more, so "fewer than 2" is
+"one" said in other words; the withdrawal used to cover that case, and
+with no withdrawal left NF61 is what is true there.
 
 **The producer and this document have to agree about it, or an ordinary
 table becomes an internal fault.** Before the repair pass the producer
@@ -5767,24 +5778,46 @@ distance beside them: the values and the spread together settle how many
 cells hold each value, which is the count the floor protects (plan
 P4-D329, the owner's ruling of 2026-09-22).
 
-**WHICH TAIL MAY LIST ITS VALUES** (plan P4-D342). The owner's ruling of
-2026-09-22 is a ruling about BOUNDED SCALES WITH FEW VALUES -- "many
-people will be there and there is no big deal in knowing that it's
-there" -- so the producer lists a tail's values only where that premise
-holds of the column in front of it: one canonical text to a distance
-(below); every distance held by at least `taxonomy.TAIL_SHARED_CELLS`
-of the tail's cells, so that no listed value names one row; and the
-column's own different values, counted as ordinals in the unit DT4
-names, at most `taxonomy.TAIL_SET_VALUES` and standing under at least
-`taxonomy.TAIL_SHARED_CELLS` cells apiece on average -- or, whatever
-the column's grid, every value the tail would list held by at least the
-FLOOR's own number of cells, which is "many people are there" by the
-project's own measure of many. Quarters, months, any small fixed scale
-and any floor-sized heap meet it; a column of clock times, a column of
-days over years, and any fine grid do not, and publish their shape
-instead. The rule is the producer's; a description that lists values
-the floor would protect is not refused HERE, because a reader of a
-description cannot count the file's cells.
+**WHICH TAIL MAY LIST ITS VALUES -- THE ONE RULE, ASKED BY EVERY ROLE**
+(plans P4-D342 and P4-D346). The owner's ruling of 2026-09-22 is a
+ruling about BOUNDED SCALES WITH FEW VALUES -- "many people will be
+there and there is no big deal in knowing that it's there" -- so a tail
+lists its values only where that premise holds of the column in front
+of it:
+
+* every value it would list is held by at least
+  `taxonomy.TAIL_SHARED_CELLS` of the TAIL's own cells, so that no
+  listed value is one person's own; AND
+* the COLUMN's own different values -- as ordinals in the unit DT4
+  names on this role, and as numbers on the numeric one -- are at most
+  `taxonomy.TAIL_SET_VALUES` and stand under at least
+  `taxonomy.TAIL_SHARED_CELLS` cells apiece on average; OR every value
+  the tail would list is held by at least the FLOOR's own number of
+  cells, which is "many people are there" by the project's own measure
+  of many and needs no grid to say so.
+
+Quarters, months, any small fixed scale and any floor-sized heap meet
+it; a column of clock times, a column of days over years, and any fine
+grid do not, and publish their shape instead.
+
+**IT IS ONE FUNCTION AND ONE STATEMENT BECAUSE IT WAS TWO** (plan
+P4-D346). This role asked the premise and the numeric role asked none:
+it listed wherever a tail held at most six different values or its own
+shape would settle its end anyway, so a continuous column of 599 rows
+on a tenth-unit grid published 88.0 -- its own maximum, held by ONE row
+-- in the same block that withheld `percentiles.max`, and a second of
+609 rows listed five values whose counts in the column were 1, 1, 1, 1
+and 9. Both roles now ask `taxonomy.tail_may_list`, and this paragraph
+is the only statement of it: section 6.7a's listed tail says WHEN a
+tail the rule admits lists, and never whether it may.
+
+Each role keeps its own reason for listing once the rule admits it --
+at most `taxonomy.TAIL_FEW_VALUES` different values or a pinned lattice
+here, at most `taxonomy.TAIL_VALUES_MOST` or a pinned lattice on the
+numeric role -- and this role alone also asks for one canonical text to
+a distance (below). The rule is the producer's; a description that
+lists values the floor would protect is not refused HERE, because a
+reader of a description cannot count the file's cells.
 
 **ONE TEXT TO A DISTANCE, or no values at all.** A tail's values are
 published by DISTANCE, in the unit DT4 names, and on the SHARED clock a
@@ -6233,7 +6266,7 @@ changes.
 | `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
 | `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0 | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
 | `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0 | TL5 | the root-mean-square of the same distances, computed exactly and rounded once | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
-| `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block whose values stand on a grid, the tail's own different values, ascending, WITHOUT how many rows hold each; `[]` elsewhere | EXACT-OBSERVABLE: a file's own tail at that percent lists the same values |
+| `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block the listing rule admits whose values stand on a grid, the tail's own different values, ascending, and no count beside them; `[]` elsewhere | EXACT-OBSERVABLE and SILENT: the file's own tail at that percent lists the same values, and the file's values are never printed |
 | `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
 
 **Why the two ends are not published.** A `min` or a `max` is one row's
@@ -6266,17 +6299,31 @@ of the quotient.
 
 **A LISTED TAIL, and the owner's ruling it rests on** (2026-09-22). On
 a block whose values stand on a grid -- `integer_valued`, or one
-published fraction width -- a tail of few different values is published
-BY THOSE VALUES, without how many rows hold each. The owner ruled it
-for bounded scales: "we don't need to be worried about the tails ...
-many people will be there and there is no big deal in knowing that it's
-there." Without it the smooth reading of G5.3b rounded onto such a grid
-wrote values the scale does not have -- 11 on a pain score of 0 to 10 --
-and never wrote the scale's own end. A tail is also listed where its
-rows, its two distances, its boundary, the grid and the sign counts
-would otherwise leave one answer for its end (plan P4-D324): the
-description would then name that end in all but name, and naming it
-outright at least says so.
+published fraction width -- and that the listing rule of DT1 admits, a
+tail of few different values is published BY THOSE VALUES, with no
+count written beside them. The owner ruled it for bounded scales: "we
+don't need to be worried about the tails ... many people will be there
+and there is no big deal in knowing that it's there." Without it the
+smooth reading of G5.3b rounded onto such a grid wrote values the scale
+does not have -- 11 on a pain score of 0 to 10 -- and never wrote the
+scale's own end. A tail is also listed where its rows, its two
+distances, its boundary, the grid and the sign counts would otherwise
+leave one answer for its end (plan P4-D324): the description would then
+name that end in all but name, and naming it outright at least says so.
+
+**HOW MANY ROWS HOLD EACH LISTED VALUE FOLLOWS FROM WHAT IS PUBLISHED,
+AND THIS FILE SAID OTHERWISE** (plan P4-D346). The counts are not
+written down, and "not written down" is not the same as "not knowable":
+this package SHIPS the arithmetic that works them out, because the
+generator needs them -- `contract._listed_counts` takes the listed
+values, the boundary rung, the rows and the two distances and returns
+the count of each. Measured over the ordinal battery of plan P4-D346,
+22 of 22 listed tails: every count recovered exactly. What a listed
+tail therefore says is WHICH values the tail holds, and, to a reader
+who does the arithmetic the package itself does, how many rows hold
+each. That is what the owner accepted on 2026-09-22 for bounded
+scales, and it is why DT1's listing rule asks the premise of that
+ruling before any tail lists at all.
 
 **THE NUMERAL WAS STALE AGAIN, AND IS CORRECTED AGAIN** (landing 2b.18
 part 2). It read "twenty-six" while `contract.NUMERIC_KEYS` held

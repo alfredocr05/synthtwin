@@ -1092,13 +1092,50 @@ def test_a_description_without_person_columns_is_refused(
     )
 
 
+def _described_with_a_column_note(folder: pathlib.Path) -> "dict[str, object]":
+    """The population-floor table with one column that carries a note.
+
+    The fourth column holds eight readings among a hundred rows, which
+    is fewer than one tail's own rows, so its block publishes no rung,
+    no moment, no histogram and no bin group -- and says in words that
+    the shape of its numbers is not published (NF49).
+    """
+    from synthtwin import reading
+
+    rows = _rows(parsing.POPULATION_FLOOR, None)
+    wider = []
+    for place in range(len(rows)):
+        reading_cell = f"{place + 1}.5" if place < 8 else ""
+        wider += [list(rows[place]) + [reading_cell]]
+    table = fixtures.write(
+        folder,
+        "clinic.csv",
+        fixtures.rows_to_csv(
+            ["subject_id", "site", "score", "spare"], wider
+        ),
+    )
+    settings = taxonomy.Settings()
+    read = reading.read_table(
+        f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+    )
+    return profile.build_document(read, settings, [])
+
+
 def test_the_loader_refuses_a_table_wide_note_after_a_column_s(
     tmp_path: pathlib.Path,
 ) -> None:
     """Invariant S11: a note about the table comes before every column's."""
     folder = tmp_path / "s11"
     folder.mkdir()
-    document = _described(folder, parsing.POPULATION_FLOOR)
+    # A COLUMN NOTE HAS TO BE THERE TO PUT A TABLE-WIDE ONE AFTER, and
+    # the one this shape used to carry was a FALSE one: every numeric
+    # block of it published its histogram as `bin_groups` and said the
+    # shape of its numbers was not published (NF49, plan P4-D346). So
+    # the shape carries a fourth column that genuinely publishes no
+    # shape at all -- eight readings among a hundred rows, fewer than
+    # one tail's own rows, so the block withholds its ladder, its
+    # moments and its groups alike and says so in words.
+    document = _described_with_a_column_note(folder)
     notes = document["publication_notes"]
     assert isinstance(notes, list) and notes, (
         "this shape needs at least one column note to put a table-wide "

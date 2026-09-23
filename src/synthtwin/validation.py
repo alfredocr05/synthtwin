@@ -1180,6 +1180,26 @@ _NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE = (
     "      publishes.",
 )
 
+# THE FOURTH, which this pass added (plan P4-D346). A LISTED tail's
+# values were compared by printing the file's own list beside the
+# description's -- which prints numbers of the file that one row may
+# hold apiece and, on the high side, the file's own largest. The note
+# above promises that no such value is printed under any verdict, and
+# the date and clock role had always kept its own listed values back;
+# this is the same withholding for the numeric one.
+_NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE = (
+    "      the values this file's own tail holds are NOT SHOWN here,",
+    "      and this is why: they are numbers of the file, the outermost",
+    "      of them its smallest or its largest, and a tail may stand one",
+    "      row on a value -- and no such value is printed in this report",
+    "      under any verdict, which is what lets one report be handed to",
+    "      a person who does not hold that file. The comparison above",
+    "      was made in full and the verdict is its outcome; only the",
+    "      measured side is kept back. To read them, describe the file",
+    "      itself with `synthtwin profile` and read the tail that",
+    "      description publishes.",
+)
+
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
     "      what this file holds here is NOT SHOWN, and this is why: it",
     "      is a number counted in the file, and this obligation is",
@@ -12276,8 +12296,10 @@ def _tail_checks(
     distance at the published percent in its description, and the check
     is withheld. HELD where the file's number equals the published one
     (V6.1-A1), otherwise inside G12.13's window. A LISTED tail's values
-    are exact: the file's tail lists the same values, or -- where the
-    list is short enough that the file would list its own -- misses.
+    are exact AND SILENT: the comparison is whether the file's tail
+    lists the same values -- or, where the list is short enough that the
+    file would list its own and it lists none, a miss -- and the file's
+    own values never leave this module (plan P4-D346).
     """
     tails = facts.tails
     if tails is None or tails.low is None or tails.high is None:
@@ -12324,20 +12346,31 @@ def _tail_checks(
                 )
             ]
         if side.values:
+            # THE MEASURED SIDE IS WITHHELD, THE VERDICT IS NOT (plan
+            # P4-D346). This line used to print the FILE's own tail
+            # values -- values a row may hold alone, the outermost of
+            # them the file's own end -- beside the description's, which
+            # is the one thing `_NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE`
+            # promises never happens under any verdict. The comparison
+            # is made in full and only what the file holds is kept back,
+            # exactly as the date and clock role has always done it
+            # (`_date_tail_checks`) and as the heaped end beside this
+            # one does.
             wanted = _shown_values(side.values)
-            listed: "str | None" = None
+            listed: "bool | None" = None
             if found is not None:
                 if found[3]:
-                    listed = _shown_values(found[3])
+                    listed = _shown_values(found[3]) == wanted
                 elif len(side.values) <= taxonomy.TAIL_VALUES_MOST:
-                    listed = "values the description does not list"
+                    listed = False
             checks += [
-                _exact(
+                _silent(
                     column.name,
                     f"numeric.tails.{name}.values",
                     f"tails.{name}.values",
                     wanted,
                     listed,
+                    _NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE,
                 )
             ]
     return checks

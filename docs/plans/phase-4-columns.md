@@ -20423,3 +20423,116 @@ pins it is the round trip
 which withdraws the step and reads the counts and the mean off the
 twin. `K-S3-09` holds that same column's count of ones and its mean,
 and `K-S3-10` holds the histogram the groups keep at a raised floor.
+
+### P4-D346 One listing rule, asked by every role
+
+**The decision.** `parsing.tail_may_list` is the only statement of when
+a tail may publish the values it holds, and both the date/clock role
+(`taxonomy._tail_side`) and the numeric role (`taxonomy._listed_tail`)
+ask it. It is the premise of the owner's ruling of 2026-09-22, read as
+that ruling's own condition: every value the tail would list is held by
+at least `parsing.TAIL_SHARED_CELLS` of the tail's cells, AND the
+column's values are a small fixed set -- at most
+`parsing.TAIL_SET_VALUES` different ones standing under at least
+`parsing.TAIL_SHARED_CELLS` cells apiece on average -- OR every listed
+value is held by the floor's own number of cells.
+
+**Why one function.** The two roads were written apart and drifted. The
+date road had carried the premise since P4-D342; the numeric road had
+none, and listed wherever a tail held at most six different values or
+its own shape would settle its end anyway. Measured: a continuous
+column of 599 rows on a tenth-unit grid published `88.0` -- its own
+maximum, held by ONE row -- in the same block that withheld
+`percentiles.max`, and a second of 609 rows listed five values whose
+counts in the column were 1, 1, 1, 1 and 9. Both are closed by the
+rule; neither column is a bounded scale and the owner's ruling reaches
+neither.
+
+**The second road, and what it may say.** A tail whose published rows
+and two distances settle its own outermost value names that value
+either way, so listing it is the reading that says LESS. On a column
+the rule does not admit, that road is open only to a tail of at most
+`parsing.TAIL_SETTLED_VALUES` different values: two distances stand
+under two counts that add to `rows`, so the pair settles both and the
+list adds nothing. Eleven all-different clock times are not settled
+that way -- their pair settles the outermost and leaves the rest of the
+multiset open by tens of thousands -- which is why that road is closed
+to them and the blocker of the date landing's skeptic stays closed.
+
+**MEASURED, BEFORE AND AFTER**, at a floor of eleven, over six bounded
+clinical scales, four measured columns, three fine-grid columns and
+eight continuous witnesses.
+
+| shape | rows | before | after |
+|---|---|---|---|
+| pain 0-10, GCS, a surgical risk grade, Apgar, children, Likert | 1,800 | both sides list | both sides list |
+| the same six | 900 | both sides list | seven of twelve sides list; five say their shape |
+| whole-year ages | 2,000 and 5,000 | both sides list | both sides list |
+| whole-year ages | 600 | both sides list | neither side lists |
+| normal, lognormal, Pareto charges | 600 | neither lists | neither lists |
+| continuous, one place, 599 rows | 599 | neither lists | neither lists |
+| continuous, two places, 609 rows, nine cells tied at the top | 609 | the high side lists `87.54, 87.8, 89.21, 90.68, 99.99`, held by 1, 1, 1, 1 and 9 cells | neither lists |
+| 640 readings to two places, each tail 13 cells over 3 values held 5, 5 and 3 | 640 | both sides list | neither lists |
+
+**WHAT THE REFUSAL COSTS, and it is stated rather than argued away.**
+On the six scales at 900 rows, where a scale's own outer step stands on
+one cell: the Glasgow coma twin writes 13 cells of 900 outside the 3-to-15
+scale against 0 before, the 600-row age twin 7 to 9 of 600 against 0 to
+2, and the children count's twin mean moves from 0.82 per cent below
+the table's to 2.71 per cent above. Every twin still writes the
+column's own smallest and largest value, and no twin or real table of
+the battery misses a checkable obligation. At 1,800 rows and above --
+the size at which every one of these scales holds its outer steps on
+two cells or more -- every one of the twelve sides lists, no twin cell
+stands outside the scale, and the twins' means are within 0.52 per
+cent. The trade is the twin's definition of 2026-09-12: a value held by
+one person is that person's value, and the description may not name it.
+
+**The counts of a listed tail are recoverable, and five places said
+otherwise.** This package SHIPS the arithmetic -- `contract._listed_counts`,
+which the generator needs -- and over the ordinal battery it recovered
+22 of 22 listed tails' counts exactly. What a listed tail publishes is
+WHICH values the tail holds and no written count; how many rows hold
+each follows from those values and the distances beside them. The
+sentences that claimed otherwise are corrected in `README.md`,
+`SECURITY.md`, `CHANGELOG.md`, `docs/spec/profile-contract-v6.md` 6.7a,
+`src/synthtwin/summary.py` and `src/synthtwin/quality.py`.
+
+**And the solver counts from the rule's own number.** A tail of more
+than `TAIL_SETTLED_VALUES` values was listed because the rule admitted
+it, and the rule admits only a tail every value of which stands on at
+least `TAIL_SHARED_CELLS` cells -- so the twin's own tail must too, or
+`tails.<side>.values` MISSES on a twin holding every value the
+description named. Measured on a count of children at 1,800 rows: the
+solver chose 9 -> 1 against a real 9 -> 2, and the twin missed.
+
+### P4-D347 A warning whose count is withheld keeps the warning
+
+**The owner's ruling of 2026-09-23.** A remark whose count would hand
+back a withheld cell KEEPS ITS WARNING AND DROPS THE NUMBER. It is not
+withdrawn.
+
+**What it replaces.** P4-D334 withdrew such a remark whole, on the
+argument that its subject WAS the count. The shape that argument was
+written against is what it cost: 1,199 comma-grouped prices beside one
+bare cell lost the decimal-comma warning entirely -- a load-bearing
+warning that 1,199 values may have been read as a thousand times their
+real size -- and what bought the silence was the single ungrouped cell
+a reader would otherwise take off the published `n_present`.
+
+**What it says instead.** `said_some_but_not_all` (NF61), the fragment
+built for the one sentence that could not be withdrawn. It carries no
+argument at all, so there is nothing in it to subtract. Two further
+consequences follow from the same ruling: `taxonomy._sentence_at_the_line`
+no longer takes a `may_drop` flag, because no sentence is withdrawn;
+and at a census line of two, where "fewer than 2" is the count of one
+said in other words, NF61 stands in NF60's place -- the withdrawal used
+to cover that case and no longer does.
+
+**Proved on the owner's own shape**
+(`tests/test_p4d334_sentence_arguments.py`): the warning is printed on
+the 1,199-cell column; every floored argument of it is either the
+fragment or a count whose complement against `n_present` is nought or
+reaches the line; and the same warning built from 899 grouped cells of
+900 renders character for character alike, which a sentence carrying a
+count of its column could not.

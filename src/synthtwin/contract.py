@@ -11688,14 +11688,26 @@ def _listed_counts(
 ) -> "tuple[int, ...]":
     """How many rows each listed value holds (method G5.3e).
 
-    Every listed value holds at least one row, and the `R = rows - L`
-    rows over hold at most THREE of the values between them. Among all
-    such counts, the chosen ones make the tail's summed distance nearest
-    `rows * d1`, then its summed squared distance nearest `rows * rms**2`
-    -- both compared EXACTLY, every binary64 a whole number of one shared
-    power of two -- and a tie goes to the counts that are smallest
-    lexicographically, the outermost value first. ``listed`` is
-    outermost first.
+    Every listed value holds at least `least` rows, and the
+    `R = rows - L * least` rows over hold at most THREE of the values
+    between them. Among all such counts, the chosen ones make the tail's
+    summed distance nearest `rows * d1`, then its summed squared
+    distance nearest `rows * rms**2` -- both compared EXACTLY, every
+    binary64 a whole number of one shared power of two -- and a tie goes
+    to the counts that are smallest lexicographically, the outermost
+    value first. ``listed`` is outermost first.
+
+    THE FLOOR UNDER EACH COUNT IS THE LISTING RULE'S OWN (plan P4-D346).
+    A tail of more than `parsing.TAIL_SETTLED_VALUES` values was listed
+    because the rule ADMITTED it, and the rule admits a tail only where
+    every value it names stands on at least `parsing.TAIL_SHARED_CELLS`
+    of its cells -- so a twin that stood one row on one of them would be
+    a twin the same rule refuses to list, and `tails.<side>.values`
+    MISSED on it although the twin held every value the description
+    named. Measured on a count of children at 1,800 rows: the solver
+    chose 9 -> 1 against a real 9 -> 2, and the twin missed. Counting
+    from the rule's own number is also closer to the truth, because the
+    real counts are all at least that.
 
     Each set of three is searched along the rows over given to its first
     value, with the second value's share at the whole number either side
@@ -11703,11 +11715,14 @@ def _listed_counts(
     the number of such sets times `R`.
     """
     count = len(listed)
-    extra = rows - count
     if count == 0:
         return ()
+    least = 1
+    if count > parsing.TAIL_SETTLED_VALUES and rows >= count * parsing.TAIL_SHARED_CELLS:
+        least = parsing.TAIL_SHARED_CELLS
+    extra = rows - count * least
     if count == 1 or extra <= 0:
-        return tuple([1 + max(extra, 0)] + [1] * (count - 1))
+        return tuple([least + max(extra, 0)] + [least] * (count - 1))
     pairs = [math.frexp(value) for value in listed] + [
         math.frexp(boundary),
         math.frexp(mean),
@@ -11719,8 +11734,8 @@ def _listed_counts(
     squares = [distance * distance for distance in distances]
     target = rows * _on_base(mean, base)
     target_squares = rows * _on_base(root, base) * _on_base(root, base)
-    ones = sum(distances)
-    ones_squared = sum(squares)
+    ones = least * sum(distances)
+    ones_squared = least * sum(squares)
     best: "tuple[int, int, tuple[int, ...]] | None" = None
     trios: "list[tuple[int, int, int]]" = []
     if count == 2:
@@ -11758,8 +11773,8 @@ def _listed_counts(
                 if best is None or key < best:
                     best = key
     if best is None:
-        return tuple([1 + extra] + [1] * (count - 1))
-    return tuple([1 + more for more in best[2]])
+        return tuple([least + extra] + [least] * (count - 1))
+    return tuple([least + more for more in best[2]])
 
 
 def _tail_ramp(facts: NumericFacts) -> ShapedLadder:

@@ -6,6 +6,112 @@ exists).
 
 ## [Unreleased]
 
+### Stage 3's close: one listing rule, and six sentences that were not true (2026-09-23)
+
+**ONE RULE DECIDES WHICH TAIL MAY LIST ITS VALUES, and every role asks
+it** (plan P4-D346). `parsing.tail_may_list` is the whole statement of
+the owner's ruling of 2026-09-22 and of its premise: a tail lists only
+where every value it would name stands on at least two of that tail's
+cells AND the column's values are a small fixed set -- at most 256
+different ones, standing under at least two cells apiece on average --
+or where every listed value is held by a whole smallest group. The date
+and clock role had carried that premise since P4-D342 and the numeric
+role had carried none, so the two drifted: a continuous column of 599
+rows on a tenth-unit grid published `88.0`, its own maximum held by ONE
+row, in the same block that withheld `percentiles.max`, and a second of
+609 rows listed five values whose counts in the column were 1, 1, 1, 1
+and 9. Both are closed. A tail the rule does not admit may still list
+where its own published rows and two distances SETTLE what it would
+name -- at most two different values, which the pair leaves one
+arithmetic for -- because the description names those either way.
+
+| at a floor of eleven | before | after |
+|---|---|---|
+| six bounded scales at 1,800 rows: tail sides listing | 12 of 12 | 12 of 12 |
+| the same six at 900 rows, where a scale's top step is one cell | 12 of 12 | 7 of 12 |
+| whole-year ages at 2,000 and 5,000 rows | both sides | both sides |
+| continuous columns, 600 to 640 rows | none | none |
+| 609-row column listing `87.54, 87.8, 89.21, 90.68, 99.99` | listed | says its shape |
+| 640 readings on a hundredth grid, every tail value shared | listed | says its shape |
+| twin cells outside a Glasgow coma scale, 900 rows | 0 | 13 of 900 |
+| twin cells outside an age column, 600 rows | 0 to 2 | 7 to 9 of 600 |
+| a count of children at 900 rows: the twin's mean | -0.82% | +2.71% |
+
+The cost is stated rather than argued away, and it is paid only where a
+scale's own outer step stands on ONE cell: at 1,800 rows and above every
+one of these scales lists both sides, writes no cell outside itself and
+keeps its mean within 0.52 per cent. Every twin still writes the
+column's own smallest and largest value, and nothing of the battery
+misses a checkable obligation.
+
+**THE COUNTS OF A LISTED TAIL ARE RECOVERABLE, and six places said they
+were not.** This package SHIPS the arithmetic that works them out --
+`contract._listed_counts`, which the generator needs -- and over the
+ordinal battery it recovered 22 of 22 exactly. `README.md`,
+`SECURITY.md`, this file, the contract's 6.7a, `summary.py` and
+`quality.py` said "without how many rows hold each" and "never with a
+count beside them"; they say what is true now: a listed tail names WHICH
+values it holds and writes no count, and how many rows hold each follows
+from those values and the distances beside them -- which is what the
+owner accepted for bounded scales, and why the rule asks first whether
+the column is one.
+
+**`synthtwin validate` no longer prints the checked file's own tail
+values.** A missed `tails.<side>.values` printed the file's list beside
+the description's -- values a row may hold alone, the outermost of them
+the file's own end -- which is the one thing the report's own note
+promises never happens under any verdict. The comparison is made in full
+and the measured side is kept back, as the date and clock role has
+always done it. The reason is a fourth constant of `validation.py`, and
+`tests/test_p3v12f2_a_miss_says_what_it_found.py` holds every one of the
+four to the same bar.
+
+**NF49 WAS A LIVE FALSE SENTENCE.** A tail block publishes its histogram
+as `bin_groups` and leaves `value_histogram` empty on purpose, and the
+note "the shape of this column's numbers is not published" asked only
+the empty key -- so the demonstration's `visits`, `reading` and `amount`
+each published 9 to 14 bin groups AND said their shape was not
+published. The note asks both keys now, and a test fails on any block
+that publishes groups and says otherwise.
+
+**THE GUARD AND THE HEADLINE KPI COULD NOT SEE EITHER.** Both exempted a
+listed value because the tail had listed it, so neither could fail on a
+listing rule that had moved; the exemption is the rule's own conditions
+now, asked from the column's own cells. `tests/test_stage3_tail_rule.py`
+no longer skips `tails.*.values` by its path, and where it reads a
+page it tells a VALUE from a distance and from a construction window,
+each with the reason written beside it.
+
+**`K-S3-11`'s `edge_pinned` IS CLOSED, not accepted** (plan P4-D346). On
+an all-different clock column the two published distances, the day's
+edge and the column's own "every value different" remark left ONE
+multiset -- naming all eleven outermost times including the column's
+minimum. The boundary now moves inward while the pair still settles the
+tail, which DT2 allows, and the walk that decides it must PROVE the
+tail settled inside its budget. Four sides of the battery moved, 11 rows
+withheld per side becoming 15 or 17 of 900, and `edge_pinned` is **4 to
+0** with `literal`, `pinned` and `missed` still nought.
+
+**A WARNING WHOSE COUNT IS WITHHELD KEEPS THE WARNING** (owner,
+2026-09-23; plan P4-D347). P4-D334 withdrew such a remark whole, and
+1,199 comma-grouped prices beside one bare cell lost the decimal-comma
+warning entirely. The warning is back with no number in it -- NF61,
+which carries no argument at all -- and no sentence is withdrawn any
+more. At a census line of two, where "fewer than 2" is the count of one
+in other words, NF61 stands in NF60's place.
+
+**The time-band remark says what it reads.** It rendered "this column
+runs from X to Y" off the two tail boundaries, which understates the
+span now that the ends are withheld; it says "with the outermost values
+at each end set aside, this column reaches from X to Y". Its arity,
+its seven argument classes and every other clause are unchanged.
+
+**K-2B-47's refusal is a key now.** Two of its keys were nought by
+construction whenever `build_document` refused the low-floor read, with
+nothing structured saying so, so neither could ever fail again.
+`read_floor_refused` says which of the two states the nought means.
+
+
 ### Merged: stage 3's five landings in one tree (2026-09-23)
 
 **Nothing new is built here.** Stage 3 was built as five landings on
@@ -121,10 +227,11 @@ the outermost max(`--smallest-group`, 3) values, on each side, and
 publishes what those rows look like as a GROUP instead: how many there
 are, how far from the last published rung they lie on average, the
 root-mean-square of that distance, and -- on a column whose values stand
-on a grid and whose tail holds a handful of them -- the tail's own
-values, without how many rows hold each (contract 6.7a, method G5.3b to
-G5.3e; plans P4-D322 to P4-D327 and P4-D344). An end is still published where a
-group of at least that many rows holds it.
+on a grid, whose tail the listing rule admits and which holds a handful
+of them -- the tail's own values, with no count written beside them
+(contract 6.7a, method G5.3b to G5.3e; plans P4-D322 to P4-D327,
+P4-D344 and P4-D346). An end is still published where a group of at
+least that many rows holds it.
 
 | on sixteen shapes at a floor of eleven                    | before | after |
 |-----------------------------------------------------------|--------|-------|
@@ -556,7 +663,7 @@ below it, mirrored above -- the count of rows beyond it, and how far
 those rows stand, as a mean and a root-mean-square distance in the
 column's own `tail_unit`. A tail holding few different values, or one
 whose two distances would settle a count below the floor, publishes
-those values instead, existence only and never a count -- but only
+those values instead, with no count written beside them -- but only
 where EVERY value it would list is shared by at least two of its cells
 and the column's own values come from a small fixed set rather than a
 fine grid, or where every listed value is held by the floor's own
@@ -631,10 +738,12 @@ quarters column at 400 rows and a months column at 1,500, and those are
 the two places where the real table meets an obligation by holding the
 published value exactly and the window around it is no help. And how many tails the published pair settles to ONE arithmetic
 once a reader also uses the column's own all-different remark and the
-tail's own edge: 4, every one of them a side of an all-different clock
-column of 900 rows whose tail is pressed against the end of the day.
-That last number is the landing's stated residual and it is on the
-board so the next ruling is made on a measurement, not on a claim. A
+tail's own edge: 4 when this was written, every one of them a side of
+an all-different clock column of 900 rows whose tail is pressed against
+the end of the day. **That number is 0 since plan P4-D346**, which
+moves such a boundary inward until the pair no longer settles the tail;
+what stands here is what it was, so that the entry above can be read
+against it. A
 fifth, `unsearched`, says where the measurement itself could not
 finish: 35 tails counted in SECONDS, whose sums run past what an
 exhaustive walk can enumerate, so their room is not measured rather

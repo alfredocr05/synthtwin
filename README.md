@@ -133,17 +133,23 @@ mirror at the other end -- so the rarest dates in the column, a date of
 death or a birthday at the edge of a cohort, are not written down. An
 end AT LEAST ELEVEN ROWS SHARE is published as itself, because it is a
 value of a group and not of a person. And a tail may be described by
-the values it holds instead of by its shape, without how many rows hold
-each -- the two rules differ, and each is stated where it applies. A
-column of NUMBERS lists a tail standing on a published grid where the
-tail holds no more than six different values, or where its shape would
-otherwise settle its outermost value anyway, so the list says less than
-the shape would. A column of DATES or CLOCK TIMES lists one only where
-every value it would list is held by at least two of its cells and the
-column's dates come from a small fixed set rather than a fine grid --
-quarters, months, a scale a reader could enumerate; a tail whose dates
-are one row's own apiece, and any column of clock times or of days
-spread over years, is described by its shape and never by a list.
+the values it holds instead of by its shape. **ONE RULE decides that,
+and it is the same rule for numbers, dates and clock times**: a tail
+lists only where every value it would list is held by at least two of
+its own cells AND the column's values come from a small fixed set
+rather than a fine grid -- quarters, months, a pain score, a grade, a
+scale a reader could enumerate -- or where every listed value is held
+by a whole smallest group. A tail whose values are one row's own
+apiece, a column of clock times, a column of days spread over years and
+any fine numeric grid are described by their shape and never by a list.
+Where the rule admits a tail, each kind of column has its own reason to
+list: a handful of different values, or a shape that would settle the
+tail's outermost value anyway, so that the list says less than the
+shape would. A listed tail writes down no count -- and how many rows
+hold each of its values follows from those values and the distances
+beside them, which is arithmetic this package itself does to build your
+twin. That is what the owner accepted for bounded scales, and it is
+why the rule asks first whether the column is one.
 **By default no label fewer than eleven rows held is named**:
 synthtwin pools every group under eleven rows into a count that names
 none of them, so a label rarer than that does not reach your twin by

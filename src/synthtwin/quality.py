@@ -766,8 +766,9 @@ _LISTING_WORDS = {
         "what says how spread out they are"
     ),
     "numeric.tails.low.values": (
-        "which values the smallest rows of your column lie on, without "
-        "saying how many rows hold each"
+        "which values the smallest rows of your column lie on; how many "
+        "rows hold each is not written down here and follows from those "
+        "values and the two distances beside them"
     ),
     "numeric.tails.high.mean_distance": (
         "how far the largest values of your column lie, on average, "
@@ -779,8 +780,9 @@ _LISTING_WORDS = {
         "what says how spread out they are"
     ),
     "numeric.tails.high.values": (
-        "which values the largest rows of your column lie on, without "
-        "saying how many rows hold each"
+        "which values the largest rows of your column lie on; how many "
+        "rows hold each is not written down here and follows from those "
+        "values and the two distances beside them"
     ),
     "numeric.bin_groups": (
         "the shape of your numbers between the two ends of the "

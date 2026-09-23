@@ -381,6 +381,7 @@ with tempfile.TemporaryDirectory() as folder:
     # recorded as REFUSED, which is what "unchecked" became.
     documents = []
     refused = ""
+    refused_at: "list[int]" = []
     for read_at in (1, 11):
         try:
             documents += [
@@ -394,6 +395,7 @@ with tempfile.TemporaryDirectory() as folder:
             ]
         except errors.ProfileError as stopped:
             refused = f"read at {read_at}: {type(stopped).__name__}"
+            refused_at += [read_at]
             break
 
     def leaves(node, path=""):
@@ -422,18 +424,35 @@ with tempfile.TemporaryDirectory() as folder:
     # no description this defect could produce would ever fail it. The
     # COUNT of facts that move can rise; the boolean is kept beside it as
     # the report-only indicator it always was.
+    # AND THE REFUSAL IS A KEY, NOT A SILENCE (plan P4-D346). The two
+    # keys above are nought whenever the product refuses either read --
+    # they are counts over a description that was never written -- so
+    # for as long as the refusal was carried by a local string and a
+    # line of free text, neither could ever fail again and nothing said
+    # which of the two states the nought meant. `read_floor_refused`
+    # says it: 1 where the guard of plan P4-D317 stopped the low-floor
+    # read, which is the behaviour that closed this hole and must stay,
+    # and 0 where both descriptions were written and the two counts
+    # above are real measurements.
     value.update(
         read_floor_facts_differing=len(differing),
+        read_floor_refused=1 if refused_at == [1] else 0,
         read_floor_unchecked=0
         if refused or len(documents) < 2
         else int(documents[0] != documents[1]),
     )
     details.append(
-        f"read floor: described at 11, {refused} -- no description was written"
+        f"read floor: described at 11, {refused} -- no description was "
+        f"written, read_floor_refused=1"
+        if refused_at == [1]
+        else f"read floor: described at 11, {refused} -- the describing "
+        f"floor's own read was refused, which plan P4-D317 does not ask "
+        f"for, read_floor_refused=0"
         if refused
         else (
             f"read floor: described at 11, read at 1 and at 11 differ in "
-            f"{len(differing)} published facts: {differing}"
+            f"{len(differing)} published facts: {differing}, "
+            f"read_floor_refused=0"
         )
     )
 

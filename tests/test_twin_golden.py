@@ -1616,7 +1616,24 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # going null, plus the publication notes shifting by one because a
     # numeric column gains the histogram-withheld note. No key of any
     # other role moved.
-    "d8da9bd27430f7cb46fb8c80be49f06a0eceb722155f8e704b71d1b20ab62275"
+    # AND RE-RECORDED BY PLAN P4-D346 AND P4-D347 (2026-09-23), read as
+    # a diff against the tree above before it was written. THE
+    # DESCRIPTION loses exactly three leaves and gains none: the false
+    # `histogram_publishes_no_shape` note on `visits`, `reading` and
+    # `amount`, each of which published 9 to 14 bin groups while saying
+    # its shape was not published (NF49). No other key of any role
+    # moved. THE TWIN moves 44 cells, every one the second number of the
+    # joined blood-pressure column: `contract._listed_counts` now gives
+    # each value of a listed tail at least the listing rule's own number
+    # of rows, so the twin's own tail is one that rule would list too.
+    # THE REPORT moves the same column's construction windows, which
+    # narrow with the counts. THE QUALITY REPORT holds four more exact
+    # obligations -- the four joined `tails.*.rms_distance`, met by
+    # equality now rather than inside a window -- carries the same two
+    # missed ones, and prints six fewer "was found to hold" lines,
+    # every one a `tails.*.values` whose measured side is withheld from
+    # this pass on.
+    "52869e7e4cf908734d3f658bbd52729850638fe1ac425149a91685732c31ecbd"
 )
 
 
@@ -1847,7 +1864,7 @@ GOLDEN_TWIN_SHA256 = (
     # record-number column is byte-identical. That is the numeric tail
     # rule and nothing else: those four columns are built from a ladder
     # that no longer runs to two published extremes.
-    "4da142656dbb63eeee8ec5067adf0542a96b9a4607aceccf7544d7cd804329d7"
+    "8576737eb71277d2ebf346e97cc29adbfe87c5c9e8da38b2b83f08410d375399"
 )
 
 
@@ -2417,7 +2434,7 @@ GOLDEN_REPORT_SHA256 = (
     # against a published 57. The report NAMES that miss rather than
     # losing it, which is what this digest is read for; no line the
     # report used to carry was dropped.
-    "8685f6b295ad96f51d75f0cdbd4c4be66f376bc6cd600a660d51c1559d27420f"
+    "b753aa3677dc116f30323eeb914a04afbf704dadaf4be21074762b793198e31f"
 )
 
 
@@ -3159,7 +3176,7 @@ GOLDEN_QUALITY_SHA256 = (
     # other way: `number 1 ladder.p95` and `number 2 ladder.p95` on
     # `pressure` and `ladder.p25` on `reading`, where the ladder the
     # tail rule leaves puts the twin on the published rung exactly.
-    "5820fcf7b67af3473c90414f5b538c2e99b52ae13a819fffc205339cdd72722d"
+    "0d99c61a3ded9b2a9e952da8e9d6aec8b75f32aa5033463e3333a61234f61b36"
 )
 
 

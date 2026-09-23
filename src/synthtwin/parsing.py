@@ -6657,6 +6657,101 @@ def tail_units(floor: int) -> int:
     return max(floor, TAIL_MINIMUM)
 
 
+# HOW MANY CELLS SHARE A VALUE BEFORE IT IS NOBODY'S OWN (plan P4-D342).
+# Two, read twice: no value a tail lists is held by fewer than this many
+# of that tail's cells, and the column's own values are shared by at
+# least this many cells apiece on average. One cell is one person, and
+# the owner's ruling does not reach it.
+TAIL_SHARED_CELLS = 2
+
+# THE LARGEST VOCABULARY A COLUMN MAY HAVE for its tails to publish
+# values rather than a shape (plan P4-D342): a bounded scale a reader
+# could enumerate -- quarters over sixty-four years, months over
+# twenty-one, a pain score, a stage, a grade -- and not a fine grid. A
+# column of days over three years holds about eleven hundred different
+# values and publishes its shape; one of days over eight months holds
+# about two hundred and forty, and many rows stand on each of them.
+TAIL_SET_VALUES = 256
+
+# HOW WIDE A TAIL THE PUBLISHED PAIR ALREADY SETTLES (plan P4-D346). Two
+# different distances stand under two counts that add to `rows`, so the
+# rows, the mean and the root-mean-square leave one arithmetic and the
+# list says nothing the pair does not already say. This is what the
+# SECOND road may name on a column the owner's ruling does not reach --
+# a pain score whose top step one row holds lists `9, 10`, both of them
+# settled by the pair -- and it is why eleven all-different clock times,
+# whose pair settles only the outermost of them, may not take that road.
+TAIL_SETTLED_VALUES = 2
+
+
+def tail_may_list(
+    held: "list[int]", floor: int, distinct: int, cells: int
+) -> bool:
+    """Whether the owner's ruling of 2026-09-22 reaches this tail (P4-D346).
+
+    THE ONE LISTING RULE, AND IT IS ASKED BY BOTH ROLES. A column of
+    dates or clock times asks it of the cells beyond each boundary, a
+    numeric column of the rows beyond each boundary rung, and there is
+    no second statement of it anywhere: the two roads were written
+    apart, drifted apart, and the numeric one published a continuous
+    column's maximum -- held by ONE row -- in the same block that
+    withheld `percentiles.max`.
+
+    ``held`` is how many of the TAIL's own cells stand on each value it
+    would list; ``distinct`` and ``cells`` are the COLUMN's own count of
+    different values and of cells, which is a fact about the column and
+    not about either of its ends.
+
+    THE RULING'S PREMISE IS PART OF THE RULING. The owner ruled on
+    BOUNDED SCALES WITH FEW VALUES -- "many people will be there and
+    there is no big deal in knowing that it's there" -- so a tail may
+    list only where that premise holds of the column in front of it:
+
+    * every value it would list is held by at least `TAIL_SHARED_CELLS`
+      of its cells, so that no listed value is one person's own; AND
+    * the column's values come from a SMALL FIXED SET -- at most
+      `TAIL_SET_VALUES` different ones, standing under at least
+      `TAIL_SHARED_CELLS` cells apiece on average -- OR the tail is a
+      HEAP, every listed value held by at least the FLOOR's own number
+      of cells, which is "many people are there" by the project's own
+      measure of many and needs no grid to say so.
+
+    Where the premise fails the tail says its SHAPE instead. That costs
+    the twin something on a bounded scale whose own extreme stands on
+    one cell, and the cost is measured rather than argued away (plan
+    P4-D346): the twin then writes a handful of cells the scale does
+    not have, against naming the one person who holds that extreme.
+
+    Guarantees: accepts the per-value cell counts, the floor and the
+    column's two counts; returns a bool. Determinism: a function of the
+    four. Raises nothing. No I/O of any kind.
+    """
+    if not held:
+        return False
+    # AND THE FLOOR IS THE CEILING ON "NOBODY'S OWN". One cell is one
+    # person and the owner's ruling does not reach it -- unless the
+    # FLOOR is one, where the description names every value the column
+    # holds anyway (contract invariant C5-S13, and the owner's own
+    # reading of it: a floor lowered to one still names what it always
+    # named, which is what lowering it asks for). Reading two there
+    # would hold back what nothing else holds back, and it did: at a
+    # floor of one the two-valued tails of two realistic shapes and one
+    # coding system stopped listing and their twins missed an obligation
+    # (`K-2B-40`, `K-P4-11`).
+    line = TAIL_SHARED_CELLS if floor >= TAIL_SHARED_CELLS else floor
+    shared = True
+    heaped = True
+    for count in held:
+        if count < line:
+            shared = False
+        if count < floor:
+            heaped = False
+    coarse = (
+        distinct <= TAIL_SET_VALUES and distinct * TAIL_SHARED_CELLS <= cells
+    )
+    return shared and (coarse or heaped)
+
+
 def tail_percent(count: int, units: int) -> "int | None":
     """The boundary percent of one side of a tail block (contract L4).
 

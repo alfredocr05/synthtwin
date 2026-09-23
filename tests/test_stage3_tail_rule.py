@@ -49,6 +49,7 @@ from synthtwin import (
     quality,
     rendering,
     summary,
+    taxonomy,
 )
 
 FLOOR = 11
@@ -58,13 +59,29 @@ SEED = 4
 # -- the shapes ---------------------------------------------------------
 
 
-def _ordinal_columns() -> "list[tuple[str, list[str]]]":
+ORDINAL_ROWS = 1800
+THIN_ROWS = 900
+
+
+def _ordinal_columns(rows: int = ORDINAL_ROWS) -> "list[tuple[str, list[str]]]":
     """Six bounded clinical scales, each drawn from its own seed.
 
     The shapes the skeptic's finding B1 was measured on: a pain score, a
     Glasgow coma score, a surgical risk grade, an Apgar score, a count
     children and a Likert item. Every one of them is a scale with an end
     a handful of rows hold, which is what a listed tail is for.
+
+    DRAWN AT `ORDINAL_ROWS`, AND THAT IS THE RULE'S OWN NUMBER (plan
+    P4-D346). A tail lists only where every value it would name stands
+    on at least `taxonomy.TAIL_SHARED_CELLS` of its cells, and a scale's
+    own top step is one cell of a nine-hundred-row draw and several of
+    an eighteen-hundred-row one: at 900 rows seven of these twelve tail
+    sides name a step one row holds and are refused, at 1,800 none is.
+    The claims below are the claims about a tail the rule ADMITS, so
+    they are asked at a size where it does; `_thin_ordinal_columns` is
+    the same six scales at 900 rows, and
+    `test_a_scale_whose_own_step_stands_on_one_row_is_not_listed` is
+    what the refusal costs, measured.
     """
     built: "list[tuple[str, list[str]]]" = []
     draw = random.Random(1)
@@ -72,7 +89,7 @@ def _ordinal_columns() -> "list[tuple[str, list[str]]]":
         "pain",
         [
             str(draw.choices(range(11), weights=[30, 10, 12, 14, 12, 10, 8, 6, 4, 2, 0.4])[0])
-            for _row in range(900)
+            for _row in range(rows)
         ],
     )]
     draw = random.Random(101)
@@ -85,7 +102,7 @@ def _ordinal_columns() -> "list[tuple[str, list[str]]]":
                     weights=[0.4, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.5, 2, 3, 6, 12, 70],
                 )[0]
             )
-            for _row in range(900)
+            for _row in range(rows)
         ],
     )]
     draw = random.Random(201)
@@ -93,7 +110,7 @@ def _ordinal_columns() -> "list[tuple[str, list[str]]]":
         "risk_grade",
         [
             str(draw.choices(range(1, 6), weights=[20, 45, 30, 5, 0.2])[0])
-            for _row in range(900)
+            for _row in range(rows)
         ],
     )]
     draw = random.Random(301)
@@ -105,23 +122,35 @@ def _ordinal_columns() -> "list[tuple[str, list[str]]]":
                     range(11), weights=[0.2, 0.2, 0.3, 0.4, 0.5, 0.8, 1.5, 4, 20, 55, 17]
                 )[0]
             )
-            for _row in range(900)
+            for _row in range(rows)
         ],
     )]
     draw = random.Random(401)
     built += [(
         "children",
-        [str(min(12, int(draw.gammavariate(1.6, 1.1)))) for _row in range(900)],
+        [str(min(12, int(draw.gammavariate(1.6, 1.1)))) for _row in range(rows)],
     )]
     draw = random.Random(501)
     built += [(
         "likert",
         [
             str(draw.choices(range(1, 6), weights=[5, 20, 40, 30, 0.3])[0])
-            for _row in range(900)
+            for _row in range(rows)
         ],
     )]
     return built
+
+
+def _thin_ordinal_columns() -> "list[tuple[str, list[str]]]":
+    """The same six scales at `THIN_ROWS`, where the rule refuses a side.
+
+    Measured at a floor of eleven: the pain score's `10`, the Glasgow
+    score's `3`, the Apgar score's `0` and `1`, the children count's `8`
+    and `9` and the age column's `22` each stand on ONE cell of the
+    tail that would name them, so the owner's ruling of 2026-09-22 does
+    not reach those tails and they publish their shape.
+    """
+    return _ordinal_columns(THIN_ROWS)
 
 
 def _measured_columns() -> "list[tuple[str, list[str]]]":
@@ -144,6 +173,29 @@ def _measured_columns() -> "list[tuple[str, list[str]]]":
         "age",
         [str(max(18, min(99, int(draw.gauss(58, 17))))) for _row in range(600)],
     )]
+    return built
+
+
+def _fine_grid_columns() -> "list[tuple[str, list[str]]]":
+    """Continuous columns whose tails are SHARED and whose grid is fine.
+
+    The shape that separates the listing rule's two halves (plan
+    P4-D346). Six hundred readings to two places, plus four values at
+    each end held by five cells apiece: every value either tail would
+    name stands on at least `taxonomy.TAIL_SHARED_CELLS` of its cells,
+    so the first half of the premise holds -- and the column still holds
+    530 different values over 640 cells, which is a fine grid and not a
+    bounded scale, so the second half does not. Measured: each tail is
+    13 cells over 3 values held 5, 5 and 3 times.
+    """
+    built: "list[tuple[str, list[str]]]" = []
+    for seed in (2, 6, 9):
+        draw = random.Random(seed)
+        cells = [f"{draw.gauss(70, 7):.2f}" for _row in range(600)]
+        for step in range(4):
+            cells += [f"{30.00 + step * 0.25:.2f}"] * 5
+            cells += [f"{110.00 + step * 0.25:.2f}"] * 5
+        built += [(f"fine_grid_{seed}", cells)]
     return built
 
 
@@ -172,7 +224,25 @@ _VALUE_KEYS = (
     "empty_edges",
     "tails",
 )
-_COUNT_KEYS = (".percent", ".rows", ".mode_count", ".values")
+
+# A TAIL'S TWO DISTANCES ARE NOT VALUES OF THE COLUMN (plan P4-D346),
+# and sweeping them as if they were reported coincidences the moment the
+# listing exemption narrowed: the Apgar shape's high tail is a heap at
+# the boundary, so its mean distance is 0.0, and 0.0 is also a value one
+# row of that column holds at the OTHER end. The proof that they can
+# name nothing the floor protects: a mean or a root-mean-square over
+# `rows` distances equals `boundary - v` for a single `v` only where
+# every one of those rows holds `v`, and then `v` stands under at least
+# `rows` cells, which is at least max(floor, 3). What a reader could
+# name is `boundary +/- distance`, and `_derived_values` below asks
+# exactly that instead.
+_DISTANCE_KEYS = (".mean_distance", ".rms_distance")
+# ...AND THE KEYS THAT CARRY A COUNT OF ROWS. `tails.*.values` IS NOT
+# ONE OF THEM (plan P4-D346): it carries values of the column, and
+# excluding it by its path exempted every listed value from the sweep
+# below whatever the listing rule said of it. The exemption is now the
+# RULE's own conditions, asked value by value in `_admitted_values`.
+_COUNT_KEYS = (".percent", ".rows", ".mode_count")
 
 
 def _numbers_under(node: object, path: str = ""):
@@ -191,12 +261,56 @@ def _numbers_under(node: object, path: str = ""):
         yield path, float(node)
 
 
-def _lone_outer_values(cells: "list[str]", listed: "set[float]") -> "set[float]":
+def _admitted_values(
+    block: "dict", values: "list[float]"
+) -> "set[float]":
+    """The outer values the LISTING RULE exempts, and no others.
+
+    NOT "the tail listed it" (plan P4-D346). Membership was the old
+    exemption, and it could not see a listing rule that had drifted:
+    whatever the producer chose to list became allowed, so the sweep
+    below could not fail on a tail naming a value one row held. The
+    exemption is the rule's own two conditions, asked here from the
+    COLUMN and never from the block -- the column is one
+    `taxonomy.tail_may_list` admits, and the value stands on at least
+    `taxonomy.TAIL_SHARED_CELLS` of that tail's cells.
+    """
+    allowed: "set[float]" = set()
+    tails = block.get("tails") or {}
+    count = len(values)
+    distinct = len(set(values))
+    for side in ("low", "high"):
+        tail = tails.get(side)
+        if not isinstance(tail, dict) or not tail["values"]:
+            continue
+        rows = tail["rows"]
+        beyond = values[:rows] if side == "low" else values[count - rows:]
+        held = collections.Counter(beyond)
+        if taxonomy.tail_may_list(
+            [held[value] for value in sorted(held)], FLOOR, distinct, count
+        ):
+            for value in tail["values"]:
+                if held[value] >= taxonomy.TAIL_SHARED_CELLS:
+                    allowed.add(value)
+            continue
+        # ...AND THE SECOND ROAD, on the same terms the producer takes
+        # it: a tail of at most `TAIL_SETTLED_VALUES` different values
+        # is settled by its own published rows and two distances, so
+        # what it lists is named by the description either way and the
+        # list adds nothing to it.
+        if len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES:
+            for value in tail["values"]:
+                allowed.add(value)
+    return allowed
+
+
+def _lone_outer_values(cells: "list[str]", block: "dict") -> "set[float]":
     """The outermost values of a column that too few rows hold.
 
     The rows the tail rule withholds are the outermost max(floor, 3) on
-    each side; a value a LISTED tail names is published on purpose
-    (G5.3e, the owner's ruling of 2026-09-22) and is not counted here.
+    each side; a value a listed tail names is published on purpose
+    (G5.3e, the owner's ruling of 2026-09-22) ONLY where the rule's own
+    premise holds of it, which `_admitted_values` asks.
     """
     values = sorted(
         value
@@ -206,6 +320,7 @@ def _lone_outer_values(cells: "list[str]", listed: "set[float]") -> "set[float]"
     counted = collections.Counter(values)
     units = max(FLOOR, 3)
     outer = values[:units] + values[len(values) - units:]
+    listed = _admitted_values(block, values)
     return {
         value
         for value in outer
@@ -213,33 +328,145 @@ def _lone_outer_values(cells: "list[str]", listed: "set[float]") -> "set[float]"
     }
 
 
+def _derived_values(block: "dict") -> "list[tuple[str, float]]":
+    """What a tail's two distances name once the boundary is added back.
+
+    A distance is measured from the boundary rung, so the value a reader
+    could put a name to is the boundary less the distance on the low
+    side and plus it on the high. That is the question the raw sweep
+    above cannot ask of a distance, and it is the one worth asking.
+    """
+    found: "list[tuple[str, float]]" = []
+    tails = block.get("tails") or {}
+    for side in ("low", "high"):
+        tail = tails.get(side)
+        if not isinstance(tail, dict):
+            continue
+        boundary = tail_rule.rung_of(block, tail["percent"])
+        if boundary is None:
+            continue
+        for key in ("mean_distance", "rms_distance"):
+            distance = tail[key]
+            if not isinstance(distance, float):
+                continue
+            away = -distance if side == "low" else distance
+            found += [(f"tails.{side}.{key} from its boundary", boundary + away)]
+    return found
+
+
+# THE FIXED PROSE THAT MARKS A NUMBER AS SOMETHING OTHER THAN A VALUE
+# of the column (plan P4-D346). Each pair is an opening this repository
+# writes and where the fragment it opens ends, and each is here with the
+# reason a number inside it cannot name a value:
+#
+# * a CONSTRUCTION WINDOW is an arithmetic on published facts and on
+#   nothing else, so its two ends carry no cell of any file -- "allowed
+#   anywhere from 0.0 to 9.0" on the children shape put 9.0 on the page,
+#   and 9.0 is that column's largest value, held by one row, which the
+#   description does not publish and the window did not read;
+# * a TAIL DISTANCE is measured FROM the boundary rung, and a mean or a
+#   root-mean-square over `rows` of them equals `boundary - v` for a
+#   single `v` only where every one of those rows holds `v` -- and then
+#   `v` stands under at least max(floor, 3) cells and is not a lone
+#   value at all. The Apgar shape's high tail is such a heap, so its
+#   mean distance is 0.0, and 0.0 is also a value one row of that column
+#   holds at the other end. `_derived_values` asks the question worth
+#   asking of a distance, which is what it names once the boundary is
+#   added back.
+_NOT_A_VALUE = (
+    ("allowed anywhere from ", ":"),
+    ("(between ", ")"),
+    ("on average ", " above"),
+    ("on average ", " below"),
+)
+
+
+def _published_half(line: str) -> str:
+    """The part of one report line that can name a VALUE of the column.
+
+    A verdict line prints what the description asks for beside what the
+    measured file was found to hold: only the first is a number the
+    description names, and the second belongs to whoever holds that
+    file. What is left then has the fragments of `_NOT_A_VALUE` cut out
+    of it, each for the reason written above them.
+    """
+    if "the file was found to hold" in line:
+        return ""
+    if "the twin holds:" in line:
+        return ""
+    where = line.find("; the twin holds")
+    said = line if where < 0 else line[:where]
+    for opening, closing in _NOT_A_VALUE:
+        while True:
+            start = said.find(opening)
+            if start < 0:
+                break
+            end = said.find(closing, start + len(opening))
+            end = len(said) if end < 0 else end
+            said = said[:start] + " " + said[end:]
+    return said
+
+
 def _leaks(described, cells: "list[str]", texts: "dict[str, str]") -> "list[tuple]":
     """Every published number that equals a lone outermost value."""
     block = described.document["columns"][0]
-    listed: "set[float]" = set()
-    tails = block.get("tails") or {}
-    for side in ("low", "high"):
-        if isinstance(tails.get(side), dict):
-            listed = listed | set(tails[side]["values"])
-    lone = _lone_outer_values(cells, listed)
+    lone = _lone_outer_values(cells, block)
     found: "list[tuple]" = []
     for path, number in _numbers_under(block):
         if not any(key in path for key in _VALUE_KEYS):
             continue
         if any(key in path for key in _COUNT_KEYS):
             continue
+        if any(key in path for key in _DISTANCE_KEYS):
+            continue
         if number in lone:
             found += [("description", path, number)]
+    for path, number in _derived_values(block):
+        if number in lone:
+            found += [("derived", path, number)]
+    # WHAT THE BLOCK CARRIES THAT IS NOT A VALUE (plan P4-D346): a
+    # count, a share, a percent, a tail distance. Every one of them is
+    # published on purpose and the sweep above has just proven that the
+    # block's VALUES name nothing the floor protects -- so a page line
+    # printing one of these numbers is printing that published fact and
+    # not a value of anybody's column, however the two coincide. The
+    # Apgar shape supplies both coincidences at once: `numeric_share`
+    # is 1.0 and its high tail is a heap whose two distances are 0.0,
+    # against a column holding one cell of 1 and one cell of 0.
+    said_elsewhere = {
+        number
+        for path, number in _numbers_under(block)
+        if not any(key in path for key in _VALUE_KEYS)
+        or any(key in path for key in _COUNT_KEYS)
+        or any(key in path for key in _DISTANCE_KEYS)
+    }
     for label in sorted(texts):
         # A page may quote this repository's own documents, and a
         # section number is not a value of anybody's column.
+        #
+        # ...AND A LINE ON THESE PAGES HAS TWO HALVES (plan P4-D346).
+        # What this sweep is about is what the DESCRIPTION names: the
+        # other half is a number measured out of the file the page was
+        # written for, which is the twin's own number on a twin's page
+        # and is governed by `validation`'s own withholding rules --
+        # `tests/test_p3v12f2_a_miss_says_what_it_found.py` holds those,
+        # and stage 3's own repair made a listed tail's values one of
+        # them. Without the split, a twin whose measured spread happens
+        # to land on a real column's lone end reads as a disclosure of
+        # it: measured on the Glasgow coma shape, the twin's own
+        # `low_tail.mean_distance` came back 3.0 against a real
+        # smallest value of 3 held by one row.
         body = "\n".join(
-            line for line in texts[label].splitlines() if "docs/spec" not in line
+            _published_half(line)
+            for line in texts[label].splitlines()
+            if "docs/spec" not in line
         )
         for token in _NUMBER.findall(body):
             try:
                 number = float(token)
             except ValueError:
+                continue
+            if number in said_elsewhere:
                 continue
             if number in lone and "." in token:
                 found += [(label, token)]
@@ -280,6 +507,141 @@ def test_no_published_page_names_a_value_too_few_rows_hold(
         ),
     }
     assert _leaks(described, cells, pages) == []
+
+
+@pytest.mark.parametrize(
+    "name", [name for name, _cells in _thin_ordinal_columns()]
+)
+def test_no_published_page_names_a_lone_value_on_a_thin_scale(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """The same sweep, on the six scales at `THIN_ROWS`.
+
+    These are the columns the listing rule REFUSES a side of, and the
+    sweep matters more on them than on the ones it admits: a rule that
+    quietly listed a step one row holds would show here first.
+    """
+    cells = dict(_thin_ordinal_columns())[name]
+    described = _described(tmp_path, f"thin-{name}", cells)
+    outcome = kpi_shapes.measure(described, described.table.read_text(), "real.csv")
+    twin = generation.generate(described.loaded, SEED)
+    twin_text = rendering.twin_csv(twin)
+    pages = {
+        "summary": summary.render(described.document, ""),
+        "quality": quality.quality_report(described.loaded, outcome),
+        "report": rendering.report(described.loaded, twin),
+        "quality_twin": quality.quality_report(
+            described.loaded,
+            kpi_shapes.measure(described, twin_text, "twin.csv"),
+        ),
+    }
+    assert _leaks(described, cells, pages) == []
+
+
+@pytest.mark.parametrize(
+    "name", [name for name, _cells in _fine_grid_columns()]
+)
+def test_a_fine_grid_publishes_its_shape_although_its_tail_is_shared(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """The second half of the premise, on its own.
+
+    WRITTEN AS A FACT ABOUT THE SHAPE and not as a call to the rule, so
+    that withdrawing the rule's grid test turns it red: a test that asks
+    the producer's own function cannot fail when that function is what
+    moved. Measured at a floor of eleven on `_fine_grid_columns`: 640
+    cells over about 530 different values, each tail 13 cells over 3
+    values held 5, 5 and 3 times. Every one of those counts clears
+    `taxonomy.TAIL_SHARED_CELLS`, so the tail is shared; the column is
+    a fine grid all the same, the owner's ruling is about bounded
+    scales, and neither tail may list.
+    """
+    cells = dict(_fine_grid_columns())[name]
+    described = _described(tmp_path, name, cells)
+    tails = described.document["columns"][0]["tails"]
+    assert tails["low"]["values"] == [], (
+        "a column of 640 readings on a hundredth-unit grid listed its "
+        "low tail, although its values are a fine grid and not the "
+        "bounded scale the owner's ruling of 2026-09-22 is about"
+    )
+    assert tails["high"]["values"] == [], (
+        "the same, on the high tail"
+    )
+    assert isinstance(tails["low"]["mean_distance"], float), (
+        "and it says its shape instead"
+    )
+
+
+def test_every_listed_tail_is_one_the_rule_admits_or_the_pair_settles(
+    tmp_path: pathlib.Path
+) -> None:
+    """The listing rule, asked of every tail of every shape here.
+
+    THE RULE AND NOT THE PRODUCER'S WORD FOR IT. For each published
+    tail, the per-value counts of the column's own cells beyond that
+    boundary are counted here, `taxonomy.tail_may_list` is asked of
+    them, and a tail that lists must be one it admits -- or one of at
+    most `taxonomy.TAIL_SETTLED_VALUES` different values, which its own
+    published rows and two distances settle whatever the rule says.
+
+    Measured over the twenty-two shapes below at a floor of eleven: at
+    `ORDINAL_ROWS` every one of the six scales lists both sides and the
+    rule admits all twelve; at `THIN_ROWS` seven sides name a step one
+    row holds, of which the rule admits none and the settled road
+    carries two; and no continuous shape lists at all.
+    """
+    admitted = 0
+    settled = 0
+    shaped = 0
+    for group in (
+        _ordinal_columns(),
+        _thin_ordinal_columns(),
+        _measured_columns(),
+        _fine_grid_columns(),
+    ):
+        for name, cells in group:
+            described = _described(tmp_path / f"{len(cells)}", name, cells)
+            block = described.document["columns"][0]
+            tails = block.get("tails") or {}
+            values = sorted(
+                value
+                for value in (parsing.parse_number(cell) for cell in cells)
+                if value is not None
+            )
+            count = len(values)
+            distinct = len(set(values))
+            for side in ("low", "high"):
+                tail = tails.get(side)
+                if not isinstance(tail, dict):
+                    continue
+                rows = tail["rows"]
+                beyond = (
+                    values[:rows] if side == "low" else values[count - rows:]
+                )
+                held = collections.Counter(beyond)
+                allows = taxonomy.tail_may_list(
+                    [held[value] for value in sorted(held)],
+                    FLOOR,
+                    distinct,
+                    count,
+                )
+                if not tail["values"]:
+                    shaped = shaped + 1
+                    continue
+                if allows:
+                    admitted = admitted + 1
+                    continue
+                assert len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES, (
+                    f"{name} {side}: the tail lists {tail['values']} on a "
+                    f"column the listing rule does not admit, and its "
+                    f"published rows and distances do not settle a list "
+                    f"that wide"
+                )
+                settled = settled + 1
+    assert admitted and settled and shaped, (
+        f"all three roads must be exercised: {admitted} admitted, "
+        f"{settled} settled by the pair, {shaped} published by shape"
+    )
 
 
 # -- 2. the facts do not solve for a withheld end ----------------------
@@ -567,9 +929,19 @@ def test_the_listed_tail_is_what_keeps_an_ordinal_scale(
     reads the smooth shape of G5.3b and rounds it onto the grid: the
     cells then stand outside the scale the column holds, which is the
     defect the listed tail closes.
+
+    MEASURED ON ONE NAMED SHAPE, and the shape moved with plan P4-D346:
+    the Glasgow coma score at `ORDINAL_ROWS`, where stripping the two
+    listings puts a rung outside the 3-to-15 scale. It was the pain
+    score at 900 rows, and at the size the listing rule admits every one
+    of these scales the pain ladder stays on its own grid whether the
+    values are published or not -- so the pain score no longer measures
+    this mutant, and a test that cannot fail is not a test. `gcs` and
+    `likert` both still fail with the listing withdrawn; `gcs` is named
+    because it is the wider scale of the two.
     """
-    cells = dict(_ordinal_columns())["pain"]
-    described = _described(tmp_path, "pain-listed", cells)
+    cells = dict(_ordinal_columns())["gcs"]
+    described = _described(tmp_path, "gcs-listed", cells)
     scale = {
         value
         for value in (parsing.parse_number(cell) for cell in cells)
@@ -1132,3 +1504,54 @@ def test_a_tail_stands_at_both_ends_of_the_binary64_range(
                 described, "value\n" + "\n".join(cells) + "\n", f"{name}-real.csv"
             )
         ), name
+
+
+# -- 7. a block that publishes a shape does not say it publishes none ---
+
+
+def test_no_block_publishing_bin_groups_says_its_shape_is_unpublished(
+    tmp_path: pathlib.Path,
+) -> None:
+    """NF49 was a live false sentence, and this is what makes it fail.
+
+    A tail block publishes its histogram as `bin_groups` between the two
+    boundary rungs and leaves `value_histogram` empty ON PURPOSE. The
+    note that says "the shape of this column's numbers is not published"
+    asked only the empty key, so every tail block that published groups
+    carried it: the demonstration's `visits`, `reading` and `amount`
+    each published 9 to 14 bin groups AND the sentence (plan P4-D346).
+
+    Asked over every shape this file builds and over the table of every
+    role, which is where the three were found.
+    """
+    tables = [(name, cells) for name, cells in (
+        _ordinal_columns() + _thin_ordinal_columns()
+        + _measured_columns() + _fine_grid_columns()
+    )]
+    said: "list[str]" = []
+    for name, cells in tables:
+        described = _described(tmp_path / "one", name, cells)
+        said += _shape_lies(described.document)
+    every = kpi_shapes.describe(
+        tmp_path / "every", "every", fixtures.every_role_table(), FLOOR
+    )
+    said += _shape_lies(every.document)
+    assert said == [], (
+        "these blocks publish a histogram as groups of bins AND say the "
+        "shape of their numbers is not published:\n  " + "\n  ".join(said)
+    )
+
+
+def _shape_lies(document: "dict") -> "list[str]":
+    """Every column publishing `bin_groups` that carries NF49 anyway."""
+    carries = {
+        note["column"]
+        for note in document["publication_notes"]
+        if "shape of this column's numbers is not published" in note["note"]
+    }
+    found: "list[str]" = []
+    for block in document["columns"]:
+        groups = block.get("bin_groups")
+        if groups and block["name"] in carries:
+            found += [f"{block['name']}: {len(groups)} bin group(s)"]
+    return found

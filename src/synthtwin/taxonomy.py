@@ -2499,6 +2499,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # is tell somebody that the column they are holding may be
         # times, which nothing in the document said before.
         #
+        # AND THE TWO DAYS ARE NOT THE COLUMN'S OWN ENDS ANY MORE
+        # (plan P4-D346). They are the block's two published tail
+        # boundaries, so the column reaches FURTHER than they say at
+        # both ends -- and "runs from X to Y" claimed exactly the span
+        # the tail rule withholds. The sentence names what it reads:
+        # the two published edges, with the outermost values set aside,
+        # which is what a tail boundary is. Its arity, its seven
+        # argument classes and every other clause are unchanged.
+        #
         # AND IT SAYS PLAINLY THAT THE TWIN IS UNAFFECTED, because
         # that is the question a reader of a fidelity report asks
         # next. The numeric reading keeps every value's place and the
@@ -2513,7 +2522,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"every value in this column is a whole number, and every "
             f"one of them sits in the band a computer writes a moment "
             f"in time into when it counts {unit} from the 1st of "
-            f"January 1970. Read that way this column runs from "
+            f"January 1970. Read that way, and with the outermost "
+            f"values at each end set aside, this column reaches from "
             f"{first} to {last}. synthtwin read them as plain numbers "
             f"and describes them as a count of things. THIS SENTENCE "
             f"DECIDES NOTHING and moves nothing: no rule of synthtwin "
@@ -3850,21 +3860,16 @@ TAIL_KEYS = parsing.TAIL_KEYS
 # existence publishable.
 TAIL_FEW_VALUES = 3
 
-# HOW MANY CELLS SHARE A VALUE BEFORE IT IS NOBODY'S OWN (plan P4-D342).
-# Two, read twice: no value a tail lists is held by fewer than this many
-# of that tail's cells, and the column's own values are shared by at
-# least this many cells apiece on average. One cell is one person, and
-# the owner's ruling does not reach it.
-TAIL_SHARED_CELLS = 2
-
-# THE LARGEST VOCABULARY A COLUMN MAY HAVE for its tails to publish
-# values rather than a shape (plan P4-D342): a bounded scale a reader
-# could enumerate -- quarters over sixty-four years, months over
-# twenty-one, a pain score, a stage, a grade -- and not a fine grid. A
-# column of days over three years holds about eleven hundred different
-# values and publishes its shape; one of days over eight months holds
-# about two hundred and forty, and many rows stand on each of them.
-TAIL_SET_VALUES = 256
+# THE LISTING RULE AND ITS THREE NUMBERS live beside the tail's other
+# numbers in `parsing`, because the producer here, the loader that
+# rebuilds a tail and the validator's re-description all ask them and
+# each already imports that module (plan P4-D346). Named here too, so
+# that a reader of this module's tail code finds them where the rule is
+# applied.
+TAIL_SHARED_CELLS = parsing.TAIL_SHARED_CELLS
+TAIL_SET_VALUES = parsing.TAIL_SET_VALUES
+TAIL_SETTLED_VALUES = parsing.TAIL_SETTLED_VALUES
+tail_may_list = parsing.tail_may_list
 
 # How many steps the search of `_tail_pinned` may take on one side before
 # it gives up and answers "pinned", which is the answer that publishes
@@ -3875,6 +3880,20 @@ TAIL_LATTICE_STEPS = 131072
 # The largest whole sum `_values_mean_pins` tabulates. Beyond it the mean
 # beside a tail's values is withheld, the answer that publishes less.
 TAIL_MEAN_TABLE_LIMIT = 16777216
+
+# THE WALK THAT ASKS WHETHER A PUBLISHED PAIR SETTLES A TAIL, and how
+# far a boundary may move because it does (plan P4-D346). A spent walk
+# answers "not settled", which moves no boundary -- so the budget is
+# what the answer is worth, and at a tenth of this number the walk gave
+# up on `clock_all_different` at 900 rows seed 4 after five steps and
+# left the tail settled. Set by measurement, and it is the same number
+# the MEASUREMENT of `edge_pinned` walks with, so the producer cannot
+# answer "roomy" where the driver answers "settled" for want of steps.
+# A walk that finds two answers returns after a few hundred; only a
+# settled tail costs the whole budget, and there are two of those in
+# the battery.
+TAIL_SETTLED_STEPS = 200000
+TAIL_WIDEN_MOST = 12
 
 
 def tail_unit(resolution: str, precision: str, all_at_midnight: bool) -> str:
@@ -4274,7 +4293,9 @@ def _tail_pinned(
     largest distance differs, and for each count the floor protects,
     another whose count there differs. Where it cannot find one within
     `TAIL_LATTICE_STEPS` it answers True, the answer that publishes
-    less.
+    less -- and the listing rule decides what may be done with that
+    answer, which is why a spent walk cannot open the values road on a
+    column the ruling does not reach (plan P4-D346).
 
     Guarantees: accepts the real distances, the floor, the furthest a
     distance can reach and whether they must be all different; returns a
@@ -4408,6 +4429,53 @@ def _values_mean_pins(
     return False
 
 
+def _count_multisets(
+    size: int, total: int, squares: int, most: int, apart: bool, budget: "list[int]"
+) -> int:
+    """How many descending multisets meet both sums, counted to two.
+
+    Returns 0, 1 or 2 -- two meaning "two or more" -- and 2 where the
+    budget runs out, so a spent walk never reports a settled tail.
+    """
+    budget[0] = budget[0] - 1
+    if budget[0] <= 0:
+        return 2
+    if size == 0:
+        return 1 if total == 0 and squares == 0 else 0
+    if total < size or squares < total:
+        return 0
+    even, spare = divmod(total, size)
+    least = (size - spare) * even * even + spare * (even + 1) * (even + 1)
+    if squares < least:
+        return 0
+    top = min(most, total - (size - 1))
+    if top < 1:
+        return 0
+    # THE LARGEST DISTANCE IS AT LEAST THE AVERAGE, and its square is at
+    # most what the squares leave once every other distance has paid its
+    # least one. Both are bounds a reader holds. No upper bound on the
+    # SQUARES is taken here: one that was slightly wrong would prune a
+    # real answer and report a tail settled that is not, and the budget
+    # below already bounds the cost.
+    top = min(top, _root_of(max(0, squares - (size - 1))))
+    lowest = -(-total // size)
+    found = 0
+    for first in range(top, lowest - 1, -1):
+        found = found + _count_multisets(
+            size - 1,
+            total - first,
+            squares - first * first,
+            first - 1 if apart else first,
+            apart,
+            budget,
+        )
+        if found > 1:
+            return 2
+        if budget[0] <= 0:
+            return 2
+    return found
+
+
 def _tail_side(
     distances: "list[int]",
     texts: "list[str]",
@@ -4415,14 +4483,16 @@ def _tail_side(
     floor: int,
     edge: int,
     distinct: bool,
-    coarse: bool,
+    grid: int,
+    cells: int,
 ) -> "dict[str, object]":
     """The published object of one tail (contract DT1).
 
     `distances` are the outer cells' whole distances beyond the boundary
     and `texts` the canonical text of each of those cells, in the same
-    order, and `coarse` says the COLUMN's own values come from a small
-    fixed set (`ordered_tails`). The mean distance is the whole sum over
+    order, and `grid` and `cells` are the COLUMN's own different
+    ordinals and cell count, which `tail_may_list` reads. The mean
+    distance is the whole sum over
     the cell count and the root-mean-square distance the square root of
     the whole sum of squares over it, each rounded once to the nearest
     binary64.
@@ -4430,16 +4500,13 @@ def _tail_side(
     THREE ROADS, in order of what each says (plan P4-D342).
 
     * A tail may LIST ITS VALUES only where the owner's ruling of
-      2026-09-22 reaches it, which is where its whole premise holds:
-      one canonical text to a distance, every distance held by at least
-      `TAIL_SHARED_CELLS` cells so that no listed value names one row,
-      and either `coarse` or a tail every distance of which the floor's
-      own number of cells hold -- a heap, which is the ruling's case
-      whatever grid it stands on. Where all three hold, the tail lists its sorted
-      values in place of the root-mean-square distance -- if it holds at
-      most `TAIL_FEW_VALUES` of them, or if its two distances would pin
-      what the floor protects (`_tail_pinned`) -- with its mean beside
-      them unless that would pin a count below the floor
+      2026-09-22 reaches it, which is what `tail_may_list` answers for
+      BOTH roles -- and, on this role alone, where one canonical text
+      stands to a distance (below). Where both hold, the tail lists its
+      sorted values in place of the root-mean-square distance -- if it
+      holds at most `TAIL_FEW_VALUES` of them, or if its two distances
+      would pin what the floor protects (`_tail_pinned`) -- with its
+      mean beside them unless that would pin a count below the floor
       (`_values_mean_pins`).
     * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
       the values -- INCLUDING where `_tail_pinned` fires and the values
@@ -4482,31 +4549,30 @@ def _tail_side(
                 single = False
         else:
             one_text[distance] = texts[place]
-    # NO LISTED VALUE NAMES ONE ROW (plan P4-D342). The owner's ruling
-    # rests on many people standing on each listed value; a distance
-    # held by one cell is one person's own time, and the extreme of it
-    # is a tail whose `rows` equals the length of its own list, where
-    # the count of one follows by subtraction. Read on the DISTANCES,
-    # which is what a listed value is published by.
-    shared = True
-    heaped = True
-    for distance in counts:
-        if counts[distance] < TAIL_SHARED_CELLS:
-            shared = False
-        if counts[distance] < floor:
-            heaped = False
-    # A HEAP IS THE RULING'S OWN CASE, whatever grid it sits on. Where
-    # every value the tail would list is held by at least the FLOOR's
-    # number of cells, "many people will be there" is true by the
-    # project's own measure of many, and the column's grid says nothing
-    # against it: forty cells of `0001-01-01`, the "no date" a common
-    # system writes, stand in a column of moments to the second. The
-    # measurement reads the same rule from the other side -- K-S3-11's
-    # `_outermost` leaves out any value the floor's own cells hold.
-    listed = single and shared and (coarse or heaped)
-    few = listed and len(counts) <= TAIL_FEW_VALUES
+    # THE ONE LISTING RULE, ASKED HERE ON THE DISTANCES, which is what a
+    # listed value is published by (plan P4-D346). The numeric role asks
+    # the same function of its own per-value counts, so the two roads
+    # cannot drift again.
+    may_list = single and tail_may_list(
+        [counts[distance] for distance in sorted(counts)], floor, grid, cells
+    )
+    few = may_list and len(counts) <= TAIL_FEW_VALUES
+    # THE SECOND ROAD, and it is the numeric role's second road too
+    # (plan P4-D346). Where the published pair settles what the floor
+    # protects the description names it either way, so the list is the
+    # reading that says LESS -- but on a column the owner's ruling does
+    # NOT reach, only where the list says nothing more than the pair
+    # already does, which is at most `TAIL_SETTLED_VALUES` different
+    # distances. Eleven all-different clock times are not: their pair
+    # settles the outermost and leaves the rest of the multiset open by
+    # tens of thousands, so listing all eleven says far more than the
+    # pair. It needs `single` either way: a distance carrying two texts
+    # has no one value to list.
+    settled = may_list or len(counts) <= TAIL_SETTLED_VALUES
     if not few and not (
-        listed and _tail_pinned(distances, floor, edge, distinct)
+        single
+        and settled
+        and _tail_pinned(distances, floor, edge, distinct)
     ):
         return {
             "boundary": boundary,
@@ -4533,6 +4599,150 @@ def _tail_side(
     }
 
 
+def _side_settles(
+    ordered: "list[str]",
+    ordinals: "list[int]",
+    rank: int,
+    low_side: bool,
+    floor: int,
+    edges: "tuple[int, int]",
+    distinct: bool,
+    grid: int,
+    count: int,
+) -> int:
+    """Whether ONE multiset fits the pair this side would publish.
+
+    Three answers, because two are not enough: 1 where the walk PROVED
+    the tail settled, 0 where it proved it was not, and -1 where it ran
+    out of budget and proved nothing. The caller abandons the widening
+    at -1 rather than keeping a boundary it moved for a reason it could
+    not check -- on 240 consecutive days the walk settles every width it
+    can finish and gives up at twenty-one cells, and without this the
+    column paid ten withheld rows for nothing.
+
+    0 wherever the side would LIST its values instead: a listed tail
+    publishes no root-mean-square distance, so a reader has one sum and
+    not two. 0 too where the floor protects nothing in this tail.
+    """
+    if low_side:
+        distances = [ordinals[rank] - ordinals[place] for place in range(rank)]
+        texts = [ordered[place] for place in range(rank)]
+        edge = max(1, ordinals[rank] - edges[0])
+    else:
+        distances = [
+            ordinals[place] - ordinals[rank]
+            for place in range(rank + 1, count)
+        ]
+        texts = [ordered[place] for place in range(rank + 1, count)]
+        edge = max(1, edges[1] - ordinals[rank])
+    if not distances:
+        return 0
+    # THE FLOOR HAS TO BE PROTECTING SOMETHING (plan P4-D346). What a
+    # settled tail discloses is a value the floor holds back, so where
+    # every distance already stands under the floor's own number of
+    # cells there is nothing to move a boundary for. At a floor of ONE
+    # that is every tail -- one cell's distance is settled by its own
+    # sums, and the floor holds nothing back at all (contract C5-S13) --
+    # and widening there moved twelve ranks on every column of dates for
+    # no gain: measured, two of the eight realistic shapes' twins then
+    # missed an obligation at a floor of one (`K-2B-40`).
+    held = _tally_of(distances)
+    if all(held[distance] >= floor for distance in held):
+        return 0
+    apart = distinct and len(set(distances)) == len(distances)
+    side = _tail_side(
+        distances,
+        texts,
+        ordered[rank],
+        floor,
+        edge,
+        apart,
+        grid,
+        count,
+    )
+    if side["values"] is not None:
+        return 0
+    total = 0
+    squares = 0
+    for distance in distances:
+        total = total + distance
+        squares = squares + distance * distance
+    budget = [TAIL_SETTLED_STEPS]
+    found = _count_multisets(
+        len(distances), total, squares, min(edge, total), apart, budget
+    )
+    if budget[0] <= 0:
+        return -1
+    return 1 if found == 1 else 0
+
+
+def _unsettled_ranks(
+    ordered: "list[str]",
+    ordinals: "list[int]",
+    floor: int,
+    edges: "tuple[int, int]",
+    distinct: bool,
+    ranks: "tuple[int, int]",
+) -> "tuple[int, int]":
+    """The two boundary ranks, moved in while either side is settled.
+
+    At most `TAIL_WIDEN_MOST` steps, and never past the point where the
+    two boundaries would leave no cell between them (contract DT2). Ties
+    are skipped exactly as `tail_ranks` skips them, so a boundary is
+    always read at the first rank holding its value.
+    """
+    count = len(ordinals)
+    grid = len(set(ordinals))
+    low, high = ranks
+    # AND IT MAY NOT EAT THE COLUMN. Moving a boundary inward withholds
+    # another row from the published ladder, and on a column whose two
+    # tails ALREADY hold as much as the stretch between them there is
+    # nothing left to pay with: a thirty-row column at a floor of eleven
+    # gives twenty-two of its rows to its tails before this is asked.
+    # So a tail widens only while the two of them together stay no
+    # larger than the interior they leave. Measured: every side of the
+    # tail battery that carries the residual is a column of 900 rows,
+    # where eleven rows a side is under two per cent and the room is
+    # there; the small fixtures of the suite are outside it and keep the
+    # boundaries they had.
+    if low + (count - 1 - high) > count - low - (count - 1 - high):
+        return (low, high)
+    for _step in range(TAIL_WIDEN_MOST):
+        answers = (
+            _side_settles(
+                ordered, ordinals, low, True, floor, edges, distinct, grid, count
+            ),
+            _side_settles(
+                ordered, ordinals, high, False, floor, edges, distinct, grid, count
+            ),
+        )
+        if -1 in answers:
+            # NOTHING WAS PROVEN AT THIS WIDTH, so nothing is kept: the
+            # rows already withheld bought a reason the walk could not
+            # check.
+            return ranks
+        if 1 not in answers:
+            return (low, high)
+        next_low = low + 1
+        while next_low < count and ordinals[next_low] == ordinals[next_low - 1]:
+            next_low = next_low + 1
+        next_high = high - 1
+        while next_high >= 0 and ordinals[next_high] == ordinals[next_high + 1]:
+            next_high = next_high - 1
+        if next_low >= count or next_high < 0 or next_low > next_high:
+            break
+        low, high = next_low, next_high
+    # AND A COST THAT BUYS NOTHING IS NOT PAID. On a column whose values
+    # step one unit apart the widest tail is settled too -- any run of
+    # `k` consecutive days is the one multiset `1..k`, whatever `k` is --
+    # so the walk reaches its cap with the tail still settled and the
+    # rows it withheld bought no room at all. The boundaries go back
+    # where the tail rule put them, and K-S3-11's `edge_pinned` counts
+    # what is left. Measured: 240 consecutive days at a floor of eleven
+    # widened twelve ranks and was settled at every one of them.
+    return ranks
+
+
 def ordered_tails(
     ordered: "list[str]",
     ordinals: "list[int]",
@@ -4548,27 +4758,41 @@ def ordered_tails(
     Returns (None, None, None) where the column has no tails
     (`tail_ranks`).
 
-    IS THIS A SMALL FIXED SET OR A FINE GRID? Decided here, once, for
+    IS THIS A SMALL FIXED SET OR A FINE GRID? Counted here, once, for
     both tails, because it is a fact about the COLUMN and not about
     either of its ends (plan P4-D342): the column's own different
-    values, counted as ordinals in the tail's unit so that two spellings
-    of one day count once, are at most `TAIL_SET_VALUES` and stand under
-    at least `TAIL_SHARED_CELLS` cells apiece on average. Measured over
-    the tail battery: quarters and months take it at 98 to 120 different
-    values and 3.4 to 12.8 cells on each; every clock column and every
-    day-resolution column of dates over years is outside it, the nearest
-    being two years of admission days at 217 to 227 different values and
-    1.8 cells on each.
+    values, as ordinals in the tail's unit so that two spellings of one
+    day count once, and its cell count. `tail_may_list` reads the pair.
+    Measured over the tail battery: quarters and months are a small
+    fixed set at 98 to 120 different values and 3.4 to 12.8 cells on
+    each; every clock column and every day-resolution column of dates
+    over years is outside it, the nearest being two years of admission
+    days at 217 to 227 different values and 1.8 cells on each.
 
     Guarantees: a function of the arguments; raises nothing; no I/O.
     """
     ranks = tail_ranks(ordinals, floor)
     if ranks is None:
         return (None, None, None)
-    low_rank, high_rank = ranks
     count = len(ordinals)
     grid = len(set(ordinals))
-    coarse = grid <= TAIL_SET_VALUES and grid * TAIL_SHARED_CELLS <= count
+    # THE BOUNDARY MOVES IN WHILE THE PAIR STILL SETTLES THE TAIL (plan
+    # P4-D346, closing the residual P4-D343 stated). A tail that
+    # publishes its two distances hands a reader the whole sum and the
+    # whole sum of squares, and on an all-different column pressed
+    # against the day's edge those, the edge and the column's own
+    # "every value different" remark leave ONE multiset -- which names
+    # every outermost cell including the column's own end. DT2 asks only
+    # that each `rows` be at least the floor, so a WIDER tail is a legal
+    # tail, and a wider one is not settled: measured on
+    # `clock_all_different` at 900 rows, the low side takes four more
+    # ranks at seed 0 and seven at seed 4 before a second multiset fits.
+    # The cost is the boundary standing further in -- eleven rows
+    # withheld per side become up to eighteen on those columns -- and it
+    # is paid only where the walk PROVES the tail settled inside its
+    # budget; a spent walk moves nothing.
+    ranks = _unsettled_ranks(ordered, ordinals, floor, edges, distinct, ranks)
+    low_rank, high_rank = ranks
     low_distances = [
         ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
     ]
@@ -4589,7 +4813,8 @@ def ordered_tails(
         floor,
         max(1, ordinals[low_rank] - edges[0]),
         distinct and len(set(low_distances)) == len(low_distances),
-        coarse,
+        grid,
+        count,
     )
     high = _tail_side(
         high_distances,
@@ -4598,7 +4823,8 @@ def ordered_tails(
         floor,
         max(1, edges[1] - ordinals[high_rank]),
         distinct and len(set(high_distances)) == len(high_distances),
-        coarse,
+        grid,
+        count,
     )
     return (low, high, ranks)
 
@@ -11699,15 +11925,16 @@ def _wide_runs(cells: _Cells, styles: "dict[str, int]") -> str:
 # rung on average, and the root-mean-square of that distance -- and the
 # rungs that would read them are withheld (contract L4, method G5.3b).
 
-# HOW MANY DIFFERENT VALUES A GRID TAIL MAY HOLD AND STILL BE PUBLISHED
-# BY THEM (owner 2026-09-22: on a bounded scale "many people will be there
-# and there is no big deal in knowing that it's there"). A tail of a
-# pain score, a Likert item, a surgical risk grade or an age in whole
-# years holds
-# a handful of values each held by several rows, and G5.3b's smooth shape
-# rounded onto such a grid wrote values the scale does not have (11 on a
-# pain score of 0 to 10) and never wrote its real end. Set by
-# measurement, plan P4-D324.
+# HOW MANY DIFFERENT VALUES A TAIL THE RULE ADMITS MAY HOLD AND STILL BE
+# PUBLISHED BY THEM (owner 2026-09-22: on a bounded scale "many people
+# will be there and there is no big deal in knowing that it's there"). A
+# tail of a pain score, a Likert item, a surgical risk grade or an age in
+# whole years holds a handful of values each held by several rows, and
+# G5.3b's smooth shape rounded onto such a grid wrote values the scale
+# does not have (11 on a pain score of 0 to 10) and never wrote its real
+# end. Set by measurement, plan P4-D324. WHETHER THE TAIL MAY LIST AT
+# ALL is `tail_may_list` and not this number, which only says how few is
+# few once it may (plan P4-D346).
 TAIL_VALUES_MOST = 6
 
 # ...AND THE TAIL IS ALSO LISTED WHERE THE DESCRIPTION WOULD OTHERWISE
@@ -11721,6 +11948,7 @@ TAIL_VALUES_MOST = 6
 # search is not run.
 TAIL_LATTICE_REACH = 24
 TAIL_LATTICE_WORK = 400000
+
 
 
 def published_ends(details: "dict[str, object]") -> "tuple[float, float] | None":
@@ -11999,6 +12227,27 @@ def _lattice_pins(parts: "list[int]", rows: int, cap: int) -> bool:
     return ends == 1
 
 
+def _cells_holding(ordered: "list[float]", value: float) -> int:
+    """How many cells of a sorted column hold one value, by binary search."""
+    low = 0
+    high = len(ordered)
+    while low < high:
+        middle = (low + high) // 2
+        if ordered[middle] < value:
+            low = middle + 1
+        else:
+            high = middle
+    first = low
+    high = len(ordered)
+    while low < high:
+        middle = (low + high) // 2
+        if ordered[middle] <= value:
+            low = middle + 1
+        else:
+            high = middle
+    return low - first
+
+
 def _listed_tail(
     ordered: "list[float]",
     first: int,
@@ -12008,16 +12257,37 @@ def _listed_tail(
     figures: int,
     no_negative: bool,
     no_positive: bool,
+    floor: int,
+    distinct: int,
 ) -> "list[float]":
     """The tail's own values, where the tail is published by them (G5.3e).
 
     Only on a block with a published grid (``figures`` of nought or
-    more). The tail is LISTED where it holds at most `TAIL_VALUES_MOST`
-    different values, or where its rows, its two distances, its boundary,
-    the grid and the sign counts would solve for its end
-    (`_lattice_pins`). The list is the tail's different values in
-    ascending order and carries no count; the empty list says the tail
-    is described by its shape alone.
+    more), which is what lets a reader write a listed value back.
+
+    WHETHER IT MAY LIST AT ALL IS `tail_may_list`, the one rule the date
+    and clock role asks too (plan P4-D346). This road used to ask no
+    premise, and on a continuous column of 599 rows on a tenth-unit grid
+    it published 88.0 -- the column's own maximum, held by ONE row --
+    beside a withheld `percentiles.max`; on a second of 609 rows it
+    listed five values whose counts in the column were 1, 1, 1, 1 and 9.
+    Neither column is a bounded scale, and the owner's ruling does not
+    reach either.
+
+    THE TWO ROADS, and only the first is a listing CHOICE. A tail the
+    rule admits and holding at most `TAIL_VALUES_MOST` different values
+    lists them, which is the owner's ruling being applied. A tail whose
+    rows, two distances, boundary, grid and sign counts solve for its
+    end (`_lattice_pins`) lists them too -- on a column the rule does
+    NOT admit, only where it holds at most `TAIL_SETTLED_VALUES` of
+    them, because two distances over two counts summing to `rows` are
+    settled by the published pair and the list then says nothing the
+    pair does not. Eleven all-different values are not, which is why
+    that road is closed to them.
+
+    The list is the tail's different values in ascending order and
+    carries no count; the empty list says the tail is described by its
+    shape alone.
     """
     if figures < 0:
         return []
@@ -12025,8 +12295,24 @@ def _listed_tail(
     for place in range(first, last + 1):
         if not seen or ordered[place] != seen[len(seen) - 1]:
             seen += [ordered[place]]
-    if len(seen) <= TAIL_VALUES_MOST:
+    # HOW MANY CELLS OF THE COLUMN HOLD EACH, and not how many of the
+    # tail (plan P4-D346). This role's boundary is a RANK and not a
+    # value, so the innermost value a tail names routinely straddles it:
+    # forty cells each at 0.5 and 1.5, forty-five at 2.5 and twelve at
+    # 3.5 gives a thirteen-row tail holding twelve 3.5s and ONE 2.5,
+    # and 2.5 is a value forty-five rows of that column share. Read on
+    # the tail it looked like one person's own; read on the column it is
+    # what the owner's ruling is about. The date and clock role reads
+    # the same number either way, because `tail_ranks` puts its boundary
+    # at the first rank holding its value and no value straddles it.
+    held: "list[int]" = []
+    for value in seen:
+        held += [_cells_holding(ordered, value)]
+    admits = tail_may_list(held, floor, distinct, len(ordered))
+    if admits and len(seen) <= TAIL_VALUES_MOST:
         return seen
+    if not admits and len(seen) > TAIL_SETTLED_VALUES:
+        return []
     # THE GRID POINT AT OR INSIDE THE BOUNDARY: the parts are counted
     # from it, so a boundary between two grid points adds the same
     # offset to every distance and nothing to the question.
@@ -12047,6 +12333,14 @@ def _listed_tail(
         cap = -home if no_positive else -1
     if min(parts) < 0:
         return []
+    # THE SECOND ROAD, and what it may say (plan P4-D346). Where the
+    # published pair settles this tail's outermost value the description
+    # names that value either way, so the list is the reading that says
+    # LESS -- but only where the list says NOTHING MORE than the pair
+    # already does, which is a tail of at most `TAIL_SETTLED_VALUES`
+    # different values. On a column the owner's ruling reaches the road
+    # is open at any width, because there the ruling itself allows the
+    # list.
     if _lattice_pins(parts, last - first + 1, cap):
         return seen
     return []
@@ -12155,9 +12449,10 @@ def _numeric_tails(
       rung outside the two is null except an end held by `units` rows
       or more (a HEAPED end, a population value and published exactly),
       and each side publishes its percent, its rows, the rows' mean and
-      root-mean-square distance from the boundary rung, and, on a grid
-      where the tail holds few values or its facts would solve for its
-      end, the tail's own values (`_listed_tail`).
+      root-mean-square distance from the boundary rung, and, where
+      `tail_may_list` admits the tail and it holds few values or its
+      facts would solve for its end, the tail's own values
+      (`_listed_tail`).
 
     The histogram moves onto the scale between the two boundary rungs
     (`_tail_bins`), and `value_histogram` is `{}` on every tail block.
@@ -12220,6 +12515,10 @@ def _numeric_tails(
             None if at < percent or at > high_percent else finer[label]
         )
     figures = _tail_grid(details, count)
+    # THE COLUMN'S OWN DIFFERENT VALUES, counted once for both sides:
+    # `tail_may_list` asks whether they are a small fixed set, and that
+    # is a fact about the column and not about either of its ends.
+    distinct_numbers = len(set(ordered))
     no_negative = cells.n_negative == 0
     no_positive = len([v for v in ordered if v > 0.0]) == 0
     sides: "dict[str, object]" = {}
@@ -12241,6 +12540,8 @@ def _numeric_tails(
                 figures,
                 no_negative,
                 no_positive,
+                cells.settings.small_cell_floor,
+                distinct_numbers,
             ),
         }
     groups, empty, edges = _tail_bins(
@@ -17768,7 +18069,20 @@ def _numeric_verdict(
     # this file's other withheld-census notes exist to break. Without
     # it the only sign is an absence, and a reader cannot tell a shape
     # that was held back from a column that never had one.
-    if numeric_looking > 0 and not details["value_histogram"]:
+    #
+    # ...AND THE SHAPE HAS TWO HOMES SINCE THE TAIL RULE (NF49, plan
+    # P4-D346). A tail block publishes its histogram as `bin_groups`
+    # between the two boundary rungs and leaves `value_histogram` empty
+    # ON PURPOSE, so asking only the empty one made this sentence FALSE
+    # wherever a tail block published groups: the demonstration's
+    # `visits`, `reading` and `amount` each published 9 to 14 bin groups
+    # AND said the shape of their numbers was not published. What the
+    # sentence claims is that the column published NO shape, so it is
+    # asked of both keys.
+    published_shape = bool(details["value_histogram"]) or bool(
+        details["bin_groups"]
+    )
+    if numeric_looking > 0 and not published_shape:
         notes += [note(NOTE_HISTOGRAM_WITHHELD)]
     return _Verdict(
         role=role,
@@ -18497,6 +18811,13 @@ _COMPARED_FLOORED_POSITIONS = (
 )
 
 # What `_floored_stands` answers.
+# THE LINE AT WHICH "FEWER THAN THE LINE" IS THE COUNT ITSELF (plan
+# P4-D347). A floored count that reaches the fragment is one or more, so
+# at a line of two "fewer than 2" says "one" -- and the owner's ruling
+# of 2026-09-23 keeps the warning and drops the NUMBER, which NF60 would
+# not be doing there. NF61 stands instead.
+_LINE_THE_FRAGMENT_SAYS_NOTHING_AT = 2
+
 _STANDS_AS_WRITTEN = "as written"
 _STANDS_AS_THE_FRAGMENT = "the fragment"
 _STANDS_NOWHERE = "no sentence"
@@ -18564,19 +18885,19 @@ def _floored_stands(
 
 
 def _sentence_at_the_line(
-    sentence: Note, line: int, n_present: int, may_drop: bool
+    sentence: Note, line: int, n_present: int
 ) -> "Note | None":
     """One sentence with every floored count the floor will not let it print.
 
     Walks the form's own arguments and the arguments of every fragment
     nested in them, because a count carried by a fragment is a count
-    the sentence prints. ``may_drop`` is false for the one sentence a
-    column must carry -- its detection evidence -- so a fragment
-    stands there at every line: `said_fewer_than_the_line` where the
-    count is below the line, and `said_some_but_not_all` where it
-    reaches the line but leaves a group below it against the
-    population its binding names. THE SECOND IS NOT A REWORDING OF THE
-    FIRST. "fewer than 11" is false of 1,199, and writing the digits
+    the sentence prints. A fragment stands at every line and in every
+    sentence: `said_fewer_than_the_line` where the count is below the
+    line, and `said_some_but_not_all` where it reaches the line but
+    leaves a group below it against the population its binding names.
+    NO SENTENCE IS WITHDRAWN (owner, 2026-09-23; plan P4-D347) -- the
+    warning keeps its place and loses its number. THE SECOND FRAGMENT
+    IS NOT A REWORDING OF THE FIRST. "fewer than 11" is false of 1,199, and writing the digits
     instead is what `profile._floored_argument_is_bound` refuses -- so
     before the repair pass an ordinary table with 390 dates beside ten
     words became an internal fault the moment a binding named a
@@ -18585,22 +18906,17 @@ def _sentence_at_the_line(
     AND AT A LINE OF TWO THAT IS NOT LESS THAN THE DIGIT, which is
     stated rather than claimed away. The fragment stands only where
     the count is one or more, so "fewer than 2" is one said in other
-    words -- exactly what the digit it replaces said, and the reason
-    every sentence that CAN be withdrawn is withdrawn there instead.
-    Above a line of two it says strictly less. Measured at
-    `--smallest-group 1`: 399 free-text cells beside one date write
-    "fewer than 2 read as dates" in their evidence, while the remark
-    that repeats the same count is withdrawn. A block must say how it
-    was read, so its evidence keeps what the digit said and never
-    more.
+    words -- exactly what the digit it replaces said. Above a line of
+    two it says strictly less. Measured at `--smallest-group 1`: 399
+    free-text cells beside one date write "fewer than 2 read as dates",
+    which is what the digit said and never more.
 
-    Guarantees: accepts a sentence, the census line, the block's
-    present cells and whether the sentence may be withdrawn; returns
-    the sentence, a rebuilt one, or None where it may not be published.
-    Determinism: a fixed function of the four. No I/O of any kind.
+    Guarantees: accepts a sentence, the census line and the block's
+    present cells; returns the sentence or a rebuilt one. Determinism:
+    a fixed function of the three. No I/O of any kind.
     """
     rebuilt = _arguments_at_the_line(
-        sentence.form, sentence.arguments, line, n_present, may_drop
+        sentence.form, sentence.arguments, line, n_present
     )
     if rebuilt is None:
         return None
@@ -18614,7 +18930,6 @@ def _arguments_at_the_line(
     arguments: "tuple[object, ...]",
     line: int,
     n_present: int,
-    may_drop: bool,
 ) -> "tuple[object, ...] | None":
     """`_sentence_at_the_line` for one form's arguments, nested ones included."""
     written: "list[object]" = []
@@ -18624,7 +18939,7 @@ def _arguments_at_the_line(
             inner = argument[1]
             if isinstance(argument[0], str) and isinstance(inner, tuple):
                 deeper = _arguments_at_the_line(
-                    argument[0], inner, line, n_present, may_drop
+                    argument[0], inner, line, n_present
                 )
                 if deeper is None:
                     return None
@@ -18637,23 +18952,36 @@ def _arguments_at_the_line(
             written += [argument]
             continue
         stands = _floored_stands(form, place, argument, line, n_present)
-        if stands == _STANDS_NOWHERE and may_drop:
-            return None
         if stands == _STANDS_AS_WRITTEN:
             written += [argument]
             continue
         if stands == _STANDS_NOWHERE and argument >= line:
-            # THE ONE SENTENCE A BLOCK MAY NOT LOSE, AT A COUNT THAT
-            # REACHES THE LINE. This is the complement case: the count
-            # is large and the group it leaves over against its
-            # population is not. The digits stood here until the
-            # repair pass, which made the producer write exactly what
+            # A SENTENCE WHOSE COUNT WOULD HAND BACK A WITHHELD CELL
+            # KEEPS ITS WARNING AND DROPS THE NUMBER (owner, 2026-09-23;
+            # plan P4-D347). This is the complement case: the count is
+            # large and the group it leaves over against its population
+            # is not. The digits stood here until the repair pass, which
+            # made the producer write exactly what
             # `profile._floored_argument_is_bound` refuses -- so the
             # first binding to name a population turned an ordinary
             # table into an internal fault instead of a description.
-            # NF60 cannot stand here either: "fewer than 11" is false
-            # of 1,199. NF61 is what is left that is true, and it
-            # names no number at all.
+            # NF60 cannot stand here either: "fewer than 11" is false of
+            # 1,199. NF61 is what is left that is true, and it names no
+            # number at all. Until the owner's ruling this form stood
+            # only where the sentence could not be withdrawn, and the
+            # remark went instead -- 1,199 comma-grouped prices beside
+            # one bare cell lost their decimal-comma warning whole.
+            written += [(SAID_SOME_BUT_NOT_ALL, ())]
+            continue
+        if line <= _LINE_THE_FRAGMENT_SAYS_NOTHING_AT:
+            # AND AT A LINE OF TWO NF60 IS THE DIGIT IN WORDS (owner,
+            # 2026-09-23; plan P4-D347). A floored count reaching this
+            # branch is one or more, so "fewer than 2" is "one", and
+            # printing it is printing the count the line withholds.
+            # The sentence used to be withdrawn here instead; it is not
+            # withdrawn any more, so the fragment that names no number
+            # is what stands. NF61 is true of the same cells: some of
+            # them are written that way and not all.
             written += [(SAID_SOME_BUT_NOT_ALL, ())]
             continue
         written += [(SAID_FEWER_THAN_THE_LINE, (line,))]
@@ -18674,23 +19002,20 @@ def sentences_at_the_line(
     own documents clear of one, in the single place every column's
     sentences are finished, so no call site can forget it.
 
-    A remark that cannot be written is WITHDRAWN rather than reworded:
-    its whole subject is a count the floor will not name, and a
-    sentence that said so in other words would be the same disclosure
-    with a longer sentence in front of it. The detection evidence is
-    never withdrawn -- a column block must say how it was read -- so
-    its floored counts take a fragment.
-
-    THAT RULE COSTS A WARNING, and the cost is stated rather than
-    claimed away. The comma remark of 1,199 grouped prices beside one
-    bare cell is withdrawn here: it was a load-bearing warning about
-    1,199 cells that may be a thousand times their real size, and what
-    withdraws it is the single ungrouped cell a reader would otherwise
-    take off the published `n_present`. Keeping the warning and
-    printing no count is what `said_some_but_not_all` does for the
-    sentence that cannot be withdrawn; extending it to remarks is an
-    owner-sized question about what a description is FOR, and is on
-    the board rather than taken here.
+    NO SENTENCE IS WITHDRAWN HERE ANY MORE, AND THE OWNER SETTLED IT
+    (2026-09-23; plan P4-D347): a remark whose count would hand back a
+    withheld cell KEEPS ITS WARNING AND DROPS THE NUMBER. A remark used
+    to be withdrawn whole on the argument that its subject WAS the
+    count -- and the shape that argument was written against shows what
+    it cost: 1,199 comma-grouped prices beside one bare cell lost their
+    decimal-comma warning entirely, a load-bearing warning about 1,199
+    cells that may be a thousand times their real size, and what bought
+    the silence was the single ungrouped cell a reader would otherwise
+    take off the published `n_present`. The warning is worth more than
+    the number, and `said_some_but_not_all` -- built for the one
+    sentence that could not be withdrawn -- is what the remark says
+    instead. Nothing can be subtracted from it: NF61 carries no
+    argument at all.
 
     Guarantees: accepts a column's detection evidence, its remarks, its
     present cells and the settings; returns the evidence and the
@@ -18700,10 +19025,10 @@ def sentences_at_the_line(
     line = parsing.census_floor(settings.small_cell_floor)
     kept: "list[Note]" = []
     for remark in remarks:
-        written = _sentence_at_the_line(remark, line, n_present, True)
+        written = _sentence_at_the_line(remark, line, n_present)
         if written is not None:
             kept += [written]
-    said = _sentence_at_the_line(evidence, line, n_present, False)
+    said = _sentence_at_the_line(evidence, line, n_present)
     return (evidence if said is None else said), kept
 
 

@@ -2341,8 +2341,8 @@
    "rule": "no worse than 556 outside and 1 missed at the shipped default floor of 11 (567 and 5 at a floor of one, the twelve columns walked one at a time); target <= 550 and 0",
    "rule_kind": "at_most",
    "expected": {
-    "agreements_outside": 556,
-    "above_counts_missed": 1,
+    "agreements_outside": 579,
+    "above_counts_missed": 3,
     "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
@@ -2376,7 +2376,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved twice: to 609 and 4 on 2026-09-22, when the owner's decision made the default floor 11 and the driver describes at the default (plans P4-D316, P4-D320) -- landing 3.1 changed no generator code, so that was the default withholding more and not a defect of the landing -- and DOWN to 556 and 1 at the integration of stage 3's five landings, where the numeric tail rule stopped the ladder running to the published extremes. A ceiling that comes down is still a ceiling: it may not go back up unseen."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved three times: to 609 and 4 on 2026-09-22 with the default floor of 11 (plans P4-D316, P4-D320), which was the default withholding more and not a defect; DOWN to 556 and 1 at the integration of stage 3's five landings, where the numeric tail rule stopped the ladder running to the published extremes; and UP to 579 and 3 on 2026-09-23 for plan P4-D346's listing rule, where a position whose tail names a value ONE row of it holds says its SHAPE instead and the strata beyond that boundary take the shape's values (columns 0, 5 and 11 fall, 7 and 9 rise, and the above-counts missed move from column 0 to columns 7 and 11). A ceiling that comes down is still a ceiling, and one that goes back up is reported as one."
   },
   {
    "id": "K-P4-07",
