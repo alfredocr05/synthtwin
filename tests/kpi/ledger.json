@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. NINE ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; and K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316). Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. ELEVEN ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 and K-2B-47 on 05e7d89, the round-2 ledger pass of 2026-09-19, the second carrying six keys caf3079's driver could not emit; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-51 on 243c72f, 2026-09-21, the absorbed mark and the description no file satisfies; K-2B-19 and K-2B-50 on 230fc89, 2026-09-21, the repair pass of the mean-only landing, which go together because withdrawing method G8.3c's placement reverses both; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-P4-22 on 74541ce, 2026-09-22, stage 3 landing 3.4's own commit, whose two roles stopped publishing an end at all, so that its date and clock ends are counted on a key no earlier run could emit; and K-S3-01 on 3b0c8e6, 2026-09-22, the landing's measuring pass, which is the first tree holding this entry's driver and the only one whose driver emits the construction window's own population. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -2915,7 +2915,7 @@
    "headline": true,
    "name": "Clause 3 at the SHIPPED floor of 1: published values held by one row, and the twin writing them",
    "status": "OPEN",
-   "rule": "at the default settings, published levels held by one row, published ends (earliest/latest, numeric min/max) held by one row, and such levels the twin writes must not rise; target 0 at floor 1. Floor 11 is recorded beside it",
+   "rule": "at the default settings, published levels held by one row, published ends (earliest/latest, numeric min/max) held by one row, and such levels the twin writes must not rise; target 0 at floor 1. Floor 11 is recorded beside it. SINCE STAGE 3 (plan P4-D328) THE DATE AND CLOCK ENDS ARE COUNTED ON THEIR OWN KEY and are nought at either floor: a column of dates or clock times publishes no end at all, so the keys those two roles were counted from are absent from every such block, and the four this entry still counts are the min and max the two numeric columns publish on the ladder, which the sibling landing replaces",
    "rule_kind": "at_most",
    "expected": {
     "levels_of_one_f1": 147,
@@ -2923,7 +2923,9 @@
     "ends_held_by_one_row_f1": 4,
     "levels_of_one_f11": 0,
     "twin_writes_levels_of_one_f11": 0,
-    "ends_held_by_one_row_f11": 4
+    "ends_held_by_one_row_f11": 4,
+    "date_ends_held_by_one_row_f1": 0,
+    "date_ends_held_by_one_row_f11": 0
    },
    "tier": "FAST",
    "source": "pytest",
@@ -2932,12 +2934,14 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "every_role_and_joined_table, record_code declared, pressure a measurement, twin at seed 20260811",
-   "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0",
+   "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0. Stage 3 landing 3.4, measured on its own commit: the DATE AND CLOCK ends are 0 at both floors, counted on a key of their own rather than assumed -- a column of dates or clock times publishes no end for the key to find. The total stayed at 4, which says what the new key cannot: on this table those two roles' ends were held by more than one row anyway, so nothing came off the total here and the 4 are min and max on the two numeric columns. What the key buys is that an end returning to either role turns this entry worse, instead of standing inside a total that did not move",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "74541ce",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py on landing 3.4's own commit; this entry is FAST, so the fast tier is its whole measurement",
     "value": {
+     "date_ends_held_by_one_row_f1": 0,
+     "date_ends_held_by_one_row_f11": 0,
      "ends_held_by_one_row_f1": 4,
      "ends_held_by_one_row_f11": 4,
      "levels_of_one_f1": 147,
@@ -5677,6 +5681,52 @@
     }
    },
    "nodes_min_collected": 78
+  },
+  {
+   "id": "K-S3-01",
+   "phase_stage": "Stage 3 (plans P4-D328 to P4-D332), the date and clock tails",
+   "category": "PRIVACY",
+   "headline": true,
+   "name": "Nothing a date or clock column publishes names one of its outer cells",
+   "status": "GREEN",
+   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column. So is `pinned`: no tail's published rows, mean and root-mean-square distance leave exactly one multiset of distances, which would name the outermost value by back-solve, or exactly one count for some distance, which would name a count the floor protects. `missed` is 0 too -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal`: the owner's ruling of 2026-09-22 publishes them, existence only and never a count; nor is the member's fixed example, which is a constant of the spelling and not a cell. `cases` and `listed` are at_least, so the battery may not shrink and the values-publishing tail may not stop being exercised. `window` is at_least as well: the smallest number of multisets any shape-drawn tail admits, counted to a cap of 64, which is the distance between the battery's tightest tail and a leak. `equality_only` is a CEILING -- the real table's own published distances lying outside the construction window of G12.14, which it meets only by exact equality (V6.1-A1), so the window there cannot flag a twin systematically off on that number. The skeptic of the tail design measured that population and asked for it to be stated rather than discovered",
+   "rule_kind": "at_most",
+   "expected": {
+    "literal": 0,
+    "pinned": 0,
+    "missed": 0,
+    "cases": 105,
+    "listed": 29,
+    "window": 2,
+    "equality_only": 1
+   },
+   "key_kinds": {
+    "cases": "at_least",
+    "listed": "at_least",
+    "window": "at_least"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
+   "evidence": "105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails the published facts settle by back-solve, and 0 checkable obligations missed on any twin or any real table. 29 tails over 19 of the cases publish which values they hold rather than their two distances -- a lone far value on either side, months and quarters at 1,500 rows, the heap of the `0001-01-01` two common systems write for no date, an all-different clock whose tails reach `00:00` and `23:59`, and a day-first column of births. The tightest shape-drawn tail of the battery leaves a reader 2 different multisets of distances to choose between, on a column of quarters at 400 rows, and that same tail carries the one published distance the construction window does not reach: its root-mean-square distance is 2.2763607319179844 quarters against a window of 2.3159525823376357 to 2.467976720090587, so the real table meets that one obligation by equality alone. The design measured 63 of its own 64 sides inside the window, and its skeptic measured 15 sides of 18 outside it on this shape in the prototype, before the guard that withholds a few-valued tail's numbers and the clamp-aware solve. Before this landing every column of this battery published its earliest and its latest value and both ends of its ladder: four values of the real table per column, each held by as few as one row",
+   "value_at": {
+    "commit": "3b0c8e6",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
+    "value": {
+     "cases": 105,
+     "equality_only": 1,
+     "listed": 29,
+     "literal": 0,
+     "missed": 0,
+     "pinned": 0,
+     "window": 2
+    }
+   }
   }
  ]
 }

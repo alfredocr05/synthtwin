@@ -39,6 +39,19 @@ at all. What it buys is that a column's rarest dates -- a date of death,
 a date of birth at the edge of a cohort -- are no longer written down in
 a file that travels.
 
+**What is measured, and where it stays measured.** The KPI ledger's new
+`K-S3-01` walks twenty-one shapes at two sizes and up to three seeds --
+105 columns, each described, generated and checked -- and holds four
+numbers at nought: values named, values settled by back-solve, and
+obligations missed by the twin or by the real table. It records two more
+as bounds that may not slip: how much room the battery's tightest tail
+leaves a reader trying to back-solve it (2 different multisets of
+distances, on a column of quarters), and how many of the real table's own
+published distances the checker's window does not reach, which is 1 of
+105 columns. That last number is the one place where the real table meets
+an obligation by holding the published value exactly and the window
+around it is no help; it is stated rather than left to be found.
+
 ### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
 
 **A description made without `--smallest-group` no longer names a group
