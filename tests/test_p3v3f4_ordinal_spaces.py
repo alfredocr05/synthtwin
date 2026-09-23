@@ -242,11 +242,11 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
     """The reviewer's file, measured (review item P3-V3-F4).
 
     Twelve distinct quarters published from `2018-Q1` to `2024-Q4`,
-    against a twelve-row file holding three of them. Both ENDS of the
-    file are right, and everything between them is wrong -- so what has
-    to catch it is exactly the eleven obligations that were withheld:
-    the nine rungs between the ends and the two counts of how many
-    different values the column holds.
+    against a twelve-row file holding three of them. Both BOUNDARIES of
+    the file are right, and everything between them is wrong -- so what
+    has to catch it is exactly the eleven obligations that were
+    withheld: the nine rungs between the boundaries and the two counts
+    of how many different values the column holds.
     """
     folder = tmp_path / "witness"
     folder.mkdir()
@@ -263,12 +263,25 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
     assert facts.low_tail is not None and facts.high_tail is not None
     low = facts.low_tail.rows
     high = 239 - facts.high_tail.rows
+    # STAGE 3, plan P4-D342: every quarter of this column is one row's
+    # own, so its two tails publish their SHAPE and list no value, and
+    # the construction forces fewer different values than it did while
+    # they listed them. The witness follows the BOUND rather than a
+    # number written out here: it keeps both boundaries standing at
+    # their own ranks and piles every other rank onto one quarter a
+    # side, which leaves it far short of what the construction forces.
     held = (
-        published[0 : low + 1]
+        [published[low - 1]] * low
+        + [published[low]]
         + [published[low + 1]] * (high - low - 1)
-        + published[high:]
+        + [published[high]]
+        + [published[high + 1]] * (239 - high)
     )
     assert len(held) == 240
+    forced, _widest = validation._datetime_distinct_window(
+        described.columns[0], facts, described.settings.small_cell_floor
+    )
+    assert len(set(held)) < forced, (len(set(held)), forced)
     outcome = _measure(
         folder,
         described,

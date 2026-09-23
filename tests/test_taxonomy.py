@@ -206,6 +206,168 @@ def test_the_tail_boundaries_are_canonical_and_ordered() -> None:
     assert ladder["p50"] == days[14]
 
 
+def _quarter(step: int) -> str:
+    """The `step`th quarter from 1995-Q1, as the column writes it."""
+    return f"{1995 + step // 4:04d}-Q{step % 4 + 1}"
+
+
+def _shared_quarters() -> list[str]:
+    """A column of quarters whose low tail holds two values, one of them rare.
+
+    Twelve cells below the boundary `1995-Q3`: two at `1995-Q1`, two
+    quarters below it, and ten at `1995-Q2`, one below. Every later
+    quarter is held by six cells, so the column's own values come from a
+    small fixed set and many rows stand on each.
+    """
+    cells = [_quarter(0)] * 2 + [_quarter(1)] * 10
+    for step in range(2, 42):
+        cells += [_quarter(step)] * 6
+    return cells
+
+
+def _all_different_clock() -> list[str]:
+    """Nine hundred different minutes of one day, reaching both its ends."""
+    cells = []
+    for minute in range(1440):
+        if minute % 8 != 7:
+            cells += [f"{minute // 60:02d}:{minute % 60:02d}"]
+    return cells[:900]
+
+
+def test_the_mean_beside_a_tails_values_is_withheld_where_it_settles_a_count() -> None:
+    """Stage 3 (plan P4-D329): values plus a mean can settle a small count.
+
+    A tail that lists its values tells a reader that each of them is held
+    at least once. Where it publishes its mean distance beside them the
+    counts must ALSO add to `rows` and weight to the whole sum, and over
+    two values that is two equations in two unknowns, so both counts
+    follow exactly. Here the low tail holds twelve cells, two at
+    `1995-Q1` and ten at `1995-Q2`, two quarters and one quarter below
+    the boundary: from `rows` and the mean a reader solves the pair and
+    reads a count of TWO, below the floor of eleven, which is the count
+    the floor exists to keep unsaid. `taxonomy._values_mean_pins` is the
+    guard that withholds the mean for that reason, and this is its own
+    red case.
+
+    The expectation is derived here, not copied: the test solves the
+    same pair the reader would and asserts that it has exactly ONE
+    answer, and that the answer holds a count below the floor.
+
+    MUTATION (run on a scratch copy of `src`, the worktree unwritten):
+    `_values_mean_pins` returning False before its body publishes
+    `mean_distance` 1.1666666666666667 on this tail, and this test is
+    the only one in the suite that goes red.
+    """
+    cells = _shared_quarters()
+    described = describe(cells)
+    low = described.details["low_tail"]
+    assert isinstance(low, dict)
+    assert low["boundary"] == _quarter(2)
+    assert low["values"] == [_quarter(0), _quarter(1)]
+    assert low["rows"] == 12
+    # The reader's own back-solve, written from the rule: how many
+    # (near, far) pairs of counts meet the two published facts.
+    rows = low["rows"]
+    total = 2 * 2 + 10 * 1
+    solutions = [
+        (near, far)
+        for near in range(1, rows)
+        for far in range(1, rows)
+        if near + far == rows and near * 1 + far * 2 == total
+    ]
+    assert solutions == [(10, 2)], solutions
+    assert min(solutions[0]) < SETTINGS.small_cell_floor
+    assert low["mean_distance"] is None
+    assert low["rms_distance"] is None
+
+
+def test_a_tail_lists_no_value_that_one_row_holds() -> None:
+    """Stage 3 (plan P4-D342): the owner's ruling reaches shared values only.
+
+    The ruling of 2026-09-22 -- "many people will be there and there is
+    no big deal in knowing that it's there" -- is about bounded scales
+    with few values, and its premise is that many rows stand on each
+    listed value. So a tail lists its values only where every value it
+    would list is held by at least `TAIL_SHARED_CELLS` of its cells AND
+    the column's values come from a small fixed set rather than a fine
+    grid, or where every listed value is held by the floor's own number
+    of cells, which is a heap. Everywhere else it publishes its shape.
+
+    THE CASE THAT FORCED THE RULE: a column of nine hundred DIFFERENT
+    minutes listed the eleven outermost times of each side, its own
+    `00:00` and `23:59` among them, each held by exactly one row, with
+    `rows` equal to the length of the list so that the count of one
+    followed by subtraction.
+
+    MUTATION: with the two halves of the rule made inert the same column
+    lists eleven values per side, every one of them held by one cell,
+    and this test goes red on the first assertion.
+    """
+    clock = _all_different_clock()
+    described = describe(clock)
+    assert described.role == taxonomy.ROLE_CLOCK
+    for side in ("low_tail", "high_tail"):
+        tail = described.details[side]
+        assert isinstance(tail, dict)
+        assert tail["values"] is None, side
+        assert isinstance(tail["mean_distance"], float)
+        assert isinstance(tail["rms_distance"], float)
+    published = {
+        value
+        for value in described.details.values()
+        if isinstance(value, str)
+    }
+    for tail_key in ("low_tail", "high_tail"):
+        tail = described.details[tail_key]
+        assert isinstance(tail, dict)
+        published.add(str(tail["boundary"]))
+    ladder = described.details["clock_percentiles"]
+    assert isinstance(ladder, dict)
+    for rung in ladder.values():
+        if rung is not None:
+            published.add(str(rung))
+    assert min(clock) not in published and max(clock) not in published
+
+    # ...AND THE RULE STILL LETS A BOUNDED SCALE THROUGH, so the guard
+    # is not a blanket refusal: every value these tails list is held by
+    # more than one row of the column.
+    quarters = _shared_quarters()
+    held = {}
+    for cell in quarters:
+        held[cell] = held.get(cell, 0) + 1
+    listed = describe(quarters)
+    for side in ("low_tail", "high_tail"):
+        tail = listed.details[side]
+        assert isinstance(tail, dict)
+        assert tail["values"] is not None, side
+        for value in tail["values"]:
+            assert held[value] >= taxonomy.TAIL_SHARED_CELLS, (side, value)
+
+
+def test_a_floor_sized_heap_lists_its_value_on_any_grid() -> None:
+    """Stage 3 (plan P4-D342): a heap is the ruling's own case.
+
+    The column's grid decides whether its values are a bounded scale,
+    and a column of moments to the second is a fine grid however many
+    rows it has. But where every value a tail would list is held by at
+    least the FLOOR's number of cells, "many people are there" is true
+    by the project's own measure of many, and the grid says nothing
+    against it: the forty cells of `0001-01-01`, the value two common
+    systems write for no date at all, are named rather than turned into
+    a distance of sixty-three thousand million seconds that means the
+    same thing.
+    """
+    cells = ["0001-01-01 00:00:00"] * 40
+    for step in range(360):
+        cells += [f"2020-01-01 {step % 24:02d}:{step % 60:02d}:{step % 57:02d}"]
+    described = describe(cells)
+    low = described.details["low_tail"]
+    assert isinstance(low, dict)
+    assert low["rows"] == 40
+    assert low["values"] == ["0001-01-01 00:00:00"]
+    assert cells.count("0001-01-01 00:00:00") >= SETTINGS.small_cell_floor
+
+
 def test_whole_non_negative_numbers_are_counts() -> None:
     described = describe(fixtures.numbers(1, 60, 0, 9))
     assert described.role == taxonomy.ROLE_COUNT

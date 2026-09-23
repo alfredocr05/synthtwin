@@ -55,6 +55,7 @@ ways at the end of this file.
 
 import datetime
 import hashlib
+import json
 import pathlib
 import random
 import re
@@ -677,6 +678,17 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
     call a row. The twin's bytes moved with the tail rule -- its ranks
     are drawn inside the two tail boundaries now -- and the digest below
     is the one this landing measured.
+
+    **AND THEY MOVED AGAIN WITH PLAN P4-D342**, because the DESCRIPTION
+    moved first. This column's low tail listed `2020-01-01` and
+    `2020-01-02` -- and `2020-01-01` is the column's own earliest date,
+    held by 4 of its 4,000 rows, four being under the floor of eleven.
+    797 different dates over 4,000 rows is a fine grid, not a bounded
+    scale, so the tail publishes its shape now and lists nothing. The
+    two assertions below say that in the description's own terms, so
+    the digest is not the only thing holding this; the digest follows
+    from them, and from nothing in the generator, which this pass did
+    not touch.
     """
     search = generation._nearest_free_unit
     reached = generation._distinct_reached
@@ -718,14 +730,27 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
     assert passes["again"] == 0, passes
     assert 0 < tally["calls"] <= 4000, tally
     assert _Counting.asked <= 500000, (_Counting.asked, tally)
+    # THE RULE THE BYTES FOLLOW FROM (plan P4-D342), asserted before the
+    # digest that follows from it: a fine-grid column lists no tail
+    # value, so its earliest date is named nowhere.
+    assert first["low_tail"]["values"] is None
+    assert first["high_tail"]["values"] is None
+    earliest = min(
+        f"{int(cell.split('/')[2]):04d}-{int(cell.split('/')[0]):02d}-"
+        f"{int(cell.split('/')[1]):02d}"
+        for cell in _month_first(4000, 7, 800)
+    )
+    assert earliest not in json.dumps(first)
     twin = (folder / "real-twin.csv").read_bytes()
     assert hashlib.sha256(twin).hexdigest() == _MONTH_FIRST_TWIN
 
 
 # sha256 of the twin this landing writes for `_month_first(4000, 7, 800)`
 # at seed 4. It was e53d5f4's until the tail rule (plan P4-D328) drew the
-# ranks inside the two published boundaries.
-_MONTH_FIRST_TWIN = "9e51fd6c70353bf7b07fe8db9921a0c5c99eeae53a9f0b77f88824201bdcfee7"
+# ranks inside the two published boundaries, and 9e51fd6's until plan
+# P4-D342 stopped this column's low tail listing `2020-01-01`, its own
+# earliest date, held by 4 of its 4,000 rows.
+_MONTH_FIRST_TWIN = "f615e52fcda95b6c327761533f4c578fb4fcb55a2b9be1b14dd0e2f4b3c070d0"
 
 
 def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:

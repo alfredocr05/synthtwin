@@ -548,14 +548,23 @@ def test_the_pinned_ranks_force_more_different_values(
 ) -> None:
     """P3-V4-F4's own witness, at stage 3's pins.
 
-    A quarterly description measured against a file holding half as many
-    different quarters as its own construction forces. The pinned ranks
-    are the two tail boundaries and the published rungs between them,
-    each held to one value, so the walk of G12.5 cannot put two of them
-    on one instant -- and the tails' own ranks are held to their strata,
-    which are disjoint here. Unpinned, the same walk found fewer: a file
-    was reported WITHIN its stated window at both distinctness counts,
-    which is a file passing a bound its own construction cannot meet.
+    A quarterly description measured against a file holding fewer
+    different quarters than its own construction forces. The pinned
+    ranks are the two tail boundaries and the published rungs between
+    them, each held to one value, so the walk of G12.5 cannot put two of
+    them on one instant -- and the tails' own ranks are held to their
+    strata, which are disjoint here. Unpinned, the same walk found
+    fewer: a file was reported WITHIN its stated window at both
+    distinctness counts, which is a file passing a bound its own
+    construction cannot meet.
+
+    THE WITNESS IS DERIVED FROM THE BOUND, never written out: it holds
+    the largest number of different quarters that is still short of what
+    the construction forces, so it follows the rule when the rule moves.
+    It moved once: every quarter of this column is one row's own, so
+    plan P4-D342 stopped its tails listing their values and they publish
+    their shape instead, which is fewer pinned ranks and a smaller
+    forced count.
     """
     folder = tmp_path / "quarters"
     folder.mkdir()
@@ -573,8 +582,11 @@ def test_the_pinned_ranks_force_more_different_values(
     layout = generation._date_layout(column, facts, 40, floor)
     lows, highs = generation._datetime_window(layout, facts, 40)
     assert low == float(generation._forced_apart(lows, highs))
-    held = [published[2 * (index // 2)] for index in range(40)]
-    assert len(set(held)) < low, (
+    wanted = int(low) - 1
+    assert wanted >= 1, low
+    step = -(-len(published) // wanted)
+    held = [published[step * (index // step)] for index in range(40)]
+    assert len(set(held)) <= wanted < low, (
         "the witness file holds as many different quarters as the "
         "construction forces, so it is not short of the bound at all"
     )

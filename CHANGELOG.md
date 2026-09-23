@@ -19,38 +19,89 @@ below it, mirrored above -- the count of rows beyond it, and how far
 those rows stand, as a mean and a root-mean-square distance in the
 column's own `tail_unit`. A tail holding few different values, or one
 whose two distances would settle a count below the floor, publishes
-those values instead, existence only and never a count. A column too
-small or too tied for a boundary on each side publishes no value of the
-table at all, and its twin is a made-up ramp from 1970-01-01 (plans
-P4-D328 to P4-D332).
+those values instead, existence only and never a count -- but only
+where EVERY value it would list is shared by at least two of its cells
+and the column's own values come from a small fixed set rather than a
+fine grid, or where every listed value is held by the floor's own
+number of cells. A column of all-different clock times lists nothing
+and publishes its shape (plans P4-D328 to P4-D332 and P4-D342). A
+column too small or too tied for a boundary on each side publishes no
+value of the table at all, and its twin is a made-up ramp from
+1970-01-01.
 
-| on a 400-row column of dates, at a floor of eleven   | before | after |
+MEASURED ON ONE NAMED SHAPE, so that the rows can be re-run: the tail
+battery's `uniform` column, 400 days drawn over three years at seed 0,
+described at a floor of eleven on `13fa831` and on this tree.
+
+| `uniform`, 400 rows, seed 0, floor eleven            | before | after |
 |------------------------------------------------------|--------|-------|
-| published values held by one row                     | 2      | 0     |
-| published facts naming one of the 11 outermost cells  | 4      | 0     |
+| different date values published                      | 11     | 9     |
+| of those, held by exactly one row                    | 8      | 6     |
+| of those, naming one of the 11 outermost cells        | 4      | 0     |
 | rungs published between the two boundaries           | 9      | 7     |
-| the twin's spread of a lone far value, against the real column | +7.92% to +26.02% | -0.24% to +0.46% |
 | checkable obligations the twin misses                | 0      | 0     |
 
-**What it costs.** Two rungs of an eleven-rung ladder are withheld on a
-column of four hundred rows, and all nine on a column of fewer than
-forty-five; a column of fewer than twenty-three rows publishes no date
-at all. What it buys is that a column's rarest dates -- a date of death,
+The six that a single row still holds are interior ladder rungs and the
+two boundaries: this landing's half is the EXTREMES, and a rung read
+from the middle of a column of all-different dates is one row's date
+whatever else changes. The numeric sibling landing owns the rest.
+
+**And the twin's own spread is repaired by the same change**, measured
+on the battery's `lone_far` column -- a column with one value a long
+way out -- over both sizes and every seed, as the population standard
+deviation of the twin's dates against the real column's: +7.92% to
++40.47% before, -0.96% to +0.18% after.
+
+**What it costs.** The ladder loses both of its ends on every column,
+and every interior rung whose rank falls inside a tail. MEASURED on
+all-different day-resolution columns at a floor of eleven: a column of
+fewer than twenty-three rows publishes no date at all; from
+twenty-three it publishes one rung (`p50`), from forty-two a second
+(`p75`), from forty-five a third (`p25`), seven at four hundred rows,
+and all nine from one thousand one hundred and one -- the row count at
+which `p01`'s own rank, `floor((P - 1) / 100)`, first reaches the low
+tail's eleven cells. It also costs the lone-far-value column its listed
+dates: those were nine dates one row each held, which the rule of
+P4-D342 now refuses, so that column is described by its shape like any
+other. What it buys is that a column's rarest dates -- a date of death,
 a date of birth at the edge of a cohort -- are no longer written down in
 a file that travels.
 
+**And one window was drawn tighter than its own construction.** The
+checker built a date column's tail window with "every value different"
+hard coded FALSE, while the generator reads the column's own
+distinctness and lays the tail out accordingly -- a validator that
+rejects conforming twins, which is the failure that whole class of
+windows exists to avoid. It went unseen while such a column published
+its tail's VALUES instead of its shape; with the rule above closing
+that road, a column of 120 different months missed both of its low
+tail's distances, its twin standing at a mean of 7.0 months against a
+window of 5.64 to 6.45 whose own construction reaches 7.0. The checker
+now reads distinctness exactly as the generator does.
+
 **What is measured, and where it stays measured.** The KPI ledger's new
 `K-S3-01` walks twenty-one shapes at two sizes and up to three seeds --
-105 columns, each described, generated and checked -- and holds four
+105 columns, each described, generated and checked -- and holds three
 numbers at nought: values named, values settled by back-solve, and
-obligations missed by the twin or by the real table. It records two more
-as bounds that may not slip: how much room the battery's tightest tail
-leaves a reader trying to back-solve it (2 different multisets of
-distances, on a column of quarters), and how many of the real table's own
-published distances the checker's window does not reach, which is 1 of
-105 columns. That last number is the one place where the real table meets
-an obligation by holding the published value exactly and the window
-around it is no help; it is stated rather than left to be found.
+obligations missed by the twin or by the real table. It records four
+more as bounds that may not slip. How much room the battery's tightest
+tail leaves a reader trying to back-solve it: 2 different multisets of
+distances, on a column of quarters. How many tails still LIST their
+values rather than publish a shape: 12, all of them quarters, months or
+the forty-cell `0001-01-01` heap. How many of the real table's own
+published distances the checker's window does not reach: 2 of 105
+columns, the one place where the real table meets an obligation by
+holding the published value exactly and the window around it is no
+help. And how many tails the published pair settles to ONE arithmetic
+once a reader also uses the column's own all-different remark and the
+tail's own edge: 4, every one of them a side of an all-different clock
+column of 900 rows whose tail is pressed against the end of the day.
+That last number is the landing's stated residual and it is on the
+board so the next ruling is made on a measurement, not on a claim. A
+fifth, `unsearched`, says where the measurement itself could not
+finish: 35 tails counted in SECONDS, whose sums run past what an
+exhaustive walk can enumerate, so their room is not measured rather
+than measured and found roomy.
 
 ### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
 

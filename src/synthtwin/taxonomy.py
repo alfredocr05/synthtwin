@@ -3007,6 +3007,20 @@ def _date_ladder(
 # below the floor, the tail publishes which values it holds instead of
 # its root-mean-square distance (owner ruling of 2026-09-22: showing that
 # a value exists is not an issue; showing how many hold it is).
+#
+# THE RULING'S PREMISE IS PART OF THE RULING (plan P4-D342). The owner
+# ruled on BOUNDED SCALES WITH FEW VALUES -- "many people will be there
+# and there is no big deal in knowing that it's there" -- and that
+# premise is false on a column where every value is one person's own
+# time. So a tail publishes its values only where BOTH halves of the
+# premise hold: every value it would list is held by at least
+# `TAIL_SHARED_CELLS` of its cells, so no listed value names one row;
+# and the column's own values come from a small fixed set rather than a
+# fine grid (`TAIL_SET_VALUES`, and `TAIL_SHARED_CELLS` again, read over
+# the whole column) -- or every listed value is held by the FLOOR's own
+# number of cells, which is "many people are there" by the project's
+# own measure of many. Where either fails the tail publishes its two
+# distances instead, whatever the lattice check says of them.
 
 # The keys of one tail object, read from the one place they are written.
 TAIL_KEYS = parsing.TAIL_KEYS
@@ -3016,6 +3030,22 @@ TAIL_KEYS = parsing.TAIL_KEYS
 # values they are than through a shape, and the owner ruled their
 # existence publishable.
 TAIL_FEW_VALUES = 3
+
+# HOW MANY CELLS SHARE A VALUE BEFORE IT IS NOBODY'S OWN (plan P4-D342).
+# Two, read twice: no value a tail lists is held by fewer than this many
+# of that tail's cells, and the column's own values are shared by at
+# least this many cells apiece on average. One cell is one person, and
+# the owner's ruling does not reach it.
+TAIL_SHARED_CELLS = 2
+
+# THE LARGEST VOCABULARY A COLUMN MAY HAVE for its tails to publish
+# values rather than a shape (plan P4-D342): a bounded scale a reader
+# could enumerate -- quarters over sixty-four years, months over
+# twenty-one, a pain score, a stage, a grade -- and not a fine grid. A
+# column of days over three years holds about eleven hundred different
+# values and publishes its shape; one of days over eight months holds
+# about two hundred and forty, and many rows stand on each of them.
+TAIL_SET_VALUES = 256
 
 # How many steps the search of `_tail_pinned` may take on one side before
 # it gives up and answers "pinned", which is the answer that publishes
@@ -3566,18 +3596,39 @@ def _tail_side(
     floor: int,
     edge: int,
     distinct: bool,
+    coarse: bool,
 ) -> "dict[str, object]":
     """The published object of one tail (contract TL1).
 
     `distances` are the outer cells' whole distances beyond the boundary
     and `texts` the canonical text of each of those cells, in the same
-    order. The mean distance is the whole sum over the cell count and
-    the root-mean-square distance the square root of the whole sum of
-    squares over it, each rounded once to the nearest binary64. A tail
-    holding at most `TAIL_FEW_VALUES` different values, or one the
-    published numbers would pin (`_tail_pinned`), publishes its sorted
-    values in place of the root-mean-square distance, and its mean too
-    unless that would pin a count below the floor (`_values_mean_pins`).
+    order, and `coarse` says the COLUMN's own values come from a small
+    fixed set (`ordered_tails`). The mean distance is the whole sum over
+    the cell count and the root-mean-square distance the square root of
+    the whole sum of squares over it, each rounded once to the nearest
+    binary64.
+
+    THREE ROADS, in order of what each says (plan P4-D342).
+
+    * A tail may LIST ITS VALUES only where the owner's ruling of
+      2026-09-22 reaches it, which is where its whole premise holds:
+      one canonical text to a distance, every distance held by at least
+      `TAIL_SHARED_CELLS` cells so that no listed value names one row,
+      and either `coarse` or a tail every distance of which the floor's
+      own number of cells hold -- a heap, which is the ruling's case
+      whatever grid it stands on. Where all three hold, the tail lists its sorted
+      values in place of the root-mean-square distance -- if it holds at
+      most `TAIL_FEW_VALUES` of them, or if its two distances would pin
+      what the floor protects (`_tail_pinned`) -- with its mean beside
+      them unless that would pin a count below the floor
+      (`_values_mean_pins`).
+    * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
+      the values -- INCLUDING where `_tail_pinned` fires and the values
+      road is closed. That case is the landing's stated residual: the
+      pair says less than the list it replaces, and reading it back
+      takes an exhaustive lattice walk, so K-S3-01's `edge_pinned`
+      counts how often the walk succeeds instead of leaving it to be
+      found.
 
     Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
     function of the arguments. Raises nothing. No I/O of any kind.
@@ -3612,8 +3663,32 @@ def _tail_side(
                 single = False
         else:
             one_text[distance] = texts[place]
-    few = single and len(counts) <= TAIL_FEW_VALUES
-    if not few and not (single and _tail_pinned(distances, floor, edge, distinct)):
+    # NO LISTED VALUE NAMES ONE ROW (plan P4-D342). The owner's ruling
+    # rests on many people standing on each listed value; a distance
+    # held by one cell is one person's own time, and the extreme of it
+    # is a tail whose `rows` equals the length of its own list, where
+    # the count of one follows by subtraction. Read on the DISTANCES,
+    # which is what a listed value is published by.
+    shared = True
+    heaped = True
+    for distance in counts:
+        if counts[distance] < TAIL_SHARED_CELLS:
+            shared = False
+        if counts[distance] < floor:
+            heaped = False
+    # A HEAP IS THE RULING'S OWN CASE, whatever grid it sits on. Where
+    # every value the tail would list is held by at least the FLOOR's
+    # number of cells, "many people will be there" is true by the
+    # project's own measure of many, and the column's grid says nothing
+    # against it: forty cells of `0001-01-01`, the "no date" a common
+    # system writes, stand in a column of moments to the second. The
+    # measurement reads the same rule from the other side -- K-S3-01's
+    # `_outermost` leaves out any value the floor's own cells hold.
+    listed = single and shared and (coarse or heaped)
+    few = listed and len(counts) <= TAIL_FEW_VALUES
+    if not few and not (
+        listed and _tail_pinned(distances, floor, edge, distinct)
+    ):
         return {
             "boundary": boundary,
             "rows": size,
@@ -3654,6 +3729,18 @@ def ordered_tails(
     Returns (None, None, None) where the column has no tails
     (`tail_ranks`).
 
+    IS THIS A SMALL FIXED SET OR A FINE GRID? Decided here, once, for
+    both tails, because it is a fact about the COLUMN and not about
+    either of its ends (plan P4-D342): the column's own different
+    values, counted as ordinals in the tail's unit so that two spellings
+    of one day count once, are at most `TAIL_SET_VALUES` and stand under
+    at least `TAIL_SHARED_CELLS` cells apiece on average. Measured over
+    the tail battery: quarters and months take it at 98 to 120 different
+    values and 3.4 to 12.8 cells on each; every clock column and every
+    day-resolution column of dates over years is outside it, the nearest
+    being two years of admission days at 217 to 227 different values and
+    1.8 cells on each.
+
     Guarantees: a function of the arguments; raises nothing; no I/O.
     """
     ranks = tail_ranks(ordinals, floor)
@@ -3661,6 +3748,8 @@ def ordered_tails(
         return (None, None, None)
     low_rank, high_rank = ranks
     count = len(ordinals)
+    grid = len(set(ordinals))
+    coarse = grid <= TAIL_SET_VALUES and grid * TAIL_SHARED_CELLS <= count
     low_distances = [
         ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
     ]
@@ -3681,6 +3770,7 @@ def ordered_tails(
         floor,
         max(1, ordinals[low_rank] - edges[0]),
         distinct and len(set(low_distances)) == len(low_distances),
+        coarse,
     )
     high = _tail_side(
         high_distances,
@@ -3689,6 +3779,7 @@ def ordered_tails(
         floor,
         max(1, edges[1] - ordinals[high_rank]),
         distinct and len(set(high_distances)) == len(high_distances),
+        coarse,
     )
     return (low, high, ranks)
 

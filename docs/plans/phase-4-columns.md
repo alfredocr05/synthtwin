@@ -19049,11 +19049,13 @@ held by `tests/test_pooled_number_scale.py` and its mutation checks
 instead, and a frozen case that reaches step 4 — a column whose census
 pushes one pooled group a long way — is the next pass's work.
 
-## Stage 3 — decisions P4-D316 to P4-D339 (2026-09-22)
+## Stage 3 — decisions P4-D316 to P4-D343 (2026-09-22)
 
 Stage 3's landings take their numbers from this block. P4-D316 to
 P4-D318 are landing 3.1's; P4-D328 to P4-D332 are landing 3.4's, the
-date and clock tails; the rest are reserved for the stage's other
+date and clock tails; P4-D342 and P4-D343 are that landing's review
+repair, numbered above the reserved block because P4-D328 to P4-D341
+were already spoken for; the rest are reserved for the stage's other
 landings.
 
 ### P4-D316 The default smallest group is 11
@@ -19386,3 +19388,112 @@ gone and whose remark still names them would publish the two extreme
 values of a floored column in prose, which is the one disclosure this
 stage exists to close. A block with neither end nor boundary -- a
 column too small for a tail -- carries no remark at all.
+
+### P4-D342 The ruling's premise is part of the ruling
+
+**Numbered above the block.** The stage-3 heading reserves P4-D316 to
+P4-D339, and P4-D328 to P4-D331 are this landing's own. This decision
+repairs one of them after its review, so it takes the next free number
+above P4-D341 rather than a number inside a block already spent.
+
+**The decision.** The owner's ruling of 2026-09-22 -- "we don't need to
+be worried about the tails. Like, many people will be there and there
+is no big deal in knowing that it's there" -- is a ruling about BOUNDED
+SCALES WITH FEW VALUES: a pain score, a stage, a grade, a Likert
+answer, ages in whole years, quarters. Its premise is that many people
+stand on each listed value. P4-D329 applied the ruling without its
+premise, and on a column of all-different clock times the premise is
+false: every value is one person's own time. So a tail publishes the
+values it holds only where all three of these hold, and publishes its
+shape otherwise.
+
+1. **One canonical text to a distance** (P4-D329's own rule, unchanged).
+2. **Every distance the tail would list is held by at least
+   `taxonomy.TAIL_SHARED_CELLS` of its cells**, so no listed value names
+   one row. The extreme case is a tail whose `rows` equals the length of
+   its own list, where the count of one follows by subtraction.
+3. **The column's values come from a small fixed set, not a fine grid**:
+   its different values, counted as ordinals in the tail's own unit so
+   that two spellings of one day count once, are at most
+   `taxonomy.TAIL_SET_VALUES` -- 256, a scale a reader could enumerate,
+   quarters over sixty-four years or months over twenty-one -- and
+   stand under at least `TAIL_SHARED_CELLS` cells apiece on average.
+   Decided once per column, in `taxonomy.ordered_tails`, because it is a
+   fact about the column and not about either of its ends.
+   **OR the tail is a HEAP**: every value it would list is held by at
+   least the FLOOR's own number of cells, which is "many people will be
+   there" by the project's own measure of many, and then the column's
+   grid says nothing against it. K-S3-01's own `_outermost` already
+   reads the rule from the other side, leaving out any value the
+   floor's cells hold, so the producer and the measurement now agree.
+
+**What was published before, and what is published now.** On the
+shipped battery -- 21 shapes, two sizes, up to three seeds, floor 11,
+200 tails -- 29 tails listed values and 171 published two distances.
+Now 12 list values and 188 publish two distances. The 12 that keep the
+values road are seven of quarters and
+months, every value held by 3 to 14 cells over columns of 117 to 120
+different values standing under 3.4 to 12.8 cells apiece, and five of
+`dotnet_minimum`, whose 40 cells all stand on the one `0001-01-01`
+sentinel and pass as a heap. The 17 that lost it are
+`clock_all_different` and `clock_edges` at 900 rows -- 900 different
+values, one cell each, eleven values listed per side each held by ONE
+cell, which is the blocking item -- and `lone_far`, `births` and
+`months` at 1,500 rows, each listing a value that one cell holds.
+
+**MEASURED HEADROOM.** The nearest column on the excluded side is two
+years of admission days: 217 to 227 different values, inside the 256,
+but 1.76 to 1.84 cells apiece, below the two. The nearest on the
+included side is quarters at 3.36 cells apiece and 119 different values.
+So the vocabulary test has room of 2.1 times below and 2.0 times above,
+and the sharing test 1.7 times above and 1.1 times below.
+
+### P4-D343 What the shape road still settles, measured and stated
+
+**The decision.** P4-D329 sent a tail whose two published distances
+would settle what the floor protects to the VALUES road. P4-D342 closes
+that road on every column whose values are one person's own, and such a
+tail now publishes its two distances WHATEVER the lattice check says of
+them. It is the lesser of the two disclosures and it is not nothing, so
+it is measured rather than claimed away: K-S3-01 gains an `edge_pinned`
+key, a CEILING held at its measured value in the manner of
+`equality_only`.
+
+**What `edge_pinned` counts.** How many shape-drawn tails the published
+`rows`, `mean_distance` and `rms_distance` settle to ONE multiset of
+distances once the reader also uses the two things the same description
+hands them: the column's own "every value different" remark, and the
+tail's own edge -- how far a distance can reach before it leaves the
+calendar or the day, which follows from the boundary and the member.
+The driver's `pinned` key uses neither, so it reports how tight the
+lattice is on its own; `edge_pinned` reports how tight it is to the
+reader who has the whole description.
+
+**Measured** on the shipped battery, floor 11. `clock_all_different` at
+900 rows, seed 0: the low tail holds 11 cells below the boundary `00:14`
+at distances summing to 80 with squares summing to 756. Ignoring both
+extra facts, 687 multisets fit. With them -- 11 DIFFERENT whole
+distances, none past 14 because the day starts at `00:00` -- exactly
+ONE fits, which names all eleven values including the column's own
+minimum. The same shape at HEAD of the unrepaired landing printed those
+eleven values in the clear, so the shape road says strictly less; it
+does not say nothing.
+
+**WHAT IS STILL OWED, and to whom.** Whether a column this dense may
+publish a tail at all is a question for the owner, not for this repair:
+the shapes it bites on are all-different clock columns whose tail is
+pressed against the end of the day, where 11 cells stand in a 14-minute
+window and any published summary of that window is nearly determined.
+Three levers exist and none is this landing's to pull -- a wider tail
+(the boundary rule, contract TL2), a coarser published number (the
+`APPROXIMATED` disposition of the two distances), or no tail at all on
+such a column. The number is now on the board so that the choice is
+made on a measurement.
+
+**The two budgets are not the same question.** `taxonomy._tail_pinned`
+is the PRODUCER's guard and answers "pinned, publish less" when its
+budget runs out (plan P4-D329). K-S3-01's own walk is the MEASUREMENT
+and answers "plenty of room" when its budget runs out, which is why the
+tails it happens on are counted as `unsearched` instead of passing for
+measured. Each defaults to the answer that cannot flatter the landing,
+and the two must not be read as one rule.

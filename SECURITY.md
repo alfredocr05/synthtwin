@@ -289,8 +289,17 @@ Stated here so that no reader has to discover them independently:
   neither end** (stage 3): each side of it is a TAIL -- a boundary with
   at least `small_cell_floor` cells beyond it, how many those are, and
   how far they lie -- so no date in the file is the rarest one the
-  column held, and a tail that lists its few different dates says
-  nothing about how many rows hold each. **`small_cell_floor` is 11 by default** (owner,
+  column held. A tail LISTS its few different dates only where the
+  owner's ruling of 2026-09-22 reaches it, which is where each of them
+  is shared by at least two rows and the column's dates come from a
+  small fixed set rather than a fine grid; it says nothing about how
+  many rows hold each. Anywhere else -- a column of clock times, a
+  column of days over years -- it publishes its shape and lists
+  nothing. What the shape still allows is stated rather than claimed
+  away: on a column of all-different clock times whose tail is pressed
+  against the end of the day, a reader who works through every
+  arithmetic the two published distances admit is left with one answer,
+  and the KPI ledger's `K-S3-01` counts how often that is so. **`small_cell_floor` is 11 by default** (owner,
   2026-09-22), so by default it publishes a label only where at least
   eleven rows share it, with how many rows did, and pools the rest into
   a count that names none of them. `--smallest-group` lowers it, down to

@@ -15118,6 +15118,18 @@ def _date_tail_windows(
         date_system,
     )
     holes = _tail_holes(column, facts)
+    # ALL DIFFERENT IS A FACT ABOUT THE WHOLE COLUMN, and the window is
+    # drawn from the SAME construction the generator runs
+    # (`generation._date_layout`), which reads it exactly this way. It
+    # was hard-coded False here, so on a column of all-different dates
+    # the window was drawn TIGHTER than the construction -- which is a
+    # validator that rejects conforming twins. It went unseen while such
+    # a column published its tail's values instead of its shape;
+    # plan P4-D342 closed that road and a column of 120 different months
+    # then missed both of its low tail's distances, its twin standing at
+    # a mean of 7.0 against a window of 5.64 to 6.45 whose construction
+    # reaches 7.0.
+    apart = column.n_distinct - facts.n_unparsed >= column.n_present - facts.n_unparsed
     midnight_group = (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and not facts.all_at_midnight
@@ -15147,7 +15159,7 @@ def _date_tail_windows(
             anchor = taxonomy.tail_ordinal(tail.boundary, parsing.TAIL_UNIT_SECOND, reading)
             where = (anchor, seconds_per_unit, 0, tuple(shifts))
         found[key] = _tail_construction(
-            tail.rows, mean, root, floor, edge, False, holes, at, low_side,
+            tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
             where,
         )
     return found

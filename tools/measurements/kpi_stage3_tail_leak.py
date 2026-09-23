@@ -10,14 +10,19 @@ that must now be true, and that this driver measures, is that NOTHING
 the description or either report says names one of the `k` outermost
 cells of the column, `k` the smallest group size.
 
-THREE MEASUREMENTS, over one battery:
+SIX MEASUREMENTS, over one battery:
 
 * `literal`: how many published values, summary lines or report lines are
   equal, as text, to one of the `k` outermost values of the real column.
   Taken over every string the description holds at any depth, and over
   every line of the twin's report, the twin's quality report and the real
   table's quality report, by whole-token comparison so that a line
-  carrying a value inside a sentence is caught;
+  carrying a value inside a sentence is caught. THE COLUMN IS ORDERED BY
+  ITS OWN ROLE: a `time_of_day` block publishes `clock_form` and no
+  `format`, and reading its cells with the ISO-date parser gave nothing
+  to compare against, so this number was structurally nought on every
+  clock shape of the battery whatever the description said (the skeptic
+  of this landing). `_outermost` branches on the role now;
 * `pinned`: how many tails the published facts SETTLE -- the back-solve
   of contract TL1's own lattice, `taxonomy.tail_pinned`, asked of each
   published tail: whether the rows, the mean and the root-mean-square
@@ -31,6 +36,23 @@ THREE MEASUREMENTS, over one battery:
   the smallest such population over the battery is reported. A population
   of one IS a pinned tail, so this number is the distance between the
   battery's tightest tail and a leak, and it may not fall;
+* `unsearched`: how many shape-drawn tails the back-solve could NOT
+  finish -- its budget spent, or its two sums read back past what
+  binary64 carries exactly. A spent walk returns the permissive answer,
+  so a tail counted here is one whose `pinned` and `window` are not
+  measured rather than measured and found roomy. It is a CEILING held
+  at nought, and the repair that brought it there was the upper bound of
+  `_widest_squares`: 89 of the battery's 171 shape-drawn tails spent
+  their budget without it;
+* `edge_pinned`: how many shape-drawn tails the published pair settles
+  to ONE multiset of distances once the reader also uses the two things
+  the SAME description hands them -- the column's "every value
+  different" remark and the tail's own edge, how far a distance reaches
+  before it leaves the day or the calendar. `pinned` uses neither, so it
+  says how tight the lattice is on its own; this says how tight it is to
+  a reader holding the whole description. A CEILING stated at its
+  measured value, in the manner of `equality_only`, and the landing's
+  own residual (plan P4-D343);
 * `equality_only`: how many of the real table's OWN published tail
   distances lie outside the construction window G12.14 draws for them,
   so that the real table passes that obligation only by exact equality
@@ -404,7 +426,7 @@ def _table(name, cells):
     return out.getvalue()
 
 
-def _outermost(cells, member, reading_at, floor):
+def _outermost(cells, member, reading_at, floor, clock_form=""):
     """The `floor` outermost values of a column that the floor protects.
 
     The cells at the two ends of the sorted column, less any value at
@@ -413,6 +435,17 @@ def _outermost(cells, member, reading_at, floor):
     "many people will be there and there is no big deal in knowing that
     it's there" -- and it reaches the ends only because the column is
     tied there, not because it is rare.
+
+    THE ROLE DECIDES WHICH PARSER ORDERS THE COLUMN. A `time_of_day`
+    block publishes `clock_form` and no `format`, and the ISO-date
+    parser returns None for every one of its cells, so reading a clock
+    column with it left `parsed` empty and this function returning the
+    EMPTY SET -- and a measurement compared against an empty set of
+    outermost values cannot fail, whatever the description says. Every
+    clock shape of the battery was in that state (the skeptic of this
+    landing). Where `clock_form` is given the cells are ordered by
+    `parsing.clock_ordinal` against it, and the texts compared are the
+    clock texts themselves.
     """
     # ORDERED BY THE INSTANT EACH CELL NAMES, never by its text: a
     # column written `17-MAR-2021` sorts by month name as text, which
@@ -421,6 +454,12 @@ def _outermost(cells, member, reading_at, floor):
     parsed = []
     for cell in cells:
         if not cell:
+            continue
+        if clock_form:
+            found = parsing.clock_ordinal(cell, clock_form)
+            if found is None:
+                continue
+            parsed += [(found, cell)]
             continue
         found = parsing.parse_datetime(cell, member)
         if found is None:
@@ -480,7 +519,21 @@ ROOM_LIMIT = 64
 ROOM_STEPS = 200000
 
 
-def _multisets(rows, total, squares, most, steps=None):
+def _widest_squares(rows, total, most):
+    """The largest sum of squares `rows` whole distances in `[1, most]` summing
+    to `total` can reach: as many of them at `most` as the sum affords, one
+    carrying the remainder, and the rest at one."""
+    if rows <= 0:
+        return 0
+    if most <= 1:
+        return rows
+    full, rest = divmod(total - rows, most - 1)
+    if full >= rows:
+        return rows * most * most
+    return full * most * most + (1 + rest) * (1 + rest) + (rows - full - 1)
+
+
+def _multisets(rows, total, squares, most, steps=None, spent=None, apart=False):
     """How many multisets of `rows` whole distances meet both sums, up to a cap.
 
     Written here rather than taken from the producer, because this is
@@ -488,11 +541,33 @@ def _multisets(rows, total, squares, most, steps=None):
     the distances descend, each is at least one and at most the one
     before it, and the walk is cut by the two bounds a sum and a sum of
     squares give -- the even split below and the widest split above.
+    With `apart` the distances are strictly descending, which is what
+    the column's own "every value different" remark tells a reader, and
+    `most` is then the tail's own edge rather than the whole sum.
+
+    TWO THINGS THE SKEPTIC OF THIS LANDING FOUND, both repaired here.
+    The walk had only the LOWER bound of the two, so it descended
+    branches whose remainder could never reach the squares it still owed
+    and spent its budget on 89 of the battery's 171 tails; `_widest_squares`
+    is the upper one, and it made 18 of those 89 exact in seconds. And a
+    walk that still spends its budget returns `ROOM_LIMIT`, the
+    PERMISSIVE default -- "plenty of room", the answer that cannot lower
+    `pinned` or `window` -- so it now says so through `spent`, and the
+    tails it happened on are counted and published as `unsearched`
+    rather than passing for measured. THE PRODUCER'S OWN GUARD TAKES THE
+    OPPOSITE DEFAULT: `taxonomy._tail_pinned` answers "pinned, publish
+    less" when its budget runs out (plan P4-D329). The two are not the
+    same question -- the producer asks "may I publish this?", this asks
+    "how much room is a reader left with?" -- and each defaults to the
+    answer that cannot flatter the landing.
     """
     if steps is None:
         steps = [ROOM_STEPS]
+    if spent is None:
+        spent = [False]
     steps[0] -= 1
     if steps[0] <= 0:
+        spent[0] = True
         return ROOM_LIMIT
     if rows == 0:
         return 1 if total == 0 and squares == 0 else 0
@@ -503,28 +578,60 @@ def _multisets(rows, total, squares, most, steps=None):
     if squares < least:
         return 0
     top = min(most, total - (rows - 1))
+    if _widest_squares(rows, total, top) < squares:
+        return 0
+    # THE LARGEST DISTANCE IS AT LEAST THE AVERAGE, and its square is at
+    # most what the squares leave once every other distance has paid its
+    # least one. Both are bounds a reader has, and without them the walk
+    # counted down from a `top` of the whole sum, stepping over branches
+    # that could never pay.
+    top = min(top, math.isqrt(max(0, squares - (rows - 1))))
+    least = -(-total // rows)
     found = 0
-    for first in range(top, 0, -1):
-        if first * first > squares:
-            continue
+    for first in range(top, least - 1, -1):
         found += _multisets(
-            rows - 1, total - first, squares - first * first, first, steps
+            rows - 1,
+            total - first,
+            squares - first * first,
+            first - 1 if apart else first,
+            steps,
+            spent,
+            apart,
         )
         if found >= ROOM_LIMIT or steps[0] <= 0:
             return ROOM_LIMIT if found >= ROOM_LIMIT else found
     return found
 
 
+# The largest whole number binary64 carries exactly. A tail's two sums
+# are read back from two rounded numbers, and beyond this the reading
+# itself is not exact, so the walk is not run: the tail is UNSEARCHED
+# and says so, rather than reporting a count of zero that only means
+# the arithmetic went past the format.
+_EXACT_WHOLE = 2 ** 53
+
+
 def _pinned_and_room(block, floor):
-    """How many of a block's tails the published facts settle, and the room left.
+    """How many of a block's tails the published facts settle, the room left,
+    and how many the walk could not finish.
 
     The back-solve of contract TL1, made from the published facts alone:
     a tail whose rows, mean and root-mean-square distance leave exactly
     ONE multiset of distances names its outermost value, and the count of
     multisets is how much room a reader is left with.
+
+    A TAIL PUBLISHING ITS VALUES IS NOT ASKED, because it has already
+    said which values it holds and the lattice is not what a reader
+    would run on it; a tail publishing its MEAN ALONE is not asked
+    either, because the walk needs both sums and the producer withheld
+    the second of them for exactly this reason (plan P4-D343). Both are
+    counted by `listed` and by the road tally instead. A tail whose sums
+    do not fit binary64 exactly, and one whose walk spends its budget,
+    are counted as UNSEARCHED.
     """
     pinned = 0
     room = None
+    unsearched = 0
     for side in ("low_tail", "high_tail"):
         tail = block.get(side)
         if not isinstance(tail, dict) or tail.get("rows") is None:
@@ -538,10 +645,95 @@ def _pinned_and_room(block, floor):
         rows = tail["rows"]
         total = int(rows * mean + 0.5)
         squares = int(rows * root * root + 0.5)
-        count = _multisets(rows, total, squares, total)
+        if total > _EXACT_WHOLE or squares > _EXACT_WHOLE:
+            unsearched += 1
+            continue
+        spent = [False]
+        count = _multisets(rows, total, squares, total, [ROOM_STEPS], spent)
+        if spent[0]:
+            unsearched += 1
+            continue
         pinned += 1 if count == 1 else 0
         room = count if room is None else min(room, count)
-    return pinned, room
+    return pinned, room, unsearched
+
+
+def _reader_bounds(column):
+    """The two facts about each tail a reader of the SAME description holds
+    beside its three numbers: how far a distance can reach before it leaves
+    the day or the calendar, and whether the column's values are all
+    different. Keyed `low` and `high`, each `(edge, apart)`.
+
+    Both are published: the edge follows from the boundary and the member
+    (`taxonomy.tail_edges`, the calendar or `parsing.CLOCK_CAPACITY`), and
+    the all-different remark is a sentence of the description itself.
+    `pinned` uses neither and says how tight the lattice is on its own;
+    `edge_pinned` uses both and says how tight it is to a reader holding
+    the whole description.
+    """
+    facts = column.facts
+    found = {}
+    if getattr(facts, "low_tail", None) is None or facts.high_tail is None:
+        return found
+    parsed = column.n_present - facts.n_unparsed
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    sides = (("low", facts.low_tail, True), ("high", facts.high_tail, False))
+    if isinstance(facts, contract.ClockFacts):
+        capacity = parsing.CLOCK_CAPACITY[facts.clock_form]
+        for key, tail, low_side in sides:
+            at = parsing.clock_ordinal(tail.boundary, facts.clock_form)
+            at = 0 if at is None else at
+            found[key] = (max(1, at if low_side else capacity - 1 - at), apart)
+        return found
+    edges = taxonomy.tail_edges(
+        facts.parser_family,
+        facts.tail_unit,
+        facts.datetimes_read_at,
+        facts.utc_offsets,
+        "",
+    )
+    for key, tail, low_side in sides:
+        at = taxonomy.tail_ordinal(
+            tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        found[key] = (
+            max(1, at - edges[0] if low_side else edges[1] - at),
+            apart,
+        )
+    return found
+
+
+def _edge_pinned(column):
+    """How many shape-drawn tails the published pair settles to ONE multiset
+    once the reader also uses `_reader_bounds` (plan P4-D343).
+
+    A CEILING stated at its measured value rather than a gate held at
+    nought: the shape road says strictly less than the list of values it
+    replaced on these tails, and this says how much less.
+    """
+    facts = column.facts
+    bounds = _reader_bounds(column)
+    settled = 0
+    for key, tail in (("low", facts.low_tail), ("high", facts.high_tail)):
+        if tail is None or tail.values is not None:
+            continue
+        if tail.mean_distance is None or tail.rms_distance is None:
+            continue
+        edge, apart = bounds.get(key, (None, False))
+        if edge is None:
+            continue
+        rows = tail.rows
+        total = int(rows * tail.mean_distance + 0.5)
+        squares = int(rows * tail.rms_distance * tail.rms_distance + 0.5)
+        if total > _EXACT_WHOLE or squares > _EXACT_WHOLE:
+            continue
+        spent = [False]
+        count = _multisets(
+            rows, total, squares, min(edge, total), [ROOM_STEPS], spent, apart
+        )
+        if not spent[0] and count == 1:
+            settled += 1
+    return settled
 
 
 def _tail_windows(described, column):
@@ -634,7 +826,13 @@ def _case(folder, shape, rows, seed):
     described = contract.load_profile(str(written))
     block = document["columns"][0]
     member = block.get("format", "iso-date")
-    outer = _outermost(cells, member, block.get("datetimes_read_at", "local"), FLOOR)
+    outer = _outermost(
+        cells,
+        member,
+        block.get("datetimes_read_at", "local"),
+        FLOOR,
+        block.get("clock_form", ""),
+    )
     twin = generation.generate(described, seed)
     twin_text = rendering.twin_csv(twin)
     twin_path = home / "twin.csv"
@@ -688,19 +886,29 @@ def _case(folder, shape, rows, seed):
         for check in outcome.checks:
             if check.verdict == validation.MISSED:
                 missed += 1
-    pinned, room = _pinned_and_room(block, FLOOR)
+    pinned, room, unsearched = _pinned_and_room(block, FLOOR)
     return {
         "leaked": leaked,
         "missed": missed,
         "pinned": pinned,
         "room": room,
         "listed": listed,
+        "unsearched": unsearched,
+        "edge_pinned": _edge_pinned(described.columns[0]),
         "equality": _outside_the_window(described, described.columns[0]),
     }
 
 
 def main():
-    total = {"cases": 0, "literal": 0, "pinned": 0, "missed": 0, "equality_only": 0}
+    total = {
+        "cases": 0,
+        "literal": 0,
+        "pinned": 0,
+        "missed": 0,
+        "equality_only": 0,
+        "unsearched": 0,
+        "edge_pinned": 0,
+    }
     room = None
     with tempfile.TemporaryDirectory() as folder:
         home = pathlib.Path(folder)
@@ -715,6 +923,8 @@ def main():
                     total["pinned"] += found["pinned"]
                     total["missed"] += found["missed"]
                     total["listed"] = total.get("listed", 0) + found["listed"]
+                    total["unsearched"] += found["unsearched"]
+                    total["edge_pinned"] += found["edge_pinned"]
                     total["equality_only"] += found["equality"]
                     if found["room"] is not None:
                         room = found["room"] if room is None else min(room, found["room"])
@@ -728,6 +938,8 @@ def main():
         "missed": total["missed"],
         "listed": total.get("listed", 0),
         "window": room if room is not None else 0,
+        "unsearched": total["unsearched"],
+        "edge_pinned": total["edge_pinned"],
         "equality_only": total["equality_only"],
     }
     kpi_rules.emit("K-S3-01", value)

@@ -5366,6 +5366,25 @@ distance beside them: the values and the spread together settle how many
 cells hold each value, which is the count the floor protects (plan
 P4-D329, the owner's ruling of 2026-09-22).
 
+**WHICH TAIL MAY LIST ITS VALUES** (plan P4-D342). The owner's ruling of
+2026-09-22 is a ruling about BOUNDED SCALES WITH FEW VALUES -- "many
+people will be there and there is no big deal in knowing that it's
+there" -- so the producer lists a tail's values only where that premise
+holds of the column in front of it: one canonical text to a distance
+(below); every distance held by at least `taxonomy.TAIL_SHARED_CELLS`
+of the tail's cells, so that no listed value names one row; and the
+column's own different values, counted as ordinals in the unit TL4
+names, at most `taxonomy.TAIL_SET_VALUES` and standing under at least
+`taxonomy.TAIL_SHARED_CELLS` cells apiece on average -- or, whatever
+the column's grid, every value the tail would list held by at least the
+FLOOR's own number of cells, which is "many people are there" by the
+project's own measure of many. Quarters, months, any small fixed scale
+and any floor-sized heap meet it; a column of clock times, a column of
+days over years, and any fine grid do not, and publish their shape
+instead. The rule is the producer's; a description that lists values
+the floor would protect is not refused HERE, because a reader of a
+description cannot count the file's cells.
+
 **ONE TEXT TO A DISTANCE, or no values at all.** A tail's values are
 published by DISTANCE, in the unit TL4 names, and on the SHARED clock a
 day holds cells two hours apart: a column of bare dates beside midnight

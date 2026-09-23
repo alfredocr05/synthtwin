@@ -932,9 +932,14 @@ def test_a_column_tied_at_its_ends_keeps_its_offsets_and_its_tails(
     P4-D328): the description names no offset for an end row because it
     describes no end row, so the rule is gone and the fields with it.
     What this shape still pins is that a column tied at both ends comes
-    back whole -- the same census of offsets, the same two tails, and
-    nothing missed on either file -- which is what the defect P4-D255
-    repaired cost it.
+    back whole -- the same census of offsets, the same two boundaries
+    and counts, and nothing missed on either file -- which is what the
+    defect P4-D255 repaired cost it. The twin's own re-description of
+    that low tail publishes its SHAPE rather than the three values the
+    real column lists, and the assertions below say exactly why: the
+    counts are the one thing the description withholds there, so the
+    twin chose 1, 1 and 20 where the real column had 2, 2 and 18, and a
+    value one cell holds is one plan P4-D342 will not list.
     """
     cells: "list[str]" = []
     for place in range(120):
@@ -948,8 +953,34 @@ def test_a_column_tied_at_its_ends_keeps_its_offsets_and_its_tails(
     assert second["utc_offsets"] == first["utc_offsets"]
     assert second["datetimes_read_at"] == first["datetimes_read_at"]
     for side in ("low_tail", "high_tail"):
-        for key in ("boundary", "rows", "values"):
+        for key in ("boundary", "rows"):
             assert second[side][key] == first[side][key], (side, key)
+    # THE TWIN STANDS ITS LOW TAIL ON THE SAME THREE INSTANTS and is
+    # free to choose how many cells go on each, because the description
+    # withholds that tail's mean (plan P4-D329): the counts are the one
+    # thing it does not publish. MEASURED: it puts 1, 1 and 20 cells
+    # where the real column had 2, 2 and 18, and a value ONE cell holds
+    # is a value plan P4-D342 will not list -- so the twin's own
+    # description publishes that tail's shape instead of a list. Both
+    # halves are asserted, so a change to either is visible here.
+    listed = first["low_tail"]["values"]
+    assert isinstance(listed, list) and len(listed) == 3
+    member = first["format"]
+    held = []
+    for value in listed:
+        count = 0
+        for cell in written:
+            found = parsing.parse_datetime(cell, member)
+            if found is None:
+                continue
+            shifted = parsing.utc_canonical(found[0], found[1])
+            if shifted == value:
+                count += 1
+        held += [count]
+    assert sorted(held) == [1, 1, 20], held
+    assert min(held) < taxonomy.TAIL_SHARED_CELLS
+    assert second["low_tail"]["values"] is None
+    assert second["high_tail"]["values"] == first["high_tail"]["values"]
     assert (twin_exit, real_exit) == (0, 0)
 
 
