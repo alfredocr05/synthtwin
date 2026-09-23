@@ -6,6 +6,51 @@ exists).
 
 ## [Unreleased]
 
+### Fixed: a table with blank lines in more places than a description can name passes its own description (stage 3, 2026-09-22)
+
+**`synthtwin validate` reported a real table as missing an obligation it
+meets.** Where a file holds blank lines in more than 64 places, the
+description stops naming the places and records how many blank lines
+there are instead. That count was taken AFTER the rule that writes a
+rare kind of blank line as the common kind -- a rule that exists to keep
+a rare kind from pointing at the one record it stands beside -- so it
+could be a number the file does not hold, while `validate` counts the
+checked file's own blank lines. Past that cap the description names no
+place and no kind, so there is nothing there for that rule to protect:
+the count is now the file's own. Both sides of the check ask one
+question at every smallest group size, and it is also the count a twin
+writes back.
+
+| blank-line-heavy files past the cap on places | before | after |
+|---|---|---|
+| the real table missing its own description, 300 seeded files | 16 | 0 |
+| 70 records each followed by a blank line, one of them preceded by a line of spaces: `profile` / `generate` / `validate` against the real table | 0 / 0 / 3 | 0 / 0 / 0 |
+| that file's 71 blank lines, as the description records them | 70 | 71 |
+
+Counting the checked file after that same rule instead -- the other
+obvious repair -- cleared those 16 and made 2 of the 300 TWINS miss: a
+count spread evenly over its places writes runs of one line beside runs
+of two, and the rarer run length is absorbed back, so 87 lines were read
+back as 81. A count of the file's own blank lines is the one number both
+a real table and its twin give back.
+
+**A description of such a file also keeps its line endings where they
+are.** The record of the line endings collapses to a single run wherever
+a description keeps fewer lines than the file holds, because the runs'
+positions would otherwise say where the missing line stood. Past the cap
+the description now keeps every blank line, so nothing collapses: a
+70-record file whose first 30 lines end with a carriage return and a
+newline records `[{crlf: 30}, {lf: 112}]` where it recorded one run of
+141.
+
+**The seeded blank-line fuzz now checks the real table as well as the
+twin**, and never writes fewer records than the cap, so the counted path
+is covered: 18 of its 40 files take it, and all 18 failed on the real
+table before this. The entry below records 27 of 40 descriptions refused
+by their own reader before plan P4-D319; that was measured on the
+narrower recipe (15 to 120 records) this pass replaced, and the same
+measurement on the new recipe is 16 of 40.
+
 ### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
 
 **A description `profile` wrote could be refused by `generate` and

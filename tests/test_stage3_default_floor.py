@@ -31,6 +31,12 @@ old code and seen red:
   at a raised floor, which FD4 refuses, so the loader refused the
   producer's own file; the places are merged, and one order question is
   asked on every side (section 3);
+* past the cap on places, where no place is named and the blank lines
+  are counted instead, the form counted them AFTER that same absorption
+  while `synthtwin validate` recounts the checked file's own -- so a
+  REAL table was reported as missing its own description. The count is
+  the file's own now, which is also the count a twin gives back
+  (section 3, and the fuzz at the end of this file);
 * sixty-one functions in the tests and tools read at the default beside
   a floor of their own, and the literal-default check asked one name of
   floor parameter only (section 1b and the check above it);
@@ -738,14 +744,16 @@ def test_a_zero_row_check_at_the_default_reads_empty_records_at_the_default(
 # -- 3. two places of one form at one record (plan P4-D319) --------------
 
 
-def _double_spaced(record: int = 17) -> str:
-    """The skeptic's shape: 30 records each followed by a blank line.
+def _double_spaced(record: int = 17, records: int = 30) -> str:
+    """The skeptic's shape: ``records`` records each followed by a blank line.
 
     Record ``record`` is followed by a line of three spaces and THEN the
-    blank line, so its place is two runs of different text.
+    blank line, so its place is two runs of different text. At 30 records
+    the places are published one by one; at 70 they stand in more places
+    than `dialect.MAXIMUM_BLANK_PLACES` and the lines are counted.
     """
     lines = ["id,site,value"]
-    for index in range(1, 31):
+    for index in range(1, records + 1):
         lines += [f"{index},{'north' if index % 2 else 'south'},{index * 3}"]
         lines += ["   ", ""] if index == record else [""]
     return "\n".join(lines) + "\n"
@@ -792,6 +800,53 @@ def test_an_absorbed_place_is_merged_into_the_place_it_joins() -> None:
     assert dialect.blank_places_broken(told, 11) == ""
     # ...and at a floor of one nothing moves at all.
     assert dialect.blank_places_disclosed(found, 1) == found
+
+
+def test_past_the_cap_the_count_is_the_files_own_and_a_twin_counts_back() -> None:
+    """The same shape past the cap on places, place by place (landing 3.1).
+
+    Seventy records each followed by a blank line, record 17's preceded
+    by a line of three spaces: 71 places, more than
+    `dialect.MAXIMUM_BLANK_PLACES`, so `blank_lines` is empty and the
+    lines are COUNTED. The count is the file's own 71 and not the 70 the
+    absorption leaves, because the absorption of P4-D311 keeps a FORM
+    from naming its place's record and no form is published here at all.
+    Nothing is withheld either, so the endings account for every line the
+    description keeps (invariant FD2).
+
+    AND THE COUNT IS ONE A TWIN GIVES BACK, which the absorbed count was
+    not. `blank_census_of` is the exact inverse of `spread_places`, so
+    the file written from a published count is counted back to it; the
+    absorbed count is not a fixed point of that pair, and a spread of 87
+    lines from after record 1 to after record 81 -- written as 75 places
+    of one line and 6 of two -- is read back as 81.
+    """
+    places = _places(
+        *[(index, 1, "") for index in range(1, 17)],
+        (17, 1, "   "),
+        (17, 1, ""),
+        *[(index, 1, "") for index in range(18, 71)],
+    )
+    assert len(places) == 71 > dialect.MAXIMUM_BLANK_PLACES
+    published, counted = dialect.blank_lines_published(places, 11)
+    assert published == ()
+    assert counted == dialect.BlankSpread(first=1, last=70, lines=71, text="")
+    assert dialect.blank_lines_withheld(places, 11) == 0
+    # ...the absorbed count, which the form published before this, is 70.
+    told = dialect.blank_places_disclosed(places, 11)
+    assert dialect.blank_census_of(told) == dialect.BlankSpread(
+        first=1, last=70, lines=70, text=""
+    )
+    # ...and the twin written from the published count is counted back to it.
+    assert counted is not None
+    assert dialect.blank_census_of(list(dialect.spread_places(counted))) == counted
+    # ...where the absorbed count is not a fixed point of that same pair.
+    absorbed = dialect.BlankSpread(first=1, last=81, lines=87, text="")
+    written = list(dialect.spread_places(absorbed))
+    assert dialect.blank_census_of(written) == absorbed
+    assert dialect.blank_census_of(
+        dialect.blank_places_disclosed(written, 11)
+    ) == dialect.BlankSpread(first=1, last=81, lines=81, text="")
 
 
 def test_the_rule_is_a_fixed_point_the_loader_accepts() -> None:
@@ -898,13 +953,95 @@ def test_the_double_spaced_file_round_trips_at_the_default(
     ) == 0
 
 
+def test_the_counted_double_spaced_file_round_trips_at_the_default(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same shape past the cap on places, through the command line.
+
+    Seventy records instead of thirty: 71 blank places, more than
+    `dialect.MAXIMUM_BLANK_PLACES`, so the lines are counted. Published
+    as the 70 the absorption leaves, `validate --twin <the real table>`
+    exited 3 with `bytes.blank-lines` MISSED -- "asks for 70, found 71"
+    -- against the description `profile` had just written from that very
+    file, because `validate` recounts the checked file's own blank lines
+    (the repair pass of landing 3.1). The twin passed throughout, which
+    is why only the real table catches this.
+    """
+    from tests.test_stage2_round_trip import _exit_of
+
+    table = fixtures.write(tmp_path, "t.csv", _double_spaced(records=70))
+    assert _exit_of(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    written = tmp_path / "t-profile.json"
+    form = contract.load_profile(f"{written}").source.dialect
+    assert form.blank_lines == ()
+    assert form.blank_lines_spread == dialect.BlankSpread(
+        first=1, last=70, lines=71, text=""
+    )
+    assert _exit_of(["generate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    assert _exit_of(["validate", f"{written}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
+    (tmp_path / "real").mkdir()
+    assert _exit_of(
+        ["validate", f"{written}", "--twin", f"{table}", "--out-dir",
+         f"{tmp_path / 'real'}", "--replace"]
+    ) == 0
+
+
+@pytest.mark.parametrize("crlf", [0, 30, 100])
+def test_a_counted_spread_leaves_the_ending_runs_where_they_are(
+    tmp_path: pathlib.Path, crlf: int
+) -> None:
+    """Past the cap nothing is withheld, so the endings do not collapse.
+
+    `endings_disclosed` collapses a file's ending runs to one wherever a
+    line is withheld, because the runs' positions are what would say
+    where the withheld line stood. Past the cap the count is the file's
+    own and the twin writes every one of those lines, so nothing is
+    withheld and the file's true runs stand -- the same 70-record file
+    written with its first ``crlf`` lines ending `\\r\\n`. Before the
+    repair pass of landing 3.1 the absorption's one line was taken off
+    here and the runs collapsed to a single run of 141 of the commonest
+    ending, at all three counts; now `[{crlf: 30}, {lf: 112}]` is
+    published and both the twin and the real table hold it -- while the
+    real table was `bytes.blank-lines` MISSED at each of the three.
+    Neither the 300-file comparison nor the wide fuzz varies
+    the ending WITHIN one file, so this is the case they cannot reach.
+    """
+    lines = _double_spaced(records=70).split("\n")[:-1]
+    text = "".join(
+        line + ("\r\n" if place < crlf else "\n") for place, line in enumerate(lines)
+    )
+    described = S.describe(tmp_path / f"c{crlf}", "t", text)
+    form = described.loaded.source.dialect
+    assert form.blank_lines_spread == dialect.BlankSpread(
+        first=1, last=70, lines=71, text=""
+    )
+    runs = [(run.ending, run.lines) for run in form.line_endings]
+    assert runs == ([("lf", 142)] if not crlf else [("crlf", crlf), ("lf", 142 - crlf)])
+    for name, candidate in (("twin.csv", S.twin_text(described, crlf)), ("real.csv", text)):
+        outcome = S.measure(described, candidate, name)
+        missed = [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+            and check.subcheck.startswith("bytes.")
+        ]
+        assert missed == [], (crlf, name, missed)
+
+
 def _blank_heavy(draw: "object", columns: int) -> str:
-    """One seeded file heavy in blank lines, the skeptic's fuzz recipe."""
+    """One seeded file heavy in blank lines, the skeptic's fuzz recipe.
+
+    NEVER FEWER RECORDS THAN `dialect.MAXIMUM_BLANK_PLACES` (the repair
+    pass of landing 3.1), so the files that blank every record stand in
+    more places than the cap and the COUNTED path -- `blank_lines` empty
+    and `blank_lines_spread` published -- is walked by this fuzz and not
+    only by the hand-built cases above it.
+    """
     import random
 
     assert isinstance(draw, random.Random)
     out = ["h" + ",h".join(str(column) for column in range(columns))]
-    for index in range(draw.randrange(15, 120)):
+    for index in range(draw.randrange(70, 120)):
         cells = [str(index)] + [
             str(draw.randrange(0, 20)) if draw.random() > 0.05 else ""
             for _column in range(columns - 1)
@@ -924,23 +1061,51 @@ def test_blank_heavy_files_describe_load_and_generate_at_the_default(
     """Seeded fuzz, small enough for the suite: forty files at the default.
 
     Each is described by the real producer, loaded by the real loader and
-    built into a twin, and the twin's blank lines are measured against
-    the description. Measured with the rule's first step alone, as it
-    stood before P4-D319, on this recipe and seed: 27 of the 40
+    built into a twin, and BOTH the twin AND THE REAL TABLE are measured
+    against that description. Measured with the rule's first step alone,
+    as it stood before P4-D319, on this recipe and seed: 16 of the 40
     descriptions were refused by their own loader under FD4.
+
+    THE REAL TABLE IS THE HARDER OF THE TWO (the repair pass of landing
+    3.1), and it was not checked here. A file is not asked to resemble
+    its description -- it is the file the description was written from,
+    so a MISSED verdict on it is the description contradicting itself.
+    Past `dialect.MAXIMUM_BLANK_PLACES` the form published the blank
+    lines COUNTED AFTER the absorption of P4-D311 while `validate`
+    recounts the checked file's own blank lines, and the real table was
+    `bytes.blank-lines` MISSED at exit 3 on every file whose absorption
+    moved a line: 16 of the skeptic's 300 seeded files, and on this
+    recipe and seed all 18 of the counted files below, the twin passing
+    every one of them. Put the old line (`blank_census_of(told_blanks)`)
+    back and the assertion goes red at trial 1 on `real.csv`.
+
+    ``counted`` holds the fuzz to that path: the recipe blanks every
+    record in a third of its files and never writes fewer records than
+    the cap, so the counted form is published -- eighteen of the forty
+    at this seed -- and a fuzz that stopped reaching it would be a fuzz
+    that stopped covering this repair.
     """
     import random
 
     draw = random.Random(7)
+    counted = 0
     for trial in range(40):
         text = _blank_heavy(draw, draw.choice([2, 3, 4]))
         described = S.describe(tmp_path / f"{trial}", "t", text)
-        twin = S.twin_text(described, trial)
-        outcome = S.measure(described, twin, "twin.csv")
-        missed = [
-            check.subcheck
-            for check in outcome.checks
-            if check.verdict == validation.MISSED
-            and check.subcheck.startswith("bytes.")
-        ]
-        assert missed == [], (trial, missed)
+        form = described.loaded.source.dialect
+        if form.blank_lines_spread is not None:
+            counted = counted + 1
+            assert form.blank_lines == ()
+        for name, candidate in (
+            ("twin.csv", S.twin_text(described, trial)),
+            ("real.csv", text),
+        ):
+            outcome = S.measure(described, candidate, name)
+            missed = [
+                check.subcheck
+                for check in outcome.checks
+                if check.verdict == validation.MISSED
+                and check.subcheck.startswith("bytes.")
+            ]
+            assert missed == [], (trial, name, missed)
+    assert counted >= 12, counted

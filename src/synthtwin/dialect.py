@@ -2037,9 +2037,12 @@ def blank_places_disclosed(
     WHERE THAT MOVES LINES, THEY LEAVE THE ENDING COUNT WITH THEM.
     Absorbing a run of three into a run of one leaves two lines the
     description does not keep; `blank_lines_withheld` below is the
-    difference between what the places hold and what they publish, in
-    either direction, and `endings_disclosed` takes it off the count it
-    publishes so invariant FD2 still holds.
+    difference between what the places hold and what the description
+    keeps, in either direction, and `endings_disclosed` takes it off the
+    count it publishes so invariant FD2 still holds. PAST THE CAP ON
+    PLACES this rule moves nothing at all: no place and no form is
+    published there, so `blank_lines_published` counts the file's own
+    blank lines instead and the difference is nought.
 
     AND A PLACE WRITTEN IN THE FORM OF THE PLACE BEFORE IT IS ONE PLACE
     WITH IT (plan P4-D319, the repair pass of landing 3.1). Places are
@@ -2063,15 +2066,19 @@ def blank_places_disclosed(
     places the first pass leaves unmerged is published exactly as the
     rule before this paragraph published it.
 
-    Guarantees: accepts the places in file order and the settings floor;
-    returns those places at a floor of one, none at all where they
-    number fewer than the line, and otherwise those places with every
-    form worn by fewer places than the line written as the commonest
-    form, places then standing at one record in one text merged, until
-    the rule moves nothing -- so what it returns it returns unchanged
-    when asked again, and no two places it returns break
-    `blank_place_follows`. Determinism: a fixed function of the two.
-    Raises nothing. No I/O of any kind.
+    Guarantees: accepts the places IN FILE ORDER -- the precondition of
+    everything below, which this rule does not check and cannot: the
+    merge reads each place against the one before it, so places given
+    out of that order are merged against neighbours they do not have,
+    and `blank_places_broken` is where a list is held to the order --
+    and the settings floor; returns those places at a floor of one, none
+    at all where they number fewer than the line, and otherwise those
+    places with every form worn by fewer places than the line written as
+    the commonest form, places then standing at one record in one text
+    merged, until the rule moves nothing -- so what it returns it
+    returns unchanged when asked again, and no two places it returns
+    break `blank_place_follows`. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
     """
     if floor <= 1:
         return list(places)
@@ -2159,30 +2166,94 @@ def blank_place_follows(before: BlankPlace, place: BlankPlace) -> bool:
     return place.text != before.text
 
 
-def blank_lines_withheld(places: "list[BlankPlace]", floor: int) -> int:
-    """How many blank lines `blank_places_disclosed` holds back (P4-D290).
+def blank_lines_published(
+    places: "list[BlankPlace]", floor: int
+) -> "tuple[tuple[BlankPlace, ...], BlankSpread | None]":
+    """What a description says of a file's blank lines: the places, or a count.
 
-    Asked of that rule itself, so the two can never part: the lines the
-    places hold, less the lines the places it publishes hold. That is
-    nought where every place is published as it stands, every one of
-    their lines where none is, and the difference where a form below the
-    line was written as the commonest one (plan P4-D311) -- which may be
-    a NEGATIVE number, where the form absorbed was shorter than the
-    commonest, and the description then keeps more lines than the file
-    holds because the twin writes them. `endings_disclosed` takes this
-    off the line count it publishes, because invariant FD2 has the
-    endings account for every line the description keeps.
+    ONE RULE FOR BOTH FIELDS (the repair pass of landing 3.1), so
+    `blank_lines` and `blank_lines_spread` can never be written from two
+    different readings of one file. `blank_places_disclosed` above says
+    which places may be named; where more than `MAXIMUM_BLANK_PLACES` of
+    them survive it, no place is published at all and the lines are
+    COUNTED in their place instead.
+
+    AND THE COUNT COUNTS THE FILE'S OWN BLANK LINES, NOT THE ABSORBED
+    ONES. The absorption of plan P4-D311 exists to keep a FORM worn by
+    fewer places than the line -- how many lines stood in one place, and
+    what each of them holds -- from naming that place's record. Past the
+    cap no place and no form is published, so there is no such form to
+    absorb, and counting the absorbed lines published a number the file
+    does not hold. **Measured** at the default floor of eleven, on a
+    header and 70 records each followed by a blank line, record 17's
+    preceded by a line of three spaces: the file holds 71 blank lines in
+    71 places, the absorption leaves 70 places of one line each, and the
+    description published `{first: 1, last: 70, lines: 70}`. `synthtwin
+    validate` recounts the CHECKED file's own blank lines, so the REAL
+    TABLE was `bytes.blank-lines` MISSED at exit 3 -- "asks for 70,
+    found 71" -- against the very description written from it. Counted
+    as the file holds them the two sides ask one question, and the real
+    table passes at exit 0.
+
+    A COUNT OF THE FILE'S OWN LINES IS ALSO THE ONLY COUNT A TWIN GIVES
+    BACK. `blank_census_of` is the exact inverse of `spread_places`, so
+    the twin written from a published count is counted back to it. The
+    absorbed count is not: a spread of 87 lines from after record 1 to
+    after record 81 is written as 75 places of one line and 6 of two,
+    the two-line form is worn by fewer places than the line, and the
+    absorption reads that twin back as 81. Over the skeptic's 300
+    seeded blank-heavy files the absorbed count made the REAL table miss
+    in 16; recounting the checked file after the absorption instead --
+    the one-line repair -- cleared those 16 and made the TWIN miss in 2,
+    which are that very spread: one file, asked at the default twice.
+    Counting the file's own lines on both sides, neither misses.
+
+    Guarantees: accepts the places in file order and the settings floor;
+    returns the places `blank_places_disclosed` publishes and no count,
+    or -- where those number more than `MAXIMUM_BLANK_PLACES` -- no
+    place and the census of the places as they stand. Determinism: a
+    fixed function of the two. Raises nothing. No I/O of any kind.
+    """
+    told = blank_places_disclosed(places, floor)
+    if len(told) > MAXIMUM_BLANK_PLACES:
+        return (), blank_census_of(places)
+    return tuple(told), None
+
+
+def blank_lines_withheld(places: "list[BlankPlace]", floor: int) -> int:
+    """How many blank lines the published form holds back (P4-D290).
+
+    Asked of `blank_lines_published` itself, so the two can never part:
+    the lines the places hold, less the lines the published form keeps.
+    That is nought where every place is published as it stands, every
+    one of their lines where none is, and the difference where a form
+    below the line was written as the commonest one (plan P4-D311) --
+    which may be a NEGATIVE number, where the form absorbed was shorter
+    than the commonest, and the description then keeps more lines than
+    the file holds because the twin writes them. `endings_disclosed`
+    takes this off the line count it publishes, because invariant FD2
+    has the endings account for every line the description keeps.
+
+    PAST THE CAP NOTHING IS WITHHELD, because the count published there
+    is a count of the file's own blank lines (`blank_lines_published`)
+    and the twin writes every one of them. Taking the absorption's
+    difference off the endings there left the endings accounting for
+    fewer lines than `dialect.lines_of` counts, which invariant FD2
+    refuses.
 
     Guarantees: accepts the places in file order and the settings floor;
     returns the difference between the lines those places hold and the
-    lines the published places hold. Determinism: a fixed function of
-    the two. Raises nothing. No I/O of any kind.
+    lines the published form keeps. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
     """
     lines = 0
     for place in places:
         lines = lines + place.lines
-    for place in blank_places_disclosed(places, floor):
+    told, counted = blank_lines_published(places, floor)
+    for place in told:
         lines = lines - place.lines
+    if counted is not None:
+        lines = lines - counted.lines
     return lines
 
 
@@ -2339,6 +2410,11 @@ class BlankSpread:
     records and the last after ``last``; ``text`` is what the most of
     them hold (nothing, or only spaces and tabs), the earlier text on a
     tie. The twin writes them `spread_places` apart.
+
+    THE LINES ARE THE FILE'S OWN, counted as it holds them: no place and
+    no form is published here, so the absorption of plan P4-D311 has
+    nothing to keep back and does not stand between this count and the
+    file (`blank_lines_published`).
     """
 
     first: int
@@ -4690,6 +4766,15 @@ def survey(
     # that holds this reading to the standard library reader's -- gating
     # `blanks` itself made that pass step over a line the reader kept,
     # and a spaced blank line then refused the file as read two ways.
+    #
+    # AND WHAT IT PUBLISHES IS ASKED ONCE (the repair pass of landing
+    # 3.1). `blank_lines_published` chooses between the places and the
+    # count, and `blank_lines_withheld` asks that same rule how many
+    # lines the choice leaves behind, so the endings below can never
+    # account for a line the blank form does not keep.
+    places_published, spread_published = blank_lines_published(
+        blanks, small_cell_floor
+    )
     withheld_lines = blank_lines_withheld(blanks, small_cell_floor)
     # HOW MANY LINES STAND ABOVE THE TABLE, which the description
     # publishes and a reader subtracts (round 2 of the review, the
@@ -4704,24 +4789,23 @@ def survey(
     told_runs = endings_disclosed(
         walk.runs, small_cell_floor, withheld_lines, lines_above
     )
-    told_blanks = blank_places_disclosed(blanks, small_cell_floor)
     leading_told = row_count_disclosed(leading, small_cell_floor)
     trailing_told = row_count_disclosed(trailing, small_cell_floor)
     interior_told = row_count_disclosed(
         len(empty_rows) - leading - trailing, small_cell_floor
     )
     census = census_of(told_runs)
+    # THE CENSUS THE VALIDATOR RECOUNTS IS THE ONE THE FORM PUBLISHES.
+    # `blank_lines_spread` counts the file's own blank lines, and this
+    # is that same count over the same places, so the question the
+    # description asks and the question the recount answers are one
+    # question at every floor (the repair pass of landing 3.1).
     blank_census = blank_census_of(blanks)
     runs_published: "tuple[EndingRun, ...]" = tuple(told_runs)
     census_published: "tuple[EndingRun, ...]" = ()
     if len(told_runs) > MAXIMUM_ENDING_RUNS:
         runs_published = ()
         census_published = census
-    places_published: "tuple[BlankPlace, ...]" = tuple(told_blanks)
-    spread_published: "BlankSpread | None" = None
-    if len(told_blanks) > MAXIMUM_BLANK_PLACES:
-        places_published = ()
-        spread_published = blank_census_of(told_blanks)
     # THE LINES BEFORE THE TABLE ARE PUBLISHED AS SHAPES (plan P4-D80).
     # Their text is not published here, and there is no floor at which
     # it is: nothing downstream can publish what this never puts in the
@@ -4807,7 +4891,14 @@ def census_of(runs: "list[EndingRun] | tuple[EndingRun, ...]") -> "tuple[EndingR
 def blank_census_of(
     places: "list[BlankPlace] | tuple[BlankPlace, ...]",
 ) -> "BlankSpread | None":
-    """The blank lines counted: first place, last place, how many, what most hold."""
+    """The blank lines counted: first place, last place, how many, what most hold.
+
+    Counted over the places AS THEY STAND. It is what `blank_lines_spread`
+    publishes and what the validator recounts on the checked file, and it
+    is the exact inverse of `spread_places`: the census of the places that
+    rule writes for a count is that count again, so a twin gives back the
+    number its description asked for.
+    """
     if not places:
         return None
     total = 0
