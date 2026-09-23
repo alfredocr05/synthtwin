@@ -1951,6 +1951,11 @@ def _merged_rungs(
     anywhere. Determinism: a function of the published rungs. Raises
     nothing. No I/O of any kind.
     """
+    # A TAIL BLOCK'S LADDER IS BUILT FROM ITS TAILS (method G5.1a, stage
+    # 3): the published rungs inside the two boundaries, and each tail's
+    # reading outside them.
+    if facts.tail_rule:
+        return contract.tail_ladder(facts)
     named: "dict[int, float | None]" = {}
     for index in range(len(contract.LADDER_PERCENTS)):
         named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[index]
@@ -1996,6 +2001,8 @@ def _filled_rungs(
     # this returns; it was only the way in that had no answer.
     if rungs is None:
         return None
+    if isinstance(rungs, contract.ShapedLadder):
+        return rungs
     holds = [place for place in range(len(rungs)) if rungs[place] is not None]
     if not holds:
         return None
@@ -2052,6 +2059,11 @@ def _interpolated(
     segment by one unit in the last place, and the published ends are
     facts a recount would catch.
     """
+    # INSIDE A TAIL THE TAIL'S OWN READING RULES (method G5.3b, G5.3e).
+    if isinstance(rungs, contract.ShapedLadder):
+        found = contract.tail_read(rungs, numerator, denominator)
+        if found is not None:
+            return found
     percents = _percents_of(rungs)
     step = _segment(numerator, denominator, percents)
     low = rungs[step]
@@ -2625,6 +2637,11 @@ def _published_ends(
     obligation at that rung (contract L3), so nothing is bounded by it
     and the column's own spread is what remains.
     """
+    # A TAIL BLOCK'S ENDS ARE THE ONES ITS PINNED STRATA HOLD (G5.3b).
+    if facts.tail_rule:
+        shaped = _merged_rungs(facts)
+        if shaped is not None:
+            return (shaped[0], shaped[len(shaped) - 1])
     rungs = facts.percentiles.rungs
     low = rungs[0]
     high = rungs[-1]
@@ -2677,6 +2694,11 @@ def _segment_bounds(
     for rung in rungs:
         if rung is None:
             settled = False
+    # A TAIL BLOCK WITHHOLDS RUNGS BY RULE, and its ladder is whole: every
+    # stratum was drawn from the shaped ladder (G5.3b), so that is what
+    # bounds its snap.
+    if facts.tail_rule and _merged_rungs(facts) is not None:
+        settled = True
     if layout is None or not settled:
         held = sorted(values)
         if not held:
@@ -5331,6 +5353,7 @@ def _rank_values(
     numbers: int,
     whole_valued: bool,
     figures: int,
+    band: str = "",
 ) -> "list[float]":
     """The ladder's value at every rank of one band (G5.2a step 1).
 
@@ -5359,6 +5382,45 @@ def _rank_values(
             if read is not None and math.isfinite(read):
                 found = read
         held += [found]
+    return _band_signed(held, band)
+
+
+def _band_signed(held: "list[float]", band: str) -> "list[float]":
+    """A band's rank values held to the band's own sign (G5.2a step 1a).
+
+    THE POSITIVE BAND BEGINS WHERE THE ZERO STRATUM ENDS, and the ladder
+    does not know that. It crosses from the last rung reading nought to
+    the first reading one by a straight line, so the first ranks of the
+    positive band read a fraction under a half and the integer rule
+    takes them back to nought -- a run of the positive band holding
+    nought, which G5.5 then repairs to one, BESIDE the real plateau of
+    one. Two strata then hold one number, the separation of G6.5a moves
+    the larger up to two, and every stratum above it moves up one in
+    turn. Measured on 2,000 counts drawn `int(expovariate(0.2))` beside
+    a constant column: the twin wrote one in 4 cells against the
+    table's 317, two in 320 against 236, and its mean was 18 per cent
+    high, with every check passing (plan P4-D327).
+
+    So a value of the wrong sign reads as the nearest value of the right
+    one the band's own ranks read: in the positive band, a value not
+    above nought reads as the FIRST value above nought; in the negative
+    band, a value not below nought reads as the LAST value below it. A
+    band none of whose ranks reads a value of its sign keeps what it
+    reads, and G5.5 answers for it as before. ``band`` empty keeps every
+    value, which is what a caller reading a single rank asks for.
+    """
+    if band == _BAND_POSITIVE:
+        firsts = [value for value in held if value > 0.0]
+        if not firsts:
+            return held
+        first = firsts[0]
+        return [value if value > 0.0 else first for value in held]
+    if band == _BAND_NEGATIVE:
+        lasts = [value for value in held if value < 0.0]
+        if not lasts:
+            return held
+        last = lasts[len(lasts) - 1]
+        return [value if value < 0.0 else last for value in held]
     return held
 
 
@@ -5417,7 +5479,18 @@ def _stratum_cap(
         counted = max(1, numbers - facts.n_distinct_values + 1)
     bound = counted
     longest = 0
-    if rungs is not None and numbers >= 2:
+    # A MADE-UP LADDER BOUNDS NO STRATUM (stage 3, method G5.3c and
+    # G5.3d). Where a block publishes only its moments, or nothing at
+    # all, the ladder every rule reads is a straight ramp built from
+    # those facts -- it has no plateau because the construction has
+    # none, not because the column has none -- so the run bound below
+    # would say no number of a 12-row column was held by more than two
+    # cells while its own count of different numbers says five values
+    # over twelve rows. The counts still bound it.
+    made_up = facts.tail_rule and (
+        facts.tails is None or facts.tails.low is None
+    )
+    if rungs is not None and numbers >= 2 and not made_up:
         longest = 1
         run = 1
         for place in range(1, len(rungs)):
@@ -5548,6 +5621,7 @@ def _shape_sizes(
     whole_valued: bool,
     figures: int = -1,
     cap: int = 0,
+    band: str = "",
 ) -> "list[int]":
     """One band's stratum sizes, following the shape the ladder publishes.
 
@@ -5621,12 +5695,231 @@ def _shape_sizes(
         ]
     if cap > 0:
         cap = max(cap, (cells + strata - 1) // strata)
-    held = _rank_values(start, cells, rungs, numbers, whole_valued, figures)
+    held = _rank_values(
+        start, cells, rungs, numbers, whole_valued, figures, band
+    )
     lengths, values = _runs_of(held)
+    # A LISTED TAIL'S RUNS ARE NEITHER JOINED NOR DIVIDED (method G5.3e):
+    # each is one listed value at the count solved for it, and joining it
+    # to a neighbour loses a value the tail holds, while dividing it
+    # hands G6.5a two strata on one number to push apart -- onto a value
+    # the scale does not have.
+    # AND A BAND WHOSE EVERY RUN IS PROTECTED PROTECTS NONE OF THEM.
+    # Where the two listed tails between them cover every run of the
+    # band and the band is owed more strata still, there is no inner
+    # run left to divide: the twin must take those strata from the
+    # protected runs or hold fewer values than the description names.
+    # So the protection stands aside and the ordinary walk below runs,
+    # exactly as it did before this rule existed. Measured on
+    # twenty-four offsets written `+0100` and `0100` over eight values
+    # (plan P4-D145's pooled case): both tails list four values each,
+    # those eight runs are the whole band, and sixteen different
+    # SPELLINGS ask for sixteen strata, so a split has nowhere else to
+    # come from. That column met every obligation before stage 3 and
+    # meets them this way; refusing the split raised an error out of an
+    # empty list instead.
+    whole = _listed_runs(start, lengths, rungs, numbers)
+    lead, trail = _listed_runs(
+        start, lengths, rungs, numbers, len(lengths) > strata
+    )
+    if lead + trail >= len(lengths):
+        lead = 0
+        trail = 0
+    # A RUN THAT ONLY REACHES INTO A TAIL IS KEPT WHOLE, NOT KEPT STILL.
+    # The runs a listed tail names are the ladder's, and the ladder's
+    # own boundary can stand a rank from the column's: what the tail
+    # needs is that the run not be JOINED away, and the levelling that
+    # follows may still even the band. Measured on 150 cells over three
+    # values written `+100.25`, `200.25` and `300.25`: holding the two
+    # straddling runs still gave the band 49, 53 and 48 cells where the
+    # source holds fifty of each, and the fifty published pluses split
+    # across two values -- four spellings of three numbers.
+    evens = lead > whole[0] or trail > whole[1]
+    if lead + trail > 0 and strata > lead + trail:
+        inner = lengths[lead : len(lengths) - trail]
+        inner_values = values[lead : len(values) - trail]
+        inner, inner_values = _merge_down(
+            inner, inner_values, strata - lead - trail, cap
+        )
+        while len(inner) < strata - lead - trail:
+            inner, inner_values = _split_widest(inner, inner_values)
+        # THE CAP LEVELS THE INNER RUNS AND LEAVES THE TAIL'S OWN ALONE.
+        # Levelling the whole band moves cells INTO a protected run,
+        # which widens its share across the run beside it and hands the
+        # stratum a different value to read: on five hundred readings at
+        # one place the run of `2.9` grew from one cell to seven, its
+        # share reached into the run of `3.0`, and the twin wrote no
+        # `2.9` at all -- a value the listed tail names and the
+        # validator checks (G5.3e).
+        sized = (
+            lengths[:lead]
+            + _levelled(inner, cap)
+            + lengths[len(lengths) - trail :]
+        )
+        return _levelled(sized, cap) if evens else sized
     lengths, values = _merge_down(lengths, values, strata, cap)
     while len(lengths) < strata:
         lengths, values = _split_widest(lengths, values)
     return _levelled(lengths, cap)
+
+
+def _listed_places(
+    rungs: "tuple[float, ...] | None", starts: "list[int]", numbers: int
+) -> "dict[int, float]":
+    """Which stratum holds which value of a LISTED tail (method G5.3e).
+
+    A stratum whose first row is inside a listed tail holds the value
+    that row stands at, read through the staircase the one ladder
+    carries. There is nothing for a drawn word to choose there: the
+    tail's runs are one listed value each at the count solved for them,
+    and drawing inside the share let G5.2's carrier steps widen a run
+    across the one beside it so that the draw read the NEIGHBOUR's
+    value -- measured on five hundred readings at one place, the twin
+    wrote no `2.9` although the low tail names it, and `validate`
+    MISSED `tails.low.values`.
+
+    ASSIGNING THE LISTED VALUES IN ORDER INSTEAD, one to each stratum of
+    the tail, was measured and is worse: over twenty such columns at two
+    seeds it took the twins short of their published count of different
+    numbers from nine of forty to sixteen, because a stratum then holds
+    a value its own rows do not stand at and lands on the value of the
+    stratum beside it.
+
+    Returns a map from stratum place to value; empty on any ladder that
+    is not a tail block's, and on a block whose tails are read by their
+    shapes.
+    """
+    held: "dict[int, float]" = {}
+    if not isinstance(rungs, contract.ShapedLadder):
+        return held
+    low = rungs.low
+    high = rungs.high
+    for place in range(len(starts)):
+        rank = starts[place]
+        if low is not None and low.listed and rank < low.rows:
+            found = contract.tail_read(rungs, rank, numbers)
+            if found is not None:
+                held[place] = found
+            continue
+        if (
+            high is not None
+            and high.listed
+            and rank >= numbers - high.rows
+        ):
+            found = contract.tail_read(rungs, rank, numbers)
+            if found is not None:
+                held[place] = found
+    return held
+
+
+def _listed_runs(
+    start: int,
+    lengths: "list[int]",
+    rungs: "tuple[float, ...]",
+    numbers: int,
+    reaching: bool = False,
+) -> "tuple[int, int]":
+    """How many leading and trailing runs of a band REACH INTO a listed
+    tail's rows (method G5.3e); nought and nought on any other ladder.
+
+    A RUN THAT REACHES ACROSS THE TAIL'S EDGE IS ONE OF THEM WHERE THE
+    BAND'S RUNS MUST BE JOINED, which is what ``reaching`` says: a
+    tail's innermost listed value is commonly the column's value just
+    inside the boundary as well, and the ladder then reads one number
+    over a run of ranks that begins outside the tail and ends inside it.
+    Counting only the runs lying WHOLLY inside left such a run to the
+    ordinary walk, which joined it to its neighbours, and the stratum
+    that swallowed it read its own share instead -- a number the tail
+    does not name. Measured on 240 clinical codes at a floor of one,
+    whose high tail lists two values and whose inner one stands at
+    eleven ranks of which the outer two are the tail's: the twin wrote
+    five cells at `920759` where the table holds `920760`, so `validate`
+    MISSED `tails.high.values` and one of KPI K-P4-11's eighteen
+    systems stopped validating clean.
+
+    AND ONLY WHERE THEY MUST BE JOINED, because that is the only case a
+    run can be joined away in and the protection is not free: it holds a
+    run to ONE stratum where the walk could have divided it. Measured on
+    150 cells over three values written `+100.25`, `200.25` and
+    `300.25`, whose three runs already have three strata to stand in:
+    protecting the two that reach into a tail split the fifty published
+    pluses across two values, so the twin wrote four spellings of three
+    numbers -- a spelling the source never used.
+
+    The run is kept WHOLE rather than cut at the edge, which was the
+    first repair and cost more than it bought: cutting spends one of the
+    band's strata on the tail's own part, and on 1,140 readings over
+    eleven values it took that stratum off the published MODE -- 210
+    cells written nowhere, `-1.4` written in 307 against 170, and the
+    median moved with them."""
+    if not isinstance(rungs, contract.ShapedLadder):
+        return 0, 0
+    lead = 0
+    low = rungs.low
+    if low is not None and low.listed:
+        reach = start
+        for length in lengths:
+            inside = reach < low.rows if reaching else reach + length <= low.rows
+            if not inside:
+                break
+            reach = reach + length
+            lead = lead + 1
+    trail = 0
+    high = rungs.high
+    if high is not None and high.listed:
+        reach = start
+        for length in lengths:
+            reach = reach + length
+        for place in range(len(lengths)):
+            length = lengths[len(lengths) - 1 - place]
+            edge = numbers - high.rows
+            inside = reach > edge if reaching else reach - length >= edge
+            if not inside or place >= len(lengths) - lead:
+                break
+            reach = reach - length
+            trail = trail + 1
+    return lead, trail
+
+
+def _listed_needs(
+    facts: contract.NumericFacts, negatives: int, zeros: int, positives: int
+) -> "tuple[int, int]":
+    """How many strata each sign band needs for its LISTED tails (G5.3e).
+
+    Every value a listed tail names is a value of the real column and
+    is checked as one, so the band it belongs to needs a stratum for
+    each of them, and one more for whatever rows of that band lie
+    between the two tails. A block with no listed tail needs nothing
+    here and this returns nought and nought, which changes no share.
+
+    Guarantees: accepts one block's facts and its three sign counts;
+    returns the two counts, each at most the band's own cells.
+    Determinism: a function of the facts. Raises nothing. No I/O.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return 0, 0
+    numbers = facts.n_used_in_statistics
+    low_rows = tails.low.rows
+    high_rows = tails.high.rows
+    need_negative = 0
+    need_positive = 0
+    for side in (tails.low, tails.high):
+        for value in side.values:
+            if value < 0.0:
+                need_negative = need_negative + 1
+            elif value > 0.0:
+                need_positive = need_positive + 1
+    # ...and one more for the rows between the two tails, which the
+    # bands hold by rank: the negative band runs from rank 0 and the
+    # positive one ends at the last rank.
+    if negatives > low_rows:
+        need_negative = need_negative + 1
+    if positives > high_rows:
+        need_positive = need_positive + 1
+    if numbers <= 0:
+        return 0, 0
+    return min(need_negative, negatives), min(need_positive, positives)
 
 
 def _band_plateaus(
@@ -5636,6 +5929,7 @@ def _band_plateaus(
     numbers: int,
     whole_valued: bool,
     figures: int = -1,
+    band: str = "",
 ) -> int:
     """How many different values the ladder gives one band of cells.
 
@@ -5663,7 +5957,9 @@ def _band_plateaus(
         return 0
     if rungs is None:
         return cells
-    held = _rank_values(start, cells, rungs, numbers, whole_valued, figures)
+    held = _rank_values(
+        start, cells, rungs, numbers, whole_valued, figures, band
+    )
     lengths, _values = _runs_of(held)
     return len(lengths)
 
@@ -5695,7 +5991,15 @@ def _band_sizes(
     sizes: list[int] = []
     bands: list[str] = []
     for size in _shape_sizes(
-        0, negatives, negative_strata, rungs, numbers, whole_valued, figures, cap
+        0,
+        negatives,
+        negative_strata,
+        rungs,
+        numbers,
+        whole_valued,
+        figures,
+        cap,
+        _BAND_NEGATIVE,
     ):
         sizes += [size]
         bands += [_BAND_NEGATIVE]
@@ -5711,6 +6015,7 @@ def _band_sizes(
         whole_valued,
         figures,
         cap,
+        _BAND_POSITIVE,
     ):
         sizes += [size]
         bands += [_BAND_POSITIVE]
@@ -6664,7 +6969,13 @@ def _numeric_layout(
         share = negatives + positives
         if shape is not None:
             negative_share = _band_plateaus(
-                0, negatives, shape, numbers, facts.integer_valued, grid
+                0,
+                negatives,
+                shape,
+                numbers,
+                facts.integer_valued,
+                grid,
+                _BAND_NEGATIVE,
             )
             share = negative_share + _band_plateaus(
                 negatives + zeros,
@@ -6673,6 +6984,7 @@ def _numeric_layout(
                 numbers,
                 facts.integer_valued,
                 grid,
+                _BAND_POSITIVE,
             )
         if share <= 0:
             negative_share = negatives
@@ -6720,6 +7032,23 @@ def _numeric_layout(
             if need_negative + need_positive <= rest:
                 negative_strata = max(negative_strata, need_negative)
                 negative_strata = min(negative_strata, rest - need_positive)
+        # AND NO BAND GETS FEWER STRATA THAN ITS LISTED TAIL NAMES
+        # VALUES (method G5.3e, stage 3). A listed tail publishes the
+        # values themselves and every one of them is EXACT-OBSERVABLE:
+        # a band handed fewer strata than its tail names values joins
+        # two of its runs and writes one of those values nowhere.
+        # Measured on the mode column of the second Codex round --
+        # seven values, three of them negative -- the share gave the
+        # negative band two strata against a listed tail of `-1.8` and
+        # `-0.9` and an interior run of `-0.6`, and the twin wrote no
+        # `-0.9` at all while `validate` MISSED `tails.low.values` at
+        # every seed.
+        listed_negative, listed_positive = _listed_needs(
+            facts, negatives, zeros, positives
+        )
+        if listed_negative + listed_positive <= rest:
+            negative_strata = max(negative_strata, listed_negative)
+            negative_strata = min(negative_strata, rest - listed_positive)
     elif negatives > 0:
         negative_strata = rest
     else:
@@ -9413,7 +9742,12 @@ def _numeric_content(
         )
     notes: list[Deviation] = []
     rungs = _merged_rungs(facts)
-    if len([rung for rung in facts.percentiles.rungs if rung is None]) > 0:
+    # A RUNG WITHHELD BY THE TAIL RULE IS NOT A RUNG THAT HOLDS NOTHING
+    # (stage 3): the tail's own reading stands there, and nothing about
+    # the twin deviates from the description.
+    if not facts.tail_rule and len(
+        [rung for rung in facts.percentiles.rungs if rung is None]
+    ) > 0:
         notes += [
             _deviation(
                 column.name,
@@ -9613,7 +9947,7 @@ def _mode_held(
         return values, _mode_note(column, facts)
     ends = _bin_ends(facts)
     if ends is not None and facts.empty_bins:
-        place = parsing.histogram_bin(mode, ends[0], ends[1])
+        place = _bin_on(mode, ends, facts.tail_rule)
         for empty in facts.empty_bins:
             if empty == place:
                 return values, _mode_note(column, facts)
@@ -9979,6 +10313,7 @@ def _stratum_values(
     taken = 0
     values: list[float] = []
     grid = -1 if facts.integer_valued else _written_grid(column, facts)
+    listed_places = _listed_places(rungs, list(layout.starts), numbers)
     for place in range(total):
         band = layout.bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
@@ -10011,6 +10346,19 @@ def _stratum_values(
             continue
         word = words[taken]
         taken = taken + 1
+        # INSIDE A LISTED TAIL A STRATUM HOLDS THE VALUE ITS FIRST ROW
+        # STANDS AT (method G5.3e). The tail is a staircase over its own
+        # rows and each of its runs is one listed value at the count
+        # solved for it, so there is nothing for a word to choose: a
+        # stratum whose first row is in the tail takes that row's value.
+        # Drawing inside the share instead let the carrier steps of
+        # G5.2 widen a run across the one beside it and the draw then
+        # read the NEIGHBOUR's value -- measured on five hundred
+        # readings at one place, the twin wrote no `2.9` although the
+        # low tail names it, and `validate` MISSED `tails.low.values`.
+        if place in listed_places:
+            values += [listed_places[place]]
+            continue
         numerator = layout.starts[place] * _WORD_SCALE + layout.sizes[place] * word
         # THE LADDER FIXES THE SEGMENT AND THE VALUE INSIDE IT
         # (method G5.3). This comment used to say the histogram shaped
@@ -13352,6 +13700,30 @@ def _fields_served(
         figures[place] = _figure_count(values[place], whole_column)
         left[place] = layout.sizes[place]
     short: "tuple[int, int, int] | None" = None
+    # WHICH STRATA A DEMAND TAKES DECIDES WHERE THE SURPLUS IS LEFT, and
+    # the surplus is the only thing the walk above has to spend. Two
+    # rules put it where it can be spent, and they are the same rule
+    # the demand order already keeps -- a value that fits a narrow
+    # ceiling fits every wider one, so it is the last thing a wide
+    # demand should take:
+    #
+    # * the two PINNED strata are served first. The walk may move no
+    #   stratum holding an end of the ladder, so a spare cell there
+    #   serves nothing at all;
+    # * and the rest are served from the widest values DOWN, so what is
+    #   left over is the smallest stratum of its width -- the one whose
+    #   own stretch of the ladder reaches the narrower field.
+    #
+    # Measured on 120 record codes `S00042` at a floor of eleven, where
+    # stage 3's derived high end held the surplus: 110 cells of five
+    # figures against a published 109, one four-figure cell short, and
+    # nowhere to take it from -- so the twin wrote 10 padded cells of
+    # the 11 its description publishes and missed five obligations.
+    order = [place for place in range(total)]
+    if total >= 2:
+        order = [0, total - 1] + [
+            total - 1 - step for step in range(1, total - 1)
+        ]
     for exact in (1, 0):
         for wanted, kind, cells in demands:
             if kind != exact:
@@ -13360,7 +13732,7 @@ def _fields_served(
             reach = [wanted] if exact else list(range(1, wanted + 1))
             for round_ in (0, 1):
                 for width in reach:
-                    for place in range(total):
+                    for place in order:
                         if owed < 1:
                             break
                         if figures[place] != width or left[place] < 1:
@@ -13431,6 +13803,7 @@ def _wide_enough(
         return values
     total = len(values)
     moved = [value for value in values]
+    tails = _tail_strata(facts, layout)
     for _round in range(total + 1):
         short, left, figures = _fields_served(
             demands, moved, layout, facts.integer_valued
@@ -13487,7 +13860,7 @@ def _wide_enough(
             for count in reach:
                 if figures[place] == count:
                     break
-                share = _share_of(place, layout, rungs, column.n_numeric)
+                share = _tail_room(place, moved, tails, layout, rungs, column)
                 found = _figured_inside(
                     share,
                     mine,
@@ -13543,6 +13916,18 @@ def _bin_ends(facts: contract.NumericFacts) -> "tuple[float, float] | None":
     """
     lowest = facts.percentiles.minimum
     highest = facts.percentiles.maximum
+    # A TAIL BLOCK'S BINS DIVIDE THE STRETCH BETWEEN ITS TWO BOUNDARY
+    # RUNGS (method G6.7a, contract C6-31f as amended by stage 3).
+    if facts.tail_rule:
+        lowest = None
+        highest = None
+        if (
+            facts.tails is not None
+            and facts.tails.low is not None
+            and facts.tails.high is not None
+        ):
+            lowest = _published_rung(facts, facts.tails.low.percent)
+            highest = _published_rung(facts, facts.tails.high.percent)
     if lowest is None or highest is None:
         return None
     if not math.isfinite(lowest) or not math.isfinite(highest):
@@ -13551,6 +13936,161 @@ def _bin_ends(facts: contract.NumericFacts) -> "tuple[float, float] | None":
     if not math.isfinite(reach) or not reach > 0.0:
         return None
     return (lowest, highest)
+
+
+def _published_rung(
+    facts: contract.NumericFacts, percent: int
+) -> "float | None":
+    """The published rung at one percent, from either half of the ladder."""
+    for index in range(len(contract.LADDER_PERCENTS)):
+        if contract.LADDER_PERCENTS[index] == percent:
+            return facts.percentiles.rungs[index]
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        if int(contract.FINER_LADDER_KEYS[index][1:]) == percent:
+            return facts.percentiles_between[index]
+    return None
+
+
+def _tail_room(
+    place: int,
+    moved: "list[float]",
+    tails: "dict[int, int]",
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    column: contract.ColumnBlock,
+) -> "tuple[float, float] | None":
+    """How far a stratum may move for a width (G6.6, stage 3).
+
+    `_share_of`'s stretch, which is the ladder between this stratum's
+    own first and last rank -- EXCEPT where the stratum holds one of a
+    TAIL's rows, where the stretch is the room between its two
+    neighbours instead.
+
+    WHY A TAIL ROW IS DIFFERENT. Amendment A-P4-18 bounds the move by
+    the stratum's stretch because the ladder's rungs are published
+    values and a stratum that leaves its own stretch is a twin
+    disagreeing with a fact somebody can read. Beyond a boundary the
+    ladder is a CONSTRUCTION and no rung is published there (contract
+    6.7a): what the description states about those rows is their count
+    and their two distances, both approximated facts with windows, and
+    a staircase step is a choice this method makes rather than a value
+    the source holds. So the room is the order itself -- between the
+    stratum below and the stratum above, so the order of the values and
+    the count of different ones both stand -- and the walk takes the
+    NEAREST candidate inside it, so what it spends of the two distances
+    is the least it can.
+
+    Measured on 120 record codes `S00042` at a floor of eleven: eleven
+    cells are published padded at five figures, the twin's tail
+    staircase put ten of its rows under ten thousand and the eleventh
+    at 10009, and no other stratum could reach four figures. With the
+    room, that stratum takes 9999 -- ten units of a mean distance of
+    6593.3 -- and the twin writes the eleven padded cells it owes.
+
+    Guarantees: accepts a stratum's place, the values as they stand,
+    which strata hold a tail's rows, the layout, the ladder and the
+    column; returns the stretch the stratum may take a value in, or
+    None where there is no ladder. Determinism: a function of those.
+    Raises nothing. No I/O of any kind.
+    """
+    if place not in tails:
+        return _share_of(place, layout, rungs, column.n_numeric)
+    below = moved[place - 1] if place > 0 else moved[place]
+    above = moved[place + 1] if place + 1 < len(moved) else moved[place]
+    if below > above:
+        below, above = above, below
+    return (below, above)
+
+
+def _tail_strata(
+    facts: contract.NumericFacts, layout: "_NumericLayout", whole: bool = True
+) -> "dict[int, int]":
+    """Which strata hold a tail's own rows (method G6.7a, stage 3).
+
+    A TAIL STRATUM IS DECIDED BY RANK AND NOT BY VALUE. The rows beyond
+    a boundary rung are the first `rows` ranks of the column and the
+    last `rows` of them, whatever value they hold; they stand in no bin
+    and G6.7 never moves one. Deciding it by value instead left an
+    INTERIOR stratum whose value falls a rounding below the low boundary
+    unmovable: on a column of 388 amounts beside twelve far negatives,
+    the third percentile stands at 96.96 -- inside the stretch the
+    source leaves empty -- and the twin wrote two cells there.
+
+    ``whole`` FALSE ALSO TAKES A STRATUM THAT STRADDLES A TAIL'S EDGE,
+    which is what a walk that MOVES a stratum has to ask. A stratum
+    holding the ranks either side of `rows` holds some of the tail's
+    own rows, so its value is one of the tail's, and moving it costs
+    the tail that value: measured on 4,000 two-place readings whose low
+    tail lists `33.5, 34.0, 34.5`, G6.7's empty-stretch walk moved the
+    straddler off 34.5 and onto 34.2, and the twin's own description
+    listed a value the source's tail does not hold. A walk that only
+    READS a stratum's room asks the whole-inside question, because a
+    straddler's value comes from a published rung as much as from a
+    tail.
+    """
+    held: "dict[int, int]" = {}
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return held
+    numbers = 0
+    for size in layout.sizes:
+        numbers = numbers + size
+    for place in range(len(layout.sizes)):
+        first = layout.starts[place]
+        last = first + layout.sizes[place]
+        if whole:
+            inside = last <= tails.low.rows or first >= numbers - tails.high.rows
+        else:
+            inside = (
+                first < tails.low.rows or last > numbers - tails.high.rows
+            )
+        if inside:
+            held[place] = 1
+    return held
+
+
+def _bin_on(
+    value: float, ends: "tuple[float, float]", tail_rule: bool
+) -> int:
+    """The bin a value stands in, by contract C6-31f's total rule.
+
+    ``tail_rule`` is carried for the reader: a tail block's own tail rows
+    stand in no bin (method G6.7a), and which strata those are is
+    decided by RANK in `_tail_strata` rather than by where a value
+    happens to fall.
+    """
+    return parsing.histogram_bin(value, ends[0], ends[1])
+
+
+def _stretch_edges(
+    facts: contract.NumericFacts,
+    runs: "list[tuple[int, int]]",
+    ends: "tuple[float, float]",
+) -> "tuple[tuple[float, float], ...]":
+    """The edges G6.7 walks each run of empty bins to, one pair per run.
+
+    A block written before stage 3 publishes one pair per run. A tail
+    block publishes a pair only for a run with an occupied bin on both
+    sides (contract Q21 as amended), because a run touching an end bin
+    has a tail value for a neighbour; such a run's edges are the edges of
+    its own bins (method G6.7a).
+    """
+    if not facts.tail_rule:
+        return facts.empty_edges
+    pairs: "list[tuple[float, float]]" = []
+    taken = 0
+    width = ends[1] - ends[0]
+    for first, last in runs:
+        if first > 0 and last < parsing.HISTOGRAM_BINS - 1 and taken < len(
+            facts.empty_edges
+        ):
+            pairs += [facts.empty_edges[taken]]
+            taken = taken + 1
+            continue
+        below = ends[0] + width * first / parsing.HISTOGRAM_BINS
+        above = ends[0] + width * (last + 1) / parsing.HISTOGRAM_BINS
+        pairs += [(below, min(above, ends[1]))]
+    return tuple(pairs)
 
 
 def _empty_runs(bins: "tuple[int, ...]") -> "list[tuple[int, int]]":
@@ -13600,6 +14140,7 @@ def _reads_outside(
     barred: "dict[int, int]",
     widths: "tuple[int, ...]",
     whole_column: bool,
+    tail_rule: bool = False,
 ) -> bool:
     """Whether this value stays out of the empty stretches AS WRITTEN.
 
@@ -13630,7 +14171,7 @@ def _reads_outside(
         read = parsing.parse_number(spelling)
         if read is None:
             return False
-        if parsing.histogram_bin(read, ends[0], ends[1]) in barred:
+        if _bin_on(read, ends, tail_rule) in barred:
             return False
     return True
 
@@ -13650,6 +14191,7 @@ def _cleared_value(
     widths: "tuple[int, ...]",
     grid: int = -1,
     point_free: bool = True,
+    tail_rule: bool = False,
 ) -> "float | None":
     """A value outside the empty stretch this one landed in (G6.7).
 
@@ -13882,7 +14424,7 @@ def _cleared_value(
             if found < lowest or found > highest:
                 continue
             if not _reads_outside(
-                found, ends, barred, widths, whole_column
+                found, ends, barred, widths, whole_column, tail_rule
             ):
                 continue
             # AND OUTSIDE EVERY OTHER PUBLISHED STRETCH, not only the
@@ -14014,6 +14556,7 @@ def _barred_bin(
     barred: "dict[int, int]",
     widths: "tuple[int, ...]",
     whole_column: bool,
+    tail_rule: bool = False,
 ) -> int:
     """The barred bin this value stands in, by value or by spelling.
 
@@ -14026,14 +14569,14 @@ def _barred_bin(
     widths and whether the column is whole; returns a bin number or -1.
     Determinism: a function of those inputs. Raises nothing. No I/O.
     """
-    place = parsing.histogram_bin(value, ends[0], ends[1])
+    place = _bin_on(value, ends, tail_rule)
     if place in barred:
         return place
     for spelling in _spellings_of(value, widths, whole_column):
         read = parsing.parse_number(spelling)
         if read is None:
             continue
-        place = parsing.histogram_bin(read, ends[0], ends[1])
+        place = _bin_on(read, ends, tail_rule)
         if place in barred:
             return place
     return -1
@@ -14111,6 +14654,11 @@ def _clear_enough(
         return values, []
     barred = {place: 1 for place in facts.empty_bins}
     runs = _empty_runs(facts.empty_bins)
+    # ONE PAIR OF EDGES PER RUN: the published pair, or on a tail block
+    # the run's own bin edges where it touches an end bin (G6.7a).
+    pairs = _stretch_edges(facts, runs, ends)
+    # A STRADDLER IS A TAIL STRATUM HERE, because this walk MOVES one.
+    tail_places = _tail_strata(facts, layout, whole=False)
     widths = _census_widths(facts)
     # THE COLUMN'S WRITTEN GRID (G5.2a step 1), so that a value this
     # pass moves is a value the writer can write (landing 2b.7). A
@@ -14178,25 +14726,32 @@ def _clear_enough(
         # three two-cluster witnesses at forty seeds, 8, 4 and 27 of
         # 12,000 cells sat inside a source's own gap with the bins
         # asked and none with the pairs asked.
+        # A TAIL ROW IS NEVER MOVED (method G6.7a): it stands beyond a
+        # boundary rung, in no bin, and the tail facts describe it.
+        if place in tail_places:
+            continue
         index = _stretch_holding(
             moved[place],
-            facts.empty_edges,
+            pairs,
             widths,
             facts.integer_valued,
         )
         by_pair = "empty_edges"
         if index >= 0 and _barred_bin(
-            moved[place], ends, barred, widths, facts.integer_valued
+            moved[place], ends, barred, widths, facts.integer_valued,
+            facts.tail_rule,
         ) >= 0:
             by_pair = "empty_bins"
         if index < 0:
             by_pair = "empty_bins"
             if _reads_outside(
-                moved[place], ends, barred, widths, facts.integer_valued
+                moved[place], ends, barred, widths, facts.integer_valued,
+                facts.tail_rule,
             ):
                 continue
             where = _barred_bin(
-                moved[place], ends, barred, widths, facts.integer_valued
+                moved[place], ends, barred, widths, facts.integer_valued,
+                facts.tail_rule,
             )
             if where < 0:
                 continue
@@ -14217,7 +14772,7 @@ def _clear_enough(
         # publishes them (residual R-P4-138). One pair per run, in the
         # same order the runs are in, which is what the loader's Q21
         # holds the description to.
-        edges = facts.empty_edges[index]
+        edges = pairs[index]
         under = edges[0]
         over = edges[1]
         places = queued[index]
@@ -14237,14 +14792,14 @@ def _clear_enough(
         for step in range(len(down)):
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
-                facts.empty_edges,
+                pairs,
                 came[down[len(down) - 1 - step]],
                 down[len(down) - 1 - step], widths, taken, spoken, grid,
             )
         for place in up:
             notes = notes + _cleared_into(
                 column, facts, layout, moved, ends, barred, run, edges,
-                facts.empty_edges, came[place],
+                pairs, came[place],
                 place, widths, taken, spoken, grid,
             )
     return moved, notes
@@ -14462,9 +15017,9 @@ def _width_move_targets(
                     continue
                 if not below < _fraction_need(candidate) <= narrow:
                     continue
-                if ends is not None and parsing.histogram_bin(
-                    candidate, ends[0], ends[1]
-                ) != parsing.histogram_bin(value, ends[0], ends[1]):
+                if ends is not None and _bin_on(
+                    candidate, ends, facts.tail_rule
+                ) != _bin_on(value, ends, facts.tail_rule):
                     continue
                 chosen = candidate
                 break
@@ -14638,6 +15193,7 @@ def _cleared_into(
         widths,
         grid,
         _whole_demand(facts) > 0,
+        facts.tail_rule,
     )
     if found is None:
         # NO NOTE IS WRITTEN HERE, and that is the repair of review
@@ -14705,10 +15261,8 @@ def _gap_notes(
         value = parsing.parse_number(cell)
         if value is None:
             continue
-        where = parsing.histogram_bin(value, ends[0], ends[1])
-        for index in range(len(runs)):
-            if index >= len(facts.empty_edges):
-                break
+        where = _bin_on(value, ends, facts.tail_rule)
+        for index in range(min(len(runs), len(facts.empty_edges))):
             below = facts.empty_edges[index][0]
             above = facts.empty_edges[index][1]
             if not below < value < above:
@@ -15885,7 +16439,7 @@ def _clock_tail_plan(
     mean = 1.0 if side.mean_distance is None else side.mean_distance
     root = mean if side.rms_distance is None else side.rms_distance
     shape = _tail_shape(rows, mean, root, floor, edge, apart, True)
-    near, far = _tail_strata(shape)
+    near, far = _tail_distance_bounds(shape)
     return _TailPlan(
         rows, low_side, boundary, boundary, 1, 0, shape,
         (), (), (), tuple(near), tuple(far),
@@ -16378,7 +16932,7 @@ def _tail_distances(shape: "_TailShape", words: "dict[int, int]") -> "list[int]"
     return found
 
 
-def _tail_strata(shape: "_TailShape") -> "tuple[list[int], list[int]]":
+def _tail_distance_bounds(shape: "_TailShape") -> "tuple[list[int], list[int]]":
     """The nearest and furthest distance each rank can take (method G12.14).
 
     `_tail_distances` at every word nought and at every word the largest,
@@ -16706,7 +17260,7 @@ def _date_tail_plan(
             )
         group = _off_the_holes(group, at, low_side, holes)
     shape = dataclasses.replace(shape, end=max(end, group), group=group)
-    near, far = _tail_strata(shape)
+    near, far = _tail_distance_bounds(shape)
     return _TailPlan(
         rows, low_side, boundary, anchor, unit, half, shape,
         (), (), (), tuple(near), tuple(far),
@@ -16761,7 +17315,7 @@ def _date_layout(
     WITH TAILS: the two boundary ranks are pinned at the two boundaries,
     each published rung between them at its own value, and each tail laid
     out by `_date_tail_plan`. WITHOUT (a column too small or too tied for a
-    boundary on each side, contract TL2): the made-up RAMP of G7.3d -- the
+    boundary on each side, contract DT2): the made-up RAMP of G7.3d -- the
     first rank at 1970-01-01, the last as many units later as the column
     has different values less one (a day for moments), and every rank
     between them drawn, so the counts published beside it can still be
@@ -37815,6 +38369,14 @@ def _numeric_approximations(
                 covers_published=_inside(facts.kurtosis, lowest, highest),
             )
         ]
+    # THE TWO TAIL FACTS OF EACH SIDE (method G12.13, stage 3), measured
+    # on the twin's own cells at the PUBLISHED percent and bounded by
+    # the window G5.6's rank form draws over the tail ladder. The
+    # quality report reads the same window off the same block, so the
+    # two reports print one window.
+    found = found + _tail_approximations(
+        column, facts, values, lows, highs, subject
+    )
     if not cardinalities:
         # A POSITION OF A JOINED COLUMN PUBLISHES NO DISTINCTNESS OF ITS
         # OWN (residual R-P4-44). `n_distinct` and `n_distinct_folded`
@@ -37825,6 +38387,153 @@ def _numeric_approximations(
         # the earlier attempt at this report.
         return found
     return found + _numeric_cardinalities(column, plan, written)
+
+
+def _tail_facts_of(
+    values: "list[float]", percent: int, low: bool
+) -> "tuple[float, float] | None":
+    """The mean and root-mean-square distance of one tail of a file's own
+    values, read at a GIVEN percent (method G12.13).
+
+    The same reading the producer takes: the boundary is the type-7 rung
+    at that percent, the tail is every rank beyond it, and the two
+    results are the mean of the distances and the root of the mean of
+    their squares. None where the file has no such rank.
+    """
+    count = len(values)
+    if count < 2:
+        return None
+    steps = (count - 1) * percent
+    if low:
+        rows = -((-steps) // 100)
+        kept = values[:rows]
+    else:
+        rows = count - 1 - steps // 100
+        kept = values[count - rows:]
+    if not kept or rows < 1:
+        return None
+    boundary = _rung_of(values, percent)
+    distances = [
+        abs(boundary - value) if low else abs(value - boundary)
+        for value in kept
+    ]
+    mean = math.fsum([distance / rows for distance in distances])
+    largest = 0.0
+    for distance in distances:
+        largest = max(largest, abs(distance))
+    root = largest
+    if largest > 0.0 and math.isfinite(largest):
+        root = largest * math.sqrt(
+            math.fsum(
+                [(one / largest) * (one / largest) / rows
+                 for one in distances]
+            )
+        )
+    return mean, root
+
+
+def _tail_approximations(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    values: "list[float]",
+    lows: "list[float]",
+    highs: "list[float]",
+    subject: str,
+) -> "list[Approximation]":
+    """Each tail's two distances, measured and bounded (method G12.13).
+
+    The window is the one G12.13 states: every rank's own window from
+    G5.6's rank form, the boundary's window at the two ranks its type-7
+    reading touches, and the distances between them, held at nought.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return []
+    if len(values) < 2 or not lows or len(lows) != len(values):
+        return []
+    found: "list[Approximation]" = []
+    for side, low, named in (
+        (tails.low, True, "low"), (tails.high, False, "high")
+    ):
+        measured = _tail_facts_of(values, side.percent, low)
+        if measured is None:
+            continue
+        window = _tail_window_of(lows, highs, side.percent, low, len(values))
+        for key, published, achieved, bounds in (
+            ("mean_distance", side.mean_distance, measured[0], window[0]),
+            ("rms_distance", side.rms_distance, measured[1], window[1]),
+        ):
+            if not (math.isfinite(bounds[0]) and math.isfinite(bounds[1])):
+                continue
+            found += [
+                Approximation(
+                    column=column.name,
+                    fact=f"tails.{named}.{key}",
+                    published=_figure(published),
+                    achieved=_figure(achieved),
+                    lowest=_bound_figure(bounds[0]),
+                    highest=_bound_figure(bounds[1]),
+                    inside=_inside(achieved, bounds[0], bounds[1]),
+                    note=(
+                        f"how far the {named} rows of {subject} lie from "
+                        f"the last step of its published ladder"
+                    ),
+                    covers_published=_inside(
+                        published, bounds[0], bounds[1]
+                    ),
+                )
+            ]
+    return found
+
+
+def _tail_window_of(
+    lows: "list[float]",
+    highs: "list[float]",
+    percent: int,
+    low: bool,
+    count: int,
+) -> "tuple[tuple[float, float], tuple[float, float]]":
+    """G12.13's two windows for one side, from the rank windows of G12.2."""
+    steps = (count - 1) * percent
+    lower = steps // 100
+    upper = -((-steps) // 100)
+    lower = min(max(lower, 0), count - 1)
+    upper = min(max(upper, 0), count - 1)
+    if low:
+        ranks = list(range(upper))
+    else:
+        ranks = list(range(lower + 1, count))
+    near: "list[float]" = []
+    far: "list[float]" = []
+    for rank in ranks:
+        if low:
+            near += [max(0.0, lows[lower] - highs[rank])]
+            far += [max(0.0, highs[upper] - lows[rank])]
+        else:
+            near += [max(0.0, lows[rank] - highs[upper])]
+            far += [max(0.0, highs[rank] - lows[lower])]
+    rows = max(1, len(ranks))
+    return (
+        (
+            math.fsum([one / rows for one in near]),
+            math.fsum([one / rows for one in far]),
+        ),
+        (_root_mean_of(near, rows), _root_mean_of(far, rows)),
+    )
+
+
+def _root_mean_of(distances: "list[float]", rows: int) -> float:
+    """The root of the mean of the squares, scaled so nothing overflows."""
+    largest = 0.0
+    for distance in distances:
+        largest = max(largest, abs(distance))
+    if not largest > 0.0 or not math.isfinite(largest):
+        return largest
+    return largest * math.sqrt(
+        math.fsum(
+            [(one / largest) * (one / largest) / rows for one in distances]
+        )
+    )
 
 
 def _shape_window(
@@ -38184,7 +38893,7 @@ def _clock_approximations(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     written: "list[str]",
-    floor: int = 1,
+    floor: int,
 ) -> "list[Approximation]":
     """The approximated families of a column of clock times.
 
@@ -38237,7 +38946,7 @@ def _clock_approximations(
     for side, tail in ((layout.low, facts.low_tail), (layout.high, facts.high_tail)):
         if side is None or tail is None:
             continue
-        found_facts += _tail_approximations(
+        found_facts += _tail_side_approximations(
             column.name, side, tail, ordinals, side.boundary,
             "minute" if form == contract.CLOCK_FORMS[0] else "second",
         )
@@ -38277,7 +38986,7 @@ def _clock_approximations(
     return found_facts
 
 
-def _tail_approximations(
+def _tail_side_approximations(
     name: str,
     side: "_TailPlan",
     tail: contract.TailFacts,
@@ -38290,7 +38999,7 @@ def _tail_approximations(
     The twin's cells beyond the PUBLISHED boundary are measured -- their
     mean distance and root-mean-square distance in tail units -- and held
     to the window the construction draws: every rank at its nearest
-    distance at one end and at its furthest at the other (`_tail_strata`).
+    distance at one end and at its furthest at the other (`_tail_distance_bounds`).
     A tail publishing its values holds its mean exactly. Only numbers are
     printed; no value of the column is.
     """
@@ -38485,7 +39194,7 @@ def _datetime_approximations(
     for side, tail in ((layout.low, facts.low_tail), (layout.high, facts.high_tail)):
         if side is None or tail is None:
             continue
-        found_facts += _tail_approximations(
+        found_facts += _tail_side_approximations(
             column.name, side, tail, ordinals, side.boundary, facts.tail_unit
         )
     # The number of different values, both ways of counting. A stand-in

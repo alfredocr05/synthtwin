@@ -275,7 +275,7 @@ def test_a_short_column_whose_offsets_pool_says_no_clock_and_no_end(
     assert column["datetimes_read_at"] == "utc"
     # ...AND NEITHER COLUMN PUBLISHES A VALUE AT ALL: eight values are
     # below `2k + 1` at a floor of eleven, so both tails are empty and
-    # every rung with them (stage 3, contract TL2). The two end fields
+    # every rung with them (stage 3, contract DT2). The two end fields
     # that used to name the pool here are gone from the format.
     assert column["low_tail"] is None and column["high_tail"] is None
     naive = _moments(rows=8)

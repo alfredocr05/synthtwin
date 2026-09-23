@@ -6,6 +6,264 @@ exists).
 
 ## [Unreleased]
 
+### Merged: stage 3's five landings in one tree (2026-09-23)
+
+**Nothing new is built here.** Stage 3 was built as five landings on
+five branches cut from one base, each with its own skeptic and repair
+pass, and this is the last of the five merged into the other four. What
+it adds is the answer to every question a branch could not answer on its
+own, because each branch could only see itself.
+
+**Four names were claimed twice, and each landing's own text is kept.**
+Two plan decision numbers (`P4-D321`, `P4-D332`), one published sentence
+form (NF59), all twelve stage-3 KPI ids, and the loader's tail
+invariants. In every case but the last the landing that arrived LAST
+takes a new number and the rule it states does not change: landing 3.3's
+"The numeric tail" is `P4-D344`, landing 3.4's "An advisory remark may
+not outlive the facts it quotes" is `P4-D345`, the two fragments the
+sentence landing added are NF60 and NF61 while the small-table note
+keeps NF59, and stage 3's KPIs are `K-S3-01` to `K-S3-12` in landing
+order. The exception is the loader's invariants, where landing 3.4 named
+the date and clock tail's TL1 to TL4 and landing 3.3 the numeric tail's
+TL1 to TL6 in ONE dictionary -- so every date-tail refusal quoted the
+numeric rule's words. The date and clock family is **DT1 to DT4** now,
+because `tails` and section 6.7a make TL the numeric family's name
+everywhere else in the code.
+
+**TWO KPIs HAD BEEN LOST, not renumbered.** Landing 3.2's population
+battery and landing 3.4's tail-leak battery were dropped by earlier
+merges of this stage: their tests and their driver stayed in the tree
+with nothing naming them. Both are back, and the board's 30-headline cap
+is kept by making ONE of stage 3's twelve a headline -- `K-S3-11`, the
+tail leak -- and demoting the rest.
+
+**The two tail rules now stand in one tree, and the second one binds the
+first.** The time-band remark (NF51) quoted a `count` column's smallest
+and largest values a second way, as two calendar days. The numeric tail
+rule withdraws those values, so the remark now reads the two ends the
+block PUBLISHES -- a heaped end where a group of eleven rows holds one,
+and the side's boundary rung otherwise -- and a block that publishes
+neither an end nor a boundary carries no remark at all (plan P4-D345).
+The loader refuses a description whose ends are gone and whose remark
+still names them.
+
+**Nine definitions had silently shadowed one another.** Both landings
+added a `TailFacts`, a `TAIL_KEYS`, a `_tail_strata`, a
+`_tail_checks`, a `_tail_approximations` and a `_tail_fields`, and
+because the two branches touched different lines the merge took both and
+the later one won every time. Each pair is two different things with one
+name now separated. The oracle also carried a second
+`TWO_FIGURE_MEMBERS` that shadowed the real one, naming a format member
+this contract does not have and dropping one it does; there is one list
+again, and it is the shipped `parsing.TWO_FIGURE_MEMBERS`.
+
+**The reference vectors are regenerated from the merged oracle**, all
+eleven files, and the tenth carries six cases and the eleventh three.
+The contract's note-grammar census is recomputed from the code: 61
+forms, 99 argument positions, and the small-table note's two arguments
+are bound where they had never been bound at all.
+
+**A landing cut before the default floor moved brought eleven literal
+floor defaults back in with it.** Landing 3.1 had taken them out (plan
+P4-D317): a parameter named for a floor defaults to
+`parsing.DEFAULT_SMALL_CELL_FLOOR` or to nothing, because a default of 1
+reads a file at a floor nobody has chosen since the default became 11.
+The date and clock tail landing was cut from the base before that
+repair, so eleven of its functions arrived carrying `floor: int = 1` --
+`generation._clock_approximations` and ten in `validation`, among them
+`_universal_checks`, `_clock_checks`, `_rank_windows` and
+`_pin_bounds_of` -- and landing 3.1's two AST guards were red on the
+branch this merge lands on as well as after it. THE SITES ARE REPAIRED,
+NOT THE GUARDS: the default is gone where the signature allows it and
+names `parsing.DEFAULT_SMALL_CELL_FLOOR` where an earlier parameter's
+own default keeps one. Four helpers in the tests and the tools were
+reading a table at the default beside a floor of their own, which the
+same landing's second guard names; each passes its own floor now.
+
+**Two tests were written against a table a later landing refuses, and
+five more asserted a rule as though its sibling did not exist.** Each is
+repaired from the rule rather than from the new output. The numeric
+tail's moment-window witness was twenty rows, which the population floor
+refuses, so it asks the same question at a hundred rows with the floor
+raised to fifty -- the size the command will take, and the floor at
+which no percent clears two tails; landing 3.1's counted double-spaced
+file was seventy records, and it takes the plain tail its own sibling
+case already took (plan P4-D341), which leaves its seventy-one blank
+places exactly where they stood. The empty-bin
+witness asserted a per-bin census at a floor of one, where a tail block
+publishes none at any floor; it now asserts the GROUPS, thirty-two at a
+floor of one and eight at eleven. The twin's obligation census asserted
+that only `numeric.tails` files the tail subchecks; both roles file
+them, under their own field names, and it now says so and checks that
+all three roles do. And the three time-band tests read the column's own
+smallest and largest value; they read the block's two published edges
+now, worked out through `tests/tail_rule.py`.
+
+**Five golden digests are re-recorded, and THREE OF THEM WERE ALREADY
+STALE** before this merge: the date and clock tail landing re-recorded
+the twin and the quality report and left the demonstration profile, the
+description the twin is built from, and the twin's own report behind, so
+the branch this merge lands on was red on all three. Each is re-recorded
+against a read of the artifact and not of the hash: the description
+gains 329 leaves and loses 10, the twin moves 212 of 3,360 cells and
+every one of them is in a numeric column, the report's count of
+approximated facts rises from 122 to 134 and NAMES one new miss, and the
+quality report's census grows from 533 checkable obligations to 541 with
+33 more listed as not checkable and none lost.
+
+### Changed: the numeric tail (stage 3, landing 3.3, 2026-09-22)
+
+**A numeric column no longer publishes a number that one row holds.**
+Until now every numeric block published its smallest and largest values
+exactly, and the rungs beside them read the rows next to those. A
+description now WITHHOLDS every rung whose type-7 reading touches one of
+the outermost max(`--smallest-group`, 3) values, on each side, and
+publishes what those rows look like as a GROUP instead: how many there
+are, how far from the last published rung they lie on average, the
+root-mean-square of that distance, and -- on a column whose values stand
+on a grid and whose tail holds a handful of them -- the tail's own
+values, without how many rows hold each (contract 6.7a, method G5.3b to
+G5.3e; plans P4-D322 to P4-D327 and P4-D344). An end is still published where a
+group of at least that many rows holds it.
+
+| on sixteen shapes at a floor of eleven                    | before | after |
+|-----------------------------------------------------------|--------|-------|
+| published numbers equal to a value fewer than 11 rows hold | 13-46 per shape | 0 |
+| a 2,000-row age column: the twin's mean                    | +1.31% | +0.01% |
+| a 500-row Pareto charges column: the twin's spread         | +9.72% | -1.13% |
+| a pain score of 0-10: cells written outside the scale      | 50     | 0     |
+| the same column's twin mean                                | +25%   | +0.2% |
+| a 20,000-row normal column: real cells outside the twin's range | 16 | 0 |
+| twenty gauss columns at 5,000 rows: the twin's spread       | +1.07% to +3.11% | +0.04% to +0.20% |
+
+**Every consumer reads one ladder.** The rungs a tail withholds are
+filled by that tail's own reading, and the two ends the twin pins are
+DERIVED from the published facts alone (`contract.tail_ladder`), so the
+generator, the validator, both reports and the summary all read the same
+hundred and one rungs. A block too thin for two tails publishes its
+moments alone and is read as the uniform with that mean and spread; one
+below the floor publishes neither and is read as a ramp of one grid step
+a value.
+
+**What a reader is told instead.** The summary prints, per side, how
+many values are not published, how far from the boundary rung they lie
+and what that rung is; the twin's report and the quality report name the
+two distances as approximated facts with their windows; and `validate`
+checks a published (heaped) end ONE-SIDED and silently, so a check never
+prints a file's own extreme.
+
+**Found and repaired while building it**: a count column of small whole
+numbers beside a heap of zeros published the value 1 in 317 cells and
+its twin wrote 4 (the ranks of a band are now read at that band's own
+sign, method G5.2a step 1a); a derived end held to a single published
+field width pulled the low end of `0`-to-`59` from 0 up to 10; a tail's
+smooth reading rounded onto a grid put two of its rows on one value,
+which cost a 500-row column five of its thirty-one numbers; a derived
+end above what a PADDED column can write -- 1006 on 1,200 offsets
+written `+0123` and `0123` -- cost the twin's own description its
+padded census, 482 cells of 1,200 against its source's 1,200 (method
+G5.3b step 4); a joined position whose end is heaped had that one value
+named twice, as `ends.number 2 max` and again by the ladder walk; and a
+band whose every run lay inside a listed tail had no run left to
+divide, which raised an error out of an empty list on twenty-four
+offsets over eight values (method G5.3e).
+
+**And one more found by the ledger itself.** A tail's innermost listed
+value is commonly the column's value just inside the boundary as well,
+and the ladder then reads one number across the edge. Such a run lay
+wholly inside nothing, so the rule that keeps a listed tail's runs
+whole passed over it, the layout joined it to its neighbours and the
+stratum that swallowed it read its own share instead: on the 240
+clinical codes of `K-P4-11`'s ClinVar column the twin wrote five cells
+at `920759` where the table holds `920760`, `tails.high.values` MISSED,
+and one of eighteen coding systems stopped validating clean. A run that
+REACHES INTO a tail's rows is now one of the runs kept whole, where the
+band's runs must be joined at all, and the band is still levelled after
+it (method G5.3e). Each qualification was measured: cutting the run at
+the edge instead spends one of the band's strata on the tail's own part
+and took that stratum off a published MODE, 210 cells written nowhere
+on 1,140 readings; protecting such a run on a band that had a stratum
+for every run already split fifty published pluses across two values,
+so a twin wrote four spellings of three numbers; and holding the
+protected run STILL, rather than letting the levelling even the band,
+gave 49, 53 and 48 cells where the source holds fifty of each. It costs
+a seed of one battery one number: on a 4,000-row column of halves the
+twin holds 16 of its 17 different values at seed 1 where it held all
+17, because the run kept whole is one stratum where the walk could have
+divided it.
+
+**And a pooled census may not cross a checked fact.** A census of
+widths and a census of marks count a group of fewer cells than the
+smallest group into the commonest, so a column of 1 to 30 publishes the
+one field width two although nine of its cells wear one. Read as a
+ceiling, that census moved a derived low end from under 1 up to 10: on
+the 30-row reading column of a macro workbook the twin wrote five cells
+at 10 and none below it, its mean stood 5.3 above the published 15.5,
+and `validate` MISSED `ladder.p50` and `moments.mean`. Neither spelling
+clamp now pulls an end inside the tail's own published mean distance,
+which no set of rows can meet from nearer than that (method G5.3b step
+4).
+
+**A withheld end is listed under its own name.** The rungs the tail
+rule withholds are LISTED rather than checked, and an end is listed
+under the field its check bound before -- `percentiles.min` and
+`percentiles.max` -- so the same obligation goes quiet under its own
+name and no subcheck binds two registry facts. Ten lines of the
+demonstration's quality report say so and nothing else in it moved.
+
+**One obligation goes quiet for a new reason, and the report still says
+why** (validation amendment V2.4-A11). A file holding a different
+number of values describes ITSELF with its ladder and its tails at a
+different percent, so it publishes nothing at the percent the
+description names, and the rungs and tail facts there are withheld --
+beside `counts.n_used_in_statistics` MISSING in the same report, which
+is the published fact that decides it. And a coarser description
+widens G12.3's windows: on a blood-pressure column of 120 rows
+`moments.skew` now reaches the range every sample of that size lies in,
+so it is a census line rather than a pass -- which is what a skew of
+that shape already was on the second position.
+
+**Not repaired, with the number**: nine twins of a forty-twin battery of
+one-place readings still hold one or two numbers fewer than their
+description publishes, each named in the twin's own report. The tail's
+rows are described by two moments rather than named, so a tail of seven
+different values on a grid cannot always be given seven.
+
+**The KPI ledger.** Eight new entries, `K-S3-03` to `K-S3-10`: no
+published page names a value too few rows hold (the headline), the
+published facts do not solve for a withheld end, a bounded scale keeps
+its own values and ends, every twin and table of the battery is checked
+clean, the real cells outside the twin's range, a listed tail's solved
+counts, a count column beside a heap of zeros, and the histogram that
+survives a raised floor in groups. Two targets are MET and their entries
+are GREEN at their own measurements: `K-P3-03` (nothing missed at 5,000
+or 20,000 rows, the twin's spread 0.04 to 0.22 per cent from the
+published one against 1.07 to 3.83) and `K-2B-05` (0 verdicts flip of
+1,058). `K-2B-47` improves on every key -- the heavy tail misses nothing
+where it missed two checks, the band split is short of no value where it
+was short of four, a record layout misses none where it missed three.
+`K-P4-06`'s ceiling comes DOWN, from 609 agreements outside the window
+and 3 missed above-counts to 556 and 1. `K-P4-07` keeps its exact 0 with
+its rule restated. Two entries read worse and are recorded so:
+`K-2B-49`'s point-free style misses rise from 30 to 33 -- one grid at
+three seeds, whose listed tail's values the strata sizes cannot meet --
+while its distinct-count misses fall from 12 to 3; and `K-S1-01` and
+`K-P3-12` were taken on a LOADED machine, so their seconds are recorded
+and not judged (31.2 s to generate 20,000 by 20 against 23.3, 126.2 s to
+validate against 70.2) while their machine-free ratios are judged and
+hold at 3.40 and 3.89, against 3.47 and 3.97 before, on a bound of 8.
+
+**The independent oracle was re-written where it had drifted.** The
+frozen vectors are built by an oracle written from the method's own
+statements, and `K-2B-42` measures how close its functions sit to the
+shipped code: the tail cases took it from 176 functions at or above
+0.60 similarity to 190, every one of the fourteen a tail function. Each
+was re-written from the clause it implements -- the shape's
+coefficients read as one tuple, the staircase as a walk over its own
+rows, the grid text as exact arithmetic on a fraction rather than a
+format string -- and every vector file comes back byte for byte
+identical through the provenance guard. The measure is back at 176 over
+443 scored functions, where it was over 409.
 ### Fixed: a table with blank lines in more places than a description can name passes its own description (stage 3, 2026-09-22)
 
 **`synthtwin validate` reported a real table as missing an obligation it
@@ -303,7 +561,7 @@ where EVERY value it would list is shared by at least two of its cells
 and the column's own values come from a small fixed set rather than a
 fine grid, or where every listed value is held by the floor's own
 number of cells. A column of all-different clock times lists nothing
-and publishes its shape (plans P4-D328 to P4-D332 and P4-D342). A
+and publishes its shape (plans P4-D328 to P4-D331, P4-D342, P4-D343 and P4-D345). A
 column too small or too tied for a boundary on each side publishes no
 value of the table at all, and its twin is a made-up ramp from
 1970-01-01.
@@ -359,7 +617,7 @@ window of 5.64 to 6.45 whose own construction reaches 7.0. The checker
 now reads distinctness exactly as the generator does.
 
 **What is measured, and where it stays measured.** The KPI ledger's new
-`K-S3-01` walks twenty-one shapes at two sizes and up to three seeds --
+`K-S3-11` walks twenty-one shapes at two sizes and up to three seeds --
 105 columns, each described, generated and checked -- and holds three
 numbers at nought: values named, values settled by back-solve, and
 obligations missed by the twin or by the real table. It records four

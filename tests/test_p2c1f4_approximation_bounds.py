@@ -619,6 +619,21 @@ def _published_rung(column: contract.ColumnBlock, fact: str) -> bool:
     return True
 
 
+def _withheld_rungs(column: contract.ColumnBlock) -> "set[str]":
+    """The named rungs one column's block does not publish (contract TL1)."""
+    facts = column.facts
+    numbers = facts
+    if isinstance(facts, contract.AffixedFacts):
+        numbers = facts.numbers if hasattr(facts, "numbers") else facts
+    if not isinstance(numbers, contract.NumericFacts):
+        return set()
+    gone: "set[str]" = set()
+    for index in range(len(contract.LADDER_PERCENTS)):
+        if numbers.percentiles.rungs[index] is None:
+            gone.add(f"percentiles.{contract.LADDER_KEYS[index]}")
+    return gone
+
+
 def test_every_approximated_fact_of_every_role_is_measured(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
@@ -657,12 +672,17 @@ def test_every_approximated_fact_of_every_role_is_measured(
                 f"n_core_{one[2:]}" if one.startswith("n_distinct") else one
                 for one in owed
             ]
-        # A RUNG THE TAIL RULE WITHHOLDS IS NOT AN APPROXIMATED FACT OF
-        # THIS COLUMN (stage 3, plan P4-D328): the description publishes
-        # `null` there, so there is no number to bound and the report
-        # measures none. The matrix names every rung a ladder CAN carry,
-        # so the ones this column withholds come out of the list here.
+        # A RUNG EITHER TAIL RULE WITHHOLDS IS NOT AN APPROXIMATED FACT
+        # OF THIS COLUMN (stage 3, plans P4-D328 and P4-D344): the
+        # description publishes `null` there, so there is no number to
+        # bound, the report measures none and LISTS the rung instead
+        # (contract TL1). The matrix names every rung a ladder CAN
+        # carry, so the ones this column withholds come out of the list
+        # here -- the date ladder and the clock one through the tails
+        # block's own facts decide, the numeric ladder through the
+        # rungs its own block carries.
         owed = [one for one in owed if _published_rung(column, one)]
+        owed = [one for one in owed if one not in _withheld_rungs(column)]
         # COMPARED BY IDENTITY, not by the order the two happen to use:
         # the report writes the ladder's bounds before the tails' and
         # the matrix states the tails' row first, and what this asserts
@@ -700,11 +720,23 @@ def test_every_approximated_fact_of_the_compound_role_is_measured(
     # ...and the LABEL half's own count of different spellings, which
     # is the label section's approximated fact read over that half and
     # is named for the half it belongs to (review round 6, item 1).
+    # ...AND THE TAIL FACTS OF THE NUMERIC HALF, under the tail rule
+    # like any other numeric block (contract 6.7a), less the rungs that
+    # rule withholds.
+    half = described.columns[0].facts.numbers
+    assert isinstance(half, contract.NumericFacts)
+    assert half.tail_rule, "this half is described under the tail rule"
+    gone = {
+        f"percentiles.{contract.LADDER_KEYS[index]}"
+        for index in range(len(contract.LADDER_PERCENTS))
+        if half.percentiles.rungs[index] is None
+    }
     owed = (
         [
             name
             for name in numeric
             if name not in ("n_distinct", "n_distinct_folded")
+            and name not in gone
         ]
         + list(APPROXIMATED["numbers_with_labels"])
         + ["labels -> n_distinct"]
@@ -1078,9 +1110,20 @@ def test_the_report_still_has_the_section_with_nothing_to_put_in_it(
 
 
 def _numeric_cells(loaded: contract.Profile, name: str) -> "list[float]":
-    """The published ladder ends of one numeric column, as two numbers."""
+    """The two ends of one numeric column's ladder, as two numbers.
+
+    The published `min` and `max` on a block written before stage 3, and
+    the DERIVED ends of method G5.3b on a tail block, which withholds
+    both unless a group of rows shares one. Either way they are the two
+    values the construction pins, which is what a mutant built "from the
+    two ends alone" is built from.
+    """
     facts = loaded.columns[_place_of(loaded, name)].facts
     assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return [ladder[0], ladder[len(ladder) - 1]]
     low = facts.percentiles.minimum
     high = facts.percentiles.maximum
     assert low is not None and high is not None

@@ -33,6 +33,7 @@ import typing
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import cli, parsing, profile, reading, taxonomy
 
 # THE SMALLEST GROUP EVERY CASE HERE IS DESCRIBED AT, DECLARED BECAUSE
@@ -48,6 +49,16 @@ from synthtwin import cli, parsing, profile, reading, taxonomy
 # left to a default that has moved beneath them. The floor of one is
 # the subject of `tests/test_p3v5f1_floor_one.py`.
 SETTINGS = taxonomy.Settings(small_cell_floor=11)
+# THE SATURATING COLUMN IS DESCRIBED UNDER A FLOOR OF THREE (stage 3,
+# landing 3.3). It holds three rows, and at a floor of eleven a block of
+# fewer rows than one tail's own publishes no rung and no moment at all
+# -- contract 6.7a, invariant TL2 -- so the spread it is about would be
+# null for a reason that has nothing to do with the spread. Under a
+# floor of three the same three rows publish their moments (TL3: no
+# percent clears two tails at once, so the moments stand alone), which
+# is the state this rule was written for and the one where `std: null`
+# beside `std_unrepresentable: true` means what it says.
+SATURATING_SETTINGS = taxonomy.Settings(small_cell_floor=3)
 
 # The reviewer's column: three distinct values whose exact sample
 # standard deviation is larger than the largest finite binary64 number
@@ -141,7 +152,7 @@ def test_the_reviewers_spread_really_is_out_of_range_and_rounds_down() -> None:
 
 
 def test_an_exact_out_of_range_spread_is_null_and_flagged() -> None:
-    described = describe(SATURATING_SPREAD)
+    described = describe(SATURATING_SPREAD, SATURATING_SETTINGS)
     assert described.role == taxonomy.ROLE_CONTINUOUS
     assert described.details["std"] is None, (
         "a spread this format cannot hold must not be published as a "
@@ -151,10 +162,13 @@ def test_an_exact_out_of_range_spread_is_null_and_flagged() -> None:
         "null on its own means 'undefined', which is a different fact"
     )
     # The rest of the description is unaffected: only the spread was out
-    # of range.
+    # of range. The LADDER is another matter and not this rule's: three
+    # rows publish no rung under any floor (TL3), and the tail facts say
+    # which state that is.
     assert described.details["mean"] is not None
     assert described.details["skew"] is not None
-    assert described.details["percentiles"]["max"] is not None
+    assert described.details["percentiles"]["max"] is None
+    assert described.details["tails"] == {"low": None, "high": None}
 
 
 def test_the_out_of_range_spread_is_not_published_as_a_finite_maximum() -> None:
@@ -217,7 +231,7 @@ def test_a_spread_that_is_undefined_is_not_an_out_of_range_spread() -> None:
 
 
 def test_the_out_of_range_spread_is_said_in_words() -> None:
-    described = describe(SATURATING_SPREAD)
+    described = describe(SATURATING_SPREAD, SATURATING_SETTINGS)
     spoken = [
         remark for remark in described.remarks if "spread" in remark
     ]
@@ -239,7 +253,7 @@ def test_the_out_of_range_spread_reaches_the_profile_file(
             )
         )
     )
-    document = profile.build_document(table, SETTINGS, [])
+    document = profile.build_document(table, SATURATING_SETTINGS, [])
     text = profile.serialize(document)
     column = document["columns"][0]
     assert column["std"] is None
@@ -271,7 +285,9 @@ def test_the_out_of_range_spread_survives_the_command_line(
         "spread.csv",
         fixtures.kept_column_table("reading", padded),
     )
-    assert cli.main(["profile", str(table)]) == 0
+    assert cli.main(
+        ["profile", str(table), "--smallest-group", "3"]
+    ) == 0
     printed = capsys.readouterr().out
     document = json.loads(
         (tmp_path / "spread-profile.json").read_text(encoding="utf-8")
@@ -790,7 +806,17 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
     described = describe(values)
     assert described.role == taxonomy.ROLE_CONTINUOUS
     assert described.n_present == 20000
-    assert described.details["percentiles"]["max"] == 19999.5
+    # The largest value is held by one row, so the tail rule withholds
+    # it (contract 6.7a) and the group beyond the high boundary is what
+    # the description states about those rows.
+    assert described.details["percentiles"]["max"] is None
+    assert tail_rule.stated(described.details["tails"]["high"]) == (
+        tail_rule.expected(
+            described.details,
+            [float(value) for value in values],
+            low=False,
+        )
+    )
 
 
 def test_a_large_date_column_is_not_built_quadratically() -> None:

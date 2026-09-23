@@ -230,6 +230,38 @@ TAIL_LISTING_FACTS = (
     "|clock-ladder.p99",
 )
 
+# THE LISTINGS STAGE 3'S TAIL RULE ADDED (landing 3.3, contract 6.7a),
+# set aside on the doctrine this file keeps for an obligation that
+# ARRIVED. A rung the tail rule withholds carries no window and is
+# LISTED (method G5.6a); the grouped histogram of a tail block and the
+# census it replaces are REPORT-ONLY and listed for the reason every
+# report-only fact is. None of them replaces a check that left: the ones
+# that MOVED from the checks are named in `WITHDRAWN_CHECKS` above and
+# put back there.
+TAIL_LISTINGS_ADDED = (
+    "amount|numeric.bin_groups|",
+    "amount|numeric.percentiles.max|ladder.max",
+    "amount|numeric.percentiles.min|ladder.min",
+    "amount|numeric.percentiles|ladder.p01",
+    "amount|numeric.percentiles|ladder.p99",
+    "amount|numeric.value_histogram|",
+    "dose|numeric.bin_groups|",
+    "dose|numeric.percentiles.max|ladder.max",
+    "dose|numeric.percentiles.min|ladder.min",
+    "dose|numeric.percentiles|ladder.p01",
+    "dose|numeric.percentiles|ladder.p99",
+    "dose|numeric.value_histogram|",
+    "reading|numeric.bin_groups|",
+    "reading|numeric.percentiles.max|ladder.max",
+    "reading|numeric.percentiles.min|ladder.min",
+    "reading|numeric.percentiles|ladder.p01",
+    "reading|numeric.percentiles|ladder.p99",
+    "reading|numeric.value_histogram|",
+    "visits|numeric.bin_groups|",
+    "visits|numeric.percentiles|ladder.p01",
+    "visits|numeric.percentiles|ladder.p99",
+)
+
 LISTINGS_ADDED_SINCE = (
     FIELD_WIDTH_FACT,
     WIDE_RUNS_FACT,
@@ -305,6 +337,22 @@ LAYOUT_SUBCHECKS = (
     # aside both digests came back character for character.
     "prefix.(column)",
 )
+# ...and THE CHECKS STAGE 3'S TAIL RULE ADDED (landing 3.3, contract
+# 6.7a), set aside on the same doctrine. Every numeric block now
+# publishes how far the rows beyond each boundary rung lie from it, and
+# a block on a grid whose tail holds few values publishes those values:
+# each of them is a fact a file can be held to, so the run files them.
+# They land on numeric blocks and on nothing else, which is what the
+# assertion below says: every one of them is filed under a
+# `numeric.tails` fact.
+TAIL_SUBCHECKS = (
+    "tails.low.mean_distance",
+    "tails.low.rms_distance",
+    "tails.high.mean_distance",
+    "tails.high.rms_distance",
+    "tails.low.values",
+    "tails.high.values",
+)
 # ...and it is SET ASIDE rather than folded into either baseline, which
 # is this file's doctrine for an obligation that arrived: re-recording
 # 416 as 417 would retire the only thing the baseline buys. Both frozen
@@ -356,6 +404,32 @@ WITHDRAWN_CHECKS = (
     "seen_at|clock.clock_percentiles|clock-ladder.p01",
     "seen_at|clock.clock_percentiles|clock-ladder.p05",
     "seen_at|clock.clock_percentiles|clock-ladder.p99",
+    # ...AND THE FOURTEEN RUNGS STAGE 3'S TAIL RULE MOVED FROM THE
+    # CHECKS TO THE LISTINGS (landing 3.3, contract 6.7a). A rung whose
+    # type-7 reading would touch one of the outermost eleven values is
+    # withheld, and a withheld rung carries no window: the run LISTS it
+    # instead of checking it, exactly as it lists any fact no file can
+    # evidence. Each of them is an obligation that MOVED rather than
+    # one that went, so each is put back here before the frozen digest
+    # is taken -- the same doctrine, and the same treatment, as the
+    # judged key of plan P4-D6.4 below. The two ENDS of `visits` are not
+    # among them: eleven rows of that column hold each of its ends, so
+    # the description publishes both and the run checks both, one-sided
+    # (method G5.6a).
+    "amount|numeric.percentiles.max|ladder.max",
+    "amount|numeric.percentiles.min|ladder.min",
+    "amount|numeric.percentiles|ladder.p01",
+    "amount|numeric.percentiles|ladder.p99",
+    "dose|numeric.percentiles.max|ladder.max",
+    "dose|numeric.percentiles.min|ladder.min",
+    "dose|numeric.percentiles|ladder.p01",
+    "dose|numeric.percentiles|ladder.p99",
+    "reading|numeric.percentiles.max|ladder.max",
+    "reading|numeric.percentiles.min|ladder.min",
+    "reading|numeric.percentiles|ladder.p01",
+    "reading|numeric.percentiles|ladder.p99",
+    "visits|numeric.percentiles|ladder.p01",
+    "visits|numeric.percentiles|ladder.p99",
 )
 
 # ...and the subcheck family that ARRIVED with them, set aside rather
@@ -430,6 +504,15 @@ NARROW_LISTING_DIGEST = (
 # order change and stop meaning "a cell changed". `unused` and `batch`
 # hash exactly as they did, which is the check that nothing else moved.
 NARROW_COLUMN_DIGESTS = {
+    # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3): the three
+    # numeric columns whose ends the tail rule withholds hold different
+    # cells, because no ladder of theirs runs to a published extreme
+    # and their outermost rows are placed by the two distances the
+    # description publishes (contract 6.7a, method G5.3b). `visits` did
+    # NOT move -- eleven rows hold each of its ends, so the description
+    # publishes both and its ladder is the one it was -- and neither did
+    # any column of any other role, which is what says the landing
+    # reached the numeric blocks and nothing else.
     # RE-RECORDED AT LANDING 2b.18, and this is the ONE column of the
     # demonstration that may have moved: `record_code` is the table's
     # declared identifier, and the identifier role now publishes the
@@ -492,13 +575,13 @@ NARROW_COLUMN_DIGESTS = {
     # at this seed: exactly those thirteen cells differ, blank to `-999`,
     # in the narrow and the wide run alike, and every other column of
     # both is byte-identical.
-    "reading": "1664296eb80cf6a59193e013209467d1",
+    "reading": "2846e7a8d558b91d5d4cf90e60e25e2c",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
     # ranks: 235 of its 240 cells moved, every one of them still a
     # two-figure number, and the quality report still misses nothing.
-    "amount": "6a6bd7bdb202ac5c98ae4a74f40e6530",
+    "amount": "1b729a6b63d400491e490bc3f9ba5933",
     # RE-RECORDED at landing 2b.6 (2026-09-15). `recorded_on` is the
     # demonstration's one column of dates, and its interior cells move
     # because the placement rule of G7.3 moved: the nine interior rungs
@@ -561,7 +644,19 @@ NARROW_COLUMN_DIGESTS = {
     # a7ae404: 12 cells of `dose` differ, every value is the same number,
     # the census is still 160 at one place and 80 at two, and every other
     # column is byte-identical.
-    "dose": "b1f8940a719df22cd6b0186556eabb01",
+    # RE-RECORDED AT THE INTEGRATION OF STAGE 3'S FIVE LANDINGS
+    # (2026-09-23), `dose` ONLY. Read cell by cell against the tree
+    # before the merge: 30 of its 240 cells differ, its count of
+    # different values is unchanged at 180, and its width census is
+    # unchanged at 160 cells of one place and 80 of two -- what moved is
+    # the column's REACH, from 10.0 to 189.7 mg to 5.41 to 194.74 mg,
+    # because its cores' ladder no longer runs to two published extremes
+    # and the numeric tail rule derives both ends instead. `seen_at`
+    # holds its digest, which is the check that a CLOCK column is
+    # untouched by the numeric rule: the numeric branch's own value for
+    # it was a third one, measured on a tree that had no date and clock
+    # tails, and neither branch's answer is this tree's.
+    "dose": "35fbb4a75bfd27999d349e38896a4506",
     "seen_at": "904896a1750543a4b2f419ddd8f160ed",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
@@ -586,8 +681,8 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # Re-recorded for plan P4-D183 with the sorted digest above: the same
     # ten cells, as written. Re-recorded for plan P4-D6.4 with the sorted
     # digest above: the same thirteen cells, blank to `-999`, in place.
-    "reading": "c03c829c35e02af9d93d1aca17ce29bd",
-    "amount": "5f2f6eacd9cff53f6598a4420df3eb0b",
+    "reading": "a3bdd04c35dac6b0f1a21a74a97aed1c",
+    "amount": "b38fee66a1d3cdc181a1bc943dd4851e",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
     # moved cells as the sorted digest above, as written.
@@ -604,7 +699,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # RE-RECORDED AT THE REPAIR PASS AFTER THE FINAL SKEPTIC (2026-09-17,
     # plan P4-D179): the same 12 cells as the sorted digest above, in
     # the places they stood; no cell moved place.
-    "dose": "b240a95d4658408ca5d8428c9aaa99e0",
+    # RE-RECORDED AT THE SAME MERGE: the same 30 cells of `dose`, in
+    # the places they stand; no cell moved place, and `seen_at` holds.
+    "dose": "6dee62a916c865e9423c53ded567e247",
     "seen_at": "5230cc5d6f06d53b7c8a6b52cf4400bb",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -639,11 +736,22 @@ def test_widening_the_demonstration_lost_no_obligation(
     # `bytes.utf8` asks for `source.encoding` now and is called
     # `bytes.encoding`. The frozen baselines below hash the name they were
     # frozen with, so the rule is read back under that name.
-    checks = sorted(
-        f"{c.column}|{c.fact}|"
-        + ("bytes.utf8" if c.subcheck == "bytes.encoding" else c.subcheck)
-        for c in outcome.checks
-    )
+    # ...AND A HEAPED END IS THE SAME OBLIGATION UNDER A NEW NAME (stage
+    # 3, landing 3.3). A block that publishes an end because a group of
+    # eleven rows holds it is checked ONE-SIDED and silently (method
+    # G5.6a), and the run files that check under `numeric.percentiles.min`
+    # with the subcheck saying so. It is the same rung the baseline was
+    # frozen with, so it is read back under the name it had.
+    def _named(check: object) -> str:
+        subcheck = check.subcheck
+        for end in ("min", "max"):
+            if subcheck == f"ladder.{end} (heaped end, one-sided)":
+                subcheck = f"ladder.{end}"
+        if subcheck == "bytes.encoding":
+            subcheck = "bytes.utf8"
+        return f"{check.column}|{check.fact}|{subcheck}"
+
+    checks = sorted(_named(check) for check in outcome.checks)
     listings = sorted(
         f"{entry.column}|{entry.fact}|{entry.subcheck}"
         for entry in outcome.listings
@@ -661,6 +769,10 @@ def test_widening_the_demonstration_lost_no_obligation(
         # than counted.
         if f"|{FORM_FACT}|" in entry:
             return True
+        # ...and the tail rule's own facts (stage 3, landing 3.3).
+        for one in TAIL_SUBCHECKS:
+            if entry.endswith(f"|{one}"):
+                return True
         if entry == JUDGED_KEY_CHECK:
             return True
         # ...and every obligation the two TAILS of a column of dates or
@@ -697,6 +809,34 @@ def test_widening_the_demonstration_lost_no_obligation(
     assert sorted(entry.split("|")[0] for entry in wrapped) == [
         "dose", "dose", "dose",
     ], wrapped
+    # ...and the tail rules' own, named rather than counted. BOTH
+    # STAGE-3 TAIL LANDINGS FILE THE SAME SUBCHECK NAMES, which is why
+    # this is asserted on the FIELD and not on the name: a numeric
+    # column files them under `numeric.tails.<side>.<distance>` (landing
+    # 3.3) and a column of dates or clock times under
+    # `datetime.<side>_tail.<distance>` or `clock.<side>_tail.<distance>`
+    # (plan P4-D328). No other role has tails, so no other field prefix
+    # may appear here -- and the assertion said `numeric.tails` alone
+    # while only one of the two landings was in the tree.
+    tailed = [
+        entry
+        for entry in checks
+        if any(entry.endswith(f"|{one}") for one in TAIL_SUBCHECKS)
+    ]
+    assert tailed, "the tail rules file their own facts"
+    assert all(
+        entry.split("|")[1].startswith(
+            ("numeric.tails", "datetime.low_tail", "datetime.high_tail",
+             "clock.low_tail", "clock.high_tail")
+        )
+        for entry in tailed
+    ), tailed
+    # ...and each of the three roles that can have them does, so a
+    # landing that stopped filing one would be seen here rather than
+    # only in a digest.
+    assert {entry.split("|")[1].split(".")[0] for entry in tailed} == {
+        "numeric", "datetime", "clock",
+    }, sorted({entry.split("|")[1] for entry in tailed})
     assert len(counted) == WIDE_CHECK_COUNT, len(counted)
     # ...and the ONE check landing 2b.18 added is on the ONE column that
     # can carry it, named rather than counted: `record_code` is the only
@@ -789,6 +929,7 @@ def test_widening_the_demonstration_lost_no_obligation(
         entry
         for entry in listings
         if not any(fact in entry for fact in LISTINGS_ADDED_SINCE)
+        and entry not in TAIL_LISTINGS_ADDED
     ]
     # FOUR LEFT THIS CENSUS ON 2026-09-04 and they are named rather
     # than absorbed: `numeric.n_distinct_values` was listed whole on
@@ -1452,7 +1593,30 @@ def test_the_golden_run_is_the_shape_this_file_says_it_is(
 # and GOLDEN_TWIN_SHA256 is unchanged; the REPORT digest moved because
 # the report quotes the description's own bytes back.
 GOLDEN_DESCRIPTION_SHA256 = (
-    "c325e87aceb82116991381374aa096d6b8e07e073bed097a8f06c4e53e9ce71e"
+    # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
+    # numeric block now carries `tails` and `bin_groups`; the rungs
+    # whose type-7 reading would touch one of the outermost eleven
+    # values are null, and the two ends with them unless a group of
+    # eleven rows holds one (contract 6.7a). The pages were read before
+    # this was recorded: the twin's report names the four new
+    # approximated facts of every numeric column and loses no line it
+    # had, and the quality report carries the same obligations plus
+    # those four per column. Nothing else about any role moved.
+    # AND RE-RECORDED AT THE INTEGRATION OF STAGE 3'S FIVE LANDINGS
+    # (2026-09-23). **IT WAS ALREADY STALE**: the date and clock tail
+    # merge re-recorded the twin and the quality report below and left
+    # this one and the report's alone, so the branch this merge lands on
+    # was red here. Read as a leaf-by-leaf diff of the description
+    # against that tree: 329 leaves ARRIVE -- `bin_groups` on every
+    # numeric block and its parts, and each side's `percent`, `rows`,
+    # two distances and, on two positions of the joined column, its
+    # listed `values`; 10 LEAVE, every one a `value_histogram` bin the
+    # groups replace; and 64 MOVE, every one a rung the rule withholds
+    # (`min`, `max`, `p01`, `p99` and `p02` to `p04`, `p96` to `p98`)
+    # going null, plus the publication notes shifting by one because a
+    # numeric column gains the histogram-withheld note. No key of any
+    # other role moved.
+    "d8da9bd27430f7cb46fb8c80be49f06a0eceb722155f8e704b71d1b20ab62275"
 )
 
 
@@ -1656,6 +1820,15 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # published `R` -- `Z09235` became `R55235` -- with 240 different values
 # before and after and every other column byte-identical.
 GOLDEN_TWIN_SHA256 = (
+    # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
+    # numeric block now carries `tails` and `bin_groups`; the rungs
+    # whose type-7 reading would touch one of the outermost eleven
+    # values are null, and the two ends with them unless a group of
+    # eleven rows holds one (contract 6.7a). The pages were read before
+    # this was recorded: the twin's report names the four new
+    # approximated facts of every numeric column and loses no line it
+    # had, and the quality report carries the same obligations plus
+    # those four per column. Nothing else about any role moved.
     # RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
     # and the merged cells are each side's own: `recorded_on` holds the
     # published 84 different dates (plan P4-D192) and every one of
@@ -1666,7 +1839,15 @@ GOLDEN_TWIN_SHA256 = (
     # diffed cell by cell against a git archive of e53d5f4, exactly
     # thirteen cells moved, all in `reading`, each from blank to the
     # `-999` the real table wrote there; the description digest held.
-    "9eb93b920fe287d5a9413899f24bbdadba24782719b9d0e698f16b6520f182c9"
+    # RE-RECORDED AT THE INTEGRATION OF STAGE 3'S FIVE LANDINGS
+    # (2026-09-23), and read cell by cell against the tree before it:
+    # 212 of the twin's 3,360 cells differ and every one of them is in a
+    # NUMERIC column -- `reading` 123, `pressure` 34, `dose` 30,
+    # `amount` 25 -- while every categorical, date, clock, text and
+    # record-number column is byte-identical. That is the numeric tail
+    # rule and nothing else: those four columns are built from a ladder
+    # that no longer runs to two published extremes.
+    "4da142656dbb63eeee8ec5067adf0542a96b9a4607aceccf7544d7cd804329d7"
 )
 
 
@@ -2144,6 +2325,15 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # twin keeps how many there were and the rows they covered together and
 # not the rows of each one.
 GOLDEN_REPORT_SHA256 = (
+    # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
+    # numeric block now carries `tails` and `bin_groups`; the rungs
+    # whose type-7 reading would touch one of the outermost eleven
+    # values are null, and the two ends with them unless a group of
+    # eleven rows holds one (contract 6.7a). The pages were read before
+    # this was recorded: the twin's report names the four new
+    # approximated facts of every numeric column and loses no line it
+    # had, and the quality report carries the same obligations plus
+    # those four per column. Nothing else about any role moved.
     # RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
     # carrying every side's moved lines: `recorded_on`'s two distinct
     # counts, 84 held against a window of 84 where 176 stood in one of 10
@@ -2217,7 +2407,17 @@ GOLDEN_REPORT_SHA256 = (
     # demonstration holds back WORDS, so all eight lines say that this
     # column publishes no such scale. The twin's own digest above did
     # NOT move, so not one cell of the twin changed with it.
-    "f5e681750377ededc16df415edb928dfaedfad60bbaebdf5c31e3b595d0f08c5"
+    # RE-RECORDED AT THE INTEGRATION OF STAGE 3'S FIVE LANDINGS
+    # (2026-09-23), and stale before it for the description golden's
+    # reason. Read line by line against that tree: 258 of 863 lines
+    # differ. The count of approximated facts measured rises from 122 to
+    # 134 -- each numeric column's two withdrawn rungs (`p01`, `p99`)
+    # leave and its four tail distances arrive -- and one APPROXIMATION
+    # MISS arrives with them: `reading` holds 58 cells two figures wide
+    # against a published 57. The report NAMES that miss rather than
+    # losing it, which is what this digest is read for; no line the
+    # report used to carry was dropped.
+    "8685f6b295ad96f51d75f0cdbd4c4be66f376bc6cd600a660d51c1559d27420f"
 )
 
 
@@ -2890,6 +3090,15 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # obligation arrived, `prefix.(column)` on `record_code`, HELD, so 531
 # became 532 and 463 HELD became 464. No other line moved.
 GOLDEN_QUALITY_SHA256 = (
+    # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
+    # numeric block now carries `tails` and `bin_groups`; the rungs
+    # whose type-7 reading would touch one of the outermost eleven
+    # values are null, and the two ends with them unless a group of
+    # eleven rows holds one (contract 6.7a). The pages were read before
+    # this was recorded: the twin's report names the four new
+    # approximated facts of every numeric column and loses no line it
+    # had, and the quality report carries the same obligations plus
+    # those four per column. Nothing else about any role moved.
     # RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE.
     # The census carries 532 obligations and 466 of them HELD: the 531 and
     # 463 of plan P4-D201, plus `prefix.(column)` on `record_code` (plan
@@ -2918,7 +3127,39 @@ GOLDEN_QUALITY_SHA256 = (
     # checkable became 171. NO OBLIGATION LEFT the census and no verdict
     # moved; the description and twin digests above tell which of the
     # two inputs changed, and it is the description alone.
-    "92af674911e1bf92ef42d52ee83bf149abe6632bb942ac11ebe2aa4eb9ee4ae6"
+    # RE-RECORDED AGAIN WITHIN LANDING 3.3, read as a line-by-line diff
+    # against `ce8aa7d9`: TEN LINES differ and nothing else. Each is one
+    # withheld END, and what moved is the registry fact the census names
+    # beside it -- `numeric.percentiles.min` and `.max` where it read
+    # `numeric.percentiles`. A rung the tail rule withholds is listed
+    # under the field its check bound before, so the same obligation
+    # goes quiet under its own name rather than under the ladder's, and
+    # no subcheck binds two facts (contract 9, entry table V3.1). No
+    # obligation was gained or lost and no verdict moved.
+    # ...AND RE-RECORDED AGAIN AT THE INTEGRATION OF STAGE 3'S FIVE
+    # LANDINGS (2026-09-23). Read line by line against the tree before
+    # it: 397 of 2,292 lines differ. The census grows from 533
+    # checkable obligations to 541 -- HELD 466 to 469 and WITHIN-BOUND
+    # 67 to 72 -- and the NOT-CHECKABLE count rises from 181 to 214.
+    # NO OBLIGATION LEFT THE CENSUS, and the two reports were read
+    # against each other obligation by obligation to say so, under the
+    # renaming `_named` makes below. 30 checkable obligations ARRIVED,
+    # every one a tail's: four distances on each numeric block and, on
+    # the two blocks whose tail publishes its rows as a group, that
+    # group's values. 22 checkable obligations MOVED to the listings,
+    # every one a rung the tail rule withholds -- `ladder.p01`,
+    # `ladder.p99`, `ladder.min` and `ladder.max` on each numeric
+    # column, and per part of the joined column its two ends and its
+    # two outer rungs -- which carries no window and can no longer be
+    # evidenced. 30 - 22 = 8. The listings gained 33 and LOST NONE:
+    # those 22, plus eleven shape lines beside them. `ladder.min` and
+    # `ladder.max` gain "(heaped end, one-sided)" where a group of
+    # eleven rows holds the end and the block still publishes it.
+    # THREE VERDICTS MOVED, each WITHIN-BOUND to HELD and none the
+    # other way: `number 1 ladder.p95` and `number 2 ladder.p95` on
+    # `pressure` and `ladder.p25` on `reading`, where the ladder the
+    # tail rule leaves puts the twin on the published rung exactly.
+    "5820fcf7b67af3473c90414f5b538c2e99b52ae13a819fffc205339cdd72722d"
 )
 
 

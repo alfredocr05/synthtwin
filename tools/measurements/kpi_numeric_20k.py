@@ -5,13 +5,17 @@ at two decimals) described, generated and validated through the command
 line, in this process, at both sizes. Printed per size: the seconds each
 command took and the obligations the twin's quality report MISSED.
 
-- K-P3-03 (OPEN): MISSED obligations at 20,000 rows, read from the
-  validator's census (19 on the frozen copy, the spread too wide; 10 on
-  e53d5f4, moments.std on 10 of 20 columns), 0 at 5,000; and the twin's
-  spread against the published one, per cent either way, the widest and
-  the narrowest of the twenty columns at each size (`taxonomy.spread_of`
-  of the twin's cells over the description's `std`), which the outer
-  tail's straight segment (method G5.3) holds too wide.
+- K-P3-03 (GREEN since stage 3's numeric tail): MISSED obligations at
+  each size, read from the validator's census, and the twin's spread
+  against the published one, per cent either way, the widest and the
+  narrowest of the twenty columns at each size (`taxonomy.spread_of` of
+  the twin's cells over the description's `std`). Method G5.3's straight
+  outer segment to the exact published extreme held that spread too
+  wide -- 19 MISSED on the frozen copy, 10 on e53d5f4 and on caf3079,
+  all `moments.std` -- and the tail rule of contract 6.7a withdraws the
+  extreme, so nothing is missed at either size now. The entry's bound is
+  the merged tree's own measurement on the widest and the target's floor
+  on the narrowest; the ledger says why.
 - K-P3-12: validate seconds at 20,000 (reference machine only) and the
   5k-to-20k ratio, which is machine-free.
 - K-S1-01: generate seconds at 20,000 (reference machine only) and the

@@ -176,10 +176,15 @@ SEVENTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-7.json"
 )
-# THE TENTH FILE (stage 3, plan P4-D328): the three cases the tail
-# landing grew past the room their own files had. Grown in place they
-# carried the second file to 261857 bytes and the first to 258476
-# against the manifest's 250000-byte cap.
+# THE TENTH AND ELEVENTH FILES, and BOTH stage-3 tail landings are in
+# them. The tenth (plan P4-D328) was opened by the date and clock tails
+# for the four cases that landing grew past the room their own files
+# had -- grown in place they carried the second file to 261857 bytes
+# and the first to 258476 against the manifest's 250000-byte cap -- and
+# it carries two of the NUMERIC tail rule's five cases beside them
+# (landing 3.3). The other three are the eleventh: five cases of one
+# rule do not fit under that cap in one file, and the tenth had no room
+# for them once the date cases stood in it.
 EIGHTH_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_8.py"
 )
@@ -187,6 +192,14 @@ EIGHTH_BRANCH_VECTORS = (
     pathlib.Path(__file__).resolve().parent
     / "reference"
     / "generation-branch-vectors-8.json"
+)
+NINTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_9.py"
+)
+NINTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-9.json"
 )
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
@@ -222,6 +235,10 @@ gen_alphabet_readings = gen.alphabet_readings
 gen_identifier_readings = gen.identifier_readings
 gen_traded = gen.traded_merges
 gen_form_places = gen.form_places
+# The oracle's own ramp, held before any test patches it, so the moment
+# ladder's mutant can read the block as the ramp of G5.3d without calling
+# the mutant it replaces.
+made_up_ramp_of = gen.made_up_ramp
 
 
 
@@ -259,6 +276,10 @@ def _seventh_branch_document() -> dict:
 
 def _eighth_branch_document() -> dict:
     return json.loads(EIGHTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _ninth_branch_document() -> dict:
+    return json.loads(NINTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -560,13 +581,26 @@ SEVENTH_BRANCH_CASES = (
     "saturated_grid_alone",
 )
 
-# THE TENTH FILE'S FOUR (stage 3, plan P4-D328): the cases the tail
-# landing grew past the room their own files had.
+# THE TENTH FILE'S SIX. Four are the cases the date and clock tail
+# landing grew past the room their own files had (plan P4-D328); two are
+# the numeric tail rule's reading of G5.3b with its two derived ends and
+# its made-up ramp of a block below its own floor (landing 3.3).
 EIGHTH_BRANCH_CASES = (
     "clock_ladder",
     "midnight_bare_offsets",
     "midnight_days",
     "partial_midnight",
+    "tail_made_up_ramp",
+    "tail_shape_ends",
+)
+
+# THE ELEVENTH FILE: the listed tail of G5.3e and the counts solved for
+# it, the sign rule of G5.5a on a derived end, and the moment ladder of a
+# block too thin for two tails.
+NINTH_BRANCH_CASES = (
+    "tail_listed_counts",
+    "tail_moment_ladder",
+    "tail_sign_clamped",
 )
 
 ALL_CASES = tuple(
@@ -580,6 +614,7 @@ ALL_CASES = tuple(
         + SIXTH_BRANCH_CASES
         + SEVENTH_BRANCH_CASES
         + EIGHTH_BRANCH_CASES
+        + NINTH_BRANCH_CASES
     )
 )
 
@@ -661,6 +696,13 @@ SEEDS = {
     # clear of every block in use.
     "free_text_absorbed_figures": 210,
     "identifier_absorbed_figure": 211,
+    # THE TAIL RULE OF STAGE 3 (landing 3.3) takes 300 onward, clear of
+    # every block above it.
+    "tail_shape_ends": 300,
+    "tail_listed_counts": 301,
+    "tail_sign_clamped": 303,
+    "tail_moment_ladder": 304,
+    "tail_made_up_ramp": 305,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -757,6 +799,8 @@ def _case(name: str) -> dict:
     """One case, from whichever of the committed files carries it."""
     if name in EIGHTH_BRANCH_CASES:
         document = _eighth_branch_document()
+    elif name in NINTH_BRANCH_CASES:
+        document = _ninth_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1001,6 +1045,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     sixth = _sixth_branch_document()
     seventh = _seventh_branch_document()
     eighth = _eighth_branch_document()
+    ninth = _ninth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1010,10 +1055,11 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(sixth["cases"])) == SIXTH_BRANCH_CASES
     assert tuple(sorted(seventh["cases"])) == SEVENTH_BRANCH_CASES
     assert tuple(sorted(eighth["cases"])) == EIGHTH_BRANCH_CASES
+    assert tuple(sorted(ninth["cases"])) == NINTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
-        named, branch, second, third, fourth, fifth, sixth, seventh, eighth,
-        papers,
+        named, branch, second, third, fourth, fifth, sixth, seventh,
+        eighth, ninth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1032,6 +1078,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (sixth, SIXTH_BRANCH_VECTORS),
         (seventh, SEVENTH_BRANCH_VECTORS),
         (eighth, EIGHTH_BRANCH_VECTORS),
+        (ninth, NINTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1056,6 +1103,8 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         FIFTH_BRANCH_GENERATOR,
         SIXTH_BRANCH_GENERATOR,
         SEVENTH_BRANCH_GENERATOR,
+        EIGHTH_BRANCH_GENERATOR,
+        NINTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -2232,11 +2281,11 @@ _REAL_STYLED_SPELLING = gen.styled_spelling
 
 def _grouped_at_every_order(
     style, value, integer_valued, order, mark="", negative="minus", plus=False,
-    pad=-1,
+    pad=-1, figures=-1,
 ):
     """P4-D38's order rule withdrawn: a cell that spent zeros is grouped too."""
     text = _REAL_STYLED_SPELLING(
-        style, value, integer_valued, order, "", negative, plus, pad
+        style, value, integer_valued, order, "", negative, plus, pad, figures
     )
     if style in ("plain", "leading_plus", "decimal"):
         return gen._group_thousands(text, mark)
@@ -2785,6 +2834,61 @@ def _judged_keys_written_blank(column: dict) -> list:
 
 
 CASE_MUTANTS = {
+    # THE SIX CASES OF STAGE 3'S TAIL RULE (landing 3.3). Each mutant
+    # withdraws one statement of the rule and nothing else, and the
+    # oracle then writes different cells for that case.
+    "tail_shape_ends": Mutant(
+        branch="the OUTWARD move of method G5.3b step 4 (plan P4-D326), "
+        "which takes a derived end out to where the largest of the tail's "
+        "rows is expected to stand; the mutant leaves the end at the "
+        "reading of the outermost row alone, and the high end of this "
+        "column falls back inside the rows it stands for",
+        attribute="outward_move",
+        replacement=lambda reach, mean, rows, power: reach,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_made_up_ramp": Mutant(
+        branch="the made-up ramp of method G5.3d, which a block below "
+        "its own floor is read as; the mutant leaves the ramp flat at "
+        "nought, which is what the sign fallback wrote before the ramp "
+        "existed",
+        attribute="made_up_ramp",
+        replacement=lambda column, figures: [0.0] * 101,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_listed_counts": Mutant(
+        branch="the counts method G5.3e solves for a listed tail -- every "
+        "value at least one row, the rest spread on at most three of them, "
+        "nearest the published mean distance and then the published "
+        "root-mean-square. The mutant gives every listed value one row and "
+        "the rest to the outermost, which is the obvious rule and the "
+        "wrong one: the staircase moves and the twin's cells with it",
+        attribute="listed_counts",
+        replacement=lambda boundary, listed, rows, mean, root: (
+            [rows - len(listed) + 1] + [1] * (len(listed) - 1)
+            if listed
+            else []
+        ),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_sign_clamped": Mutant(
+        branch="the sign rule of method G5.5a on a derived end, which "
+        "holds the low end of a column with no negative number at nought "
+        "or above; the mutant withdraws it and the twin writes a negative "
+        "cell on a column whose description says it has none",
+        attribute="end_sign_held",
+        replacement=lambda value, low, boundary, column, figures: value,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_moment_ladder": Mutant(
+        branch="the moment ladder of method G5.3c, the uniform with the "
+        "published mean and spread that a block publishing its moments "
+        "and no rung is read as; the mutant reads that block as the ramp "
+        "of G5.3d instead, which is what a block one row thinner gets",
+        attribute="moment_ladder",
+        replacement=lambda column, figures: made_up_ramp_of(column, figures),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "date_absorbed_mark": Mutant(
         branch="G7.3d's RAMP (stage 3, plan P4-D330), which is what this "
         "column publishes now: two days hold all 125 of its cells, so the "
@@ -4707,6 +4811,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (SIXTH_BRANCH_VECTORS, _sixth_branch_document()),
         (SEVENTH_BRANCH_VECTORS, _seventh_branch_document()),
         (EIGHTH_BRANCH_VECTORS, _eighth_branch_document()),
+        (NINTH_BRANCH_VECTORS, _ninth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

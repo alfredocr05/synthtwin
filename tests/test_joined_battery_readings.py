@@ -103,55 +103,70 @@ OUTSIDE_CEILING = BATTERY["expected"]["agreements_outside"]
 MISSED_CEILING = BATTERY["expected"]["above_counts_missed"]
 PAIRS = BATTERY["value_at"]["value"]["pairs"]
 
-# THE PIN THIS FILE KEEPS, and the three columns it is taken over.
-# Measured at a floor of one -- the default then -- on the tree of the
-# commit that chose them, one column at a time, forty seeds each
-# (`(pairs, outside, missed)` per column, 94.6 s for all twelve):
+# THE PIN THIS FILE KEEPS, and the five columns it is taken over.
 #
-#     0: 120  14  1     4: 120  40  0     8: 120  39  0
-#     1: 240  40  0     5: 240  38  0     9: 240 117  0
-#     2: 120  40  0     6: 120  37  0    10: 120  33  0
-#     3: 240  51  0     7: 240  97  0    11: 240  63  2
+# RE-MEASURED ON THE MERGED TREE OF THE FIVE STAGE-3 LANDINGS, one
+# column at a time, forty seeds each (`(pairs, outside, missed)` per
+# column). AT A FLOOR OF ONE:
 #
-# Columns 0, 9 and 11 are the pin: 0 is a three-position column and 9
-# and 11 are four-position ones, they hold ALL THREE of the battery's
-# missed above-counts (1 in column 0, 2 in column 11), and 9 and 11 are
-# the two columns G6.5a's push moved (9 from 110 and 6 to 117 and 0, 11
-# from 68 and 0 to 63 and 2). Withdrawing that push therefore turns this
-# pin red on the missed count -- 6 in column 9 against its ceiling of 0
-# -- which is the regression the whole battery reports as 7 missed.
-# 24.6 s of the battery's 94.6.
-PINNED_COLUMNS = (0, 9, 11)
+#     0: 120  14  0     4: 120  40  0     8: 120  37  0
+#     1: 240  42  0     5: 240  42  1     9: 240  60  1
+#     2: 120  40  0     6: 120  38  0    10: 120  30  0
+#     3: 240  40  0     7: 240 117  3    11: 240  67  0
+#
+# and AT THE SHIPPED DEFAULT OF ELEVEN, which is what the ledger's
+# driver measures (plan P4-D316):
+#
+#     0: 120   9  1     4: 120  40  0     8: 120  27  0
+#     1: 240  46  0     5: 240  58  0     9: 240  62  0
+#     2: 120  39  0     6: 120  36  0    10: 120  33  0
+#     3: 240  39  0     7: 240 100  0    11: 240  67  0
+#
+# The numeric tail rule moved every one of them: the rows beyond each
+# position's two boundary rungs are described by two moments now, so a
+# pair's agreement is measured against a ladder that no longer runs to
+# the published extremes. At the default the twelve walked one at a time
+# sum to 556 outside and ONE missed above-count, which is exactly what
+# the whole battery's own driver reads on this tree -- so the ledger's
+# K-P4-06 records 556 and 1 against the 609 and 4 the integration read
+# before this landing. At a floor of one they sum to 567 and 5.
+#
+# **THE PIN WAS RE-CHOSEN HERE, WHICH IS WHAT THE DOCSTRING BELOW SAYS
+# TO DO WHEN A CEILING MOVES.** It was columns 0, 9 and 11, because at
+# the floors measured then those three held every above-count the
+# battery missed. On this tree they do not: at a floor of one the five
+# misses stand in columns 5, 7 and 9, and at the default the single miss
+# stands in column 0. Columns 5 and 7 join the pin so that it holds
+# EVERY missed above-count at both floors again, which is the property
+# the derivation below asserts; 0, 9 and 11 stay, so nothing the pin
+# caught before is given up. What it caught then it still catches: with
+# `_pushed_apart` returning its arguments unchanged the same columns go
+# red, re-measured on this tree beside the figures above.
+PINNED_COLUMNS = (0, 5, 7, 9, 11)
 PINNED_CEILINGS = {
     # column: (pairs, agreements outside the window, above-counts missed)
-    0: (120, 14, 1),
-    9: (240, 117, 0),
-    11: (240, 63, 2),
+    0: (120, 14, 0),
+    5: (240, 42, 1),
+    7: (240, 117, 3),
+    9: (240, 60, 1),
+    11: (240, 67, 0),
 }
 
-# AND AT THE SHIPPED DEFAULT, WHICH IS WHAT THE LEDGER'S DRIVER MEASURES
-# (plan P4-D316; the repair pass of landing 3.1). The figures above are a
-# floor of one, where every histogram bin, mode and width of a position is
-# published; at the default of 11 the positions publish none of those
-# (every bin and value is held by fewer than eleven cells), the generator
-# builds them from less, and the whole battery reads 609 outside and 4
-# missed. Measured one column at a time on 13fa831, forty seeds each:
-#
-#     0: 120  14  1     4: 120  40  0     8: 120  39  0
-#     1: 240  42  0     5: 240  38  0     9: 240 117  1
-#     2: 120  40  0     6: 120  37  0    10: 120  33  0
-#     3: 240  48  0     7: 240  98  0    11: 240  63  2
-#
-# The fourth miss is column 9's, seed 29, positions 1 and 4: 23 rows
-# above against 22 published. So the three pinned columns still hold
-# every above-count the battery misses, at both floors, and the pin
-# below runs at both. The whole battery at a floor of one, measured the
-# same way, is the figure K-P4-06 recorded before the default moved:
-FLOOR_ONE_BATTERY = (2160, 609, 3)
+# THE WHOLE BATTERY AT A FLOOR OF ONE is the twelve columns walked one
+# at a time, and it is measured that way BECAUSE THE DRIVER CANNOT
+# MEASURE IT ANY MORE: `tools/measurements/kpi_joined_battery.py`
+# describes at the shipped default, which landing 3.1 moved from one to
+# eleven, so its printed total is the default's. The figure recorded
+# here before that move, (2160, 609, 3), is a figure of a tree whose
+# numeric ladder still ran to the published extremes; it is not this
+# tree's and is not carried forward as though it were.
+FLOOR_ONE_BATTERY = (2160, 567, 5)
 PINNED_CEILINGS_AT_THE_DEFAULT = {
-    0: (120, 14, 1),
-    9: (240, 117, 1),
-    11: (240, 63, 2),
+    0: (120, 9, 1),
+    5: (240, 58, 0),
+    7: (240, 100, 0),
+    9: (240, 62, 0),
+    11: (240, 67, 0),
 }
 _PINS = {1: PINNED_CEILINGS, None: PINNED_CEILINGS_AT_THE_DEFAULT}
 
@@ -269,34 +284,46 @@ def test_the_battery_of_three_and_four_positions_keeps_its_figures(
     ledger holds. A floor of one is asked for by name; None is the
     shipped default, whose ceilings are `PINNED_CEILINGS_AT_THE_DEFAULT`.
 
-    WHY THREE COLUMNS AND NOT TWELVE. This test ran all twelve over a
+    WHY FIVE COLUMNS AND NOT TWELVE. This test ran all twelve over a
     `concurrent.futures.ProcessPoolExecutor`, and the suite is
     NETWORK-DEAD by design: the pool's own machinery takes a socket, the
     conftest guard fires on it, and every test cell of the first CI run
     failed here with `_GuardError`. No test may open a process pool, a
     thread pool that takes a socket, or any socket at all, so the choice
     was between running the twelve serially in the suite and keeping a
-    smaller pin here. MEASURED on this tree, one column at a time:
-    94.6 s for all twelve, 24.6 s for these three. The whole battery is
+    smaller pin here. MEASURED on the merged tree of the five stage-3
+    landings, one column at a time: 101.8 s for all twelve at a floor of
+    one and 101.3 s at the default, and 43.5 s for these five at a floor
+    of one, 46.7 s at the default. The whole battery is
     already measured, unchanged, by `tools/measurements/kpi_joined_battery.py`
     -- the SLOW driver the ledger names as K-P4-06's source, which reads
     the L7 driver's own printed totals -- so running all twelve here
-    bought no measurement the ledger does not already have, at 70 s a
-    suite run on a suite that already costs hours.
+    bought no measurement the ledger does not already have, at about a
+    minute a suite run on a suite that already costs hours. THE PIN GREW
+    FROM THREE COLUMNS TO FIVE at that merge, because the above-counts
+    the battery misses moved into columns 5 and 7 and a pin that does
+    not hold every one of them is a pin that stopped meaning what its
+    derivation says.
 
-    WHAT THIS PIN STILL CATCHES, exactly. The three columns hold all
-    three of the battery's missed above-counts and 194 of its 609
-    agreements outside the window, and two of them are the two the
-    accepted trade moved. Two mechanisms were measured against it, and
+    WHAT THIS PIN STILL CATCHES, exactly. The five columns hold every
+    one of the battery's missed above-counts at both floors -- all five
+    at a floor of one and the single one at the shipped default -- and
+    300 of the 567 agreements outside the window at a floor of one, 296
+    of 556 at the default. Two mechanisms were measured against it, and
     only the first of them is this test's to catch:
 
-    * MUTATION, measured on this tree: with `_pushed_apart` returning
-      its arguments unchanged -- G6.5a's push of a collision along its
-      band withdrawn, and nothing else -- column 0 reads 11 and 1,
-      column 9 reads 110 and SIX missed against its ceiling of 0, and
-      column 11 reads 68 and 0. This test goes red on column 9, and the
-      figures are the ones the bisect recorded for the whole battery
-      (7 missed against the ceiling of 3);
+    * MUTATION, RE-MEASURED ON THE MERGED TREE OF THE FIVE STAGE-3
+      LANDINGS (the figures it replaces were a tree whose numeric ladder
+      still ran to the published extremes, and a stale mutation line
+      reads as a guard that does not exist): with `_pushed_apart`
+      returning its arguments unchanged -- G6.5a's push of a collision
+      along its band withdrawn, and nothing else -- the five pinned
+      columns read, at a floor of one, 0: 12 and 0, 5: 48 and 1, 7: 116
+      and 2, 9: 63 and 1, 11: 71 and 0, against ceilings of 14/0, 42/1,
+      117/3, 60/1 and 67/0 -- so the test goes RED on columns 5, 9 and
+      11. At the shipped default it reads 0: 8 and 1, 5: 65 and 0, 7: 85
+      and 0, 9: 63 and 0, 11: 70 and 0 against 9/1, 58/0, 100/0, 62/0
+      and 67/0 -- RED on the same three. The guard bites at both floors;
     * MUTATION, the other mechanism: `_saturated_integers` answering
       nothing -- the column-wide fill of P4-D147 withdrawn -- leaves
       these three columns at 14/1, 117/0 and 63/2 UNCHANGED, and so does
@@ -372,7 +399,7 @@ def test_the_pin_is_derived_from_the_whole_batterys_ceiling() -> None:
             "the pin no longer holds every above-count the battery misses: "
             f"{pin} against {whole}"
         )
-    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 609, 4), (
+    assert (PAIRS, OUTSIDE_CEILING, MISSED_CEILING) == (2160, 556, 1), (
         "K-P4-06's ceiling moved; re-derive the pin above, then this line"
     )
 

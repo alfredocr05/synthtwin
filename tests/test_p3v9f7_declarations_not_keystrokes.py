@@ -245,6 +245,15 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
     # measured from its bytes, so they are counted apart from the column's:
     # landing 2b.10 counted 53 of the 57 without them, and the merge of
     # both adds landing 2b.2's three to that.
+    # 56 BECAME 52 UNDER THE TAIL RULE (stage 3, contract 6.7a). Sixty
+    # readings at a floor of eleven put the two boundaries at the 23rd
+    # and the 77th percent, so EIGHT rungs whose reading touches the
+    # outermost values -- `min`, `p01`, `p05`, `p10`, `p90`, `p95`,
+    # `p99` and `max` -- are published nowhere and checked nowhere,
+    # while `p25`, `p50` and `p75` still are; and FOUR obligations
+    # arrive in their place, the two distances of each tail. Neither
+    # tail of this column lists its values, so no `tails.*.values`
+    # stands here.
     assert len(
         [
             check
@@ -252,7 +261,7 @@ def test_the_folded_pair_leaves_the_column_checked_in_full(
             if check.fact != "document.source.dialect"
             and check.fact not in validation.BYTE_RULE_FACTS
         ]
-    ) == 56
+    ) == 52
 
 
 def test_the_witness_really_is_reconstructible(
@@ -314,7 +323,10 @@ def test_the_other_over_fire_stays_and_is_a_different_shape(
     # ...and one more since amendment A-P4-55 made the count of
     # different numbers an obligation rather than a report line.
     # 47 became 50 with the same three obligations of landing 2b.2.
-    assert len(_unsupported(outcome)) == 50
+    # ...and 50 became 46 under the tail rule, by the same eight rungs
+    # withheld and four tail distances gained as the folded pair above
+    # (stage 3, contract 6.7a).
+    assert len(_unsupported(outcome)) == 46
 
 
 def test_two_words_of_your_own_spelled_two_ways_each_still_come_back(

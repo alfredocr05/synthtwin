@@ -1795,7 +1795,7 @@ contract:
    would read as a fact about the column. `true` and `false` are
    refused.
 2. **One of this package's own words.** The membership is closed at
-   TWENTY-ONE and is written out rather than gathered, because a tuple
+   TWENTY-SIX and is written out rather than gathered, because a tuple
    written out is what stops a spelling of somebody's table from
    becoming an argument:
 
@@ -1811,7 +1811,12 @@ contract:
    `day-first`, `month-first`, the two reading names the
    day-and-month remark needs, and `hours_and_minutes`,
    `hours_minutes_and_seconds`, the two clock words NF46 names a form
-   by. No other string is a word of this class. **The two clock words
+   by, and `rows` and `people`, the two units NF59 counts a population
+   in. No other string is a word of this class. **THE COUNT READ
+   TWENTY-ONE WHILE THE LIST HELD TWENTY-FOUR NAMES, AND THEN
+   TWENTY-SIX**: the clock words and then the two units were written
+   into the list without the count beside them moving, which is the
+   drift 14.8's own census exists to catch and did. **The two clock words
    are NOT `format` members** and never stand at a `format` key; a
    consumer that admitted only the twenty-one would refuse NF46, which
    the shipped producer has written since the clock role landed.
@@ -1876,8 +1881,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 60 forms and 97 argument positions.
-Of those, 71 are whole numbers, 4 are package words, 17 are nested
+**The census.** The table holds 61 forms and 99 argument positions.
+Of those, 72 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
 
@@ -1887,8 +1892,8 @@ They are the thirteen the binding table of C6-143 marks FLOORED: the
 positions where the sentence IS the publication, because no key of the
 block beside it carries that count. Each of them holds the count's own
 digits where the count is nought or reaches the smallest group size,
-`said_fewer_than_the_line` (NF59) where it is below it, and
-`said_some_but_not_all` (NF60) where it reaches the line but leaves a
+`said_fewer_than_the_line` (NF60) where it is below it, and
+`said_some_but_not_all` (NF61) where it reaches the line but leaves a
 group below it against the population C6-143 names beside it. A
 consumer reading these positions therefore accepts either class there,
 which is why the census counts them as nested: a reader who admitted
@@ -1918,8 +1923,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 97 of them exactly as the form table
-is closed over the 60 forms. A position nobody bound is a number a
+the table below is closed over all 99 of them exactly as the form table
+is closed over the 61 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -1937,6 +1942,13 @@ is a producer this contract does not describe. The bindings are these:
   which is the length of a list the block publishes.
 - **vocabulary** — a place in one of this package's own closed lists.
 - **structural** — a column number.
+- **population** — the described table's own population: the rows that
+  HOLD A VALUE, counted in people where a declared identifier repeats
+  (plan P4-D341). It is the one thing NF59 exists to state and no key
+  of the description publishes it, so nothing here compares it with
+  anything; the floor is not asked of it either, because the floor
+  protects groups INSIDE a population and this number IS the
+  population.
 - **value (tail rule)** — a VALUE of the column said a second way. The
   time-band remark reads the two ends as calendar days; those days are
   whatever the block publishes in place of its ends, so the stage-3
@@ -1945,9 +1957,9 @@ is a producer this contract does not describe. The bindings are these:
   PUBLICATION. No key of the block carries these counts, so the floor
   is asked here: the argument is nought, or reaches the census line
   with nothing left below that line against the populations named
-  beside it, or carries NF59 `said_fewer_than_the_line` in the
+  beside it, or carries NF60 `said_fewer_than_the_line` in the
   number's place, or — where it reaches the line and a population
-  named beside it leaves a group below the line — carries NF60
+  named beside it leaves a group below the line — carries NF61
   `said_some_but_not_all`, which names no number at all.
 - **package word**, **nested form**, **bound affix** — the three
   argument classes of C6-119 that are not whole numbers at all.
@@ -1983,7 +1995,7 @@ REASON THAT WAS FALSE OF FOUR POSITIONS.** It said every floored
 position's complement is a competing reading's count. For the comma
 remark, the affix reach and the date reach it is a spelling census
 group the same block withholds, which is why those four are armed here
-and why the sentence that cannot be withdrawn now has NF60 to say.
+and why the sentence that cannot be withdrawn now has NF61 to say.
 
 | form | argument | bound to |
 |---|---|---|
@@ -2079,6 +2091,8 @@ and why the sentence that cannot be withdrawn now has NF60 to say.
 | `remark_whole_numbers_could_be_times` | 5 | value (tail rule) |
 | `remark_whole_numbers_could_be_times` | 6 | value (tail rule) |
 | `remark_whole_numbers_could_be_times` | 7 | value (tail rule) |
+| `population_under_a_thousand` | 1 | population |
+| `population_under_a_thousand` | 2 | package word |
 | `said_fewer_than_the_line` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
@@ -2420,7 +2434,7 @@ identically whatever word sits at position 2.
 > to `taxonomy.NOTE_ARITY` in both directions.
 
 **Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
-census line, or carries NF59 `said_fewer_than_the_line` in the
+census line, or carries NF60 `said_fewer_than_the_line` in the
 number's place.
 
 **NF19. `remark_values_out_of_range`** — arity 1. Argument 1:
@@ -2569,7 +2583,7 @@ letter raises no question at all — `<0.5` is a detection limit, `$98`
 is money, and neither is a coding system.
 
 **Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
-census line, or carries NF59 in the number's place.
+census line, or carries NF60 in the number's place.
 
 **NF55. `remark_a_letter_against_the_digits` — the flush-letter
 decline** — arity 1. Argument 1: how many present cells hold a number
@@ -2601,7 +2615,7 @@ gives. A column carrying NF50 never carries this sentence, because an
 address is refused before this question is asked.
 
 **Argument 1 is FLOORED** (C6-143): it is nought, or reaches the
-census line, or carries NF59 in the number's place.
+census line, or carries NF60 in the number's place.
 
 **NF56. `remark_brackets_around_the_affix` — brackets around a number
 and its text together** — arity 0. Carried on an `affixed_number` column
@@ -2719,7 +2733,7 @@ does not hold no advice fires and nothing implies one declaration would
 suffice.
 
 **Arguments 6 to 9 are FLOORED** (C6-143): each is nought, or reaches
-the census line, or carries NF59 in the number's place -- and at
+the census line, or carries NF60 in the number's place -- and at
 argument 6 the fragment is capitalised, because it opens a sentence.
 
 **NF30. `remark_some_values_are_not_numbers`** — arity 1. Argument 1:
@@ -2896,12 +2910,12 @@ conjunction or joining word is added. Where it does not appear, the
 sentence is the first clause alone.
 
 **All four counts are FLOORED** (C6-143), and the two pairs are not
-floored the same way. Arguments 3 and 4 carry NF59 below the census
+floored the same way. Arguments 3 and 4 carry NF60 below the census
 line -- and at the default smallest group size that is their ORDINARY
 reading, because a cell only one reading accepts is a cell the other
 leaves unparsed, so a column with eleven of them on the losing side
 falls below the parse line and is not described as dates at all.
-Arguments 1 and 2 never carry NF59: this rendering COMPARES them to
+Arguments 1 and 2 never carry NF60: this rendering COMPARES them to
 choose which of its three sentences to write, so a fragment standing in
 either would settle the sentence by a number nobody may print. Where
 either reach is below the line, no such remark is written.
@@ -3171,7 +3185,7 @@ published about it is wrong by that factor. A sentence that hedged
 would be a sentence a reader could pass over.
 
 **Both counts are FLOORED** (C6-143): each is nought, or reaches the
-census line, or carries NF59 in the number's place.
+census line, or carries NF60 in the number's place.
 
 **NF50. `remark_an_address_is_not_a_quantity`** — arity 0. Carried on
 the column the affixed-number rule declined BECAUSE its winning affix
@@ -3318,7 +3332,7 @@ sentence discloses nothing the description does not already hold. While
 that block's ladder publishes `min` and `max`, they are `min` and `max`.
 
 **AND THE SENTENCE FOLLOWS THEM WHEN THEY MOVE (stage 3, plan
-P4-D332).** The date and clock roles stopped publishing their two end
+P4-D345).** The date and clock roles stopped publishing their two end
 rows in this version: a role's outermost cells are described by a tail —
 a boundary, a count of rows beyond it and their distances — and the
 extreme value itself is published nowhere. Where the `count` role's
@@ -3453,7 +3467,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 60 in section 4.5.1 |
+| NG14 | the form is one of the 61 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3517,10 +3531,19 @@ withholds.
 > --first-row names if that row holds the column names, or leave it as
 > it is if it is the first record.
 
-**NF59. `said_fewer_than_the_line` — the fragment that stands where a
+**NF60. `said_fewer_than_the_line` — the fragment that stands where a
 count may not** — arity 1. Argument 1: the census line, which is the
 larger of two and the smallest group size in force (stage 3 landing
 3.5, plan P4-D334).
+
+> **THIS FORM AND NF61 WERE BOTH NUMBERED ONE LOWER ON THEIR OWN
+> BRANCH** (the integration of the five stage-3 landings). Landing 3.2
+> took NF59 for `population_under_a_thousand` and landing 3.5 took it
+> for this fragment; neither branch saw the other. The landing that
+> arrived LAST moves, which is the same rule the phase plan applies to
+> its own decision numbers, so this fragment is NF60 and
+> `said_some_but_not_all` is NF61. Neither rendering, arity nor
+> argument changed with the number.
 
 > fewer than «1»
 
@@ -3558,17 +3581,17 @@ not lose, and it is no more than the digits said before. Measured at
 than 2 read as dates" in their evidence, while the remark that repeats
 the same count is withdrawn.
 
-**NF60. `said_some_but_not_all` — the fragment that names no number at
+**NF61. `said_some_but_not_all` — the fragment that names no number at
 all** — arity 0 (stage 3 landing 3.5, repair pass, plan P4-D334.1).
 
 > some but not all
 
 It stands at one of the thirteen FLOORED positions of C6-143, in the
-same place NF59 stands, AND IN THE CASE NF59 CANNOT SPEAK TO: the count
+same place NF60 stands, AND IN THE CASE NF60 CANNOT SPEAK TO: the count
 reaches the census line, and the population C6-143 names beside that
 position leaves a group of one to the line less one over. The digits
 are refused there because the reader subtracts them from the published
-population and is handed back a group no key names. NF59 is refused there too,
+population and is handed back a group no key names. NF60 is refused there too,
 and for a plainer reason: "fewer than 11" is FALSE of a count of 1,199.
 
 **Its arity is nought, and that is the whole control.** A form with no
@@ -3577,8 +3600,8 @@ key it can disagree with. What it says is what the clause around it
 already asserts — that the group is not empty, and that it is not the
 whole column — so it adds no number to the document.
 
-**Where it starts a sentence it is capitalised**, on NF59's rule and
-for NF59's reason: NF29 argument 6 stands immediately after a full
+**Where it starts a sentence it is capitalised**, on NF60's rule and
+for NF60's reason: NF29 argument 6 stands immediately after a full
 stop.
 
 **It is written only where the sentence cannot be withdrawn.** A remark
@@ -3597,7 +3620,7 @@ wrote the DIGITS at this position whenever the sentence could not be
 withdrawn, while the guard refused exactly that — so the first binding
 to name a population would have turned 390 dates beside ten words into
 a refusal reading "this is a fault in synthtwin itself". Both halves
-now write and accept NF60 there.
+now write and accept NF61 there.
 
 ---
 
@@ -4257,6 +4280,15 @@ largest. They are the two rungs the generator pins by fixed rule, and
 they are EXACT-OBSERVABLE while the nine interior rungs are
 APPROXIMATED (section 9).
 
+**L2 IS READ ON A BLOCK WITHOUT `tails` AND ON A HEAPED END** (stage 3,
+section 6.7a). On a block that carries `tails` the two ends are
+published only where at least max(`small_cell_floor`, 3) rows held the
+value -- a HEAPED end, a value of a group -- and they are then the
+smallest and the largest exactly as here, checked ONE-SIDED: no cell of
+a file beyond them. Where they are withheld they carry no obligation at
+all and the tail facts of 6.7a carry what the description says about
+those rows.
+
 **Invariant L3 (null rungs).** A `percentiles` rung may be `null`, and
 means the exact rung is not a finite binary64 value. No producible
 profile is known to reach this — every interpolated rung lies between
@@ -4268,6 +4300,15 @@ place is fixed by `docs/spec/generation-method-v1.md` G5.1**, so a null
 rung is one rule and not two: the loader accepts it here, the method
 says what is written for it there, and neither document leaves it to an
 implementation. `date_percentiles` rungs are never null.
+
+**A NULL RUNG OUTSIDE A TAIL'S BOUNDARY MEANS SOMETHING ELSE** (stage
+3, section 6.7a). On a block carrying `tails`, a rung outside
+`[tails.low.percent, tails.high.percent]` is null BY RULE -- the rung
+would read one of the outermost rows, and those rows are described by
+the tail facts and never one by one (TL1) -- and the value written in
+its place is the tail reading of
+`docs/spec/generation-method-v1.md` G5.3b rather than G5.1's fill. A
+null rung INSIDE the two boundaries keeps the meaning above.
 
 ---
 
@@ -5078,8 +5119,8 @@ ISO reading below may still claim the column.
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
 | `datetimes_read_at` | string | `local`, `utc` | which clock the tails and `date_percentiles` are written on |
-| `tail_unit` | string | `day`, `month`, `quarter`, `minute`, `second` | the unit the two tails count their distances in (TL4) |
-| `low_tail` | object or `null` | `{boundary, rows, mean_distance, rms_distance, values}` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average, the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds (TL1 to TL3) |
+| `tail_unit` | string | `day`, `month`, `quarter`, `minute`, `second` | the unit the two tails count their distances in (DT4) |
+| `low_tail` | object or `null` | `{boundary, rows, mean_distance, rms_distance, values}` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average, the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds (DT1 to DT3) |
 | `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored |
 | `date_percentiles` | ladder of strings or `null` | section 5.6 | the eleven-rung ladder over the ordered instants, published between the two tail boundaries and empty everywhere else (D11) |
 | `n_unparsed` | integer ≥ 0 | — | present cells that did not read as a date under the chosen format |
@@ -5733,7 +5774,7 @@ there" -- so the producer lists a tail's values only where that premise
 holds of the column in front of it: one canonical text to a distance
 (below); every distance held by at least `taxonomy.TAIL_SHARED_CELLS`
 of the tail's cells, so that no listed value names one row; and the
-column's own different values, counted as ordinals in the unit TL4
+column's own different values, counted as ordinals in the unit DT4
 names, at most `taxonomy.TAIL_SET_VALUES` and standing under at least
 `taxonomy.TAIL_SHARED_CELLS` cells apiece on average -- or, whatever
 the column's grid, every value the tail would list held by at least the
@@ -5746,7 +5787,7 @@ the floor would protect is not refused HERE, because a reader of a
 description cannot count the file's cells.
 
 **ONE TEXT TO A DISTANCE, or no values at all.** A tail's values are
-published by DISTANCE, in the unit TL4 names, and on the SHARED clock a
+published by DISTANCE, in the unit DT4 names, and on the SHARED clock a
 day holds cells two hours apart: a column of bare dates beside midnight
 moments has a `2021-12-31 22:00:00` and a `2022-01-01 00:00:00` one day
 below its boundary. Where a distance carries more than one canonical
@@ -5758,7 +5799,7 @@ cells over five days, 13 written `T22:00:00` with no offset at all,
 missing `all_at_midnight`, `n_at_midnight` and the mark census on a
 file whose own source met all three).
 
-**Invariant TL2 (the two tails and the floor).** Both tails are `null`
+**Invariant DT2 (the two tails and the floor).** Both tails are `null`
 or neither is. Where they are published: each `rows` is at least the
 smallest group size the description was written at; the two `rows` added
 leave at least one cell between them (`low.rows + high.rows <= P - 1`);
@@ -5769,7 +5810,7 @@ so they are the same text. Where they are `null`, every rung of
 at an end, for a boundary to exist on each side, and it publishes no
 value of the table at all.
 
-**Invariant TL3 (the distances and the values).** Every published
+**Invariant DT3 (the distances and the values).** Every published
 `mean_distance` is at least one unit, because every cell of a tail lies
 at least one whole unit beyond its boundary; every published
 `rms_distance` is at least the mean distance, allowing one part in
@@ -5778,7 +5819,7 @@ between one and `rows` entries, strictly ascending, every one of them
 strictly beyond its own boundary -- below it on the low side, above it
 on the high side.
 
-**Invariant TL4 (the unit the tails are counted in).** `tail_unit`
+**Invariant DT4 (the unit the tails are counted in).** `tail_unit`
 follows from what the block already publishes, and a reader never
 combines fields to learn it: `quarter` and `month` for those two
 resolutions; `day` for `date`, and for a column of moments whose
@@ -6174,6 +6215,68 @@ roles — this format has no optional keys — and every key not listed
 here or in section 5.1 is FORBIDDEN on them (section 6.11). A `count`
 block carries thirty-two keys: these and `number_spellings`, which is
 that role's alone and forbidden on `continuous` (section 7.13).
+
+### 6.7a The tail rule: `tails` and `bin_groups` (stage 3)
+
+**A block carries these two keys or neither, and that is this format's
+one exception to "no optional keys."** A block written before stage 3
+carries neither and is read exactly as it always was, so every
+description already written still loads and its twin does not move. A
+block that carries `tails` carries `bin_groups` too, is a TAIL BLOCK,
+and is read by the rules below. Nothing else about the block's key set
+changes.
+
+| key | JSON type | range | meaning | disposition |
+|---|---|---|---|---|
+| `tails` | object or `null` | TL1 to TL6 | `null` on a block of fewer values than a tail's own rows; otherwise `low` and `high`, each `null` where only the moments are published, and otherwise an object naming the boundary percent, the rows beyond it, and how far from it they lie | the leaves below carry the classes |
+| `tails.low.percent`, `tails.high.percent` | whole number | 1 to 99 | the percent the published ladder stops at on that side | LOADER-ONLY: it follows from the count of values and the smallest group size, and the loader holds the description to it |
+| `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
+| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0 | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
+| `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0 | TL5 | the root-mean-square of the same distances, computed exactly and rounded once | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
+| `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block whose values stand on a grid, the tail's own different values, ascending, WITHOUT how many rows hold each; `[]` elsewhere | EXACT-OBSERVABLE: a file's own tail at that percent lists the same values |
+| `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
+
+**Why the two ends are not published.** A `min` or a `max` is one row's
+value wherever one row holds it, and the rungs beside them read the
+next rows in. The rule withholds every rung whose type-7 reading
+touches one of the outermost max(`small_cell_floor`, 3) values, on each
+side, and publishes instead what those rows look like as a GROUP: how
+many there are, how far from the last published rung they lie on
+average, and the root-mean-square of that distance. Measured over
+sixteen shapes at a floor of eleven, the numbers a description
+published that equalled a value fewer than eleven rows held went from
+13 to 46 per shape to none.
+
+| id | statement | loader? |
+|---|---|---|
+| TL1 | with `tails` published and both sides objects, every rung outside `[low.percent, high.percent]` is `null` except an end at least max(`small_cell_floor`, 3) rows held, the two boundary rungs hold numbers, `1 <= low.percent <= 50 <= high.percent <= 99`, and each percent is the smallest whole percent whose type-7 reading leaves at least max(`small_cell_floor`, 3) values strictly outside it | yes |
+| TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
+| TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
+| TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
+| TL5 | `mean_distance` and `rms_distance` are numbers of nought or more, and the mean is no larger than the root-mean-square | yes |
+| TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
+| BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
+
+**The tail facts are computed exactly** (`docs/spec/generation-method-v1.md`
+G5.3b states what reads them): every value and the boundary rung as
+whole numbers of one shared power of two, the two sums exact, and each
+result rounded to binary64 once -- the mean as a quotient and the
+root-mean-square by the exact integer square root, with the tie rule
+of the quotient.
+
+**A LISTED TAIL, and the owner's ruling it rests on** (2026-09-22). On
+a block whose values stand on a grid -- `integer_valued`, or one
+published fraction width -- a tail of few different values is published
+BY THOSE VALUES, without how many rows hold each. The owner ruled it
+for bounded scales: "we don't need to be worried about the tails ...
+many people will be there and there is no big deal in knowing that it's
+there." Without it the smooth reading of G5.3b rounded onto such a grid
+wrote values the scale does not have -- 11 on a pain score of 0 to 10 --
+and never wrote the scale's own end. A tail is also listed where its
+rows, its two distances, its boundary, the grid and the sign counts
+would otherwise leave one answer for its end (plan P4-D324): the
+description would then name that end in all but name, and naming it
+outright at least says so.
 
 **THE NUMERAL WAS STALE AGAIN, AND IS CORRECTED AGAIN** (landing 2b.18
 part 2). It read "twenty-six" while `contract.NUMERIC_KEYS` held
@@ -7964,7 +8067,7 @@ All four are named residual R-P4-5.
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
 | `clock_form` | string | `hh-mm`, `hh-mm-ss` | which form the column's cells wore, and the form every published clock value of the block is written in | EXACT-CONTROL |
-| `low_tail` | object or `null` | the five keys of TL1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (`hh-mm`) or seconds (`hh-mm-ss`), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
+| `low_tail` | object or `null` | the five keys of DT1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (`hh-mm`) or seconds (`hh-mm-ss`), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
 | `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored | as `low_tail` |
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
 | `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
@@ -8399,9 +8502,10 @@ shape from the values would claim a date (`2023-02-12` is three whole
 numbers joined by `-`), a clock time (`09:30` is two joined by `:`),
 and — past any rule order that could save those two — a laboratory code
 (`1923-1`) and a drug code (`00052-0052-52`), which are CODES.
-Claiming those would publish the smallest and largest of their parts,
-which are fragments of real codes. So the full reading of this section
-is the person's to ask for, with `--measurement`.
+Claiming those would describe each of their parts as a quantity --
+publishing its ladder, its two groups of outer rows and any end enough
+rows share, all of them fragments of real codes. So the full reading of
+this section is the person's to ask for, with `--measurement`.
 
 **The one shape read without the declaration** is rule 12 of section
 5.2's order, tested last before `free_text`, so it claims only a column
@@ -11168,15 +11272,15 @@ as those keys' own published meanings have them.
 | Q1 | the per-column `n_rows` equals the document's `n_rows`; the key appears ONLY on `count`, `continuous` and `affixed_number`, and is forbidden on every other role | yes |
 | Q2 | `n_used_in_statistics == n_numeric`, and `n_left_out_of_statistics == n_present - n_numeric` | yes |
 | Q3 | `n_numeric >= 1` | yes |
-| Q4 | `std` is `null` exactly when `n_used_in_statistics < 2` or `std_unrepresentable` is true; the two are different facts, so a reader never guesses which a `null` is | yes |
-| Q5 | `skew` is `null` when `n_used_in_statistics < 3`, and when every parsed value is identical; it is a number otherwise | yes |
+| Q4 | `std` is `null` exactly when `n_used_in_statistics < 2` or `std_unrepresentable` is true; the two are different facts, so a reader never guesses which a `null` is. On a tail block below its own floor (TL2) every moment is `null` and this row is not asked | yes |
+| Q5 | `skew` is `null` when `n_used_in_statistics < 3`, and when every parsed value is identical; it is a number otherwise. On a tail block below its own floor (TL2) it is `null` and this row is not asked | yes |
 | Q6 | where every parsed value is identical and `n_used_in_statistics >= 2`, `std` is `0.0` and `std_unrepresentable` is false | yes |
 | Q7 | where every parsed value is identical the exact mean is that value and this format holds it, so a `null` there is refused; `mean` is `null` only when the exact mean is not a finite binary64 value, and that general clause refuses no document, a loader holding no values to recompute a mean from | yes, in the identical-value direction |
 | Q8 | the twin's integer rule is routed by the published `integer_valued`, never by whether the role name is `count`; a `continuous` column may publish `integer_valued: true` and its twin cells are whole numbers | reading — it binds the consumer, and no document is refused for it |
 | Q9 | `numeric_share == (n_numeric + n_out_of_range + n_contradictory) / n_present`, a share of the present cells, and `0.0` where `n_present` is 0 — which Q3 forbids on these roles | yes |
 | Q10 | `n_negative_unrepresentable <= n_out_of_range` and `n_negative_unrepresentable <= n_negative` | yes |
 | Q11 | `n_zero <= n_numeric` | yes |
-| Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)` | yes |
+| Q16 | `kurtosis` is `null` when `n_used_in_statistics < 4` and when every parsed value is identical, a number otherwise, and for the `n` values used it lies between 1 and `n - 2 + 1/(n - 1)`. On a tail block below its own floor (TL2) it is `null` and this row is not asked | yes |
 | Q17 | `n_distinct_values <= n_numeric`, and `n_distinct_values >= 1` wherever `n_used_in_statistics > 0` | yes |
 | Q18 | `mode` is `null` exactly when `mode_count` is 0, and where `mode` is a number `2 <= mode_count <= n_numeric` and `n_used_in_statistics - mode_count` is 0 or at least max(2, `small_cell_floor`) (plan P4-D335: the count was floored on one side and a heap of 395 among 400 named the other five) | yes |
 | Q19 | `percentiles_between` names exactly the ninety percents `percentiles` does not, each a number or `null`, and the hundred and one rungs of the named ladder and this one in percent order, `null`s passed over, never go down | yes |
@@ -11188,6 +11292,13 @@ reading NOT identical, so a `null` `skew` at `n_used_in_statistics >=
 3` is refused there as on any column whose endpoints differ. It is the
 only route to these three rows from a parsed document, and a reader who
 supplied a different test would refuse different files.
+
+**ON A TAIL BLOCK THE TEST IS `std == 0.0`** (stage 3, section 6.7a).
+The two ends are usually withheld there, so "identical" cannot be read
+off them; the spread is nought exactly where every value the statistics
+used is one value, and `std_unrepresentable` false beside it. A block
+below its own floor publishes no spread and none of these three rows is
+asked of it.
 
 #### GS1 — `group_separator`, on every numeric block
 
@@ -11242,10 +11353,10 @@ it answers to.
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
-| TL1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or its values with at most its mean beside them | yes |
-| TL2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
-| TL3 | every published `mean_distance` is at least one unit, every published `rms_distance` at least the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
-| TL4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |
+| DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or its values with at most its mean beside them | yes |
+| DT2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
+| DT3 | every published `mean_distance` is at least one unit, every published `rms_distance` at least the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
+| DT4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
 | D17 | every key of `date_field_widths` is `padded`, `unpadded`, `first-padded`, `second-padded`, `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`, never `(withheld)`; every key maps to a count at least the floor and never below two (the disclosure rule, P4-D131); the census is `{}` unless `format` is one of the six variable-width members or one of the two textual members, and on a textual member only `padded` and `unpadded` may appear; and its values sum to at most `n_present - n_unparsed` while leaving none of those cells over or at least the floor (landing 2b.6, plan P4-D278: a cell that could show no width is counted into the commonest width by the producer, because both conventions spell such a cell the same way, so a census that names anything reaches the parsed total and the remainder is asked of it like the other three) | yes |
@@ -11405,7 +11516,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 60 the note grammar enumerates |
+| NG14 | for every form: one of the 61 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -11579,6 +11690,9 @@ reproduces the recorded spellings there as on any other column.
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | EXACT-OBSERVABLE |
 | `integer_valued` | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `mean`, `std`, `skew` | APPROXIMATED, fixed formula and two-sided bound — G12.3 |
+| `tails` | LOADER-ONLY: the container carries no obligation of its own, each leaf below it is disposed on its own line, and invariants TL1 to TL6 are what the loader holds the block to |
+| `tails.low.mean_distance`, `tails.low.rms_distance`, `tails.high.mean_distance`, `tails.high.rms_distance` | APPROXIMATED, inside the window `docs/spec/generation-method-v1.md` G12.13 draws from G5.6's rank form over the tail ladder, and HELD where the file's own number equals the published one, as `docs/spec/validation-method-v1.md` has it for every approximated fact. The file's tail is read AT THE PUBLISHED PERCENT; where the file's own tail stands elsewhere the comparison is withheld rather than made at another percent |
+| `tails.low.values`, `tails.high.values` | EXACT-OBSERVABLE: the generator writes a listed tail on those values and on no others, each at least once (G5.3e), so a file's own tail at that percent lists the same values. Empty on every tail the rule does not list, where there is nothing to check |
 | `n_distinct`, `n_distinct_folded` | EXACT-OBSERVABLE using the spellings owner decisions 7, 8 and 10 permit — the ordinary case; APPROXIMATED under the two-sided envelope only where even those cannot supply the count, with the report naming the profile's count beside the twin's. The envelope is G12.8, and BOTH of its ends are measured and printed on every run, because a fallback whose range is never shown is a fallback a reader cannot check (review item P2-C2-F4) |
 | `numeric_styles` | EXACT-OBSERVABLE against the recount identity of section 7.5.7: every published count is met or exceeded, the three forms the remainder cannot reach are exact, and the remainder is spelled by its own cells' values |
 | `wide_runs` | EXACT-OBSERVABLE where the column publishes `"canonical"`: FEWER than max(2, `small_cell_floor`) point-free cells of the twin past 2**53 — `plain`, `leading_plus` or `leading_zero`, the padded cell read after its pad comes off (plan P4-D107) — may be anything but the figures their own values write, which is the same line the producer draws between `"canonical"` and `"respelled"` (plan P4-D140), so that the real table still meets its own description where one of its keys is respelled, which is the one ceiling the published count of a form cannot supply — on a column of identifiers that count IS the row count, so the ceiling beside it licenses every cell. Where the column publishes `"respelled"` the description has said its own writer respells them and holding the file to a ceiling of nought would be the false accusation plan P4-D66.2 ends; where it publishes `"none"` fewer cells than the floor are such runs, so there is no published cell for the ceiling to govern. `synthtwin validate` LISTS the fact in both of those states rather than holding the file to it |
@@ -11588,6 +11702,8 @@ reproduces the recorded spellings there as on any other column.
 | `field_widths` | REPORT-ONLY, and 7.10 carries the measurement the class was chosen on. Unlike `pad_widths`, a named width here is a fact about the VALUE and not only about the spelling — an unpadded cell is exactly as wide as its value — so it can be met only by the value-construction stage, and that stage places values by the ladder. `docs/spec/generation-method-v1.md` G6.6 takes the census as a constraint on the figure count of each stratum's value, within the half unit G5.4's integer rule already spends; where a width has no such value to reach it, the twin's report names the shortfall with the count it reached and `synthtwin validate` LISTS the census rather than holding the file to it |
 | `empty_bins` | REPORT-ONLY, and 7.11 carries the measurement the class was chosen on. The value stage READS it — `docs/spec/generation-method-v1.md` G6.7 moves any stratum that landed in a named stretch to the nearer of the two values `empty_edges` names for that stretch, and no further past it than one bin — and on the two-cluster columns it was built against that took the cells landing in a named stretch from 4–6 of 300 to none at forty seeds of forty. It is not exact because a column whose other published facts leave no room beside a stretch cannot always be moved out of it: 119 of 1600 runs over forty described columns still wrote one such cell, and each is named in the twin's own report while `synthtwin validate` LISTS the fact rather than holding the file to it |
 | `empty_edges` | REPORT-ONLY, and 7.11a carries the measurement. It is the fact the value stage actually walks from: `empty_bins` names bins, and a bin is a thirty-second of the column's reach, so the empty bins lie strictly INSIDE the stretch the source really leaves empty and a cell moved to a bin edge was still in the source's own gap. The pairs name the two real values each stretch lies between. Measured over three two-cluster witnesses at forty seeds each: cells inside a source's own gap fell from one per column per seed, 15.7–23.0 units from a real value, to NONE — 0 of 12,000 on each. It is REPORT-ONLY for the same reason `empty_bins` is, and the shortfall it can still have is the one the bins carry at residual R-P4-140 |
+| `tails.low.percent`, `tails.high.percent`, `tails.low.rows`, `tails.high.rows` | LOADER-ONLY, and section 6.7a carries the reason: each follows from `n_used_in_statistics` and the smallest group size alone, TL1 and TL4 hold the description to both, and a file of the same count of values re-describes them identically -- so a check here would repeat `n_used_in_statistics` under another name. `synthtwin validate` LISTS them |
+| `bin_groups` | REPORT-ONLY, for the reason `value_histogram` is: the twin's cells are allotted to values by the runs of the published ladder and not by a census of bins, so meeting a group's count exactly would mean the allotment following the census. It is what makes a histogram survive a raised floor at all -- the all-or-nothing census vanishes on every non-uniform shape at a floor of eleven and these groups do not |
 | `n_rows` (echo) | LOADER-ONLY |
 
 A mutant that collapses the nine interior rungs onto the endpoints
@@ -11644,11 +11760,16 @@ now a bare delegation.
 | `percentiles.min`, `percentiles.max` | as on `count` and `continuous` above |
 | `percentiles` interior rungs | as on `count` and `continuous` above |
 | `mean`, `std`, `skew` | as on `count` and `continuous` above |
+| `tails` | as on `count` and `continuous` above |
+| `tails.low.mean_distance`, `tails.low.rms_distance`, `tails.high.mean_distance`, `tails.high.rms_distance` | as on `count` and `continuous` above |
+| `tails.low.values`, `tails.high.values` | as on `count` and `continuous` above |
 | `n_zero`, `n_negative`, `std_unrepresentable`, `n_negative_unrepresentable`, `n_used_in_statistics`, `n_left_out_of_statistics`, `numeric_share` | as on `count` and `continuous` above |
 | `integer_valued` | as on `count` and `continuous` above |
 | `numeric_styles`, `fraction_widths`, `pad_widths` | as on `count` and `continuous` above |
 | `field_widths` | as on `count` and `continuous` above |
 | `empty_bins`, `empty_edges` | as on `count` and `continuous` above |
+| `tails.low.percent`, `tails.high.percent`, `tails.low.rows`, `tails.high.rows` | as on `count` and `continuous` above |
+| `bin_groups` | as on `count` and `continuous` above |
 | `n_distinct`, `n_distinct_folded` | as on `count` and `continuous` above |
 | `wide_runs` | as on `count` and `continuous` above |
 | `n_rows` (echo) | as on `count` and `continuous` above |
@@ -11771,9 +11892,9 @@ form, the stand-in is written in it (7.9.1).
 |---|---|
 | `low_tail`, `high_tail` | STRUCTURAL — the container's own key carries no VALUE obligation; its membership is the five keys below, and every one of them is disposed in its own right |
 | `low_tail.boundary`, `high_tail.boundary`, `low_tail.rows`, `high_tail.rows` | EXACT-OBSERVABLE in the representation owner decision 5 fixes. No corner, no exception: the boundary is a real cell's value, written back character for character — the last second of a leap minute included — and the count of cells strictly beyond it is the count a re-description gives back. The value itself is never printed in a report, because the measured side is text of the checked file |
-| `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET: the file's cells beyond that boundary hold exactly those values, each at least once. Published only where the tail holds few of them, or where its two distances would settle a count below the floor (TL1, plan P4-D329) |
+| `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET: the file's cells beyond that boundary hold exactly those values, each at least once. Published only where the tail holds few of them, or where its two distances would settle a count below the floor (DT1, plan P4-D329) |
 | `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, the construction's own two ends. A tail publishing its values owes its mean EXACTLY instead, because every rank stands on a published value and the counts are solved to reach it |
-| `tail_unit` | LOADER-ONLY: it names the unit the two tails are counted in, TL4 settles it from `resolution`, `time_precision` and `all_at_midnight` when the description is loaded, and it obliges no cell of any file. Every file that holds those three holds this, and each of the three is checked in its own right, so a verdict here would be a second reading of theirs under a name the registry can answer for only once |
+| `tail_unit` | LOADER-ONLY: it names the unit the two tails are counted in, DT4 settles it from `resolution`, `time_precision` and `all_at_midnight` when the description is loaded, and it obliges no cell of any file. Every file that holds those three holds this, and each of the three is checked in its own right, so a verdict here would be a second reading of theirs under a name the registry can answer for only once |
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 — for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, and their absence is the disposition: the ranks they would be read off hold the column's outermost values, so D11 makes both of them `null` in every description, they oblige no cell of any file, and the validator lists them as withheld rather than comparing a null with a null |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
@@ -12347,8 +12468,9 @@ version 5 document reads "version 5":
 > value that fewer rows share can be named; without the --identifier
 > you gave, a column of record numbers is described like any other
 > column; without the --code you gave, a column of codes is described
-> as measurements, so its smallest and largest values — which are real
-> codes — are published and its twin loses any leading zeros; without
+> as measurements, so its values are described by a ladder and by the
+> two groups beyond it, and an end a group of rows shares — which is a
+> real code — is published; its twin loses any leading zeros; without
 > the --measurement you gave, a column of readings written as two
 > numbers in one cell, such as a blood pressure, is described as text
 > and its twin holds no readings at all; without the --decimal-comma
@@ -12561,7 +12683,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 60 closed forms: 97 argument positions, of which 71 are whole numbers, 4 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 61 closed forms: 99 argument positions, of which 72 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -13613,11 +13735,24 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 60 forms
+### 14.8 The note grammar — 61 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 97 argument positions: 71 whole numbers, 4 package words, 17
+argument. 99 argument positions: 72 whole numbers, 5 package words, 17
 nested forms, 5 bound affix strings.
+
+> **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
+> BRANCH'S SENTENCE** (the integration of the five stage-3 landings).
+> Every count here read one landing's answer: the form table below had
+> no row for `population_under_a_thousand` at all and C6-143 had no
+> binding for either of its two arguments, because landing 3.2 added
+> the form and landing 3.5 added the closure and neither branch saw
+> the other. The form count is the rows below; the position count is
+> the rows of C6-143; the package words are that table's package-word
+> rows, the bound affix strings its bound-affix rows, and the nested
+> positions its four nested rows plus the thirteen FLOORED positions,
+> each of which carries either a whole number or NF60 in the number's
+> place. The whole numbers are what is left.
 
 | # | form | arity |
 |---|---|---|
@@ -13679,8 +13814,9 @@ nested forms, 5 bound affix strings.
 | NG56 | `remark_brackets_around_the_affix` | 0 |
 | NG57 | `remark_a_minus_after_the_figures` | 0 |
 | NG58 | `header_names_could_not_be_told` | 0 |
-| NG59 | `said_fewer_than_the_line` | 1 |
-| NG60 | `said_some_but_not_all` | 0 |
+| NG59 | `population_under_a_thousand` | 2 |
+| NG60 | `said_fewer_than_the_line` | 1 |
+| NG61 | `said_some_but_not_all` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

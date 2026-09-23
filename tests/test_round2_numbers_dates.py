@@ -59,6 +59,22 @@ def test_a_mode_held_at_the_wrong_frequency_is_named(
     the report named NOTHING: the pass returned successfully wherever
     some stratum held the mode's VALUE, whatever that stratum's size.
 
+    STAGE 3 MOVED THE TWIN AND NOT THE RULE (landing 3.3). This column's
+    values stand on a grid of tenths, so each of its tails is a LISTED
+    one and the ladder holds the tail's own values at the counts the two
+    moments solve for; the share of G5.2b gives each sign band a stratum
+    for every value its tail names. The twin wrote 3.3 twenty-nine times
+    against the published thirty at the first measurement of that
+    landing, and once the runs a listed tail reaches into were kept
+    whole it writes it THIRTY times -- the published pair exactly, at
+    all five seeds, with its mean 1.16115 against the table's 1.17338
+    and its spread 1.91578 against 1.92529. So it no longer has a
+    difference in the PAIR to
+    name, and the witness moved: forty cells each at 0.5 and 1.5,
+    forty-five at 2.5 and twelve at 3.5 publish the mode 2.5 at a count
+    of forty-five, and the twin writes it forty-four times at every one
+    of the five seeds. The naming is asserted there.
+
     THE CELLS CANNOT MOVE UNDER THIS PASS, AND THAT IS A NARROWER CLAIM
     THAN THE FIRST VERSION OF THIS DOCSTRING MADE (the skeptic's finding
     5, 2026-09-19). No stratum of this ladder is 30 cells -- the sizes
@@ -82,18 +98,46 @@ def test_a_mode_held_at_the_wrong_frequency_is_named(
     assert block["mode"] == 3.3
     assert block["mode_count"] == 30
     held = collections.Counter(written)
-    assert held["3.3"] == 1
-    assert held.most_common(1)[0][1] == 28
+    # THE TWIN NOW HOLDS THE MODE THIRTY TIMES, and it wrote it ONCE
+    # until stage 3 (landing 3.3). The tail rule gave this column a
+    # LISTED tail on each side -- its values stand on a grid of tenths
+    # -- so the ladder holds `-1.8`, `-0.9` and `3.5` at the counts the
+    # two tails solve for, G5.2b gives each sign band a stratum for
+    # every value its tail names, and a run the ladder reads across a
+    # tail's edge is kept whole (method G5.3e). The stratum that reads
+    # `3.3` is then the size the ladder's own plateau gives it, which is
+    # the published thirty.
+    assert held["3.3"] == 30
+    assert held.most_common(1)[0][1] == 30
     numbers = [float(cell) for cell in written]
-    assert round(statistics.fmean(numbers), 5) == 1.06619
-    assert round(statistics.stdev(numbers), 5) == 2.08471
-    # ...and the report says so, against the published count.
+    assert round(statistics.fmean(numbers), 5) == 1.16115
+    assert round(statistics.stdev(numbers), 5) == 1.91578
+    # ...and the report has nothing to say about the pair, because the
+    # twin holds it.
     report = (tmp_path / "mode" / "real-twin-report.txt").read_text(
         encoding="utf-8"
     )
+    assert "mode_count" not in report
+    assert twin_exit == 0
+    assert real_exit == 0
+
+    # THE DIFFERENCE IS STILL NAMED WHERE THERE IS ONE. Forty cells each
+    # at `0.5` and `1.5`, forty-five at `2.5` and twelve at `3.5`: the
+    # ladder's plateau at the mode is forty-four ranks wide where the
+    # column holds forty-five cells, and no pass resizes a stratum, so
+    # the twin writes the published mode forty-four times.
+    peaks = ["0.5"] * 40 + ["1.5"] * 40 + ["2.5"] * 45 + ["3.5"] * 12
+    block, written, twin_exit, real_exit = _round_trip(
+        tmp_path / "peaks", peaks, ("--smallest-group", "11"), seed
+    )
+    assert (block["mode"], block["mode_count"]) == (2.5, 45)
+    assert collections.Counter(written)["2.5"] == 44
+    report = (tmp_path / "peaks" / "real-twin-report.txt").read_text(
+        encoding="utf-8"
+    )
     assert "'value' -- mode_count" in report
-    assert "the description says: 30" in report
-    assert "the twin holds:       1" in report
+    assert "the description says: 45" in report
+    assert "the twin holds:       44" in report
     assert twin_exit == 0
     assert real_exit == 0
 

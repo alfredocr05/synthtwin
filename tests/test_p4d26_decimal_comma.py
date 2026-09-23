@@ -33,6 +33,7 @@ import tempfile
 
 import fixtures
 import pytest
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -118,14 +119,44 @@ def test_an_undeclared_column_of_commas_is_read_as_it_always_was() -> None:
     )
 
 
+def _as_quantities(values: "list[str]") -> "list[float]":
+    """The cells of `_quantities`, read the declared way."""
+    return [
+        parsing.parse_number(parsing.written_with_a_decimal_comma(cell))
+        for cell in values
+    ]
+
+
 def test_a_declared_column_is_read_as_quantities() -> None:
-    document, _loaded, _folder, _table = _described(
-        _quantities(), ["weight"]
-    )
+    """The numbers are hundredths of a unit, not hundreds of them.
+
+    THE TWO ENDS USED TO SAY THIS BY THEMSELVES: `percentiles.min` and
+    `percentiles.max` read 2.89 and 300.23, and a column read with the
+    comma as a thousands separator has no cell under a hundred. The
+    tail rule of contract 6.7a withholds both of those rungs on a
+    column of two hundred different numbers (landing 3.3), so the same
+    claim is made through the facts that replaced them: the middle
+    rung, which no tail withholds, and the two tail groups -- each one
+    worked out from the column's own numbers by `tests/tail_rule.py`,
+    which states the rule for itself rather than reading it back out of
+    the description.
+    """
+    values = _quantities()
+    document, _loaded, _folder, _table = _described(values, ["weight"])
     column = document["columns"][0]
     assert column["role"] == "continuous"
-    assert column["percentiles"]["min"] == 2.89
-    assert column["percentiles"]["max"] == 300.23
+    numbers = _as_quantities(values)
+    assert column["percentiles"]["min"] is None
+    assert column["percentiles"]["max"] is None
+    assert column["percentiles"]["p50"] == float(
+        tail_rule.rung_at(numbers, 50)
+    )
+    floor = taxonomy.Settings().small_cell_floor
+    for low in (True, False):
+        side = column["tails"]["low" if low else "high"]
+        assert tail_rule.stated(side) == tail_rule.expected(
+            column, numbers, floor, low
+        )
 
 
 def test_the_declaration_reaches_only_the_columns_it_names() -> None:
@@ -235,13 +266,21 @@ def test_the_twin_writes_the_column_back_with_commas() -> None:
         "a twin cell carries both marks, so a reader cannot tell which "
         "is the decimal point"
     )
-    # And the VALUES are the published ones, read back the same way.
+    # And the VALUES are the described ones, read back the same way.
+    # The two ends are DERIVED on a tail block (method G5.3b), because
+    # the rungs that used to carry them are withheld, and the generator
+    # pins the derived pair exactly: read back with the comma as a
+    # thousands separator instead, the same cells are a hundred times
+    # larger and neither end lands.
     numbers = [
         parsing.parse_number(parsing.written_with_a_decimal_comma(cell))
         for cell in cells
     ]
-    assert min(numbers) == 2.89
-    assert max(numbers) == 300.23
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None
+    assert (min(numbers), max(numbers)) == (ladder[0], ladder[len(ladder) - 1])
 
 
 def test_an_undeclared_twin_is_not_touched() -> None:

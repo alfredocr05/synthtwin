@@ -1620,9 +1620,13 @@ def profile_version_is_older(found: int, reads: int) -> str:
     * `--missing-value`. Sixty readings and five cells holding `-100`,
       named as "no value". Described that way the five are absent, five
       is under the floor and the number is published nowhere. Left out,
-      `-100` is a reading: it is the smallest one, so the description
-      publishes it as the column's minimum and as its first two
-      percentiles.
+      `-100` is a reading, and every moment and both tail groups of the
+      column move with it; with TWELVE such cells the end is heaped and
+      the number itself is published, as the column's minimum and as
+      the value its low tail lists. Hence the sentence's "CAN be
+      published": since stage 3 the tail rule withholds that rung where
+      too few rows hold the end (contract 6.7a), and before it the
+      smallest reading was published whatever its count.
     * `--keep-value`. Sixty readings and twelve cells holding a word,
       named as real data. Described that way the column reads as free
       text -- twelve of its values are not numbers -- and free text
@@ -1675,7 +1679,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its smallest and largest values \u2014 which are real codes \u2014 are published and its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "

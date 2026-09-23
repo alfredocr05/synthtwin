@@ -940,6 +940,33 @@ reachable" is not a rule, and the loader accepts the document, so the
 method states what happens rather than leaving two implementations to
 answer differently.
 
+### G5.1a The tail block (stage 3, plans P4-D322 to P4-D327 and P4-D344)
+
+A numeric block that carries the key `tails` is a TAIL BLOCK (contract
+6.7, invariants TL1 to TL6); one without it was written before stage 3
+and every clause of G5 reads it exactly as before, so no description
+already written moves. On a tail block every rung outside the two
+boundary percents `P_lo = tails.low.percent` and
+`P_hi = tails.high.percent` is null by rule, except an end the
+description publishes because at least `max(small_cell_floor, 3)` rows
+held it (a HEAPED end). **G5.1's fill applies inside `[P_lo, P_hi]`
+only**; outside it the ladder is each tail's own reading, G5.3b or, for a
+listed tail, G5.3e. `L[0]` and `L[100]` of the ladder every later rule
+reads are the two DERIVED ENDS of G5.3b, and the pinned strata of G5.3
+hold them exactly as they held `min` and `max`, so the draw schedule of
+G3 and G4 does not move.
+
+**Every consumer reads that one ladder**: G5.2a's rank values and
+G5.2b's shares, G5.2a's cap, G5.3's values, G5.6's windows and the snap
+bounds that read them, G6.7's scale, and both reports' windows. It is
+built once from the published facts, by the rules below, and written
+once in the shipped code (`contract.tail_ladder`), where the generator
+and the validator both read it.
+
+A tail block whose `tails` is null publishes no rung and no moment (the
+block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
+are null publishes the moments alone (TL3), and its ladder is G5.3c's.
+
 ### G5.2 Strata: how many different values, and how the cells divide
 
 The K numeric cells are divided into **strata**. One stratum holds one
@@ -1094,6 +1121,35 @@ afterwards where `integer_valued` is published true. `K` is the
 column's numeric cell count and `2**64` is the scale G5.3 itself uses,
 so nothing rounds here that does not round there. G5.5's sign repair is
 NOT applied: the operations named here are the whole of it.
+
+**1a. The band's own sign** (plan P4-D327). With the values `v[i]` of
+step 1 read for one band: in the POSITIVE band every value that is not
+above nought is replaced by the FIRST value of the band that is above
+nought; in the NEGATIVE band every value that is not below nought is
+replaced by the LAST value of the band that is below nought. A band none
+of whose ranks reads a value of its own sign keeps what it read, and
+G5.5 answers for it. Both steps 2 to 4 and G5.2b's run counts read the
+replaced values.
+
+Why. The positive band starts at rank `G + Z`, where the zero stratum
+ends, and the ladder does not know that: it crosses from the last rung
+reading nought to the first reading one by a straight line, so the
+first ranks of the band read a fraction under a half, the integer rule
+takes them to nought, and the band opens with a run of noughts. G5.5
+then repairs that run to one, BESIDE the real plateau of one, two strata
+hold one number, G6.5a's separation moves the larger up to two, and
+every stratum above it moves up in turn. **Measured** on 2,000 counts
+drawn `int(expovariate(0.2))` beside a constant column (seed 7, twin
+seed 4): the twin wrote the value one in 4 cells against the table's
+317, two in 320 against 236, and its mean was 19.3 per cent high at
+floors 1 and 11, with nothing missed; with this step, one in 324 cells
+and the mean 1.3 per cent above the table's. The frozen case `mode_held`
+moved with it (G14.3). **NO FROZEN CASE WAS ADDED FOR THIS STEP**, which
+is recorded here rather than left to be noticed: what pins it is the
+round trip
+`tests/test_stage3_tail_rule.py::test_a_count_column_beside_a_zero_heap_keeps_its_ones`,
+which withdraws the step and reads the two counts and the mean above off
+the twin. That is a gap in G14.3's own terms and it is named as one.
 
 **AND ON A COLUMN WRITTEN AT ONE FRACTION WIDTH, THE NUMBER THE WRITER
 WOULD WRITE THERE** (landing 2b.1, 2026-09-15). Where `integer_valued`
@@ -1811,6 +1867,327 @@ inside its own segment, so every value is inside `[min, max]`, exactly.
 reached and the top of a segment is only ever produced by the clamp or
 by the `max` pin.
 
+### G5.3b The tail reading (stage 3, plans P4-D344, P4-D322)
+
+For one side with published boundary percent `P`, boundary rung `b` (the
+published rung at `P`), rows `m`, mean distance `d1` and root-mean-square
+distance `rms`, the rows beyond `b` are read through a shape `a(s)` on
+`s` in `[0, 1]` -- the distance from `b` at the share `s` of the way out
+-- that has `a(0) = 0`, whose mean over a uniform `s` is `d1` and whose
+mean square is `rms * rms`: a MIXTURE OF TWO ADJACENT WHOLE POWERS,
+
+```
+a(s) = E * (s**j * (lam + (1 - lam) * s))
+```
+
+built with `+ - * /` and `sqrt` alone, each correctly rounded by IEEE
+754, in this order and no other:
+
+```
+if d1 == 0 (or is not above nought): the tail is FLAT; a(s) = 0, E = 0
+r   = (rms / d1) * (rms / d1)        one division, one multiplication
+r   = 1 where r < 1; 1e15 where it is larger than that or not a number
+j   = the whole number with R(j) <= r < R(j + 1), R(j) = (j + 1)**2 / (2j + 1)
+a2  = 1 / (j + 2)        de = 1 / ((j + 1) * (j + 2))   the product in whole numbers
+b1  = 1 / (2j + 1)       c  = 1 / (j + 1)               b2 = 1 / (2j + 3)
+qa  = (b1 - c + b2) - (r * de) * de
+qb  = (c - 2 * b2) - ((2 * r) * a2) * de
+qc  = b2 - (r * a2) * a2
+lam = 0 where qc <= 0; otherwise disc = qb * qb - (4 * qa) * qc, held at 0
+      or more; q = -0.5 * (qb + sqrt(disc)) where qb >= 0, else
+      -0.5 * (qb - sqrt(disc)); the candidates q / qa (where qa != 0) and
+      qc / q (where q != 0) that lie in [-1e-12, 1 + 1e-12]; the smaller,
+      clamped into [0, 1]; 1 where there is none
+E   = d1 / (a2 + lam * de)     held at the largest finite binary64
+```
+
+`j` is decided by EXACT rational comparison: `r` is a binary64, hence a
+whole significand over a power of two, and `(j + 1)**2 * den <= num *
+(2j + 1)` is whole-number arithmetic. The search starts at the whole part
+of `(r - 1) + sqrt(r * (r - 1))`, steps down while `R(j) > r` and up while
+`R(j + 1) <= r`, so no rounding of the square root decides the power.
+`s**j` is formed by squaring and multiplying over the bits of `j`, most
+significant first, starting from 1; then `(1 - lam) * s`, `lam + that`,
+`s**j * that` and `E * that`, in that order. No `pow`, `exp` or `log`
+is used, so the reading is the same binary64 on every platform.
+
+`R(0) = 1` is the jump (every row at one distance), `R(1) = 4/3` the
+straight line, and a mixture of `s**j` and `s**(j+1)` reaches exactly
+the ratios between `R(j)` and `R(j + 1)`, so every `r` of one or more has
+one shape.
+
+**The share, and THE TAIL IS ITS OWN ROWS.** A stratum reads the ladder
+at the exact share `N / D` (G5.3), which stands at the rank position
+`t = N K / D` of the `K` numbers. The LOW tail holds the ranks below
+`m_lo` and the HIGH tail the ranks from `K - m_hi` up -- the rows the
+description counts, and not the percent, which stands between two of
+them. (Reading the tail by its percent instead leaves the first rank of
+a tail outside it where `K P / 100` is whole: measured on a 2,000-row
+column of ages, the twin then wrote its top value 19 times against the
+20 rows published, and its listed tail missed.)
+
+`N = 0` reads the low end exactly and `N = D` the high end, which is
+what the two pinned strata hold. Otherwise the rank stands at the MIDDLE
+of its own row's share of the tail, counting from the boundary outward
+-- row `i` of `m` at `s = (2 i + 1) / (2 m)`, so the mean of `a(s)` over
+a tail's rows is the mean of `a` over a uniform `s`, which is the
+published mean distance, on both sides alike:
+
+```
+low:   A = 2 m_lo D - 2 N K - D                B = 2 m_lo D
+high:  A = 2 N K - 2 (K - m_hi) D + D          B = 2 m_hi D
+s      = ldexp((max(0, min(B, A)) << 53) // B, -53)
+value  = b - a(s) held into [end_lo, b]   (low)
+       = b + a(s) held into [b, end_hi]   (high)
+```
+
+Between the two tails nothing changes: G5.3's convex form over the
+published rungs. The rungs `L[p]` of the ladder at a whole percent `p`
+outside `[P_lo, P_hi]` are this reading at `N / D = p / 100`, and the
+boundary rung itself where that percent falls between the two tails.
+
+**The derived end** of one side, which the pinned stratum holds:
+
+1. a published (heaped) end IS the end, and binds the reading (the
+   clamp above holds every tail value at or inside it);
+2. a LISTED tail's end is its outermost listed value (G5.3e);
+3. a FLAT tail's end is `b`;
+4. otherwise the fitted shape read at the OUTERMOST ROW'S OWN SHARE,
+   `a((2 m - 1) / (2 m))` -- where that row stands, and not where the
+   distribution stops. Reading the fitted end `E` there instead, which
+   is the shape's own supremum and which no row of `m` rows is expected
+   to reach, put a 500-row column of charges 13 per cent past its own
+   largest value and its twin's spread 9.7 per cent above the table's,
+   where the row's own share leaves it 1.1 per cent under. That reading
+   is moved OUTWARD, whatever the fitted power,
+   to the larger of it and `d1 * H(m)`, `H(m) = 1 + 1/2 + ... + 1/m`
+   summed in that order, which is where the largest of `m` draws of an
+   exponential tail of mean `d1` is expected (plan P4-D326); held at or
+   inside the tail's own BOUND `d1 + sqrt((m - 1) * max(0, rms * rms -
+   d1 * d1))`, the furthest one row of `m` can stand with that mean and
+   root-mean-square -- TAKEN AS `rms` TIMES A FRACTION,
+   `d1 + rms * sqrt((m - 1) * max(0, 1 - (d1 / rms)**2))` where `rms`
+   is above nought, which is the same number and is the only form this
+   format holds at both ends of its range, `rms * rms` underflowing to
+   nought below about 1e-162 and overflowing above about 1e154;
+   then `b - that` on the low side and `b + that` on
+   the high; then placed on the column's grid -- G5.4's rule where
+   `integer_valued` is true OR the forms map names a cell it can only
+   write WHOLE -- a `plain` or `leading_plus` count, whose cells wear
+   the canonical spelling and so carry a point exactly where the value
+   does; `leading_zero` is not one of them, because `01.5` wears that
+   form with a point in it, and the anonymous pool names no form at all
+   (counting either of them cost a column publishing
+   `{"leading_zero": 35}` thirteen of its twenty-five named cells): a derived end is a construction and not a value of
+   the table, `numeric_styles` is EXACT-OBSERVABLE, and G6.4's walk may
+   not move a pinned stratum to find a whole number for it; measured on
+   forty whole values beside twenty halves, the end stood at 0.9 and the
+   twin wrote 21 decimal cells against a published 20), otherwise the
+   text at the WIDEST width `fraction_widths` names, rounded half to
+   even on the shortest round-trip figures and read back (unrounded
+   where it does not read back; and where the census names NO width at
+   all AND the BOUNDARY RUNG itself carries a point, the places that
+   rung's own shortest round-trip text writes, so that a derived end
+   never writes more figures than the description's own numbers do (a
+   whole boundary rung leaves the end alone: placing it on the whole
+   numbers there moved the strata beside it off the values the forms
+   census asks for and cost a named count of twenty-five thirteen
+   cells; and a rung whose own step would be no SMALLER than the rung
+   leaves the end alone too, because a grid of that step is no grid for
+   this column: the places of a shortest round-trip text are counted to
+   seventeen and no further, so the rung 5.34e-322 of 120 subnormal
+   numbers reads as seventeen places while one of them is larger than
+   the whole column, and placing an end there rounds it to nought) --
+   without it a column of tenths whose
+   census is empty took an end of seventeen significant figures and its
+   twin wrote `-27.17407492967617` beside cells of `-20.5`) -- and
+   moved one grid step toward
+   `b` where the grid placed it further from `b` than the bound times
+   `1 + 1e-12`; then held to the ONE FIELD WIDTH the block's census
+   names, where `integer_valued` is true, `field_widths` names one
+   width covering every numeric cell, the block publishes no padded
+   width and no cell of it is written with leading zeros or under a
+   withheld form (a PADDED cell's width is not its value's: forty codes
+   written `00000` to `00039` publish the width five while their values
+   need one or two figures, plan P4-D14; and a block publishing a ZERO
+   is left alone unless that width is one, because a width group below
+   the floor is counted into the commonest width by plan P4-D222 -- the
+   sixty whole numbers 0 to 59 publish `{"2": 60}` while ten of them
+   wear one figure, and holding their derived end to two figures moved
+   it from 0 to 10 while `n_zero` still asked the twin for a zero) -- a whole number of fewer or more
+   figures is a value those published facts rule out, exactly as a
+   negative end is on a column with no negative number (measured: sixty
+   whole numbers from 10000 to 69000 derived an end of 9820 and the twin
+   wrote 59 of the published 60 cells at five figures). The width `w` is
+   held that way for `1 <= w <= 15`: the end's MAGNITUDE is held into
+   `[10**(w - 1), 10**w - 1]`, signed again, placed on the whole numbers
+   by G5.4 and then held on its own side of `b`. A PADDED BLOCK IS HELD
+   TO THE ONE CEILING ITS OWN CENSUS DOES STATE: where `integer_valued`
+   is true and `pad_widths` names ONE width `w`, of `2 <= w <= 15`,
+   whose count is every numeric cell and which `field_widths` names at
+   that same width for every numeric cell too, every cell of the column
+   wrote at least one pad figure, so no value of it reaches `w` figures
+   -- the end's magnitude is held at `10**(w - 1) - 1`, signed again,
+   placed on the whole numbers and held on its own side of `b`
+   (measured on 1,200 offsets written `+0123` and `0123`, plan
+   P4-D145's own case: the derived end stood at 1006, ten cells took
+   it, `+1006` wears no pad, and the twin's own description published
+   `pad_widths {"4": 482}` against its source's `{"4": 1200}`, because
+   P4-D148's plus route withholds the plus-signed padded cells
+   altogether once ten of them are unpadded).
+
+   THE ORDER OF THE LAST THREE IS: G5.5a's SIGN RULE, then the two
+   width clamps above, then the MARK BETWEEN THOUSANDS -- where
+   `thousands_marks` counts a mark on every numeric cell, every value
+   of the column reaches a thousand in size (G6.5a's last value pass
+   puts a mark exactly there), so the end's magnitude is held at a
+   thousand or beyond and then on its own side of `b`. The two
+   spelling clamps run AFTER the sign rule because that rule's own
+   clamp can land an end the published spellings cannot write -- on a
+   column with no negative number an end reaching past nought is held
+   at one step, which is 1 on sixty whole numbers from 1000 to 60000,
+   where the census names one width of five figures and the twin wrote
+   9 of its 60 cells at a width the census does not name, and 0.01 on
+   240 prices written `92,959.11`, a cell with no mark in it that the
+   twin's own census then counted one short -- and neither clamp
+   crosses nought, each moving a MAGNITUDE, so the sign rule is not
+   undone by running before them.
+
+   AND NEITHER SPELLING CLAMP PULLS THE END INSIDE THE TAIL'S OWN MEAN
+   DISTANCE `d1`. Both censuses are POOLED at the floor -- a group of
+   fewer cells than the smallest group is counted into the commonest
+   (plan P4-D222) -- so a census naming ONE width does not say that no
+   cell of the column is narrower, only that fewer than the floor's
+   worth are. No set of `m` rows has mean distance `d1` when its
+   furthest row stands nearer than `d1`, so an end the clamp puts
+   inside `b -/+ d1` makes a CHECKED fact (G12.13) unreachable to hold
+   a report-only census, and the clamp stands aside there: the end is
+   the one G5.5a's sign rule left. Measured on the 30-row reading
+   column of a macro workbook, whose thirty whole numbers 1 to 30
+   publish `field_widths {"2": 30}` because the nine cells of one
+   figure are fewer than the floor: the clamp moved the derived low end
+   from under 1 up to 10, the twin wrote five cells at 10 and none
+   below it, its mean stood 5.3 above the published 15.5, and
+   `validate` MISSED `ladder.p50` and `moments.mean`.
+
+**Why each step** (measured on the 16-shape battery of plan P4-D344 at
+floors 1 and 11). The two moments are what the rows beyond the boundary
+publish, and no published number is one of their values: before stage
+3 a description published 13 to 46 numbers per shape equal to a value
+fewer than eleven rows held; with it, none. The ends of step 4 are a
+function of published facts alone, so the twin's range tells a reader
+nothing the description does not. The outward move is there for code
+developed on the twin: the fitted end of a light tail stands inside the
+real extreme, and 16 real cells of a 20,000-row normal column fell
+outside the twin's range without it (the skeptic's B6).
+
+### G5.3c The moment ladder (stage 3)
+
+A tail block publishing its moments and no rung (`tails` with two null
+sides, TL3) is read as the straight stretch from `lo = mean - sqrt(3) *
+std` to `hi = mean + sqrt(3) * std` -- the uniform with that mean and that
+spread -- each placed on the grid of G5.3b step 4 and held to the sign
+counts by G5.5a, the mean standing for `b` -- and every rung
+`L[p] = (1 - t) * lo + t * hi`, `t = p / 100`,
+held into `[lo, hi]`, with `L[0] = lo` and `L[100] = hi`. Where the mean
+or the spread is withheld the ramp of G5.3d stands in. Measured on a
+15-value block at floor 11: the twin's mean 1.9 per cent from the
+table's and its spread 6 per cent, nothing missed on the twin or the
+table.
+
+### G5.3d The made-up ramp (stage 3)
+
+A tail block below its floor (`tails: null`, TL2) publishes no rung and
+no moment. Its ladder is a RAMP: `L[p] = (1 - t) * lo + t * hi` with
+`t = p / 100`, `lo = -G u` and `hi = (K - G - 1) u`, each rung held into
+`[lo, hi]` and placed on the grid, `u` one step of the grid step 4 of
+G5.3b names (one where no width is named). The strata then take points
+about one step apart on their own sign bands, so the twin keeps the
+block's type, its sign counts and its count of different numbers and
+claims nothing else. Measured on an 8-value block at floor 11: before
+the ramp the sign fallback wrote `1.0` eight times and the twin was
+re-described as another role; with it, 0 to 7 and nothing missed.
+
+### G5.3e The listed tail (stage 3, plan P4-D324)
+
+A tail whose `values` list is not empty -- on a block with a grid, a
+tail of at most six different values, or one whose published facts
+would otherwise solve for its end (contract 6.7, TL6) -- is read as a
+STAIRCASE over its own rows. The listed values are taken OUTERMOST FIRST
+(ascending on the low side, descending on the high side), each holds at
+least one row, and the `R = m - L` rows over (`L` values) are placed by
+this rule:
+
+- every binary64 of the tail -- `b`, the values, `d1`, `rms` -- is
+  written as a whole number of one shared power of two, exactly, so a
+  value's distance `A_i = |b - v_i|` and its square are whole numbers,
+  and so are the targets `S1 = m * d1` and `S2 = m * rms * rms`;
+- the candidates are the count vectors `c_i = 1 + e_i` whose extras
+  `e_i >= 0` sum to `R` and are nonzero on at most THREE values;
+- the chosen one makes `|sum c_i A_i - S1|` least, then
+  `|sum c_i A_i**2 - S2|` least, then is the smallest vector of extras in
+  lexicographic order, outermost first.
+
+On a grid the summed distance of the real tail is what the published
+`d1` rounds from, so the twin's `d1` is met exactly and its
+root-mean-square as closely as whole counts on three values allow. The
+share `N / D` inside a listed tail reads, counting the rank position
+`t = N K / D` from the tail's outer end (`t` on the low side, `K - t` on
+the high), the first listed value whose running count exceeds that
+position on the low side and reaches it on the high side, and the
+innermost listed value past the tail's rows. The layout of G5.2a
+neither joins nor divides a band's leading or trailing runs that lie
+wholly inside a listed tail's rows: each is one listed value at the
+count solved for it -- UNLESS those runs are the whole band and it is
+owed more strata still, where they are left to the ordinary walk,
+because there is no other run to divide and the twin would otherwise
+hold fewer values than the description names (twenty-four offsets
+written `+0100` and `0100` over eight values: both tails list four
+each, those eight runs are the band, and sixteen different SPELLINGS
+ask for sixteen strata). The pinned end is the outermost listed value.
+
+**A RUN THAT REACHES ACROSS A TAIL'S EDGE IS ONE OF THOSE RUNS**, whole,
+WHERE THE BAND'S RUNS MUST BE JOINED to reach its stratum count: the
+protection reads a run as the tail's where any of its ranks is the
+tail's, and not only where all of them are, on a band with more runs
+than strata. Two qualifications, each measured. Only where the runs
+must be joined, because that is the only case a run can be joined away
+in and the protection is not free: on 150 cells over three values
+written `+100.25`, `200.25` and `300.25`, whose three runs already had
+three strata, protecting the two that reach into a tail split the fifty
+published pluses across two values and the twin wrote four spellings of
+three numbers. And the band is still LEVELLED after it, because the
+runs a listed tail names are the ladder's and the ladder's own boundary
+can stand a rank from the column's: what the tail needs is that the run
+not be joined away, not that it be held still, and holding it still
+gave that same band 49, 53 and 48 cells where the source holds fifty of
+each. A tail's innermost listed value
+is commonly the column's value just inside the boundary as well, so the
+ladder reads one number across the edge, and counting only the runs
+lying WHOLLY inside left that one to the ordinary walk. Measured on 240
+rows of clinical codes at a floor of one, whose high tail lists two
+values and whose inner one stood at eleven ranks, the outer two of them
+the tail's own: the walk joined that run to its neighbours, the stratum
+that swallowed it read its own share instead, and the twin wrote five
+cells at `920759` where the table holds `920760` -- so `validate`
+MISSED `tails.high.values`. The run is kept WHOLE rather than cut at the
+edge, which was the first repair and cost more than it bought: a cut
+spends one of the band's strata on the tail's own part, and on 1,140
+readings over eleven values it took that stratum off the published
+MODE -- 210 cells written nowhere, `-1.4` written in 307 cells against
+170, and the median moved with them.
+
+Why. On a bounded scale the tail holds a handful of values each held by
+several rows, and G5.3b's smooth reading rounded onto that grid wrote
+values the scale does not have and never wrote its real end: a pain
+score of 0 to 10 at floor 11 wrote 50 cells at 11 and none at 10, and its
+twin's mean was 25 per cent high with nothing missed (the skeptic's B1).
+The owner's ruling of 2026-09-22 settles what may be said: "many people
+will be there and there is no big deal in knowing that it's there".
+With the listed tail, 13 columns of pain, GCS, a surgical risk grade,
+Apgar, children and Likert scales at two seeds write no off-scale cell
+and every real value.
+
 ### G5.4 The integer rule
 
 When `integer_valued` is published **true**, every value of the K
@@ -1943,6 +2320,24 @@ only for a profile whose `min`/`max` contradict its own sign counts —
 the endpoint stops being EXACT-OBSERVABLE for that column and the report
 names the achieved endpoint beside the published one.
 
+### G5.5a The sign rule on a derived end (stage 3)
+
+A derived end (G5.3b step 4, G5.3c) is held to the sign counts after it
+is placed on the grid: where the block has no negative number the low
+end is at least nought -- nought where `n_zero > 0`, otherwise the
+smaller of `b` and one grid step where it would be nought or less --
+and symmetrically the high end where the block has no positive number;
+ONE STEP HERE IS THE SMALLEST POSITIVE NUMBER THE FORMAT HOLDS where
+the block names no width, its boundary rung gives no places, and the
+step that leaves is not smaller than that rung: `min(b, one)` hands
+back `b` itself there and the tail's rows have nowhere to stand (120
+subnormal numbers, `5e-324` times 1 to 120, whose whole column is
+smaller than one);
+then the low end is at or below `b` and the high end at or above it. A
+published heaped end is never moved. The pinned strata keep G5.5's plain
+fallbacks for anything this leaves (a profile whose ends contradict its
+sign counts).
+
 ### G5.6 The two-sided rung envelope
 
 This is the acceptance bound the disposition battery applies to a
@@ -2040,6 +2435,16 @@ test battery; review item P2-C1-F4 ruled that delegating a normative
 bound to a battery leaves an approximated fact with no bound at all,
 since a battery is not a document an independent implementer can
 conform to.
+
+### G5.6a The envelope on a tail block (stage 3)
+
+On a tail block the ends are DERIVED and not EXACT-OBSERVABLE: `min`
+and `max` are checked only where published (a heaped end), and then
+ONE-SIDED and silently -- no cell of the file beyond the end, and the
+file's own extreme never printed (validation method V5). The rank form
+and its `d = (g_max + 2) / K` stand unchanged over the tail ladder of
+G5.1a, so G12.2's and G12.3's windows are drawn through it. A rung the
+tail rule withholds carries no window and is LISTED.
 
 ## G6. Numeric spelling
 
@@ -3373,7 +3778,18 @@ only to finish a count nothing else can — the rule G6.4's padded walk
 keeps over the cells, kept here over the values, and for a second
 reason of its own: a stratum holds ONE value, so a stratum that is only
 partly spare cannot move without breaking the demand it is half
-serving.
+serving. **And WHICH strata a demand takes decides where the surplus is
+left, which is the only thing G6.6.3 has to spend** (stage 3, landing
+3.3): the two PINNED strata are served first, because G6.6.3 may move
+neither, so a spare cell there serves nothing at all; and the rest are
+served from the widest values DOWN, so what is left over is the
+smallest stratum of its width — the one whose own stretch reaches the
+narrower field. It is the demand order's own reasoning, read over the
+strata: a value that fits a narrow ceiling fits every wider one, so it
+is the last thing a wide demand should take. Measured on 120 record
+codes `S00042` at a floor of eleven, where stage 3's derived high end
+held the surplus: 110 cells of five figures against a published 109,
+one four-figure cell short, and nowhere to take it from.
 
 **G6.6.3 One stratum moves, and the rules it may not break.** Where a
 demand is short, one stratum takes a value of the figure count that
@@ -3403,6 +3819,27 @@ the stratum's share and G5.4 rounds it to the nearest whole number, so
 every whole number within HALF A UNIT of the share is one an ordinary
 run could have produced for this stratum: a share of `(9.18, 11.55)`
 yields 9, 10, 11 and 12, not 10 and 11 alone.
+
+**A STRATUM HOLDING ONE OF A TAIL'S ROWS TAKES THE ROOM BETWEEN ITS
+TWO NEIGHBOURS INSTEAD OF ITS SHARE** (stage 3, landing 3.3; contract
+6.7a). A-P4-18 bounds the move by the stratum's stretch because the
+ladder's rungs are published values and a stratum leaving its own
+stretch is a twin disagreeing with a fact somebody can read. Beyond a
+boundary percent no rung is published: what the description states
+about those rows is their count and their two distances, both
+approximated facts with windows of their own (G12.13), and the
+staircase step they stand on is a choice G5.3b makes rather than a
+value the source held. So the room for such a stratum is the order
+itself — strictly between the value the stratum below holds and the
+value the stratum above holds, so the order of the values and the
+count of different ones both stand — and, the walk taking the NEAREST
+candidate inside it, what the move spends of the two distances is the
+least it can. Measured on the 120 record codes above: eleven cells are
+published padded at five figures, the twin's staircase put ten of its
+rows under ten thousand and the eleventh at 10009, no other stratum
+could reach four figures, and with the room that stratum takes 9999 —
+ten units of a mean distance of 6593.3 — and the twin writes the
+eleven padded cells it owes.
 
 That half unit is G5.4's own, the one G12.2 already widens the rung
 window by, so this rule grants nothing the method had not granted
@@ -3845,6 +4282,27 @@ whose neighbouring bin holds no free whole number, or a stratum whose
 sign band ends at the edge it would have to cross. `empty_bins` is
 REPORT-ONLY on that measurement (contract 7.11), so `synthtwin
 validate` LISTS the fact rather than holding a file to it.
+
+### G6.7a The scale of a tail block (stage 3, plan P4-D325)
+
+On a tail block the thirty-two bins divide `[b_lo, b_hi]`, the two
+boundary rungs, by contract C6-31f's arithmetic, and **a value outside
+that stretch is in no bin**: G6.7 never moves a tail value. The
+description publishes the real edges only of a run of empty bins with an
+occupied bin on BOTH sides -- two interior values, the owner's principle
+("just showing that the value exists is not an issue") -- and withdraws
+the edges of a run touching an end bin, whose outer neighbour would be a
+tail value; G6.7 walks a run with published edges to them as before and
+a run touching an end bin to the edges of its own bins. `value_histogram`
+is `{}` on a tail block, and `bin_groups` (contract BG1) carries the
+census in groups of at least `max(small_cell_floor, 3)` rows.
+
+Why "no bin" is load-bearing: with the clamp of `histogram_bin` a tail
+value below `b_lo` reads as bin 0, and on a 40-value block whose bin 0
+was empty G6.7 dragged twelve of its low ranks onto the boundary. The
+price of withdrawing the tail edges is measured on the three two-cluster
+witnesses of `r_p4_136_l8_empty_bins.py` and recorded against K-P4-07,
+whose rule is restated to interior stretches (plan P4-D325).
 
 ### G6.8 A count column that publishes every spelling is written as them
 
@@ -5052,7 +5510,7 @@ them where the published count was missed.
 *Stage 3, plan P4-D328. It replaces the two published ends, which are
 gone from the format.* Each side of a column of dates publishes
 `{boundary, rows, mean_distance, rms_distance, values}` and the tail unit
-they are counted in (contract TL1 to TL4). Where `values` is null the
+they are counted in (contract DT1 to DT4). Where `values` is null the
 `m = rows` ranks beyond the boundary are drawn through ONE SHAPE whose
 mean and mean square over a uniform share are the two published
 distances. Everything below is binary64 arithmetic in `+ - * /` and
@@ -5062,7 +5520,7 @@ logarithm is used anywhere, and the one integer decision is made by
 exact whole-number comparison.
 
 Write `d1 = mean_distance` and `rho = rms_distance`, both at least one
-unit by TL3.
+unit by DT3.
 
 1. **The shape.** `t = rho / d1`; `r = t * t`; where `r < 1`, `r = 1`.
    The POWER `n` is the largest whole number with
@@ -5239,7 +5697,7 @@ holds few different values, or where its two distances would settle the
 outermost value or a count below the floor, the description publishes
 the tail's sorted distinct `values` instead of its root-mean-square
 distance, and its mean distance beside them only where that settles no
-count below the floor (contract TL1, TL3). It publishes them only where
+count below the floor (contract DT1, DT3). It publishes them only where
 each of its DISTANCES carries one canonical text; where a distance
 carries two -- which a day of the shared clock does, holding a bare
 date's midnight and a moment's two hours before it -- the tail
@@ -5280,7 +5738,7 @@ Its gap is that one place, so no later pass moves it.
 #### G7.3d A column with no tails: the made-up ramp
 
 *Stage 3, plan P4-D330.* A column too small for a boundary on each side,
-or one so tied at an end that the two boundaries cross (contract TL2),
+or one so tied at an end that the two boundaries cross (contract DT2),
 publishes no tail, no rung and no value of the table at all. Its cells
 are still counted, so the twin writes a RAMP that meets the counts and
 claims nothing: rank `0` stands at 1970-01-01 -- ordinal nought in every
@@ -10122,9 +10580,13 @@ rules that build them:
 * `date_percentiles.p<nn>` — the same for a date ladder
 * `<n>_tail.mean_distance` — how far, on average, the cells beyond one
   TAIL's boundary lie beyond it, `<n>` the side that tail stands on,
-  `low` or `high` (stage 3, plan P4-D328)
+  `low` or `high`, on a column of dates or clock times (stage 3, plan
+  P4-D328)
 * `<n>_tail.rms_distance` — the same for the root-mean-square distance,
-  which a tail publishes where it publishes no values
+  which such a tail publishes where it publishes no values
+* `tails.<key>.<key>` — one distance of one NUMERIC tail (stage 3,
+  contract 6.7a): the first `<key>` is `low` or `high` and the second is
+  `mean_distance` or `rms_distance`
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach
@@ -10228,7 +10690,9 @@ check.
 
 ### G12.2 The bound on the nine interior numeric rungs
 
-G5.6 states it, and it is not restated here. Its two forms are used
+G5.6 states it, and it is not restated here. On a tail block it is read
+through G5.3b's ladder (G5.1a), and a rung the tail rule withholds has no
+window. Its two forms are used
 below: the rung form, over the nine published interior rungs, and the
 rank form, over every sorted position of the twin's own numeric cells.
 Both use the same displacement `d = (g_max + 2) / K`, where `K` is the
@@ -10299,6 +10763,9 @@ half unit above where it does. These two are the only widenings this
 document grants.
 
 ### G12.3 The bounds on `mean`, `std` and `skew`
+
+On a tail block every `Ladder` below is read through G5.3b's ladder
+(G5.1a); a block below its floor publishes no moment and has no window.
 
 Let `V` be the twin's own numeric cells, sorted, read back through
 `parsing.parse_number`; `K = len(V)`; `p_k = k / (K - 1)`; and, with
@@ -11118,6 +11585,44 @@ shape ledger K-2B-50 names: the twin's own re-described block publishes
 a hundred pooled cells at a mean of 204.5, and the twin built without
 the placement publishes a hundred at 100 and is MISSED.
 
+### G12.13 The window on the tail facts (stage 3, plan P4-D344)
+
+For one side, with `K` the numbers, `g` the widest stratum both reports
+read (`_window_stratum`), `d = (g + 2) / K` and the half unit of G12.2:
+every twin cell at rank `i` lies in
+
+```
+[lo_i, hi_i] = [Ladder(i / (K - 1) - d) - half, Ladder(i / (K - 1) + d) + half]
+```
+
+(G5.6's rank form, read through the tail ladder of G5.1a), and the twin's
+own boundary rung -- a type-7 reading at `h = (K - 1) P / 100` -- lies
+between `lo` at rank `floor(h)` and `hi` at rank `ceil(h)`. Each tail row's
+distance from that boundary is therefore at least the gap between the
+nearer two ends (held at nought) and at most the gap between the further
+two, so
+
+```
+mean_distance' in [ (1/m) sum near_i , (1/m) sum far_i ]
+rms_distance'  in [ sqrt((1/m) sum near_i**2) , sqrt((1/m) sum far_i**2) ]
+```
+
+summed with `fsum`. It is a statement about the construction, never a
+tolerance; HELD where the file's number equals the published one
+(V6.1-A1). The file's tail is read AT THE PUBLISHED PERCENT: a file of the
+published count has its tail there, and one whose own tail stands
+elsewhere has its distances withheld rather than compared at another
+percent. Its power is limited exactly as G12.2's and G12.3's are at a
+raised floor, because the widest stratum is read off the floor where the
+mode is withheld; the skeptic's straight-line mutant (a twin whose tail
+reach is 70 per cent too long) is inside it at 5,000 rows, as it is
+inside G12.3's spread window.
+
+A LISTED tail's `values` are EXACT: the file's own tail at that percent
+lists the same values, or -- where the list is short enough
+(`TAIL_VALUES_MOST`, six) that a file holding those values would list
+them -- the file misses.
+
 ### G12.14 The window on a date or clock tail's two distances
 
 *Stage 3, plan P4-D328.* `mean_distance` and `rms_distance` are
@@ -11738,7 +12243,58 @@ could see the other's case; the line is judged against the merged file
 from now on. The provenance manifest's 250000-byte cap is unaffected and
 the file stands well inside it.
 
-**All one hundred and twelve are required.** The count is taken off the committed
+**THE TAIL RULE OF STAGE 3 ADDS FIVE, AND THEY ARE THE TENTH AND
+ELEVENTH FILES** (landing 3.3, plans P4-D322 to P4-D327 and P4-D344). Every column
+they describe publishes NO rung outside its two boundary percents,
+which no case committed before stage 3 does, so the whole of the rule
+could have been withdrawn with every committed byte of the other nine
+files unchanged. The tenth file,
+`tests/reference/generation-branch-vectors-8.json`, holds
+`tail_shape_ends` -- G5.3b's reading of a tail's rows and the two
+DERIVED ends, on a column whose low tail fits a nearly straight shape
+and whose high one fits a power of sixteen -- and `tail_made_up_ramp`,
+the ramp of G5.3d on a block of eight rows at a floor of eleven. The
+eleventh, `tests/reference/generation-branch-vectors-9.json`, holds
+`tail_listed_counts`, the staircase of G5.3e and the counts solved for
+it on a grid of whole numbers; `tail_sign_clamped`, G5.5a's hold on a
+derived end that reaches past nought on a column with no negative
+number; and `tail_moment_ladder`, the uniform of G5.3c on a block too
+thin for two tails. The six are cut into two files because a committed
+fixture must stay under the provenance manifest's 250000-byte cap and
+each case describing a column dense enough to fill its own histogram
+costs about seventy kilobytes of proved numbers.
+
+**A PUBLISHED (HEAPED) END HAS NO FROZEN CASE, AND THAT IS A GAP NAMED
+AS ONE.** Step 1 of G5.3b's derived end -- a published end IS the end
+-- is unreachable by a mutant on a column whose values stand on a
+grid: an end is published only where at least max(`small_cell_floor`,
+3) rows hold it, twelve rows with eleven of them on one value hold at
+most two different values, so the tail is LISTED and G5.3e's step 2
+returns the same end. On a column with NO grid the case must publish
+several fraction widths or an exponent form, and G6.6's allocation of
+those across the cells is a transform this oracle does not state; a
+case built that way had the two implementations part company over
+which strata wear the exponent form, which is a disagreement about
+G6.4 and not about the tail rule. The step is pinned by the round
+trips of `tests/test_taxonomy.py` and `tests/test_validation.py`, and
+it is named here rather than left to be discovered.
+
+**AND ONE SENTENCE OF THE MIGRATION REFUSAL NOW OVERSTATES WHAT A CODE
+COLUMN PUBLISHES, WHICH IS NAMED HERE BECAUSE IT CANNOT BE EDITED.**
+The refusal a version 4 description raises says that without the
+`--code` given the first time, "its smallest and largest values --
+which are real codes -- are published". Under the tail rule they are
+published only where a group of at least max(`small_cell_floor`, 3)
+rows holds the end; on a column of different codes neither is. The
+sentence is fixed word for word by contract version 5, section 10.2
+(C5-26), which is a frozen document, so the wording stands and the
+overstatement is recorded rather than repaired. What it overstates is
+in the safe direction -- it warns of a disclosure larger than the one
+that happens -- and the clause beside it, `--missing-value`'s "CAN be
+published as the column's smallest value", is exactly right under the
+new rule.
+
+**All one hundred and seventeen are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -11756,10 +12312,14 @@ eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
 holds ten; the eighth,
 `tests/reference/generation-branch-vectors-6.json`, holds fourteen; the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
-and the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
-four (G14.2), and a test holds this sentence to those files.
+the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
+six; and the ELEVENTH,
+`tests/reference/generation-branch-vectors-9.json`, holds three (G14.2),
+and a test holds this sentence to those files.
 
-**THE TENTH FILE, AND WHY IT WAS OPENED** (stage 3, plan P4-D328). A
+**THE TENTH AND ELEVENTH FILES, AND WHY THEY WERE OPENED** (stage 3,
+plans P4-D328 and P4-D322 to P4-D327 and P4-D344). BOTH of stage 3's tail landings
+opened a file here, and in one tree the tenth holds both sets. A
 column of dates or clock times needs `2F + 1` cells to publish a tail
 at all, and a case whose rule lives BETWEEN the two boundaries needs a
 body of several ranks besides, so four cases grew at the tail landing:
@@ -11767,7 +12327,13 @@ body of several ranks besides, so four cases grew at the tail landing:
 `midnight_days`. Grown in place they carried the third file to 261857
 bytes and the second to 258476 against the manifest's 250000-byte cap,
 so the four moved into a file of their own and both fell back under it.
-No case was dropped and no cap was raised.
+The NUMERIC tail rule's five cases (landing 3.3) could go in no earlier
+file either -- the seventh, eighth and ninth all stand past the 200000
+bytes plan P4-D295 draws the line at -- and five of them do not fit
+under the 250000-byte cap in one file beside the date landing's four, so
+two stand in the tenth (`tail_shape_ends`, `tail_made_up_ramp`) and
+three open the eleventh (`tail_listed_counts`, `tail_sign_clamped`,
+`tail_moment_ladder`). No case was dropped and no cap was raised.
 
 **AND THREE BRANCHES LOST THEIR WITNESS AT THAT LANDING**, recorded
 here rather than left to be discovered. `date_endpoint_ties` was frozen
@@ -11824,6 +12390,11 @@ case passed, which is the failure the count exists to prevent:
 | `judged_stand_in_written` | G10.1's write rule with a judged stand-in among the absent cells (plan P4-D6.4): `numeric_integer`'s twenty values beside twenty-two absent cells, eleven of which held `-999`, which the column's own stand-in pass judged to mean "no value", and eleven of which held nothing. The twin writes `-999` in eleven cells and leaves eleven empty, placed by G4.2's one arrangement. Its mutant is the rule this replaced, which wrote a judged pass's cells empty, and the eleven `-999` cells move |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `pushed_along_band` | G6.5a's push of a collision the walks leave along its band to the nearest free point (the carried numbers repair pass of 2026-09-19): fourteen one-place readings from 2.6 to 3.9 beside four far ones, 53.6, 67.1, 134.8 and 135.7, eighteen different numbers each written once and no empty stretch published. Once the walks are done the run's fourteen strata stand on thirteen of its tenths, two of them on 3.4, and the free tenth 3.9 lies past the walk's reach; the push moves the second 3.4 and every stratum above it one tenth up. Its mutant withdraws the push, and the twin writes 3.4 a second way, `03.4`, holding seventeen numbers against eighteen |
+| `tail_shape_ends` | G5.3b's reading of a tail's own rows and the two DERIVED ends (stage 3, landing 3.3): sixty one-place readings whose twelve smallest and twelve largest are withheld by the tail rule, the low tail fitting a nearly straight shape and the high one a power of sixteen because one row stands far past the others. Its mutant withdraws the OUTWARD move of plan P4-D326 and the high end falls back inside the rows it stands for |
+| `tail_made_up_ramp` | G5.3d's ramp (stage 3): eight whole numbers at a floor of eleven, a block below one tail's own rows, publishing no rung, no moment and no style. Its mutant leaves the ramp flat at nought, which is what the sign fallback wrote before the ramp existed |
+| `tail_listed_counts` | G5.3e's staircase and the counts solved for it (stage 3, plan P4-D324): seventy-two whole numbers from 0 to 54 on a grid, four cells each at the three values of either end, so both tails are few-valued and the description publishes the values themselves. Its mutant gives every listed value one row and the rest to the outermost, and the staircase moves |
+| `tail_sign_clamped` | G5.5a's sign rule on a derived end (stage 3): sixty two-place readings, every one positive, whose low tail's own reading reaches past nought. Its mutant withdraws the rule and the twin writes a negative cell on a column whose description says it has none |
+| `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `saturated_grid_alone` | G6.5a's column-wide fill of a grid with no spare point (plans P4-D147 and P4-D176) where it alone answers: seventy-eight one-place readings from -2.4 to 0.1, the whole numbers written bare, publishing twenty-six different numbers between ends holding exactly twenty-six tenths and twelve point-free cells, no empty stretch published. The band fill stands aside because a stratum it would fill changes whether its value has a point-free spelling, and the push keeps a whole value on the whole points: the two strata the walks leave on -2.0 find every whole point of their band taken, and the one free tenth, -0.1, is not whole. Its mutant withdraws the column-wide fill and nothing else, and the twin writes -1.9 a second way, `-01.9`, holding twenty-five numbers against twenty-six |
 | `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
 | `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |

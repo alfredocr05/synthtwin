@@ -29,6 +29,7 @@ import random
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -356,12 +357,24 @@ def test_both_halves_are_described_and_not_merely_counted(
     # descriptions are checked against.
     assert block["n_numeric_cells"] + block["n_label_cells"] == block["n_present"]
 
-    # THE NUMERIC HALF IS THE READINGS AND NOTHING ELSE.
+    # THE NUMERIC HALF IS THE READINGS AND NOTHING ELSE. Its two ends
+    # said so until landing 3.3; the tail rule of contract 6.7a
+    # withholds both -- 295 different readings, none of them held by
+    # the smallest group's worth of rows -- so the half says it through
+    # the facts that replaced them: the middle rung and the two tail
+    # groups, each worked out here from the readings themselves.
     numbers = [float(reading) for reading in readings]
-    assert block["numbers"]["percentiles"]["min"] == min(numbers)
-    assert block["numbers"]["percentiles"]["max"] == max(numbers)
-    assert min(numbers) < block["numbers"]["mean"] < max(numbers)
-    assert block["numbers"]["n_distinct_values"] == len(set(numbers))
+    half = block["numbers"]
+    assert half["percentiles"]["min"] is None
+    assert half["percentiles"]["max"] is None
+    assert half["percentiles"]["p50"] == float(tail_rule.rung_at(numbers, 50))
+    for low in (True, False):
+        side = half["tails"]["low" if low else "high"]
+        assert tail_rule.stated(side) == tail_rule.expected(
+            half, numbers, 1, low
+        ), low
+    assert min(numbers) < half["mean"] < max(numbers)
+    assert half["n_distinct_values"] == len(set(numbers))
 
     # AND THE LABEL HALF IS THE MARKER.
     assert [level["label"] for level in block["labels"]["levels"]] == [

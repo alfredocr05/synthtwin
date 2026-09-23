@@ -1302,7 +1302,7 @@ def _count_leaves(node: object, path: "tuple[str, ...]" = ()):
         yield (path, node)
 
 
-def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
+def test_k_s3_12(record_property, tmp_path: pathlib.Path) -> None:
     """P4-D332: the counts of one to ten this tool still publishes, held at a ceiling.
 
     The orchestrator's call of 2026-09-22, reversible and to be put to
@@ -1361,7 +1361,7 @@ def test_k_s3_01(record_property, tmp_path: pathlib.Path) -> None:
                     complements = complements + 1
     _kpi(
         record_property,
-        "K-S3-01",
+        "K-S3-12",
         {
             "count_leaves_1_to_10": below,
             "floored_sentence_arguments_1_to_10": unbound,

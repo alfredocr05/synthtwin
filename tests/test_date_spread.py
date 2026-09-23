@@ -958,7 +958,7 @@ def _spend(
     text = fixtures.single_column_table("when", values)
     path = fixtures.write(folder, f"c{parsed}.csv", text)
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC, small_cell_floor=11
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), []

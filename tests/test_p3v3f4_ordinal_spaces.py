@@ -252,7 +252,7 @@ def test_the_finding_s_own_witness_is_now_told_the_truth(
     folder.mkdir()
     # STAGE 3: a column of twelve quarters publishes no value at all --
     # twelve is below `2k + 1` at a floor of eleven, so it has no tail
-    # and no rung (contract TL2). The witness is the same shape at the
+    # and no rung (contract DT2). The witness is the same shape at the
     # size where the obligations exist: 240 quarters over sixty years,
     # measured against a file that keeps both BOUNDARIES exactly and
     # piles everything between them onto one quarter.

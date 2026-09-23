@@ -39,6 +39,7 @@ import statistics
 
 import pytest
 
+import tail_rule
 from synthtwin import contract, profile, reading, validation
 from tests.test_stage2_round_trip import _exit_of, _round_trip
 
@@ -133,14 +134,29 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
         real = _position(cells, mark, place)
         described = first["parts"][place]
         again = second["parts"][place]
-        # The published ends are the real column's own, and the twin
-        # described again carries the same ends and different-number
-        # count at this position.
-        assert described["percentiles"]["min"] == min(real)
-        assert described["percentiles"]["max"] == max(real)
+        # THE ENDS ARE WITHHELD AT EACH POSITION (stage 3, contract
+        # 6.7a): a position's smallest and largest readings are held by
+        # too few rows for the floor, so what the description states
+        # about them is the GROUP beyond each boundary -- and the twin
+        # described again states the same group and the same count of
+        # different numbers at this position.
+        assert described["percentiles"]["min"] is None
+        assert described["percentiles"]["max"] is None
+        assert tail_rule.stated(described["tails"]["low"]) == (
+            tail_rule.expected(described, [float(one) for one in real])
+        )
+        assert tail_rule.stated(described["tails"]["high"]) == (
+            tail_rule.expected(
+                described, [float(one) for one in real], low=False
+            )
+        )
         assert described["n_distinct_values"] == len(set(real))
-        assert again["percentiles"]["min"] == described["percentiles"]["min"]
-        assert again["percentiles"]["max"] == described["percentiles"]["max"]
+        assert again["tails"]["low"]["rows"] == (
+            described["tails"]["low"]["rows"]
+        )
+        assert again["tails"]["high"]["rows"] == (
+            described["tails"]["high"]["rows"]
+        )
         # NOT EXACT AT A POSITION, and the shortfall predates rule 9c:
         # at 300 rows the twin holds one or two numbers fewer at a
         # position than the description publishes (52 of 53, 74 of 76),
@@ -151,7 +167,13 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
         # numbers, and each position's average is the real one's.
         twin = _position(written, mark, place)
         assert len(twin) == rows
-        assert abs(statistics.fmean(twin) - statistics.fmean(real)) < 1.0
+        # THE AVERAGE MOVES A LITTLE FURTHER SINCE STAGE 3 (landing
+        # 3.3): the rows beyond each boundary are described by their
+        # mean distance rather than named one by one, so the twin puts
+        # them where those two moments say and not where the source's
+        # own values were. Measured over these cases, the furthest a
+        # position's average moves is 1.05 of a reading.
+        assert abs(statistics.fmean(twin) - statistics.fmean(real)) < 1.5
     assert len(set(written)) == len(set(cells))
     assert twin_exit == 0
     assert real_exit == 0
@@ -188,10 +210,23 @@ def test_an_undeclared_pressure_comes_back_as_two_numbers(
 # at 1,600 even-rounded rows no seed tried crosses any more. The two
 # replacements were measured on the merged tree only, where the reading
 # is already carried over, not against the validator before ccffc6b.
+# AND ONE WAS RE-CHOSEN AGAIN AT STAGE 3 (landing 3.3): the tail rule
+# describes the rows beyond each position's two boundary rungs as a
+# group, so a twin's repeats fall where those two moments put them and
+# `even-pressure-1200-seed-5` (twin top repeat 9) no longer crosses.
+# THE SEARCH WAS RUN TWICE, and the second time is the one that stands:
+# the landing's own repairs -- a run cut at a listed tail's edge and the
+# separation walking the stratum the tail does not name (method G5.3e)
+# -- moved the first replacement's twin back to 10, one short of the
+# line, so it was no witness either. Searched again over 1200 to 1600
+# even-rounded rows at every data seed from 3 to 25, eighteen tables
+# cross; `even-pressure-1500-seed-7` (real top 9, twin 11) is the one at
+# the row count the replaced case used, and it validates at exit 0 on
+# both files.
 NEAR_THE_LINE = [
     ("pressure-5000-seed-3", "plain", 5000, 3, "3"),
     ("pressure-4500-seed-8", "plain", 4500, 8, "3"),
-    ("even-pressure-1200-seed-5", "even", 1200, 5, "3"),
+    ("even-pressure-1500-seed-7", "even", 1500, 7, "3"),
     ("even-pressure-1400-seed-9", "even", 1400, 9, "3"),
 ]
 
@@ -230,10 +265,18 @@ def test_a_twin_past_the_long_tail_line_is_checked_as_two_numbers(
         real = _position(cells, "/", place)
         described = first["parts"][place]
         again = checked["parts"][place]
-        assert described["percentiles"]["min"] == min(real)
-        assert described["percentiles"]["max"] == max(real)
-        assert again["percentiles"]["min"] == described["percentiles"]["min"]
-        assert again["percentiles"]["max"] == described["percentiles"]["max"]
+        # The ends are withheld at each position (stage 3, contract
+        # 6.7a) and the group beyond each boundary is what the
+        # description states about those rows; the twin described again
+        # states a group of the same size.
+        assert described["percentiles"]["min"] is None
+        assert described["percentiles"]["max"] is None
+        assert tail_rule.stated(described["tails"]["low"]) == (
+            tail_rule.expected(described, [float(one) for one in real])
+        )
+        assert again["tails"]["low"]["rows"] == (
+            described["tails"]["low"]["rows"]
+        )
         assert again["n_distinct_values"] <= described["n_distinct_values"]
         twin = _position(written, "/", place)
         assert len(twin) == rows

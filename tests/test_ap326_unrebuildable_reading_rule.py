@@ -702,7 +702,11 @@ def test_a_column_no_declared_word_reached_keeps_every_check(
         check.subcheck for check in outcome.checks if check.column == readings.name
     }
     assert "presence.n_present" in kept
-    assert "ladder.min" in kept
+    # `ladder.min` stood here until landing 3.3: the tail rule withholds
+    # that rung on a column of different readings (contract 6.7a), so
+    # what the numeric family carries in its place is the group beyond
+    # the low boundary, checked like any other published fact.
+    assert "tails.low.mean_distance" in kept
     moved = {
         listing.column
         for listing in outcome.listings

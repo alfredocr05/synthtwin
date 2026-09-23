@@ -209,10 +209,10 @@ def test_the_loader_refuses_midnight_beside_a_moment_off_midnight(
     document = copy.deepcopy(_moments_document(tmp_path))
     column = _column(document)
     column["all_at_midnight"] = True
-    # ...AND THE TAIL UNIT WITH IT (stage 3, contract TL4): the unit a
+    # ...AND THE TAIL UNIT WITH IT (stage 3, contract DT4): the unit a
     # column's tails are counted in follows from the block's own fields,
     # and a column claiming to stand at midnight counts in DAYS. Left at
-    # `second`, the edit trips TL4 first and the refusal this test is
+    # `second`, the edit trips DT4 first and the refusal this test is
     # about is never reached.
     column["tail_unit"] = "day"
     assert "D14" in _refused(tmp_path, document)

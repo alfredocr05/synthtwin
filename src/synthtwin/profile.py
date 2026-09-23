@@ -840,6 +840,14 @@ _BIN = "histogram-bin-number"
 # nobody. Filing both under one word would hide the ONE fact in this
 # document the floor does not reach.
 _EMPTY_BIN = "histogram-bin-number-holding-nothing"
+# THE TWO KINDS THE TAIL RULE ADDS (stage 3, plan P4-D344), neither of
+# them a count of rows and so neither held to the floor: the boundary
+# percent of a tail, a whole number from 1 to 99 that follows from the
+# row count and the floor alone (contract L4), and a bin's number where
+# a group of bins begins or ends (contract BG1). A counts gate that
+# floored them would read "bin 3" as a group of three.
+_TAIL_PERCENT = "tail-boundary-percent"
+_BIN_INDEX = "histogram-bin-number-of-a-group"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -858,7 +866,7 @@ _VERSION = "the-version-that-wrote-this"
 # whitespace and never a word of that line (plan P4-D80).
 _MAYBE_OBJECT = "object-or-nothing"
 # A list, or nothing at all: the values a date or clock tail holds, which
-# it publishes only where it holds few of them (stage 3, contract TL1).
+# it publishes only where it holds few of them (stage 3, contract DT1).
 _MAYBE_ARRAY = "array-or-nothing"
 # A canonical moment, or nothing at all: a rung of a date or clock ladder
 # the tail rule withholds (stage 3, contract D11 and T2).
@@ -1357,6 +1365,36 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "parts", _EACH, "empty_edges"): _ARRAY,
     ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH): _ARRAY,
     ("columns", _EACH, "parts", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
+    # THE TAIL FACTS (stage 3, plan P4-D344, contract L4 and T1 to T4):
+    # null below the block floor, two nulls where only the moments are
+    # published, otherwise per side the boundary percent, the rows
+    # beyond it, their mean and root-mean-square distance from it, and on
+    # a listed grid tail its values.
+    ("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,
+    ("columns", _EACH, "parts", _EACH, "tails", "low"): _MAYBE_OBJECT,
+    ("columns", _EACH, "parts", _EACH, "tails", "high"): _MAYBE_OBJECT,
+    **{
+        ("columns", _EACH, "parts", _EACH, "tails", side, leaf): kind
+        for side in ("low", "high")
+        for leaf, kind in (
+            ("percent", _TAIL_PERCENT),
+            ("rows", _FLOOR_COUNT),
+            ("mean_distance", _NUMBER),
+            ("rms_distance", _NUMBER),
+            ("values", _ARRAY),
+        )
+    },
+    **{
+        ("columns", _EACH, "parts", _EACH, "tails", side, "values", _EACH): _NUMBER
+        for side in ("low", "high")
+    },
+    # ...and the histogram of a tail block, in groups of at least the
+    # floor between the two boundary rungs (contract BG1).
+    ("columns", _EACH, "parts", _EACH, "bin_groups"): _ARRAY,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH): _OBJECT,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "first"): _BIN_INDEX,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "last"): _BIN_INDEX,
+    ("columns", _EACH, "parts", _EACH, "bin_groups", _EACH, "count"): _FLOOR_COUNT,
     # The affixed-number role: the pair it publishes, how many cells
     # wore it, and the four counts that answer for the CORES rather
     # than for the cells.
@@ -1472,6 +1510,36 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "empty_edges"): _ARRAY,
     ("columns", _EACH, "empty_edges", _EACH): _ARRAY,
     ("columns", _EACH, "empty_edges", _EACH, _EACH): _NUMBER,
+    # THE TAIL FACTS (stage 3, plan P4-D344, contract L4 and T1 to T4):
+    # null below the block floor, two nulls where only the moments are
+    # published, otherwise per side the boundary percent, the rows
+    # beyond it, their mean and root-mean-square distance from it, and on
+    # a listed grid tail its values.
+    ("columns", _EACH, "tails"): _MAYBE_OBJECT,
+    ("columns", _EACH, "tails", "low"): _MAYBE_OBJECT,
+    ("columns", _EACH, "tails", "high"): _MAYBE_OBJECT,
+    **{
+        ("columns", _EACH, "tails", side, leaf): kind
+        for side in ("low", "high")
+        for leaf, kind in (
+            ("percent", _TAIL_PERCENT),
+            ("rows", _FLOOR_COUNT),
+            ("mean_distance", _NUMBER),
+            ("rms_distance", _NUMBER),
+            ("values", _ARRAY),
+        )
+    },
+    **{
+        ("columns", _EACH, "tails", side, "values", _EACH): _NUMBER
+        for side in ("low", "high")
+    },
+    # ...and the histogram of a tail block, in groups of at least the
+    # floor between the two boundary rungs (contract BG1).
+    ("columns", _EACH, "bin_groups"): _ARRAY,
+    ("columns", _EACH, "bin_groups", _EACH): _OBJECT,
+    ("columns", _EACH, "bin_groups", _EACH, "first"): _BIN_INDEX,
+    ("columns", _EACH, "bin_groups", _EACH, "last"): _BIN_INDEX,
+    ("columns", _EACH, "bin_groups", _EACH, "count"): _FLOOR_COUNT,
     # The counts every numeric-looking column carries, and the ones a
     # column of numbers nothing can hold carries in their place.
     ("columns", _EACH, "n_negative"): _COUNT,
@@ -1494,8 +1562,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # all" is written `null` since landing 2b.6, and it covers a real
     # nought too: see `_BOTH_SIDES_OR_UNAVAILABLE`.
     ("columns", _EACH, "n_at_midnight"): _BOTH_SIDES_OR_UNAVAILABLE,
-    # THE TWO TAILS AND THEIR UNIT (stage 3, plan P4-D328; contract TL1 to
-    # TL4), in place of the first and last value and the offsets those two
+    # THE TWO TAILS AND THEIR UNIT (stage 3, plan P4-D328; contract DT1 to
+    # DT4), in place of the first and last value and the offsets those two
     # rows wore. A tail is a boundary held by a real cell that is never one
     # of the outer ones, a count of cells at the floor or above, two
     # distances, and -- where it holds few values -- which values those are.
@@ -1798,7 +1866,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # Read from the one place the two forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
-    # ...and the unit a tail is counted in (stage 3, contract TL4), a
+    # ...and the unit a tail is counted in (stage 3, contract DT4), a
     # closed list read from the one place it is written.
     ("columns", _EACH, "tail_unit"): parsing.TAIL_UNITS,
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
@@ -2408,6 +2476,14 @@ def _leaf_is_published(
         if value != "0" and value[:1] == "0":
             return False
         return 0 <= int(value) < parsing.HISTOGRAM_BINS
+    if kind == _BIN_INDEX:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < parsing.HISTOGRAM_BINS
+    if kind == _TAIL_PERCENT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value <= 99
     if kind == _EMPTY_BIN:
         # A BIN NUMBER, WRITTEN AS A NUMBER AND NOT AS A KEY. It stands
         # in a list rather than at the key of a mapping, so the
@@ -2784,12 +2860,12 @@ def _says_no_count(argument: object) -> bool:
     """Whether this argument is `said_some_but_not_all`, which names none.
 
     THE SECOND THING A FLOORED POSITION MAY CARRY INSTEAD OF DIGITS
-    (contract NF60). `_is_the_fragment` above answers the small case:
+    (contract NF61). `_is_the_fragment` above answers the small case:
     the count is one or more and below the line, and the reader is
     told the shape of the number. This answers the COMPLEMENT case: the
     count reaches the line and what it leaves over against its
     population does not, so the digits would publish that remainder by
-    subtraction -- and NF59 cannot stand there either, because "fewer
+    subtraction -- and NF60 cannot stand there either, because "fewer
     than 11" is false of a count of 1,199.
 
     It is accepted AT ANY FLOORED POSITION AND AT ANY LINE, and there
@@ -2881,17 +2957,25 @@ def _one_argument_is_bound(
         taxonomy.BIND_VOCABULARY,
         taxonomy.BIND_STRUCTURAL,
         taxonomy.BIND_LEVELS_AT_THE_LINE,
+        # THE DESCRIBED TABLE'S OWN POPULATION (contract NF59). There
+        # is nothing here to compare it with and that is the rule, not
+        # a gap: the population is the rows holding a value, counted in
+        # people where a declared identifier repeats, and no key of the
+        # description publishes either count. A loader accepts a
+        # conforming document with the note or without it at any row
+        # count, so a number checked against a key would be a check
+        # this contract does not state.
+        taxonomy.BIND_POPULATION,
         taxonomy.BIND_WORD,
         taxonomy.BIND_NESTED,
         taxonomy.BIND_AFFIX,
         # A VALUE OF THE COLUMN SAID A SECOND WAY, which the stage-3
         # tail rule governs and no count rule can: the epoch-band
-        # remark reads the two ends as calendar days, and the day is
-        # whatever the block publishes in place of the end. The date
-        # and clock landing moves those arguments onto the tail's own
-        # boundaries; until it lands there is nothing here to compare
-        # them with, and `tests/test_p4d334_sentence_arguments.py`
-        # carries the skipped check that names the dependency.
+        # remark reads the two published edges as calendar days. It is
+        # exempt HERE and checked one level up, by
+        # `_epoch_band_quotes_the_published_edges`, because the day at
+        # one position is decided by the band argument and the block
+        # together and not by that position alone.
         taxonomy.BIND_VALUE,
     ):
         return
@@ -2955,6 +3039,46 @@ def _one_note_is_bound(
     )
 
 
+def _epoch_band_quotes_the_published_edges(
+    arguments: "tuple[object, ...]", block: object
+) -> None:
+    """NF51's two days are the two edges the block beside it publishes.
+
+    **AN ADVISORY REMARK MAY NOT OUTLIVE THE FACTS IT QUOTES** (stage 3,
+    plan P4-D345, contract NF51). Arguments 2 to 7 are one value of the
+    column said a second way -- `BIND_VALUE` -- and until both tail
+    landings stood in one tree there was nothing to say it against:
+    they restated `percentiles.min` and `percentiles.max`, which the
+    numeric tail rule then withdrew. Now each end is whatever the block
+    publishes in its place (`taxonomy.published_ends`): the end itself
+    where a group of `tail_units` rows holds it, and the side's
+    boundary rung otherwise. This rebuilds both days from the block and
+    the band argument and refuses the document where either differs, so
+    a description whose ends are gone and whose prose still names them
+    cannot be loaded.
+
+    Guarantees: accepts NF51's seven arguments and the block the note
+    stands on; returns where they agree. Errors raised: the loader's
+    own refusal where the block publishes no edge, where an argument is
+    not a whole number, or where a day differs. No I/O of any kind.
+    """
+    path = ("columns", _EACH, "sentence argument")
+    if not isinstance(block, dict) or len(arguments) != 7:
+        raise _refuse(path)
+    for argument in arguments:
+        if isinstance(argument, bool) or not isinstance(argument, int):
+            raise _refuse(path)
+    edges = taxonomy.published_ends(block)
+    if edges is None:
+        # THE BLOCK PUBLISHES NO EDGE ON ONE SIDE, so both days would be
+        # values nothing else in the description holds -- which is the
+        # one thing a sentence argument may never be (contract 4.5.1).
+        raise _refuse(path)
+    stated = taxonomy.epoch_band_days(arguments[0], edges)
+    if stated is None or stated != tuple(arguments):
+        raise _refuse(path)
+
+
 def _arguments_of_one_form_are_bound(
     form: str,
     arguments: "tuple[object, ...]",
@@ -3000,6 +3124,11 @@ def _arguments_of_one_form_are_bound(
         _one_argument_is_bound(
             form, place, argument, block, document, line
         )
+    if form == taxonomy.REMARK_EPOCH_BAND:
+        # ...AND THE SIX `value` POSITIONS ARE ASKED TOGETHER, because
+        # the day at each of them is decided by the BAND at argument 1
+        # and by the block, not by that position on its own.
+        _epoch_band_quotes_the_published_edges(arguments, block)
 
 
 def _arguments_are_bound(document: "dict[str, object]") -> None:

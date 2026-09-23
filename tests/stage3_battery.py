@@ -16,7 +16,7 @@ kind a count counts. That is half the exposure: a sentence printing
 does NOT count, and forty-three shapes that never plant such a cell
 report the class closed. `numeric_all_but_one_grouped_comma`,
 `dates_beside_ten_words` and `affixed_all_but_one_spelling` plant the
-COMPLEMENT at one to ten, so the second measurement of `K-S3-01` has
+COMPLEMENT at one to ten, so the second measurement of `K-S3-12` has
 something to see.
 
 The shapes are NEUTRAL in the sense plan D13 fixes: the values are
@@ -24,7 +24,7 @@ drawn from a fixed seed, no table enters the repository, and no shape
 is derived from anybody's data.
 
 Used by `tests/test_p4d334_sentence_arguments.py` for the landing's
-gate and by `tests/test_kpi_ledger.py` for `K-S3-01`, the ceiling on
+gate and by `tests/test_kpi_ledger.py` for `K-S3-12`, the ceiling on
 how many published counts of one to ten this tool leaves standing.
 """
 

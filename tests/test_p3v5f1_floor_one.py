@@ -160,6 +160,26 @@ def _is_prose(path: tuple) -> bool:
     return path[:1] == ("columns",) and "remarks" in path
 
 
+def _is_an_edge(path: tuple) -> bool:
+    """Whether this position holds a BIN NUMBER rather than a count.
+
+    `bin_groups` names the groups of bins a tail block publishes its
+    shape in (contract 6.7a, BG1), and each group carries the first and
+    the last BIN it covers beside the rows in it. Those two are
+    positions on the histogram's own scale: a floor of one leaves every
+    bin its own group, so the first group's `last` is nought there and
+    some larger number at a floor of eleven -- which is the shape of a
+    tally of held-back cells and is not one. Nothing is held back in a
+    bin number; the `count` beside it is the count, it is at least one
+    wherever a group exists, and it is inside the walk below.
+    """
+    return (
+        path[:1] == ("columns",)
+        and "bin_groups" in path
+        and path[len(path) - 1] in ("first", "last")
+    )
+
+
 def _whole_field(path: tuple) -> tuple:
     """The smallest whole field of a block that contains ``path``.
 
@@ -391,7 +411,7 @@ def test_every_tally_the_floor_zeroes_is_refused_when_it_is_not_zero(
     right = _walked(loose, ())
     tallies: list[tuple] = []
     for path in sorted(left, key=lambda one: [f"{step}" for step in one]):
-        if path not in right or _is_prose(path):
+        if path not in right or _is_prose(path) or _is_an_edge(path):
             continue
         was = left[path]
         now = right[path]

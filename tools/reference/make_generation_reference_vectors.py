@@ -830,7 +830,9 @@ def even_split(count, strata):
     ]
 
 
-def ladder_runs(ladder, low, count, numeric, integer_valued, figures=-1):
+def ladder_runs(
+    ladder, low, count, numeric, integer_valued, figures=-1, band=None
+):
     """Steps 1 and 2 of method section G5.2a: the ladder's own plateaus.
 
     **Step 1, read the ladder at every rank of the band.**  For
@@ -845,12 +847,17 @@ def ladder_runs(ladder, low, count, numeric, integer_valued, figures=-1):
     ranks whose values are equal, compared as binary64 numbers.  A run
     is a PLATEAU of the ladder: the cells that hold one value.
 
+    **Step 1a, the band's own sign** (plan P4-D327): with ``band`` named,
+    a rank whose value has the wrong sign for it takes the value of the
+    nearest rank of the band that has the right one -- ``held_to_sign``.
+
     Returns ``(lengths, heights)`` in rank order.
     """
     scale = 1 << SIGNIFICAND_BITS
     denominator = numeric * scale
     lengths = []
     heights = []
+    read = []
     for index in range(count):
         value = ladder_at(ladder, (low + index) * scale, denominator)
         if integer_valued:
@@ -860,12 +867,30 @@ def ladder_runs(ladder, low, count, numeric, integer_valued, figures=-1):
             # is the grid value the writer would write there (G5.2a step
             # 1), so a run is a run of one WRITTEN number.
             value = float(grid_text(value, figures))
+        read.append(value)
+    for value in held_to_sign(read, band):
         if lengths and heights[-1] == value:
             lengths[-1] = lengths[-1] + 1
         else:
             lengths.append(1)
             heights.append(value)
     return lengths, heights
+
+
+def held_to_sign(read, band):
+    """G5.2a step 1a: a band's rank values kept to the band's own sign.
+
+    In the positive band every value that is not above nought is read as
+    the first value above nought, and in the negative band every value
+    not below nought as the last value below it; a band holding no value
+    of its sign, and a caller naming no band, keep what they read.
+    """
+    fits = {"positive": (1, 0.0), "negative": (-1, 0.0)}.get(band)
+    kept = [v for v in read if fits is not None and (v - fits[1]) * fits[0] > 0]
+    if not kept:
+        return list(read)
+    nearest = kept[0] if fits[0] > 0 else kept[len(kept) - 1]
+    return [v if (v - fits[1]) * fits[0] > 0 else nearest for v in read]
 
 
 def join_key(lengths, heights, index):
@@ -961,6 +986,751 @@ def levelled(lengths, cap):
     return sizes
 
 
+# --------------------------------------------- THE TAIL RULE (stage 3)
+#
+# Method sections G5.1a to G5.3e, G5.5a: a block that carries `tails`
+# publishes no rung outside its two boundary percents, and the ladder
+# every later rule reads is built from what it publishes INSTEAD -- how
+# many rows lie beyond each boundary, how far from it they lie on
+# average, the root-mean-square of that distance, and, on a grid, the
+# tail's own values.  Written here from those sections and from nothing
+# else: the shipped code states the same rules in `contract.tail_ladder`,
+# and two implementations of one clause is the whole point of this file.
+
+
+# The largest finite binary64, as a number rather than as the exact
+# rational the proof layer above keeps.
+TAIL_LARGEST = float(LARGEST_FINITE)
+
+
+def tail_shape(mean, root):
+    """`(E, lam, j)` of `a(s) = E * (s**j * (lam + (1 - lam) * s))` (G5.3b).
+
+    The mixture of two adjacent whole powers whose mean over a uniform
+    `s` is the published mean distance and whose mean square is the
+    published root-mean-square squared.  Built with `+ - * /` and `sqrt`
+    alone, each correctly rounded, in the order G5.3b fixes and no
+    other, so the reading is the same binary64 everywhere.  A tail whose
+    mean distance is nought is FLAT and its shape is nought.
+    """
+    if not mean > 0.0:
+        return 0.0, 0.0, 0
+    ratio = (root / mean) * (root / mean)
+    if not ratio == ratio or ratio > 1e15:
+        ratio = 1e15
+    ratio = max(ratio, 1.0)
+    power = fitted_power(ratio)
+    second, cross, first, middle, last = (
+        1 / (power + 2),
+        1 / ((power + 1) * (power + 2)),
+        1 / (2 * power + 1),
+        1 / (power + 1),
+        1 / (2 * power + 3),
+    )
+    square, linear, constant = (
+        (first - middle + last) - (ratio * cross) * cross,
+        (middle - 2 * last) - ((2 * ratio) * second) * cross,
+        last - (ratio * second) * second,
+    )
+    blend = 0.0
+    if constant > 0.0:
+        under = linear * linear - (4 * square) * constant
+        root_of = math.sqrt(under if under > 0.0 else 0.0)
+        helper = -0.5 * (linear + (root_of if linear >= 0.0 else -root_of))
+        offered = ([helper / square] if square != 0.0 else []) + (
+            [constant / helper] if helper != 0.0 else []
+        )
+        inside = [value for value in offered if -1e-12 <= value <= 1 + 1e-12]
+        blend = 1.0 if not inside else min(1.0, max(0.0, min(inside)))
+    reach = mean / (second + blend * cross)
+    return (reach if math.isfinite(reach) else TAIL_LARGEST), blend, power
+
+
+def fitted_power(ratio):
+    """The whole `j` with `R(j) <= r < R(j + 1)`, `R(j) = (j+1)**2/(2j+1)`.
+
+    Decided by EXACT rational comparison (G5.3b): `r` is a binary64,
+    hence a whole significand over a power of two, and
+    `(j + 1)**2 * den <= num * (2j + 1)` is whole-number arithmetic.  The
+    search starts at the whole part of `(r - 1) + sqrt(r * (r - 1))`,
+    steps down while `R(j) > r` and up while `R(j + 1) <= r`, so no
+    rounding of the square root decides the power.
+    """
+    exact = fractions.Fraction(ratio)
+    numerator = exact.numerator
+    denominator = exact.denominator
+    start = (ratio - 1.0) + math.sqrt(ratio * (ratio - 1.0))
+    guess = int(start) if math.isfinite(start) and start > 0.0 else 0
+    while guess > 0 and not _reaches(guess, numerator, denominator):
+        guess = guess - 1
+    while _reaches(guess + 1, numerator, denominator):
+        guess = guess + 1
+    return guess
+
+
+def _reaches(power, numerator, denominator):
+    """`R(power) <= r`, in whole numbers."""
+    return (power + 1) * (power + 1) * denominator <= numerator * (
+        2 * power + 1
+    )
+
+
+def shape_at(share, shape):
+    """`a(s)`, in G5.3b's own order and with no `pow`, `exp` or `log`.
+
+    `s**j` is formed by squaring and multiplying over the bits of `j`,
+    most significant first, starting from 1; then `(1 - lam) * s`,
+    `lam + that`, `s**j * that` and `E * that`.
+    """
+    reach, blend, power = shape
+    raised = 1.0
+    if power > 0:
+        for bit in f"{power:b}":
+            raised = raised * raised
+            if bit == "1":
+                raised = raised * share
+    rest = (1 - blend) * share
+    rest = blend + rest
+    return reach * (raised * rest)
+
+
+def tail_share(rows, numbers, numerator, denominator, low):
+    """The share `s` one rank stands at inside a tail (G5.3b).
+
+    Row `i` of `m` stands at the MIDDLE of its own row's share of the
+    tail, `s = (2 i + 1) / (2 m)`, counting from the boundary outward,
+    so the mean of `a(s)` over the tail's rows is the mean of `a` over a
+    uniform `s` -- the published mean distance -- on both sides alike.
+    """
+    width = 2 * rows * denominator
+    if low:
+        above = width - 2 * numerator * numbers - denominator
+    else:
+        above = (
+            2 * numerator * numbers
+            - 2 * (numbers - rows) * denominator
+            + denominator
+        )
+    return math.ldexp((max(0, min(width, above)) << 53) // width, -53)
+
+
+def tail_reading(boundary, share, shape, end, low):
+    """`b - a(s)` held into `[end, b]`, or `b + a(s)` into `[b, end]`."""
+    step = shape_at(share, shape)
+    if low:
+        return min(max(boundary - step, end), boundary)
+    return max(min(boundary + step, end), boundary)
+
+
+def harmonic(rows):
+    """`1 + 1/2 + ... + 1/m`, summed in that order (G5.3b step 4)."""
+    total = 0.0
+    for place in range(1, rows + 1):
+        total = total + 1 / place
+    return total
+
+
+def tail_bound(rows, mean, root):
+    """`d1 + sqrt((m - 1) * max(0, rms**2 - d1**2))` (G5.3b step 4).
+
+    The furthest one row of `m` can stand from the boundary with that
+    mean distance and that root-mean-square.
+    """
+    spread = root * root - mean * mean
+    if not spread > 0.0:
+        spread = 0.0
+    bound = mean + math.sqrt((rows - 1) * spread)
+    return bound if math.isfinite(bound) else TAIL_LARGEST
+
+
+def outward_move(reach, mean, rows, power):
+    """The outward move of G5.3b step 4 (plan P4-D326).
+
+    The end goes out to the larger of the reading at the outermost row's
+    own share and `d1 * H(m)`, which is where the largest of `m` draws
+    of an exponential tail of mean `d1` is expected.  The tail's own
+    bound, applied by the caller, holds it wherever that stands further
+    out than the published moments allow -- a jump tail, every row at
+    one distance, does not move at all.  ``power`` is carried for the
+    reader: the move was made only at a fitted power of 2 or more until
+    the same measurement was taken over the light tails.
+    """
+    if rows <= 1:
+        return reach
+    expected = mean * harmonic(rows)
+    return expected if expected > reach else reach
+
+
+def heaped_end(published):
+    """Step 1 of G5.3b's derived end: a published end IS the end.
+
+    A block publishes `min` or `max` only where at least
+    max(`small_cell_floor`, 3) rows held it (contract TL1), and then the
+    end is that value and the tail's reading is held at or inside it.
+    """
+    return published
+
+
+def tail_unit(figures):
+    """One step of a grid of `figures` figures, or one where none."""
+    unit = 1.0
+    for _step in range(max(figures, 0)):
+        unit = unit / 10.0
+    return unit
+
+
+def tail_grid(value, figures):
+    """A value placed on the grid of G5.3b step 4.
+
+    G5.4's rule where the column is whole or the forms map asks for a
+    point-free cell (`figures` is -2); the text at the widest published
+    fraction width, read back, where one is named; the value itself
+    where no width is named at all.
+    """
+    if figures == -2:
+        return integer_rule(value)
+    if figures < 0:
+        return value
+    # THE GRID TEXT READ BACK, as exact arithmetic rather than as a
+    # format string: the value is scaled by the width's own power of
+    # ten, rounded to the nearest whole number with a tie going to the
+    # even one -- which is what writing it at that width does -- and
+    # read back as the nearest number this format holds.
+    step = fractions.Fraction(10) ** figures
+    scaled = fractions.Fraction(value) * step
+    written = round(scaled)
+    return float(fractions.Fraction(written, 1) / step)
+
+
+def end_sign_held(value, low, boundary, column, figures):
+    """G5.5a: a derived end on the side of nought the sign counts allow.
+
+    Where the block has no negative number the low end is at least
+    nought -- nought where a zero is published, otherwise the smaller of
+    the boundary and one grid step where it would be nought or less --
+    and symmetrically the high end where it has no positive one.  Then
+    the low end is at or below `b` and the high end at or above it.
+    """
+    negatives = column["n_negative"] - column["n_negative_unrepresentable"]
+    zeros = column["n_zero"]
+    positives = column["n_used_in_statistics"] - negatives - zeros
+    barred = (negatives <= 0) if low else (positives <= 0)
+    beyond = (value < 0.0) if low else (value > 0.0)
+    unheld_nought = value == 0.0 and zeros <= 0
+    if barred and (beyond or unheld_nought):
+        step = tail_unit(figures)
+        inward = min(boundary, step) if low else max(boundary, -step)
+        value = 0.0 if zeros > 0 else inward
+    return min(value, boundary) if low else max(value, boundary)
+
+
+def tail_figures(column):
+    """The grid a tail block's own values stand on, in figures.
+
+    `-2` where the column is whole, otherwise the WIDEST width
+    `fraction_widths` names, and -1 where it names none. This is the
+    grid the rows of a tail are placed on (G5.3b's grid staircase); the
+    two ENDS are placed on `end_figures`, which asks the forms census a
+    further question.
+    """
+    if column["integer_valued"]:
+        return -2
+    census = column.get("fraction_widths") or {}
+    named = [int(key) for key in census if key and key.isdigit()]
+    return max(named) if named else -1
+
+
+def end_figures(column, boundary):
+    """The grid a DERIVED END stands on (G5.3b step 4).
+
+    The whole numbers where the forms map names more cells it can only
+    write WHOLE -- `plain` and `leading_plus`, whose cells wear the
+    canonical spelling -- than cells it can only write WITH a point;
+    `leading_zero` is neither, because `01.5` wears that form with a
+    point in it, and the anonymous pool names no form at all. Where the
+    census names no width and the boundary rung itself carries a point,
+    the places that rung's own text writes; otherwise the block's own
+    grid.
+    """
+    figures = tail_figures(column)
+    owed = 0
+    pointed = 0
+    for style, count in (column.get("numeric_styles") or {}).items():
+        if style in ("plain", "leading_plus"):
+            owed = owed + count
+        if style in ("decimal", "exponent_lower", "exponent_upper"):
+            pointed = pointed + count
+    if owed > pointed:
+        return -2
+    if figures == -1 and rung_places(boundary) > 0:
+        return rung_places(boundary)
+    return figures
+
+
+def tail_one_width(column):
+    """The one whole-number field width every numeric cell wears, or -1.
+
+    Held only where `integer_valued` is true, the census names ONE width
+    covering every numeric cell, the block publishes no padded width and
+    no cell is written with leading zeros or under a withheld form -- a
+    padded cell's width is not its value's (G5.3b step 4, plan P4-D14).
+    """
+    if not column["integer_valued"] or column.get("pad_widths"):
+        return -1
+    widths = column.get("field_widths") or {}
+    if len(widths) != 1:
+        return -1
+    # A PUBLISHED ZERO IS ONE FIGURE, whatever the census says: a width
+    # group below the floor is counted into the commonest width (plan
+    # P4-D222), so a census naming one width is not "every cell wears
+    # it" on a column that publishes a zero.
+    if column["n_zero"] > 0 and "1" not in widths:
+        return -1
+    for style in column.get("numeric_styles") or {}:
+        if style in ("leading_zero", "(withheld)"):
+            return -1
+    for key in widths:
+        if not key.isdigit() or widths[key] != column["n_used_in_statistics"]:
+            return -1
+        return int(key)
+    return -1
+
+
+def width_held(value, low, boundary, width):
+    """A derived end held to the one field width the census names.
+
+    The end's MAGNITUDE is held into `[10**(w - 1), 10**w - 1]`, signed
+    again, placed on the whole numbers and then held on its own side of
+    `b` (G5.3b step 4).
+    """
+    if not 1 <= width <= 15:
+        return value
+    smallest = float(10 ** (width - 1))
+    largest = smallest * 10.0 - 1.0
+    size = abs(value)
+    size = smallest if size < smallest else largest if size > largest else size
+    held = integer_rule(-size if value < 0.0 else size)
+    if low:
+        return min(held, integer_rule(boundary))
+    return max(held, integer_rule(boundary))
+
+
+def rung_places(value):
+    """How many places the shortest round-trip text of a number writes.
+
+    The grid a block's own numbers stand on where its census names no
+    fraction width at all (method G5.3b step 4): a derived end may not
+    write more figures than the description's own numbers do.
+    """
+    if value == int(value):
+        return 0
+    mantissa, _mark, exponent = repr(abs(value)).partition("e")
+    _whole, _point, fraction = mantissa.partition(".")
+    places = len(fraction) - (int(exponent) if exponent else 0)
+    return min(17, max(0, places))
+
+
+def tail_steps(column, side, boundary, shape, end, low):
+    """Each row of an UNLISTED tail on its own grid point (G5.3b).
+
+    The reading `a(s)` is smooth, and rounding it onto a published grid
+    puts two rows of a short tail on one value, which costs the twin a
+    NUMBER: the rows are therefore placed from the boundary OUTWARD,
+    each at its own reading, and a row that lands where the row before
+    it stands takes the next grid point outward instead, never past the
+    tail's own end.  Empty on a listed tail, on a flat one, and on a
+    block with no grid, where the reading's own values already differ.
+    """
+    figures = tail_figures(column)
+    rows = side["rows"]
+    if side["values"] or shape[0] == 0.0 or figures == -1 or rows <= 0:
+        return []
+    unit = tail_unit(figures if figures >= 0 else 0)
+    placed = []
+    while len(placed) < rows:
+        share = math.ldexp(((2 * len(placed) + 1) << 53) // (2 * rows), -53)
+        step = shape_at(share, shape)
+        value = tail_grid(boundary - step if low else boundary + step, figures)
+        for last in placed[len(placed) - 1 :]:
+            crowded = (value >= last) if low else (value <= last)
+            if crowded:
+                value = tail_grid(last - unit if low else last + unit, figures)
+        past = (value < end) if low else (value > end)
+        placed += [end if past else value]
+    return placed
+
+
+def derived_end(column, side, boundary, shape, low, published):
+    """The value a tail block's pinned stratum holds (G5.3b step 4, G5.5a).
+
+    In order: a published (heaped) end is the end; a listed tail's end is
+    its outermost listed value; a flat tail's end is its boundary;
+    otherwise the fitted shape read at the outermost row's own share,
+    moved outward, held inside the tail's own bound, placed on the
+    column's grid, stepped one grid step toward `b` where the grid put it
+    past that bound, held to the one published field width, and then held
+    to the sign counts.
+    """
+    if heaped_end(published) is not None:
+        return published
+    listed = list(side["values"])
+    if listed:
+        return listed[0] if low else listed[len(listed) - 1]
+    mean = side["mean_distance"]
+    root = side["rms_distance"]
+    if not mean > 0.0:
+        return boundary
+    rows = side["rows"]
+    width = 2 * rows
+    reach = shape_at(math.ldexp(((width - 1) << 53) // width, -53), shape)
+    reach = outward_move(reach, mean, rows, shape[2])
+    bound = tail_bound(rows, mean, root)
+    if reach > bound:
+        reach = bound
+    end = boundary - reach if low else boundary + reach
+    if not math.isfinite(end):
+        end = -TAIL_LARGEST if low else TAIL_LARGEST
+    figures = end_figures(column, boundary)
+    placed = tail_grid(end, figures)
+    if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
+        step = tail_unit(figures)
+        placed = tail_grid(placed + step if low else placed - step, figures)
+    one_width = tail_one_width(column)
+    if one_width > 0:
+        placed = width_held(placed, low, boundary, one_width)
+    return end_sign_held(placed, low, boundary, column, figures)
+
+
+def shared_unit(values):
+    """The exponent of one power of two every value is a whole multiple of."""
+    places = [
+        -(fractions.Fraction(value).denominator.bit_length() - 1)
+        for value in values
+        if value != 0.0
+    ]
+    return min(places) if places else 0
+
+
+def whole_at(value, unit):
+    """`value` as a whole number of `2 ** unit` units, exactly."""
+    exact = fractions.Fraction(value) / fractions.Fraction(2) ** unit
+    if exact.denominator != 1:
+        raise AssertionError(
+            "the shared unit of a listed tail does not divide one of its "
+            "own values, which the exactness of G5.3e rests on"
+        )
+    return exact.numerator
+
+
+def listed_counts(boundary, listed, rows, mean, root):
+    """How many rows each listed value holds (method G5.3e).
+
+    ``listed`` stands OUTERMOST FIRST.  Every listed value holds at least
+    one row; the `R = m - L` rows over are spread on at most THREE of
+    them; and among all such vectors the chosen one makes the summed
+    distance nearest `m * d1`, then the summed squared distance nearest
+    `m * rms**2`, then is the smallest vector of extras in lexicographic
+    order.  Every comparison is EXACT: `b`, the values, `d1` and `rms`
+    are whole numbers of one shared power of two, so the two sums and
+    the two targets are whole numbers too.
+    """
+    size = len(listed)
+    if size == 0:
+        return []
+    unit = shared_unit([boundary] + list(listed) + [mean, root])
+    scale = fractions.Fraction(2) ** unit
+    away = [
+        abs(whole_at(boundary, unit) - whole_at(value, unit))
+        for value in listed
+    ]
+    first_target = fractions.Fraction(rows) * fractions.Fraction(mean) / scale
+    scaled_root = fractions.Fraction(root) / scale
+    second_target = fractions.Fraction(rows) * scaled_root * scaled_root
+    spare = rows - size
+    if spare < 0:
+        raise AssertionError(
+            "a listed tail names more values than it has rows, which "
+            "contract TL6 refuses"
+        )
+    best = None
+    for extras in _extra_vectors(spare, size):
+        counts = [1 + extras[place] for place in range(size)]
+        summed = 0
+        squared = 0
+        for place in range(size):
+            summed = summed + counts[place] * away[place]
+            squared = squared + counts[place] * away[place] * away[place]
+        key = (
+            abs(summed - first_target),
+            abs(squared - second_target),
+            tuple(extras),
+        )
+        if best is None or key < best[0]:
+            best = (key, counts)
+    return best[1]
+
+
+def _extra_vectors(spare, size):
+    """Every vector of extras summing to `spare`, nonzero on at most three."""
+    if spare == 0:
+        yield [0] * size
+        return
+    seen = set()
+    for first in range(size):
+        for second in range(first, size):
+            for third in range(second, size):
+                for one in range(1, spare + 1):
+                    for two in range(0, spare - one + 1):
+                        three = spare - one - two
+                        if two == 0 and three > 0:
+                            continue
+                        extras = [0] * size
+                        extras[first] = extras[first] + one
+                        extras[second] = extras[second] + two
+                        extras[third] = extras[third] + three
+                        key = tuple(extras)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        yield extras
+
+
+def listed_reading(position, listed, counts, low):
+    """The listed value at one rank position (G5.3e).
+
+    ``listed`` and ``counts`` stand OUTERMOST FIRST on both sides.  The
+    low side takes the first value whose running count EXCEEDS the
+    position and the high side the first that REACHES it; a position
+    past the tail's own rows takes the innermost listed value.
+    """
+    running = [sum(counts[: place + 1]) for place in range(len(counts))]
+    standing = [
+        listed[place]
+        for place in range(len(listed))
+        if (running[place] > position if low else running[place] >= position)
+    ]
+    return standing[0] if standing else listed[len(listed) - 1]
+
+
+def moment_ladder(column, figures):
+    """G5.3c: the uniform with the published mean and spread.
+
+    A tail block publishing its moments and no rung is read as the
+    straight stretch from `mean - sqrt(3) * std` to `mean + sqrt(3) *
+    std`, each placed on the grid and held to the sign counts with the
+    mean standing for `b`.
+    """
+    mean = column["mean"]
+    reach = math.sqrt(3.0) * column["std"]
+    ends = [
+        end_sign_held(
+            tail_grid(mean - reach, figures), True, mean, column, figures
+        ),
+        end_sign_held(
+            tail_grid(mean + reach, figures), False, mean, column, figures
+        ),
+    ]
+    rungs = [
+        min(ends[1], max(ends[0], (1 - place / 100) * ends[0] + place / 100 * ends[1]))
+        for place in range(101)
+    ]
+    rungs[0] = ends[0]
+    rungs[100] = ends[1]
+    return rungs
+
+
+def made_up_ramp(column, figures):
+    """G5.3d: the ramp of a block below its own floor.
+
+    `L[p] = (1 - t) lo + t hi` with `lo = -G u` and `hi = (K - G - 1) u`,
+    `u` one step of the grid, each rung held into `[lo, hi]` and placed
+    on the grid: the strata then take points about one step apart on
+    their own sign bands, and the twin claims nothing else.
+    """
+    numbers = column["n_used_in_statistics"]
+    negatives = column["n_negative"] - column["n_negative_unrepresentable"]
+    unit = tail_unit(figures if figures > 0 else 0)
+    ends = (-negatives * unit, (numbers - negatives - 1) * unit)
+    return [
+        tail_grid(
+            min(
+                ends[1],
+                max(ends[0], (1 - place / 100) * ends[0] + place / 100 * ends[1]),
+            ),
+            figures,
+        )
+        for place in range(101)
+    ]
+
+
+def tail_ladder(column):
+    """The hundred and one rungs of a tail block (method G5.1a).
+
+    Below the block floor the ramp of G5.3d; where only the moments are
+    published the uniform of G5.3c; otherwise the published rungs INSIDE
+    the two boundary percents, each tail's own reading outside them, and
+    the two derived ends at `L[0]` and `L[100]`.  `column` is one column
+    block in the profile's wire shape with its numbers as binary64, and
+    every consumer of this case's ladder reads what this returns.
+    """
+    figures = tail_figures(column)
+    tails = column.get("tails")
+    if tails is None:
+        return made_up_ramp(column, figures)
+    if tails["low"] is None or tails["high"] is None:
+        return moment_ladder(column, figures)
+    numbers = column["n_used_in_statistics"]
+    low = tails["low"]
+    high = tails["high"]
+    low_boundary = _rung_at(column, low["percent"])
+    high_boundary = _rung_at(column, high["percent"])
+    shapes = (
+        tail_shape(low["mean_distance"], low["rms_distance"]),
+        tail_shape(high["mean_distance"], high["rms_distance"]),
+    )
+    # OUTERMOST FIRST on both sides: ascending on the low side and the
+    # published ascending list reversed on the high (G5.3e).
+    listed = (list(low["values"]), list(reversed(high["values"])))
+    counts = []
+    for place, side in enumerate((low, high)):
+        boundary = low_boundary if place == 0 else high_boundary
+        counts.append(
+            listed_counts(
+                boundary,
+                listed[place],
+                side["rows"],
+                side["mean_distance"],
+                side["rms_distance"],
+            )
+            if listed[place]
+            else []
+        )
+    ends = (
+        derived_end(
+            column, low, low_boundary, shapes[0], True,
+            column["percentiles"]["min"],
+        ),
+        derived_end(
+            column, high, high_boundary, shapes[1], False,
+            column["percentiles"]["max"],
+        ),
+    )
+    # ...and each row of an unlisted tail on its own grid point, which
+    # needs the end the reading is held inside (G5.3b's grid staircase).
+    steps = [
+        tail_steps(column, low, low_boundary, shapes[0], ends[0], True),
+        tail_steps(column, high, high_boundary, shapes[1], ends[1], False),
+    ]
+    held = [
+        percent
+        for percent in range(low["percent"], high["percent"] + 1)
+        if _rung_at(column, percent) is not None
+    ]
+    readers = []
+    for place, side in enumerate((low, high)):
+        readers.append({
+            "percent": side["percent"],
+            "rows": side["rows"],
+            "numbers": numbers,
+            "boundary": low_boundary if place == 0 else high_boundary,
+            "end": ends[place],
+            "shape": shapes[place],
+            "listed": listed[place],
+            "counts": counts[place],
+            "steps": steps[place],
+        })
+    rungs = []
+    for percent in range(101):
+        if percent == 0 or percent == 100:
+            rungs.append(ends[0] if percent == 0 else ends[1])
+            continue
+        if low["percent"] <= percent <= high["percent"]:
+            value = _rung_at(column, percent)
+            if value is None:
+                under = [step for step in held if step < percent]
+                value = _rung_at(
+                    column, under[len(under) - 1] if under else held[0]
+                )
+            rungs.append(value if value is not None else 0.0)
+            continue
+        # THE TAIL IS ITS OWN ROWS (G5.3b): a percent outside the two
+        # boundaries whose rank position falls BETWEEN the two tails --
+        # the percent stands between two rows -- reads the boundary rung.
+        if percent * numbers < low["rows"] * 100:
+            if listed[0]:
+                rungs.append(listed_reading(
+                    fractions.Fraction(percent * numbers, 100),
+                    listed[0], counts[0], True,
+                ))
+                continue
+            if steps[0]:
+                # THE ROW THIS PERCENT STANDS AT, counted from the
+                # boundary outward: rank `t` of the low tail is row
+                # `rows - 1 - t`.
+                rank = (percent * numbers) // 100
+                row = low["rows"] - 1 - rank
+                row = 0 if row < 0 else min(row, low["rows"] - 1)
+                rungs.append(steps[0][row])
+                continue
+            share = tail_share(low["rows"], numbers, percent, 100, True)
+            rungs.append(
+                tail_reading(low_boundary, share, shapes[0], ends[0], True)
+            )
+            continue
+        if percent * numbers >= (numbers - high["rows"]) * 100:
+            if listed[1]:
+                rungs.append(listed_reading(
+                    fractions.Fraction(numbers)
+                    - fractions.Fraction(percent * numbers, 100),
+                    listed[1], counts[1], False,
+                ))
+                continue
+            if steps[1]:
+                rank = -((-(percent * numbers)) // 100)
+                row = rank - (numbers - high["rows"])
+                row = 0 if row < 0 else min(row, high["rows"] - 1)
+                rungs.append(steps[1][row])
+                continue
+            share = tail_share(high["rows"], numbers, percent, 100, False)
+            rungs.append(
+                tail_reading(high_boundary, share, shapes[1], ends[1], False)
+            )
+            continue
+        rungs.append(
+            low_boundary if percent < low["percent"] else high_boundary
+        )
+    held = TailLadder(rungs)
+    held.low = readers[0]
+    held.high = readers[1]
+    return held
+
+
+def _rung_at(column, percent):
+    """The rung a block publishes at one whole percent, or None."""
+    name = _NAME_AT_PERCENT.get(percent)
+    if name is not None:
+        return column["percentiles"][name]
+    return column["percentiles_between"][f"p{percent:02d}"]
+
+
+def plain_numbers(value):
+    """One case's column block with every proved field read as its binary64.
+
+    A case's column carries each published number inside a `float64`
+    wrapper (G14.3), and the rules above read plain numbers, so the
+    block is walked once here rather than in each of them.
+    """
+    if isinstance(value, dict):
+        if FLOAT64 in value and "proof" in value:
+            return value[FLOAT64]
+        return {key: plain_numbers(value[key]) for key in value}
+    if isinstance(value, list):
+        return [plain_numbers(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(plain_numbers(item) for item in value)
+    return value
+
+
 # THE FLOOR EVERY CASE IS DESCRIBED UNDER.  tests/test_generation_reference.py
 # builds each case's document with `small_cell_floor: 11`, and G5.2a's cap
 # reads that floor where a case's mode pair is withheld; the test holds the
@@ -1037,8 +1807,39 @@ def floored_cap(bound, floor, numeric, distinct, longest):
     return min(bound, floor - 1)
 
 
+def listed_runs(lengths, low_rows, high_rows, start, numbers):
+    """How many leading and trailing runs lie inside a LISTED tail (G5.3e).
+
+    The layout neither joins nor divides a band's runs that lie wholly
+    inside a listed tail's rows: each is one listed value at the count
+    solved for it, and joining one to its neighbour writes a value the
+    tail names nowhere.  ``low_rows`` and ``high_rows`` are the rows of
+    a listed tail on each side and nought where that side is read by its
+    shape, which is what turns this off.
+    """
+    inside_low = []
+    reach = start
+    for length in lengths:
+        if low_rows <= 0 or reach + length > low_rows:
+            break
+        reach = reach + length
+        inside_low += [length]
+    lead = len(inside_low)
+    inside_high = []
+    reach = start + sum(lengths)
+    for place in range(len(lengths)):
+        length = lengths[len(lengths) - 1 - place]
+        beyond = reach - length < numbers - high_rows
+        if high_rows <= 0 or beyond or place >= len(lengths) - lead:
+            break
+        reach = reach - length
+        inside_high += [length]
+    return lead, len(inside_high)
+
+
 def band_allotment(
-    count, strata, ladder, low, numeric, integer_valued, figures=-1, cap=0
+    count, strata, ladder, low, numeric, integer_valued, figures=-1, cap=0,
+    band=None,
 ):
     """How a band's cells divide between its strata -- method G5.2a.
 
@@ -1087,8 +1888,54 @@ def band_allotment(
         # even split's own largest share instead.
         cap = max(cap, -(-count // strata))
     lengths, heights = ladder_runs(
-        ladder, low, count, numeric, integer_valued, figures
+        ladder, low, count, numeric, integer_valued, figures, band
     )
+    # A LISTED TAIL'S RUNS ARE NEITHER JOINED NOR DIVIDED, and the cap
+    # levels the runs between them and leaves them alone (G5.3e): each
+    # is one listed value at the count solved for it, and joining one to
+    # its neighbour -- or moving cells into it -- writes a value the
+    # tail names nowhere.
+    # WHICH ROWS A LISTED TAIL HOLDS is carried by the ladder itself
+    # (G5.1a), so no caller has to hand it down.
+    reader_low = getattr(ladder, "low", None)
+    reader_high = getattr(ladder, "high", None)
+    listed = (
+        reader_low["rows"] if reader_low and reader_low["listed"] else 0,
+        reader_high["rows"] if reader_high and reader_high["listed"] else 0,
+    )
+    lead, trail = listed_runs(lengths, listed[0], listed[1], low, numeric)
+    if lead + trail > 0 and strata > lead + trail:
+        inner_lengths = lengths[lead:len(lengths) - trail]
+        inner_heights = heights[lead:len(heights) - trail]
+        while len(inner_lengths) > strata - lead - trail:
+            at = min(
+                range(len(inner_lengths) - 1),
+                key=lambda index: (overshoot(inner_lengths, index, cap),)
+                + join_key(inner_lengths, inner_heights, index),
+            )
+            inner_lengths[at] = inner_lengths[at] + inner_lengths[at + 1]
+            del inner_lengths[at + 1]
+            del inner_heights[at + 1]
+        while len(inner_lengths) < strata - lead - trail:
+            at = max(
+                range(len(inner_lengths)),
+                key=lambda index: inner_lengths[index],
+            )
+            whole = inner_lengths[at]
+            inner_lengths[at] = whole // 2
+            inner_lengths.insert(at + 1, whole - whole // 2)
+            inner_heights.insert(at + 1, inner_heights[at])
+        sizes = (
+            lengths[:lead]
+            + levelled(inner_lengths, cap)
+            + lengths[len(lengths) - trail:]
+        )
+        if sum(sizes) != count or any(size < 1 for size in sizes):
+            raise AssertionError(
+                "a band's allotment must cover its own cells with a stratum "
+                "of at least one cell each"
+            )
+        return sizes
     # ``min`` and ``max`` both hold the FIRST extremal item, which is
     # the leftmost-wins-a-tie both halves of step 3 ask for.
     while len(lengths) > strata:
@@ -1153,7 +2000,8 @@ def band_sizes(
                 bands.append(band)
             continue
         for size in band_allotment(
-            count, strata, ladder, low, numeric, integer_valued, figures, cap
+            count, strata, ladder, low, numeric, integer_valued, figures, cap,
+            band,
         ):
             sizes.append(size)
             bands.append(band)
@@ -1206,7 +2054,8 @@ def band_strata(
         if ladder is not None:
             runs_negative = len(
                 ladder_runs(
-                    ladder, 0, negatives, numeric, integer_valued, figures
+                    ladder, 0, negatives, numeric, integer_valued, figures,
+                    "negative",
                 )[0]
             )
             runs_positive = len(
@@ -1217,6 +2066,7 @@ def band_strata(
                     numeric,
                     integer_valued,
                     figures,
+                    "positive",
                 )[0]
             )
             if runs_negative + runs_positive > 0:
@@ -1519,18 +2369,112 @@ def restarted(sizes):
     return starts
 
 
+class TailLadder(list):
+    """A hundred and one rungs and the two tails they are read through.
+
+    A list, so every reader that indexes a ladder reads the same rungs;
+    a reader handed one asks `tail_read_at` first, because a share
+    standing at one of the TAIL's own rows is that row's value and not
+    an interpolation between two rungs (method G5.1a, stage 3).  A block
+    written before stage 3 carries a plain list and nothing changes.
+    """
+
+    low = None
+    high = None
+
+
+def _listed_start(ladder, rank, numbers):
+    """The listed value a stratum starting at ``rank`` holds (G5.3e).
+
+    None where the ladder carries no tail, where the rank is not inside
+    a LISTED tail's rows, and on a tail read by its shape.
+    """
+    low = getattr(ladder, "low", None)
+    if low is not None and low["listed"] and rank < low["rows"]:
+        return tail_read_at(ladder, rank, numbers)
+    high = getattr(ladder, "high", None)
+    if high is not None and high["listed"] and rank >= numbers - high["rows"]:
+        return tail_read_at(ladder, rank, numbers)
+    return None
+
+
+def tail_read_at(ladder, numerator, denominator):
+    """A share inside a tail, read through that tail (G5.3b, G5.3e).
+
+    THE TAIL IS ITS OWN ROWS.  A share `N / D` stands at the rank
+    position `t = N K / D` of the `K` numbers; the low tail holds the
+    ranks below its rows and the high tail the ranks from `K - rows` up.
+    `N = 0` reads the low end and `N = D` the high end exactly, which is
+    what the two pinned strata hold.  A LISTED tail reads its staircase,
+    an unlisted one on a grid its own grid staircase, and any other its
+    shape at the middle of the row's share.  None between the two tails,
+    where the convex form of G5.3 reads the published rungs as before.
+    """
+    low = getattr(ladder, "low", None)
+    if low is not None and numerator * low["numbers"] < low["rows"] * (
+        denominator
+    ):
+        if numerator == 0:
+            return low["end"]
+        if low["listed"]:
+            position = fractions.Fraction(numerator * low["numbers"], denominator)
+            return listed_reading(position, low["listed"], low["counts"], True)
+        if low["steps"]:
+            rank = (numerator * low["numbers"]) // denominator
+            row = low["rows"] - 1 - rank
+            row = 0 if row < 0 else min(row, low["rows"] - 1)
+            return low["steps"][row]
+        share = tail_share(
+            low["rows"], low["numbers"], numerator, denominator, True
+        )
+        return tail_reading(
+            low["boundary"], share, low["shape"], low["end"], True
+        )
+    high = getattr(ladder, "high", None)
+    if high is not None and numerator * high["numbers"] >= (
+        high["numbers"] - high["rows"]
+    ) * denominator:
+        if numerator == denominator:
+            return high["end"]
+        if high["listed"]:
+            position = fractions.Fraction(high["numbers"]) - fractions.Fraction(
+                numerator * high["numbers"], denominator
+            )
+            return listed_reading(position, high["listed"], high["counts"], False)
+        if high["steps"]:
+            rank = -((-(numerator * high["numbers"])) // denominator)
+            row = rank - (high["numbers"] - high["rows"])
+            row = 0 if row < 0 else min(row, high["rows"] - 1)
+            return high["steps"][row]
+        share = tail_share(
+            high["rows"], high["numbers"], numerator, denominator, False
+        )
+        return tail_reading(
+            high["boundary"], share, high["shape"], high["end"], False
+        )
+    return None
+
+
 def ladder_at(ladder, position, denominator):
     """The published ladder read at one exact place (method G5.6).
 
     The same segment rule and the same convex form G5.3 builds values
     with, so a share of the distribution is read by the construction's
-    own arithmetic rather than by a second reading of it.
+    own arithmetic rather than by a second reading of it.  ON A TAIL
+    BLOCK a share standing at one of a tail's own rows is that row's
+    value (`tail_read_at`), which is method G5.1a's one ladder read the
+    way every consumer of it reads.
     """
-    percents = percents_of(ladder)
-    segment = ladder_segment(position, denominator, percents)
-    return convex_interpolation(
-        position, denominator, ladder[segment], ladder[segment + 1], percents
-    )["clamped"]
+    readings = [tail_read_at(ladder, position, denominator)]
+    if readings[0] is None:
+        percents = percents_of(ladder)
+        place = ladder_segment(position, denominator, percents)
+        readings += [
+            convex_interpolation(
+                position, denominator, ladder[place], ladder[place + 1], percents
+            )["clamped"]
+        ]
+    return readings[len(readings) - 1]
 
 
 def convex_interpolation(
@@ -2363,7 +3307,7 @@ def decimal_comma_spelled(content):
 
 def styled_spelling(
     style, value, integer_valued, order, mark="", negative="minus", plus=False,
-    pad=-1,
+    pad=-1, figures=-1,
 ):
     """One numeric cell in its style, with the column's sign spellings.
 
@@ -2371,8 +3315,26 @@ def styled_spelling(
     chosen by `plus_places` then takes a plus in front, ahead of any
     zeros it spent, and a negative is written in the column's notation
     by `negative_spelled` (landing 2b.2).
+
+    ``figures`` is the width the FRACTION CENSUS names for a decimal
+    cell (G6.6), where the census names one width and that width covers
+    every decimal cell of the column: the cell is then written with
+    exactly that many figures after its point, padded where its own
+    shortest round trip is shorter.  No case reached the padding until
+    stage 3 -- every earlier case's values already wore the width its
+    census named -- and a twin of a block whose moments put a stratum on
+    `0.9` under a census of two writes `0.90`.
     """
-    text = _style_text(style, value, integer_valued, order, mark, pad)
+    if (
+        figures >= 0
+        and style == "decimal"
+        and not integer_valued
+        and math.isfinite(value)
+        and order == 0
+    ):
+        text = _group_thousands(grid_text(value, figures), mark)
+    else:
+        text = _style_text(style, value, integer_valued, order, mark, pad)
     if plus and style == "decimal" and text[:1] not in ("-", "+"):
         text = "+" + text
     return negative_spelled(text, negative)
@@ -7578,13 +8540,18 @@ TAIL_KEYS = ("boundary", "rows", "mean_distance", "rms_distance", "values")
 
 # The ordinals of the first and last day every member can write back
 # (G7.3e).  A member writing a two-figure year settles the century at
-# the pivot, so its window is the hundred years the pivot names.
-TWO_FIGURE_MEMBERS = (
-    "two-digit-month-first-date",
-    "two-digit-day-first-date",
-    "dotted-two-digit-month-first-date",
-    "compact-two-digit-date",
-)
+# the pivot, so its window is the hundred years the pivot names, and the
+# members that write one are `TWO_FIGURE_MEMBERS` above -- the same four
+# the contract's member table names.
+#
+# **THIS BLOCK HELD A SECOND `TWO_FIGURE_MEMBERS` UNTIL THE STAGE-3
+# INTEGRATION**, written when G7.3e was, and it SHADOWED the one above:
+# it dropped `dotted-two-digit-day-first-date`, which really does write
+# two figures, and named `compact-two-digit-date`, which is not a member
+# of this contract at all. Every reader of the name -- the day window
+# here and `written_date`'s year field alike -- took the shadowing list.
+# One list now, and it is the one the shipped `parsing.TWO_FIGURE_MEMBERS`
+# holds.
 TWO_FIGURE_FIRST = (1969, 1, 1)
 TWO_FIGURE_LAST = (2068, 12, 31)
 CALENDAR_FIRST = (1, 1, 1)
@@ -7603,7 +8570,7 @@ def readable_days(member, system=""):
 
 
 def unit_ordinal(text, unit, reading):
-    """One published instant as a whole number of TAIL UNITS (contract TL4)."""
+    """One published instant as a whole number of TAIL UNITS (contract DT4)."""
     year = int(text[0:4])
     spans = {
         "quarter": lambda: 4 * (year - 1970) + int(text[6]) - 1,
@@ -13205,6 +14172,12 @@ def _numeric_content(column):
     # how many cells lie inside a gap, which is what made a twin put
     # too few values where the real column crowded them.
     ladder = [column["_rungs"][key] for key in ALL_LADDER_KEYS]
+    # ON A TAIL BLOCK THE RUNGS ARE READ THROUGH THE TWO TAILS (G5.1a):
+    # a share standing at one of a tail's own rows is that row's value
+    # and not an interpolation between two rungs, so the ladder every
+    # rule below reads carries the two readers with it.
+    if column.get("tails") is not None:
+        ladder = _tail_case_ladder(column)
     integer_valued = column["integer_valued"]
     effective = _effective_style_map(column["numeric_styles"])
     demand = min(
@@ -13296,6 +14269,29 @@ def _numeric_content(column):
             # the stratum holds the grid value of the ladder at that rank.
             position = (starts[index] + ((size * word) >> 64)) * TWO64
         denominator = numeric * TWO64
+        # A STRATUM INSIDE A TAIL READS THAT TAIL (method G5.1a, stage
+        # 3) and carries NO interpolation record: there is no segment of
+        # the published ladder between two rungs to record, because the
+        # value is the row's own -- the staircase of a listed tail
+        # (G5.3e), the grid staircase of an unlisted one, or the shape
+        # at the middle of the row's share (G5.3b).
+        # INSIDE A LISTED TAIL A STRATUM HOLDS THE VALUE ITS FIRST ROW
+        # STANDS AT (method G5.3e): the tail's runs are one listed value
+        # each at the count solved for them, so there is nothing for a
+        # drawn word to choose and reading the staircase at the drawn
+        # position instead let a stratum widened by G5.2's carrier steps
+        # read its neighbour's value.
+        read = _listed_start(ladder, starts[index], numeric)
+        if read is None:
+            read = tail_read_at(ladder, position, denominator)
+        if read is not None:
+            value = read
+            if integer_valued:
+                value = integer_rule(value)
+            elif fractional > 0:
+                value = float(grid_text(value, fractional))
+            values.append(value)
+            continue
         percents = percents_of(ladder)
         segment = ladder_segment(position, denominator, percents)
         record = convex_interpolation(
@@ -13450,10 +14446,23 @@ def _numeric_content(column):
         column.get("thousands_marks", {}), mark, groupable,
         CASE_SMALL_CELL_FLOOR, cell_values,
     )
+    # THE WIDTH THE FRACTION CENSUS NAMES FOR A DECIMAL CELL (G6.6),
+    # where it names one width and that width covers every decimal cell:
+    # the cell is written with exactly that many figures after its
+    # point. Where the census names several, which cell takes which is
+    # settled by a rule no case here reaches, and the width is left at
+    # -1 so the base spelling stands.
+    spelt_at = -1
+    if len(widths) == 1 and not integer_valued:
+        only = next(iter(widths))
+        if only.isdigit() and widths[only] == column["numeric_styles"].get(
+            "decimal", 0
+        ):
+            spelt_at = int(only)
     content = [
         styled_spelling(
             style, value, integer_valued, 0, marks[index], notations[index],
-            plussed[index], pads[index],
+            plussed[index], pads[index], spelt_at,
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
@@ -13534,6 +14543,23 @@ NUMERIC_DISTINCT_RECOUNTS = {
     "numeric_decimal_styles": (25, 23),
     # Twelve whole numbers asked for over a ladder that reaches eleven.
     "numeric_integer": (11, 11),
+    # EIGHT WHOLE NUMBERS OVER A RAMP OF EIGHT POINTS (stage 3, G5.3d).
+    # A block below its own floor publishes no rung and no moment, so
+    # its ladder is a ramp of one grid step a value; the ramp's own
+    # walks leave two of its eight strata on one point, and the twin
+    # holds seven of the eight numbers the block publishes. It is the
+    # state the ramp is FOR -- a twin that keeps the block's type, its
+    # sign counts and about its count of different numbers, and claims
+    # nothing else -- and the twin's report names the difference.
+    "tail_made_up_ramp": (7, 7),
+    # FIFTY-ONE SPELLINGS OF FIFTY PUBLISHED (stage 3). This column's
+    # ladder puts two strata on one number -- the high tail's reading
+    # saturates at its derived end -- and G6.5's distinct-spelling
+    # repair then writes one of them a second way, which takes the count
+    # of SPELLINGS one past the published fifty. `validate` reads that
+    # as an AUTHORIZED deviation of `n_distinct` (the window the plan
+    # grants runs from the published count upward), and the count of
+    # different NUMBERS is exactly the fifty the block publishes.
 }
 
 
@@ -13659,6 +14685,123 @@ ALL_LADDER_KEYS = tuple(
     else f"p{percent:02d}"
     for percent in range(101)
 )
+
+
+def _tail_ladder_fields(texts, low_percent, high_percent):
+    """A TAIL BLOCK's published ladder: the rungs inside the two
+    boundaries, and `null` outside them (contract 6.7a, TL1).
+
+    ``texts`` is keyed by PERCENT and carries the rungs the case states:
+    its two boundary percents, which must be there because TL1 holds a
+    boundary rung to a number, and whichever of the eleven named
+    percents fall between them.  Every other rung between the two
+    boundaries is put on the straight line between the two stated
+    percents either side, written to six decimal places and rounded
+    DOWN, exactly as `_finer_ladder_fields` does and for the reason it
+    gives -- this column carries no information the coarse ladder did
+    not, so a difference in the committed cells is the arithmetic of a
+    longer list and nothing else.  Outside the two boundaries every rung
+    is `null` BY RULE, which is what makes the block a tail block: the
+    tail facts carry those rows and G5.3b's reading fills the ladder
+    there.
+
+    A HEAPED end is stated at percent 0 or 100 and published like any
+    other rung.
+
+    Returns the named block, the finer block and the claims for both.
+    """
+    points = sorted(texts)
+    published = {}
+    finer = {}
+    claims = {}
+
+    def stated(percent):
+        if percent in texts:
+            return texts[percent]
+        if not low_percent <= percent <= high_percent:
+            return None
+        below = [point for point in points if point < percent]
+        above = [point for point in points if point > percent]
+        if not below or not above:
+            return None
+        under = max(below)
+        over = min(above)
+        low = decimal_to_fraction(texts[under])
+        high = decimal_to_fraction(texts[over])
+        share = fractions.Fraction(percent - under, over - under)
+        return _floored_decimal_text(low + share * (high - low), 6)
+
+    for percent in sorted(_NAME_AT_PERCENT):
+        key = _NAME_AT_PERCENT[percent]
+        text = stated(percent)
+        if text is None:
+            published[key] = None
+            continue
+        field, claim = nearest_field(text)
+        published[key] = field
+        claims[("column", "percentiles", key)] = claim
+    for key in FINER_LADDER_KEYS:
+        percent = int(key[1:])
+        text = stated(percent)
+        if text is None:
+            finer[key] = None
+            continue
+        field, claim = nearest_field(text)
+        finer[key] = field
+        claims[("column", "percentiles_between", key)] = claim
+    return published, finer, claims
+
+
+def _numeric_tail_fields(sides):
+    """One block's `tails`, as proved fields, and the claims for them.
+
+    Each side states its boundary percent and its rows as whole numbers,
+    its two distances as decimal texts, and the values of a LISTED tail
+    (contract 6.7a).  Returns the wire-shaped key and the claims, whose
+    paths are the ones the proof walk descends.
+    """
+    published = {}
+    claims = {}
+    for side in ("low", "high"):
+        one = sides[side]
+        block = {"percent": one["percent"], "rows": one["rows"]}
+        for key in ("mean_distance", "rms_distance"):
+            field, claim = nearest_field(one[key])
+            block[key] = field
+            claims[("column", "tails", side, key)] = claim
+        values = []
+        for place, text in enumerate(one["values"]):
+            field, claim = nearest_field(text)
+            values.append(field)
+            claims[("column", "tails", side, "values", place)] = claim
+        block["values"] = values
+        published[side] = block
+    return published, claims
+
+
+def _tail_case_ladder(column):
+    """The tail ladder of a case's column, readers and all.
+
+    `_tail_case_rungs` hands `build_case` the values keyed by rung name,
+    which is the shape every case's `rungs` has; the numeric content
+    then asks for the LADDER itself, because a tail block's rungs are
+    read through its two tails (G5.1a) and not interpolated between.
+    """
+    return tail_ladder(plain_numbers(column))
+
+
+def _tail_case_rungs(column):
+    """The hundred and one rungs a tail case's column stands for.
+
+    A case supplies its ladder to `build_case` as values keyed by rung
+    name; on a tail block those values are `tail_ladder`'s own, built
+    from the published facts by the rules of G5.1a to G5.3e rather than
+    read off a published ladder that is mostly `null`.
+    """
+    values = tail_ladder(plain_numbers(column))
+    return {
+        ALL_LADDER_KEYS[percent]: values[percent] for percent in range(101)
+    }
 
 
 def _finer_ladder_fields(texts):
@@ -13848,7 +14991,7 @@ CASE_TAIL_RMS = "4"
 
 
 def case_tail_unit(block):
-    """The unit contract TL4 counts a column's tails in."""
+    """The unit contract DT4 counts a column's tails in."""
     if block["resolution"] in ("quarter", "month"):
         return block["resolution"]
     if block["resolution"] == "date" or block.get("all_at_midnight"):
@@ -13905,7 +15048,7 @@ def _tail_fields(low, high):
     A case whose column is the description the producer really writes of
     its own cells states its tails here rather than having them built
     from two ends it no longer publishes (`_case_tails`).  Each side is
-    a mapping of the keys TL1 fixes, with the two distances as exact
+    a mapping of the keys DT1 fixes, with the two distances as exact
     decimal TEXT, and every number is proved where it is built.
     """
     published = {}
@@ -14221,12 +15364,16 @@ def joined_part_view(column, place):
     """
     view = dict(column)
     view.update(column["parts"][place])
-    view["n_present"] = column["n_joined"]
-    view["n_numeric"] = column["n_joined"]
-    view["n_not_numeric"] = 0
-    view["n_out_of_range"] = 0
-    view["n_contradictory"] = 0
-    view["_grain_values"] = column["parts"][place]["n_distinct_values"]
+    view.update(
+        {
+            "n_present": column["n_joined"],
+            "n_numeric": column["n_joined"],
+            "n_not_numeric": 0,
+            "n_out_of_range": 0,
+            "n_contradictory": 0,
+            "_grain_values": column["parts"][place]["n_distinct_values"],
+        }
+    )
     if view["_grain_values"] < 1:
         raise AssertionError(
             "a position reached the numeric machinery with no count of "
@@ -14743,12 +15890,15 @@ def affixed_core_view(column):
     numbers cannot buy a second way of writing one number.
     """
     core = dict(column)
-    core["n_numeric"] = column["n_core_numeric"]
-    core["n_not_numeric"] = column["n_core_not_numeric"]
-    core["n_out_of_range"] = column["n_core_out_of_range"]
-    core["n_contradictory"] = column["n_core_contradictory"]
-    core["n_present"] = column["n_affixed"]
-    core["_grain_values"] = column["n_distinct_values"]
+    for key, held in (
+        ("n_numeric", "n_core_numeric"),
+        ("n_not_numeric", "n_core_not_numeric"),
+        ("n_out_of_range", "n_core_out_of_range"),
+        ("n_contradictory", "n_core_contradictory"),
+        ("n_present", "n_affixed"),
+        ("_grain_values", "n_distinct_values"),
+    ):
+        core[key] = column[held]
     if core["_grain_values"] < 1:
         raise AssertionError(
             "an affixed column reached the numeric machinery with no "
@@ -17163,11 +18313,24 @@ SIXTH_BRANCH_PART = "branches-6"
 # carried date items and the readings of an absorbed count the eighth
 # would have stood past the 250000-byte cap.
 SEVENTH_BRANCH_PART = "branches-7"
-
-# The TENTH file (stage 3, plan P4-D328): the three cases the tail
-# landing grew past the room their own files had. Its entry point is
-# `tools/reference/make_generation_branch_vectors_8.py`.
+# The tenth file: the five cases of stage 3's tail rule (landing 3.3, plans
+# P4-D322 to P4-D327 and P4-D344).  The seventh, eighth and ninth all stand past the
+# 200000 bytes plan P4-D295 draws the line at, so the next case opens a
+# new entry point, which is what this is.  Its cases describe columns no
+# earlier case could: a block that publishes no rung outside its two
+# boundary percents, and the ladder every later rule reads built from
+# what it publishes instead.
 EIGHTH_BRANCH_PART = "branches-8"
+# The eleventh file: the rest of stage 3's NUMERIC tail cases.  Five
+# cases of one rule do not fit under the provenance manifest's
+# 250000-byte cap in one file -- each of the ones that describes a
+# column dense enough to fill its own histogram costs about seventy
+# kilobytes of proved numbers -- least of all beside the four the DATE
+# AND CLOCK tail landing moved into the tenth (plan P4-D328), so they
+# are cut two and three, the way landings 2b.1 to 2b.5 were cut when
+# their cases met the same cap.
+NINTH_BRANCH_PART = "branches-9"
+
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -18977,9 +20140,16 @@ def _mode_held_case():
 
     Eleven one-place readings from -1.7 to 6.9 at counts between eleven
     and twenty-one, the same values the review measured at a tenth of its
-    row count.  The commonest, -0.6 over twenty-one rows, is published with
+    row count.  The commonest, -0.8 over twenty-one rows, is published with
     its count, and the ladder gives the stratum that count sizes another
     number unless the last value pass puts the mode on it.
+
+    THE COMMONEST WAS -0.6 until plan P4-D327.  G5.2a's step 1a now reads
+    the ranks at the top of the negative band, which the straight line to
+    the first positive rung carried past nought, as the band's last
+    negative value, so the ladder itself puts -0.6 on a stratum and the
+    pass is never asked.  The mode moved one grid step down, where no
+    stratum reads it, so the case still holds its own pass up.
     """
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "-1.7", "p01": "-1.7", "p05": "-1.7", "p10": "-1.4",
@@ -18992,7 +20162,7 @@ def _mode_held_case():
                        ("std", "3.1479778191677488"),
                        ("skew", "0.3895190297748465"),
                        ("kurtosis", "1.5151356419900541"),
-                       ("numeric_share", "1"), ("mode", "-0.6")):
+                       ("numeric_share", "1"), ("mode", "-0.8")):
         field, claim = nearest_field(text)
         moments[name] = field
         claims[("column", name)] = claim
@@ -19014,7 +20184,7 @@ def _mode_held_case():
         "why": "G6.1's last value pass, the published mode held (plan "
         "P4-D267, Codex item 4 of the extra round of 2026-09-18, mirrored by "
         "the carried numbers pass): eleven one-place readings from -1.7 to "
-        "6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one "
+        "6.9, the commonest -0.8 over twenty-one rows. The ladder sizes one "
         "stratum at twenty-one cells and gives it another number; the pass "
         "puts -0.6 on it, because it lies between its neighbours, in its sign "
         "band and on the grid of tenths. The mutant withdraws the pass and "
@@ -22754,7 +23924,7 @@ _DOCUMENT_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -23577,24 +24747,6 @@ SIXTH_BRANCH_CASE_BUILDERS = {
     "date_midnight_traded": _midnight_traded_merge,
 }
 
-EIGHTH_BRANCH_CASE_BUILDERS = {
-    # THE THREE THAT MOVED HERE AT THE TAIL LANDING (stage 3, plan
-    # P4-D328). Each of them grew: a column of dates or clock times
-    # needs `2F + 1` cells to publish a tail at all, and a case whose
-    # rule lives BETWEEN the two boundaries needs a body of several
-    # ranks besides. Grown in place, the second file stood at 261857
-    # bytes and the first at 258476 against the manifest's 250000-byte
-    # cap, so the three move here whole and both files fall back under
-    # it. No case was dropped and no cap was raised, which is the reason
-    # the fourth to the ninth files exist.
-    "clock_ladder": _clock_ladder,
-    "partial_midnight": _partial_midnight,
-    "midnight_bare_offsets": _midnight_bare_offsets,
-    # ...and the day-unit case, which grew with them and left the first
-    # file 169 bytes past the cap on its own.
-    "midnight_days": _midnight_days,
-}
-
 SEVENTH_BRANCH_CASE_BUILDERS = {
     # The four of the carried numbers pass of 2026-09-18: the band fill of
     # G6.5a, and the two generator rules the round left unmirrored, the
@@ -23612,8 +24764,363 @@ SEVENTH_BRANCH_CASE_BUILDERS = {
     "saturated_grid_alone": _saturated_grid_alone,
 }
 
+# ------------------------------------------------- THE TENTH FILE
+#
+# The five cases method section G14.3 adds for stage 3's tail rule
+# (landing 3.3, plans P4-D322 to P4-D327 and P4-D344).  They are a file of their own
+# for the reason the ninth was: plan P4-D295 opens a new entry point
+# once the last one's output passes 200000 bytes, and the seventh,
+# eighth and ninth all stand past that line.
+
+
+def _tail_shape_ends():
+    """The tail reading and the two derived ends (G5.3b, stage 3).
+
+    A hundred and twelve one-place readings: twelve from 1.0 to 4.3,
+    eighty-eight from 5.0 to 39.8 four tenths apart, eleven from 41.0 to
+    48.0 and one at 300.0.  Every rung outside the tenth and ninetieth
+    percentiles is withheld BY RULE, so the ladder the twin is built on
+    is the two boundary rungs, the published rungs between them, and
+    each tail's own reading of its rows.  The two tails fit different
+    shapes -- the low one a nearly straight `j = 1`, the high one
+    `j = 16` because one row stands far past the others -- so the case
+    reaches the fitted power, the blend, the reading of every rank at
+    the middle of its own row's share, and both ends: the low end at the
+    outermost row's share alone, the high end moved OUTWARD to
+    `d1 * H(12)` because its power is 2 or more (plan P4-D326).
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        19: "4.3629999999999995", 25: "5.475", 50: "14.65", 75: "25.375",
+        81: "27.874",
+    }, 19, 81)
+    moments = {}
+    for name, text in (("mean", "18.6"),
+                       ("std", "26.092845957646926"),
+                       ("skew", "5.701076520571666"),
+                       ("kurtosis", "40.31700598396387"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 19, "rows": 12,
+            "mean_distance": "1.7129999999999996",
+            "rms_distance": "2.0017165133954404",
+            "values": [],
+        },
+        "high": {
+            "percent": 81, "rows": 12,
+            "mean_distance": "17.66766666666667",
+            "rms_distance": "49.85469428917067",
+            "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=60, n_distinct_folded=60,
+        n_distinct_values=60, n_numeric=60, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=60,
+        n_left_out_of_statistics=0, n_rows=60,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 6, "count": 11}, {"first": 7, "last": 17, "count": 11}, {"first": 18, "last": 31, "count": 14}],
+        integer_valued=False, std_unrepresentable=False,
+        numeric_styles={"decimal": 60}, mode_count=0,
+        fraction_widths={"1": 60}, field_widths={},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "The tail reading of method G5.3b and the two derived ends (stage 3, landing 3.3, plans P4-D344 and P4-D322). A hundred and twelve one-place readings whose twelve smallest and twelve largest are withheld by the tail rule: the ladder outside the tenth and ninetieth percentiles is each tail's own reading of its rows, and the pinned strata hold ends worked out from the rows, the mean distance and the root-mean-square alone. The low tail fits a nearly straight shape and the high one a power of sixteen, so both branches of the fit are here. The mutant withdraws the OUTWARD move of plan P4-D326 and the high end falls back inside the rows it stands for.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_listed_counts():
+    """The listed tail and the counts solved for it (G5.3e, plan P4-D324).
+
+    A hundred and sixteen whole numbers from 0 to 52 on a grid, four
+    cells each at 0, 1, 2, 50, 51 and 52 and two at every number
+    between.  Both tails are FEW-VALUED on that grid, so the
+    description publishes the values themselves and not how many rows
+    hold each: the twin solves the counts -- every listed value at least
+    one row, the rest spread on at most three of them, nearest the
+    published mean distance and then the published root-mean-square --
+    and reads the tail as a staircase over its own rows.  The ends are
+    the outermost listed values, 0 and 52, which is how a bounded scale
+    keeps its own ends (the skeptic's B1: without this the smooth
+    reading of G5.3b rounded onto the grid wrote values the scale does
+    not have and never wrote its end).
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        16: "2.72", 25: "9.75", 50: "27.5", 75: "45.25", 84: "51.64",
+    }, 16, 84)
+    moments = {}
+    for name, text in (("mean", "27.333333333333332"),
+                       ("std", "18.93502604348897"),
+                       ("skew", "-0.024307200875142543"),
+                       ("kurtosis", "1.5805519023767018"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 16, "rows": 12,
+            "mean_distance": "1.7200000000000002",
+            "rms_distance": "1.903960783909865",
+            "values": ["0.0", "1.0", "2.0"],
+        },
+        "high": {
+            "percent": 84, "rows": 12,
+            "mean_distance": "1.3599999999999994",
+            "rms_distance": "1.586274461329648",
+            "values": ["52.0", "53.0", "54.0"],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=72, n_missing=0, n_distinct=54, n_distinct_folded=54,
+        n_distinct_values=54, n_numeric=72, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=4, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=72,
+        n_left_out_of_statistics=0, n_rows=72,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 7, "count": 11}, {"first": 8, "last": 14, "count": 11}, {"first": 15, "last": 21, "count": 11}, {"first": 22, "last": 31, "count": 15}],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"plain": 72}, mode_count=0,
+        fraction_widths={}, field_widths={"1": 18, "2": 54},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "The listed tail of method G5.3e (stage 3, plan P4-D324, the owner's ruling of 2026-09-22). A hundred and sixteen whole numbers on a grid from 0 to 52, both tails few-valued, so the description publishes the values themselves and the twin solves how many rows hold each -- every value at least one row, the rest spread on at most three of them, nearest the published mean distance and then the published root-mean-square -- and reads each tail as a staircase. The mutant gives every listed value one row and the rest to the outermost, which is the obvious rule and the wrong one: the staircase moves and the twin's cells with it.",
+        "column": column,
+        "rows": 72,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_sign_clamped():
+    """A derived end held on its own side of nought (G5.5a, stage 3).
+
+    A hundred and twelve two-place readings, `0.02 * (i + 1)**2` from
+    0.02 to 250.88: every value is positive, the block publishes no
+    negative and no zero, and the low tail's own reading reaches past
+    nought -- the twelve smallest rows lie 1.85 below a boundary rung of
+    2.93 on average, and the fitted end stands below zero.  The sign
+    rule holds it at one grid step, 0.01, because a negative end is a
+    value the published counts rule out.  Without the rule the twin
+    writes a negative cell on a column whose description says it has
+    none.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        19: "7.5234000000000005", 25: "15.0675", 50: "82.015",
+        75: "160.6225", 81: "179.0067",
+    }, 19, 81)
+    moments = {}
+    for name, text in (("mean", "90.38333333333334"),
+                       ("std", "74.58365519736124"),
+                       ("skew", "0.22857673793155084"),
+                       ("kurtosis", "1.5500535477029835"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 19, "rows": 12,
+            "mean_distance": "4.8150666666666675",
+            "rms_distance": "5.338325039435747",
+            "values": [],
+        },
+        "high": {
+            "percent": 81, "rows": 12,
+            "mean_distance": "17.493300000000005",
+            "rms_distance": "20.328933687972917",
+            "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=60, n_distinct_folded=60,
+        n_distinct_values=60, n_numeric=60, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=60,
+        n_left_out_of_statistics=0, n_rows=60,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 6, "count": 11}, {"first": 7, "last": 17, "count": 11}, {"first": 18, "last": 31, "count": 14}],
+        integer_valued=False, std_unrepresentable=False,
+        numeric_styles={"decimal": 60}, mode_count=0,
+        fraction_widths={"2": 60}, field_widths={},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "The sign rule on a derived end, method G5.5a (stage 3). Every value of this column is positive and the block publishes no negative and no zero, while the low tail's own reading reaches past nought: the rule holds the end at one grid step instead. The mutant withdraws it and the twin writes a negative cell on a column whose description says it has none.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_moment_ladder():
+    """The moment ladder of a block too thin for two tails (G5.3c).
+
+    Fifteen two-place readings from 0.90 to 2.92.  At a floor of eleven
+    no percent leaves eleven rows outside on both sides at once, so both
+    sides of `tails` are null (contract TL3) and the block publishes its
+    moments and not one rung.  The ladder is then the uniform with that
+    mean and that spread -- `mean -/+ sqrt(3) * std`, each placed on the
+    column's own grid -- and the twin keeps the block's type, its count
+    of different numbers and its two moments rather than falling back on
+    a value repeated fifteen times.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+       
+    }, 100, 0)
+    moments = {}
+    for name, text in (("mean", "1.91"),
+                       ("std", "0.5813776741499453"),
+                       ("skew", "-5.93000071977834e-17"),
+                       ("kurtosis", "1.7892857142857141"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails = {"low": None, "high": None}
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=15, n_missing=0, n_distinct=15, n_distinct_folded=15,
+        n_distinct_values=15, n_numeric=15, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=15,
+        n_left_out_of_statistics=0, n_rows=15,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[],
+        integer_valued=False, std_unrepresentable=False,
+        numeric_styles={"decimal": 15}, mode_count=0,
+        fraction_widths={"2": 15}, field_widths={},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "The moment ladder of method G5.3c (stage 3). Fifteen readings at a floor of eleven: no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung (contract TL3), and the ladder is the uniform with that mean and that spread. The mutant reads the block as the ramp of G5.3d instead, which is what a block one row thinner gets, and every cell moves.",
+        "column": column,
+        "rows": 15,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_made_up_ramp():
+    """The ramp of a block below its own floor (G5.3d).
+
+    Eight whole numbers at a floor of eleven: fewer rows than a tail's
+    own, so `tails` is null (contract TL2) and the block publishes no
+    rung and no moment at all -- its styles are withheld too.  The
+    ladder is a RAMP of one grid step a value, from `-G u` to
+    `(K - G - 1) u`, so the twin writes eight whole numbers about one
+    apart on the sign band the counts name.  Measured before the ramp
+    existed: the sign fallback wrote `1.0` eight times and the twin was
+    re-described as another role.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+       
+    }, 100, 0)
+    moments = {}
+    for name, text in (("numeric_share", "1.0"),):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails = None
+    # A BLOCK BELOW ITS OWN FLOOR PUBLISHES NO MOMENT AT ALL (contract
+    # DT2), and `null` is what it publishes: the four keys are there and
+    # each of them is empty, which is what the loader reads and what
+    # says the block is below the floor rather than undefined.
+    moments["mean"] = None
+    moments["std"] = None
+    moments["skew"] = None
+    moments["kurtosis"] = None
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=8, n_missing=0, n_distinct=8, n_distinct_folded=8,
+        n_distinct_values=8, n_numeric=8, n_not_numeric=0, n_out_of_range=0,
+        n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=8,
+        n_left_out_of_statistics=0, n_rows=8,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"(withheld)": 8}, mode_count=0,
+        fraction_widths={}, field_widths={},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "The made-up ramp of method G5.3d (stage 3). Eight whole numbers at a floor of eleven -- fewer rows than one tail's own -- so the block publishes no rung, no moment and no style, and the ladder is a ramp of one grid step a value. The mutant withdraws the ramp and leaves the flat fallback, which writes one number eight times and a twin another profiler reads as a different role.",
+        "column": column,
+        "rows": 8,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+EIGHTH_BRANCH_CASE_BUILDERS = {
+    # THE FOUR THAT MOVED HERE AT THE DATE AND CLOCK TAIL LANDING (stage
+    # 3, plan P4-D328). Each of them grew: a column of dates or clock
+    # times needs `2F + 1` cells to publish a tail at all, and a case
+    # whose rule lives BETWEEN the two boundaries needs a body of
+    # several ranks besides. Grown in place, the second file stood at
+    # 261857 bytes and the first at 258476 against the manifest's
+    # 250000-byte cap, so the four move here whole and both files fall
+    # back under it. No case was dropped and no cap was raised, which is
+    # the reason the fourth to the eleventh files exist.
+    "clock_ladder": _clock_ladder,
+    "partial_midnight": _partial_midnight,
+    "midnight_bare_offsets": _midnight_bare_offsets,
+    # ...and the day-unit case, which grew with them and left the first
+    # file 169 bytes past the cap on its own.
+    "midnight_days": _midnight_days,
+    # ...AND TWO OF THE NUMERIC TAIL RULE'S FIVE (landing 3.3, plans
+    # P4-D322 to P4-D327 and P4-D344), which opened this same tenth file on their
+    # own branch. The rule's five do not fit under the 250000-byte cap
+    # in one file and the four above already stand here, so two are
+    # here and the other three are the ELEVENTH file: the tail reading
+    # of G5.3b with its two derived ends, and the made-up ramp of
+    # G5.3d.
+    "tail_made_up_ramp": _tail_made_up_ramp,
+    "tail_shape_ends": _tail_shape_ends,
+}
+
+NINTH_BRANCH_CASE_BUILDERS = {
+    "tail_listed_counts": _tail_listed_counts,
+    "tail_moment_ladder": _tail_moment_ladder,
+    "tail_sign_clamped": _tail_sign_clamped,
+}
+
 CASE_SETS = {
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
+    NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     SEVENTH_BRANCH_PART: SEVENTH_BRANCH_CASE_BUILDERS,
@@ -23635,6 +25142,8 @@ CASE_BUILDERS = {
     **FIFTH_BRANCH_CASE_BUILDERS,
     **SIXTH_BRANCH_CASE_BUILDERS,
     **SEVENTH_BRANCH_CASE_BUILDERS,
+    **EIGHTH_BRANCH_CASE_BUILDERS,
+    **NINTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -23666,7 +25175,7 @@ _NAMED_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -23701,7 +25210,7 @@ _BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -23727,7 +25236,7 @@ _SECOND_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -23751,7 +25260,7 @@ _THIRD_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -23778,7 +25287,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     " The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -23803,7 +25312,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     " Two of the cases here came LAST, with the repair pass of the second Codex round of 2026-09-19: the scaled walk and the exponent fittings of G8.3a step 3, the two rules item 3 of that round's numbers pass added. They are here and not in the eighth file because the eighth's output and the ninth's both stand past plan P4-D295's 200000-byte line while this one does not, which is the case the eighth entry point's own account provides for."
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -23837,7 +25346,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     "276235 bytes against the provenance manifest's 250000-byte cap. No "
     "case was dropped, no proof was shortened and the cap was not raised."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
-    " The four cases the tail landing of stage 3 grew past the room their own files had are a tenth file, tests/reference/generation-branch-vectors-8.json, for the same reason again."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " And, added here by the dates pass of the second Codex round of"
     " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
     " of three instants, eighty of them at midnight, on a column writing"
@@ -23848,29 +25357,6 @@ _SIXTH_BRANCH_ACCOUNT = (
     " bytes, which it did, at 191318."
 )
 
-_EIGHTH_BRANCH_ACCOUNT = (
-    "cases the tail landing of stage 3 grew past the room their own "
-    "files had (plan P4-D328): the clock role's own case, the column "
-    "partly at midnight, the bare dates beside midnight moments on a "
-    "real offset, and the day-unit case. A column of dates or clock times needs `2F + 1` "
-    "cells to publish a tail at all, and a case whose rule lives "
-    "between the two boundaries needs a body of several ranks besides, "
-    "so each of the three grew; grown in place they carried the second "
-    "file to 261857 bytes and the first to 258476 against the "
-    "250000-byte cap, and they move here whole. They are built by the "
-    "same oracle and the same proof layer as every other file, and "
-    "live in a tenth file for the reason the fourth to the ninth "
-    "exist: no cap is raised and no case is dropped. The other nine are "
-    "tests/reference/generation-reference-vectors.json, "
-    "tests/reference/generation-branch-vectors.json, "
-    "tests/reference/generation-branch-vectors-2.json, "
-    "tests/reference/generation-branch-vectors-3.json, "
-    "tests/reference/generation-branch-vectors-4.json, "
-    "tests/reference/generation-branch-vectors-5.json, "
-    "tests/reference/generation-branch-vectors-6.json, "
-    "tests/reference/generation-branch-vectors-7.json and "
-    "tests/reference/generation-document-vectors.json."
-)
 
 _SEVENTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried numbers pass of "
@@ -23898,11 +25384,84 @@ _SEVENTH_BRANCH_ACCOUNT = (
     "were built into the eighth and moved here whole when the carried "
     "passes were integrated, because beside the others' cases the eighth "
     "would have stood past the 250000-byte cap."
+    " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
 )
+
+_EIGHTH_BRANCH_ACCOUNT = (
+    "cases of stage 3's TWO tail landings that this file carries. Four "
+    "are the cases the DATE AND CLOCK tail landing grew past the room "
+    "their own files had (plan P4-D328): the clock role's own case, the "
+    "column partly at midnight, the bare dates beside midnight moments "
+    "on a real offset, and the day-unit case. A column of dates or "
+    "clock times needs `2F + 1` cells to publish a tail at all, and a "
+    "case whose rule lives between the two boundaries needs a body of "
+    "several ranks besides, so each of the four grew; grown in place "
+    "they carried the second file to 261857 bytes and the first to "
+    "258476 against the 250000-byte cap, and they moved here whole. Two "
+    "are the NUMERIC tail rule's (landing 3.3, plans P4-D344 to "
+    "P4-D327): the tail reading of G5.3b and the two derived ends, and "
+    "the made-up ramp of G5.3d. A published (heaped) numeric end has no "
+    "frozen case and G14.3 names that gap as one. That rule's other "
+    "three -- the listed tail of G5.3e and the counts solved for it, "
+    "the sign rule of G5.5a on a derived end, and the moment ladder of "
+    "G5.3c -- are the ELEVENTH file, "
+    "tests/reference/generation-branch-vectors-9.json, because five "
+    "cases of one rule do not fit under the provenance manifest's byte "
+    "cap in one file and the four above already stand here. Every "
+    "column all six describe publishes NO rung outside its two boundary "
+    "percents, which no case in any earlier file does, so the whole of "
+    "either rule -- the reading, the ends, the staircase, the two "
+    "made-up ladder readings -- could have been withdrawn with every "
+    "committed byte of the other ten files unchanged. They are computed "
+    "by the same oracle and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "tenth file for the reason the fourth to the ninth exist: no cap is "
+    "raised and no case is dropped."
+)
+_NINTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds for the TAIL RULE of stage 3 "
+    "(landing 3.3, plans P4-D322 to P4-D327 and P4-D344), the other three of that "
+    "landing's five: the listed tail of G5.3e and the counts solved for "
+    "it, the sign rule of G5.5a on a derived end, and the moment ladder "
+    "of G5.3c. The other two -- the tail reading of G5.3b with its two "
+    "derived ends and the made-up ramp of "
+    "G5.3d -- are the TENTH file, "
+    "tests/reference/generation-branch-vectors-8.json, beside the four "
+    "cases the DATE AND CLOCK tail landing moved into it (plan "
+    "P4-D328); a published (heaped) numeric end has no frozen case at "
+    "all and G14.3 names that gap as one; the five are cut two and "
+    "three because a committed fixture must stay under the "
+    "provenance manifest's 250000-byte cap, each case that describes "
+    "a column dense enough to fill its own histogram costs about seventy "
+    "kilobytes of proved numbers, and the tenth file has the date "
+    "landing's four in it already. They are computed by the same oracle "
+    "and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json and "
+    "tests/reference/generation-document-vectors.json."
+)
+
 
 CASE_SET_ACCOUNTS = {
     EIGHTH_BRANCH_PART: (
         f"The {len(EIGHTH_BRANCH_CASE_BUILDERS)} {_EIGHTH_BRANCH_ACCOUNT}"
+    ),
+    NINTH_BRANCH_PART: (
+        f"The {len(NINTH_BRANCH_CASE_BUILDERS)} {_NINTH_BRANCH_ACCOUNT}"
     ),
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
@@ -26129,6 +27688,156 @@ GIVEN_WORDS = {
         7759697397388857000, 9890344465002701988, 16504403711328310884,
         5583668501587289150, 12607117446844355094,
     ),
+    # THE TAIL RULE OF STAGE 3 (landing 3.3): seeds 300 onward, clear
+    # of every block in use above.
+    "tail_shape_ends": (
+        12366145460342475548, 10328831738007121337, 7005837638662996833,
+        4644615463614257564, 13895571673410386422, 15333680905756504384,
+        8814112990902317390, 12820877609973621610, 9507410341997216948,
+        10258028007987623185, 5525349421768700835, 8428620232877931867,
+        16715754742610136310, 17093833374891450881, 6624935993660846763,
+        7688708910733341378, 9554797186195742378, 1920542700437799879,
+        100471670677617330, 7615790614506087535, 14683420574899875363,
+        11866588731576638704, 16201546286491449763, 1858738222072870225,
+        9156010211419271612, 5984029022646744164, 6853430628032045625,
+        17038555936355253810, 16428761333648299214,
+        16472845651874257623, 14771823504417181854,
+        18277083669350743726, 17235542348187798928, 2573713833493088470,
+        15632351084122677060, 4973476813602452615, 183931978980293897,
+        1504429073780270320, 8230931952833330691, 2260085291302964612,
+        4817270707221864825, 477137776592982704, 556676353085194248,
+        8029805872660018361, 17558357979323559911, 1315855618497270803,
+        335215598627487806, 10346344713022263209, 9906052163548944306,
+        12739462300751420707, 2447315894741804587, 11101592092311485926,
+        72651545269453051, 1650346351146041817, 7081444400256744293,
+        6662278936468372425, 3260342701043516129, 3396281297412214308,
+        7182531699685560546, 5905356657403825818, 847672765167370868,
+        1698687624724231295, 4046109416599136799, 7601784960399472417,
+        7342432760600400128, 1571810250908529375, 9010341102376704776,
+        7877325688336868575, 3895210384836270281, 13885014816278651154,
+        13992024302691797918, 15860509010637652842, 1841091373082480051,
+        10907499581173106831, 6115081151966467952, 2442027079406010807,
+        10224937749498808714, 11702711898559116104, 5570751068690805256,
+        12093810732408248383, 1855035465817438502, 7783945235739641836,
+        3706969464454063314, 3770304274667222846, 10934067199679805552,
+        425517556948232478, 15242273292123254998, 11240871184144212410,
+        14696848570300571414, 2357515146188650801, 3322485891653762216,
+        186332600525682475, 15296863855837857607, 5489703834376366291,
+        14592777688497679531, 18102374290897188880, 2163753461155604009,
+        3793534962315162600, 17261311398779932801, 8121873947815527273,
+        16891076859968720671, 17855142883630731039,
+        18424341534771962532, 5609019277248893065, 1875209003117089387,
+        9324154108607900442, 16836020291111273515, 2127686543124801607,
+        943532117922330991, 8571777173377935103, 17157656402565730887,
+        14655569170429283862, 11135889703149305967, 3523119513935850514,
+        10630890723936920468, 9375254311320215936, 5590844823052519336,
+    ),
+    "tail_listed_counts": (
+        7392360422264764599, 3694622531855922671, 6412593050487610333,
+        17097792193012241893, 16314032118222063411,
+        13524001867091340226, 1816180120799717906, 761823950659044723,
+        258735903442194190, 10737437737210190156, 5489395192565951785,
+        9842140915250499401, 18214730324567274240, 12208062973880061681,
+        13982208116289225260, 3314537126754918768, 17632830006833312490,
+        8013600632767138326, 3671957785741244040, 3115335872738676681,
+        7725228594930552509, 2392819327565272129, 9909155405407348635,
+        12562658173760094771, 14154204860618896136, 4501525680475546574,
+        332311394625575692, 11981870988333496325, 11053345361218410612,
+        13572182035841651285, 9014396942399894403, 16895312738430827102,
+        6804311557782597602, 5155443154064713708, 15129408553654216811,
+        2541697305775602700, 6887886796492970404, 3784431803991217281,
+        16414680978261418303, 16334438341114685400,
+        14437171216146436760, 1140097743990557875, 4985269836490351427,
+        6373152007398609430, 14587350413713560028, 4869734946364682506,
+        4975100614498543633, 2920459288686739517, 11965584215707003985,
+        15258248663496198498, 8756444796379373161, 1123242895404697648,
+        16014044732229768524, 13119702703003844987,
+        12264329254457302681, 11721622246217385257,
+        18004045648625832570, 11428729640379058797,
+        13927254469191530456, 15648374561971945883, 3125450307173112917,
+        6308857952309898256, 16977862439730407054, 3933848962266967905,
+        7261087536648810451, 11158683692082299487, 14926476262232147137,
+        2271973417716288143, 6464287925901734363, 17070450369172110830,
+        7319415935641881985, 11494125275419165127, 7992295099810078024,
+        4717952080186980762, 18123587306184517409, 972329278948101547,
+        27409229417805613, 9886524724990916342, 5329377022624597635,
+        2919112548097007591, 694089777279307471, 14731849860348643246,
+        14602505294283046159, 7653397433067417038, 9055426770529303556,
+        4941559385052424328, 14207037065853404221, 8969856312646141381,
+        6379845237810405740, 7884435044761876926, 16089243152998890845,
+        3342223513111871644, 3590403562746424435, 16231354048809400282,
+        17952681637982371032, 11890590845673952816,
+        11087922044032780550, 6176294456034605802, 12225824522473846333,
+        4161120317993357922, 9400611929040642026, 1243182824422510009,
+        11764133457857206698, 478427858632636180, 10564104213697187270,
+        18033918642044268638, 11454833831510535675, 7041833102056759351,
+        12135161992440376930, 7129361247166370216, 14144393398427616996,
+        10798252865219110600, 7021149596237215203, 15324288427209930586,
+        468438003611609423, 16067431638907065550, 10705955187184146148,
+        8739327218253996487, 12704703614958518856, 16569433654056840144,
+        6752568607791951079, 2031741825592790141, 13460482228327531481,
+    ),
+    "tail_sign_clamped": (
+        3955579956994043197, 7689005453827789154, 14899347379865904561,
+        5052992564942257747, 15048476234899006811, 1985479586124475568,
+        8050204389909360075, 15473723219410741103, 3664717985844273108,
+        5583047614143251502, 6330078944458903428, 3908277602190523520,
+        16986670636085748172, 10276912059029276301,
+        15600463662887385319, 9859996533282871284, 4583253759642251259,
+        4874421601994229337, 17460521789463952451, 3863770655750490669,
+        180023319147046678, 11546454366408016939, 6257683800761166993,
+        8539837036526039003, 2429834988114870027, 8993066715063678145,
+        2787310291192415217, 11631229089334020989, 128500387447607707,
+        10790494364431100035, 10702384987626569190,
+        10912314650949473034, 12538827909486798523, 6881381978436039261,
+        13182344814478411658, 14769080290670850115,
+        16502956721173949768, 10483372078315649567,
+        17487246637327245037, 15250723089222057956,
+        10539616577956962163, 448749113525137261, 13790933488477879240,
+        6186120813748073960, 14201246649005853539, 8672167327463192609,
+        483595252047119902, 511682607077274563, 2389637748294932526,
+        1181844291822868533, 333665503061980408, 8108285965821130226,
+        8704046983599690170, 6061080423055140459, 3987921861626593757,
+        1128353918608010927, 15144838347355652682, 10153490192552744344,
+        16372697738781726776, 14356778193337406199, 7302238532844890056,
+        1297819853345638764, 5747162748854207076, 17488173091423685683,
+        15462656027821225601, 8483412037979717502, 4604717533421043760,
+        10477483416851217991, 14399865901497980005, 9271489800453848330,
+        8323683816962177673, 6675605519631315203, 4377629341212746510,
+        5999795090953033629, 8305356524443695114, 1811908209189158861,
+        17078296171664367077, 16413854548008910207, 3444583230945815773,
+        4207312151567979422, 7414061986969853907, 9791437475143203747,
+        4193610211151730659, 7368718648794917555, 13221890499603556129,
+        11525477040814288034, 15025616804026442549,
+        12055989644637752165, 9438872952544597679, 15078179302496398299,
+        13194919779592591767, 8655946038310077092, 202077906685877021,
+        15612531256754100328, 8972306892966369928, 12335306874426165814,
+        6649526422663947584, 8713982501453560029, 4847434491854311397,
+        8121950403979096897, 14314261110094789810, 10854223089948061269,
+        702673893736208543, 5803291706512859417, 3445386274738818222,
+        14813741490614186909, 17372882253439849497, 4971718222792606597,
+        5628139303666480584, 16874124388413105873, 14242534954659565299,
+        10125006385611111777, 5669978519315042643, 7010749809984791804,
+        3096338937505326838, 17845733802615103671, 5369057365178774377,
+    ),
+    "tail_moment_ladder": (
+        10366877924173330896, 16581001371904497559, 7068393742467334460,
+        11556602468274294990, 3907467877982653713, 14589476656763595670,
+        2885047504027799149, 122787534489190265, 6267468188162358397,
+        676671121564691017, 4930590580201998676, 120791095060064453,
+        6341734616515787883, 1001149496453113994, 8608828564189560704,
+        7285126129147319146, 4186912627487150271, 12447518717643614226,
+        4431441563760327674, 12479704108092969845, 2285700557038384657,
+        208878046873747881, 15653544595975021253, 12441443268812888288,
+        8433578356181492185, 9474270010251276227, 3361813596377098801,
+    ),
+    "tail_made_up_ramp": (
+        13193605889285543644, 12760402686339245460, 8212360345060031662,
+        10130244295076789763, 1409703806174384171, 11382849233723470215,
+        17209362382643914721, 9534254806212530699, 1772912459365676648,
+        14210580497456801603, 11672866287604851478, 5510705330991887392,
+        4957689520653640812,
+    ),
 }
 
 
@@ -26343,13 +28052,35 @@ def whole_number_fields(document):
             if inside == ("suppressed_numbers", "n_cells"):
                 allowed.add(path)
                 continue
-            # A TAIL'S COUNT OF ROWS (contract TL1) is a whole number
+            # A TAIL'S COUNT OF ROWS (contract DT1) is a whole number
             # beside two binary64 distances, exactly as the pool's own
             # `n_cells` stands beside its mean.
             if len(inside) == 2 and inside[0] in ("low_tail", "high_tail"):
                 if inside[1] == "rows":
                     allowed.add(path)
                     continue
+            # THE TAIL RULE'S OWN WHOLE NUMBERS (stage 3, contract
+            # 6.7a): each side's boundary percent and its rows, and the
+            # three numbers of every `bin_groups` entry -- a first bin,
+            # a last bin and a count of rows. The two DISTANCES of a
+            # side and the values of a listed tail are measurements and
+            # go through the wrapper and the proof like every other
+            # published float.
+            if (
+                len(inside) == 3
+                and inside[0] == "tails"
+                and inside[1] in ("low", "high")
+                and inside[2] in ("percent", "rows")
+            ):
+                allowed.add(path)
+                continue
+            if (
+                len(inside) == 3
+                and inside[0] == "bin_groups"
+                and inside[2] in ("first", "last", "count")
+            ):
+                allowed.add(path)
+                continue
             if (
                 len(inside) == 2
                 and inside[0] in INTEGER_COLUMN_ENDS

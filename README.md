@@ -119,22 +119,32 @@ table, and it never contains a value from a column you named with
 `--identifier` or a line of free text -- apart from the text every
 value of such a column opens with, like `REC` or `ABC-`, where enough
 rows share it -- but it does contain the
-smallest and largest values of your numeric columns, the points in
-between that describe their shape, and, for each label, the exact
-spellings your file used for it together with how many rows wrote it
-that way. **A column of dates or clock times names neither end**: each
-side of it is described by a BOUNDARY -- the earliest date with at
-least a smallest group's worth of cells before it, and its mirror at
-the other end -- together with how many rows lie beyond that boundary
-and how far they lie, so the rarest dates in the column, a date of
-death or a birthday at the edge of a cohort, are not written down.
-Where a tail holds only a few different dates, EACH OF THEM SHARED BY
-AT LEAST TWO ROWS, and the column's dates come from a small fixed set
-rather than a fine grid -- quarters, months, a scale a reader could
-enumerate -- those dates are listed instead, and how many rows hold
-each of them is not. A tail whose dates are one row's own apiece, and
-any column of clock times or of days spread over years, is described by
-its shape and never by a list. **By default no label fewer than eleven rows held is named**:
+steps that describe the shape of your numeric, date and clock columns
+and, for each label, the exact spellings your file used for it together
+with how many rows wrote it that way. **Since stage 3 no column of
+numbers, dates or clock times names either of its ends.** A numeric
+column's ladder stops short of both: every step that would read one of
+the outermost eleven values is withheld, and what stands there instead
+is how many rows lie beyond the last published step and how far from it
+they lie, on average and root-mean-square. A column of dates or clock
+times is described the same way, from a BOUNDARY -- the earliest date
+with at least a smallest group's worth of cells before it, and its
+mirror at the other end -- so the rarest dates in the column, a date of
+death or a birthday at the edge of a cohort, are not written down. An
+end AT LEAST ELEVEN ROWS SHARE is published as itself, because it is a
+value of a group and not of a person. And a tail may be described by
+the values it holds instead of by its shape, without how many rows hold
+each -- the two rules differ, and each is stated where it applies. A
+column of NUMBERS lists a tail standing on a published grid where the
+tail holds no more than six different values, or where its shape would
+otherwise settle its outermost value anyway, so the list says less than
+the shape would. A column of DATES or CLOCK TIMES lists one only where
+every value it would list is held by at least two of its cells and the
+column's dates come from a small fixed set rather than a fine grid --
+quarters, months, a scale a reader could enumerate; a tail whose dates
+are one row's own apiece, and any column of clock times or of days
+spread over years, is described by its shape and never by a list.
+**By default no label fewer than eleven rows held is named**:
 synthtwin pools every group under eleven rows into a count that names
 none of them, so a label rarer than that does not reach your twin by
 name. `--smallest-group` lowers the number -- down to 1, where

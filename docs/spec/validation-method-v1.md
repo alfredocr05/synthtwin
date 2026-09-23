@@ -1130,6 +1130,29 @@ its size. Closing it would reverse A-P3-5 clause 1, which bought the
 weaker question deliberately, and that is an owner decision and not a
 repair.
 
+**V2.4-A11 The COUNT of a column's values is a third published fact
+that decides whether a measurement exists at all, and a ladder rung or
+a tail fact may go quiet beside it MISSING. THIS LOWERS NO OBLIGATION**
+(stage 3, landing 3.3; contract 6.7a, invariants TL1 and TL4). A2
+widened A1's last clause from the role alone to the published facts
+that decide whether the measurement exists; the tail rule adds one of
+exactly that shape. A column's two boundary percents are a function of
+how many values it holds and of the smallest group, and of nothing
+else: a file of a different count describes ITSELF with its ladder and
+its tails at a different percent, so at the percent this description
+names it publishes nothing, and V5.1 then forbids the report to state a
+number there. The run is not silent about the reason:
+`counts.n_used_in_statistics` is a published fact of its own and MISSES
+in the same report, which is the sentence a reader acts on. Measured on
+the every-role fixture with one cell of a column overwritten by `-999`:
+227 values published against 226 read, `counts.n_used_in_statistics`
+MISSED, and `ladder.p05`, `ladder.p95` and that column's four tail
+distances withheld under the disclosure gate while its role stands HELD
+and right. **No check stops being made, no verdict changes and no
+obligation is lowered:** which obligations exist is still a function of
+the description alone, and every silence still stands beside a MISSED
+check of the same column that says why.
+
 ---
 
 ## V3. The entry table: what is checked, at what grain, in three kinds
@@ -1144,11 +1167,15 @@ four corner predicates of V4. The subcheck is one obligation at the
 finest grain the contract governs.
 
 **V3.2 The subcheck grain, stated so it cannot be quietly coarsened.**
-Each of the eleven percentile rungs separately, the two ends exact and
-the nine interior rungs each against its own window on a numeric ladder;
-on a ladder of dates or of clock times each PUBLISHED rung against its
-own window, a rung the tail rule withholds being a listing entry and
-never a check (stage 3, plan P4-D328). Each side of a column's TAIL
+Each of the eleven percentile rungs separately, and ON EVERY LADDER --
+numeric, date and clock alike -- each PUBLISHED rung against its own
+window, a rung the tail rule withholds being a listing entry and never
+a check (stage 3, plans P4-D328 and P4-D344). The two ENDS are exact
+where a ladder publishes them, which is a legacy block written before
+stage 3 or an end at least `max(small_cell_floor, 3)` rows hold; on a
+tail block a published end is a HEAPED one and its check is one-sided,
+because the rows beyond the boundary on that side are described by the
+tail and not one by one. Each side of a column's TAIL
 separately, and four obligations on each: its boundary, the count of
 cells beyond it, and each of its two distances — or, where the tail
 publishes which values it holds, those values as a set and its mean
@@ -1756,14 +1783,17 @@ four above — an obligation the description itself empties:
   case: all the plain cells together supply one identity, so a column
   that has collapsed onto one repeated value lands inside the bar and
   so does every count above it;
-- every rung of a ladder of dates or of clock times that the TAIL RULE
-  withholds, both ends included (stage 3, plan P4-D328). The
+- every rung of a ladder that the TAIL RULE withholds, on a numeric
+  ladder as on a ladder of dates or of clock times, both ends included
+  unless an end is heaped (stage 3, plans P4-D328 and P4-D344). The
   description publishes nothing at those ranks — they hold the column's
   outermost values — so there is nothing for a file to carry and a
   comparison of a null with a null could not fail on any file of the
   same depth. Each is listed with the rule that withholds it
-  (contract D11, T2), and a column with no tails at all lists both
-  tails the same way;
+  (contract D11 and T2 for a date or clock ladder, TL1 for a numeric
+  one), and a column with no tails at all lists both tails the same
+  way; a numeric tail block lists its grouped histogram and the census
+  of every bin it no longer publishes for the same reason;
 - the two endpoint offsets, which stood here until stage 3 and are gone
   from the format with the ends they described.
 

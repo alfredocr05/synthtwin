@@ -140,7 +140,7 @@ def test_a_tie_is_not_the_same_thing_as_full_ambiguity() -> None:
 
     THE TWO CONTRADICTION COUNTS ARE FLOORED (contract C6-143, plan
     P4-D334), and one cell each is below the census line of eleven, so
-    each is written as NF59 `said_fewer_than_the_line` rather than as
+    each is written as NF60 `said_fewer_than_the_line` rather than as
     its own digit. That is derived from the rule, not read off the
     output.
 
@@ -177,7 +177,7 @@ def test_a_column_decided_by_evidence_can_also_contradict_itself() -> None:
     points both ways.
 
     Both contradiction counts are below the census line of eleven and
-    are written as NF59 (C6-143). The REACHES keep their own digits:
+    are written as NF60 (C6-143). The REACHES keep their own digits:
     they are floored too, and 99 and 98 each reach the line.
     """
     document, _loaded = _described(

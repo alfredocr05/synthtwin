@@ -529,7 +529,7 @@ def test_a_tail_boundary_that_is_a_spelling_stops_the_run(
 def test_a_tail_value_that_is_a_spelling_stops_the_run(
     tmp_path: pathlib.Path,
 ) -> None:
-    """And so is each value a few-valued tail lists (stage 3, TL1)."""
+    """And so is each value a few-valued tail lists (stage 3, DT1)."""
     document = _document(tmp_path)
     found = False
     for block in document["columns"]:
@@ -589,10 +589,10 @@ def test_every_enumerated_form_writes_and_rewrites_the_same_words() -> None:
         # pinned in tests/test_p4d334_sentence_arguments.py.
         #
         # EACH FLOOR IS THE FORM'S OWN SHORTEST LEGAL RENDERING, not a
-        # number copied off a run. NF59's argument is the census line,
+        # number copied off a run. NF60's argument is the census line,
         # which `parsing.census_floor` never returns below 2, so
         # "fewer than 2" -- twelve characters -- is the shortest it can
-        # ever write. NF60 takes no argument at all, so its rendering
+        # ever write. NF61 takes no argument at all, so its rendering
         # is its whole text and there is nothing shorter it could say.
         least = 21
         if form == taxonomy.SAID_FEWER_THAN_THE_LINE:

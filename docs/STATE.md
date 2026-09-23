@@ -48,8 +48,8 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 7,253 collected. **The seconds here are STALE**: the last single-process measurement was 3,085.8 s (51 min 25 s) at 7,109 collected, and stage 3's landings have raised about eighty files' tables to the population floor since. Five-shard sums suggest the suite grew about a quarter; ledger `K-P0-10` carries that arithmetic and the next quiet-machine run re-stamps it. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 153 KPIs over phases 0-4 and stages 1, 2, 2b and 3, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 138 green, 11 open with the stage that owns each, 4 limits the owner accepted. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| suite | 7,429 collected. **The seconds here are STALE**: the last single-process measurement was 3,085.8 s (51 min 25 s) at 7,109 collected, and stage 3's landings have raised about eighty files' tables to the population floor since. Five-shard sums suggest the suite grew about a quarter; ledger `K-P0-10` carries that arithmetic and the next quiet-machine run re-stamps it. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| KPIs | `tests/kpi/ledger.json`: 163 KPIs over phases 0-4 and stages 1, 2, 2b and 3, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 149 green, 10 open with the stage that owns each, 4 limits the owner accepted. Stage 3's five landings each allocated from `K-S3-01` and their integration renumbered them `K-S3-01` to `K-S3-12`, keeping ONE of them a headline (`K-S3-11`, the tail leak) and demoting the rest. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
@@ -65,7 +65,7 @@ Weeks are elapsed from 2026-09-12 and assume one builder.
 | 1 | **DONE 2026-09-13. The list idiom and the heap merge.** Generate at 20,000 rows x 20 numeric: 1,113 s to 19 s. Describe at 200,000 rows: 390 s to 10 s. Both linear now | MET: 9 output files byte-identical; `tests/test_no_quadratic_list_growth.py` turns red on the idiom, and KPIs `K-S1-02`, `K-S1-03` and `K-S1-07` hold the growth ratios | done |
 | 2 | **DONE 2026-09-14. The three silent defects.** A grouped number keeps its mark, a moment keeps its separator, a date at midnight stays at midnight | MET: `tests/test_stage2_round_trip.py`, 19 shapes, every stage-2 fact returned. KPIs `K-S2-*` | done |
 | 2b | **DONE 2026-09-19. The twin writes each column as the source wrote it.** Numbers keep their distribution and every common spelling; dates their own format; labels, text and missing values their spellings; record numbers and codes their layout; the file its dialect; Excel in and out. Every published count asks one floor rule. Owner rulings of 2026-09-17 built. Three review rounds closed | MET: the KPI ledger's `K-2B-*` entries, green or at their recorded ceiling, and the whole suite green | done |
-| 3 | **The extremes, and the population floor.** Stop publishing exact minima and maxima — publish the tail's shape. Then: refuse under 100, notice 100–999, counted in SUBJECTS where an identifier is declared. **Inherits:** the spread 1.1 to 3.8% too wide on normal-shaped columns (the straight outer segment to the exact extreme, `K-P3-03`); the heavy-tail mean and spread; 147 single-row labels published at the shipped floor of 1 (`K-P4-22`) | no published number is held by fewer than the floor; a one-row table is refused | 5 |
+| 3 | **DONE 2026-09-23. The extremes, and the population floor.** Built as FIVE landings on five branches from one base — 3.1 the default floor of 11 and the floor holes, 3.2 the population floor and the person rule, 3.3 the numeric tail, 3.4 the date and clock tails, 3.5 the sentences — and integrated last. No numeric, date or clock column publishes either end now; a table under 100 is refused and one under 1,000 carries a notice it cannot turn off; no sentence carries a count a key withholds | MET: `K-S3-01` to `K-S3-12`, and `K-P3-03` and `K-2B-05` reached their targets on the way | done |
 | 3b | **Dates keep their calendar shape.** Weekday, time of day, heaps and schedules, each a new published fact that must meet stage 3's floor | weekend share, hour of day and heaps come back; no calendar count below the floor | 6 |
 | 4 | **The numeric path per stratum, not per row.** The ladder work happens once per distinct value | two million rows by fifty columns, end to end, under an hour (`K-S1-06`) | 8 |
 | 5 | **The seam the interface needs.** Results become data with a rank decided once, before any sentence exists; a callable entry point returns results instead of printing them | a caller distinguishes a good run from a bad one without reading prose; reports byte-identical | 13 |
@@ -126,23 +126,29 @@ ones.
 Each item is an OPEN entry in the KPI ledger, held at a ceiling so it
 cannot get worse unseen.
 
-- **The description still names individuals.** Exact minima and maxima
-  are published, and at the shipped floor of 1 so are labels held by one
-  row: 147 on the every-role table. Landing 3.
-- **Spread too wide on normal-shaped columns**, 1.1 to 3.8% over the
-  ledger's twenty columns and 1.4 to 3.7% on potassium, sodium,
-  systolic pressure and haemoglobin: the twin draws the outer 1%
-  as a straight line to the exact published extreme. At 20,000 rows the
-  twin misses its own spread check on 19 of 20 columns. Landing 3
-  replaces those extremes, so it repairs this there.
+- ~~**The description still names individuals.**~~ **CLOSED by landing
+  3, 2026-09-23.** No numeric, date or clock column publishes either
+  end, and the default smallest group is 11, so nothing a floor of one
+  used to name is named: `K-P4-22` reads 147 published levels of one row
+  AT A FLOOR OF ONE and 0 at the default, and `K-S3-11` walks 105 cases
+  of the tail battery without one published value, summary line or
+  report line equal to an outermost value of the real column. A floor
+  lowered to one still names what it always named, which is what
+  lowering it asks for.
+- ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing
+  3, 2026-09-23.** There is no published extreme to draw a straight line
+  to: the outer rows are read through the shape fitted to their two
+  published moments. `K-P3-03` is GREEN — nothing missed at 5,000 or at
+  20,000 rows and the twin's spread 0.04 to 0.22 per cent from the
+  published one, against 1.1 to 3.8 per cent before and 10 of 20
+  columns missing their own spread check at 20,000 rows.
 - **Relationships between columns are not carried.** Landing 6.
 - **Time of day inside timestamps** is spread over the whole day.
   Landing 3b.
-- **Cells of three or four numbers** sit at 609 of 2,160 pair
-  agreements outside their window and 3 above-counts missed, against
-  550 and 7 when recorded; the repair of a nearly full band traded 12
-  agreements for 4 exact counts (`K-P4-06`). The pairing walk is the
-  open cause. Landing 6.
+- **Cells of three or four numbers** sit at 556 of 2,160 pair
+  agreements outside their window and 1 above-count missed, against a
+  target of 550 and 0 (`K-P4-06`); stage 3's numeric tail brought both
+  down from 609 and 4. The pairing walk is the open cause. Landing 6.
 - **A short list of carried edge cases** fails the twin's own check on
   one shape each: two date-width allocations, one identifier layout, a
   sign band given more slots than it has numbers. The known-miss entry

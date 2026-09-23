@@ -362,6 +362,9 @@ PLAN3_REGIONS = {
 # edited to carry a role Phase 2 never had, so a role a later phase
 # adds is disposed in that phase's plan and looked for there.
 PLAN4_REGIONS = {
+    # The numeric tail (stage 3, landing 3.3). Its own region, because
+    # the facts it adds are disposed there and nowhere else.
+    "numeric-tails": "### P4-D344 The numeric tail (landing 3.3)",
     "affixed": "### P4-D4.1 The affixed-number role",
     "clock": "### P4-D4.2 The time-of-day role",
     # The stage-3 decision that replaced both roles' ends with tails
@@ -744,6 +747,14 @@ _ENVELOPE = (
 # The clause both specifications write for the same authorization.
 _ENVELOPE_SAID = "two-sided envelope only where even those cannot supply"
 REGISTRY += [
+    # THE TWO ENDS, AND WHAT THE TAIL RULE DID TO THEM (stage 3, plan
+    # P4-D344). They stay EXACT-OBSERVABLE, and a tail block publishes
+    # them only where at least `max(small_cell_floor, 3)` rows held the
+    # value: a heaped end is a value of a group, checked one-sided --
+    # no cell of the file beyond it -- and the file's own extreme is
+    # never printed. Where the rule withholds an end there is no
+    # published number to be exact about, and `synthtwin validate`
+    # LISTS the rung instead.
     Fact(
         "numeric",
         "percentiles.min",
@@ -1413,6 +1424,84 @@ REGISTRY += [
         plan_phrase="per-column `n_rows` echo",
         plan_region="document",
     ),
+    # THE TAIL FACTS (stage 3, plan P4-D344, contract 6.7a). The two
+    # places and the two row counts follow from the count of values and
+    # the smallest group size, and the loader holds the description to
+    # both; the two distances are the group's own shape and take
+    # G12.13's window; the listed values are exact, because the
+    # generator writes the tail on those values and no others.
+    Fact(
+        "numeric",
+        "tails",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.percent",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.percent",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.rows",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.rows",
+        LOADER_ONLY,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.mean_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.mean_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.rms_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.rms_distance",
+        APPROXIMATED,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.low.values",
+        EXACT_OBSERVABLE,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "tails.high.values",
+        EXACT_OBSERVABLE,
+        plan_region="numeric-tails",
+    ),
+    Fact(
+        "numeric",
+        "bin_groups",
+        REPORT_ONLY,
+        plan_region="numeric-tails",
+    ),
 ]
 
 # `constant`, `binary`, `categorical`.
@@ -1498,7 +1587,7 @@ REGISTRY += [
     # LOADER-ONLY AND NOT EXACT-CONTROL, which the entry table settled:
     # a fact of this class must reach a verdict, and the only verdict
     # this one could carry is a second reading of `resolution`,
-    # `time_precision` and `all_at_midnight`, which TL4 settles it from
+    # `time_precision` and `all_at_midnight`, which DT4 settles it from
     # at load time. So its whole obligation lives on the profile, and
     # `validation.INPUT_SIDE_ENTRIES` is where the shipped table binds it.
     Fact(

@@ -207,15 +207,25 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
     2026-09-19). G6.5a's push walks a collision the walks leave along its
     band to a free point, and the 200 crowded values now hold all 74. A
     shortfall no repair of G6.5a can mend is the witness: twelve
-    negatives written once, a zero, and the whole numbers one to ten forty
-    times each. G5.2 divides the strata between the bands by their CELLS,
-    so the positive band is given eleven strata for its ten integers, and
-    the twin holds 22 numbers of 23.
+    negatives written once, a zero, and whole numbers repeated many
+    times each. G5.2 divides the strata between the bands by their
+    CELLS, so a band of few integers is given more strata than it has
+    numbers, and no walk can find a free whole number for the rest.
+
+    AND IT MOVED ONCE MORE AT STAGE 3 (landing 3.3). With ten integers
+    at forty cells each the positive band was given eleven strata for
+    ten numbers and the twin held 22 of 23; the tail rule describes the
+    rows beyond each boundary rung as a group, the band's strata fall
+    where those facts put them, and that column now reaches all 23.
+    The same shape one turn tighter still cannot: FIVE integers at
+    eighty cells each carry the same 400 positive cells, the band is
+    given eight strata for five numbers, and the twin holds 15 of the
+    18 the description publishes -- at seed 0 and at seed 4 alike.
     """
     values = (
         [str(-number) for number in range(1, 13)]
         + ["0"]
-        + [str(number) for number in range(1, 11) for _copy in range(40)]
+        + [str(number) for number in range(1, 6) for _copy in range(80)]
     )
     document, loaded = _described(tmp_path, values)
 

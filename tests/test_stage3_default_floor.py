@@ -986,10 +986,23 @@ def test_the_counted_double_spaced_file_round_trips_at_the_default(
     file, because `validate` recounts the checked file's own blank lines
     (the repair pass of landing 3.1). The twin passed throughout, which
     is why only the real table catches this.
+
+    The plain tail is the sibling case's (plan P4-D341): seventy records
+    are fewer rows than `parsing.POPULATION_FLOOR`, so the command
+    refuses the table and writes nothing. The tail carries no blank line
+    after it, so the places counted are still the seventy-one the
+    double-spaced part stands in.
     """
     from tests.test_stage2_round_trip import _exit_of
 
-    table = fixtures.write(tmp_path, "t.csv", _double_spaced(records=70))
+    records = 70
+    table = fixtures.write(
+        tmp_path,
+        "t.csv",
+        _double_spaced(
+            records=records, tail=parsing.POPULATION_FLOOR - records
+        ),
+    )
     assert _exit_of(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]) == 0
     written = tmp_path / "t-profile.json"
     form = contract.load_profile(f"{written}").source.dialect

@@ -39,6 +39,7 @@ import tempfile
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -778,8 +779,31 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     block = document["columns"][0]
     assert block["n_present"] == 200
     assert block["n_missing"] == 0
-    assert block["percentiles"]["min"] == -999.0
     assert block["sentinel_verdicts"] == []
+    # THE SMALLEST VALUE IS NOT PUBLISHED ANY MORE, and what says the
+    # `-999` was kept as a READING is the tail that replaced it: the
+    # rule withholds every rung whose reading touches the outermost
+    # values (contract 6.7a, landing 3.3), and the group beyond the low
+    # boundary is worked out here from the column's own numbers. It is
+    # a long way from the boundary because the `-999` is one of those
+    # rows -- a column whose smallest reading were 1 states a low tail
+    # of nothing like this distance, which is the comparison below.
+    assert block["percentiles"]["min"] is None
+    numbers = [float(value) for value in values]
+    assert tail_rule.stated(block["tails"]["low"]) == tail_rule.expected(
+        block, numbers, 11, True
+    )
+    without = profile.build_document(
+        reading.read_table(
+            f"{fixtures.write(folder, 'without.csv', fixtures.single_column_table('score', values[1:] + ['200']))}",
+            small_cell_floor=11,
+        ),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+    )["columns"][0]
+    assert block["tails"]["low"]["mean_distance"] > 10 * (
+        without["tails"]["low"]["mean_distance"]
+    )
 
 
 def _mixed_with_a_declared_hole(

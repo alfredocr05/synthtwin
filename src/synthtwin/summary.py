@@ -149,6 +149,102 @@ def _list_of(value: object) -> list[object]:
     return []
 
 
+def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
+    """What a column of numbers says about its own shape (stage 3).
+
+    A block written before stage 3 says its smallest, middle and largest
+    value. A TAIL BLOCK says its middle, then what each tail holds: how
+    many rows lie beyond the boundary rung and how far from it they lie
+    on average. It names no smallest and no largest value, because those
+    are one row's values and the description does not carry them -- only
+    an end at least a tail's own number of rows held, which is a value of
+    a group and is said so. A block below its floor says that it is, and
+    a block publishing its moments alone says only those.
+    """
+    ladder = _map_of(column["percentiles"])
+    moments = (
+        f"    average: {_text_of(column['mean'])};   "
+        f"spread (standard deviation): {_text_of(column['std'])}"
+    )
+    if "tails" not in column:
+        return [
+            (
+                f"    smallest: {_text_of(ladder['min'])};   "
+                f"middle: {_text_of(ladder['p50'])};   "
+                f"largest: {_text_of(ladder['max'])}"
+            ),
+            moments,
+        ]
+    tails = column["tails"]
+    if tails is None:
+        return [
+            "    fewer values than the smallest group size, so this "
+            "description gives no shape for them at all"
+        ]
+    sides = _map_of(tails)
+    low = sides["low"] if "low" in sides else None
+    high = sides["high"] if "high" in sides else None
+    if not isinstance(low, dict) or not isinstance(high, dict):
+        return [
+            moments,
+            "    too few values to describe either end apart from the "
+            "middle, so no step of the ladder is given",
+        ]
+    lines = [f"    middle: {_text_of(ladder['p50'])}", moments]
+    for side, end, word, which in (
+        (low, ladder["min"], "below", "smallest"),
+        (high, ladder["max"], "above", "largest"),
+    ):
+        lines += [
+            (
+                f"    the {_count_of(side['rows'])} {which} values are not "
+                f"published: they lie on average "
+                f"{_text_of(side['mean_distance'])} {word} "
+                f"{_text_of(_rung_at_percent(column, _count_of(side['percent'])))}"
+                f", the value {_count_of(side['percent'])} per cent of the "
+                f"way up"
+            )
+        ]
+        if end is not None:
+            lines += [
+                (
+                    f"      the {which} value itself is "
+                    f"{_text_of(end)}: at least "
+                    f"{parsing.tail_units(floor)} rows hold it, so it is a "
+                    f"value of a group and not of one row"
+                )
+            ]
+        listed = side["values"] if "values" in side else None
+        if isinstance(listed, list) and listed:
+            shown = ""
+            for value in listed:
+                shown = (
+                    _text_of(value) if not shown
+                    else f"{shown}, {_text_of(value)}"
+                )
+            lines += [
+                (
+                    f"      the values that end lies on: {shown} -- how "
+                    f"many rows hold each is not published"
+                )
+            ]
+    return lines
+
+
+def _rung_at_percent(column: "dict[str, object]", percent: int) -> object:
+    """The published rung at one percent, from either half of the ladder."""
+    for name, number in (
+        ("min", 0), ("p01", 1), ("p05", 5), ("p10", 10), ("p25", 25),
+        ("p50", 50), ("p75", 75), ("p90", 90), ("p95", 95), ("p99", 99),
+        ("max", 100),
+    ):
+        if number == percent:
+            return _map_of(column["percentiles"])[name]
+    finer = _map_of(column["percentiles_between"])
+    key = f"p{percent:02d}"
+    return finer[key] if key in finer else None
+
+
 def _map_of(value: object) -> dict[str, object]:
     """``value`` when it is a mapping, an empty mapping otherwise."""
     if isinstance(value, dict):
@@ -971,18 +1067,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 ),
             ]
     if role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
-        ladder = _map_of(column["percentiles"])
-        lines += [
-            (
-                f"    smallest: {_text_of(ladder['min'])};   "
-                f"middle: {_text_of(ladder['p50'])};   "
-                f"largest: {_text_of(ladder['max'])}"
-            ),
-            (
-                f"    average: {_text_of(column['mean'])};   "
-                f"spread (standard deviation): {_text_of(column['std'])}"
-            ),
-        ]
+        lines = lines + _numeric_lines(column, floor)
     if role == taxonomy.ROLE_DATETIME:
         # A column written on two clocks is published on one, and this
         # line has to say which, or a reader compares a UTC time with
@@ -1305,13 +1390,21 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     therefore held back like any other. That was false, and provably so:
     a column of 200 readings
     with three cells of `-999`, profiled with `--keep-value -999`,
-    prints `smallest: -999.0` four lines above. The publication is
+    printed `smallest: -999.0` four lines above. The publication was
     right -- declaring a value KEPT says it is real data, so it is an
     ordinary number of that column, and every column of numbers
-    publishes a real smallest and a real largest; that is what a range
-    is. What was wrong was the paragraph, and a person deciding whether
+    published a real smallest and a real largest; that is what a range
+    was. What was wrong was the paragraph, and a person deciding whether
     to move this file has to be able to trust the paragraph exactly.
     Overclaiming safety is worse than claiming less.
+
+    AND SINCE LANDING 3.3 THE SAME RUN PRINTS NO SUCH LINE: the tail
+    rule publishes an end only where at least max(`small_cell_floor`, 3)
+    rows hold it, so three cells of `-999` are counted in the group
+    beyond the low boundary and the number itself is named nowhere. The
+    paragraph says that too, because the reverse error -- telling a
+    person their kept value will be published when it will not -- is
+    the same kind of untruth in the other direction.
 
     So these lines separate the settings from the columns, and the two
     directions from each other. Each statement below was checked against
@@ -1326,10 +1419,15 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
       -- but only where that column publishes values at all and at least
       `small_cell_floor` rows share it, otherwise it is pooled unnamed;
     * a value named as real data is data from that point on, so it can
-      be the smallest or largest number of a column of numbers HOWEVER
-      FEW rows hold it (a range is not governed by the floor), and it
-      can be one of the labels of a column of categories only when at
-      least `small_cell_floor` rows share it;
+      be the smallest or largest number of a column of numbers where
+      at least max(`small_cell_floor`, 3) rows hold that number, and is
+      otherwise counted in the group of outermost values the tail rule
+      of stage 3 describes without naming (contract 6.7a) -- the
+      sentence said HOWEVER FEW rows hold it until landing 3.3, which
+      was true of a range that always published its two ends and is
+      false of one that publishes an end only where a group holds it;
+      and it can be one of the labels of a column of categories only
+      when at least `small_cell_floor` rows share it;
     * a column that publishes nothing at all -- record numbers, free
       text, numbers no format can hold -- publishes no VALUE of the
       table, in either direction, and now in every field of its block
@@ -1442,9 +1540,11 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             "      a value you named as real data IS data from then on,",
             "      so it appears wherever that column publishes values:",
             "      as the smallest or largest number of a column of",
-            "      numbers, however few rows hold it, or as one of the",
-            "      labels of a column of categories if at least",
-            f"      {floor} rows share it.",
+            f"      numbers if at least {max(floor, 3)} rows hold that number,",
+            "      and otherwise counted in the group of smallest or",
+            "      largest values that column describes without naming",
+            "      them; or as one of the labels of a column of",
+            f"      categories if at least {floor} rows share it.",
         ]
     lines += [
         "    A column that publishes nothing -- record numbers, free",

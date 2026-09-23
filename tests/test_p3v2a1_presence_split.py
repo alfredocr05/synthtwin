@@ -335,6 +335,27 @@ _TAIL_DECIDING = (
     "tails.high.rows",
 )
 
+# ...AND THE NUMERIC LADDER'S OWN VERSION OF THE SAME THING (amendment
+# V2.4-A11, stage 3 landing 3.3). Where a date or clock ladder is
+# decided by the tail a file's own cells fall into, a NUMERIC column's
+# two boundary percents are read off its COUNT of values and nothing
+# else (contract 6.7a TL1, and the rows beyond them off the same count,
+# TL4), so a file holding a different number of values describes itself
+# with its ladder and its tails at a DIFFERENT percent and publishes
+# nothing at the percent this description names. The rungs and the tail
+# facts then go quiet for the reason A2 widened the clause to admit: a
+# published fact of its own, `counts.n_used_in_statistics`, decides
+# whether such a measurement exists at all, and it MISSES in the same
+# report -- which is the sentence a reader acts on. The column is still
+# a column of numbers, so its role is HELD and its role is right.
+#
+# THE TWO ARE SEPARATE RULES AND BOTH ARE ASKED. A date ladder is not
+# decided by `n_used_in_statistics` and a numeric ladder has no
+# `tails.low.boundary` check of its own to name, so a check explained
+# by neither is still unexplained.
+_TAIL_HEADS = ("ladder.", "tails.")
+_TAIL_COUNT = "counts.n_used_in_statistics"
+
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
 ) -> None:
@@ -364,15 +385,23 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
       publishes for it that the spread CANNOT be held -- which is a
       published fact of its own, is reported as a MISSED check of its
       own, and is exactly the reason no spread is shown. AND SINCE
-      STAGE 3 there is a third (plan P4-D328): a rung of a date or
-      clock ladder is published BETWEEN that column's two tail
-      boundaries and nowhere else (contract D11'), so a file whose own
-      tail reaches further in than the description's publishes nothing
-      at that rank and the rung goes quiet -- and what decides it, the
-      count of rows beyond that boundary, is a published obligation of
-      its own that the same run reports MISSED by name. Either way a
-      reader is never told nothing: the report says out loud, in a
-      verdict, why the rest of the column went quiet.
+      STAGE 3 there are two more of the same shape, one per tail rule.
+      A rung of a date or clock ladder is published BETWEEN that
+      column's two tail boundaries and nowhere else (plan P4-D328,
+      contract D11'), so a file whose own tail reaches further in than
+      the description's publishes nothing at that rank and the rung
+      goes quiet -- and what decides it, the count of rows beyond that
+      boundary, is a published obligation of its own that the same run
+      reports MISSED by name. A NUMERIC ladder goes quiet for the
+      neighbouring reason (amendment V2.4-A11): the tail rule reads a
+      column's two boundary percents off its COUNT of values and
+      nothing else, so a file holding a different number of values
+      publishes its ladder and its tails at a different percent and
+      publishes nothing at the percent the description names -- and
+      `counts.n_used_in_statistics` is a published fact of its own that
+      MISSES in the same report. Either way a reader is never told
+      nothing: the report says out loud, in a verdict, why the rest of
+      the column went quiet.
 
     Together these say a measured file cannot buy silence. Making a file
     worse can make its obligations MISS, and it can make the file's own
@@ -470,6 +499,14 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     for subcheck in _TAIL_DECIDING:
                         if (check.column, subcheck) in missed:
                             decided = True
+                # ...and the numeric ladder's own deciding fact, which
+                # is the count of values the two boundary percents are
+                # read off (amendment V2.4-A11).
+                if check.subcheck.startswith(_TAIL_HEADS) and (
+                    check.column,
+                    _TAIL_COUNT,
+                ) in missed:
+                    decided = True
                 if decided:
                     continue
                 unexplained = unexplained + [
@@ -551,7 +588,13 @@ def test_the_gate_still_comes_from_the_file_s_own_description(
         ["5" if index % 2 else "7" for index in range(60)],
         "twovalued.csv",
     )
-    for subcheck in ("ladder.p50", "moments.mean", "ladder.min"):
+    # `ladder.min` stood here as the third. The tail rule of contract
+    # 6.7a withholds that rung from PUBLICATION on a column of sixty
+    # different numbers (landing 3.3), so there is no such obligation
+    # left to gate; what the description says about that end instead is
+    # the group beyond the boundary, and the gate closes over it the
+    # same way.
+    for subcheck in ("ladder.p50", "moments.mean", "tails.low.mean_distance"):
         check = _one(outcome, subcheck)
         assert check.verdict == validation.WITHHELD, check
         assert check.achieved == ""
@@ -610,7 +653,7 @@ def test_the_two_sides_build_the_same_obligations_in_the_same_order(
                 blocks = blocks + [document["columns"][0]]
         seen = []
         for block in blocks:
-            built = validation._universal_checks(column, block, mine)
+            built = validation._universal_checks(column, block, mine, floor)
             built = built + validation._role_checks(
                 column, block, values, floor, mine
             )

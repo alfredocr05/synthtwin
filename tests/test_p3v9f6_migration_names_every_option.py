@@ -43,8 +43,14 @@ descriptions compared:
   all, because a column name is not a value of the table.
 * `--missing-value -100` where five cells hold `-100`. With it, five
   cells are absent, five is below the floor and the number reaches no
-  field. Without it, `-100` is the smallest reading, so it is published
-  as the column's minimum and as its first two percentiles.
+  field. Without it, `-100` is a reading, and it moves every moment and
+  both tail groups of the column; with twelve such cells instead of
+  five the end is heaped and the number itself is published, as the
+  column's minimum and as the value its low tail lists. That is why the
+  message says a stand-in CAN be published as the smallest value: the
+  tail rule of contract 6.7a withholds that rung where too few rows
+  hold it (landing 3.3), where before stage 3 it was published whatever
+  the count.
 * `--keep-value` on a word in a counting column. With it, twelve of the
   column's values are not numbers, the column reads as free text and
   publishes nothing at all. Without it, the word is one of synthtwin's
@@ -86,6 +92,7 @@ import re
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import cli, contract, errors, profile, reading, taxonomy
 
 _FOUND = 4
@@ -451,7 +458,7 @@ def test_leaving_out_the_first_row_publishes_a_cell_as_a_column_name(
     assert _MARKER in json.dumps(forgotten)
 
 
-def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
+def test_leaving_out_the_missing_value_can_publish_the_stand_in_number(
     tmp_path: pathlib.Path,
 ) -> None:
     """The fourth disclosure, and the floor does not stop this one either.
@@ -459,9 +466,22 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     Sixty readings and five cells holding `-100`, named as "no value".
     Named, the five are absent; five is below the floor the run gives,
     so no field of the description holds the number. Left out, `-100`
-    is a reading and it is the smallest one, so the description
-    publishes it as the column's minimum -- and a percentile is
-    published whatever its count.
+    is a reading -- and what the description then says about it is the
+    half of this that MOVED IN LANDING 3.3.
+
+    THE MESSAGE SAYS "CAN BE PUBLISHED" AND THAT IS NOW THE EXACT WORD.
+    Until stage 3 the smallest reading was published as `percentiles.min`
+    whatever its count, so five stand-in cells put `-100` into the
+    description by themselves. The tail rule of contract 6.7a withholds
+    that rung unless at least the smallest group's worth of rows hold
+    it, so with five the number reaches no field of the description
+    after all -- what it moves instead is the shape: the low tail's
+    rows lie ten times further from their boundary than the high tail's
+    do, and every moment of the column goes with them. With TWELVE such
+    cells the end is heaped, the rung is published and the tail lists
+    the value, which is the run this test makes second: the sentence a
+    person is given stays true, and it is true in the way it is
+    written.
 
     Both runs give `--smallest-group 11`, because the pooling half of
     this measurement needs a floor five cells fall under and plan
@@ -497,8 +517,31 @@ def test_leaving_out_the_missing_value_publishes_the_stand_in_number(
     )
     forgotten_column = forgotten["columns"][0]
     assert forgotten_column["n_present"] == 65
-    assert forgotten_column["percentiles"]["min"] == -100.0
-    assert stand_in in json.dumps(forgotten)
+    # THE FIVE ARE READINGS, and the column says so without naming the
+    # number: the rung that carried it is withheld, and the group
+    # beyond the low boundary stands where those five put it.
+    assert forgotten_column["percentiles"]["min"] is None
+    assert stand_in not in json.dumps(forgotten)
+    low = forgotten_column["tails"]["low"]
+    high = forgotten_column["tails"]["high"]
+    assert low["values"] == []
+    assert low["mean_distance"] > 5 * high["mean_distance"], (low, high)
+    assert forgotten_column["mean"] != named["columns"][0]["mean"]
+    # ...AND TWELVE OF THEM DO PUT IT IN THE FILE, which is what the
+    # message's "can be published" is written for: the end is then held
+    # by a group the floor admits, so the rung is published and the
+    # tail lists the value itself.
+    heaped = _described(
+        tmp_path,
+        "heaped",
+        _numbers(60) + [stand_in] * 12,
+        taxonomy.Settings(small_cell_floor=_STATED_FLOOR),
+        [],
+    )
+    heaped_column = heaped["columns"][0]
+    assert heaped_column["percentiles"]["min"] == -100.0
+    assert heaped_column["tails"]["low"]["values"] == [-100.0]
+    assert stand_in in json.dumps(heaped)
 
 
 def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
@@ -558,17 +601,24 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     # them at all, and that was the larger half of the disclosure this
     # test was written to hold.
     #
-    # AND THE READINGS THEMSELVES NOW APPEAR, which is the part this
-    # test was written to hold and which has stopped being true. A
-    # percentile ladder is made of ORDER STATISTICS -- rungs that are
+    # THE READINGS THEMSELVES APPEARED, AND THEY DO NOT ANY MORE, which
+    # is the part this test was written to hold and which moved twice.
+    # A percentile ladder is made of ORDER STATISTICS -- rungs that are
     # values the column really holds -- so describing the numeric half
-    # puts real readings into the document. That is how every numeric
-    # column in this package has always worked; what changed is that
-    # THIS column is now described as one.
+    # put real readings into the document, and naming the word as real
+    # data went from publishing not one of the sixty readings to
+    # publishing several of them as rungs. That was R-P4-148, a
+    # disclosure change to a shipped option.
     #
-    # So naming the word as real data used to publish not one of the
-    # sixty readings, and now publishes several of them as rungs. That
-    # is a disclosure change to a shipped option and it is R-P4-148.
+    # LANDING 3.3 TAKES IT BACK. The tail rule of contract 6.7a
+    # withholds every rung whose reading touches the outermost values,
+    # which is where the exact order statistics were: `min` and `max`
+    # are not published, and what remains -- `p25`, `p50`, `p75` on
+    # sixty values -- reads BETWEEN two neighbouring readings and is a
+    # value of the column only by coincidence. So this half publishes
+    # the distribution and, on this column, not one of the readings
+    # character for character. That is measured below rather than
+    # claimed, from the readings themselves.
     assert column["role"] == "numbers_with_labels"
     assert column["n_present"] == 72
     # THE DECLARATION REACHES THE WRITTEN DESCRIPTION, and this line
@@ -582,17 +632,25 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     # does, which is the change.
     assert "percentiles" not in column
     assert "percentiles" in column["numbers"]
+    ladder = column["numbers"]["percentiles"]
     rungs = [
-        value for value in column["numbers"]["percentiles"].values()
+        value for value in ladder.values()
         if isinstance(value, (int, float))
     ]
+    assert rungs, (
+        "the witness is wrong: this half is described as numbers, so "
+        "its ladder must publish something"
+    )
+    assert ladder["min"] is None and ladder["max"] is None
     held = {float(reading) for reading in readings}
     appearing = [rung for rung in rungs if rung in held]
-    assert appearing, (
-        "the witness is wrong: a percentile ladder is made of order "
-        "statistics, so describing this half must put real readings "
-        "into the document"
+    assert appearing == [], (
+        "a published rung is one of the column's own readings, character "
+        "for character, which the tail rule was built to stop"
     )
+    # ...and the distribution IS published: every rung the block names
+    # stands between the readings it was read from.
+    assert min(held) < min(rungs) and max(rungs) < max(held)
     forgotten = _described(
         tmp_path,
         "forgotten-keep",
@@ -605,9 +663,21 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     assert forgotten_column["missing_by_source"] == {word: 12}
     written_again = json.dumps(forgotten)
     assert word in written_again
-    assert forgotten_column["percentiles"]["max"] == float(max(
-        float(value) for value in readings
-    ))
+    # AND THE DISTRIBUTION OF THE SIXTY IS PUBLISHED, said through the
+    # facts the tail rule leaves: the top rung is withheld (landing
+    # 3.3), the middle one is the readings' own median by the
+    # contract's formula, and both tail groups are what the rule works
+    # out from those readings.
+    numbers = [float(value) for value in readings]
+    assert forgotten_column["percentiles"]["max"] is None
+    assert forgotten_column["percentiles"]["p50"] == float(
+        tail_rule.rung_at(numbers, 50)
+    )
+    for low in (True, False):
+        side = forgotten_column["tails"]["low" if low else "high"]
+        assert tail_rule.stated(side) == tail_rule.expected(
+            forgotten_column, numbers, _STATED_FLOOR, low
+        ), low
 
 
 def test_the_plan_records_this_as_closed_rather_than_open() -> None:

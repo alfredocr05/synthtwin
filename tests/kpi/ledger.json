@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19: the carried passes and the gap repairs merged) by one run of tools/measurements/kpi_run.py --slow --print-values on the reference machine, quiet: its one-minute load average 1.54 when the run began and 1.91 when it ended, so seconds were judged, and written in unchanged. Seconds are judged only where kpi_rules.seconds_judged_here says so -- the reference machine, under reference_machine.quiet_load_average_below -- by the runner, the KPI tests and the integrity guard alike, a recorded second that breaks its rule under load being marked RED in its evidence. Re-measure on a quiet reference machine before reading one as a regression. THIRTEEN ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on and the run that took it, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose rule gained refused_by_the_cell_cap while its peak memory became a peak_memory_below number recorded everywhere and judged only here; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's OWN wall clock and collected count, its seconds taken at a one-minute load average of 3.03 falling to 2.43 -- a hair above the quiet bound -- and therefore recorded rather than judged; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-42 on 4668107, that merge's own tree, the first to carry the independence repair's rewritten functions and the mean-only landing's mirrors of G8.3c step 4 and G12.12's window together; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); and K-P4-06, K-2B-05, K-2B-47, K-2B-49, K-2B-50 and K-2B-51 on f521955, 2026-09-22, that landing's repair pass, where K-P4-06's ceiling moved to the default's 4 in its own commit and the known-miss driver, which crashed on the landing's own guard, was re-measured with the slow tier (plan P4-D320); and K-S3-01 on 3587709, 2026-09-23 -- the commit before this one, which cannot hold its own hash; the two trees differ only in this sentence, and the landing stamped the same way at 1f4dd83 -- the REPAIR PASS of stage 3 landing 3.5: the entry arrived on baec6d2 and counts what its own seeded battery publishes, so it could not have been taken on any earlier tree, and the repair pass armed the complement clause and grew that battery by the three shapes that can see it -- so its ceiling and both of its nought numbers are measured on the repair's tree and not on the landing's (plan P4-D332). Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 33 ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-47, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01, K-S3-11 on 4823c33, the commit before this one, which cannot hold its own hash: THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured on the merged tree. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -1152,9 +1152,9 @@
    "phase_stage": "Phase 2 (G10, G5.3)",
    "category": "STATS",
    "headline": false,
-   "name": "Exact counts are recounted exactly from the twin's own cells, and so are the numeric ladder's two ends and every tail boundary",
+   "name": "Exact counts are recounted exactly from the twin's own cells, and so is each end of every ladder",
    "status": "GREEN",
-   "rule": "exact equality. THE TWO ENDS THIS ENTRY NAMED WERE THE LADDER'S (plan P2-D6): the numeric ladder still publishes min and max and they are still recounted here, and a column of dates or clock times publishes neither since stage 3 (plan P4-D328) -- what stands at its outside is a TAIL, whose boundary and count of rows beyond it are recounted from the twin's own cells by the node added below",
+   "rule": "exact equality: the presence and class counts recounted from the twin's cells, and every numeric, date and clock column reaching both ends of the ladder it was built from, with nothing outside them. THE ENDS THIS ENTRY NAMES ARE DERIVED ON A TAIL BLOCK (plans P4-D328 and P4-D344): since stage 3 neither role publishes `min`/`max` or `earliest`/`latest`, so what the twin is held to is the pair `contract.tail_ladder` reads from the published facts, and on a legacy block written before stage 3 it is still the published ends.",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -1172,11 +1172,11 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "every-role twin 240 rows, seed 7",
-   "evidence": "90 of 90 presence and class recounts equal; every numeric column hits both published ends, nothing outside; and both tail boundaries of the demonstration's date and clock columns are the twin's own cells at the ranks their rows fix",
+   "evidence": "90 of 90 presence and class recounts equal; every numeric, date and clock column hits both ends of its own ladder, nothing outside. Both ends are DERIVED on this tree: the description publishes neither for either role, and each tail boundary of the demonstration's date and clock columns is the twin's own cell at the rank its rows fix.",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1206,11 +1206,11 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "squares of 1..200, seed 7",
-   "evidence": "3 of 3 rung mutants refused (ends only, shifted, swapped); shifted mean, squeezed SD refused; faithful layout accepted",
+   "evidence": "3 of 3 rung mutants refused (ends only, shifted, swapped); shifted mean, squeezed SD refused; faithful layout accepted. The ends-only mutant builds its twin from the ladder's two ends, which are the DERIVED ends on a tail block since stage 3.",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -1645,16 +1645,16 @@
    "category": "STATS",
    "headline": true,
    "name": "A plain numeric twin at 20,000 rows passes its own check",
-   "status": "OPEN",
-   "rule": "must not get worse: the twin's spread within 2.2 per cent of the published one either way on four normal columns at 5,000 rows (the pinned node, tests/test_k_p3_03_outer_tail_spread.py); on the driver's twenty columns the widest spread no wider than measured and none more than 2.2 per cent narrower, missed_5k 0 and missed_20k no more than measured; target at stage 3: 0 missed at any row count",
+   "status": "GREEN",
+   "rule": "must not get worse at the merged tree's own measurement: on the driver's twenty gauss columns nothing missed at either size, the widest spread no wider than 0.20 per cent of the published one at 5,000 rows and 0.22 at 20,000, none more than half a per cent NARROWER at either; the pinned node holds four normal columns to half a per cent either way",
    "rule_kind": "at_most",
    "expected": {
-    "missed_20k": 10,
+    "missed_20k": 0,
     "missed_5k": 0,
-    "spread_widest_pct_5k": 3.11,
-    "spread_narrowest_pct_5k": -2.2,
-    "spread_widest_pct_20k": 3.83,
-    "spread_narrowest_pct_20k": -2.2,
+    "spread_widest_pct_5k": 0.2,
+    "spread_narrowest_pct_5k": -0.5,
+    "spread_widest_pct_20k": 0.22,
+    "spread_narrowest_pct_20k": -0.5,
     "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
@@ -1666,33 +1666,32 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "STRONG",
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
-   "evidence": "OPEN: 19 of 1,021 obligations MISSED, exit 3 (moments.std on 19 of 20 columns, twin spread 2.3-3.2% too wide). At 5,000 rows: 0 missed. On e53d5f4 (seed 0, the validator's census): 10 MISSED at 20,000 rows, all moments.std (m04, m05, m06, m09, m10, m11, m12, m13, m17, m19); 0 at 5,000. The bound is the value measured here, not the frozen copy's 19. g-spread (merged 2026-09-19): the cause is G5.3's straight outer ladder segment to the exact published extreme, and G12.3's std window is drawn from the same line, so both move together; normal-shaped twins are 1.4 to 3.7 per cent too wide from 5,000 rows up on g-spread's clinical columns, and the driver's twenty gauss(50, 10) columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000. The pinned node holds 2.2 per cent either way on its four normal columns at 5,000 rows (3.1 on two at 20,000, 3.3 on a one-figure lab column at 5,000)",
+   "evidence": "0 missed at 5,000 and at 20,000 rows, and the twin's spread 0.04 to 0.20 per cent from the published one at 5,000 and 0.11 to 0.22 at 20,000 -- measured on the merged tree of stage 3's five landings. The cause it repaired was method G5.3's straight outer segment to the exact published extreme, which the tail rule of contract 6.7a withdraws: on caf3079 that segment left 10 of 20 columns missing their own spread at 20,000 rows, at 1.07 to 3.11 per cent wide at 5,000 and 1.74 to 3.83 at 20,000.",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
-     "missed_20k": 10,
+     "missed_20k": 0,
      "missed_5k": 0,
-     "pinned_nodes_failing": 0,
-     "spread_narrowest_pct_20k": 1.74,
-     "spread_narrowest_pct_5k": 1.07,
-     "spread_widest_pct_20k": 3.83,
-     "spread_widest_pct_5k": 3.11
+     "spread_narrowest_pct_20k": 0.11,
+     "spread_narrowest_pct_5k": 0.04,
+     "spread_widest_pct_20k": 0.22,
+     "spread_widest_pct_5k": 0.2,
+     "pinned_nodes_failing": 0
     }
-   },
-   "target_stage": "stage 3: deferred by the orchestrator on 2026-09-18 under the owner's principle of 2026-09-17 ('build after the machinery of stage 3'); the owner may reverse",
-   "target": {
-    "missed_20k": 0,
-    "missed_5k": 0
    },
    "nodes_min_collected": 1,
    "key_kinds": {
     "spread_narrowest_pct_5k": "at_least",
     "spread_narrowest_pct_20k": "at_least",
-    "pinned_nodes_failing": "exact"
+    "pinned_nodes_failing": "exact",
+    "missed_20k": "exact",
+    "missed_5k": "exact",
+    "spread_widest_pct_20k": "at_most",
+    "spread_widest_pct_5k": "at_most"
    },
-   "status_note": "DEFERRED by the orchestrator, 2026-09-18, to stage 3 under the owner's principle of 2026-09-17 (\"build after the machinery of stage 3\"): stage 3 replaces the straight outer segment. Not an owner ruling; the owner may reverse it."
+   "status_note": "TARGET MET AT LANDING 3.3, THE NUMERIC TAIL, and held on the merged tree. THE WIDEST IS PINNED AT THE MEASUREMENT, twice as tight as the target's half per cent, so no regression hides in the gap. THE NARROWEST IS NOT, and must not be: it is min((spread / published - 1) * 100) over the twenty columns, so it FALLS when a column lands CLOSER to its published spread and a bound at the measurement would turn an improvement red. It keeps the target's floor, which guards the side that CAN get worse."
   },
   {
    "id": "K-P3-04",
@@ -1987,17 +1986,18 @@
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
    "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
-     "validate_ratio_4x_rows": 3.97,
-     "validate_seconds_20k": 70.2
+     "validate_ratio_4x_rows": 4.07,
+     "validate_seconds_20k": 125.1
     }
    },
    "key_kinds": {
     "validate_seconds_20k": "seconds_below"
-   }
+   },
+   "status_note": "RE-MEASURED ON THE MERGED TREE, ON A LOADED MACHINE (see K-S1-01), so the SECONDS are recorded and not judged: 125.1 s to validate 20,000 by 20 against the 70.2 s of caf3079, and the machine-free ratio 4.07 against the rule's 8, where it read 3.97. The validator reads the shaped ladder for every rung window and draws G12.13's window over each tail besides, so some of the cost is the work and some is the load."
   },
   {
    "id": "K-P3-13",
@@ -2338,11 +2338,11 @@
    "headline": false,
    "name": "Three- and four-number cells: pair agreements and rows-above counts",
    "status": "OPEN",
-   "rule": "no worse than 609 outside and 4 missed at the shipped default floor of 11 (609 and 3 at a floor of one, measured on the integrated tree of 2026-09-19); target <= 550 and 0",
+   "rule": "no worse than 556 outside and 1 missed at the shipped default floor of 11 (567 and 5 at a floor of one, the twelve columns walked one at a time); target <= 550 and 0",
    "rule_kind": "at_most",
    "expected": {
-    "agreements_outside": 609,
-    "above_counts_missed": 4,
+    "agreements_outside": 556,
+    "above_counts_missed": 1,
     "pinned_nodes_failing": 0
    },
    "tier": "SLOW",
@@ -2355,15 +2355,15 @@
    "driver": "tools/measurements/kpi_joined_battery.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
-   "evidence": "597 of 2,160 agreements outside the 0.02 window (stated 550); 7 of 2,160 rows-above counts missed (stated 0). Integrated tree of 2026-09-19: 609 outside and 3 missed. Bisected over the first-parent merges, the carried-f-numbers merge moved it from 597 and 7; withdrawing one rule at a time on the merged tree, without G6.5a's push 594 and 7, without the band fill 603 and 3, without the mode pass 609 and 3. g-readings' own rule (a leftover fill) was withdrawn in review and src stays as e53d5f4 wrote it; its pin test is the second node. WHERE EACH PART IS MEASURED (2026-09-20): the whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses (the pool's machinery takes a socket) and which failed every test cell of the first CI run; it pins THREE columns serially now, 24.6 s of the battery's 94.6 measured one column at a time, chosen because they hold all three of the battery's missed above-counts and are the two columns G6.5a's push moved: column 0 at 14 outside and 1 missed, column 9 at 117 and 0, column 11 at 63 and 2. Withdrawing the push turns that node red on column 9 (110 and 6), which is the whole battery's 7 missed against 3. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review of that landing): EITHER number -- agreements outside the window or above-counts missed -- in any of the other nine columns. All three of today's missed above-counts sit in pinned columns, but that is a property of today's measurement and not of the pin: six missed counts appearing in column 3 or column 7 are green in the suite and reported only here, by the driver. The three columns' ceilings are read from this entry's own expected by tests/test_joined_battery_readings.py, and test_the_pin_is_derived_from_the_whole_batterys_ceiling re-derives the pin against them, so a ceiling that moves cannot leave the pin stale in silence (finding 6) At the default floor of 11, measured on f521955: 609 outside and 4 missed; see the status note.",
+   "evidence": "556 of 2,160 agreements outside the 0.02 window (stated 550) and 1 of 2,160 rows-above counts missed (stated 0), on the merged tree of stage 3's five landings, down from 609 and 4: the numeric tail rule means a pair's agreement is measured against a ladder that no longer runs to the published extremes. HOW IT MOVED is the CHANGELOG's; what stands here is what the number is and what it does not cover. The whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses; it pins FIVE columns serially now, re-chosen at that merge because the misses moved, and tests/test_joined_battery_readings.py carries their per-column figures at both floors, the mutation that turns them red, and the derivation that re-reads them from this entry. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review): either number in any of the other seven columns. Every missed above-count sits in a pinned column today, but that is a property of today's measurement and not of the pin.",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_joined_battery.py --kpi on the merged tree",
     "value": {
      "pinned_nodes_failing": 0,
-     "above_counts_missed": 4,
-     "agreements_outside": 609,
+     "above_counts_missed": 1,
+     "agreements_outside": 556,
      "pairs": 2160
     }
    },
@@ -2376,7 +2376,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and on this battery it trades 12 more agreements outside the 0.02 window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6). Ceilings move in their own commit, never inside a merge. CEILING MOVED 2026-09-22, 3 to 4 above-counts missed, in its own commit: the owner's decision of that day made the default floor 11 (plan P4-D316), and the driver describes at the default. At 11 the battery's positions publish no value histogram and no mode and an absorbed width census, every bin and value being held by fewer than eleven cells; the generator builds them from less, and column 9 misses one more rows-above count (seed 29, positions 1 and 4: 23 against 22). Measured one column at a time on 13fa831, forty seeds: at a floor of one 609 and 3, as recorded; at 11 609 and 4. Landing 3.1 changed no generator code, so this is the default withholding more and not a defect of that landing (plan P4-D320). The entry belongs to stage 6, whose pairing walk (G6B.4) owns the target of 550 and 0; the in-suite pin now measures both floors."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved twice: to 609 and 4 on 2026-09-22, when the owner's decision made the default floor 11 and the driver describes at the default (plans P4-D316, P4-D320) -- landing 3.1 changed no generator code, so that was the default withholding more and not a defect of the landing -- and DOWN to 556 and 1 at the integration of stage 3's five landings, where the numeric tail rule stopped the ladder running to the published extremes. A ceiling that comes down is still a ceiling: it may not go back up unseen."
   },
   {
    "id": "K-P4-07",
@@ -2385,7 +2385,7 @@
    "headline": false,
    "name": "No twin cell falls in a stretch the real column left empty",
    "status": "GREEN",
-   "rule": "0 cells strictly inside the widest gap",
+   "rule": "0 cells strictly inside a gap the description publishes -- the widest run of empty bins between the two boundary rungs (method G6.7a)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -2399,17 +2399,18 @@
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "tight, uneven, closer witnesses, 300 rows",
-   "evidence": "0 of 12,000 cells inside the source's gap on 3 two-cluster columns x 40 seeds, floors 1 and 11",
+   "measured_on": "tight, uneven, closer witnesses, 300 rows, floors 1 and 11",
+   "evidence": "0 of 12,000 cells inside a published interior gap on 3 two-cluster columns x 40 seeds, floors 1 and 11.",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 2
+   "nodes_min_collected": 2,
+   "status_note": "RULE RESTATED AT LANDING 3.3, THE NUMERIC TAIL, and what it covers is NARROWER: a gap's edges were published as `empty_edges`, and each of them is one row's own value -- a cluster's extreme, held by one row on every shape with a gap -- so a tail block publishes none of them and the walk keeps the twin out of the widest run of empty BINS between the two boundary rungs instead. The number is the same and the claim behind it is smaller; it is written here rather than left to be read off an unchanged nought."
   },
   {
    "id": "K-P4-08",
@@ -2920,10 +2921,10 @@
    "expected": {
     "levels_of_one_f1": 147,
     "twin_writes_levels_of_one_f1": 147,
-    "ends_held_by_one_row_f1": 4,
+    "ends_held_by_one_row_f1": 0,
     "levels_of_one_f11": 0,
     "twin_writes_levels_of_one_f11": 0,
-    "ends_held_by_one_row_f11": 4,
+    "ends_held_by_one_row_f11": 0,
     "date_ends_held_by_one_row_f1": 0,
     "date_ends_held_by_one_row_f11": 0
    },
@@ -2934,16 +2935,16 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "every_role_and_joined_table, record_code declared, pressure a measurement, twin at seed 20260811",
-   "evidence": "critic, frozen copy: column note publishes 184 levels, 147 of them written by one row, and the twin writes all 147; floor 11: 0. Stage 3 landing 3.4, measured on its own commit: the DATE AND CLOCK ends are 0 at both floors, counted on a key of their own rather than assumed -- a column of dates or clock times publishes no end for the key to find. The total stayed at 4, which says what the new key cannot: on this table those two roles' ends were held by more than one row anyway, so nothing came off the total here and the 4 are min and max on the two numeric columns. What the key buys is that an end returning to either role turns this entry worse, instead of standing inside a total that did not move",
+   "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS: NO PUBLISHED END OF ANY ROLE IS HELD BY ONE ROW, at either floor. The four that stood here were the `min` and `max` of the two numeric columns; the numeric tail rule withdraws them, as the date and clock landing had already withdrawn its own two, and both roles are counted on keys of their own so an end returning to either turns this entry worse rather than hiding inside a total. WHAT IS LEFT is the LEVEL half, and it is the floor's to answer: the column note publishes 184 levels and 147 are written by one row AT A FLOOR OF ONE, which is what a floor of one asks for, and the twin writes all 147. At the default of 11 it is nought. The entry stays OPEN because its target is stated at a floor of one.",
    "value_at": {
-    "commit": "74541ce",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py on landing 3.4's own commit; this entry is FAST, so the fast tier is its whole measurement",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "date_ends_held_by_one_row_f1": 0,
      "date_ends_held_by_one_row_f11": 0,
-     "ends_held_by_one_row_f1": 4,
-     "ends_held_by_one_row_f11": 4,
+     "ends_held_by_one_row_f1": 0,
+     "ends_held_by_one_row_f11": 0,
      "levels_of_one_f1": 147,
      "levels_of_one_f11": 0,
      "twin_writes_levels_of_one_f1": 147,
@@ -3165,18 +3166,19 @@
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
    "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
-     "generate_ratio_4x_rows": 3.47,
-     "generate_seconds_20k": 23.3,
-     "profile_seconds_20k": 26.7
+     "generate_ratio_4x_rows": 3.52,
+     "generate_seconds_20k": 31.4,
+     "profile_seconds_20k": 52.5
     }
    },
    "key_kinds": {
     "generate_seconds_20k": "seconds_below"
-   }
+   },
+   "status_note": "RE-MEASURED ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, ON A LOADED MACHINE (the one-minute load average was above 4 with two suite shards running beside it; quiet is under 3), so the SECONDS are recorded and not judged: 31.4 s to generate 20,000 by 20 against the 23.3 s of caf3079, and 52.5 s to describe against 26.7. The machine-free RATIO is judged and holds at 3.52 against the rule's 8, where it read 3.47, so what the seconds carry is the load."
   },
   {
    "id": "K-S1-02",
@@ -3690,9 +3692,9 @@
    "measured_on": "uniform_three_figures 2,500 and whole_hundreds 1,000, floor 11",
    "evidence": "max 10 on 30 twins (was 45 and 27)",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -3737,11 +3739,12 @@
    "category": "TRUST",
    "headline": false,
    "name": "The two reports never flip a verdict",
-   "status": "OPEN",
-   "rule": "flips <= 4 (must not get worse); target 0",
+   "status": "GREEN",
+   "rule": "flips 0: no verdict moves between the twin's report and the quality report",
    "rule_kind": "at_most",
    "expected": {
-    "flips": 4
+    "flips": 0,
+    "windows_differ": 0
    },
    "tier": "SLOW",
    "source": "driver",
@@ -3750,22 +3753,18 @@
    "driver": "tools/measurements/kpi_window_flips.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "44 columns of 15 shapes at 500/2,000/4,000 rows, seeds 3 and 11",
-   "evidence": "4 of 1,128 verdicts flip (Pareto charges, 2,000 rows, mean and std; the landing said 0) At the default floor of 11 (landing 3.1, measured on f521955): 0 of 1126 flip. The fall comes from the DEFAULT WITHHOLDING MORE -- the Pareto charges publish no histogram or mode at 11, and the heavy tail's mean comes back -- and not from a repair of the heavy-tail mean and spread, which stand at a floor of one (K-2B-47).",
+   "evidence": "0 of 1,058 verdicts flip and no window differs, on the merged tree of stage 3's five landings. The four that flipped were the mean and the spread of a 2,000-row charges column at seeds 3 and 11, where each report drew its window through a ladder of its own; both read the one shaped ladder now (`contract.tail_ladder`).",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_window_flips.py --kpi on the merged tree",
     "value": {
      "flips": 0,
-     "verdicts": 1126,
+     "verdicts": 1058,
      "windows_differ": 0
     }
    },
-   "target_stage": "stage 3 (the heavy-tail mean and spread)",
-   "target": {
-    "flips": 0
-   },
-   "status_note": "NOT FLIPPED TO GREEN (the repair pass of landing 3.1, plan P4-D320): the driver describes at the shipped default, which became 11 on 2026-09-22, and the flips fall to the target only because the default withholds the charges' histogram and mode. The heavy tail belongs to stage 3's tail landing, which closes this entry."
+   "status_note": "TARGET MET AT STAGE 3 LANDING 3.3 and held on the merged tree: every consumer reads the one ladder the tail rule shapes, so the two reports cannot draw a window through different rungs. The count of verdicts moved from 1,128 to 1,058 because a tail block publishes fewer rungs to have a verdict about."
   },
   {
    "id": "K-2B-06",
@@ -4135,9 +4134,9 @@
    "measured_on": "800 rows per shape, source seed 5",
    "evidence": "^REC\\d{7}$ 800/800 (was 0), ^P\\d{5}$ 800 (was 30), ^ABC-\\d{4}$ 800 (was 0); two systems REC/E 800 (was 9); hex DE- 800 (was 0)",
    "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -4237,7 +4236,7 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "140-row alpha/+10/+11/+12 column, seed 4; 30 randomised held-back shapes; ceiling moved at the pooled-scale landing of 2026-09-21 and moved back by the repair pass of the same day",
-   "evidence": "+11 x10 and +12 x10 rebuilt exactly at floor 11; reviewer's sweep 85 of 469 held-back cells reproduced (7 before), 2 of 30 columns rebuilt. The reviewer's 30-shape sweep was not kept, so test_k_2b_19 commits a fresh sweep of the same family (the pinned column plus 30 seeded columns; the 19 that hold a label back are measured); the pinned node asserts the leak EXISTS and is therefore not mapped to this KPI (critic correction). CEILING MOVED TO 125 OF 251 AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301) AND BACK TO 55 OF 251 BY THE REPAIR PASS OF THE SAME DAY, on the same seed and the same 19 columns, columns_rebuilt_exactly unmoved at 1 of 19; that move and the three producer refusals contract 6.3.3 gained with it are stated in P4-D301. MOVED AGAIN BY THE OWNER'S DECISION OF 2026-09-21 (plan P4-D302), which publishes the pool's mean and places the twin's made-up numbers on it: 63 of 251 held-back cells reproduced exactly against the 55 the owner accepted on 2026-09-18, with columns_rebuilt_exactly unmoved at 1 of 19. THE CAUSE WAS ISOLATED rather than guessed: exactly ONE of the nineteen columns publishes a pooled scale under contract 6.3.3, and withdrawing method G8.3c's placement alone -- leaving the publication in place -- puts the number back at 55 on the same seed and the same nineteen columns. Withdrawing the publication instead does the same. Measured across five choices of G8.3c's own spacing, the count moves between 62 and 64 and never back to 55, so this is the price of placing a pool at all and not of the spacing chosen",
+   "evidence": "+11 x10 and +12 x10 rebuilt exactly at floor 11; the reviewer's sweep read 85 of 469 held-back cells reproduced (7 before) and 2 of 30 columns rebuilt. That sweep was not kept, so test_k_2b_19 commits a fresh one of the same family (the pinned column plus 30 seeded columns; the 19 that hold a label back are measured); the pinned node asserts the leak EXISTS and is therefore not mapped to this KPI (critic correction). THE CEILING STANDS AT 63 OF 251 held-back cells reproduced exactly, against the 55 the owner accepted on 2026-09-18 and re-accepted on 2026-09-22, with columns_rebuilt_exactly unmoved at 1 of 19. THE CAUSE WAS ISOLATED rather than guessed: exactly ONE of the nineteen columns publishes a pooled scale under contract 6.3.3, and withdrawing method G8.3c's placement alone -- leaving the publication in place -- puts the number back at 55 on the same seed and the same nineteen columns; withdrawing the publication instead does the same. Across five choices of G8.3c's own spacing the count moves between 62 and 64 and never back to 55, so this is the price of placing a pool at all and not of the spacing chosen. Every move of this ceiling, and the producer refusals contract 6.3.3 gained with it, are in plan P4-D301 and P4-D302.",
    "value_at": {
     "commit": "230fc89",
     "date": "2026-09-21",
@@ -5146,14 +5145,14 @@
    "driver": "tools/measurements/kpi_oracle_similarity.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "normalised-AST similarity, oracle vs src",
-   "evidence": "13 of 53 added oracle functions score >= 0.60 AST similarity to a shipped function (17 of 60 before repair; older oracle 6 of 212). The skeptic's script was not kept; tools/measurements/kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions (371 of six statements or more), so its count is not G14.2's 13 of 53. RED on caf3079, the integrated tree of 2026-09-19: 181 of 393 against the bound of 176 (e53d5f4: 176 of 371), the five new close functions written by the carried passes merged before the gap repairs: absorbed_count~_presence_over_the_split, allowed~_push_allowed, alphabet_readings~_alphabet_readings, anchor_units~_anchor_units, histogram_bin~histogram_bin. Repaired at 40cadbc, each rewritten from its rule's own statement (G6.7.2, G6.5a, G8.3a step 3, G9.5), every vectors file byte-identical through the guard runner: the five score 0.53, 0.48, 0.39, 0.57 and 0.48 against their closest shipped function, no other rose, and the count is 176 of 393, the bound unmoved. That repair's skeptic found the five rules unwitnessed by any frozen case -- histogram_bin called by none, and G6.5a's push refusals, G8.3a's three readings and G9.5's even split, census line and readings filter each breakable with every vectors file unchanged. tests/test_oracle_rule_witnesses.py now witnesses each clause one call at a time against oracle and shipped function, with 26 registered oracle mutants each turning it red (plan P4-D299); no oracle function changed, so the count stays 176 of 393. 'EACH CLAUSE' IS QUALIFIED SINCE THE ROUND-2 LEDGER PASS (item 6): a clause is witnessed only where a case parts its two roads, and two of anchor_units' were touched by a case and told apart by none. Measured at 05e7d89, both mutants rebuild all nine vectors files byte for byte and leave every witness empty; they are the 25th and 26th mutant over the 17th and 18th case, and the two spellings, their answers and the drops are written out in tests/test_oracle_rule_witnesses.py, where nothing counts the bytes. Unwitnessed by construction: the whole refusal, which no walk can reach, and the end refusal, witnessed only on an input no published column produces. allowed's rewrite changed its shape and not its three checks, which G6.5a dictates, so its fall from 0.60 to 0.48 is a score and not evidence of independence. AT 8d9dfbf IT READ 177 OF 403, UNSEEN: the absorbed-mark landing had added spellings_short_of_the_count~_spellings_short_of_the_count at 0.67. Repaired at 3f42962, THE BOUND UNMOVED: G7.9 gained items 4 to 7 and marks_bought_for_the_shortfall was written from them -- 0.31 against its counterpart, 0.40 against its closest of all, no other pair moved, 176 of 403, every vectors file byte for byte, 7 shortfall mutants red (4 added where round 3 found clauses moving cells but no case or row, item 7's tie among them), 400,000 fuzz draws, nought differences. THE MEAN-ONLY LANDING'S REPAIR PASS (2026-09-21) gave the oracle its mirror of method G8.3c step 4 -- pooled_best, pooled_offered, pooled_carried, pooled_pushed_first, pooled_reached, spelled_value -- and of G12.12's window, pooled_window, each written from the method's own statement rather than from the shipped code: 176 of 408 on that branch's tree. ON THIS MERGE'S OWN TREE, the first to carry the independence repair's rewrites and the mean-only landing's seven mirrors together, it reads 176 OF 409 AND THE BOUND IS NOT MOVED: every function either side wrote stands below 0.60 against its closest shipped function, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner.",
+   "evidence": "176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 26 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
    "value_at": {
-    "commit": "4668107",
-    "date": "2026-09-21",
+    "commit": "4823c33",
+    "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_oracle_similarity.py --kpi on the merged tree",
     "value": {
      "at_or_above_0_60": 176,
-     "scored": 409
+     "scored": 458
     }
    },
    "key_kinds": {
@@ -5326,25 +5325,24 @@
    "rule": "per carried shape, the MISSED verdicts summed over its runs must not rise (a bound on runs with any miss, at 18 of 18, could never be passed); for the residue: P4-D294's two date-width defects and P4-D298's (-%) layout as MISSED verdicts, the G5.2 band split as the different values the twin falls short by, the read floor as HOW MANY published facts move when build_document is handed a table read at a lower floor (4 until landing 3.1's guard refused that table, plan P4-D317; held at 0 since, with read_floor_unchecked), P4-D182's declared identifier at the default floor as MISSED verdicts (plan P4-D320), the heavy tail and P4-D298's layout at a floor of one as well as at the default, and the Fortran D exponent's MISSED verdicts (0) over a shape that keeps its size (fortran_d_runs >= 3 and fortran_d_cells >= 400, so a driver cut to one seed or a shorter column cannot hold the bound over less evidence); target 0. FOUR KINDS OF NUMBER, kept apart since the round-2 ledger pass (item 11) and its repair pass: the keys above are MEASURED REGRESSION BOUNDS; fortran_d_runs and fortran_d_cells are THE SIZE OF THE SHAPE the bound was taken over, at_least bounds so a ceiling cannot be held over less evidence; fortran_d_cells_respelled is REPORT-ONLY, already at the largest value its shape can produce, so it cannot turn red and only its target of 0 moves it (read_floor_unchecked was too, until the refusal met its target); and the two generator passes the oracle does not mirror are COVERAGE TRACKED ELSEWHERE, by K-P4-23's uncovered, not by this entry. Its pinned nodes are a bound too (pinned_nodes_failing exact 0): the repair pass found these three the only entries in the ledger with pinned nodes and no bound on them, so a pinned test could fail with the entry still held.",
    "rule_kind": "at_most",
    "expected": {
-    "dose_missed_checks": 18,
-    "heavy_tail_missed_checks": 2,
+    "dose_missed_checks": 15,
+    "heavy_tail_missed_checks": 0,
     "percent_missed_checks": 0,
-    "percent_missed_runs": 0,
     "temperature_over_mode_runs": 0,
     "date_joint_word_missed_checks": 3,
     "date_remainder_missed_checks": 6,
-    "record_layout_missed_checks": 3,
-    "band_split_distinct_short": 4,
-    "read_floor_facts_differing": 0,
-    "fortran_d_missed_checks": 0,
-    "read_floor_unchecked": 0,
-    "fortran_d_cells_respelled": 1200,
-    "fortran_d_runs": 3,
-    "fortran_d_cells": 400,
-    "pinned_nodes_failing": 0,
+    "record_layout_missed_checks": 0,
+    "record_layout_missed_checks_floor_one": 3,
+    "heavy_tail_missed_checks_floor_one": 0,
     "declared_layout_default_missed_checks": 3,
-    "heavy_tail_missed_checks_floor_one": 2,
-    "record_layout_missed_checks_floor_one": 3
+    "band_split_distinct_short": 0,
+    "read_floor_facts_differing": 0,
+    "read_floor_unchecked": 0,
+    "fortran_d_missed_checks": 0,
+    "fortran_d_cells": 400,
+    "fortran_d_runs": 3,
+    "pinned_nodes_failing": 0,
+    "fortran_d_cells_respelled": 1200
    },
    "report_only": [
     "fortran_d_cells_respelled"
@@ -5366,38 +5364,30 @@
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
-   "evidence": "stage-2b numbers/dates miner: dose 18 of 18 runs miss; percent twin exit 3; temperature stratum 319/355 vs 308/351; heavy-tail mean and spread MISSED. Rebuilt on e53d5f4 with committed seeds: the dose (18 of 18, n_distinct_values) and the heavy tail (Pareto 1.1: the mean, 2 of 2) reproduce; the study workbook's percent column (0 of 2) and a Gaussian temperature (0 of 2: twin max equals mode_count) do NOT reproduce their carried miss, so those two parts hold 0 and name no defect. Residue added 2026-09-19, each reproduced on the integrated tree: date joint word (P4-D294 a) widths.padded MISSED at seeds 4, 0, 1; date remainder (P4-D294 b) widths MISSED at floors 1 and 11; record (-%) layout (P4-D298) forms MISSED at the default floor; G5.2 band split 22 of 23 numbers at seeds 7 and 4, floors 1 and 11 (authorized, so counted as the shortfall); build_document described a blank-tailed table read at floor 1 differently from the same table read at 11. ROUND-2 LEDGER PASS (item 11), on the tree of this pass: read_floor_unchecked was int(documents differ) against a bound of at most 1, which no description this defect could produce would ever break -- the 4 published facts that actually move (blank_lines[0].after, .lines, .text and line_endings[0].lines) are the bound now, the boolean is kept beside it as the report-only indicator it always was. The Fortran D exponent, carried by the changelog's ceiling list and measured by nothing: 400 cells like 4.60D+03 at floor 11 are read as free text, 0 of 400 numeric, and the twin writes stand-ins (1.30D-08 comes back as 1.55S-44) on 1,200 of 1,200 cells over seeds 4, 0 and 1 while the validator misses NOTHING -- so the respelled count is report-only and the 0 MISSED verdicts are the bound that can fail. The two generator passes the oracle does not mirror were never measured here and are not: K-P4-23 counts them. REPAIR PASS (finding 3): fortran_d_runs was emitted and bounded by nothing, so cutting the loop from seeds (4, 0, 1) to one left fortran_d_missed_checks at 0 and fortran_d_cells_respelled at 400, both inside their bounds, over a third of the runs; the run and cell counts are at_least bounds now. Measured: at fortran_d_runs 2 the entry is OPEN-WORSE, at 3 OPEN-held. REPAIR PASS OF LANDING 3.1 (plan P4-D320), measured on f521955 at the default floor of 11: the driver crashed on P4-D317's guard, which refuses the table read at one and described at eleven; it records that refusal as nought facts moving, and read_floor_facts_differing and read_floor_unchecked are bounds at 0. heavy_tail_missed_checks 2 to 0 and record_layout_missed_checks 3 to 0 come from the DEFAULT WITHHOLDING MORE, not from a repair: at 11 the charges' histogram and mode and the layouts of four and one cells are withheld. Both misses stand at a floor of one, measured beside them (heavy_tail_missed_checks_floor_one 2, record_layout_missed_checks_floor_one 3). declared_layout_default_missed_checks: the 49-row declared identifier of P4-D182 misses layout_forms.%%% at the default on seeds 1, 4 and 7 (3), its pooled groups written A0, A1 and 0e0, which read as hexadecimal.",
+   "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every key at or below the ceiling it carried and five of them BETTER: the band split holds all 23 numbers where it was 4 short, `dose` misses its distinct-value count on 15 of 18 runs where it missed 18, the heavy tail's mean and spread are met at BOTH floors where they missed 2 apiece, and the record layout's three misses are gone at the default (they stand at a floor of one, recorded beside them). Each of the five is the numeric tail rule: the rows beyond each boundary stand on their own grid points now, so a column keeps numbers the straight run to a published extreme used to cost it. WHAT STILL MISSES, each reproduced here: the date joint word's `widths.padded` (3), the date remainder's widths (6), the declared record number's `forms.published.%%%` at the default (3), and the Fortran `D` exponent, read as free text so every cell is a stand-in and NOTHING misses. A table read at one floor and described at another is refused (plan P4-D317), so both read-floor keys are nought by construction.",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
-     "pinned_nodes_failing": 0,
-     "band_split_distinct_short": 4,
+     "dose_missed_checks": 15,
+     "heavy_tail_missed_checks": 0,
+     "percent_missed_checks": 0,
+     "temperature_over_mode_runs": 0,
      "date_joint_word_missed_checks": 3,
      "date_remainder_missed_checks": 6,
-     "declared_layout_default_missed_checks": 3,
-     "dose_missed_checks": 18,
-     "dose_missed_runs": 18,
-     "dose_runs": 18,
-     "fortran_d_cells": 400,
-     "fortran_d_cells_respelled": 1200,
-     "fortran_d_missed_checks": 0,
-     "fortran_d_numeric_cells": 0,
-     "fortran_d_runs": 3,
-     "heavy_tail_missed_checks": 0,
-     "heavy_tail_missed_checks_floor_one": 2,
-     "heavy_tail_missed_runs": 0,
-     "heavy_tail_runs": 2,
-     "percent_missed_checks": 0,
-     "percent_missed_runs": 0,
-     "percent_runs": 2,
-     "read_floor_facts_differing": 0,
-     "read_floor_unchecked": 0,
      "record_layout_missed_checks": 0,
      "record_layout_missed_checks_floor_one": 3,
-     "temperature_over_mode_runs": 0,
-     "temperature_runs": 2
+     "heavy_tail_missed_checks_floor_one": 0,
+     "declared_layout_default_missed_checks": 3,
+     "band_split_distinct_short": 0,
+     "read_floor_facts_differing": 0,
+     "read_floor_unchecked": 0,
+     "fortran_d_missed_checks": 0,
+     "fortran_d_cells": 400,
+     "fortran_d_runs": 3,
+     "pinned_nodes_failing": 0,
+     "fortran_d_cells_respelled": 1200
     }
    },
    "target_stage": "stage 3 (the carried fidelity items); the residue of 2026-09-19 needs no ruling and has no stage set",
@@ -5469,8 +5459,8 @@
    "rule": "must not get worse: the point-free grid trade (style and width MISSED verdicts, and distinct-count MISSED verdicts, over 24 grids x 3 seeds), the subsecond digits written as nought (real cells with a fraction less the twin's), a record number's class counts showing that one record below the line exists (1 while they do), and W5 accepting a hand-written withheld map at a raised floor (its two re-armed guards pass); target 0 on each count; subsecond_fractions_lost is held at 400 of 400 only to report it: every real fraction is lost today, so that key cannot turn red, and what moves it is its target of 0",
    "rule_kind": "at_most",
    "expected": {
-    "point_free_style_missed_checks": 30,
-    "point_free_distinct_missed_checks": 12,
+    "point_free_style_missed_checks": 33,
+    "point_free_distinct_missed_checks": 3,
     "subsecond_fractions_lost": 400,
     "record_class_counts_reveal": 1,
     "pinned_nodes_failing": 0
@@ -5489,18 +5479,17 @@
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "24 seeded point-free grids of tenths at floor 11; 400 millisecond moments; 40 record numbers + 'ab' at floor 11; the p4d2 guards over hand-written withheld maps",
-   "evidence": "point-free grids: 30 style and width MISSED verdicts and 12 distinct-count MISSED verdicts over 72 twins, the real tables at 0 (P4-D274: adding the band fill's carrier refusal to the column-wide fill trades one for the other). Subsecond: the twin writes 0 of 400 fractions, validate at 0 (P4-D296, the DEVIATION is in the twin's report). Record classes: all_whole_numbers false beside n_numeric 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275) Re-measured on f521955 (landing 3.1's repair pass), with the default floor at 11: unchanged.",
+   "evidence": "ON THE MERGED TREE: 33 style and width MISSED verdicts and 3 distinct-count MISSED verdicts over 72 twins of the point-free grids, the real tables at 0; the twin writes 0 of 400 subsecond fractions, `validate` at 0 (P4-D296, the DEVIATION is in the twin's report); and the record classes publish `all_whole_numbers` false beside `n_numeric` 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275).",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
-     "pinned_nodes_failing": 0,
-     "point_free_distinct_missed_checks": 12,
-     "point_free_style_missed_checks": 30,
-     "record_class_counts_reveal": 1,
+     "point_free_style_missed_checks": 33,
+     "point_free_distinct_missed_checks": 3,
      "subsecond_fractions_lost": 400,
-     "subsecond_real_fractions": 400
+     "record_class_counts_reveal": 1,
+     "pinned_nodes_failing": 0
     }
    },
    "target_stage": "none set: each is the orchestrator's call of 2026-09-18 under the owner's rule; reopened if the owner reverses it",
@@ -5510,7 +5499,7 @@
     "subsecond_fractions_lost": 0,
     "record_class_counts_reveal": 0
    },
-   "status_note": "ORCHESTRATOR'S CALLS, 2026-09-18, under the owner's own rule (judge by effect on code and results; where there is none, spend no time): subsecond digits as nought (P4-D296), W5 at a raised floor (P4-D275), a record number's class counts (P4-D298), the column-wide fill's trade on point-free grids (P4-D274). Not owner rulings; the owner may reverse any of them."
+   "status_note": "TWO CEILINGS MOVED AT STAGE 3 LANDING 3.3, THE NUMERIC TAIL, one each way, and both are the tail rule's; the merged tree of the five landings measures the same two. The DISTINCT-count misses fall from 12 to 3: the point-free grids hold their own numbers now that the rows beyond each boundary stand on their own grid points. The STYLE misses RISE from 30 to 33, and the three are one grid at its three seeds -- grid 2, whose high tail is published BY ITS VALUES and whose strata sizes cannot be the counts G5.3e solves for them, so `tails.high.values` is MISSED there. It is the same shape as the cost `tests/test_numeric_strata_round_trip.py` pins on a 4,000-row column of halves, and it is named in the twin's own report. The ceiling is recorded at what the tree measures rather than kept where it cannot hold."
   },
   {
    "id": "K-2B-50",
@@ -5542,17 +5531,17 @@
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "the anchored held-back shape of P4-D266, floor 11, seeds 4, 0 and 1; closed by the owner's decision of 2026-09-21",
-   "evidence": "CLOSED BY THE OWNER'S DECISION OF 2026-09-21 (plan P4-D302), choosing between the two ways P4-D301 priced: PUBLISH THE MEAN AND NOT THE SPREAD. The defect: the pool published how many rare levels there were and how many rows they covered and nothing about what they were worth, so method G8.3a step 3's ladder had only the published 100 to step outward from and the twin wrote 95 to 105 -- a numeric mean of 100 against 187.083333 and a spread of 3.027650 against 39.033017, both files validating clean. The landing of 2026-09-21 published the mean AND the population spread and placed the made-up numbers on both; that reopened it, the pair naming this column's ten held-back values outright: the published spread 2.8722813232690143 is exactly sqrt((10 * 10 - 1) / 12), the least a pool of ten distinct whole numbers can have. WITH THE MEAN ALONE the shape publishes again and is not named: 429,466,368,887,745,697 sets of ten different whole numbers share that mean over the thousand places the column's three-figure width allows, and contract 6.3.3's producer rule counts them and asks for a thousand. MEASURED at seeds 4, 0 and 1 alike: the twin's numeric mean IS the table's, so the mean error is 0.0 against the 87.083333 the defect gives, and its population spread stands 2.059274 away against 36.005366 -- better by an order of magnitude and NOT nought, nothing published saying how far apart the held-back numbers stood and G8.3c's spacing being the generator's own. The MISSED verdicts stay at 0 for both files. WHAT IT COST is on K-2B-19 and in the validator: G12.12 is one obligation and not two, and no check now says how far apart a file's held-back numbers lie. WHAT IT BOUGHT is a check that stopped being vacuous: while the spread was published every twin wrote no pool of its own and both obligations were WITHHELD on every file; now a twin built without G8.3c's placement publishes a pool at 100 against 204.5 and `validate` exits 3 on it while the real table exits 0. RE-MEASURED AND UNMOVED BY THE REPAIR PASS OF THE SAME DAY, which closed its skeptic's BLOCKER against method G12.12's window (plan P4-D303): that window was a fifth of the largest magnitude the description stated, a number with nothing to do with the pool. On 100 alpha, twenty 990 and ten each of 940 to 949 at a floor of eleven: the published 990 drew a window of 198.0 around a pooled mean of 944.5, and THIS ENTRY'S OWN DEFECT -- G8.3c's placement withdrawn, the twin's pool back at 990.0, its mean 990.000 against the table's 952.083 -- passed inside it and the file exited clean. The window is now two places of the coarsest grid the description writes at: that defect stands at 45.5 places of a window two places wide and is MISSED, while on this entry's shape the window is 2 either side of 204.5 rather than 40.9 and the defect stands at 104.5. G8.3c gained step 4 to make it meetable -- the pool offered again, moved by what it fell short or with its groups carrying each other's arrears, whichever offer lands closest written, the plain offer of steps 1 to 3 among them. On THIS shape step 4 does not run, the plain offer already meeting the window, so every number in expected is the landing's own, re-measured at seeds 4, 0 and 1 and unmoved. Re-measured on f521955 (landing 3.1's repair pass), with the default floor at 11: unchanged.",
+   "evidence": "CLOSED BY THE OWNER'S DECISION OF 2026-09-21 (plan P4-D302), choosing between the two ways P4-D301 priced: PUBLISH THE MEAN AND NOT THE SPREAD. Publishing both named the column's ten held-back values outright -- the published spread was exactly sqrt((10*10 - 1)/12), the least a pool of ten distinct whole numbers can have. With the mean alone the shape publishes again and is not named, and contract 6.3.3's producer rule counts the sets that share it and asks for a thousand. MEASURED ON THE MERGED TREE at seeds 4, 0 and 1 alike: the twin's numeric mean IS the table's, so the mean error is nought and no check is missed; the SPREAD is no longer verified and stands about 2.06 out (41.09 against 39.03), which is the price the owner accepted and is stated rather than hidden.",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
-     "pinned_nodes_failing": 0,
      "pooled_mean_error": 0.0,
      "pooled_missed_checks": 0,
      "pooled_runs": 3,
-     "pooled_spread_error": 2.059274
+     "pooled_spread_error": 2.059274,
+     "pinned_nodes_failing": 0
     }
    },
    "target_stage": "closed",
@@ -5597,17 +5586,17 @@
    "driver": "tools/measurements/kpi_known_misses.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "the two-days shape of P4-D222, floor 11, seeds 0, 4 and 1",
-   "evidence": "CLOSED BY LANDING D OF 2026-09-21 (plan P4-D245; the owner: 'I think we need to fix'). At 05e7d89 on seeds 0, 4 and 1 alike the description published datetime, 3 distinct values and datetime_separators {space: 125}; the twin re-described as binary and missed 3 checks -- axes.role, axes.statistical_type, midnight.count -- while the real file missed none. THREE CANDIDATES WERE MEASURED AND REFUSED FIRST -- a third distinct instant, the description moving, and the validator holding the obligation -- each priced cell by cell in plan P4-D245 (1a), which is where that reasoning lives. What was built instead is method G7.9: the construction spends the SHORTFALL the description publishes -- one value here, never the five the table held -- on the first permitted mark the census leaves unnamed, at fewer ranks than the census could print, so ruling 6's own absorption counts it back and the published census is met exactly. At 91975b0 on seeds 0, 4 and 1 alike the twin misses 0, the real file misses 0 and the description still publishes 3. The line is exact: at eleven ranks and above the twin misses marks.space and marks.unnamed, at one through ten it misses nothing. THE REVIEW OF 2026-09-21 RAISED THREE ITEMS, ALL MEASURED AND CLOSED on the repair pass's own tree. (1) A BLOCKER, fixed: on a date column carrying stand-ins the pass counted the shortfall on the cells in hand while _datetime_content appends the n_unparsed stand-ins after it, overshooting by exactly n_unparsed. On 303 midnight moments over two days beside two cells no date reader accepts, published n_distinct 5: at 89a598d the twin wrote 4 different values and missed NOTHING, at 91975b0 it wrote 6 and missed distinct.n_distinct and distinct.n_distinct_folded on seeds 0, 1 and 4 alike. Subtracting n_unparsed takes it to 5 exactly, 0 missed on all three seeds, in shipped rule and oracle alike. (2) A MAJOR, fixed: G12.5's upper end took the whole census budget whether G7.9 could spend it or not, widening the promised window from 3 to 6 out to 3 to 16 on two columns whose twin bytes did not move, and on a census mixing upper_t with lower_t made the generation report print inside for a count synthtwin validate called MISSED. Bounded by n_distinct_folded the two untouched columns return to 3 to 6 and the case-mixed one reads 2 to 4 against an achieved 5, which is what the checker says. (3) A MINOR, RECORDED rather than traded away: on that case-mixed census the spend reaches the folded count exactly and takes the unfolded one from 4 to 5 against a published 3 -- 3 checks missed at 89a598d (axes.role, axes.statistical_type, midnight.count), 1 at the repair (distinct.n_distinct). Holding the unfolded count instead was measured: a guard spending only where it too is short returns that column to its 3 misses and moves no other shape, so the trade stands, carried by G7.9's 'what it does not do' paragraph and by this entry. Twelve hand-built shapes near the rule were measured at 89a598d, at 91975b0 and at the repair; apart from the three above, every one keeps the twin bytes 91975b0 gave it Re-measured on f521955 (landing 3.1's repair pass), with the default floor at 11: unchanged.",
+   "evidence": "CLOSED BY LANDING D OF 2026-09-21 (plan P4-D245; the owner: 'I think we need to fix'). The defect: a column of three timestamps published `datetime`, 3 distinct values and `datetime_separators {space: 125}`, and the twin re-described as binary and missed three checks -- `axes.role`, `axes.statistical_type`, `midnight.count` -- while the real file missed none. Three other candidates were measured and refused first, each priced cell by cell in plan P4-D245 (1a). What was built instead is method G7.9: the construction spends the SHORTFALL the description publishes -- one value here, never the five the table held -- on the first permitted mark the census leaves unnamed, so ruling 6's own absorption counts it back and the published census is met exactly. MEASURED ON THE MERGED TREE at seeds 0, 4 and 1 alike: the twin misses 0, the real file misses 0, and the description still publishes 3.",
    "value_at": {
-    "commit": "f521955",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on f521955, the repair pass of landing 3.1",
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
-     "pinned_nodes_failing": 0,
      "stamp_published_distinct": 3,
      "stamp_real_missed_checks": 0,
      "stamp_runs": 3,
-     "stamp_twin_missed_checks": 0
+     "stamp_twin_missed_checks": 0,
+     "pinned_nodes_failing": 0
     }
    }
   },
@@ -5694,10 +5683,10 @@
    "nodes_min_collected": 78
   },
   {
-   "id": "K-S3-01",
+   "id": "K-S3-12",
    "phase_stage": "Stage 3 landing 3.5 (P4-D332, P4-D334)",
    "category": "PRIVACY",
-   "headline": true,
+   "headline": false,
    "name": "Counts of one to ten LEFT AS IS, and no floored sentence argument among them -- nor any whose complement is one",
    "status": "OPEN",
    "rule": "over the 46 seeded shapes of tests/stage3_battery.py at floor 11: the unfloored `count` leaves holding 1..10 (settings and structural counts excluded) must not rise; the FLOORED sentence arguments -- the thirteen positions no key of the block covers -- holding 1..10 must stay nought; and the floored arguments whose COMPLEMENT against the block's published n_present holds 1..10 must stay nought, asked of all thirteen positions and not only of the four whose binding names that population; target 0 for all three",
@@ -5710,11 +5699,11 @@
    "tier": "FAST",
    "source": "pytest",
    "nodes": [],
-   "test": "tests/test_kpi_ledger.py::test_k_s3_01",
+   "test": "tests/test_kpi_ledger.py::test_k_s3_12",
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/stage3_battery.py, 46 seeded shapes, seed 20260922, floor 11",
-   "evidence": "65 count leaves at 1..10 across the battery, the largest families n_left_out_of_statistics 8, n_distinct and n_distinct_folded 5 each, n_unparsed 5, n_not_numeric 4, n_negative 4; of those, the DISTINCT and written-form leaves are exempt by class (contract 12.2) and the odd-kind, sign and pair counts are P4-D332's own call. THE CEILING MOVED 64 -> 65 BECAUSE THE BATTERY GREW, not because the tool publishes more: the three complement shapes add exactly one leaf at 1..10, affixed_all_but_one_spelling's n_distinct_by_occurrences of 1, which is a DISTINCT leaf and exempt by the same class as the five above. Floored sentence arguments below the line: 0, where the same battery carried 8 before this landing (the comma remark's 1, the date reach's 3, the affix reach's 4 and 6). Floored arguments whose complement is 1..10: 0, and the number can be reached -- the same walk over the same three shapes with the four populations taken back out of taxonomy.ARGUMENT_BINDINGS reports 4 (1199 beside n_present 1200, 390 beside 400 twice, 59 beside 60), which is the mutation that says this number measures something",
+   "evidence": "65 unfloored `count` leaves holding 1 to 10 over the 46 seeded shapes at a floor of eleven (settings and structural counts excluded), and NOUGHT floored sentence arguments below the line, nought whose complement against the population their binding names falls below it. The second and third numbers are the landing's own claim asked both ways; the first is the class P4-D332 leaves published, held at a ceiling so it cannot widen unseen. The battery grew three shapes at the repair pass because the other forty-three plant one to ten cells OF the counted kind and never of the kind the count does not count, so the complement walk reported nought over them while a sixty-row affixed column reached the exposure in one call.",
    "value_at": {
     "commit": "3587709",
     "date": "2026-09-22",
@@ -5764,8 +5753,8 @@
    "test": "tests/test_kpi_ledger.py::test_k_s3_02",
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "the twelve columns of kpi_shapes.eight_shape_tables(), each family offered twice, the thirteen columns of the every-role table and the eight columns of kpi_shapes.PERSON_QUESTION_NEGATIVES -- 60 wards over 500 rows, 300 different free-text remarks over 600 rows, 8 wards over 500 rows and 30 diagnosis-shaped codes over 600 rows, each beside a bounded whole-number scale -- every one offered to `asking.person_questions`; then kpi_shapes.visits_table at (500, 111) and at (1196, 12)",
-   "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, which is the only tree it could have been measured on: neither the population floor nor the person question exists before it, and the repair pass of the same landing is what added route two and the four negative shapes. The hardest negatives inside the two families are `dose` (40 different values over 400 cells, repeating ten times each) and `note` (9 over 400, repeating forty-four times): both are sets of categories, both fall at route one's second condition, and neither is written as a code, so route two does not reach them either. `record`, `subject` and `visit_id` are different on every row and fall at both first conditions; `score` (98 to 102 different whole numbers repeating 3 to 28 times), `weight`, `amount` and the date columns are excluded by role, which is what keeps every bounded scale the owner named on 2026-09-22 -- a pain score of 0 to 10, a risk grade, a rating item, a coma scale, ages in whole years -- from being asked about. A two-value column of `0` and `1` clears route two's repeat test and is inside the code alphabet, and is kept out by the letter: measured, and pinned as test_a_column_of_bare_figures_is_not_a_register. The same rule was run over five tables of the subject design (fixed 100x5, fixed 150x3, geometric 1,000, and 1-to-8 visits over 40 and over 22 subjects) and asked about `subject_id` on all five and about nothing else",
+   "measured_on": "every column of kpi_shapes.eight_shape_tables() offered twice, of the every-role table, and of kpi_shapes.PERSON_QUESTION_NEGATIVES -- 33 in all -- each offered to `asking.person_questions`; then kpi_shapes.visits_table at (500, 111) and at (1196, 12). What each negative was chosen to be hard about is written where it is built",
+   "evidence": "33 columns offered to the rule, 4 of them asked about, and the two repeated-measures tables' `subject_id` asked about on both roads -- once where it reads as a register of codes and once where it reads as a set of categories. MEASURED ON THE LANDING'S OWN TREE, which is the only tree it could be measured on: neither the population floor nor the person question exists before it. The four positives and why each is accepted are the status note below; the negatives the battery carries, and what each was chosen to be hard about, are `tests/kpi_shapes.py`.",
    "value_at": {
     "commit": "da4cafb",
     "date": "2026-09-23",
@@ -5777,7 +5766,359 @@
      "categorical_subject_column_asked_about": 1
     }
    },
-   "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column `categorical`, so the question could never be asked of the case plan P4-D340 cites as its reason for existing: 12 subjects over 1,196 rows, read as a set of categories, with every subject's identifier published beside its visit count. MEASURED on the 33-column battery, route one alone: 2 false positives (ward 60/500 and remarks 300/600) and the cited case NOT asked about. Route one and two: 4 false positives -- the same two, plus ward 8/500 and diagnosis 30/600 -- and the cited case asked about. The two the repair added are label columns written exactly as a subject register is written, and nothing in the values tells them apart; the cost of each is ONE question whose standing answer is `keep`, against a miss whose cost was a description that published twelve people's identifiers. The battery was 25 columns and read 0 false positives before this pass because it held neither shape the rule mis-fires on, while the rule's own docstring named `ward` as a column it kept out; both are repaired. THE MEASURED LIMIT of route two is recorded beside it: one subject with a single visit silences it (test_a_register_holding_one_value_once_is_not_asked_about)"
+   "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column categorical, so the question could never reach a subject column read as categories, which is the shape the plan's own cited case has. Route two reaches four label columns that name no people, and each is asked about rather than assumed: the cost of a false positive is one question a person answers `no` to, and the cost of a false negative is a population counted in rows when it should have been counted in people, which is the refusal this stage exists to make. `false_positives` is EXACT, so a fifth is seen."
+  },
+  {
+   "id": "K-S3-01",
+   "phase_stage": "Stage 3, landing 3.2 (the population floor)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "The population floor: what `synthtwin profile` refuses, notices and passes in silence",
+   "status": "GREEN",
+   "rule": "over a fixed battery of 13 sizes and person shapes, driven through cli.main: exactly 4 are REFUSED (under 100 in rows or in people), exactly 6 run with the table-wide NOTICE (100 to 999) and exactly 3 run SILENT (1,000 or more), and 0 refused runs leave a file behind. The band of each case is read off the description's own publication note, not off the screen, so a notice printed and not published would fail here",
+   "rule_kind": "exact",
+   "expected": {
+    "cases": 13,
+    "refused": 4,
+    "noticed": 6,
+    "silent": 3,
+    "files_written_after_a_refusal": 0,
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_p4d341_population_floor.py::test_the_refusal_names_the_count_the_line_and_what_to_do",
+    "tests/test_p4d341_population_floor.py::test_the_twin_table_carries_no_trace_of_the_notice",
+    "tests/test_p4d341_population_floor.py::test_an_answer_at_the_terminal_can_refuse_the_run",
+    "tests/test_p4d341_population_floor.py::test_build_document_still_describes_a_five_row_table",
+    "tests/test_p4d341_population_floor.py::test_validate_still_checks_a_fifty_row_file"
+   ],
+   "nodes_min_collected": 5,
+   "test": "tests/test_kpi_ledger.py::test_k_s3_01",
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "kpi_shapes.POPULATION_BATTERY, which is the two ends of each band and one step outside it, counted in rows and counted in people; every case is a whole `synthtwin profile` run in this process, and the thirteen shapes are named where they are built",
+   "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, the only tree it could be measured on: neither the population floor nor the person question exists before it. The four refusals are 1, 50 and 99 rows and 500 rows over 99 people; the six notices are 100, 500 and 999 rows, 500 rows over 100 people, 1,200 rows over 300 people, and 500 rows whose declared identifier never repeats; the three silent runs are 1,000 and 1,500 rows and 4,000 rows over 1,000 people. No refused run left anything beside the table it was pointed at. The pinned nodes hold the halves a count cannot: that the refusal says the count, the line and what to do; that the twin's TABLE is byte-identical with the notice and without it; that the gate after the on-screen answers refuses before anything is written; and that `build_document` and `synthtwin validate` still take a five-row and a fifty-row file, which is what keeps the floor the COMMAND's.",
+   "value_at": {
+    "commit": "52b9eee",
+    "date": "2026-09-22",
+    "measured_by": "tools/measurements/kpi_run.py",
+    "value": {
+     "cases": 13,
+     "refused": 4,
+     "noticed": 6,
+     "silent": 3,
+     "files_written_after_a_refusal": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-03",
+   "phase_stage": "Stage 3 landing 3.3 (the numeric tail; plans P4-D322 to P4-D327 and P4-D344)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "No published page names a value too few rows hold",
+   "status": "GREEN",
+   "rule": "over ten shapes -- six bounded clinical scales and four measured columns -- no number in the description, the plain-language summary, the twin's report or either quality report equals one of the outermost max(small_cell_floor, 3) values of the real column, unless a group of at least that many rows holds it or a LISTED tail names it on purpose (contract 6.7a, TL6)",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_no_published_page_names_a_value_too_few_rows_hold"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "ten columns built at runtime from fixed seeds at a floor of eleven: pain, GCS, risk grade, Apgar, children and Likert at 900 rows each, and normal, lognormal, Pareto charges and ages at 600",
+   "evidence": "0 of 10 shapes publishes such a number. Before the tail rule, measured over sixteen shapes at floors 1 and 11, a description published 13 to 46 of them per shape -- the two ends, the rungs beside them and the moments that read them",
+   "nodes_min_collected": 10,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-04",
+   "phase_stage": "Stage 3 landing 3.3 (the skeptic's finding B2)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "The published facts do not solve for a withheld end",
+   "status": "GREEN",
+   "rule": "for every tail NOT published by its values, the walk over every set of whole grid steps meeting the published rows, mean distance and root-mean-square leaves more than one value possible for the largest step, so the withheld end is not determined; where the facts WOULD determine it the producer lists the tail's values instead (contract 6.7, TL6)",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_the_published_facts_do_not_solve_for_a_withheld_end"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the same ten columns, both tails of each",
+   "evidence": "0 sides solved of 20. The attack is the skeptic's own: a bounded counted subset sum over the grid steps, run to completion on every side whose work stays under three million states",
+   "nodes_min_collected": 10,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-05",
+   "phase_stage": "Stage 3 landing 3.3 (the skeptic's finding B1; the owner's ruling of 2026-09-22)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A bounded scale keeps its own values and its own ends",
+   "status": "GREEN",
+   "rule": "on each of six bounded clinical scales both tails are published BY THEIR VALUES (G5.3e), the twin writes no cell outside the scale the column holds, and its smallest and largest cells are the column's own",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_an_ordinal_twin_writes_the_scale_and_nothing_outside_it"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "pain 0-10, GCS 3-15, a surgical risk grade 1-5, Apgar 0-10, children 0-12 and Likert 1-5, 900 rows each at a floor of eleven",
+   "evidence": "6 of 6 keep their scale. Before the listed tail, a pain score of 0 to 10 at a floor of eleven published no end, its twin wrote 50 cells at 11 -- a value the scale does not have -- and none at 10, and its mean stood 25 per cent above the table's with nothing missed",
+   "nodes_min_collected": 6,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-06",
+   "phase_stage": "Stage 3 landing 3.3",
+   "category": "TRUST",
+   "headline": false,
+   "name": "Every twin and every table of the tail battery is checked clean",
+   "status": "GREEN",
+   "rule": "for each of the ten shapes, the real table and its twin are both validated against the same description and neither misses an obligation",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_every_twin_and_every_table_of_the_battery_is_checked_clean"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the same ten columns, the real file and the twin through the real validator",
+   "evidence": "0 missed obligations on 20 files",
+   "nodes_min_collected": 10,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-07",
+   "phase_stage": "Stage 3 landing 3.3 (plan P4-D326)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The real cells outside the twin's own range",
+   "status": "GREEN",
+   "rule": "at most this many cells of the real column fall outside the twin's smallest-to-largest reach: NONE on a bounded scale, whose listed tails carry the column's own ends, and at most ONE on a measured column -- the single most extreme value of a heavy tail, which no pair of moments predicts",
+   "rule_kind": "at_most",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_no_real_cell_stands_outside_the_twin_s_own_range"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "STRONG",
+   "measured_on": "the same ten columns at seed 4",
+   "evidence": "0 outside on the six scales, on the normal column and on the ages; 1 each on the lognormal and the Pareto charges. Before the outward move of plan P4-D326, 16 real cells of a 20,000-row normal column and 2 of a hundred-row one fell outside their twins' range",
+   "nodes_min_collected": 10,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-08",
+   "phase_stage": "Stage 3 landing 3.3 (plan P4-D324)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A listed tail's counts meet the mean distance it publishes",
+   "status": "GREEN",
+   "rule": "on each bounded scale, the counts G5.3e solves for the listed values -- every value at least one row, the rest spread on at most three of them -- sum to the tail's rows and meet the published mean distance exactly, checked over exact decimals",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_a_listed_tail_meets_the_mean_distance_it_publishes"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the six bounded scales, both tails of each",
+   "evidence": "12 of 12 tails meet their published mean distance to within 1e-9 of it",
+   "nodes_min_collected": 6,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-09",
+   "phase_stage": "Stage 3 landing 3.3 (plan P4-D327, found while building it)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A count column beside a heap of zeros keeps its smallest counts",
+   "status": "GREEN",
+   "rule": "on 2,000 counts drawn int(expovariate(0.2)) beside a constant column, the twin writes the value one in 324 cells against the table's 317 and its mean stands within two per cent of the table's (method G5.2a step 1a)",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_a_count_column_beside_a_zero_heap_keeps_its_ones"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "2,000 counts at data seed 7 beside a constant column, twin seed 4, at a floor of eleven -- the two floors write the same cells here",
+   "evidence": "324 cells at one against 317, and the mean 1.3 per cent above the table's. Before the step the band's first ranks read nought, G5.5 repaired them to one beside the real plateau of one and G6.5a walked every stratum above up by one: the twin wrote one in FOUR cells, two in 320 against 236, and its mean stood 19.3 per cent high with nothing missed",
+   "nodes_min_collected": 1,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-10",
+   "phase_stage": "Stage 3 landing 3.3 (plan P4-D325)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The histogram survives a raised floor, in groups",
+   "status": "GREEN",
+   "rule": "at a floor of eleven every one of the ten battery columns publishes bin groups, and the groups published are the recount of that table's own interior cells on the scale between its two boundary rungs (method G6.7a)",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3_tail_rule.py::test_the_histogram_survives_the_floor_in_groups",
+    "tests/test_p4d32_empty_bins.py::test_the_fact_survives_a_floor_the_census_beside_it_does_not"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "the ten columns of the tail battery at a floor of eleven, and the two-cluster witness at floors 1, 2, 3, 5 and 11",
+   "evidence": "10 of 10 columns publish groups and every group is the recount's. The census of every bin is all or nothing and published NOTHING at this floor on any of them: `value_histogram` is empty on a tail block at every floor",
+   "nodes_min_collected": 2,
+   "value_at": {
+    "commit": "0317f5d",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-11",
+   "phase_stage": "Stage 3 (plans P4-D328 to P4-D331, P4-D342, P4-D343 and P4-D345), the date and clock tails",
+   "category": "PRIVACY",
+   "headline": true,
+   "name": "Nothing a date or clock column publishes names one of its outer cells",
+   "status": "GREEN",
+   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance leave exactly one multiset of distances, or exactly one count for some distance. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` (the owner's ruling of 2026-09-22 publishes them, existence only and never a count), nor is a member's fixed example; a tail may list them only where the ruling's own premise holds (plan P4-D342). `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- the landing's stated residual, whose three levers are the owner's to choose; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's own guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, publish less, plan P4-D329), and the two must not be read as one rule: each defaults to the answer that cannot flatter the landing.",
+   "rule_kind": "at_most",
+   "expected": {
+    "literal": 0,
+    "pinned": 0,
+    "missed": 0,
+    "cases": 105,
+    "listed": 12,
+    "window": 2,
+    "equality_only": 2,
+    "edge_pinned": 4,
+    "unsearched": 35
+   },
+   "key_kinds": {
+    "cases": "at_least",
+    "listed": "at_least",
+    "window": "at_least"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
+   "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every number of this battery reads exactly as it read on the date and clock landing's own tree: the numeric tail rule touches no column of it. 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails the published facts settle by the plain back-solve, and 0 checkable obligations missed on any twin or any real table. 12 tails over 8 of the cases list which values they hold rather than publish their two distances: seven of quarters and months, every listed value held by 3 to 14 cells over columns of 117 to 120 different values, and five of the forty-cell heap of the `0001-01-01` two common systems write for no date. The tightest shape-drawn tail leaves a reader 2 different multisets to choose between, on a column of quarters at 400 rows; that same tail carries a distance the construction window does not reach (root-mean-square 2.2763607319179844 quarters against a window of 2.3159525823376357 to 2.467976720090587), so the real table meets that one obligation by equality alone, and a months column at 1,500 rows carries the second. `edge_pinned` is 4, one side each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4; plan P4-D343 works through the arithmetic that settles one of them, and the same tails printed those eleven values IN THE CLEAR before P4-D342. `unsearched` is 35, every one a tail counted in seconds whose sums run past what an exhaustive walk can enumerate. MUTATION for `literal` on the clock role: with each tail's boundary put back to the column's own end the repaired driver reads 4 per clock case and 12 over three of them, against 0 as the landing shipped it.",
+   "value_at": {
+    "commit": "4823c33",
+    "date": "2026-09-23",
+    "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi on the merged tree",
+    "value": {
+     "cases": 105,
+     "edge_pinned": 4,
+     "equality_only": 2,
+     "listed": 12,
+     "literal": 0,
+     "missed": 0,
+     "pinned": 0,
+     "unsearched": 35,
+     "window": 2
+    }
+   }
   }
  ]
 }

@@ -183,7 +183,7 @@ def _rows(values: "list[str]", copies: int) -> "list[str]":
     STAGE 3 (plan P4-D328). These shapes were four values repeated ten
     times each, which publishes no tail at all at a floor of eleven: ties
     at both ends leave no value between the two boundaries (contract
-    TL2), so the boundary this file is about would not exist. Each row
+    DT2), so the boundary this file is about would not exist. Each row
     keeps its shape's own resolution, precision and clock and takes a day
     of its own, which is what a tail needs.
     """

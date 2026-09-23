@@ -33,6 +33,7 @@ prints every one of them with both ends of the bound either way.
 
 import dataclasses
 import pathlib
+import random
 
 import fixtures
 from synthtwin import contract, generation, taxonomy
@@ -189,18 +190,29 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
     AND THE WITNESS MOVED A THIRD TIME (the carried numbers repair pass of
     2026-09-19). G6.5a's push now walks a collision along its band to the
     nearest free point, and 1 to 100 beside 103 and 105 have three free
-    points in their band, so that twin holds all 102. A shortfall no
-    repair of G6.5a can mend is the witness now: twelve negatives written
-    once, a zero, and the whole numbers one to ten forty times each. G5.2
-    divides the strata between the bands by their CELLS, so the positive
-    band is given eleven strata for its ten integers, and the twin holds
-    22 numbers of 23 at this seed -- a count no window authorizes to move.
+    points in their band, so that twin holds all 102. The witness then
+    became twelve negatives written once, a zero, and the whole numbers
+    one to ten forty times each: G5.2 divided the strata between the
+    bands by their CELLS, the positive band was given eleven strata for
+    its ten integers, and the twin held 22 numbers of 23.
+
+    AND A FOURTH TIME, AT LANDING 3.3. The tail rule reads a band's
+    ranks at that band's own sign (method G5.2a step 1a), which is what
+    gave that column its eleventh positive stratum, and its twin now
+    holds every one of its 23 numbers. The witness is a column of six
+    hundred readings at one place instead -- `gauss(0, 3)` rounded to a
+    tenth, a shape whose tail holds several values a row apart -- where
+    the description publishes 144 different numbers and the twin holds
+    145: one number MORE than the description names, which `n_distinct`
+    counts exactly and no window authorizes either way. The deviation is
+    named in the twin's own report, `validate` misses nothing, and what
+    this test is about is unchanged -- a count outside its published
+    value stays in the deviations whether it falls short or runs over.
     """
+    draw = random.Random(301)
     _loaded, twin = _twin(
         tmp_path,
-        [f"{-number}" for number in range(1, 13)]
-        + ["0"]
-        + [f"{number}" for number in range(1, 11) for _copy in range(40)],
+        [f"{draw.gauss(0, 3):.1f}" for _reading in range(600)],
     )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named

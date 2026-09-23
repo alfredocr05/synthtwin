@@ -303,6 +303,8 @@ def _binding_text(binding: "tuple[object, ...]") -> str:
         return "vocabulary"
     if kind == taxonomy.BIND_STRUCTURAL:
         return "structural"
+    if kind == taxonomy.BIND_POPULATION:
+        return "population"
     if kind == taxonomy.BIND_VALUE:
         return "value (tail rule)"
     if kind == taxonomy.BIND_FLOORED:

@@ -525,7 +525,7 @@ CLOCK_KEYS = (
 )
 CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
 
-# THE KEYS OF ONE TAIL OBJECT (stage 3, contract TL1), read from the one
+# THE KEYS OF ONE TAIL OBJECT (stage 3, contract DT1), read from the one
 # place they are written.
 TAIL_KEYS = parsing.TAIL_KEYS
 TAIL_UNITS = parsing.TAIL_UNITS
@@ -617,6 +617,34 @@ NUMERIC_KEYS = (
     "std",
     "std_unrepresentable",
 )
+
+# THE TWO KEYS THE TAIL RULE ADDS TO EVERY NUMERIC BLOCK (stage 3, plan
+# P4-D344). They travel together and a block carries both or neither: a
+# block without them was written before stage 3 and is read as it always
+# was, so every description already written still loads and its twin
+# does not move. They are not in NUMERIC_KEYS for that reason, and
+# `_numeric_key_set` adds them where a block carries `tails`.
+NUMERIC_TAIL_KEYS = ("tails", "bin_groups")
+
+# One side of a tail, and one group of the histogram between the two.
+TAIL_SIDE_KEYS = (
+    "mean_distance",
+    "percent",
+    "rms_distance",
+    "rows",
+    "values",
+)
+BIN_GROUP_KEYS = ("count", "first", "last")
+
+
+def _numeric_key_set(
+    mapping: "dict[str, object]", keys: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """A numeric block's key set: with the tail keys where it has `tails`."""
+    if "tails" in mapping:
+        return keys + NUMERIC_TAIL_KEYS
+    return keys
+
 
 # THE COUNT ROLE'S ONE KEY OF ITS OWN (plan P4-D123): the census of
 # spellings a column writing one number more than one way publishes --
@@ -1411,24 +1439,24 @@ INVARIANTS = {
         "boundary's own rank is that boundary, and every published rung "
         "lies between the two boundaries"
     ),
-    "TL1": (
+    "DT1": (
         "a tail is nothing at all, or a boundary, how many cells lie beyond "
         "it and how far beyond on average, publishing either both of its "
         "distances or the values it holds beside at most its mean"
     ),
-    "TL3": (
+    "DT3": (
         "every distance a tail publishes is at least one unit, its "
         "root-mean-square distance is never below its mean, and the values "
         "it publishes are different, in ascending order, beyond its "
         "boundary and no more than the cells it holds"
     ),
-    "TL2": (
+    "DT2": (
         "a column publishes both of its tails or neither, each holding at "
         "least the smallest group size of cells, together leaving at least "
         "one cell between them, with the low boundary never after the "
         "high one"
     ),
-    "TL4": (
+    "DT4": (
         "the unit a column's tails are counted in follows from what it "
         "publishes: a quarter or a month for those two, a day for dates "
         "and for moments that all stand at midnight, a minute for moments "
@@ -1625,6 +1653,46 @@ INVARIANTS = {
         "stretches may share the one value that stands between them), "
         "and every "
         "one of them inside the two ends the column publishes"
+    ),
+    # THE TAIL RULE (stage 3, plans P4-D322 to P4-D327 and P4-D344). A block that
+    # carries `tails` is read by it; a block without the key was written
+    # before stage 3 and is read exactly as it always was.
+    "TL1": (
+        "a column of numbers described by its tails withholds every rung "
+        "outside its two boundary percents, except an end held by at "
+        "least the tail's own number of rows, publishes the two boundary "
+        "rungs, and stands each boundary at the percent the row count and "
+        "the smallest group size give it"
+    ),
+    "TL2": (
+        "a column of numbers publishes no tails exactly when it holds "
+        "fewer values than a tail's own number of rows, and then "
+        "publishes no rung and no moment"
+    ),
+    "TL3": (
+        "a column of numbers publishes both of its tails or neither, and "
+        "where it publishes neither it publishes no rung"
+    ),
+    "TL4": (
+        "each tail of a column of numbers holds the rows its percent and "
+        "the count of values give it, and never fewer than the smallest "
+        "group size or three"
+    ),
+    "TL5": (
+        "the distances of a tail from its boundary rung are numbers of "
+        "nought or more, and their mean is no larger than their "
+        "root-mean-square"
+    ),
+    "TL6": (
+        "the values a tail lists are the tail's own: ascending, different, "
+        "no more of them than its rows, on the column's grid, at or beyond "
+        "its boundary rung, and led by a published end where there is one"
+    ),
+    "BG1": (
+        "the groups of a column's histogram between its two boundary "
+        "rungs follow one another from the first bin to the last, each "
+        "counts at least the smallest group size or three, and together "
+        "they count every value between the two tails"
     ),
     "I2": (
         "the repetition pattern accounts for every different value and "
@@ -2227,7 +2295,7 @@ class DateLadder:
 
 @dataclasses.dataclass(frozen=True)
 class TailFacts:
-    """One tail of a column of dates or clock times (contract TL1).
+    """One tail of a column of dates or clock times (contract DT1).
 
     `boundary` is canonical text of the value the tail is measured from,
     held by a real cell that is not one of the outer ones; `rows` how
@@ -2410,7 +2478,7 @@ class DatetimeFacts:
     # THE TWO TAILS AND THEIR UNIT (stage 3, plan P4-D328), in place of
     # the first and last value and the offsets those two rows wore. Both
     # tails are None together on a column too small, or too tied, for a
-    # boundary to exist on each side (contract TL2).
+    # boundary to exist on each side (contract DT2).
     tail_unit: str
     low_tail: "TailFacts | None"
     high_tail: "TailFacts | None"
@@ -2444,6 +2512,34 @@ class DatetimeFacts:
         default_factory=dict
     )
     zulu_case: "dict[str, int]" = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True)
+class TailSide:
+    """One tail of a column of numbers (stage 3, contract 6.7, TL1-TL6).
+
+    The rows beyond one boundary rung, described by their shape and not
+    by their values: how many there are, their mean distance from the
+    rung and the root-mean-square of that distance, each in the column's
+    own unit. `values` is empty except on a grid tail published by its
+    values (method G5.3e), where it holds the tail's different values in
+    ascending order and no count.
+    """
+
+    percent: int
+    rows: int
+    mean_distance: float
+    rms_distance: float
+    values: "tuple[float, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class NumericTailFacts:
+    """Both tails of a block, or neither (TL3): both None where only the
+    moments are published."""
+
+    low: "TailSide | None"
+    high: "TailSide | None"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2552,6 +2648,16 @@ class NumericFacts:
     number_spellings: "dict[str, int]" = dataclasses.field(
         default_factory=dict
     )
+    # THE TAIL RULE (stage 3, plan P4-D344). `tail_rule` is true on a
+    # block that carries `tails`, and false on one written before stage
+    # 3, whose two ends are published rungs and whose reading has not
+    # moved. On a tail block `tails` is None below the block floor
+    # (TL2), both sides None where only the moments are published
+    # (TL3), and otherwise the two tails; `bin_groups` is the histogram
+    # between the two boundary rungs as `(first, last, count)`.
+    tail_rule: bool = False
+    tails: "NumericTailFacts | None" = None
+    bin_groups: "tuple[tuple[int, int, int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -6502,10 +6608,13 @@ def _column(
     name = _filled_text(mapping["name"], "name", seat)
     where = f"in the block for the column named '{name}'"
     role, statistical, quality, structural = _axes(mapping, where, frame)
+    role_keys = _role_keys(role)
+    if "percentiles" in role_keys:
+        role_keys = _numeric_key_set(mapping, role_keys)
     _keys(
         mapping,
         where,
-        UNIVERSAL_COLUMN_KEYS + _role_keys(role),
+        UNIVERSAL_COLUMN_KEYS + role_keys,
         f"every column whose type path is '{role}'",
     )
     position = _bounded(
@@ -8250,14 +8359,14 @@ def _datetime_facts(
         mapping["date_percentiles"], "date_percentiles", where, resolution
     )
     midnight = _truth(mapping["all_at_midnight"], "all_at_midnight", where)
-    # THE TWO TAILS (stage 3, plan P4-D328; contract TL1 to TL4). The first
+    # THE TWO TAILS (stage 3, plan P4-D328; contract DT1 to DT4). The first
     # and last value and the offsets those two rows wore are no longer
     # published, so D4 went with them.
     unit = _one_of(mapping["tail_unit"], "tail_unit", where, TAIL_UNITS)
     wanted_unit = _tail_unit_of(resolution, precision, midnight)
     if unit != wanted_unit:
         raise _broken(
-            "TL4",
+            "DT4",
             where,
             f"the tails are counted in '{unit}'",
             (
@@ -9220,7 +9329,7 @@ def _boundaries_a_cell_can_show(
 
 
 def _tail_unit_of(resolution: str, precision: str, midnight: bool) -> str:
-    """TL4: the unit a column of dates counts its tails in.
+    """DT4: the unit a column of dates counts its tails in.
 
     Written here from the contract's own words rather than imported from
     the producer, which this module does not read; the suite holds the
@@ -9254,7 +9363,7 @@ def _tail_object(
     resolution: str,
     form: str,
 ) -> "TailFacts | None":
-    """TL1: one tail, or nothing at all.
+    """DT1: one tail, or nothing at all.
 
     Null, or a block of exactly `TAIL_KEYS`: a boundary and each of the
     values in the column's own form (`_tail_value`), a
@@ -9290,7 +9399,7 @@ def _tail_object(
         values = tuple(found)
     if values is None and (mean is None or root is None):
         raise _broken(
-            "TL1",
+            "DT1",
             where,
             f"the {key} publishes no values",
             "a tail without its values publishes both of its distances",
@@ -9298,7 +9407,7 @@ def _tail_object(
     if values is not None:
         if root is not None:
             raise _broken(
-                "TL1",
+                "DT1",
                 where,
                 f"the {key} publishes its values",
                 "a tail publishing its values does not publish its "
@@ -9306,7 +9415,7 @@ def _tail_object(
             )
         if not values or len(values) > rows:
             raise _broken(
-                "TL3",
+                "DT3",
                 where,
                 f"the {key} publishes {len(values)} values",
                 f"it holds {rows} cells, and at least one value",
@@ -9314,7 +9423,7 @@ def _tail_object(
         for place in range(1, len(values)):
             if values[place] <= values[place - 1]:
                 raise _broken(
-                    "TL3",
+                    "DT3",
                     where,
                     f"the {key} publishes {values[place - 1]} before "
                     f"{values[place]}",
@@ -9324,14 +9433,14 @@ def _tail_object(
             beyond = item < boundary if key == "low_tail" else item > boundary
             if not beyond:
                 raise _broken(
-                    "TL3",
+                    "DT3",
                     where,
                     f"the {key} publishes the value {item}",
                     f"every value of it lies beyond its boundary {boundary}",
                 )
     if mean is not None and (not math.isfinite(mean) or mean < 1.0):
         raise _broken(
-            "TL3",
+            "DT3",
             where,
             f"the {key}'s mean distance is {mean}",
             "every cell of a tail lies at least one unit beyond its boundary",
@@ -9340,7 +9449,7 @@ def _tail_object(
         least = 1.0 if mean is None else mean * (1.0 - _TAIL_ROUNDING)
         if not math.isfinite(root) or root < least:
             raise _broken(
-                "TL3",
+                "DT3",
                 where,
                 f"the {key}'s root-mean-square distance is {root}",
                 "it is never below the mean distance, nor below one unit",
@@ -9354,7 +9463,7 @@ def _tail_object(
     )
 
 
-# The relative allowance TL1 gives the root-mean-square distance against
+# The relative allowance DT1 gives the root-mean-square distance against
 # the mean: both are rounded once to the nearest binary64, so the root
 # can sit a few units in the last place below a mean it equals exactly.
 _TAIL_ROUNDING = 2.0 ** -50
@@ -9388,7 +9497,7 @@ def _tails_hold(
     """
     if (low is None) != (high is None):
         raise _broken(
-            "TL2",
+            "DT2",
             where,
             "one tail is published and the other is not",
             "a column publishes both of its tails or neither",
@@ -9397,14 +9506,14 @@ def _tails_hold(
         for key, tail in (("low_tail", low), ("high_tail", high)):
             if tail.rows < floor:
                 raise _broken(
-                    "TL2",
+                    "DT2",
                     where,
                     f"the {key} holds {tail.rows} cells",
                     f"a tail holds at least {floor}, the smallest group size",
                 )
         if low.rows + high.rows > parsed - 1:
             raise _broken(
-                "TL2",
+                "DT2",
                 where,
                 f"the two tails hold {low.rows + high.rows} cells",
                 f"{parsed} values read, which leaves room for "
@@ -9415,7 +9524,7 @@ def _tails_hold(
             and low.boundary != high.boundary
         ):
             raise _broken(
-                "TL2",
+                "DT2",
                 where,
                 f"the low boundary is {low.boundary} and the high one "
                 f"{high.boundary}",
@@ -9626,7 +9735,7 @@ def _affix_variants(
         )
         block = _mapping(entry["numbers"], "numbers", where)
         _keys(
-            block, where, NUMERIC_KEYS,
+            block, where, _numeric_key_set(block, NUMERIC_KEYS),
             f"the block for the wrapper {prefix!r}/{suffix!r}",
         )
         found += [
@@ -9756,7 +9865,11 @@ def _numeric_facts(
                 f"number"
             ),
         )
-    if (std is None) != (used < 2 or unrepresentable):
+    # A TAIL BLOCK BELOW ITS FLOOR PUBLISHES NO MOMENT AT ALL (stage 3,
+    # TL2), so Q4, Q5 and Q16 do not ask it for the ones it withholds.
+    tail_rule = "tails" in mapping
+    below_floor = tail_rule and mapping["tails"] is None and used > 0
+    if (std is None) != (used < 2 or unrepresentable) and not below_floor:
         raise _broken(
             "Q4",
             where,
@@ -9782,6 +9895,11 @@ def _numeric_facts(
         and ladder.maximum is not None
         and ladder.minimum == ladder.maximum
     )
+    # ON A TAIL BLOCK THE ENDS ARE USUALLY WITHHELD, so "every value is
+    # the same one" is read off the spread instead: nought exactly where
+    # every value the statistics used is one value (stage 3).
+    if tail_rule:
+        flat = std == 0.0 and not unrepresentable
     if flat and skew is not None:
         raise _broken(
             "Q5",
@@ -9789,7 +9907,7 @@ def _numeric_facts(
             f"the shape is given as {skew}",
             "every value the statistics used is the same",
         )
-    if not flat and used >= 3 and skew is None:
+    if not flat and used >= 3 and skew is None and not below_floor:
         raise _broken(
             "Q5",
             where,
@@ -9846,7 +9964,7 @@ def _numeric_facts(
                 f"moment asks for four"
             ),
         )
-    if not flat and used >= 4 and kurtosis is None:
+    if not flat and used >= 4 and kurtosis is None and not below_floor:
         raise _broken(
             "Q16",
             where,
@@ -10055,9 +10173,36 @@ def _numeric_facts(
         styles, "P6", where, frame.floor, len(NUMERIC_STYLES), "numbers' forms"
     )
     _widths_leave_no_one(where, frame.floor, styles, padded, fields)
-    histogram = _value_histogram(mapping, where, frame.floor, used, ladder)
-    hollow = _empty_bins(mapping, where, used, ladder, histogram)
-    edges = _empty_edges(mapping, where, hollow, ladder)
+    tails: "NumericTailFacts | None" = None
+    groups: "tuple[tuple[int, int, int], ...]" = ()
+    lowest = ladder.minimum
+    highest = ladder.maximum
+    if tail_rule:
+        tails = _tail_facts(
+            mapping, where, frame, used, ladder, finer, integer_valued,
+            (mean, std, skew, kurtosis),
+        )
+        lowest, highest = _scale_ends(ladder, finer, tails)
+        histogram = _counts(
+            mapping["value_histogram"], "value_histogram", where, 1
+        )
+        if histogram:
+            raise _broken(
+                "BG1",
+                where,
+                "the histogram of every value is published",
+                "a column described by its tails publishes its histogram "
+                "as groups of bins between the two boundary rungs",
+            )
+        groups = _bin_groups(mapping, where, frame, used, tails)
+    else:
+        histogram = _value_histogram(
+            mapping, where, frame.floor, used, ladder
+        )
+    hollow = _empty_bins(
+        mapping, where, used, lowest, highest, histogram, tail_rule
+    )
+    edges = _empty_edges(mapping, where, hollow, lowest, highest, tail_rule)
     values = _whole(mapping["n_distinct_values"], "n_distinct_values", where, 0)
     # THE MODE PAIR, and its own invariant (plan P4-D4.11, contract
     # Q18). The two keys stand or fall together: a value with no count
@@ -10172,7 +10317,1609 @@ def _numeric_facts(
         value_histogram=histogram,
         empty_bins=hollow,
         empty_edges=edges,
+        tail_rule=tail_rule,
+        tails=tails,
+        bin_groups=groups,
     )
+
+
+def _rung_at(
+    ladder: NumberLadder, finer: "tuple[float | None, ...]", percent: int
+) -> "float | None":
+    """The published rung at one percent, from either half of the ladder."""
+    for index in range(len(LADDER_PERCENTS)):
+        if LADDER_PERCENTS[index] == percent:
+            return ladder.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        if int(FINER_LADDER_KEYS[index][1:]) == percent:
+            return finer[index]
+    return None
+
+
+def _scale_ends(
+    ladder: NumberLadder,
+    finer: "tuple[float | None, ...]",
+    tails: "NumericTailFacts | None",
+) -> "tuple[float | None, float | None]":
+    """The two ends a tail block's bins divide: its two boundary rungs."""
+    if tails is None or tails.low is None or tails.high is None:
+        return None, None
+    return (
+        _rung_at(ladder, finer, tails.low.percent),
+        _rung_at(ladder, finer, tails.high.percent),
+    )
+
+
+def _tail_side(
+    value: object,
+    side: str,
+    where: str,
+    used: int,
+    units: int,
+    percent: int,
+) -> TailSide:
+    """One side of `tails`, its keys and the rules on it alone (TL4, TL5)."""
+    mapping = _mapping(value, f"tails -> {side}", where)
+    _keys(mapping, where, TAIL_SIDE_KEYS, f"the {side} tail")
+    given = _bounded(
+        mapping["percent"], f"tails -> {side} -> percent", where, 1, 99,
+        "ninety-nine",
+    )
+    if given != percent:
+        # TL1. With a declared identifier the tails will be counted in
+        # subjects and the percent may stand further in; that landing
+        # relaxes this to "at or inside".
+        raise _broken(
+            "TL1",
+            where,
+            f"the {side} tail stands at {given} per cent",
+            f"{percent} per cent, which is where {used} values and a tail "
+            f"of at least {units} rows put it",
+        )
+    rows = _whole(mapping["rows"], f"tails -> {side} -> rows", where, 0)
+    wanted = parsing.tail_rows(used, percent, side)
+    if rows != wanted or rows < units:
+        raise _broken(
+            "TL4",
+            where,
+            f"the {side} tail holds {rows} rows",
+            f"{wanted}, which is what {used} values give a tail at "
+            f"{percent} per cent, and at least {units}",
+        )
+    mean = _figure(
+        mapping["mean_distance"], f"tails -> {side} -> mean_distance", where
+    )
+    root = _figure(
+        mapping["rms_distance"], f"tails -> {side} -> rms_distance", where
+    )
+    if not (mean >= 0.0 and root >= 0.0 and mean <= root):
+        raise _broken(
+            "TL5",
+            where,
+            f"the {side} tail's mean distance is {mean} and its "
+            f"root-mean-square distance {root}",
+            "two numbers of nought or more, the mean no larger",
+        )
+    listed = _listing(mapping["values"], f"tails -> {side} -> values", where)
+    values: "list[float]" = []
+    for entry in listed:
+        found = _figure(entry, f"tails -> {side} -> values", where)
+        if values and not found > values[len(values) - 1]:
+            raise _broken(
+                "TL6",
+                where,
+                f"the {side} tail lists {found} after "
+                f"{values[len(values) - 1]}",
+                "different values, ascending",
+            )
+        values += [found]
+    if len(values) > rows:
+        raise _broken(
+            "TL6",
+            where,
+            f"the {side} tail lists {len(values)} values",
+            f"no more than its {rows} rows",
+        )
+    return TailSide(
+        percent=given,
+        rows=rows,
+        mean_distance=mean,
+        rms_distance=root,
+        values=tuple(values),
+    )
+
+
+def _tail_facts(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    used: int,
+    ladder: NumberLadder,
+    finer: "tuple[float | None, ...]",
+    integer_valued: bool,
+    moments: "tuple[float | None, ...]",
+) -> "NumericTailFacts | None":
+    """`tails` read, and invariants TL1 to TL6 asked (stage 3).
+
+    The block floor first (TL2, TL3): `units = parsing.tail_units(floor)`;
+    a block of fewer used values publishes `tails: null` and no rung and
+    no moment; one of fewer than `2 units + 1` publishes two null sides
+    and no rung; every other block both sides. Then, where both sides
+    are published, the rule itself (TL1): every rung outside the two
+    boundary percents is null except an end, both boundary rungs are
+    numbers, and each percent is the one `parsing.tail_percent` gives.
+    TL4 to TL6 are each side's own (`_tail_side`), and TL6's grid and
+    boundary halves are asked here, where the ladder is in hand.
+    """
+    units = parsing.tail_units(frame.floor)
+    value = mapping["tails"]
+    every_rung = list(ladder.rungs) + list(finer)
+    held = [rung for rung in every_rung if rung is not None]
+    if value is None:
+        if used >= units:
+            raise _broken(
+                "TL2",
+                where,
+                "the column publishes no tails",
+                f"a column of {used} values, which is at least a tail's "
+                f"{units} rows, publishes them",
+            )
+        published = [moment for moment in moments if moment is not None]
+        if held or published:
+            raise _broken(
+                "TL2",
+                where,
+                f"{len(held)} rung(s) and {len(published)} moment(s) are "
+                "published",
+                "none, on a column of fewer values than a tail's rows",
+            )
+        return None
+    if used < units:
+        raise _broken(
+            "TL2",
+            where,
+            "the column publishes tails",
+            f"none, on a column of {used} values, fewer than a tail's "
+            f"{units} rows",
+        )
+    block = _mapping(value, "tails", where)
+    _keys(block, where, ("high", "low"), "every tails block")
+    percent = parsing.tail_percent(used, units)
+    if block["low"] is None or block["high"] is None:
+        if block["low"] is not None or block["high"] is not None:
+            raise _broken(
+                "TL3",
+                where,
+                "one tail is published and the other is not",
+                "both or neither",
+            )
+        if held:
+            raise _broken(
+                "TL3",
+                where,
+                f"{len(held)} rung(s) are published",
+                "none, beside two tails that are not",
+            )
+        return NumericTailFacts(low=None, high=None)
+    if percent is None:
+        raise _broken(
+            "TL3",
+            where,
+            "both tails are published",
+            f"neither, on a column of {used} values: no rung clears two "
+            f"tails of {units} rows",
+        )
+    low = _tail_side(block["low"], "low", where, used, units, percent)
+    high = _tail_side(block["high"], "high", where, used, units, 100 - percent)
+    for index in range(len(LADDER_PERCENTS)):
+        at = LADDER_PERCENTS[index]
+        rung = ladder.rungs[index]
+        if at in (0, 100) or low.percent <= at <= high.percent:
+            continue
+        if rung is not None:
+            raise _broken(
+                "TL1",
+                where,
+                f"the rung at {at} per cent is published",
+                f"withheld, outside the tails' boundaries at {low.percent} "
+                f"and {high.percent} per cent",
+            )
+    for index in range(len(FINER_LADDER_KEYS)):
+        at = int(FINER_LADDER_KEYS[index][1:])
+        if low.percent <= at <= high.percent:
+            continue
+        if finer[index] is not None:
+            raise _broken(
+                "TL1",
+                where,
+                f"the rung at {at} per cent is published",
+                f"withheld, outside the tails' boundaries at {low.percent} "
+                f"and {high.percent} per cent",
+            )
+    lowest = _rung_at(ladder, finer, low.percent)
+    highest = _rung_at(ladder, finer, high.percent)
+    if lowest is None or highest is None:
+        raise _broken(
+            "TL1",
+            where,
+            "a boundary rung is withheld",
+            "both boundary rungs published",
+        )
+    for side, found, boundary, end in (
+        (low, low.values, lowest, ladder.minimum),
+        (high, high.values, highest, ladder.maximum),
+    ):
+        if not found:
+            continue
+        beyond = [
+            value
+            for value in found
+            if (value > boundary if side is low else value < boundary)
+        ]
+        if beyond:
+            raise _broken(
+                "TL6",
+                where,
+                f"a tail lists {beyond[0]}",
+                f"values at or beyond its boundary rung {boundary}",
+            )
+        if integer_valued:
+            for value in found:
+                if value != float(int(value)):
+                    raise _broken(
+                        "TL6",
+                        where,
+                        f"a tail lists {value}",
+                        "whole numbers, on a column of whole numbers",
+                    )
+        outermost = found[0] if side is low else found[len(found) - 1]
+        if end is not None and end != outermost:
+            raise _broken(
+                "TL6",
+                where,
+                f"a tail lists {outermost} as its outermost value",
+                f"its published end {end}",
+            )
+    return NumericTailFacts(low=low, high=high)
+
+
+def _bin_groups(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    used: int,
+    tails: "NumericTailFacts | None",
+) -> "tuple[tuple[int, int, int], ...]":
+    """The histogram of a tail block, in groups (invariant BG1).
+
+    An empty list is always legal: the interior holds fewer than a
+    group, or the scale has no width. Otherwise the groups follow one
+    another from bin nought to bin 31, each counts at least the tail
+    units, and together they count every value between the two tails.
+    """
+    listed = _listing(mapping["bin_groups"], "bin_groups", where)
+    if not listed:
+        return ()
+    units = parsing.tail_units(frame.floor)
+    if tails is None or tails.low is None or tails.high is None:
+        raise _broken(
+            "BG1",
+            where,
+            f"{len(listed)} group(s) of bins are published",
+            "none, on a column publishing no tails",
+        )
+    groups: "list[tuple[int, int, int]]" = []
+    expected = 0
+    total = 0
+    for entry in listed:
+        group = _mapping(entry, "bin_groups", where)
+        _keys(group, where, BIN_GROUP_KEYS, "every group of bins")
+        first = _bounded(
+            group["first"], "bin_groups -> first", where, 0,
+            parsing.HISTOGRAM_BINS - 1, "the last bin",
+        )
+        last = _bounded(
+            group["last"], "bin_groups -> last", where, 0,
+            parsing.HISTOGRAM_BINS - 1, "the last bin",
+        )
+        count = _whole(group["count"], "bin_groups -> count", where, 0)
+        if first != expected or last < first or count < units:
+            raise _broken(
+                "BG1",
+                where,
+                f"a group runs from bin {first} to bin {last} and counts "
+                f"{count}",
+                f"a group starting at bin {expected}, ending no earlier, "
+                f"and counting at least {units}",
+            )
+        groups += [(first, last, count)]
+        expected = last + 1
+        total = total + count
+    interior = used - tails.low.rows - tails.high.rows
+    if expected != parsing.HISTOGRAM_BINS or total != interior:
+        raise _broken(
+            "BG1",
+            where,
+            f"the groups end at bin {expected - 1} and count {total}",
+            f"groups reaching the last bin and counting the {interior} "
+            "values between the two tails",
+        )
+    return tuple(groups)
+
+
+# -- THE TAIL READING (method G5.1a, G5.3b to G5.3e; stage 3) -------------
+#
+# A block written under the tail rule withholds every rung outside its two
+# boundary percents (contract TL1) and describes the rows beyond each by
+# their count, their mean distance from the boundary rung and the
+# root-mean-square of that distance. The ladder the construction reads is
+# rebuilt here from those facts ONCE, as a hundred and one rungs whose
+# outer stretches are read through a two-parameter shape, and every
+# consumer reads that one ladder: the sizes and shares of G5.2a and G5.2b,
+# the cap, the values of G5.3, the snap bounds, the scale of G6.7 and the
+# twin report's windows.
+
+# THE LARGEST FINITE BINARY64, the reach a shape is held to where the
+# arithmetic of a column spanning the whole range would overflow.
+_LARGEST_FINITE = 1.7976931348623157e308
+# The smallest positive number binary64 holds: one step of a block that
+# publishes no grid of its own (method G5.3b, G5.5a).
+_SMALLEST_POSITIVE = 5e-324
+
+
+def _next_representable(value: float, downward: bool) -> float:
+    """The number binary64 holds next to ``value``, in one direction.
+
+    ``downward`` asks for the number BELOW ``value``; otherwise the one
+    above it. A tail block with no published grid steps by this, because
+    there the format's own values ARE the grid (method G5.3b).
+
+    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE. Away from zero it
+    is `2 ** (e - 53)` for the exponent `frexp` hands back; toward zero
+    from a value sitting exactly on the edge of its binade -- fraction
+    one half -- it is half of that. Subnormals take the one gap they
+    have, which is the smallest positive number the format holds. A
+    value at the edge of the range is returned unchanged, since there is
+    no number beyond it to step to.
+
+    `math.nextafter` says all of this in one call and is NOT among the
+    names this package's offline audit allows; `frexp` and `ldexp` are,
+    and say the same thing. `src/synthtwin/generation.py` and
+    `src/synthtwin/validation.py` each carry the same arithmetic for
+    their own bound widening, and `tests/` checks it against
+    `math.nextafter` over the whole range.
+    """
+    if not math.isfinite(value):
+        return value
+    if value == 0.0:
+        return -_SMALLEST_POSITIVE if downward else _SMALLEST_POSITIVE
+    magnitude = abs(value)
+    growing = (value > 0.0) != downward
+    fraction, exponent = math.frexp(magnitude)
+    gap = math.ldexp(1.0, exponent - 53)
+    if not growing and fraction == 0.5:
+        gap = math.ldexp(1.0, exponent - 54)
+    if gap < _SMALLEST_POSITIVE:
+        gap = _SMALLEST_POSITIVE
+    stepped = magnitude + gap if growing else magnitude - gap
+    if not math.isfinite(stepped):
+        return value
+    return -stepped if value < 0.0 else stepped
+
+
+# HOW FAR BEYOND THE FITTED END THE PINNED STRATUM STANDS (method G5.3b,
+# plan P4-D326). The two-moment shape ends at a finite `E`, and a tail
+# at least as long as an exponential one has its real extreme further
+# out, so code that learned the twin's range met real rows outside it.
+# From the fitted power named here up, the pinned end stands at the
+# larger of `E` and where the largest of `rows` exponential draws of the
+# tail's mean is expected, held inside the bound no row can pass.
+_TAIL_OUTWARD_POWER = 2
+
+
+@dataclasses.dataclass(frozen=True)
+class TailReader:
+    """One side of a tail block's ladder, as the construction reads it.
+
+    ``percent`` and ``boundary`` are the published boundary rung;
+    ``end`` is the value the pinned stratum holds; ``rows`` how many rows
+    the tail has and ``numbers`` how many numbers the column has. A tail
+    read by its SHAPE (G5.3b) carries ``power``, ``blend`` and ``reach``
+    -- `j`, `lam` and `E` -- and ``flat`` where its mean distance is
+    nought. A LISTED tail (G5.3e) carries its values and their counts,
+    both outermost first, and is read as a staircase over its rows. An
+    UNLISTED tail on a grid carries ``steps``, its rows' own grid values
+    innermost first, which is G5.3b's grid staircase.
+    """
+
+    low: bool
+    percent: int
+    boundary: float
+    rows: int
+    numbers: int
+    flat: bool
+    power: int
+    blend: float
+    reach: float
+    end: float
+    listed: "tuple[float, ...]"
+    counts: "tuple[int, ...]"
+    steps: "tuple[float, ...]" = ()
+
+
+class ShapedLadder(tuple[float, ...]):
+    """A hundred and one rungs, and the two tails they are read through.
+
+    A tuple, so every consumer that indexes a ladder reads the same
+    hundred and one values; a reader handed one asks `tail_read` first
+    and reads a share inside a tail through the tail's own reading
+    rather than through the convex form.
+    """
+
+    low: "TailReader | None" = None
+    high: "TailReader | None" = None
+
+
+def _shaped(
+    rungs: "tuple[float, ...]",
+    low: "TailReader | None",
+    high: "TailReader | None",
+) -> ShapedLadder:
+    """A shaped ladder of these rungs and these two tail readers."""
+    made = ShapedLadder(rungs)
+    made.low = low
+    made.high = high
+    return made
+
+
+def _whole_rounded(value: float) -> float:
+    """``value`` to a whole number, ties toward +infinity (method G5.4).
+
+    Both subtractions are exact, so nothing rounds inside the rule. The
+    generator writes the same rule for its strata; this is the one the
+    tail ladder's derived ends take, stated here because the loader is
+    the module both the generator and the validator read a description
+    through.
+    """
+    if not math.isfinite(value):
+        return value
+    below = int(value)
+    rest = value - float(below)
+    if rest >= 0.5:
+        return float(below + 1)
+    if rest < -0.5:
+        return float(below - 1)
+    return float(below)
+
+
+def _grid_rounded(value: float, figures: int) -> "float | None":
+    """``value`` on the grid of ``figures`` places, or None (method G6.6).
+
+    The shortest round-trip figures of the value, rounded to ``figures``
+    places half to even -- the writer's snap -- and read back. None
+    where that text does not read back to a number whose own text at
+    that width is the same, which is a grid point no binary64 holds.
+    """
+    if not math.isfinite(value):
+        return None
+    text = _grid_text_of(value, figures)
+    found = float(text)
+    if not math.isfinite(found) or _grid_text_of(found, figures) != text:
+        return None
+    return found
+
+
+def _grid_text_of(value: float, figures: int) -> str:
+    """The text of ``value`` at exactly ``figures`` places, half to even."""
+    shown = repr(value)
+    sign = ""
+    if shown[:1] == "-":
+        sign = "-"
+        shown = shown[1:]
+    power = 0
+    for place in range(len(shown)):
+        if shown[place] in "eE":
+            power = int(shown[place + 1 :])
+            shown = shown[:place]
+            break
+    point = len(shown)
+    for place in range(len(shown)):
+        if shown[place] == ".":
+            point = place
+            break
+    digits = shown[:point] + shown[point + 1 :]
+    point = point + power
+    while point <= 0:
+        digits = "0" + digits
+        point = point + 1
+    while len(digits) < point:
+        digits = digits + "0"
+    whole = digits[:point]
+    fraction = digits[point:]
+    if len(fraction) <= figures:
+        fraction = fraction + "0" * (figures - len(fraction))
+        return f"{sign}{whole}.{fraction}" if figures > 0 else f"{sign}{whole}"
+    kept = whole + fraction[:figures]
+    following = fraction[figures]
+    rest = fraction[figures + 1 :]
+    up = following > "5" or (
+        following == "5"
+        and (len([c for c in rest if c != "0"]) > 0 or kept[len(kept) - 1] in "13579")
+    )
+    if up:
+        carried = ""
+        carry = 1
+        for place in range(len(kept) - 1, -1, -1):
+            step = int(kept[place]) + carry
+            carry = 1 if step > 9 else 0
+            carried = f"{step % 10}{carried}"
+        kept = ("1" if carry else "") + carried
+    cut = len(kept) - figures
+    if figures > 0:
+        return f"{sign}{kept[:cut]}.{kept[cut:]}"
+    return f"{sign}{kept}"
+
+
+def _tail_power(ratio: float) -> int:
+    """G5.3b's `j`: the whole number with `R(j) <= ratio < R(j + 1)`.
+
+    `R(j) = (j + 1) ** 2 / (2 j + 1)`, and the comparison is EXACT: the
+    ratio is a binary64, so it is a whole significand over a power of
+    two, and each side is multiplied out in whole numbers. The search
+    starts at the floor of `(r - 1) + sqrt(r (r - 1))`, which the
+    comparisons then correct, so no rounding of the square root decides
+    which power a shape takes.
+    """
+    fraction, exponent = math.frexp(ratio)
+    top = int(math.ldexp(fraction, 53))
+    shift = exponent - 53
+    bottom = 1
+    if shift >= 0:
+        top = top << shift
+    else:
+        bottom = 1 << -shift
+    guess = (ratio - 1.0) + math.sqrt(ratio * (ratio - 1.0))
+    power = int(guess) if guess > 0.0 else 0
+    while power > 0 and (power + 1) * (power + 1) * bottom > top * (
+        2 * power + 1
+    ):
+        power = power - 1
+    while (power + 2) * (power + 2) * bottom <= top * (2 * power + 3):
+        power = power + 1
+    return power
+
+
+def _tail_blend(first: float, second: float, third: float) -> float:
+    """G5.3b's `lam`: the root of `qa x**2 + qb x + qc` in `[0, 1]`.
+
+    Nought where `qc <= 0`. Otherwise the numerically stable pair --
+    `q = -(qb + sign(qb) sqrt(disc)) / 2`, the roots `q / qa` and
+    `qc / q`, the discriminant held at nought or more -- and the smaller
+    of the two that lies within `[-1e-12, 1 + 1e-12]`, clamped into
+    `[0, 1]`; one where neither does. A root whose divisor is nought is
+    not a candidate, so nothing here divides by nought.
+    """
+    if third <= 0.0:
+        return 0.0
+    disc = second * second - 4.0 * first * third
+    if disc < 0.0:
+        disc = 0.0
+    root = math.sqrt(disc)
+    if second >= 0.0:
+        half = -0.5 * (second + root)
+    else:
+        half = -0.5 * (second - root)
+    candidates: "list[float]" = []
+    if first != 0.0:
+        candidates += [half / first]
+    if half != 0.0:
+        candidates += [third / half]
+    inside = [
+        found for found in candidates if -1e-12 <= found <= 1.0 + 1e-12
+    ]
+    chosen = min(inside) if inside else 1.0
+    return min(1.0, max(0.0, chosen))
+
+
+def _tail_shape(mean: float, root: float) -> "tuple[bool, int, float, float]":
+    """G5.3b's shape of one tail: `(flat, j, lam, E)`.
+
+    `a(s) = E s**j (lam + (1 - lam) s)` on `s` in `[0, 1]`, a mixture of
+    two adjacent whole powers, whose mean over a uniform `s` is the
+    published mean distance and whose mean square is the square of the
+    published root-mean-square distance. Only `+ - * /` and `sqrt`, in a
+    fixed order, so the same binary64 answer comes out on every platform:
+
+        r  = (rms / d1) * (rms / d1), held at one or more
+        a2 = 1 / (j + 2)   de = 1 / ((j + 1)(j + 2))
+        b1 = 1 / (2j + 1)  c = 1 / (j + 1)   b2 = 1 / (2j + 3)
+        qa = (b1 - c + b2) - r * de * de
+        qb = (c - 2 * b2) - 2 * r * a2 * de
+        qc = b2 - r * a2 * a2
+        E  = d1 / (a2 + lam * de)
+
+    A mean distance of nought is a FLAT tail -- every row of it at the
+    boundary -- and has no shape to fit. `E` past the largest finite
+    binary64 is held there.
+    """
+    if not mean > 0.0:
+        return True, 0, 0.0, 0.0
+    step = root / mean
+    ratio = step * step
+    if not ratio >= 1.0:
+        ratio = 1.0
+    # HELD WHERE NO TAIL REACHES (the ratio is at most the tail's rows,
+    # give or take a rounding), so the power stays a whole number a
+    # binary64 can hold beside it.
+    if not ratio <= 1e15:
+        ratio = 1e15
+    power = _tail_power(ratio)
+    near = 1.0 / (power + 2)
+    gap = 1.0 / ((power + 1) * (power + 2))
+    first = 1.0 / (2 * power + 1)
+    middle = 1.0 / (power + 1)
+    last = 1.0 / (2 * power + 3)
+    quadratic = (first - middle + last) - ratio * gap * gap
+    linear = (middle - 2.0 * last) - 2.0 * ratio * near * gap
+    constant = last - ratio * near * near
+    blend = _tail_blend(quadratic, linear, constant)
+    reach = mean / (near + blend * gap)
+    if not math.isfinite(reach):
+        reach = _LARGEST_FINITE
+    return False, power, blend, reach
+
+
+def _power_of(base: float, power: int) -> float:
+    """`base ** power` by squaring and multiplying, most significant bit
+    first, which fixes the order of every rounding."""
+    bits: "list[int]" = []
+    rest = power
+    while rest > 0:
+        bits += [rest % 2]
+        rest = rest // 2
+    result = 1.0
+    for place in range(len(bits)):
+        result = result * result
+        if bits[len(bits) - 1 - place] == 1:
+            result = result * base
+    return result
+
+
+def _shape_at(side: TailReader, share: float) -> float:
+    """`a(s)` of G5.3b: the distance from the boundary at `s` in `[0, 1]`."""
+    if side.flat:
+        return 0.0
+    lifted = _power_of(share, side.power)
+    rest = 1.0 - side.blend
+    tilt = rest * share
+    mixed = side.blend + tilt
+    return side.reach * (lifted * mixed)
+
+
+def _listed_at(side: TailReader, numerator: int, denominator: int) -> float:
+    """G5.3e: the listed value a share of a listed tail reads.
+
+    The rank position is `t = numerator * K / denominator`, `K` the
+    column's numbers. Counting from the tail's outer end -- `t` itself on
+    the low side, `K - t` on the high one -- the share reads the first
+    listed value whose running count still exceeds that position (on the
+    high side: reaches it), outermost first, and the innermost listed
+    value past the tail's rows.
+    """
+    running = 0
+    for place in range(len(side.listed)):
+        running = running + side.counts[place]
+        if side.low:
+            if numerator * side.numbers < running * denominator:
+                return side.listed[place]
+        elif (
+            side.numbers * denominator - numerator * side.numbers
+            <= running * denominator
+        ):
+            return side.listed[place]
+    return side.listed[len(side.listed) - 1]
+
+
+def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
+    """Each row of an unlisted tail on its own grid point (G5.3b).
+
+    THE ROWS OF A TAIL ARE ROWS AND THE GRID IS THE COLUMN'S. The
+    reading `a(s)` is smooth, and rounding it onto a published grid puts
+    two rows of a short tail on one value: measured on five hundred
+    laboratory readings at one place, thirty-one different numbers
+    published and the twin holding twenty-six, with `n_distinct_values`
+    MISSED on a twin whose report named it. So the rows are placed on
+    the grid from the boundary OUTWARD, each at its own reading, and a
+    row that lands where the row before it stands takes the next grid
+    point outward instead -- never past the tail's own end, where the
+    rows crowd because the grid has no more points for them, which is
+    what a real tail of that width does too.
+
+    Empty on a LISTED tail (G5.3e reads its own staircase) and on a
+    FLAT one.
+
+    A BLOCK WITH NO GRID STEPS BY THE REPRESENTABLE VALUE. Its reading's
+    own values are different wherever the format can tell them apart,
+    and at the bottom of the binary64 range it cannot: measured on 120
+    subnormal numbers, `5e-324` times 1 to 120, the shape's whole reach
+    across the low tail is smaller than one step there, so eleven of
+    that tail's twelve rows read the same number and the twin held 79
+    of the 120 the description publishes. So a row that lands where the
+    row before it stands takes the NEXT REPRESENTABLE value outward,
+    which is what "its own grid point" means where the grid is the
+    format's own.
+    """
+    if side.flat or side.listed or side.rows <= 0:
+        return ()
+    unit = _tail_unit(figures if figures >= 0 else 0)
+    placed: "list[float]" = []
+    for row in range(side.rows):
+        width = 2 * side.rows
+        share = math.ldexp((((2 * row + 1) << 53) // width), -53)
+        step = _shape_at(side, share)
+        value = side.boundary - step if side.low else side.boundary + step
+        value = _on_tail_grid(value, figures)
+        if placed:
+            last = placed[len(placed) - 1]
+            if (value >= last) if side.low else (value <= last):
+                if figures == -1:
+                    value = _next_representable(last, side.low)
+                else:
+                    value = _on_tail_grid(
+                        last - unit if side.low else last + unit, figures
+                    )
+        if side.low and value < side.end:
+            value = side.end
+        if not side.low and value > side.end:
+            value = side.end
+        placed += [value]
+    return tuple(placed)
+
+
+def tail_read(
+    ladder: ShapedLadder, numerator: int, denominator: int
+) -> "float | None":
+    """A share inside a tail, read through that tail (G5.3b, G5.3e).
+
+    THE TAIL IS ITS OWN ROWS. A share `N / D` stands at the rank position
+    `t = N K / D` of the `K` numbers; the low tail holds the ranks below
+    `rows_lo` and the high tail the ranks from `K - rows_hi` up -- the
+    rows the description counts, not the percent, which stands between
+    two of them. `N = 0` reads the low end and `N = D` the high end
+    exactly, which is what the two pinned strata hold.
+
+    A LISTED tail reads its staircase (G5.3e). Otherwise the rank stands
+    at the MIDDLE of its own row's share of the tail, counting from the
+    boundary outward -- row `i` of `m` at `s = (2 i + 1) / (2 m)` -- so
+    that the mean of `a(s)` over the tail's rows is the mean of `a` over
+    a uniform `s`, which is the published mean distance, on both sides
+    alike:
+
+        low:   A = 2 rows D - 2 N K - D,  B = 2 rows D
+        high:  A = 2 N K - 2 (K - rows) D + D,  B = 2 rows D
+        s = ldexp((max(0, min(B, A)) << 53) // B, -53)
+
+    and the value is `b - a(s)` held into `[end, b]` on the low side and
+    `b + a(s)` held into `[b, end]` on the high. None between the two
+    tails, where G5.3's convex form reads the published rungs as before.
+    """
+    low = ladder.low
+    if low is not None and numerator * low.numbers < low.rows * denominator:
+        if numerator == 0:
+            return low.end
+        if low.listed:
+            return _listed_at(low, numerator, denominator)
+        if low.steps:
+            # THE ROW THIS SHARE STANDS AT, counted from the boundary
+            # outward: rank `t` of the tail is row `rows - 1 - t`.
+            rank = (numerator * low.numbers) // denominator
+            row = low.rows - 1 - rank
+            if row < 0:
+                row = 0
+            if row >= low.rows:
+                row = low.rows - 1
+            return low.steps[row]
+        width = 2 * low.rows * denominator
+        above = width - 2 * numerator * low.numbers - denominator
+        share = math.ldexp((max(0, min(width, above)) << 53) // width, -53)
+        value = low.boundary - _shape_at(low, share)
+        value = max(value, low.end)
+        return min(value, low.boundary)
+    high = ladder.high
+    if high is not None and numerator * high.numbers >= (
+        high.numbers - high.rows
+    ) * denominator:
+        if numerator == denominator:
+            return high.end
+        if high.listed:
+            return _listed_at(high, numerator, denominator)
+        if high.steps:
+            rank = -(
+                (-(numerator * high.numbers)) // denominator
+            )
+            row = rank - (high.numbers - high.rows)
+            if row < 0:
+                row = 0
+            if row >= high.rows:
+                row = high.rows - 1
+            return high.steps[row]
+        width = 2 * high.rows * denominator
+        above = (
+            2 * numerator * high.numbers
+            - 2 * (high.numbers - high.rows) * denominator
+            + denominator
+        )
+        share = math.ldexp((max(0, min(width, above)) << 53) // width, -53)
+        value = high.boundary + _shape_at(high, share)
+        value = min(value, high.end)
+        return max(value, high.boundary)
+    return None
+
+
+def _tail_figures(facts: NumericFacts) -> int:
+    """The grid a tail block's derived ends stand on, in figures.
+
+    `-2` on a whole-valued block, whose grid is G5.4's whole numbers;
+    otherwise the WIDEST width `fraction_widths` names, a grid every named
+    width's values stand on; -1 where no width is named at all.
+    """
+    if facts.integer_valued:
+        return -2
+    widest = -1
+    for key in facts.fraction_widths:
+        if not key:
+            continue
+        digits = True
+        for letter in key:
+            if letter not in "0123456789":
+                digits = False
+        if digits and int(key) > widest:
+            widest = int(key)
+    return widest
+
+
+def _rung_places(value: float) -> int:
+    """How many places the shortest round-trip text of a number writes.
+
+    The grid a block's own numbers stand on where its census names no
+    fraction width at all: the boundary rung is a number of the column's
+    own ladder, and a derived end may not write more figures than the
+    description's own numbers do. Without it a column of tenths whose
+    census is empty took a derived end of seventeen significant figures
+    and its twin wrote `-27.17407492967617` in a column of `-20.5`.
+    """
+    if value == int(value):
+        return 0
+    shown = repr(abs(value))
+    power = 0
+    for place in range(len(shown)):
+        if shown[place] in "eE":
+            power = int(shown[place + 1:])
+            shown = shown[:place]
+            break
+    after = 0
+    for place in range(len(shown)):
+        if shown[place] == ".":
+            after = len(shown) - place - 1
+            break
+    places = after - power
+    if places < 0:
+        return 0
+    return places if places < 17 else 17
+
+
+def _tail_unit(figures: int) -> float:
+    """One step of a tail grid of ``figures`` figures, or one where none."""
+    unit = 1.0
+    for _step in range(max(figures, 0)):
+        unit = unit / 10.0
+    return unit
+
+
+def _point_free_demand(facts: NumericFacts) -> int:
+    """How many cells the published forms map can only write WHOLE.
+
+    A cell counted `plain` or `leading_plus` wears the canonical
+    spelling of its value, so it carries a point exactly where the value
+    is fractional: those two counts are a demand for whole numbers. A
+    `leading_zero` cell is NOT -- `01.5` wears that form and carries a
+    point -- and the `(withheld)` pool names no form at all. Counting
+    either of them here read a census that says nothing about whole
+    numbers as a demand for them, and cost a column publishing
+    `{"leading_zero": 35}` thirteen of its twenty-five named cells when
+    its derived ends were moved onto the whole numbers for it.
+    """
+    owed = 0
+    for style in sorted(facts.numeric_styles):
+        if style in (PLAIN_STYLE, LEADING_PLUS_STYLE):
+            owed = owed + facts.numeric_styles[style]
+    return owed
+
+
+def _pointed_demand(facts: NumericFacts) -> int:
+    """How many cells the published forms map can only write WITH a point.
+
+    The `decimal` count, and the exponent forms beside it: those cells
+    carry a point or an exponent whatever their value, so they are the
+    other side of the question `_point_free_demand` asks. A derived end
+    is placed on a whole number only where the map names MORE cells it
+    can only write whole than cells like these -- on a column of tenths
+    with forty-nine whole cells in five hundred, moving the end onto a
+    whole number pulled it four tenths inside the tail it stands for and
+    cost the twin four of the column's thirty-one different values.
+    """
+    owed = 0
+    for style in sorted(facts.numeric_styles):
+        if style in (DECIMAL_STYLE, "exponent_lower", "exponent_upper"):
+            owed = owed + facts.numeric_styles[style]
+    return owed
+
+
+def _on_tail_grid(value: float, figures: int) -> float:
+    """``value`` on a tail grid: G5.4's rule on whole numbers, the grid
+    text read back on a width, itself where there is no grid."""
+    if figures == -2:
+        return _whole_rounded(value)
+    if figures >= 0:
+        placed = _grid_rounded(value, figures)
+        if placed is not None:
+            return placed
+    return value
+
+
+def _tail_outward(
+    side: TailReader, rows: int, mean: float, power: int
+) -> float:
+    """How far from the boundary the pinned stratum stands (G5.3b).
+
+    THE OUTERMOST ROW AND NOT THE SHAPE'S OWN END. `E` is where the
+    fitted shape stops, which is the end of a DISTRIBUTION; the
+    outermost of `rows` rows stands at the middle of its own row's
+    share of it, `s = (2 rows - 1) / (2 rows)`, exactly as every other
+    row of the tail is read. Reading the supremum there put a 500-row
+    column of charges 13 per cent past its own largest value and its
+    twin's spread 9.7 per cent high.
+
+    THEN OUTWARD, where the fitted power is `_TAIL_OUTWARD_POWER` or
+    more -- a tail at least as long as an exponential one -- to the
+    larger of that and `d1 H(rows)`, `H` the harmonic sum
+    `1 + 1/2 + ... + 1/rows`, which is where the largest of `rows`
+    draws from an exponential tail of mean `d1` is expected; a shorter
+    tail keeps what it read. A function of published facts alone, held
+    under the tail's own bound by the caller.
+    """
+    width = 2 * rows
+    share = math.ldexp(((width - 1) << 53) // width, -53)
+    reach = _shape_at(side, share)
+    if rows <= 1:
+        return reach
+    harmonic = 0.0
+    for count in range(1, rows + 1):
+        harmonic = harmonic + 1.0 / count
+    expected = mean * harmonic
+    return max(reach, expected)
+
+
+def _signed_end(
+    value: float,
+    low: bool,
+    boundary: float,
+    facts: NumericFacts,
+    figures: int,
+) -> float:
+    """A derived end on the side of nought the sign counts allow (G5.5a).
+
+    Where the block has no negative number, the low end is at least
+    nought -- nought where a zero is published, otherwise the smaller of
+    the boundary and one grid step; mirrored for the high end where it
+    has no positive one. Then never inside the boundary.
+
+    ONE STEP IS THE SMALLEST POSITIVE NUMBER THIS FORMAT HOLDS ON A
+    BLOCK WITH NO GRID WHOSE STEP IS NOT SMALLER THAN ITS BOUNDARY
+    RUNG. A block that names a width, or whose rung's own places give
+    one, keeps that step and is left exactly as it was, and so is a
+    block whose step is smaller than the rung -- which is every
+    ordinary column. What is left is a column every value of which is
+    smaller than the one unit an unnamed grid has, where
+    `min(boundary, unit)` hands back the BOUNDARY and the tail's rows
+    have nowhere to stand. Measured on 120 subnormal numbers, `5e-324`
+    times 1 to 120: their boundary rung is 6.4e-323, the step read was
+    one, and the twin held 79 of the 120 different numbers the
+    description publishes.
+    """
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    zeros = facts.n_zero
+    positives = facts.n_used_in_statistics - negatives - zeros
+    unit = _tail_unit(figures)
+    if figures == -1 and unit >= abs(boundary):
+        unit = _SMALLEST_POSITIVE
+    if low and negatives <= 0 and (value < 0.0 or (value == 0.0 and zeros <= 0)):
+        value = 0.0 if zeros > 0 else min(boundary, unit)
+    if not low and positives <= 0 and (
+        value > 0.0 or (value == 0.0 and zeros <= 0)
+    ):
+        value = 0.0 if zeros > 0 else max(boundary, -unit)
+    if low:
+        return min(value, boundary)
+    return max(value, boundary)
+
+
+def _derived_end(
+    facts: NumericFacts,
+    side: TailSide,
+    boundary: float,
+    shape: "tuple[bool, int, float, float]",
+    low: bool,
+    published: "float | None",
+) -> float:
+    """The value a tail block's pinned stratum holds (G5.3b, G5.5a).
+
+    In order: a published end (heaped, contract TL1) is the end; a listed
+    tail's end is its outermost listed value; otherwise the fitted end
+    `E` moved outward (`_tail_outward`) and held inside the tail's own
+    BOUND -- no row of a tail of `m` rows with mean distance `d1` and
+    root-mean-square `rms` lies further than
+    `d1 + sqrt((m - 1)(rms**2 - d1**2))` from its boundary -- then placed
+    on the grid (`_on_tail_grid`) and stepped one grid step inward where
+    that passed the bound, then held to the sign counts
+    (`_signed_end`). A flat tail's end is its boundary.
+
+    THE BOUND IS TAKEN AS `rms` TIMES A FRACTION, which is the same
+    number and is the only form this format can hold at both ends of
+    its range. Squaring `rms` underflows to nought below about
+    1e-162 -- measured on 120 subnormal numbers, `5e-324` times 1 to
+    120, where the bound came out nought, the derived end stood ON the
+    boundary and the tail's twelve rows had nowhere to stand -- and it
+    overflows to infinity above about 1e154.
+    """
+    if published is not None:
+        return published
+    if side.values:
+        return side.values[0] if low else side.values[len(side.values) - 1]
+    if shape[0]:
+        return boundary
+    figures = _tail_figures(facts)
+    mean = side.mean_distance
+    root = side.rms_distance
+    share = 0.0
+    if root > 0.0:
+        ratio = mean / root
+        if ratio < 1.0:
+            share = 1.0 - ratio * ratio
+    bound = mean + root * math.sqrt(float(side.rows - 1) * share)
+    if not math.isfinite(bound):
+        bound = _LARGEST_FINITE
+    reader = TailReader(
+        low=low,
+        percent=side.percent,
+        boundary=boundary,
+        rows=side.rows,
+        numbers=0,
+        flat=shape[0],
+        power=shape[1],
+        blend=shape[2],
+        reach=shape[3],
+        end=boundary,
+        listed=(),
+        counts=(),
+    )
+    out = min(_tail_outward(reader, side.rows, mean, shape[1]), bound)
+    end = boundary - out if low else boundary + out
+    if not math.isfinite(end):
+        end = -_LARGEST_FINITE if low else _LARGEST_FINITE
+    # AND ON A WHOLE NUMBER WHERE THE FORMS MAP ASKS FOR POINT-FREE
+    # CELLS (method G5.3b step 4). A derived end is a construction and
+    # not a value of the table, and `numeric_styles` is EXACT-
+    # OBSERVABLE: a column of tenths publishing forty point-free cells
+    # needs forty values that can be written with no point, and G6.4's
+    # walk may not move a pinned stratum to find one. Measured on forty
+    # whole values beside twenty halves: the end stood at 0.9, the twin
+    # wrote 21 decimal cells against a published 20 and missed the
+    # forms map and the width census. The move is at most half a grid
+    # unit, which is the half unit G12.2 already grants such a column.
+    if _point_free_demand(facts) > _pointed_demand(facts):
+        figures = -2
+    if figures == -1 and _rung_places(boundary) > 0:
+        # NO WIDTH IS NAMED and the block's own boundary rung carries a
+        # point, so the end is written to as many places as that rung
+        # and no more (method G5.3b step 4). Where the rung is whole the
+        # end is left alone: forcing it onto the whole numbers there
+        # moved the strata beside it off the values the forms census
+        # asks for, and cost a named count of twenty-five thirteen
+        # cells.
+        #
+        # A GRID WHOSE STEP IS NOT SMALLER THAN THE RUNG IS NO GRID FOR
+        # THIS COLUMN. The places of a shortest round-trip text are
+        # counted to seventeen and no further, so a rung at the bottom
+        # of the binary64 range reads as seventeen places while its own
+        # value is smaller than one of them -- and placing an end on
+        # that grid rounds it to nought. Measured on 120 subnormal
+        # numbers, `5e-324` times 1 to 120: the high boundary rung is
+        # 5.34e-322, the step read was 1e-17, and the derived high end
+        # came back ON the boundary with the tail's twelve rows nowhere
+        # to stand.
+        places = _rung_places(boundary)
+        if _tail_unit(places) < abs(boundary):
+            figures = places
+    placed = _on_tail_grid(end, figures)
+    if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
+        step = _tail_unit(figures)
+        placed = _on_tail_grid(placed + step if low else placed - step, figures)
+    # THE SPELLING RULES COME AFTER THE SIGN RULE, because that rule's
+    # own clamp can land an end the published spellings cannot write: on
+    # a column with no negative number an end reaching past nought is
+    # held at the smallest grid step there is, which is 1 on a column of
+    # whole numbers and 0.01 on a column of cents. Held there, it wears
+    # ONE figure on a column whose census says every cell is five wide,
+    # and it carries no mark on a column whose census counts one on
+    # every cell. Both clamps keep the sign they are given -- they move
+    # a MAGNITUDE and never cross nought -- so the sign rule is not
+    # undone by running before them. Measured on sixty whole numbers
+    # from 1000 to 60000: the derived low end stood at 1 and the twin
+    # wrote 9 of the published 60 cells at a width the census does not
+    # name, and on 240 prices written `92,959.11`, at 0.01 with no mark
+    # in it.
+    held = _signed_end(placed, low, boundary, facts, figures)
+    spelled = _within_the_marks(
+        _within_the_one_width(held, low, boundary, facts),
+        low,
+        boundary,
+        facts,
+    )
+    # ...AND NO SPELLING RULE PULLS THE END INSIDE THE TAIL'S OWN MEAN
+    # DISTANCE. A census of widths and a census of marks are POOLED at
+    # the floor: a group of fewer cells than the smallest group is
+    # counted into the commonest (plan P4-D222), so a column of 1 to 30
+    # publishes the one width two although nine of its cells wear one.
+    # Read as a ceiling there, the census moved a derived low end from
+    # under 1 up to 10 -- and no set of `m` rows has mean distance `d1`
+    # when its furthest row is nearer than `d1`, so that end makes the
+    # tail's own published fact unreachable. The published distance is
+    # CHECKED (G12.13) and both censuses are report-only, so where the
+    # spelling rules would cross it they stand aside. Measured on the
+    # 30-row reading column of a macro workbook: the twin wrote five
+    # cells at 10 and none below it, its mean stood 5.3 above the
+    # published 15.5 and `validate` MISSED `ladder.p50` and
+    # `moments.mean`.
+    if abs(spelled - boundary) < mean:
+        return held
+    return spelled
+
+
+def _within_the_one_width(
+    value: float, low: bool, boundary: float, facts: NumericFacts
+) -> float:
+    """A derived end held to the field width every cell of the block wrote.
+
+    Where `integer_valued` is true, NO cell wrote a redundant zero, and
+    `field_widths` names ONE width that covers every numeric cell, the
+    description says every cell of the column is a whole number of
+    exactly that many figures -- so a derived end of fewer or more
+    figures is a value the published facts rule out, exactly as a
+    negative end is on a column with no negative number (G5.5a). It is
+    moved to the nearest whole number of that width on its own side of
+    the boundary, and placed back on the grid there. Measured on sixty
+    whole numbers from 10000 to 69000: the derived end stood at 9820 and
+    the twin wrote 59 cells of the published 60 at five figures.
+
+    A PADDED CELL'S WIDTH IS NOT ITS VALUE'S (plan P4-D14): forty codes
+    written `00000` to `00039` publish the width five while their values
+    need one or two figures, so a column publishing any padded width is
+    left alone here -- and handed to `_within_the_pad`, which holds it
+    to the one CEILING such a census does state.
+
+    AND A PUBLISHED ZERO IS ONE FIGURE, whatever the census says. A
+    width group below the floor is counted into the COMMONEST width
+    (plan P4-D222), so the sixty whole numbers 0 to 59 publish
+    `{"2": 60}` although ten of them are written with one figure -- and
+    this rule then moved the derived low end of that column from 0 up to
+    10 while `n_zero` still asked the twin for a zero, leaving the twin
+    holding a cell outside its own ladder. Where the block publishes a
+    zero the census cannot be read as "every cell wears this width", so
+    the rule stands aside unless that width is one.
+    """
+    if not facts.integer_valued or len(facts.field_widths) != 1:
+        return value
+    if facts.pad_widths:
+        return _within_the_pad(value, low, boundary, facts)
+    if facts.n_zero > 0 and "1" not in facts.field_widths:
+        return value
+    for style in sorted(facts.numeric_styles):
+        if style in (LEADING_ZERO_STYLE, WITHHELD):
+            return value
+    figures = -1
+    for key in facts.field_widths:
+        digits = True
+        for letter in key:
+            if letter not in "0123456789":
+                digits = False
+        if not digits or not key:
+            return value
+        if facts.field_widths[key] != facts.n_used_in_statistics:
+            return value
+        figures = int(key)
+    if figures < 1 or figures > 15:
+        return value
+    smallest = 1.0
+    for _step in range(figures - 1):
+        smallest = smallest * 10.0
+    largest = smallest * 10.0 - 1.0
+    size = abs(value)
+    if size < smallest:
+        size = smallest
+    if size > largest:
+        size = largest
+    held = _whole_rounded(-size if value < 0.0 else size)
+    if low:
+        return min(held, _whole_rounded(boundary))
+    return max(held, _whole_rounded(boundary))
+
+
+def _within_the_marks(
+    value: float, low: bool, boundary: float, facts: NumericFacts
+) -> float:
+    """A derived end held to the census of marks between thousands.
+
+    A CELL CARRIES A MARK EXACTLY WHERE ITS NUMBER REACHES A THOUSAND
+    (method G6.5a's last value pass), and `thousands_marks` is
+    EXACT-OBSERVABLE. So a block whose census counts a mark on every
+    numeric cell says every value of the column reaches a thousand in
+    size, and a derived end below that is a value the published facts
+    rule out -- one the twin cannot write, because the walk that fixes
+    how many cells reach a thousand may move no stratum that is the
+    first or the last.
+
+    Measured on 240 prices written `92,959.11 EUR` with nothing
+    declared: the low tail's derived end stood at 0.01, the twin wrote
+    `0.01 EUR` with no mark in it, and its own description counted one
+    mark fewer than the 240 the source published.
+
+    Guarantees: accepts a derived end, which side it is, the boundary
+    rung it was measured from and the block's facts; returns the end
+    at a thousand or beyond in size where the census counts a mark on
+    every numeric cell, never past the boundary, and the end unchanged
+    otherwise. Determinism: a function of those. Raises nothing. No I/O
+    of any kind.
+    """
+    census = facts.thousands_marks
+    if not census:
+        return value
+    counted = 0
+    for mark in census:
+        if mark == WITHHELD:
+            return value
+        counted = counted + census[mark]
+    if counted != facts.n_used_in_statistics:
+        return value
+    size = abs(value)
+    if size >= 1000.0 or size == 0.0:
+        return value
+    held = -1000.0 if value < 0.0 else 1000.0
+    if low:
+        return min(held, boundary)
+    return max(held, boundary)
+
+
+def _within_the_pad(
+    value: float, low: bool, boundary: float, facts: NumericFacts
+) -> float:
+    """A derived end held to what a padded column's cells can hold.
+
+    A PAD WIDTH SAYS NOTHING ABOUT THE VALUES' OWN WIDTH, which is why
+    `_within_the_one_width` stands aside on a padded column: forty codes
+    written `00000` to `00039` publish the width five while their values
+    need one or two figures. What such a census DOES state is a ceiling,
+    in two forms, and a derived end above either is a value the
+    published facts rule out, exactly as a negative end is on a column
+    with no negative number (method G5.5a):
+
+    * where ONE field width covers every numeric cell, every cell of
+      the column is written with that many figures and no more, so no
+      value of it reaches `10**w`. Measured on five-figure postal codes
+      at seeds 1 to 13: the derived end stood at 100146 and the twin
+      wrote `100146` into a field its own description publishes as five
+      (audit item M4's own witness, come back through the tail);
+    * and where ONE pad width covers them too, every cell wrote at
+      least one PAD figure, so no value reaches `10**(w - 1)` either. A
+      column padded to four holds numbers under a thousand. Measured on
+      1,200 offsets written `+0123` and `0123` (plan P4-D145's own
+      case): the derived end stood at 1006, ten cells took it, `+1006`
+      wears no pad -- so the twin's own description counted ten
+      plus-signed cells unpadded, the plus route of P4-D148 then
+      withheld the plus-signed padded cells from the padded census
+      altogether, and the twin published `pad_widths {"4": 482}` where
+      its source published `{"4": 1200}`.
+
+    Guarantees: accepts a derived end, which side it is, the boundary
+    rung it was measured from and the block's facts; returns the end
+    held inside whichever ceiling the censuses state, never past the
+    boundary, and the end unchanged where no single field width covers
+    the column. Determinism: a function of those. Raises nothing. No
+    I/O of any kind.
+    """
+    if len(facts.field_widths) != 1:
+        return value
+    width = -1
+    for key in facts.field_widths:
+        digits = key != ""
+        for letter in key:
+            if letter not in "0123456789":
+                digits = False
+        if not digits:
+            return value
+        if facts.field_widths[key] != facts.n_used_in_statistics:
+            return value
+        width = int(key)
+    if width < 1 or width > 15:
+        return value
+    figures = width
+    for key in facts.pad_widths:
+        if key == f"{width}" and (
+            facts.pad_widths[key] == facts.n_used_in_statistics
+        ):
+            figures = width - 1
+    if figures < 1:
+        return value
+    largest = 1.0
+    for _step in range(figures):
+        largest = largest * 10.0
+    largest = largest - 1.0
+    if abs(value) <= largest:
+        return value
+    held = _whole_rounded(-largest if value < 0.0 else largest)
+    if low:
+        return min(held, _whole_rounded(boundary))
+    return max(held, _whole_rounded(boundary))
+
+
+def _on_base(value: float, base: int) -> int:
+    """A binary64 as a whole number of `2 ** base`, exactly (``base`` at or
+    below the value's own last place)."""
+    fraction, exponent = math.frexp(value)
+    return int(math.ldexp(fraction, 53)) << (exponent - 53 - base)
+
+
+def _listed_counts(
+    listed: "tuple[float, ...]",
+    boundary: float,
+    rows: int,
+    mean: float,
+    root: float,
+) -> "tuple[int, ...]":
+    """How many rows each listed value holds (method G5.3e).
+
+    Every listed value holds at least one row, and the `R = rows - L`
+    rows over hold at most THREE of the values between them. Among all
+    such counts, the chosen ones make the tail's summed distance nearest
+    `rows * d1`, then its summed squared distance nearest `rows * rms**2`
+    -- both compared EXACTLY, every binary64 a whole number of one shared
+    power of two -- and a tie goes to the counts that are smallest
+    lexicographically, the outermost value first. ``listed`` is
+    outermost first.
+
+    Each set of three is searched along the rows over given to its first
+    value, with the second value's share at the whole number either side
+    of the one that meets the summed distance exactly, so the cost is
+    the number of such sets times `R`.
+    """
+    count = len(listed)
+    extra = rows - count
+    if count == 0:
+        return ()
+    if count == 1 or extra <= 0:
+        return tuple([1 + max(extra, 0)] + [1] * (count - 1))
+    pairs = [math.frexp(value) for value in listed] + [
+        math.frexp(boundary),
+        math.frexp(mean),
+        math.frexp(root),
+    ]
+    base = min([exponent for _fraction, exponent in pairs]) - 53
+    anchor = _on_base(boundary, base)
+    distances = [abs(anchor - _on_base(value, base)) for value in listed]
+    squares = [distance * distance for distance in distances]
+    target = rows * _on_base(mean, base)
+    target_squares = rows * _on_base(root, base) * _on_base(root, base)
+    ones = sum(distances)
+    ones_squared = sum(squares)
+    best: "tuple[int, int, tuple[int, ...]] | None" = None
+    trios: "list[tuple[int, int, int]]" = []
+    if count == 2:
+        trios = [(0, 1, 1)]
+    else:
+        for first in range(count):
+            for second in range(first + 1, count):
+                for third in range(second + 1, count):
+                    trios += [(first, second, third)]
+    for first, second, third in trios:
+        for lead in range(extra + 1):
+            spare = extra - lead
+            before = (
+                ones + lead * distances[first] + spare * distances[third]
+                - target
+            )
+            step = distances[second] - distances[third]
+            shares: "list[int]" = [0]
+            if second != third and step != 0:
+                below = (-before) // step
+                shares = [
+                    min(spare, max(0, below)),
+                    min(spare, max(0, below + 1)),
+                ]
+            for share in shares:
+                extras = [0] * count
+                extras[first] = extras[first] + lead
+                extras[second] = extras[second] + share
+                extras[third] = extras[third] + spare - share
+                summed = before + share * step
+                squared = ones_squared - target_squares
+                for place in range(count):
+                    squared = squared + extras[place] * squares[place]
+                key = (abs(summed), abs(squared), tuple(extras))
+                if best is None or key < best:
+                    best = key
+    if best is None:
+        return tuple([1 + extra] + [1] * (count - 1))
+    return tuple([1 + more for more in best[2]])
+
+
+def _tail_ramp(facts: NumericFacts) -> ShapedLadder:
+    """G5.3d: the made-up ladder of a block below its floor.
+
+    The block publishes no rung and no moment, so its values are points
+    one grid step apart on the side of nought each belongs to: the
+    ladder runs straight from `-G u` to `(K - G - 1) u`, `G` the negative
+    numbers, `K` all of them and `u` one step of the block's grid (one
+    where it has none), each rung placed on that grid. The twin keeps
+    the block's type, its sign counts and its count of different
+    numbers, and claims nothing else about it.
+    """
+    figures = _tail_figures(facts)
+    unit = _tail_unit(figures)
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    numbers = max(1, facts.n_used_in_statistics)
+    lowest = -negatives * unit
+    highest = (numbers - negatives - 1) * unit
+    rungs: "list[float]" = []
+    for percent in range(101):
+        share = percent / 100.0
+        value = (1.0 - share) * lowest + share * highest
+        rungs += [_on_tail_grid(min(highest, max(lowest, value)), figures)]
+    return _shaped(tuple(rungs), None, None)
+
+
+def _moment_ladder(
+    facts: NumericFacts,
+) -> "ShapedLadder | None":
+    """G5.3c: the ladder of a block that publishes its moments alone.
+
+    Straight from `mean - sqrt(3) std` to `mean + sqrt(3) std` -- the
+    uniform stretch with that mean and that spread -- each end placed on
+    the grid and held to the sign counts like a derived end, and every
+    rung between them on the straight line. None where the mean or the
+    spread is withheld; the ramp stands in there.
+    """
+    if facts.mean is None or facts.std is None:
+        return None
+    figures = _tail_figures(facts)
+    reach = math.sqrt(3.0) * facts.std
+    lowest = _signed_end(
+        _on_tail_grid(facts.mean - reach, figures), True, facts.mean, facts,
+        figures,
+    )
+    highest = _signed_end(
+        _on_tail_grid(facts.mean + reach, figures), False, facts.mean, facts,
+        figures,
+    )
+    if not (math.isfinite(lowest) and math.isfinite(highest)):
+        return None
+    rungs: "list[float]" = []
+    for percent in range(101):
+        share = percent / 100.0
+        value = (1.0 - share) * lowest + share * highest
+        rungs += [min(highest, max(lowest, value))]
+    rungs[0] = lowest
+    rungs[100] = highest
+    return _shaped(tuple(rungs), None, None)
+
+
+def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
+    """The ladder of a tail block, every consumer's one ladder (G5.1a).
+
+    Below the block floor the ramp (G5.3d); where only the moments are
+    published the moment ladder (G5.3c); otherwise G5.1's fill inside the
+    two boundary percents only, and outside them each tail's reading
+    (G5.3b, or G5.3e where it is listed), with the two ends the pinned
+    strata hold (`_derived_end`).
+    """
+    tails = facts.tails
+    if tails is None:
+        return _tail_ramp(facts)
+    low = tails.low
+    high = tails.high
+    if low is None or high is None:
+        found = _moment_ladder(facts)
+        return found if found is not None else _tail_ramp(facts)
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = facts.percentiles.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        name = FINER_LADDER_KEYS[index]
+        named[int(name[1:])] = facts.percentiles_between[index]
+    low_boundary = named[low.percent]
+    high_boundary = named[high.percent]
+    if low_boundary is None or high_boundary is None:
+        return _tail_ramp(facts)
+    sides: "list[TailReader]" = []
+    for side, boundary, is_low, published in (
+        (low, low_boundary, True, named[0]),
+        (high, high_boundary, False, named[100]),
+    ):
+        shape = _tail_shape(side.mean_distance, side.rms_distance)
+        listed = side.values if is_low else tuple(reversed(side.values))
+        counts: "tuple[int, ...]" = ()
+        if listed:
+            counts = _listed_counts(
+                listed,
+                boundary,
+                side.rows,
+                side.mean_distance,
+                side.rms_distance,
+            )
+        side_reader = TailReader(
+            low=is_low,
+            percent=side.percent,
+            boundary=boundary,
+            rows=side.rows,
+            numbers=facts.n_used_in_statistics,
+            flat=shape[0],
+            power=shape[1],
+            blend=shape[2],
+            reach=shape[3],
+            end=_derived_end(
+                facts, side, boundary, shape, is_low, published
+            ),
+            listed=listed,
+            counts=counts,
+        )
+        # ...and each row of an unlisted tail on its own grid point
+        # (G5.3b's grid staircase), which needs the end this reader
+        # already carries.
+        sides += [
+            dataclasses.replace(
+                side_reader,
+                steps=_tail_steps(side_reader, _tail_figures(facts)),
+            )
+        ]
+    held = [
+        percent
+        for percent in range(low.percent, high.percent + 1)
+        if named[percent] is not None
+    ]
+    reader = _shaped(tuple([0.0] * 101), sides[0], sides[1])
+    rungs: "list[float]" = []
+    for percent in range(101):
+        if percent == 0:
+            rungs += [sides[0].end]
+            continue
+        if percent == 100:
+            rungs += [sides[1].end]
+            continue
+        if percent < low.percent or percent > high.percent:
+            # A RUNG OUTSIDE THE TWO BOUNDARIES BUT INSIDE THE TAIL'S OWN
+            # ROWS is the tail's reading; one between the two -- the
+            # percent stands between two rows -- is the boundary rung
+            # itself, which is where the reading meets it.
+            read = tail_read(reader, percent, 100)
+            if read is None:
+                read = low_boundary if percent < low.percent else high_boundary
+            rungs += [read]
+            continue
+        value = named[percent]
+        if value is None:
+            below = [step for step in held if step < percent]
+            value = named[below[len(below) - 1] if below else held[0]]
+        rungs += [value if value is not None else 0.0]
+    return _shaped(tuple(rungs), sides[0], sides[1])
 
 
 def _whole_row_count(value: object, key: str, where: str) -> int:
@@ -10710,7 +12457,9 @@ def _empty_edges(
     mapping: "dict[str, object]",
     where: str,
     bins: "tuple[int, ...]",
-    ladder: "NumberLadder",
+    low: "float | None",
+    high: "float | None",
+    tail_rule: bool = False,
 ) -> "tuple[tuple[float, float], ...]":
     """The real boundaries of each stretch this column leaves empty.
 
@@ -10742,6 +12491,15 @@ def _empty_edges(
             stretches[-1] = (stretches[-1][0], place)
         else:
             stretches += [(place, place)]
+    # ON A TAIL BLOCK ONLY THE STRETCHES WITH AN OCCUPIED BIN ON BOTH
+    # SIDES HAVE EDGES (stage 3, plan P4-D325): a stretch touching an end
+    # bin has a tail value for a neighbour, and a tail value is withheld.
+    if tail_rule:
+        stretches = [
+            (first, last)
+            for first, last in stretches
+            if first > 0 and last < parsing.HISTOGRAM_BINS - 1
+        ]
     if len(given) != len(stretches):
         raise _broken(
             "Q21",
@@ -10784,8 +12542,6 @@ def _empty_edges(
     # whose ends are not both finite has no scale to divide -- so it
     # publishes no empty bin, and a pair naming values it lies between
     # would be naming a stretch of nothing.
-    low = ladder.rungs[0]
-    high = ladder.rungs[-1]
     if low is None or high is None:
         if edges:
             raise _broken(
@@ -10847,8 +12603,10 @@ def _empty_bins(
     mapping: "dict[str, object]",
     where: str,
     used: int,
-    ladder: NumberLadder,
+    lowest: "float | None",
+    highest: "float | None",
     histogram: "dict[str, int]",
+    tail_rule: bool = False,
 ) -> "tuple[int, ...]":
     """Which bins a column says hold none of its numbers (7.11).
 
@@ -10921,7 +12679,7 @@ def _empty_bins(
                 "each bin named once, in ascending order",
             )
         bins += [entry]
-    scaled = used > 0 and _has_width(ladder)
+    scaled = used > 0 and _has_width_between(lowest, highest)
     if bins and not scaled:
         raise _broken(
             "Q20",
@@ -10929,7 +12687,10 @@ def _empty_bins(
             f"{len(bins)} bin(s) are named as holding nothing",
             "this column's numbers divide into no bins at all",
         )
-    if scaled:
+    # ON A TAIL BLOCK THE END BINS MAY BE EMPTY (stage 3): the scale runs
+    # between the two boundary rungs, and no value is known to stand in
+    # the first bin or the last.
+    if scaled and not tail_rule:
         for entry in bins:
             if entry == 0 or entry == parsing.HISTOGRAM_BINS - 1:
                 raise _broken(
@@ -10965,8 +12726,13 @@ def _empty_bins(
 
 def _has_width(ladder: NumberLadder) -> bool:
     """Whether a ladder's two ends leave a width the bins can divide."""
-    lowest = ladder.minimum
-    highest = ladder.maximum
+    return _has_width_between(ladder.minimum, ladder.maximum)
+
+
+def _has_width_between(
+    lowest: "float | None", highest: "float | None"
+) -> bool:
+    """Whether two ends leave a width the bins can divide."""
     if lowest is None or highest is None:
         return False
     if lowest - lowest != 0.0 or highest - highest != 0.0:
@@ -12198,7 +13964,7 @@ def _clock_facts(
     every published clock value is written in the column's own form; T2
     the ladder is published between the two tail boundaries and nowhere
     else (stage 3); T3 the rungs never go backwards; T4 some cell parsed;
-    T5 enough of them did; and TL1 and TL2 over the two tails.
+    T5 enough of them did; and DT1 and DT2 over the two tails.
     """
     form = _one_of(mapping["clock_form"], "clock_form", where, CLOCK_FORMS)
     ladder = _clock_ladder(
@@ -12482,7 +14248,12 @@ def _joined_facts(
     for value in blocks_read:
         seat = f"parts[{place}]"
         block = _mapping(value, seat, where)
-        _keys(block, where, NUMERIC_KEYS, f"the block for {seat}")
+        _keys(
+            block,
+            where,
+            _numeric_key_set(block, NUMERIC_KEYS),
+            f"the block for {seat}",
+        )
         blocks += [
             _numeric_facts(
                 block,
@@ -12973,10 +14744,11 @@ def _compound_facts(
     # of this landing, item 2). Every other block of the description is
     # held to its key set, including each POSITION of a joined column,
     # and these two were the exception.
+    numeric_half = _mapping(mapping["numbers"], "numbers", where)
     _keys(
-        _mapping(mapping["numbers"], "numbers", where),
+        numeric_half,
         where,
-        NUMERIC_KEYS,
+        _numeric_key_set(numeric_half, NUMERIC_KEYS),
         "the numeric half of a column of numbers beside labels",
     )
     _keys(

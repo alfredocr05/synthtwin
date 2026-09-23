@@ -100,7 +100,20 @@ def test_the_summary_and_the_document_cannot_disagree(
     assert f"{document['n_rows']} rows" in text
     for column in document["columns"]:
         if column["role"] in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
-            assert f"{column['percentiles']['max']}" in text
+            # THE TOP RUNG IS NOT ALWAYS THERE TO COMPARE. The tail rule
+            # of contract 6.7a withholds every rung whose reading
+            # touches the outermost values, so `max` is null on a column
+            # of different numbers (landing 3.3). The property is that
+            # the summary and the document cannot disagree, so it is
+            # taken on the highest rung the block DOES publish.
+            ladder = column["percentiles"]
+            shown = [
+                ladder[label]
+                for label, _numerator, _denominator in taxonomy.LADDER
+                if ladder[label] is not None
+            ]
+            assert shown, column["name"]
+            assert f"{shown[len(shown) - 1]}" in text, column["name"]
 
 
 # -- properties that must hold for any table --------------------------
@@ -156,7 +169,26 @@ def test_percentiles_never_go_down_for_many_random_tables(
                 continue
             ladder = column["percentiles"]
             values = [ladder[label] for label, _num, _den in taxonomy.LADDER]
-            assert values == sorted(values), column["name"]
+            # A WITHHELD RUNG HAS NO PLACE IN THE ORDER, and where the
+            # withheld ones stand is itself a property (contract 6.7a,
+            # TL1): the tail rule withholds exactly the rungs whose
+            # reading touches the outermost values, so what is missing
+            # is a run at the bottom and a run at the top and never a
+            # hole in the middle. Both halves are held here.
+            shown = [value for value in values if value is not None]
+            assert shown == sorted(shown), column["name"]
+            kept = [place for place in range(len(values))
+                    if values[place] is not None]
+            if not kept:
+                # A LADDER NULL AT EVERY RUNG IS A STATE OF ITS OWN: a
+                # column with no numbers to read, and a numeric block
+                # whose count of values leaves no percent clearing both
+                # tails, which publishes its moments alone (TL3). There
+                # is no order in it to go down.
+                continue
+            assert kept == list(
+                range(kept[0], kept[len(kept) - 1] + 1)
+            ), column["name"]
 
 
 def test_counted_values_match_an_independent_count(

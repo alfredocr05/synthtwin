@@ -218,12 +218,17 @@ def _tailed_table() -> str:
     spread across days like the real table's, and no date rung of the
     table above -- nor of sixty seeded date tables searched for one --
     has a window lying wholly to one side of its own value any more.
-    The corner this file guards is still reachable through the other
-    envelope function, `_within`: on this column G12.3's windows for the
-    mean, the standard deviation and the tail weight all sit away from
-    the published values, so the real table is exactly the file that
-    holds a value its window does not reach. Seeded, so the same table
-    is written on every machine.
+    The corner this file guards was reachable through the other
+    envelope function, `_within`, on this column: G12.3's windows for
+    the mean, the standard deviation and the tail weight all sat away
+    from the published values, so the real table was exactly the file
+    that holds a value its window does not reach. LANDING 3.3 CLOSED
+    THAT. The tail rule withholds the rungs that read the far value and
+    states each end as a group, G12.3's window is drawn from the same
+    reading, and the windows now contain their own values; the corner
+    is carried by the dated table's times instead. The column stays as
+    the retirement's own witness. Seeded, so the same table is written
+    on every machine.
     """
     import random
 
@@ -253,32 +258,51 @@ def _outcome(
     return validation.measure(description, f"{table}"), description
 
 
-def test_the_witness_has_a_window_that_misses_its_own_value(
+def test_the_tailed_witness_stands_inside_its_windows_now(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Non-vacuity first: this table really does reach that corner.
+    """The numeric witness is retired, and the retirement is measured.
 
-    If it ever stops having a rung whose window sits wholly below the
-    description's own value, this file says so rather than passing on a
-    corner it can no longer see.
+    THIS TEST HELD THE OTHER HALF UNTIL LANDING 3.3. The tailed column
+    -- five thousand lognormal amounts with one far value -- had a mean
+    and a spread whose G12.3 windows sat wholly away from the
+    description's own values, so the exact reading of V6.1-A1 was the
+    only thing between a conforming file and two MISSED lines. The tail
+    rule of contract 6.7a withholds the rungs that read those outermost
+    values and states each end as a group instead, and G12.3's window is
+    drawn from the same reading the generator uses, so the two moved
+    together: each window now contains the value it is drawn for, and
+    neither moment reaches the corner on this column. Twenty shapes
+    were searched for another numeric column that does -- lognormal,
+    Pareto, bimodal, mostly-zero and far-valued, at four row counts and
+    three grids -- and none reached it.
+
+    THE CORNER IS STILL SEEN BY THIS FILE, through the same envelope:
+    the dated table's times reach it on their distinctness and on their
+    last clock rung, which the test below measures and which fails
+    loudly if that stops being true. What is pinned here is the
+    retirement itself -- the tailed column misses nothing, and needs no
+    exact reading to say so.
     """
     table = fixtures.write(tmp_path, "tailed.csv", _tailed_table())
     _written, description = _described(tmp_path, table)
     outcome = validation.measure(description, f"{table}")
-    outside = [
+    moments = [
         check
         for check in outcome.checks
         if check.fact in ("numeric.mean", "numeric.std")
-        and "does NOT reach the" in "\n".join(check.note)
+        and check.column == "amount"
     ]
-    assert len(outside) == 2, (
-        "the tailed column no longer has a mean and a spread whose "
-        "windows miss the description's own values, so this file can no "
-        "longer see the defect it exists for"
-    )
-    for check in outside:
-        assert check.achieved == check.published
-        assert check.verdict == validation.HELD
+    assert len(moments) == 2, moments
+    for check in moments:
+        assert check.verdict == validation.HELD, check
+        assert check.achieved == check.published, check
+        assert "does NOT reach the" not in "\n".join(check.note), check
+    assert not [
+        check
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
 
 
 def test_the_dated_table_s_times_reach_the_instant_envelope_corner(
@@ -358,15 +382,20 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     # ...with a window that misses its own value still explaining itself
     # underneath, on the column of times that reaches that corner.
     assert "the file holds the description's own value exactly" in report
-    # ...and the window that does not reach its own value is on the
-    # tailed table now (see `_tailed_table`), which misses nothing either.
+    # ...and the tailed table (see `_tailed_table`) misses nothing
+    # either. Its mean and spread used to need the exact reading, and
+    # since landing 3.3 they stand inside their own windows, so the
+    # sentence that says why a window misses its own value is no longer
+    # printed for them -- which is what the test above measures.
     tailed = fixtures.write(tmp_path, "tailed.csv", _tailed_table())
     tailed_written, _tailed_description = _described(tmp_path, tailed)
     assert main(["validate", f"{tailed_written}", "--twin", f"{tailed}"]) == 0
     tailed_report = (tmp_path / "tailed-quality.txt").read_text("utf-8")
     assert "0  MISSED" in tailed_report
     assert "moments.mean [numeric.mean]: HELD" in tailed_report
-    assert "the file holds the description's own value exactly" in tailed_report
+    assert "the file holds the description's own value exactly" not in (
+        tailed_report
+    )
 
 
 def test_a_file_that_holds_something_else_is_still_judged_by_the_window(

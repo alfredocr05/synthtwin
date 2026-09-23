@@ -303,23 +303,34 @@ Stated here so that no reader has to discover them independently:
   surface of this project may describe it as present before it is.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
-  `small_cell_floor` rows share, the smallest and largest values of
-  numeric columns and the points between them, and counts about groups
-  nobody is named in. **A column of dates or clock times publishes
-  neither end** (stage 3): each side of it is a TAIL -- a boundary with
-  at least `small_cell_floor` cells beyond it, how many those are, and
-  how far they lie -- so no date in the file is the rarest one the
-  column held. A tail LISTS its few different dates only where the
-  owner's ruling of 2026-09-22 reaches it, which is where each of them
-  is shared by at least two rows and the column's dates come from a
-  small fixed set rather than a fine grid; it says nothing about how
-  many rows hold each. Anywhere else -- a column of clock times, a
+  `small_cell_floor` rows share, the steps of a numeric, date or clock
+  column's ladder between its two tails, and counts about groups nobody
+  is named in. **No such column publishes either end** (stage 3): each
+  side of it is a TAIL. On a numeric column every step that would read
+  one of the outermost `max(small_cell_floor, 3)` values is withheld,
+  and each end is described by how many rows lie beyond it and how far
+  from the last published step they lie, on average and
+  root-mean-square. On a column of dates or clock times the same side is
+  a boundary with at least `small_cell_floor` cells beyond it, how many
+  those are, and how far they lie -- so no date in the file is the
+  rarest one the column held. An end at least that many rows share is
+  published as itself, because it is a value of a group. A tail may
+  LIST the values it holds instead of publishing its shape, never with
+  a count beside them, and THE TWO ROLES LIST ON DIFFERENT TERMS. A
+  NUMERIC tail on a published grid is listed where it holds no more
+  than six different values, or where its published shape would settle
+  its outermost value anyway -- the list is then the reading that says
+  LESS. A DATE or CLOCK tail is listed only where the owner's ruling of
+  2026-09-22 reaches it: every value it would list held by at least two
+  of its cells and the column's dates standing on a small fixed set
+  rather than a fine grid. Anywhere else -- a column of clock times, a
   column of days over years -- it publishes its shape and lists
-  nothing. What the shape still allows is stated rather than claimed
-  away: on a column of all-different clock times whose tail is pressed
-  against the end of the day, a reader who works through every
-  arithmetic the two published distances admit is left with one answer,
-  and the KPI ledger's `K-S3-01` counts how often that is so. **`small_cell_floor` is 11 by default** (owner,
+  nothing. What the shape still allows is stated
+  rather than claimed away: on a column of all-different clock times
+  whose tail is pressed against the end of the day, a reader who works
+  through every arithmetic the two published distances admit is left
+  with one answer, and the KPI ledger's `K-S3-11` counts how often that
+  is so. **`small_cell_floor` is 11 by default** (owner,
   2026-09-22), so by default it publishes a label only where at least
   eleven rows share it, with how many rows did, and pools the rest into
   a count that names none of them. `--smallest-group` lowers it, down to

@@ -96,6 +96,20 @@ def _describe(
     return _described(folder, text, declared, stem, first_row, measured)[0]
 
 
+def _describe_at_one(
+    folder: pathlib.Path, text: str, stem: str = "table"
+) -> contract.Profile:
+    """Profile one table at a floor of ONE, for a witness whose column is
+    smaller than a tail's own rows at the default floor (contract TL2)."""
+    table_path = fixtures.write(folder, f"{stem}.csv", text)
+    table = reading.read_table(str(table_path), small_cell_floor=1)
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
+    return contract.load_profile(str(written))
+
+
 def _described(
     folder: pathlib.Path,
     text: str,
@@ -525,7 +539,18 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     """
     folder = tmp_path / "pooled"
     folder.mkdir()
-    values = ["1" for _index in range(10)] + ["1.5", "2.5"]
+    # TWENTY-THREE CELLS IN THREE FORMS, none of them reaching the
+    # floor, so the whole forms map is still the single withheld key.
+    # It was twelve cells in two forms until stage 3: a block of twelve
+    # is below `2 * max(floor, 3) + 1` and publishes its moments alone
+    # (contract TL3), so its twin had no ladder to be spelled from and
+    # the subcheck this test is about was withheld for that reason
+    # instead of the one it is here for.
+    values = (
+        ["1" for _index in range(10)]
+        + ["1.5" for _index in range(8)]
+        + ["01" for _index in range(5)]
+    )
     described = _describe(
         folder,
         fixtures.single_column_table("reading", values),
@@ -533,7 +558,7 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     )
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
-    assert facts.numeric_styles == {taxonomy.SUPPRESSED_LABEL: 12}
+    assert facts.numeric_styles == {taxonomy.SUPPRESSED_LABEL: 23}
     twin = _twin_text(described)
     good = _measure(folder, described, twin, "pooled-twin.csv")
     assert _missed(good) == []
@@ -1052,9 +1077,11 @@ def test_red_a_trailing_zero_on_every_cell_is_in_no_published_form(
     assert _verdicts(outcome, "styles.spelled") == [validation.MISSED]
     # ...and the cells still read back as exactly the same numbers, so
     # nothing about the column's shape moved: this is a spelling fault
-    # and the report says so rather than blaming the ladder.
-    assert _verdicts(outcome, "ladder.min") == [validation.HELD]
-    assert _verdicts(outcome, "ladder.max") == [validation.HELD]
+    # and the report says so rather than blaming the ladder. The two
+    # ends are withheld by the tail rule (contract TL1, stage 3), so the
+    # rungs this asks about are the published ones.
+    assert _verdicts(outcome, "ladder.p25") == [validation.HELD]
+    assert _verdicts(outcome, "ladder.p50") == [validation.HELD]
     assert _verdicts(outcome, "counts.n_numeric") == [validation.HELD]
 
 
@@ -3197,8 +3224,19 @@ def test_red_a_collapsed_ladder_misses_the_middle_rung(
     column = described.columns[0]
     facts = column.facts
     assert isinstance(facts, contract.NumericFacts)
-    low = facts.percentiles.minimum
-    high = facts.percentiles.maximum
+    # THE TWO BOUNDARY RUNGS, because the tail rule withholds the ends
+    # (contract TL1, stage 3). The collapse this witness is about is a
+    # file that spreads its values evenly between them, which is what
+    # the interior rungs of a lopsided column refuse.
+    tails = facts.tails
+    assert tails is not None and tails.low is not None
+    assert tails.high is not None
+    low = contract._rung_at(
+        facts.percentiles, facts.percentiles_between, tails.low.percent
+    )
+    high = contract._rung_at(
+        facts.percentiles, facts.percentiles_between, tails.high.percent
+    )
     assert low is not None and high is not None
     spread = [
         f"{low + (high - low) * index / 199:.2f}" for index in range(200)
@@ -3597,6 +3635,16 @@ def test_no_moment_is_both_checked_and_listed_on_a_finer_only_ladder(
     )
     document = profile.build_document(table, SETTINGS, [])
     block = document["columns"][0]
+    # A DESCRIPTION WRITTEN BEFORE STAGE 3, which this loader still
+    # reads (contract 6.7a): a block carrying `tails` may not publish a
+    # rung outside its two boundaries (TL1), so the shape this witness
+    # is about -- named rungs null beside finer rungs that are not --
+    # exists only on a block without them.
+    block.pop("tails", None)
+    block.pop("bin_groups", None)
+    block["value_histogram"] = {}
+    block["empty_bins"] = []
+    block["empty_edges"] = []
     for rung in list(block["percentiles"]):
         block["percentiles"][rung] = None
     for rung in list(block["percentiles_between"]):
@@ -3713,7 +3761,11 @@ def test_a_statistic_on_its_own_ceiling_is_not_called_a_miss(
     weight's two ends are both positive, and moving its low end away
     from zero moves it UP, past the value the window was drawn for.
     """
-    described = _describe(tmp_path, "value\n-1e20\n0\n1\n")
+    # AT A FLOOR OF ONE, because three values are fewer than a tail's
+    # own rows at eleven and such a block publishes no moment at all
+    # (contract TL2, stage 3). The witness is about the skew's own
+    # ceiling, which needs exactly these three values.
+    described = _describe_at_one(tmp_path, "value\n-1e20\n0\n1\n")
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
     assert facts.skew == -0.7071067811865476, facts.skew
@@ -3769,7 +3821,7 @@ def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
             spread.uniform(-10, 10) * 10.0 ** spread.randint(-320, 300)
         )
 
-    # 200018 values, both directions, both module copies: 800072
+    # 200018 values, both directions, all three module copies: 1200108
     # comparisons. The count is stated where it can be counted, because
     # the register first cited a figure from a console run rather than
     # from this file and a claim about coverage is worth what the
@@ -3792,6 +3844,13 @@ def test_the_outward_step_is_the_number_next_to_the_one_it_was_given(
             assert validation._stepped(value, upward) == wanted, (
                 value, upward
             )
+            # AND THE CONTRACT'S, which a tail block with no published
+            # grid steps by: there the format's own values are the grid
+            # (method G5.3b), and the step is asked for by DIRECTION --
+            # `downward` is the low side, so it is `upward` reversed.
+            assert contract._next_representable(value, not upward) == (
+                wanted
+            ), (value, upward)
 
 
 def test_the_two_modules_widen_a_limit_the_same_number_of_places(

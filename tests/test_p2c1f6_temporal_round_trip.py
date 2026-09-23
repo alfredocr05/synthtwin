@@ -59,7 +59,7 @@ Document = dict[str, typing.Any]
 # EACH SHAPE IS WRITTEN AS A SPREAD OF DIFFERENT VALUES since stage 3
 # (plan P4-D328). The four repeated values these shapes held publish no
 # tail at all at a floor of eleven -- ten cells on each of four values
-# leave no value between the two boundaries (contract TL2) -- so the
+# leave no value between the two boundaries (contract DT2) -- so the
 # round trip they exist to measure would have nothing to carry. The
 # spread keeps each shape's own resolution, precision and clock and
 # gives the column forty different values, which is what a tail needs.
@@ -386,7 +386,7 @@ def test_a_ladder_rung_outside_the_tail_rule_is_refused(
     outside["columns"][0]["high_tail"]["boundary"] = low
     with pytest.raises(errors.ProfileError) as third:
         _loaded(folder, outside, "outside.json")
-    assert "D11" in f"{third.value}" or "TL2" in f"{third.value}"
+    assert "D11" in f"{third.value}" or "DT2" in f"{third.value}"
 
 
 @pytest.mark.parametrize("spelling", ["+99:99", "+15:00", "-14:30", "+02:60"])

@@ -1,4 +1,4 @@
-"""K-S3-01: nothing a date or clock column publishes names one of its outer cells.
+"""K-S3-11: nothing a date or clock column publishes names one of its outer cells.
 
 STAGE 3'S OWN GATE (plan P4-D328). A column of dates or clock times used
 to publish its two ENDS -- the smallest value and the largest, each held
@@ -24,7 +24,7 @@ SIX MEASUREMENTS, over one battery:
   clock shape of the battery whatever the description said (the skeptic
   of this landing). `_outermost` branches on the role now;
 * `pinned`: how many tails the published facts SETTLE -- the back-solve
-  of contract TL1's own lattice, `taxonomy.tail_pinned`, asked of each
+  of contract DT1's own lattice, `taxonomy.tail_pinned`, asked of each
   published tail: whether the rows, the mean and the root-mean-square
   distance leave exactly one multiset of distances, which would name the
   outermost value, or exactly one count for some distance, which would
@@ -814,7 +814,11 @@ def _case(folder, shape, rows, seed):
     home.mkdir(parents=True, exist_ok=True)
     table = home / "real.csv"
     table.write_text(_table(name, cells), encoding="utf-8", newline="")
-    read = reading.read_table(str(table), first_row=reading.FIRST_ROW_AUTOMATIC)
+    read = reading.read_table(
+        str(table),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=FLOOR,
+    )
     settings = taxonomy.Settings(
         small_cell_floor=FLOOR, day_first="--day-first" in flags
     )
@@ -942,7 +946,7 @@ def main():
         "edge_pinned": total["edge_pinned"],
         "equality_only": total["equality_only"],
     }
-    kpi_rules.emit("K-S3-01", value)
+    kpi_rules.emit("K-S3-11", value)
 
 
 if __name__ == "__main__":

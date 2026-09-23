@@ -11,7 +11,7 @@ sentences and 145 of them carrying whole numbers, of which NINE printed
 a count no key of the block beside them published at all and 38 more
 restated a count the key itself published below the line. The nine are
 what the fragment replaces; the 38 are P4-D332's keys, left standing
-and held at a ceiling by K-S3-01 and by
+and held at a ceiling by K-S3-12 and by
 `test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
 below. THE SECOND NUMBER READ 29 UNTIL THE REPAIR PASS: that same run
 records 29 only under a rule-M prototype this landing did not build,
@@ -55,7 +55,7 @@ owner). The odd-kind counts -- `n_not_numeric`, `n_out_of_range`,
 -- `n_zero`, `n_negative`, `part_above` -- stay published. Flooring
 them broke goal 1 in 7 of 7 probed shapes: the owner's program runs
 clean on the twin and raises on the real table, and the count still
-reached the reader through `n_missing`. `K-S3-01` holds the number of
+reached the reader through `n_missing`. `K-S3-12` holds the number of
 such leaves so it cannot rise unseen.
 """
 
@@ -66,6 +66,7 @@ import pytest
 
 import fixtures
 import stage3_battery as battery
+import tail_rule
 from synthtwin import contract, errors, parsing, profile, reading, taxonomy
 
 FLOORS = (1, 5, 11)
@@ -277,7 +278,7 @@ def test_the_binding_table_is_closed_over_every_form() -> None:
 
 
 def test_the_fragment_says_the_line_and_nothing_else() -> None:
-    """NF59's whole rendering, pinned character for character."""
+    """NF60's whole rendering, pinned character for character."""
     assert taxonomy.NOTE_ARITY[taxonomy.SAID_FEWER_THAN_THE_LINE] == 1
     assert (
         taxonomy.rendered(taxonomy.SAID_FEWER_THAN_THE_LINE, (11,))
@@ -330,7 +331,7 @@ def test_where_the_line_is_two_the_remark_is_withdrawn(
 
 
 def test_the_second_fragment_says_some_but_not_all_and_nothing_else() -> None:
-    """NF60's whole rendering, pinned character for character.
+    """NF61's whole rendering, pinned character for character.
 
     Nought arguments, because an argument here would be a count and a
     count is what it exists not to say.
@@ -340,7 +341,7 @@ def test_the_second_fragment_says_some_but_not_all_and_nothing_else() -> None:
         taxonomy.rendered(taxonomy.SAID_SOME_BUT_NOT_ALL, ())
         == "some but not all"
     )
-    # AND CAPITALISED WHERE IT OPENS A SENTENCE, on NF59's rule. NF29
+    # AND CAPITALISED WHERE IT OPENS A SENTENCE, on NF60's rule. NF29
     # argument 6 stands immediately after a full stop. The producer
     # withdraws that remark rather than writing the fragment there --
     # a remark CAN be withdrawn -- so the branch is asked of the
@@ -416,10 +417,10 @@ def test_the_second_implementation_reports_the_place_a_fragment_stands_at(
     """A walk that steps INTO a fragment reports nothing about it.
 
     `_positions` is this file's own walk, and the whole of its value is
-    that it reports the position a count would have stood at. NF60
+    that it reports the position a count would have stood at. NF61
     takes no argument, so a walk that recursed into it would yield
     nothing at all for that position -- and the gate above, and
-    `K-S3-01`, would both go quiet about exactly the case the repair
+    `K-S3-12`, would both go quiet about exactly the case the repair
     pass added. MUTATION: recurse into either fragment and this turns
     red while every other test here stays green.
     """
@@ -503,8 +504,8 @@ def test_the_sentence_a_block_cannot_lose_says_less_instead_of_the_digits(
     free text, so its evidence nests `said_read_as_dates`, whose count
     is a floored position bound to `n_present`: 390 beside 400 hands
     back the ten. The evidence cannot be withdrawn -- a block must say
-    how it was read -- and NF59 cannot stand there either, because
-    "fewer than 11" is false of 390. So NF60 stands there, and the
+    how it was read -- and NF60 cannot stand there either, because
+    "fewer than 11" is false of 390. So NF61 stands there, and the
     shipped guard accepts the shipped producer's own document.
 
     MUTATION: make `taxonomy._arguments_at_the_line` write the digits
@@ -562,7 +563,7 @@ def test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling(
 
     This counts the same class over the committed battery: an argument
     bound to a key, a sum or a difference of keys whose value is one to
-    ten. It is a CEILING and not a target, on exactly K-S3-01's
+    ten. It is a CEILING and not a target, on exactly K-S3-12's
     reasoning -- the keys are published on purpose, and what may not
     happen is the number growing while nobody is looking.
     """
@@ -936,7 +937,7 @@ def test_the_odd_kind_counts_are_still_published(
     program ran clean on the twin and raised on the real table -- and
     the count still reached the reader through `n_missing`. This is the
     orchestrator's call of 2026-09-22, reversible, to be put to the
-    owner; `K-S3-01` is what stops it drifting wider.
+    owner; `K-S3-12` is what stops it drifting wider.
     """
     for name, key, expected in (
         ("numeric_one_out_of_range", "n_out_of_range", 1),
@@ -974,28 +975,23 @@ def test_no_count_moved_so_the_twin_report_still_reads_the_partition(
     assert block["n_not_numeric"] == 3
 
 
-@pytest.mark.skip(
-    reason=(
-        "the date and clock tail landing owns NF51's arguments 2 to 7: "
-        "they restate the exact minimum and maximum this stage stops "
-        "publishing, and there is nothing to compare them with until "
-        "that landing moves them onto the tail's own boundaries"
-    )
-)
 def test_the_epoch_band_remark_reads_the_published_tail_boundaries(
     tmp_path: pathlib.Path,
 ) -> None:
-    """NF51 arguments 2 to 7 are bound to `value (tail rule)`.
+    """NF51 arguments 2 to 7 are the two edges the block publishes.
 
-    THE DEPENDENCY, NAMED RATHER THAN LEFT OUT. The binding is in the
-    table now, so the guard knows these six positions are values and
-    not counts and will not judge them by a count rule. What it cannot
-    yet do is CHECK them: the two ends the remark reads as calendar
-    days are today the block's exact `min` and `max`, which stage 3's
-    tail landing replaces. When it lands, this test says the remark's
-    days are the days of whatever the block publishes in their place,
-    and the `BIND_VALUE` branch of `profile._one_argument_is_bound`
-    stops returning early.
+    THE MERGE OBLIGATION, BUILT (plan P4-D345, contract NF51). This
+    test was SKIPPED on the date and clock tail branch, with its reason
+    naming the dependency: the remark's two ends restated
+    `percentiles.min` and `percentiles.max`, and there was nothing to
+    compare them with until the NUMERIC tail landing withdrew those two
+    keys. Both landings now stand in one tree, so the check is made.
+
+    THE DAYS ARE WORKED OUT HERE, from the rule and not from the
+    producer. `tests/tail_rule.py` says which percent each boundary
+    stands at, the rung is read off the ladder the description
+    publishes, and the day is that rung divided by the band's units --
+    which is the arithmetic contract NF51 states, done a second time.
     """
     document = battery.described(tmp_path, "epoch_seconds", 11)
     block = document["columns"][0]
@@ -1006,3 +1002,108 @@ def test_the_epoch_band_remark_reads_the_published_tail_boundaries(
     ]
     assert remarks, "the epoch-band shape no longer carries its remark"
     assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+
+    cells, _flags = battery.SHAPES["epoch_seconds"](
+        random.Random(battery.BATTERY_SEED)
+    )
+    numbers = [float(cell) for cell in cells]
+    low_percent = tail_rule.percent_of(len(numbers), 11)
+    assert low_percent is not None
+    edges = (
+        tail_rule.rung_of(block, low_percent),
+        tail_rule.rung_of(block, 100 - low_percent),
+    )
+    a_day = 24 * 60 * 60
+    owed = (taxonomy.EPOCH_BAND_SECONDS,)
+    for edge in edges:
+        owed = owed + parsing.civil_from_days(int(edge) // a_day)
+    assert remarks[0].arguments == owed, remarks[0].arguments
+
+    # ...AND THEY ARE NOT THE COLUMN'S OWN ENDS, which is the leak the
+    # rule closes rather than a detail of it.
+    ends = (taxonomy.EPOCH_BAND_SECONDS,)
+    for edge in (min(numbers), max(numbers)):
+        ends = ends + parsing.civil_from_days(int(edge) // a_day)
+    assert remarks[0].arguments != ends
+
+
+def test_a_remark_naming_ends_the_block_withholds_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The guard, mutated: prose may not outlive the facts it quotes.
+
+    A description whose ladder stops short of both ends and whose
+    time-band remark still names the column's real smallest and largest
+    values would publish, in prose, the two numbers the whole tail rule
+    exists to withhold. `profile.check_publication` refuses it.
+
+    THE MUTATION IS OF THE DOCUMENT, not of the producer, so this stays
+    a statement about the LOADER: a second implementer writing those
+    two days into a conforming-looking description is stopped by the
+    same rule that stops this one.
+    """
+    document = battery.described(tmp_path, "epoch_seconds", 11)
+    block = document["columns"][0]
+    profile.check_publication(document)
+
+    cells, _flags = battery.SHAPES["epoch_seconds"](
+        random.Random(battery.BATTERY_SEED)
+    )
+    numbers = [float(cell) for cell in cells]
+    a_day = 24 * 60 * 60
+    ends = (taxonomy.EPOCH_BAND_SECONDS,)
+    for edge in (min(numbers), max(numbers)):
+        ends = ends + parsing.civil_from_days(int(edge) // a_day)
+    block["remarks"] = [
+        taxonomy.note(taxonomy.REMARK_EPOCH_BAND, ends)
+        if remark.form == taxonomy.REMARK_EPOCH_BAND
+        else remark
+        for remark in block["remarks"]
+    ]
+    with pytest.raises(errors.ProfileError):
+        profile.check_publication(document)
+
+
+def test_a_block_with_no_end_and_no_boundary_carries_no_band_remark(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A column too small for a tail says nothing about a band.
+
+    Contract NF51 and plan P4-D345: both of the sentence's days would
+    then be values nothing else in the description holds, which is the
+    one thing a sentence argument may never be (4.5.1). The shape is a
+    column of epoch seconds at a floor high enough that no percent
+    leaves a tail's rows outside on both sides at once (contract TL3),
+    so the block publishes its moments and no rung at all. At 120 cells
+    the widest boundary, 50 per cent, leaves 59 rows outside and the
+    floor asks for 61, so there is no percent to stand at.
+    """
+    base = 1_600_000_000
+    draw = random.Random(11)
+    cells = [f"{base + draw.randint(0, 50_000_000)}" for _ in range(120)]
+    path = tmp_path / "band.csv"
+    path.write_text(
+        battery.rows_text(["value"], [[cell] for cell in cells]),
+        encoding="utf-8",
+        newline="",
+    )
+    floor = 61
+    document = profile.build_document(
+        reading.read_table(f"{path}", small_cell_floor=floor),
+        taxonomy.Settings(small_cell_floor=floor),
+        [],
+        [],
+        [],
+    )
+    block = document["columns"][0]
+    assert tail_rule.percent_of(len(cells), floor) is None
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+    assert taxonomy.published_ends(block) is None
+    assert not [
+        remark
+        for remark in block["remarks"]
+        if remark.form == taxonomy.REMARK_EPOCH_BAND
+    ]
+    profile.check_publication(document)

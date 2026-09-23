@@ -494,7 +494,14 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     assert answers[:2] == ["measurement", "decimal_comma"]
     column = json.loads((folder / "t-profile.json").read_text(encoding="utf-8"))["columns"][0]
     assert column["role"] == "continuous"
-    assert column["percentiles"]["max"] < 100
+    # READ AS TWELVE AND A BIT, said through the rung the tail rule
+    # leaves: `max` is withheld on a column of different numbers
+    # (contract 6.7a, landing 3.3), and the middle rung carries the
+    # same point -- read with the point between thousands these cells
+    # are tens of thousands, and read as decimals they are under a
+    # hundred.
+    assert column["percentiles"]["max"] is None
+    assert column["percentiles"]["p50"] < 100
     # ANSWERED IN THE FILE, the column is read with a point between thousands.
     entry["your_answer"] = "decimal_comma"
     answers_path = folder / "answered.json"
@@ -513,7 +520,10 @@ def test_whole_numbers_with_a_point_between_thousands_are_asked_about(tmp_path: 
     assert described["settings"]["forced_decimal_commas"] == ["v"]
     column = described["columns"][0]
     assert column["group_separator"] == "."
-    assert column["percentiles"]["max"] > 1000
+    # ...and read that way the same cells are thousands, said again
+    # through the middle rung the tail rule leaves standing.
+    assert column["percentiles"]["max"] is None
+    assert column["percentiles"]["p50"] > 1000
 
 
 def test_proportions_with_three_decimals_are_not_asked_about(tmp_path: pathlib.Path) -> None:

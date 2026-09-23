@@ -474,17 +474,35 @@ def test_nothing_that_varies_between_runs_is_written(
 # digest in tests/test_twin_golden.py did not move at all -- none of
 # this demonstration's columns publishes a pooled scale, so nothing
 # placed any of its made-up numbers before or after.
-# RE-RECORDED BY PLAN P4-D340, AND ONE KEY ADDED is the whole of this
-# difference: every settings block now carries `person_columns`, which
-# names the declared columns whose values REPEAT and so name the people
-# the rows belong to. Nothing was declared on this demonstration, so it
-# reads `[]` -- the population is counted in rows -- and no other key of
-# any column or of the document moved. The twin digest in
-# tests/test_twin_golden.py moved with it only because the description
-# it is built from did; not one cell of the twin changed, since a
-# settings key no generator rule reads places nothing.
+# RE-RECORDED BY PLAN P4-D340, AND ONE KEY ADDED: every settings block
+# now carries `person_columns`, which names the declared columns whose
+# values REPEAT and so name the people the rows belong to. Nothing was
+# declared on this demonstration, so it reads `[]` -- the population is
+# counted in rows -- and no other key of any column or of the document
+# moved for that landing.
+# AND RE-RECORDED AGAIN FOR THE NUMERIC TAIL (stage 3, landing 3.3).
+# Every numeric block of the demonstration now carries `tails` and
+# `bin_groups`, its two ends are withheld unless a group of eleven rows
+# holds one, and the rungs whose type-7 reading would touch one of the
+# outermost eleven values are null (contract 6.7a). The difference was
+# read before it was recorded: the ladder keys that moved are the ones
+# outside the two boundary percents, the four columns that publish a
+# histogram now publish it between those boundaries, and no key of any
+# other role moved at all.
+# THE DIGEST BELOW IS THE MERGED TREE'S, RE-RECORDED AFTER ALL FIVE
+# LANDINGS WERE IN ONE TREE (2026-09-23): neither branch's own digest is
+# the merged document's, because each carried only its own half of the
+# difference -- and the value this replaces was stale before the merge,
+# left behind when the date and clock tails landed. Read as a
+# leaf-by-leaf diff against the tree before the merge: 251 leaves ARRIVE
+# (`bin_groups` on the five numeric blocks, and each side's `percent`,
+# `rows` and two distances, with one block listing its tail values), 10
+# LEAVE (the `value_histogram` bins the groups replace), and 54 MOVE --
+# every one a rung the tail rule withholds going null, plus the
+# publication notes shifting by one because `visits` gains the
+# histogram-withheld note. No key of any other role moved.
 GOLDEN_SHA256 = (
-    "79b321809c24be04312f6ebfed2bee811a1e35cc991d15c4195ea577decbdb06"
+    "4fcb7905c4c6f55a988c8d4fb67905a483a74aaf465e901ff67a45e8aa762492"
 )
 
 
@@ -524,14 +542,22 @@ def test_published_numbers_are_exact_not_rounded_to_a_fixed_width(
     # exactly as computed.
     text = profile.serialize(_demo_document(tmp_path))
     assert "1e+15" not in text
-    values = [str(1000000000000000 + step) for step in range(10)]
+    # FORTY ROWS AND NOT TEN (stage 3, landing 3.3): ten rows are fewer
+    # than one tail's own, and a block that small publishes no rung at
+    # all to ask this question of (contract 6.7a, TL2). Forty publish a
+    # ladder whose middle rungs are these very numbers.
+    values = [str(1000000000000000 + step) for step in range(40)]
     table = reading.read_table(
         str(fixtures.write(tmp_path, "big.csv", fixtures.single_column_table("v", values)))
     )
     document = profile.build_document(table, SETTINGS, [])
-    ladder = document["columns"][0]["percentiles"]
-    assert ladder["min"] == 1000000000000000.0
-    assert ladder["max"] == 1000000000000009.0
+    block = document["columns"][0]
+    # The two ENDS are withheld by the tail rule; the rungs between the
+    # two boundaries are these numbers and are written in full.
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["p50"] == 1000000000000019.5
+    assert "1e+15" not in profile.serialize(document)
+    assert "1000000000000019.5" in profile.serialize(document)
 
 
 def test_no_not_a_number_can_reach_the_file(tmp_path: pathlib.Path) -> None:
