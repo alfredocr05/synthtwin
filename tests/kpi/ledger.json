@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 33 ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-47, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01, K-S3-11 on 4823c33, the commit before this one, which cannot hold its own hash: THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured on the merged tree. Every other value_at is caf3079's.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 33 ENTRIES STAND OFF THE BASE COMMIT, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds this list and that set equal: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-47, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01, K-S3-11 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -1174,7 +1174,7 @@
    "measured_on": "every-role twin 240 rows, seed 7",
    "evidence": "90 of 90 presence and class recounts equal; every numeric, date and clock column hits both ends of its own ladder, nothing outside. Both ends are DERIVED on this tree: the description publishes neither for either role, and each tail boundary of the demonstration's date and clock columns is the twin's own cell at the rank its rows fix.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -1208,7 +1208,7 @@
    "measured_on": "squares of 1..200, seed 7",
    "evidence": "3 of 3 rung mutants refused (ends only, shifted, swapped); shifted mean, squeezed SD refused; faithful layout accepted. The ends-only mutant builds its twin from the ladder's two ends, which are the DERIVED ends on a tail block since stage 3.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -1668,7 +1668,7 @@
    "measured_on": "20 columns random.Random(7).gauss(50,10) at 2 dp, 20,000 rows, CLI defaults",
    "evidence": "0 missed at 5,000 and at 20,000 rows, and the twin's spread 0.04 to 0.20 per cent from the published one at 5,000 and 0.11 to 0.22 at 20,000 -- measured on the merged tree of stage 3's five landings. The cause it repaired was method G5.3's straight outer segment to the exact published extreme, which the tail rule of contract 6.7a withdraws: on caf3079 that segment left 10 of 20 columns missing their own spread at 20,000 rows, at 1.07 to 3.11 per cent wide at 5,000 and 1.74 to 3.83 at 20,000.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
@@ -1986,7 +1986,7 @@
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
    "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
@@ -2357,7 +2357,7 @@
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
    "evidence": "556 of 2,160 agreements outside the 0.02 window (stated 550) and 1 of 2,160 rows-above counts missed (stated 0), on the merged tree of stage 3's five landings, down from 609 and 4: the numeric tail rule means a pair's agreement is measured against a ladder that no longer runs to the published extremes. HOW IT MOVED is the CHANGELOG's; what stands here is what the number is and what it does not cover. The whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses; it pins FIVE columns serially now, re-chosen at that merge because the misses moved, and tests/test_joined_battery_readings.py carries their per-column figures at both floors, the mutation that turns them red, and the derivation that re-reads them from this entry. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review): either number in any of the other seven columns. Every missed above-count sits in a pinned column today, but that is a property of today's measurement and not of the pin.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_joined_battery.py --kpi on the merged tree",
     "value": {
@@ -2402,7 +2402,7 @@
    "measured_on": "tight, uneven, closer witnesses, 300 rows, floors 1 and 11",
    "evidence": "0 of 12,000 cells inside a published interior gap on 3 two-cluster columns x 40 seeds, floors 1 and 11.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -2937,7 +2937,7 @@
    "measured_on": "every_role_and_joined_table, record_code declared, pressure a measurement, twin at seed 20260811",
    "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS: NO PUBLISHED END OF ANY ROLE IS HELD BY ONE ROW, at either floor. The four that stood here were the `min` and `max` of the two numeric columns; the numeric tail rule withdraws them, as the date and clock landing had already withdrawn its own two, and both roles are counted on keys of their own so an end returning to either turns this entry worse rather than hiding inside a total. WHAT IS LEFT is the LEVEL half, and it is the floor's to answer: the column note publishes 184 levels and 147 are written by one row AT A FLOOR OF ONE, which is what a floor of one asks for, and the twin writes all 147. At the default of 11 it is nought. The entry stays OPEN because its target is stated at a floor of one.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -3166,7 +3166,7 @@
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
    "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
     "value": {
@@ -3692,7 +3692,7 @@
    "measured_on": "uniform_three_figures 2,500 and whole_hundreds 1,000, floor 11",
    "evidence": "max 10 on 30 twins (was 45 and 27)",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -3755,7 +3755,7 @@
    "measured_on": "44 columns of 15 shapes at 500/2,000/4,000 rows, seeds 3 and 11",
    "evidence": "0 of 1,058 verdicts flip and no window differs, on the merged tree of stage 3's five landings. The four that flipped were the mean and the spread of a 2,000-row charges column at seeds 3 and 11, where each report drew its window through a ladder of its own; both read the one shaped ladder now (`contract.tail_ladder`).",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_window_flips.py --kpi on the merged tree",
     "value": {
@@ -4134,7 +4134,7 @@
    "measured_on": "800 rows per shape, source seed 5",
    "evidence": "^REC\\d{7}$ 800/800 (was 0), ^P\\d{5}$ 800 (was 30), ^ABC-\\d{4}$ 800 (was 0); two systems REC/E 800 (was 9); hex DE- 800 (was 0)",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_run.py --print-values on the merged tree",
     "value": {
@@ -5147,7 +5147,7 @@
    "measured_on": "normalised-AST similarity, oracle vs src",
    "evidence": "176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 26 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_oracle_similarity.py --kpi on the merged tree",
     "value": {
@@ -5366,7 +5366,7 @@
    "measured_on": "four carried shapes and five residue shapes, rebuilt from their plan statements with committed seeds",
    "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every key at or below the ceiling it carried and five of them BETTER: the band split holds all 23 numbers where it was 4 short, `dose` misses its distinct-value count on 15 of 18 runs where it missed 18, the heavy tail's mean and spread are met at BOTH floors where they missed 2 apiece, and the record layout's three misses are gone at the default (they stand at a floor of one, recorded beside them). Each of the five is the numeric tail rule: the rows beyond each boundary stand on their own grid points now, so a column keeps numbers the straight run to a published extreme used to cost it. WHAT STILL MISSES, each reproduced here: the date joint word's `widths.padded` (3), the date remainder's widths (6), the declared record number's `forms.published.%%%` at the default (3), and the Fortran `D` exponent, read as free text so every cell is a stand-in and NOTHING misses. A table read at one floor and described at another is refused (plan P4-D317), so both read-floor keys are nought by construction.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
@@ -5481,7 +5481,7 @@
    "measured_on": "24 seeded point-free grids of tenths at floor 11; 400 millisecond moments; 40 record numbers + 'ab' at floor 11; the p4d2 guards over hand-written withheld maps",
    "evidence": "ON THE MERGED TREE: 33 style and width MISSED verdicts and 3 distinct-count MISSED verdicts over 72 twins of the point-free grids, the real tables at 0; the twin writes 0 of 400 subsecond fractions, `validate` at 0 (P4-D296, the DEVIATION is in the twin's report); and the record classes publish `all_whole_numbers` false beside `n_numeric` 41 of 41 (P4-D298). W5: the loader accepts the map, which no producer writes (P4-D275).",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
@@ -5533,7 +5533,7 @@
    "measured_on": "the anchored held-back shape of P4-D266, floor 11, seeds 4, 0 and 1; closed by the owner's decision of 2026-09-21",
    "evidence": "CLOSED BY THE OWNER'S DECISION OF 2026-09-21 (plan P4-D302), choosing between the two ways P4-D301 priced: PUBLISH THE MEAN AND NOT THE SPREAD. Publishing both named the column's ten held-back values outright -- the published spread was exactly sqrt((10*10 - 1)/12), the least a pool of ten distinct whole numbers can have. With the mean alone the shape publishes again and is not named, and contract 6.3.3's producer rule counts the sets that share it and asks for a thousand. MEASURED ON THE MERGED TREE at seeds 4, 0 and 1 alike: the twin's numeric mean IS the table's, so the mean error is nought and no check is missed; the SPREAD is no longer verified and stands about 2.06 out (41.09 against 39.03), which is the price the owner accepted and is stated rather than hidden.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
@@ -5588,7 +5588,7 @@
    "measured_on": "the two-days shape of P4-D222, floor 11, seeds 0, 4 and 1",
    "evidence": "CLOSED BY LANDING D OF 2026-09-21 (plan P4-D245; the owner: 'I think we need to fix'). The defect: a column of three timestamps published `datetime`, 3 distinct values and `datetime_separators {space: 125}`, and the twin re-described as binary and missed three checks -- `axes.role`, `axes.statistical_type`, `midnight.count` -- while the real file missed none. Three other candidates were measured and refused first, each priced cell by cell in plan P4-D245 (1a). What was built instead is method G7.9: the construction spends the SHORTFALL the description publishes -- one value here, never the five the table held -- on the first permitted mark the census leaves unnamed, so ruling 6's own absorption counts it back and the published census is met exactly. MEASURED ON THE MERGED TREE at seeds 0, 4 and 1 alike: the twin misses 0, the real file misses 0, and the description still publishes 3.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_known_misses.py --kpi on the merged tree",
     "value": {
@@ -6104,7 +6104,7 @@
    "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
    "evidence": "ON THE MERGED TREE OF STAGE 3'S FIVE LANDINGS, every number of this battery reads exactly as it read on the date and clock landing's own tree: the numeric tail rule touches no column of it. 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails the published facts settle by the plain back-solve, and 0 checkable obligations missed on any twin or any real table. 12 tails over 8 of the cases list which values they hold rather than publish their two distances: seven of quarters and months, every listed value held by 3 to 14 cells over columns of 117 to 120 different values, and five of the forty-cell heap of the `0001-01-01` two common systems write for no date. The tightest shape-drawn tail leaves a reader 2 different multisets to choose between, on a column of quarters at 400 rows; that same tail carries a distance the construction window does not reach (root-mean-square 2.2763607319179844 quarters against a window of 2.3159525823376357 to 2.467976720090587), so the real table meets that one obligation by equality alone, and a months column at 1,500 rows carries the second. `edge_pinned` is 4, one side each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4; plan P4-D343 works through the arithmetic that settles one of them, and the same tails printed those eleven values IN THE CLEAR before P4-D342. `unsearched` is 35, every one a tail counted in seconds whose sums run past what an exhaustive walk can enumerate. MUTATION for `literal` on the clock role: with each tail's boundary put back to the column's own end the repaired driver reads 4 per clock case and 12 over three of them, against 0 as the landing shipped it.",
    "value_at": {
-    "commit": "4823c33",
+    "commit": "1fc2ec1",
     "date": "2026-09-23",
     "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi on the merged tree",
     "value": {
