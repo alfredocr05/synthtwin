@@ -13,8 +13,10 @@ in a sentence was held to nothing.** A column with one grouped cell in
 four hundred read "1 of this column's values are written with a comma
 inside the number" -- a count of one, naming one row, in the plain
 prose part of the description. Over 56 descriptions at a smallest group
-size of eleven there were 252 sentences, 145 of them carrying numbers,
-and 29 numbers no key of the block beside them was allowed to print.
+size of eleven there were 252 sentences and 145 of them carried
+numbers: 9 printed a count no key of the block beside them published at
+all, and 29 more restated a count the key itself published below that
+line.
 
 Every argument of every sentence is now bound to what it is. Most of
 them restate a count the block already publishes, and those are checked

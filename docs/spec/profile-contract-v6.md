@@ -1882,9 +1882,12 @@ sentence may not carry a count a key withholds. Every published count
 of a column block is held to the smallest group size; a count written
 into a SENTENCE was held to nothing, and the two are the same
 disclosure. Measured over 56 descriptions at a floor of eleven before
-this rule existed: 252 sentences, 145 of them carrying whole numbers,
-and 29 arguments restating a count or a complement no key of the block
-beside them could have printed.
+this rule existed: 252 sentences and 145 of them carrying whole
+numbers. NINE of those arguments printed a count no key of the block
+beside them published at all — the floored positions of the table
+below, and what this rule closes — and 29 more restated a count the key
+itself published below the line, which is a question about the KEY and
+is answered where the key is (P4-D332).
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 97 of them exactly as the form table
@@ -3458,9 +3461,18 @@ beside a clause asserting that such cells exist is a count of one said
 in words -- which `census_floor` exists to refuse at every floor a
 person may ask for. A remark whose floored count falls there is
 withdrawn instead. The one sentence that cannot be withdrawn is a
-column's own detection evidence, which every block must carry; the
-fragment stands there, and it says strictly less than the digits that
-stood there before this landing.
+column's own detection evidence, which every block must carry, so the
+fragment stands there at every line.
+
+**At a line above two the fragment says strictly less than the digits
+that stood there before this landing. At a line of two it says exactly
+as much**, and that is stated rather than claimed away: the fragment
+stands only where the count is one or more, so "fewer than 2" is one
+said in other words. It is the price of the one sentence a block may
+not lose, and it is no more than the digits said before. Measured at
+`--smallest-group 1`: 399 free-text cells beside one date write "fewer
+than 2 read as dates" in their evidence, while the remark that repeats
+the same count is withdrawn.
 
 ---
 

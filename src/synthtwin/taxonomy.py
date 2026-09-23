@@ -1022,9 +1022,12 @@ NOTE_FORMS = tuple(sorted(NOTE_ARITY))
 #
 # WHY IT EXISTS AT ALL. A count in a sentence and a count in a key are
 # the same disclosure, and only the key was ever held to the floor.
-# Measured over 56 descriptions at a floor of eleven: 252 sentences,
-# 145 of them carrying whole numbers, and 29 arguments restating a
-# count or a complement the floor would not let a key print. The rule
+# Measured over 56 descriptions at a floor of eleven: 252 sentences
+# and 145 of them carrying whole numbers, of which NINE printed a count
+# no key of the block beside them published at all -- the floored
+# positions this table names -- and 29 more restated a count the key
+# itself published below the line, which is P4-D332's territory and
+# not this table's. The rule
 # this table makes checkable is one sentence long -- A SENTENCE MAY NOT
 # CARRY A COUNT A KEY WITHHOLDS -- and it is P4-D221's padded-remark
 # rule ("a count the map does not name is a count no sentence prints")
@@ -16557,9 +16560,20 @@ def _sentence_at_the_line(
     Walks the form's own arguments and the arguments of every fragment
     nested in them, because a count carried by a fragment is a count
     the sentence prints. ``may_drop`` is false for the one sentence a
-    column must carry -- its detection evidence -- where the fragment
-    stands even at a line of two, which is what the digit standing
-    there does today and strictly less than it.
+    column must carry -- its detection evidence -- so the fragment
+    stands there at every line.
+
+    AND AT A LINE OF TWO THAT IS NOT LESS THAN THE DIGIT, which is
+    stated rather than claimed away. The fragment stands only where
+    the count is one or more, so "fewer than 2" is one said in other
+    words -- exactly what the digit it replaces said, and the reason
+    every sentence that CAN be withdrawn is withdrawn there instead.
+    Above a line of two it says strictly less. Measured at
+    `--smallest-group 1`: 399 free-text cells beside one date write
+    "fewer than 2 read as dates" in their evidence, while the remark
+    that repeats the same count is withdrawn. A block must say how it
+    was read, so its evidence keeps what the digit said and never
+    more.
 
     Guarantees: accepts a sentence, the census line, the block's
     present cells and whether the sentence may be withdrawn; returns

@@ -348,8 +348,9 @@ def test_the_producer_binds_every_argument_it_can_print() -> None:
     `NOTE_ARITY` says how many arguments a form takes and C6-143 says
     what each one IS. A position with no binding is a number a sentence
     may print that no rule governs -- which is the state every one of
-    the 94 positions was in before stage 3 landing 3.5, and how 29
-    arguments came to restate counts no key could have published.
+    the 94 positions was in before stage 3 landing 3.5, and how nine
+    sentence arguments came to print counts no key of the block beside
+    them published at all.
     """
     assert taxonomy.unbound_argument_positions() == []
     kinds = {

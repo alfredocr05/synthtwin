@@ -2874,8 +2874,11 @@ def _arguments_are_bound(document: "dict[str, object]") -> None:
     smallest group size; a count written into a SENTENCE was held to
     nothing, and the two are the same disclosure. Measured over 56
     descriptions at a floor of eleven before this guard existed: 252
-    sentences, 145 of them carrying whole numbers, and 29 arguments
-    restating a count or a complement no key could have printed.
+    sentences and 145 of them carrying whole numbers, of which NINE
+    printed a count no key of the block published at all and 29 more
+    restated a count the key itself published below the line. This
+    guard closes the nine; the other 29 are P4-D332's, which leaves
+    those keys standing and holds their number at a ceiling.
 
     HOW IT IS CHECKED, and why it is a table rather than a rule per
     remark. `taxonomy.ARGUMENT_BINDINGS` binds every argument position

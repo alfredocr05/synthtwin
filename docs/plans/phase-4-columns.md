@@ -19339,11 +19339,14 @@ bound to and a floored one to the census line. Contract C6-143 states
 the same table and `tests/test_p4d27_note_grammar_matches_the_code.py`
 holds the two equal in a third direction.
 
-**The measurement that asked for it.** Over 56 descriptions at a floor
-of eleven: 252 sentences, 145 carrying whole numbers, and 29 arguments
-restating a count or a complement no key of the block could have
-printed. At a floor of one the same walk flagged 3, at five 7, at
-eleven 9.
+**The measurement that asked for it** (the design's own
+`guard_measure.txt`, 56 documents). At a floor of eleven: 252
+sentences, 145 carrying whole numbers, NINE arguments printing a count
+no key of the block published at all, and 29 more restating a count the
+key itself published below the line. The walk flags the first kind, and
+flagged 3 at a floor of one and 7 at five. The second kind is not this
+decision's to close: the key publishes those counts and P4-D332 is the
+call that leaves them published.
 
 **What a floored position's complement is NOT held to.** No binding
 names a population. Every floored position's complement is the count of
@@ -19364,9 +19367,15 @@ argument 6) the first letter is capitalised. Where the line is two, a
 remark whose floored count falls below it is WITHDRAWN instead: "fewer
 than 2" beside a clause asserting such cells exist is a count of one
 said in words. The one sentence that cannot be withdrawn is a column's
-own detection evidence, which every block must carry; the fragment
-stands there, and says strictly less than the digits that stood there
-before.
+own detection evidence, which every block must carry, so the fragment
+stands there at every line: strictly less than the digits it replaces
+above a line of two, and exactly as much AT a line of two, where a
+fragment that stands only above nought is one said in other words.
+Measured at `--smallest-group 1`: 399 free-text cells beside one date
+write "fewer than 2 read as dates" in their evidence while the remark
+repeating the same count is withdrawn. The evidence keeps what the
+digit said and never more, which is the price of the sentence a block
+may not lose.
 
 **Where it is used.** NF44's two counts, NF18's date reach, NF36's two
 contradiction counts, NF54, NF55 and NF29 arguments 6 to 9 — the

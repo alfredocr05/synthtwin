@@ -6,9 +6,11 @@ A count written into a SENTENCE was held to nothing, and the two are
 the same disclosure: "1 of this column's values are written with a
 comma inside the number" names one row exactly as a key holding 1
 would. Measured over 56 descriptions at a floor of eleven before the
-binding table existed: 252 sentences, 145 of them carrying whole
-numbers, and 29 arguments restating a count or a complement no key of
-the block beside them could have printed.
+binding table existed: 252 sentences and 145 of them carrying whole
+numbers, of which NINE printed a count no key of the block beside them
+published at all and 29 more restated a count the key itself published
+below the line. The nine are what the fragment replaces; the 29 are
+P4-D332's keys, left standing and held at a ceiling by K-S3-01.
 
 THE RULE, AND WHY IT IS A TABLE. `taxonomy.ARGUMENT_BINDINGS` binds
 every argument position of every form to what it IS -- a key of the
