@@ -24,26 +24,40 @@ THREE MEASUREMENTS, over one battery:
   distance leave exactly one multiset of distances, which would name the
   outermost value, or exactly one count for some distance, which would
   name a count the floor protects;
-* `window`: the construction window's own population, as a CEILING rather
+* `window`: the construction window's own population, as a FLOOR rather
   than a target. For each shape-drawn tail it is how many different
   multisets of distances the published facts admit inside G12.14's two
   ends -- counted by the same lattice walk, stopped at its budget -- and
   the smallest such population over the battery is reported. A population
   of one IS a pinned tail, so this number is the distance between the
-  battery's tightest tail and a leak.
+  battery's tightest tail and a leak, and it may not fall;
+* `equality_only`: how many of the real table's OWN published tail
+  distances lie outside the construction window G12.14 draws for them,
+  so that the real table passes that obligation only by exact equality
+  (V6.1-A1) and the window cannot flag a twin that is systematically off
+  on it. It is a CEILING, named because the skeptic of the tail design
+  measured this population and asked for it to be stated rather than
+  left to be discovered: a window that reaches the value is worth more
+  than one that does not, and this says how often it does not. The
+  window is the validator's own -- `validation._date_tail_windows` and
+  `_clock_tail_windows`, the functions the checker itself calls -- read
+  here rather than rebuilt, because the number wanted is what the
+  SHIPPED window does with the SHIPPED description, and a second
+  arithmetic written beside it would measure itself.
 
-THE BATTERY is the seventeen shapes of the tail design and the eight the
-skeptic of that design added, each at the sizes and seeds the design
-names: 64 cases in all, at a floor of eleven, each through the real
-producer, generator and checker. Every case also asserts that neither the
-twin nor the real table misses a checkable obligation, so a zero here
-cannot be bought by a description that says nothing.
+THE BATTERY is twenty-one shapes -- the tail design's own battery and the
+shapes its skeptic added -- each at two sizes and up to three seeds: 105
+cases in all, at a floor of eleven, each through the real producer,
+generator and checker. Every case also asserts that neither the twin nor
+the real table misses a checkable obligation, so a zero here cannot be
+bought by a description that says nothing.
 
     .venv/bin/python tools/measurements/kpi_stage3_tail_leak.py --kpi
 """
 
 import datetime
 import io
+import math
 import pathlib
 import random
 import sys
@@ -530,6 +544,77 @@ def _pinned_and_room(block, floor):
     return pinned, room
 
 
+def _tail_windows(described, column):
+    """The validator's own construction window for each shape-drawn tail.
+
+    Keyed `low` and `high`, each a pair of per-rank distance lists, as
+    `validation` builds them for its own checks. A role with no tail, and
+    a tail publishing its values, has no entry.
+    """
+    facts = column.facts
+    floor = described.settings.small_cell_floor
+    if isinstance(facts, contract.DatetimeFacts):
+        # No cell of this battery is stored as a workbook day: every case
+        # is written as text, which is the empty date system.
+        return validation._date_tail_windows(column, facts, floor, "")
+    if isinstance(facts, contract.ClockFacts):
+        return validation._clock_tail_windows(column, facts, floor)
+    return {}
+
+
+def _outside_the_window(described, column):
+    """The real column's own published distances the window does not reach.
+
+    The producer publishes `S1 / m` and the root of `S2 / m` over the
+    real cells, so the real table holds each of them exactly and meets
+    the obligation by equality whatever the window says (V6.1-A1). This
+    counts the ones where that is the ONLY reason it passes: the
+    published value lies outside the two ends the construction gives it,
+    so the same window cannot tell a conforming twin from one that is
+    systematically off on that number.
+
+    The two ends are the validator's own, summed and rooted exactly as
+    `_tail_window_check` does it -- the mean against the summed
+    distances over the rows, the root-mean-square against the summed
+    squares -- and compared against the published value, which is what
+    the real file holds.
+    """
+    facts = column.facts
+    windows = _tail_windows(described, column)
+    outside = 0
+    for key, tail in (("low", facts.low_tail), ("high", facts.high_tail)):
+        if tail is None or tail.values is not None:
+            continue
+        pair = windows.get(key)
+        if pair is None:
+            continue
+        near, far = pair
+        size = max(tail.rows, 1)
+        near_total = 0
+        near_squares = 0
+        far_total = 0
+        far_squares = 0
+        for index in range(len(near)):
+            near_total = near_total + near[index]
+            near_squares = near_squares + near[index] * near[index]
+            far_total = far_total + far[index]
+            far_squares = far_squares + far[index] * far[index]
+        for published, lowest, highest, rooted in (
+            (tail.mean_distance, near_total, far_total, False),
+            (tail.rms_distance, near_squares, far_squares, True),
+        ):
+            if published is None:
+                continue
+            low_value = lowest / size
+            high_value = highest / size
+            if rooted:
+                low_value = math.sqrt(low_value)
+                high_value = math.sqrt(high_value)
+            if not low_value <= published <= high_value:
+                outside += 1
+    return outside
+
+
 def _case(folder, shape, rows, seed):
     draw = random.Random(seed * 7919 + rows)
     name, cells, flags = SHAPES[shape](draw, rows)
@@ -610,11 +695,12 @@ def _case(folder, shape, rows, seed):
         "pinned": pinned,
         "room": room,
         "listed": listed,
+        "equality": _outside_the_window(described, described.columns[0]),
     }
 
 
 def main():
-    total = {"cases": 0, "literal": 0, "pinned": 0, "missed": 0}
+    total = {"cases": 0, "literal": 0, "pinned": 0, "missed": 0, "equality_only": 0}
     room = None
     with tempfile.TemporaryDirectory() as folder:
         home = pathlib.Path(folder)
@@ -629,6 +715,7 @@ def main():
                     total["pinned"] += found["pinned"]
                     total["missed"] += found["missed"]
                     total["listed"] = total.get("listed", 0) + found["listed"]
+                    total["equality_only"] += found["equality"]
                     if found["room"] is not None:
                         room = found["room"] if room is None else min(room, found["room"])
                     print(
@@ -641,6 +728,7 @@ def main():
         "missed": total["missed"],
         "listed": total.get("listed", 0),
         "window": room if room is not None else 0,
+        "equality_only": total["equality_only"],
     }
     kpi_rules.emit("K-S3-01", value)
 
