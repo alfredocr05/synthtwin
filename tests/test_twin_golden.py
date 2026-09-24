@@ -1633,7 +1633,19 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # missed ones, and prints six fewer "was found to hold" lines,
     # every one a `tails.*.values` whose measured side is withheld from
     # this pass on.
-    "52869e7e4cf908734d3f658bbd52729850638fe1ac425149a91685732c31ecbd"
+    # AND RE-RECORDED FOR ONE PUBLISHED SENTENCE (the review of
+    # 2026-09-23, item 7). The description carries its remarks, and the
+    # one a column no reading fits carries said that describing it from
+    # the part that does read "would publish an average, a smallest and a
+    # largest value" -- two values a measurement column has not published
+    # since stage 3. ONE LEAF MOVES, the first remark of the column no
+    # reading fits, and it is the only difference in the document --
+    # measured as a leaf-by-leaf diff, 0 arriving and 0 leaving. The
+    # TWIN's own digest
+    # above did not move, so not one cell changed with it; the report
+    # golden moves by the same one line, and the quality report not at
+    # all.
+    "f7feeefc1b7083ce631bccb8f7bbed2abdfa98ccefe49f42ef2e9174d772b41d"
 )
 
 
@@ -2434,7 +2446,24 @@ GOLDEN_REPORT_SHA256 = (
     # against a published 57. The report NAMES that miss rather than
     # losing it, which is what this digest is read for; no line the
     # report used to carry was dropped.
-    "b753aa3677dc116f30323eeb914a04afbf704dadaf4be21074762b793198e31f"
+    # RE-RECORDED FOR THE SENTENCE THE LADDER NO LONGER SUPPORTS (the
+    # review of 2026-09-23, finding 7). Read line by line against the
+    # tree above: 16 lines differ and they are one paragraph. It said "the
+    # nine steps between its smallest and its largest value ... Every one
+    # of them was measured on this twin", where the description withholds
+    # both ends and the rungs nearest them -- measured on 100 readings
+    # 0.125 to 99.125, three rungs published and eight withheld. The
+    # paragraph now names the rungs the description publishes and each
+    # tail's distances, and says which rungs are not among them and why.
+    # No other line moved: no fact left the report, no count changed, and
+    # the twin's own digest above did not move.
+    # AND ONE LINE MORE, the same day and the same item: the note a
+    # column no reading fits carries said that describing it from the
+    # part that does read "would publish an average, a smallest and a
+    # largest value", and a measurement column publishes neither end.
+    # One line differs, the note on the column no reading fits, and
+    # nothing else -- 18 lines against the tree before both passes.
+    "83c2a0552c1e7db70c7af53c25811fd7f6ed2ac8049d55249346e91de99b4d5d"
 )
 
 

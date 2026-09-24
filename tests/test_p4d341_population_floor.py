@@ -374,7 +374,8 @@ def test_the_note_states_the_population_the_counts_rest_on(
     """A table over the floor, padded: the note names the honest count.
 
     The published note (form NF59) says "a table of N rows ... Every
-    count here is a count over that population". With the rows counted
+    count here is a count of ROWS over that population" -- the unit
+    named there by the review of 2026-09-23. With the rows counted
     as the reader returned them, N overstated the basis by whatever
     padding the file carried, in the direction that makes a description
     look safer than it is.

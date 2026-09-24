@@ -121,12 +121,13 @@ Stated here so that no reader has to discover them independently:
   counts the population -- in rows, or in PEOPLE where a declared
   `--identifier` repeats -- and writes nothing at all below a hundred.
   From a hundred to 999 it describes the table and says so, on the
-  screen and on all five pages a full run writes, in a sentence that
+  screen and on all five pages a full run writes beside the twin, in a
+  sentence that
   cannot be turned off. **The notice is not a mitigation and does not
   claim to be one**: it states that nothing in the description is
   excused by the size, and the same smallest group size and the same
   obligations apply. The residual risk it names is the one arithmetic
-  cannot remove -- every published count is a count over a small
+  cannot remove -- every published count is a count of ROWS over a small
   population, so each one narrows who a row could be further than the
   same count would in a large table. The floor is the COMMAND's, and
   deliberately not the format's: a description of a small table made
@@ -136,8 +137,18 @@ Stated here so that no reader has to discover them independently:
 
 - **THE SMALL-CELL FLOOR DEFAULTS TO ELEVEN, AND A PERSON MAY LOWER IT
   TO ONE** (owner, 2026-09-22, returning the default to the value it
-  held before 2026-08-25; plan P4-D316). At the default no group named
-  in a description covers fewer than eleven rows. At a floor of one
+  held before 2026-08-25; plan P4-D316). At the default no VALUE named
+  in a description is held by fewer than eleven rows. **The floor counts
+  ROWS, and the population floor above it counts people** (owner,
+  2026-09-23, plan P4-D348): where a table holds several rows per
+  subject, twelve visits of one patient are twelve rows, so a value only
+  that patient holds is published with the count twelve at a floor of
+  eleven. That is an accepted limit of this version, measured at 68 such
+  values over three seeded repeated-measures shapes and held there by
+  KPI `K-S3-14`; counting people per value is designed and shelved. No
+  sentence in this repository may say the floor keeps a published group
+  from pointing at one person without that qualification, because where
+  one row is not one person it does not. At a floor of one
   every distinct value of a label-published column is published as its
   own level, with its count: on a 300-row column of readings that is
   177 of them. The owner's reasoning for letting a person lower it
@@ -191,11 +202,34 @@ Stated here so that no reader has to discover them independently:
   order statistics on either side, and on most columns most of them
   are numbers no cell of the column holds. Measured on six columns of
   17 to 250 drawn values, between three and nine of the nine interior
-  rungs were held by no cell. So a numeric ladder puts TWO exact
+  rungs were held by no cell. So a numeric ladder put TWO exact
   values into a description, not eleven, and a sentence resting on
   eleven was resting on the wrong number. A DATE ladder and a CLOCK
-  ladder are different and were measured the same way: every rung of
-  either lands on a real value, so those roles do publish eleven.
+  ladder were different and were measured the same way: every rung of
+  either lands on a real value, so those roles published eleven of them.
+  **Both counts are the ladder as it stood before stage 3, and the
+  paragraph below corrects them; nothing in this one describes what a
+  description written today carries.**
+
+  **AND SINCE STAGE 3 IT PUTS NEITHER OF THOSE TWO THERE, corrected
+  again (2026-09-23).** Stage 3 withheld both ends and the rungs
+  nearest them: an end reaches a description only where at least the
+  smallest group's rows share it, and what stands in a withheld rung's
+  place is the tail — a boundary, how many rows lie beyond it, and how
+  far beyond on average and root-mean-square. **Measured** on 100
+  readings `0.125` to `99.125`, one row each, at the default floor: the
+  description publishes `p25`, `p50` and `p75` and withholds `min`,
+  `max`, `p01`, `p05`, `p10`, `p90`, `p95` and `p99` — so that ladder put
+  NO exact value of the column into the description at all, against the
+  two the paragraph above counts. A DATE or CLOCK ladder is described
+  from a boundary the same way, and the boundary IS a real value, of a
+  group of at least the floor's rows rather than of one row. What a tail
+  may still name as itself: the boundary, an end at least the floor's
+  rows share, and — on a bounded scale of few shared values — which
+  values the tail holds. So the honest inventory of exact values a
+  numeric block carries is the tail boundaries, any end a group shares,
+  `empty_edges` below, and the written-form extremes the owner kept
+  published on 2026-09-22.
 
   **AND `empty_edges` PUTS MORE THERE, which is stated with its real
   ceiling rather than by comparison** (owner ruling 2026-09-04, plan
@@ -210,17 +244,28 @@ Stated here so that no reader has to discover them independently:
   values**, and they can all be different: a 32-row column occupying
   bins 0, 2, 4 … 28 with TWO values each and bins 30 and 31 with one
   each publishes fifteen pairs naming thirty distinct values, and with
-  the two endpoints the ladder publishes beside them **the description
-  then names every value that column holds**.
+  the two endpoints the ladder published when this was written beside
+  them **the description then names every value that column holds**.
 
   **AND THE BLOCK-WIDE COUNT IS LARGER THAN EITHER OF THEM.** Three
-  keys of a numeric block name values of real cells: the ladder's two
+  keys of a numeric block named values of real cells when this was
+  written: the ladder's two
   ENDPOINTS, this key's thirty, and `mode` — the number the column
   holds most often, which is a real value too. So the ceiling for one
-  numeric block is **thirty-three distinct values**, and the sparse
-  construction reaches it: add a value held twice to the 32-row column
+  numeric block was **thirty-three distinct values**, and the sparse
+  construction reached it: add a value held twice to the 32-row column
   above and the description names every value it holds plus the
   commonest one.
+
+  **SINCE STAGE 3 THE TWO ENDPOINTS ARE NOT AMONG THEM** (the correction
+  above, 2026-09-23). What stands in their place is each tail's boundary,
+  an end only where at least the smallest group's rows share it, and — on
+  a bounded scale of few shared values — the values the tail holds. The
+  thirty and the `mode` are unchanged. This document does NOT restate the
+  ceiling as one number, because the tails' own contribution is decided
+  per column by the listing rule rather than by this arithmetic, and a
+  number nobody has measured is worse here than the arithmetic it would
+  replace.
 
   On a dense column there is usually no run at all and so no value
   here, and that is the ordinary case. `--smallest-group` does not
@@ -426,13 +471,14 @@ Stated here so that no reader has to discover them independently:
   more, and the whole workflow - profile, generate, validate - runs on
   the description it produces. This is the one control in this document
   that a user can lower, so it is stated as a control rather than as an
-  option. **What lowering it gives up:** at a floor of `f`, no group
-  named in the description covers fewer than `f` rows, and at `f = 1`
+  option. **What lowering it gives up:** at a floor of `f`, no value
+  named in the description is held by fewer than `f` rows, and at `f = 1`
   every group is named exactly, a group of one row included. Where one
   row of the real table is one person, the description then publishes
   that a value exists together with how many people have it - the count
   is the disclosure, not a route to one - and the twin holds those counts
-  exactly, so all five files carry them. **What it does not give up:**
+  exactly, so all six files a full run leaves carry them. **What it does
+  not give up:**
   every floor-governed invariant of the contract still binds at the value
   the document carries, a floor of zero or below is still refused, and a
   hand-edited description is still refused for every other reason it was
@@ -450,8 +496,10 @@ Stated here so that no reader has to discover them independently:
   trims the ends and applies a Unicode case fold before pooling, so
   `A`, ` a ` and `a` were one published label and the file's own
   spellings stayed behind. From version 4 each PUBLISHED label
-  additionally carries `variants` - a map from each exact spelling to
-  how many rows wrote it that way - and `variants_withheld`, an
+  additionally carries `variants` - a map from each named spelling to
+  how many rows are counted into it, which is not the same as how many
+  wrote it that way; see the correction below - and `variants_withheld`,
+  an
   anonymous map from an occurrence count to how many distinct spellings
   occurred that often. The generator cannot do without it: with the
   settled form alone, a column holding `A`, `a`, `B`, `b` comes back as
@@ -470,12 +518,30 @@ Stated here so that no reader has to discover them independently:
 
   **What bounds it.** Every variant is governed by the same
   `small_cell_floor` as a whole label: a spelling fewer rows than the
-  floor wrote is withheld and counted into `variants_withheld`, which
-  names no spelling at all. Variants are forbidden on a label the floor
+  floor wrote is not named. Variants are forbidden on a label the floor
   itself withheld, and forbidden on every role that publishes no values
   - record numbers, free text, and numbers no format can hold. So no
   spelling crosses a line its own parent label had not already crossed,
   and the addition is bounded to labels the profile already publishes.
+
+  **WHERE A SUB-FLOOR SPELLING'S ROWS GO, corrected here (2026-09-23).**
+  This paragraph said such a spelling is "counted into
+  `variants_withheld`, which names no spelling at all", and ruling 6 of
+  2026-09-17 changed that: a spelling below the line is counted into the
+  label's COMMONEST spelling first, because a multiplicity map keyed `1`
+  states a count of one outright. **So above a floor of one the producer
+  writes `variants_withheld` empty, always, and the number beside a named
+  spelling is not a count of that spelling** - it covers every row whose
+  own spelling settled to it. **Measured** on four labels each written
+  nine times lower case, eight upper and eight with a leading space: each
+  published `variants` holds one spelling counted 25, `variants_withheld`
+  is `{}`, and no spelling the file wrote reaches eleven. The key stays
+  in the contract, and a hand-written description may still carry it; at
+  a floor of one it is empty for the opposite reason, nothing being held
+  back. What this gives up is the ability to tell a label written one way
+  from the same label written eight, which is the pooling the floor
+  exists to perform; what it buys is that no map states a count below the
+  floor.
   It is still a real widening of the source text that leaves the
   machine. Text elsewhere in this repository saying that case and edge
   spacing are not preserved was true of version 3 and is wrong from

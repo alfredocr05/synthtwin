@@ -185,8 +185,8 @@ SUMMARY_SUFFIX = "-profile.txt"
 # A file this command leaves in a person's folder must be named on
 # every surface that states the institution's handling rules, and
 # a file that exists only sometimes makes every one of those
-# sentences conditional -- "a full run leaves five files, and a
-# sixth where synthtwin had a question" -- on eight surfaces at
+# sentences conditional -- "a full run leaves the files below, and
+# one more where synthtwin had a question" -- on eight surfaces at
 # once. A file that always exists needs one true sentence instead.
 # It is also the honest record of the check: a table with nothing
 # ambiguous in it gets a file saying so, which is how a person

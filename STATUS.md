@@ -119,14 +119,16 @@ reproduces exactly and what it only approximates.
 
 **How small a table synthtwin will describe.** Fewer than 100 and
 `profile` refuses and writes nothing: every count a description
-publishes is a count over the population it was taken from, and below
-a hundred those counts describe the individuals in your table rather
-than a population. From 100 to 999 it describes the table and says so,
-on the screen and on every page it writes, in a sentence you cannot
-turn off. The twin's own table carries no trace of that notice, so code
-you write against the twin runs exactly as it ran before. Where you
-name a column with `--identifier` and its values repeat, the hundred is
-counted in PEOPLE rather than in rows.
+publishes is a count of ROWS over the population it was taken from, and
+below a hundred those counts describe the individuals in your table
+rather than a population. From 100 to 999 it describes the table and
+says so, on the screen and on every page it writes, in a sentence you
+cannot turn off. The twin's own table carries no trace of that notice,
+so code you write against the twin runs exactly as it ran before. Where
+you name a column with `--identifier` and its values repeat, the hundred
+is counted in PEOPLE rather than in rows -- so the two floors are
+counted in different units, and `--smallest-group` is the one that
+counts rows: twelve visits of one patient are twelve of them.
 
 Useful options:
 

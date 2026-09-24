@@ -1059,15 +1059,28 @@ def _deviation_lines(twin: generation.Twin) -> "list[str]":
             f"  what that means:      {_shown(deviation.note)}",
             "",
         ]
+    # WHAT THE LADDER PUBLISHES IS NOT NINE STEPS BETWEEN TWO ENDS ANY
+    # MORE (stage 3; review of 2026-09-23, finding 7). This paragraph
+    # said "the nine steps between its smallest and its largest value"
+    # and then that every one of them was measured. Measured on 100
+    # readings 0.125 to 99.125: the description publishes three rungs and
+    # withholds both ends and six of the nine, so the sentence named six
+    # measurements that were never made and two values never published.
+    # It now names what a run actually measures: the rungs the
+    # description carries, and each tail's distances from its boundary.
     return lines + [
         "Some facts are approximate by construction and are not listed",
         "here, because being approximate is not the same as being given",
-        "up. A column's average, its spread, the shape of its values, the",
-        "nine steps between its smallest and its largest value, and the",
-        "middle length of a piece of text are all built to land close to",
-        "the description's numbers rather than on them. Every one of them",
-        "was measured on this twin and the next section prints it, with",
-        "the range it was allowed and whether it landed inside.",
+        "up. A column's average, its spread, the shape of its values,",
+        "every rung of its ladder the description publishes, how far each",
+        "of its two tails lies from the boundary it is measured from, and",
+        "the middle length of a piece of text are all built to land close",
+        "to the description's numbers rather than on them. A rung the",
+        "description withholds -- since stage 3 that is normally both ends",
+        "and the rungs nearest them -- is not among them, because there is",
+        "no published number to land close to. Every fact that IS among",
+        "them was measured on this twin and the next section prints it,",
+        "with the range it was allowed and whether it landed inside.",
     ]
 
 
@@ -1868,14 +1881,30 @@ def _lowered_floor_lines(profile: contract.Profile) -> "list[str]":
             f"is {floor} people.",
             "",
         ]
+    # WHAT THE USUAL NUMBER PREVENTS IS SAID IN ITS OWN UNIT (review of
+    # 2026-09-23, finding 6). This read "That is what the usual 11
+    # prevents", beside other pages saying eleven stops a group pointing
+    # at one person -- and the disclosure floor counts ROWS (plan
+    # P4-D348), which the owner accepted. Measured on 100 declared people
+    # of twelve visits each: a value one person holds publishes the count
+    # 12 at the default floor. So the sentence now says which unit each
+    # floor is counted in rather than promising what the usual number
+    # cannot deliver.
     return lines + [
         "What that can mean for a person: somebody who already knows one",
         "true thing about someone in the real table -- that they are in it",
         "at all -- can find the small group that person must be in and read",
-        "off everything else the description says about that group. That is",
-        f"what the usual {usual} prevents and what this description does",
-        "not. Whoever approves data leaving your environment should be told",
-        "this before any of these files moves.",
+        "off everything else the description says about that group. The",
+        f"usual {usual} keeps a published group bigger than that, and this",
+        "description does not.",
+        "",
+        f"What even the usual {usual} does not do: it counts ROWS. Where",
+        "the real table holds several rows per person, twelve visits of one",
+        "patient are twelve rows, so a value only that patient has is",
+        f"published with the count twelve at a floor of {usual} as well.",
+        "The one number counted in people is the SIZE of the table it was",
+        "made from. Whoever approves data leaving your environment should",
+        "be told this before any of these files moves.",
         "",
     ]
 

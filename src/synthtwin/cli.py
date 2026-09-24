@@ -669,8 +669,9 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "leading zeros and all, and publishes how many rows carried "
             "each code that at least the smallest group of rows share "
             "(11 by default; rarer codes are counted together and not "
-            "named) -- instead of an average, a smallest and a largest, "
-            "which for a code are meaningless and are real codes besides. "
+            "named) -- instead of an average, a spread and points along "
+            "a range, which for a code are meaningless, and whose "
+            "published boundaries are real codes besides. "
             "Use this for a column written in digits. A column whose "
             "every value carries a letter or a dash usually reads as "
             "codes already, but one whose values are mostly bare "
@@ -1543,8 +1544,9 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"synthtwin cannot tell a coding system from a measurement: "
             f"they are written identically, and only you know which this "
             f"is. Each column above is being described with an average, a "
-            f"smallest and a largest -- which for a code are meaningless, "
-            f"and are real codes besides -- and its twin will lose any "
+            f"spread and points along its range -- which for a code are "
+            f"meaningless, and whose published boundaries are real codes "
+            f"besides -- and its twin will lose any "
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
             f"them:\n  {flags}"
@@ -1573,7 +1575,9 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND WERE READ AS "
             f"READINGS.{_listing(paired, True)}\n\n"
             f"Each number inside those cells is described on its own, with "
-            f"its own average, smallest and largest, and the twin's cells "
+            f"its own average, spread and points along its range -- and "
+            f"its own two ends only where a group of rows shares them -- "
+            f"and the twin's cells "
             f"are built from those. A blood pressure of `120/80` is two "
             f"readings and a register written as two numbers is not, and "
             f"only you know which this is.\n\n"
@@ -1590,7 +1594,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"\n\n"
             f"Each column above is being described with its point as a "
             f"decimal point. If the point is a mark between thousands, "
-            f"every average, smallest and largest published for it is a "
+            f"every average, spread and published point of it is a "
             f"thousand times too small, and only you know which it is.\n\n"
             f"If any of them writes a point between thousands, run the "
             f"command again naming them:\n  {flags}"
@@ -1759,6 +1763,17 @@ def _lowered_floor_warning(given: int) -> str:
     suite compares the two so they cannot drift. `_NOTICE_LINE` mirrors
     `contract.SMALL_GROUP_NOTICE_LINE` the same way.
 
+    IT NAMES THE UNIT OF EACH FLOOR, AND IT COUNTS SIX FILES (review of
+    2026-09-23, items 6 and 10). Two sentences were false. It said the
+    notice line keeps a published group too big to point at one
+    person, and the disclosure floor counts ROWS (plan P4-D348):
+    measured on 100 declared people of twelve visits each, a value one
+    person holds publishes the count 12 at the default floor. And it
+    counted the files a full run leaves one short, and it counted the
+    pages that stamp themselves one too many: the pages that say it in
+    words are the summary, the twin's report and the quality report,
+    beside the description, which records the floor as a setting.
+
     WHEN THIS IS SHOWN CHANGED ON 2026-08-25 (plan A-P4-37). It used to
     be shown whenever the floor was under the default, which was the
     same thing as somebody having typed `--smallest-group`. The default
@@ -1803,14 +1818,25 @@ def _lowered_floor_warning(given: int) -> str:
         f"else the description says about that group. Nothing has to be "
         f"broken into or decoded for that to happen: the count is the "
         f"disclosure, and {_NOTICE_LINE} is the number "
-        f"that keeps a published group too big to point at one person.\n"
+        f"that keeps a published group bigger than that.\n"
+        f"\n"
+        f"AND THE NUMBER COUNTS ROWS, NOT PEOPLE. Whatever you set it "
+        f"to, a group has to cover that many ROWS. Where your table "
+        f"holds several rows per person, twelve visits of one patient "
+        f"are twelve rows, so a value only that patient has is "
+        f"published with the count twelve even at the usual "
+        f"{_NOTICE_LINE}. The one number counted in people is the SIZE "
+        f"of the table, which is what decides whether synthtwin will "
+        f"describe it at all.\n"
         f"\n"
         f"WHERE THOSE COUNTS GO NEXT. Not into the description alone. "
         f"The twin is built to hold the published counts exactly, and "
         f"the plain-language summary beside the description, the twin's "
-        f"report and the quality report all quote them back. All five "
-        f"files of a full run carry them, and each of the four written "
-        f"pages says on its own face that it was made this way.\n"
+        f"report and the quality report all quote them back. All six "
+        f"files of a full run carry them, and the summary, the twin's "
+        f"report and the quality report each say on their own face that "
+        f"this description names groups this small, while the "
+        f"description itself records the floor it was made at.\n"
         f"\n"
         f"IF YOU DID NOT MEAN THIS, run the command again without "
         f"--smallest-group, or with a larger number, and delete what "
@@ -3443,8 +3469,11 @@ def _quality_path(
     The exact target goes through the locality gate, not only the folder,
     for the reason `_twin_paths` gives: a link left at the report's name
     would otherwise send the file wherever it points. The name cannot
-    collide with any of the four artifacts that already exist, which end
-    '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
+    collide with any of the five artifacts that already exist by the time
+    this command runs, which end '-profile.json', '-profile.txt',
+    '-questions.json', '-twin.csv' and '-twin-report.txt'. The questions
+    file joined that list when it shipped (amendment A-P4-58) and this
+    sentence counted four until the review of 2026-09-23.
     """
     source = pathlib.Path(description)
     stem = f"{pathlib.Path(measured).stem}"

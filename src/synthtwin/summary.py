@@ -162,11 +162,14 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
     a block publishing its moments alone says only those.
 
     AND EACH TAIL'S FIRST LINE IS ABOUT THE TAIL IN FRONT OF IT (plan
-    P4-D349). There are three of them: a tail that NAMES its values, one
-    that publishes its shape, and one that publishes neither distance
-    because the pair would give its cells back. One sentence for all
-    three said "not published" over a block that printed two of the
-    values below.
+    P4-D349, and the review of 2026-09-23 -- item 7's inverse on the
+    floor pass, item 11 on the numeric one). There are three of them: a
+    tail that NAMES its values, one that publishes its shape, and one
+    that publishes neither distance because the pair would give its
+    cells back. One sentence for all three said "not published" over a
+    block that printed two of the values below. A published END counts
+    as naming one too: at least a tail's own number of rows hold it, and
+    the very next line reads "the smallest value itself is 0.0".
     """
     ladder = _map_of(column["percentiles"])
     moments = (
@@ -215,13 +218,13 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
         # which half a reader believed was whichever they read second.
         # The three shapes a tail can take each have their own sentence
         # now, and each is true of the block it is printed under.
-        if names:
+        if names or end is not None:
             lines += [
                 (
                     f"    the {_count_of(side['rows'])} {which} values lie "
                     f"{word} {rung}, the value {percent} per cent of the "
-                    f"way up, and this description names which values they "
-                    f"are"
+                    f"way up, and what this end stands on IS published, "
+                    f"below"
                 )
             ]
         elif side["mean_distance"] is None:
@@ -1031,12 +1034,18 @@ def _one_blocks_empty_bin_lines(
             for one in entry:
                 if isinstance(one, (int, float)) and one not in apart:
                     apart += [one]
+        # AND THE COMPARISON IT USED TO DRAW IS GONE (review of
+        # 2026-09-23, finding 7). It read "the same kind of fact as the
+        # smallest and the largest values of this column", and since
+        # stage 3 this column publishes neither of those. The fact is
+        # named for what it is instead: a value of a real cell, which is
+        # what the sentence was trying to convey.
         lines += [
             f"      and for each of those stretches the description "
             f"names the two values your column really holds either "
             f"side of it -- {len(apart)} different value(s) of real "
-            f"cells, the same kind of fact as the smallest and the "
-            f"largest values of this column"
+            f"cells, named as themselves, where neither end of this "
+            f"column is"
         ]
     return lines
 
@@ -1146,9 +1155,9 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
-                f"{_count_of(column['max_length'])} characters long. This "
-                f"column publishes no value of the table, so the values "
-                f"themselves are not in the profile."
+                f"{_count_of(column['max_length'])} characters long. The "
+                f"values themselves are not in the profile: this column "
+                f"publishes no value of the table."
             ),
         ]
         # THE ONE TEXT OF THE TABLE THIS ROLE CARRIES, said where the
@@ -1895,12 +1904,27 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # floor (owner decisions 9 and 11). A person deciding whether
         # the profile may leave their machine has to read that here, not
         # discover it in the file.
+        #
+        # AND THE NUMBER BESIDE A SPELLING IS NOT A COUNT OF THAT
+        # SPELLING (review of 2026-09-23, finding 8). Ruling 6 of
+        # 2026-09-17 counts a spelling below the floor into the label's
+        # COMMONEST spelling rather than holding it back, so the count
+        # printed beside a named spelling covers every row whose own
+        # spelling settled to it. Measured: four labels each written
+        # nine times lower case, eight upper and eight with a leading
+        # space publish one spelling counted 25 while no spelling the
+        # file wrote reaches eleven. The old wording -- "only where 11
+        # rows or more wrote it that way" -- said the opposite of what
+        # the number means.
         lines += [
             "  Real labels you will see in the profile, with how often each",
             f"  appears (only labels shared by at least {floor} rows). Beside",
-            "  each label, the exact spellings your file uses for it --",
-            f"  capitals and spacing included -- again only where {floor} rows",
-            "  or more wrote it that way:",
+            "  each label, the spellings your file uses for it -- capitals",
+            "  and spacing included -- with how many rows are counted into",
+            f"  each. A spelling fewer than {floor} rows wrote is not named",
+            "  on its own: its rows are counted into the commonest spelling",
+            "  of the same label, so a number here can cover rows that",
+            "  wrote the label another way:",
             f"    {_listed(with_labels)}",
             "",
         ]
@@ -1910,9 +1934,22 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "",
         ]
     if with_ranges:
+        # NEITHER END IS ANNOUNCED ANY MORE (stage 3; review of
+        # 2026-09-23, finding 7). This heading read "Real smallest and
+        # largest values, and the points in between" on a page whose own
+        # column blocks say the smallest and largest values are not
+        # published. Measured on 100 readings 0.125 to 99.125: the
+        # description publishes p25, p50 and p75 and withholds `min`,
+        # `max` and six of the nine interior rungs, so the ladder put no
+        # end and no outer rung into the file at all.
         lines += [
-            "  Real smallest and largest values, and the points in between",
-            "  that describe the shape of the column:",
+            "  Real values from inside each column's range, and the shape",
+            "  of its two ends. An end is published as itself only where",
+            f"  at least {floor} rows share it; otherwise what stands there",
+            "  is a boundary, how many rows lie beyond it and how far",
+            "  beyond they lie. Where a bounded scale's tail holds few",
+            "  shared values, the description names which values those",
+            "  are:",
             f"    {_listed(with_ranges)}",
             "",
         ]
