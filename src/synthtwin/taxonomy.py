@@ -4149,6 +4149,168 @@ def _lattice_widest(count: int, total: int, least: int, most: int) -> int:
     )
 
 
+@dataclasses.dataclass
+class _LatticeFrame:
+    """One sub-problem of `_lattice_fill`, standing where a call frame stood.
+
+    The six numbers a call was given -- with `most` already narrowed by
+    the bounds its entry applied, because everything downstream reads
+    the narrowed one -- its memo key, the smallest distance worth
+    trying, the next candidate to consider and the candidate whose
+    child call is outstanding.
+    """
+
+    count: int
+    total: int
+    squares: int
+    least: int
+    most: int
+    barred: int
+    key: "tuple[int, int, int, int, int, int]"
+    lowest: int
+    nearer: int
+    value: int = 0
+
+
+def _lattice_enter(
+    lattice: _Lattice,
+    count: int,
+    total: int,
+    squares: int,
+    least: int,
+    most: int,
+    barred: int,
+) -> "tuple[list[int] | None, _LatticeFrame | None]":
+    """ONE CALL of the walk: its step of the budget, its bounds, its short answers.
+
+    Every line here stood at the top of `_lattice_fill` when that
+    function called itself, in this order, and answers what it answered.
+    Returned is a pair: either the answer this call gives without
+    walking -- a spent or over-budget call, a pruned remainder, a dead
+    key, an exact fit at one or two distances -- or the frame whose
+    candidates `_lattice_fill` then walks. Exactly one of the two is
+    ever not None, and a frame comes back only where the budget was NOT
+    spent.
+
+    Guarantees: accepts the search and one sub-problem of it; returns
+    (answer, None) or (None, frame); charges the budget exactly one step
+    unless the budget was already spent. Determinism: a function of the
+    search's state and the six. Raises nothing. No I/O of any kind.
+    """
+    if lattice.spent:
+        return (None, None)
+    lattice.steps = lattice.steps + 1
+    if lattice.steps > TAIL_LATTICE_STEPS:
+        lattice.spent = True
+        return (None, None)
+    if count == 0:
+        if total == 0 and squares == 0:
+            return ([], None)
+        return (None, None)
+    if total < 0 or squares < 0:
+        return (None, None)
+    most = min(most, lattice.edge)
+    room = squares - (count - 1) * least * least
+    if room < 0:
+        return (None, None)
+    most = min(most, _root_of(room))
+    if most < least:
+        return (None, None)
+    if lattice.distinct:
+        if most - least + 1 < count:
+            return (None, None)
+        low_sum = count * least + (count * (count - 1)) // 2
+        high_sum = count * most - (count * (count - 1)) // 2
+    else:
+        low_sum = count * least
+        high_sum = count * most
+    if total < low_sum or total > high_sum:
+        return (None, None)
+    if (squares - total) % 2 != 0:
+        return (None, None)
+    even, spare = divmod(total, count)
+    if squares < (count - spare) * even * even + spare * (even + 1) * (even + 1):
+        return (None, None)
+    if squares > _lattice_widest(count, total, least, most):
+        return (None, None)
+    key = (count, total, squares, least, most, barred)
+    if key in lattice.dead:
+        return (None, None)
+    if count == 1:
+        if total != barred and total * total == squares:
+            return ([total], None)
+        lattice.dead[key] = True
+        return (None, None)
+    if count == 2:
+        spread = 2 * squares - total * total
+        if spread >= 0:
+            root = _root_of(spread)
+            if root * root == spread and (total + root) % 2 == 0:
+                big = (total + root) // 2
+                small = total - big
+                if (
+                    least <= small <= big <= most
+                    and big != barred
+                    and small != barred
+                    and (not lattice.distinct or big > small)
+                ):
+                    return ([big, small], None)
+        lattice.dead[key] = True
+        return (None, None)
+    lowest = -(-total // count)
+    highest = (
+        total + _root_of((count - 1) * (count * squares - total * total))
+    ) // count
+    return (
+        None,
+        _LatticeFrame(
+            count,
+            total,
+            squares,
+            least,
+            most,
+            barred,
+            key,
+            lowest,
+            min(most, total - (count - 1) * least, highest),
+        ),
+    )
+
+
+def _lattice_onward(
+    lattice: _Lattice, frame: _LatticeFrame
+) -> "tuple[int, int, int, int, int, int] | None":
+    """The next child call one frame makes, or None where its candidates are spent.
+
+    The candidates run DOWNWARD from the largest the frame's bounds
+    allow, and `barred` is stepped over without costing a call, which is
+    what the loop of the recursive walk did. The frame remembers the
+    candidate it handed out, so the answer can be built on the way back.
+
+    Guarantees: accepts the search and one of its frames; returns the
+    six numbers of the next child call, or None; moves the frame on by
+    one candidate. Determinism: a function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    value = frame.nearer
+    while value >= frame.lowest:
+        if value != frame.barred:
+            frame.value = value
+            frame.nearer = value - 1
+            below = value - 1 if lattice.distinct else value
+            return (
+                frame.count - 1,
+                frame.total - value,
+                frame.squares - value * value,
+                frame.least,
+                below,
+                frame.barred,
+            )
+        value = value - 1
+    frame.nearer = value
+    return None
+
+
 def _lattice_fill(
     lattice: _Lattice,
     count: int,
@@ -4167,94 +4329,67 @@ def _lattice_fill(
     most uneven, and the parity a sum of squares shares with its sum.
     Every call is a step of the budget; once it is spent every call
     answers None and `lattice.spent` says why.
+
+    IT RECURSED, AND AN ORDINARY TABLE CRASHED. One frame per distance
+    still to place, and a tail's distances are about a hundredth of the
+    column: one Gaussian numeric column at the default floor described
+    cleanly at 98,456 rows and raised a bare `RecursionError` at 98,457,
+    so `synthtwin profile` refused no such table and crashed on it. The
+    STEP budget bounded the work and could not bound the stack, exactly
+    as it could not in `generation._settles`.
+
+    So the walk carries its own stack. `_lattice_enter` is one call --
+    its step of the budget and every bound and short answer that stood
+    at the top of this function -- and `_lattice_onward` is one turn of
+    its candidate loop. Pushing a frame is entering a call, popping one
+    is returning from it, and a child's answer is worn by the candidate
+    the frame handed out. The order of the candidates, the memo, the
+    budget and its accounting are untouched: the budget is charged once
+    per `_lattice_enter`, which is once per call, so a search spends its
+    steps on exactly the sub-problems it spent them on before and
+    answers what it answered before.
     """
-    if lattice.spent:
-        return None
-    lattice.steps = lattice.steps + 1
-    if lattice.steps > TAIL_LATTICE_STEPS:
-        lattice.spent = True
-        return None
-    if count == 0:
-        if total == 0 and squares == 0:
-            return []
-        return None
-    if total < 0 or squares < 0:
-        return None
-    most = min(most, lattice.edge)
-    room = squares - (count - 1) * least * least
-    if room < 0:
-        return None
-    most = min(most, _root_of(room))
-    if most < least:
-        return None
-    if lattice.distinct:
-        if most - least + 1 < count:
-            return None
-        low_sum = count * least + (count * (count - 1)) // 2
-        high_sum = count * most - (count * (count - 1)) // 2
-    else:
-        low_sum = count * least
-        high_sum = count * most
-    if total < low_sum or total > high_sum:
-        return None
-    if (squares - total) % 2 != 0:
-        return None
-    even, spare = divmod(total, count)
-    if squares < (count - spare) * even * even + spare * (even + 1) * (even + 1):
-        return None
-    if squares > _lattice_widest(count, total, least, most):
-        return None
-    key = (count, total, squares, least, most, barred)
-    if key in lattice.dead:
-        return None
-    if count == 1:
-        if total != barred and total * total == squares:
-            return [total]
-        lattice.dead[key] = True
-        return None
-    if count == 2:
-        spread = 2 * squares - total * total
-        if spread >= 0:
-            root = _root_of(spread)
-            if root * root == spread and (total + root) % 2 == 0:
-                big = (total + root) // 2
-                small = total - big
-                if (
-                    least <= small <= big <= most
-                    and big != barred
-                    and small != barred
-                    and (not lattice.distinct or big > small)
-                ):
-                    return [big, small]
-        lattice.dead[key] = True
-        return None
-    lowest = -(-total // count)
-    highest = (
-        total + _root_of((count - 1) * (count * squares - total * total))
-    ) // count
-    value = min(most, total - (count - 1) * least, highest)
-    while value >= lowest:
-        if value != barred:
-            below = value - 1 if lattice.distinct else value
-            rest = _lattice_fill(
-                lattice,
-                count - 1,
-                total - value,
-                squares - value * value,
-                least,
-                below,
-                barred,
+    stack: "list[_LatticeFrame]" = []
+    call: "tuple[int, int, int, int, int, int] | None" = (
+        count,
+        total,
+        squares,
+        least,
+        most,
+        barred,
+    )
+    answer: "list[int] | None" = None
+    while True:
+        if call is not None:
+            answer, entered = _lattice_enter(
+                lattice, call[0], call[1], call[2], call[3], call[4], call[5]
             )
-            if rest is not None:
-                found = [value]
-                found += rest
-                return found
-            if lattice.spent:
-                return None
-        value = value - 1
-    if not lattice.spent:
-        lattice.dead[key] = True
-    return None
+            call = None
+            if entered is not None:
+                # A FRESH FRAME TAKES THE SAME ROAD as one whose child
+                # answered None: it has no answer to carry up and the
+                # budget cannot be spent, because a spent call never
+                # hands back a frame.
+                stack += [entered]
+        if not stack:
+            return answer
+        top = stack[-1]
+        if answer is not None:
+            found = [top.value]
+            found += answer
+            del stack[-1]
+            answer = found
+            continue
+        if lattice.spent:
+            # The recursive walk returned None here WITHOUT marking the
+            # key dead: a search that ran out of budget has not shown
+            # the remainder impossible.
+            del stack[-1]
+            continue
+        call = _lattice_onward(lattice, top)
+        if call is None:
+            lattice.dead[top.key] = True
+            del stack[-1]
 
 
 def _lattice_with_top(lattice: _Lattice, top: int) -> "list[int] | None":

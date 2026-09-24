@@ -6,6 +6,73 @@ exists).
 
 ## [Unreleased]
 
+### The tail's back-solve walks its own stack (2026-09-24)
+
+**`synthtwin profile` CRASHED ON AN ORDINARY TABLE.**
+`taxonomy._lattice_fill` -- the walk that decides whether a tail's
+published pair would give the tail's own cells back (plan P4-D349) --
+called itself once per distance still to place. A tail holds about a
+hundredth of its column, so the walk nested once per hundred rows and
+raised a bare `RecursionError` past the interpreter's own limit.
+Measured here on ONE Gaussian numeric column at two decimal places and
+the default floor of eleven, seed 20260913: **98,456 rows described
+cleanly and 98,457 rows raised.** The step budget bounded the WORK and
+could not bound the STACK, exactly as it could not in
+`generation._settles`. The tool refused nothing and crashed, which is
+the worst of both.
+
+**What changed, and it is not a behaviour change.** The same walk
+carries an explicit stack. `_lattice_enter` is one call -- its step of
+the budget and every bound and short answer that stood at the top of
+`_lattice_fill` -- and `_lattice_onward` is one turn of its candidate
+loop; pushing a frame is entering a call and popping one is returning
+from it. The candidate order, the memo of dead remainders, the step
+budget and **its accounting** are untouched: the budget is charged once
+per `_lattice_enter`, which is once per call, so a search spends its
+steps on exactly the sub-problems it spent them on before.
+
+**Proved, not asserted** (`tests/test_tail_back_solve_without_recursion.py`,
+which carries the pre-repair text whole as its reference). Over 4,002
+seeded shapes -- few cells, heavy ties, all-different distances, a heap
+with one far cell, a wide range, a tail big enough to make the walk
+work, plus the review's own eleven distances summing to 24 with squares
+104 -- each asked at the shipped budget and at three budgets small
+enough to run out, the two forms return the same multiset, take the same
+number of steps, spend the budget in the same place, mark the same
+remainders dead, give `_tail_pinned` the same verdict and publish the
+same tail side: the same rows, the same mean and root-mean-square
+distance, the same listed values. 32,016 fill comparisons, 16,008
+verdict comparisons and 4,002 published sides, no difference. A shape
+that spends the SHIPPED
+budget of its own accord -- twenty-six all-different distances three
+units apart -- agrees there too, at step 131,073.
+
+**The regression is sized by the walk's own bound**, not by a number
+somebody typed: a floor of `sys.getrecursionlimit() + 64` and the
+`2 * units + 1` rows that take the widest boundary percent the tail rule
+allows give a 1,064-row tail on a 2,129-row column, which describes in
+0.4 s and raises `RecursionError` under the recursive form. Five
+mutations were watched turning the file red -- the candidate step, the
+budget charged twice, an exhausted remainder left unmarked, the barred
+distance allowed, and `_lattice_onward` naming `_lattice_fill` again --
+and a no-op edit left it green.
+
+**And the cost of the walk at scale is now a measured number.** One
+Gaussian numeric column described at the default floor, quiet machine:
+100,000 rows 15.9 s, 200,000 rows 31.4 s, 1,000,000 rows 163.1 s. The
+back-solve itself is 0.168 s of the 200,000-row describe (0.53 per cent,
+14 calls, deepest tail 2,000 rows, 2,024 steps) and 1.274 s of the
+1,000,000-row one (0.78 per cent, deepest tail 10,000 rows, 10,063
+steps). The walk finds its witness in about one step per tail row, so
+the shipped budget of 131,072 is not approached until a tail of about
+130,000 rows -- a column of about thirteen million -- and past that the
+existing fail-closed answer stands: the walk gives up and the tail
+publishes neither distance. **No new rule was needed and none was
+added**; there is no hidden cliff between here and landing 4's two
+million rows.
+
+`K-S1-06`'s INTEGRITY cause is closed: its driver runs again.
+
 ### The ten governance items of stage 3's review, and the close of the round (2026-09-24)
 
 **THE ROUND DOES NOT RUN AGAIN**, so every repair here is proved by
