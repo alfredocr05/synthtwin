@@ -1602,11 +1602,11 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         blocks += [
             f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
             f"{_listing(people, False)}\n\n"
-            f"Nothing was named with --identifier, so this table's "
-            f"population was counted in ROWS. If one row is one visit "
-            f"rather than one person, that count is larger than the "
-            f"number of people in the table, and synthtwin cannot tell "
-            f"which it is: a column whose values repeat can be a "
+            f"No column that names PEOPLE has been declared, so this "
+            f"table's population was counted in ROWS. If one row is one "
+            f"visit rather than one person, that count is larger than "
+            f"the number of people in the table, and synthtwin cannot "
+            f"tell which it is: a column whose values repeat can be a "
             f"subject number or a ward.\n\n"
             f"If any of them names people, run the command again naming "
             f"them:\n  {flags}"
@@ -1922,11 +1922,18 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
     """What the screen says when nobody has said who the rows are about.
 
     Printed beside the person question (plan P4-D340), and only where
-    no column at all is declared as holding record numbers. The
-    question asks whether a column names people; this says what the run
-    did in the meantime, which is the half a person cannot see: the
-    population was counted in ROWS, and a table of several rows per
-    subject therefore passed a floor its subjects might not have.
+    the population is still counted in ROWS. The question asks whether
+    a column names people; this says what the run did in the meantime,
+    which is the half a person cannot see: the population was counted
+    in ROWS, and a table of several rows per subject therefore passed a
+    floor its subjects might not have.
+
+    AND IT SAYS "NO COLUMN THAT NAMES PEOPLE", not "nothing was named
+    with --identifier" (review of stage 3, floor item 4). The question
+    is now put wherever the count is still in rows, and a unique-per-row
+    `visit_id` declared is a column named with `--identifier` that
+    leaves the count exactly there -- so the older sentence would have
+    told a person who had just typed the option that they had not.
 
     Guarantees: accepts the columns asked about; returns one paragraph.
     A fixed function of the names, which are the table's own column
@@ -1935,10 +1942,10 @@ def _counted_in_rows_notice(names: "list[str]") -> str:
     """
     return (
         f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
-        f"Nothing was named with --identifier, so this table's "
-        f"population was counted in ROWS. If one row of your table is "
-        f"one visit rather than one person, that count is larger than "
-        f"the number of people in it.\n"
+        f"No column that names PEOPLE has been declared, so this "
+        f"table's population was counted in ROWS. If one row of your "
+        f"table is one visit rather than one person, that count is "
+        f"larger than the number of people in it.\n"
         f"\nThe questions file asks about "
         f"{_joined(names, ' and ')}, whose values repeat and are "
         f"either many or written as codes -- the shape a column that "

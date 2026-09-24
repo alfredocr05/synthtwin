@@ -1101,6 +1101,54 @@ def test_the_question_reaches_the_questions_file_and_the_screen(
     assert "counted in ROWS" in screen.err + screen.out
 
 
+def test_the_terminal_notice_does_not_deny_the_declaration_either(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same sentence on the path where somebody is at the keyboard.
+
+    Two notices say the population was counted in rows: the one the
+    scripted path prints among its assumptions, and this one, printed
+    beside the question when there is somebody to ask. Both said
+    "Nothing was named with --identifier", and both are now reachable
+    with a declaration standing (review of stage 3, floor item 4), so
+    both are asserted rather than one.
+    """
+    from synthtwin import cli
+
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    answers = iter([""] * 9)
+    monkeypatch.setattr(
+        cli, "_read_one_answer", lambda standing: next(answers)
+    )
+    folder = tmp_path / "terminal"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row += [f"V{place:06d}"]
+        place = place + 1
+    table = fixtures.write(
+        folder,
+        "clinic.csv",
+        fixtures.rows_to_csv(
+            ["subject_id", "site", "score", "visit_id"], rows
+        ),
+    )
+    assert main(
+        ["profile", f"{table}", "--out-dir", f"{folder}", "--identifier",
+         "visit_id"]
+    ) == 0
+    said = capsys.readouterr()
+    screen = said.err + said.out
+    assert "counted in ROWS" in screen
+    assert "Nothing was named" not in screen, (
+        "the notice tells somebody who has just typed --identifier that "
+        "they did not"
+    )
+
+
 def test_a_visit_key_declared_leaves_the_question_and_the_notice_standing(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1141,7 +1189,16 @@ def test_a_visit_key_declared_leaves_the_question_and_the_notice_standing(
         (folder / "clinic-questions.json").read_text(encoding="utf-8")
     )
     assert "subject_id" in [entry["column"] for entry in written["asked"]]
-    assert "counted in ROWS" in screen.err + screen.out
+    said = screen.err + screen.out
+    assert "counted in ROWS" in said
+    # AND THE NOTICE MAY NOT DENY WHAT THE PERSON TYPED. It said
+    # "Nothing was named with --identifier", which was true while any
+    # declaration silenced the question and is false here: `visit_id`
+    # was named, and the count stayed in rows because it names a ROW.
+    assert "Nothing was named" not in said, (
+        "the notice tells somebody who has just typed --identifier that "
+        "they did not"
+    )
     document = json.loads(
         (folder / "clinic-profile.json").read_text(encoding="utf-8")
     )

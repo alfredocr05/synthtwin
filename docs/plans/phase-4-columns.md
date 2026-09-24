@@ -19488,7 +19488,14 @@ factor of two whether or not one value of it repeats.
 
 The sentence the questions file says was SEEN moves with the rule: it
 said "so each one stands on more than one row", which the average does
-not promise, and it now says "on average".
+not promise, and it now says "on average". **And so do both notices
+that say the population was counted in ROWS** — the one the scripted
+path prints among its assumptions and the one printed beside the
+question at a terminal. Each opened "Nothing was named with
+--identifier", which was true while any declaration silenced the
+question and is false the moment a unique-per-row key is declared and
+the count stays in rows; both now say "No column that names PEOPLE has
+been declared".
 
 Route two's second condition is what holds its cost down, and both
 halves of it were measured. Without the figure, every column of words

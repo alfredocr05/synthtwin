@@ -80,7 +80,10 @@ the rule rather than repaired. Both routes now share route one's average,
 counted and never divided, and a per-row key still fails it by a factor
 of two whether or not one value of it repeats. The sentence the questions
 file says was SEEN moves with the rule: "so each one stands on more than
-one row" is now "on average".
+one row" is now "on average", and both notices that say the population
+was counted in ROWS stop opening "Nothing was named with --identifier",
+which is false the moment a unique-per-row key is declared and the count
+stays in rows.
 
 Plan P4-D232, P4-D340 and P4-D341 carry the four amendments; ledger
 `K-S3-02` keeps its 4 false positives of the same 33 columns, with the
