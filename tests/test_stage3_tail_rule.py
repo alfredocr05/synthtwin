@@ -886,6 +886,11 @@ def test_a_scale_whose_own_step_stands_on_one_row_is_not_listed(
     trade is not re-argued here; what it gets is a number that cannot
     grow unseen, which is what the entry it belongs to (`K-S3-05`) was
     missing.
+
+    MUTATION, RUN: `taxonomy.tail_may_list` made to admit every tail
+    leaves `refused` at 0 of twelve against the 4 measured here, and
+    this fails on that count. The rule half moves with the producer and
+    is a consistency check; the COST is what cannot be bought.
     """
     refused = 0
     off_scale = 0

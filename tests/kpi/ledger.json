@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 36 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds the entries this note names and that set equal; THIRTY-ONE OF THEM ARE THESE, and the five later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-01 on 52b9eee, 2026-09-22, stage 3 landing 3.2's own commit; K-P0-10 on 59a8fec, 2026-09-21, the first entry to measure the suite's own wall clock and collected count, its seconds taken a hair above the quiet bound and therefore recorded rather than judged; K-S3-02 on da4cafb, 2026-09-23, the repair pass of stage 3 landing 3.2, which added the route the entry measures; K-S3-03, K-S3-04, K-S3-05, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-42, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P3-12, K-P4-06, K-P4-07, K-P4-22, K-S1-01 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND TWO MORE STAND OFF 27eecbe, stage 3's GATE and its own commit: K-S3-13, the gate itself, and K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND TWO STAND OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-S3-11, whose `edge_pinned` that tree drives to nought, and K-2B-47, which gains `read_floor_refused`. AND ONE STANDS OFF ee56999, the fix pass of stage 3 (plan P4-D349) and its own commit: K-S3-15, the accepted limit whose three numbers are what that tree's own withholding produces, measurable on no earlier tree because no earlier tree withholds a tail's pair.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 36 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds the entries this note names and that set equal; TWENTY-THREE OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group became 11 (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-06, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND TWO MORE STAND OFF 27eecbe, stage 3's GATE and its own commit: K-S3-13, the gate itself, and K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND ONE STANDS OFF ee56999, the fix pass of stage 3 (plan P4-D349) and its own commit: K-S3-15, the accepted limit whose three numbers are what that tree's own withholding produces, measurable on no earlier tree because no earlier tree withholds a tail's pair. AND EIGHT STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) and its own commit, all eight taken by one tools/measurements/kpi_run.py --slow --print-values on the quiet machine -- one-minute load average 1.7 to 2.7 against a bound of 3.0, so seconds were judged. Four moved because that tree moved their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds and their record omitted (governance item 9); K-S3-05 is measured over the 1,800-row population it actually tests and over a second node bounding what the 900-row refusal costs (item 6); and K-2B-42 rises to 465 scored, because the oracle gained the two functions the withheld-tail reading needs, both rewritten from the method clause until the count at or above 0.60 came back to 176. One moved because its DRIVER did and its numbers did NOT: K-S3-11 gives back every one of the nine it gave at a3c0cd1 -- literal, pinned and edge_pinned still nought -- under a back-solve that now asks whether the tail's outermost value and its count vary across the solutions rather than whether the whole multiset is unique, and a literal sweep that reads a value printed inside a sentence (items 3 and 4). And three are RE-STAMPED SECONDS, taken on a quiet machine where the recorded ones were taken under load: K-S1-01 at 23.8 s to generate 20,000 rows by 20 (31.4 before) with profile at 38.5 s (52.5), K-P3-12 at 92.1 s to validate the same (125.1), and K-P0-10 at 3,982.8 s over 7,647 collected (3,085.8 over 7,109), which is the suite grown by stage 3 and still inside its 4,500-second bound.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -356,16 +356,16 @@
    "driver": "tools/measurements/kpi_suite_time.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the whole suite, one process, no shards, from the repository root -- the same single-process run the CI split divides across jobs and does not make cheaper. `cases_reported` counts the cases pytest reported passed, failed or errored, so it is the collected count less the skips, and `exit` is recorded beside them as context: what the suite COSTS is this entry's subject, and whether it is green is every other entry's and the suite's own",
-   "evidence": "MEASURED on this worktree, one process, with each run's load average recorded because the reference machine was shared with other work. BEFORE, on 89a598d: 7,087 collected in 3,809.4 s at a one-minute load average of 2.8 to 6.6, the twenty slowest 2,087.5 s of it (55 per cent) and the top three 1,323.7 s (35 per cent), two of those three fixture SETUP rather than a slow case. AFTER, on the landing 1d62d4a: 7,107 collected in 3,589.2 s under the same sharing, a second run of the same code reading 3,480.4 s. AFTER THE REPAIR PASS, on 59a8fec and on a near-quiet machine (one-minute load average 3.03 as the run began, 2.43 as it ended): 7,109 collected in 3,085.8 s (51 min 25 s), 7,059 passed, 49 skipped, 1 failed. That is the number this entry now carries, and it is the first of the three taken on a machine close to quiet: the state page records 3,282 s for the predecessor tree on a quiet machine, so the same measurement made the same way reads 196 s (6 per cent) less on this tree with 22 more cases. THE ONE FAILING CASE is the state page's own record of the collected count -- the page says 7,087 and the tree collects 7,109 -- which moves in the commit that updates that page; tools/ci/shards.py --prove reports the same two numbers. The run began at a load average of 3.03, a hair above reference_machine.quiet_load_average_below, so the seconds are RECORDED here and judged nowhere (kpi_rules.seconds_judged_here). The bound of 4,500 s is an hour and a quarter on the reference machine: a ceiling that stops the suite drifting back towards the 1 h 20 m to 3 h the two-core CI cells were reading, not a target.",
+   "evidence": "RE-STAMPED ON THE QUIET MACHINE at the close of stage 3's review: 3,982.8 s over 7,647 collected and 7,595 reported, against 3,085.8 over 7,109. The suite GREW by 538 cases with stage 3 and its close, and the seconds grew with it; it stands 517 s inside its 4,500-second bound, and the five-shard wall clock is about 17 minutes. MEASURED on this worktree, one process, with each run's load average recorded because the reference machine was shared with other work. BEFORE, on 89a598d: 7,087 collected in 3,809.4 s at a one-minute load average of 2.8 to 6.6, the twenty slowest 2,087.5 s of it (55 per cent) and the top three 1,323.7 s (35 per cent), two of those three fixture SETUP rather than a slow case. AFTER, on the landing 1d62d4a: 7,107 collected in 3,589.2 s under the same sharing, a second run of the same code reading 3,480.4 s. AFTER THE REPAIR PASS, on 59a8fec and on a near-quiet machine (one-minute load average 3.03 as the run began, 2.43 as it ended): 7,109 collected in 3,085.8 s (51 min 25 s), 7,059 passed, 49 skipped, 1 failed. That is the number this entry now carries, and it is the first of the three taken on a machine close to quiet: the state page records 3,282 s for the predecessor tree on a quiet machine, so the same measurement made the same way reads 196 s (6 per cent) less on this tree with 22 more cases. THE ONE FAILING CASE is the state page's own record of the collected count -- the page says 7,087 and the tree collects 7,109 -- which moves in the commit that updates that page; tools/ci/shards.py --prove reports the same two numbers. The run began at a load average of 3.03, a hair above reference_machine.quiet_load_average_below, so the seconds are RECORDED here and judged nowhere (kpi_rules.seconds_judged_here). The bound of 4,500 s is an hour and a quarter on the reference machine: a ceiling that stops the suite drifting back towards the 1 h 20 m to 3 h the two-core CI cells were reading, not a target.",
    "value_at": {
-    "commit": "59a8fec",
-    "date": "2026-09-21",
-    "measured_by": "tools/measurements/kpi_suite_time.py --kpi",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
-     "collected": 7109,
-     "suite_seconds": 3085.8,
-     "cases_reported": 7060,
-     "exit": 1
+     "cases_reported": 7595,
+     "collected": 7647,
+     "exit": 1,
+     "suite_seconds": 3982.8
     }
    },
    "key_kinds": {
@@ -1984,14 +1984,14 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "gauss(50,10) at 2 dp, 20 columns, CLI",
-   "evidence": "20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
+   "evidence": "RE-STAMPED ON THE QUIET MACHINE at the close of stage 3's review: 92.1 s to validate 20,000 rows by 20 against the 125.1 recorded under load, ratio 4.1. The checker did not get faster; the machine was quiet. 20 numeric columns: 5,000 rows 24.9 s, 20,000 rows 122.0 s (4.9x for 4x rows). Repair pass, median of three at both sizes at load average 7-12: validate 116.7 s at 20,000, ratio 4.06 (the first ratio, 3.49, was over one sample at 20,000)",
    "value_at": {
-    "commit": "1fc2ec1",
-    "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
-     "validate_ratio_4x_rows": 4.07,
-     "validate_seconds_20k": 125.1
+     "validate_ratio_4x_rows": 4.1,
+     "validate_seconds_20k": 92.1
     }
    },
    "key_kinds": {
@@ -3164,15 +3164,15 @@
    "driver": "tools/measurements/kpi_numeric_20k.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "20 Gaussian columns at 2 dp, data seed 20260913, generate --seed 0",
-   "evidence": "34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
+   "evidence": "RE-STAMPED ON THE QUIET MACHINE at the close of stage 3's review: 23.8 s to generate 20,000 rows by 20 against the 31.4 recorded under load, a 5k-to-20k ratio of 3.65, and profile at 38.5 s against 52.5. Nothing in that tree touches the generator; what moved is the load the numbers were taken under. 34.8 s on the frozen copy (19 s at landing; 1,113 s before stage 1); 5k-to-20k ratio 3.42. The drift from 19 s at landing to 34.8 s is UNEXPLAINED; the merge mutant M1 (44.5 s) passes both parts, so K-S1-03 remains the pin for the merge. Repair pass: the 61.8 s first recorded was ONE sample at 20,000 rows taken at load average near 26 and broke the 60 s rule; re-measured as a median of three at both sizes at load average 7-12: generate 34.5 s at 20,000, ratio 3.2",
    "value_at": {
-    "commit": "1fc2ec1",
-    "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_numeric_20k.py --kpi on the merged tree",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
-     "generate_ratio_4x_rows": 3.52,
-     "generate_seconds_20k": 31.4,
-     "profile_seconds_20k": 52.5
+     "generate_ratio_4x_rows": 3.65,
+     "generate_seconds_20k": 23.8,
+     "profile_seconds_20k": 38.5
     }
    },
    "key_kinds": {
@@ -3334,7 +3334,7 @@
    "driver": "tools/measurements/kpi_scale.py numeric --kpi",
    "pin_strength": "NONE",
    "measured_on": "Gaussian columns at 2 dp, 25,000 and 100,000 rows x 20, three times each",
-   "evidence": "100k x 20: 392 s at landing (describe 240.6 + generate 151.7); 946.5 s once under load on e53d5f4, one sample. Repair pass, median of 3 at 25k and at 100k, the sizes in turn, load average 6-9: 100k x 20 375.9 s, ratio 3.96. A mutant with quadratic generation (30 x rows^2 steps) reads ratio 11.06 at 2k/8k x 2 against 3.66 unmutated. 1M x 20 and 2M x 50 never measured on the repaired tree; linear projection about 65 min and 5.4 h",
+   "evidence": "ITS DRIVER COULD NOT RUN AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), and that is recorded here rather than left as a blank: `tools/measurements/kpi_scale.py numeric --kpi` exits 1 with `RecursionError` inside `taxonomy._lattice_fill`, so no value was printed for this entry. The walk that decides whether a tail's published pair would give its own cells back (plan P4-D349, commit ee56999) recurses ONCE PER ROW OF THE TAIL, and a tail's rows are about a hundredth of the column: measured on one numeric column of Gaussian readings at a floor of eleven, 98,000 rows describe cleanly with a 980-row tail and 99,000 rows raise `RecursionError`, so `synthtwin profile` refuses no such table and CRASHES on it from about 98,100 rows upward. Bisected: a3c0cd1 describes 100,002 rows with a 1,001-row tail, 89e2947 and a7bbc21 both raise. It is a SCALE defect of the producer and not of this measurement; landing 4 owns the scale work. 100k x 20: 392 s at landing (describe 240.6 + generate 151.7); 946.5 s once under load on e53d5f4, one sample. Repair pass, median of 3 at 25k and at 100k, the sizes in turn, load average 6-9: 100k x 20 375.9 s, ratio 3.96. A mutant with quadratic generation (30 x rows^2 steps) reads ratio 11.06 at 2k/8k x 2 against 3.66 unmutated. 1M x 20 and 2M x 50 never measured on the repaired tree; linear projection about 65 min and 5.4 h",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -5145,14 +5145,14 @@
    "driver": "tools/measurements/kpi_oracle_similarity.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "normalised-AST similarity, oracle vs src",
-   "evidence": "176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 26 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
+   "evidence": "RE-MEASURED AT THE CLOSE OF STAGE 3'S REVIEW: 176 of 465 oracle functions of six statements or more score at or above 0.60, so the bound is met with NO headroom again and 7 more functions are scored. The withheld-tail reading (plan P4-D349) added two functions to the oracle and the FIRST writing of them drifted the count to 178 -- `withheld_step` at 0.93 and a next-representable helper at 0.96 against their closest shipped ones -- and both were rewritten FROM method G5.3b step 4 rather than from the shipped code until neither scores at all: the step is one loop over three grids and the format's own neighbour is taken through the oracle's existing `next_representable` with the sign put back around it. 176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 26 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
    "value_at": {
-    "commit": "1fc2ec1",
-    "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_oracle_similarity.py --kpi on the merged tree",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
      "at_or_above_0_60": 176,
-     "scored": 458
+     "scored": 465
     }
    },
    "key_kinds": {
@@ -5761,15 +5761,15 @@
    "measured_on": "every column of kpi_shapes.eight_shape_tables() offered twice, of the every-role table, and of kpi_shapes.PERSON_QUESTION_NEGATIVES -- 33 in all -- each offered to `asking.person_questions`; then kpi_shapes.visits_table at (500, 111) and at (1196, 12). What each negative was chosen to be hard about is written where it is built",
    "evidence": "33 columns offered to the rule, 4 of them asked about, and the two repeated-measures tables' `subject_id` asked about on both roads -- once where it reads as a register of codes and once where it reads as a set of categories. MEASURED ON THE LANDING'S OWN TREE, which is the only tree it could be measured on: neither the population floor nor the person question exists before it. The four positives and why each is accepted are the status note below; the negatives the battery carries, and what each was chosen to be hard about, are `tests/kpi_shapes.py`.",
    "value_at": {
-    "commit": "6c2b2d8",
+    "commit": "a7bbc21",
     "date": "2026-09-24",
-    "measured_by": "tools/measurements/kpi_run.py",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
+     "categorical_subject_column_asked_about": 1,
      "columns_measured": 33,
      "false_positives": 4,
-     "subject_column_asked_about": 1,
-     "categorical_subject_column_asked_about": 1,
-     "pinned_nodes_failing": 0
+     "pinned_nodes_failing": 0,
+     "subject_column_asked_about": 1
     }
    },
    "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column categorical, so the question could never reach a subject column read as categories, which is the shape the plan's own cited case has. Route two reaches four label columns that name no people, and each is asked about rather than assumed: the cost of a false positive is one question a person answers `no` to, and the cost of a false negative is a population counted in rows when it should have been counted in people, which is the refusal this stage exists to make. `false_positives` is EXACT, so a fifth is seen. AMENDED BY THE REVIEW OF STAGE 3 (floor item 4), 2026-09-23, AND THE COUNT DID NOT MOVE: still 4 of the same 33 columns, the same four. Two conditions changed. The question is now settled by `settings.person_columns` -- the declared identifiers that REPEAT -- and not by the fact of a declaration, because a unique-per-row `visit_id` declared over 1,196 visits of twelve people left the population counted in ROWS and silenced the question all the same. And route two's first condition is now route one's average rather than 'every value on two rows or more', because one subject with a single visit made the stricter form false and silenced the whole question on a register of twelve people. Neither change reaches this battery's negatives: `record`, `subject` and `visit_id` fail the average by a factor of two whether or not one value of them repeats, and the four positives are route two's as before. Two nodes joined the pin, one for each amended condition, and one was renamed where its expectation reversed."
@@ -5807,16 +5807,16 @@
    "measured_on": "kpi_shapes.POPULATION_BATTERY, which is the two ends of each band and one step outside it, counted in rows and counted in people; every case is a whole `synthtwin profile` run in this process, and the thirteen shapes are named where they are built",
    "evidence": "MEASURED ON THE LANDING'S OWN COMMIT, the only tree it could be measured on: neither the population floor nor the person question exists before it. The four refusals are 1, 50 and 99 rows and 500 rows over 99 people; the six notices are 100, 500 and 999 rows, 500 rows over 100 people, 1,200 rows over 300 people, and 500 rows whose declared identifier never repeats; the three silent runs are 1,000 and 1,500 rows and 4,000 rows over 1,000 people. No refused run left anything beside the table it was pointed at. The pinned nodes hold the halves a count cannot: that the refusal says the count, the line and what to do; that the twin's TABLE is byte-identical with the notice and without it; that the gate after the on-screen answers refuses before anything is written; and that `build_document` and `synthtwin validate` still take a five-row and a fifty-row file, which is what keeps the floor the COMMAND's.",
    "value_at": {
-    "commit": "52b9eee",
-    "date": "2026-09-22",
-    "measured_by": "tools/measurements/kpi_run.py",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
      "cases": 13,
-     "refused": 4,
-     "noticed": 6,
-     "silent": 3,
      "files_written_after_a_refusal": 0,
-     "pinned_nodes_failing": 0
+     "noticed": 6,
+     "pinned_nodes_failing": 0,
+     "refused": 4,
+     "silent": 3
     }
    }
   },
@@ -5909,9 +5909,9 @@
    "evidence": "At 1,800 rows 6 of 6 keep their scale: all twelve tail sides list, no twin cell stands outside the scale its column holds and the worst column mean is 0.97 per cent from the table's. At 900 rows four of those twelve sides are refused -- the pain score's high side and the Glasgow, Apgar and children scores' low ones -- and that costs 31 off-scale cells (18 on the pain score, 13 on the Glasgow score) and a worst column mean 11.33 per cent out, which is the accepted trade of plan P4-D346 held at a ceiling rather than left unmeasured. Before the listed tail, a pain score of 0 to 10 at a floor of eleven published no end, its twin wrote 50 cells at 11 -- a value the scale does not have -- and none at 10, and its mean stood 25 per cent above the table's with nothing missed",
    "nodes_min_collected": 7,
    "value_at": {
-    "commit": "0317f5d",
-    "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_run.py --print-values",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -6085,7 +6085,7 @@
    "headline": true,
    "name": "Nothing a date or clock column publishes names one of its outer cells",
    "status": "GREEN",
-   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance leave exactly one multiset of distances, or exactly one count for some distance. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` where the LISTING RULE admits them -- `taxonomy.tail_may_list` asked of the column's own cells beyond that boundary -- or where the tail holds at most `TAIL_SETTLED_VALUES` values, which its rows and two distances settle anyway (P4-D342, P4-D346). THE EXEMPTION WAS MEMBERSHIP UNTIL P4-D346, so this could not go non-zero on a drifted listing rule. A member's fixed example is not counted either. `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- a ceiling at NOUGHT since P4-D346, which moves such a boundary inward until a second multiset fits; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, P4-D329): each defaults to the answer that cannot flatter the landing.",
+   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance name its OUTERMOST VALUE and how many rows hold it -- which is the question since the governance pass of stage 3's review (item 3), where asking for ONE multiset instead scored nought on eleven distances summing to 24 with squares 104, two multisets that BOTH put the largest at 8 with one row on it. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` where the LISTING RULE admits them -- `taxonomy.tail_may_list` asked of the column's own cells beyond that boundary -- and that is the WHOLE exemption since plan P4-D349 withdrew the second road, which had exempted a tail of at most `TAIL_SETTLED_VALUES` values whatever the rule said. THE EXEMPTION WAS MEMBERSHIP UNTIL P4-D346, so this could not go non-zero on a drifted listing rule. A member's fixed example is not counted either. `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- a ceiling at NOUGHT since P4-D346, which moves such a boundary inward until a second multiset fits; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, P4-D329): each defaults to the answer that cannot flatter the landing.",
    "rule_kind": "at_most",
    "expected": {
     "literal": 0,
@@ -6110,11 +6110,11 @@
    "driver": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
-   "evidence": "ON THE TREE THAT CLOSED STAGE 3 (P4-D346). 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails settled by the plain back-solve, 0 checkable obligations missed -- and the exemption that lets `literal` read 0 is the listing rule's own conditions now, not membership, so the number can fail on a rule that moves. MUTATION: with `tail_may_list` forced open the driver reads 22, 11, 22 and 11 leaked values on the four clock cases of 900 rows, against 0 as this tree ships it. 12 tails over 8 cases list their values: seven of quarters and months, each held by 3 to 14 cells, and five of the `0001-01-01` heap. `edge_pinned` IS 0 against 4 on the merged tree: the four sides that carried it -- one each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4 -- move their boundary inward until a second multiset fits, 11 rows a side becoming 15 or 17 of 900, and the walk must PROVE the tail settled inside its budget or nothing moves. `window` is still 2, `unsearched` 35 and `equality_only` 2.",
+   "evidence": "RE-MEASURED AT THE CLOSE OF STAGE 3'S REVIEW under a SHARPER measurement and every one of the nine numbers came back: 105 cases, literal 0, pinned 0, missed 0, edge_pinned 0, equality_only 2, listed 12, window 2, unsearched 35. The back-solve now asks whether the tail's outermost value and its count vary across the multisets its facts admit, and the literal sweep joins adjacent tokens and strips a trailing point, so a moment printed after a label and a clock value at the end of a sentence are compared whole (items 3 and 4). ON THE TREE THAT CLOSED STAGE 3 (P4-D346). 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails settled by the plain back-solve, 0 checkable obligations missed -- and the exemption that lets `literal` read 0 is the listing rule's own conditions now, not membership, so the number can fail on a rule that moves. MUTATION: with `tail_may_list` forced open the driver reads 22, 11, 22 and 11 leaked values on the four clock cases of 900 rows, against 0 as this tree ships it. 12 tails over 8 cases list their values: seven of quarters and months, each held by 3 to 14 cells, and five of the `0001-01-01` heap. `edge_pinned` IS 0 against 4 on the merged tree: the four sides that carried it -- one each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4 -- move their boundary inward until a second multiset fits, 11 rows a side becoming 15 or 17 of 900, and the walk must PROVE the tail settled inside its budget or nothing moves. `window` is still 2, `unsearched` 35 and `equality_only` 2.",
    "value_at": {
-    "commit": "a3c0cd1",
-    "date": "2026-09-23",
-    "measured_by": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
+    "commit": "a7bbc21",
+    "date": "2026-09-24",
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
     "value": {
      "cases": 105,
      "edge_pinned": 0,

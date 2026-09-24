@@ -1789,6 +1789,11 @@ def test_a_fact_injected_into_a_tail_leaf_is_undisposed(
     It asserts the reach as well as the catch: some tail of some role
     must be reached, or an injection that finds nowhere to go would pass
     for a guard.
+
+    MUTATION, RUN: `_undisposed` put back to letting a container's own
+    row excuse any child -- `if head in table or head in universal:
+    continue` -- and this fails on the first injected leaf, with the
+    walk's `missing` empty.
     """
     sections = _matrix_sections()
     universal = dict(sections["9.2 Universal per-column fields"])

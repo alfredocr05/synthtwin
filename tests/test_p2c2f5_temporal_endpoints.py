@@ -1179,7 +1179,14 @@ def _governing_passages() -> "list[str]":
 
 
 def test_the_governing_contract_commands_no_removed_endpoint() -> None:
-    """No normative passage of version 6 names an endpoint as a live fact."""
+    """No normative passage of version 6 names an endpoint as a live fact.
+
+    MUTATION, RUN: the removed command put back -- "the two endpoint
+    cells for `earliest` and `latest` are written from the published
+    endpoint's OWN fields" -- and both halves turn red, this one on the
+    passage naming a removed field and the one below on the obligation
+    that replaced it going missing with it.
+    """
     left = [
         passage
         for passage in _governing_passages()
