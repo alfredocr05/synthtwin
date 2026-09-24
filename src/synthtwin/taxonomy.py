@@ -2864,33 +2864,78 @@ def _column_named(
     return None
 
 
-def _present_spellings(
-    cells: "list[str]", settings: Settings
-) -> "dict[str, int]":
-    """Which of a column's SPELLINGS are present, asked once each.
+@dataclasses.dataclass(frozen=True)
+class Declarations:
+    """The declarations that change WHICH CELLS OF A COLUMN ARE THERE.
 
-    `split_missing` is a fixed function of a value and the settings, so
-    a spelling's fate is the same on every row that wears it. Asking
-    once per distinct spelling is what keeps a pass over a column of
-    200,000 rows a pass over its vocabulary.
+    Carried by the population census (review of stage 3, floor item
+    3), because the census has to read each column the way the run will
+    read it and all four of these move that reading:
 
-    Guarantees: accepts a column's cells and the settings; returns a
-    mapping whose keys are exactly the spellings that are PRESENT.
-    Determinism: a fixed function of the two. Raises nothing a caller
-    can provoke. No I/O of any kind.
+    * an IDENTIFIER skips the calendar-placeholder, affixed-core and
+      level passes outright, so cells those passes would have taken out
+      stay present;
+    * a CODE or a MEASUREMENT changes the role the trial reading lands
+      on, and each of those three passes is gated on a role;
+    * `--decimal-comma` decides what NUMBER a cell denotes, and both the
+      declared-number pass and the stand-in rule compare numbers.
+
+    Four tuples of column names rather than four flags, because the
+    census walks columns and asks about each one by name. Empty means
+    nothing was declared, which is what a library caller that never
+    declared anything means.
     """
-    distinct: "list[str]" = []
-    seen: "dict[str, int]" = {}
-    for value in cells:
-        if value in seen:
-            continue
-        seen[value] = 1
-        distinct += [value]
-    present, _absent = split_missing(distinct, settings)
-    standing: "dict[str, int]" = {}
-    for value in present:
-        standing[value] = 1
-    return standing
+
+    identifiers: "tuple[str, ...]" = ()
+    codes: "tuple[str, ...]" = ()
+    measurements: "tuple[str, ...]" = ()
+    decimal_commas: "tuple[str, ...]" = ()
+
+
+def _present_spellings(
+    cells: "list[str]",
+    settings: Settings,
+    name: str = "",
+    declared: "Declarations | None" = None,
+) -> "dict[str, int]":
+    """Which of a column's SPELLINGS are present under the FINISHED reading.
+
+    A spelling's fate is the same on every row that wears it -- every
+    pass that takes cells out reads the text, the exact number the text
+    denotes, or the canonical day it writes -- so the answer is a set of
+    spellings for the whole column, and a membership test against it
+    answers for any row.
+
+    IT IS THE FINISHED READING AND NOT `split_missing` ALONE (review of
+    stage 3, floor item 3). `split_missing` applies the half of the
+    person's declarations that reads SPELLINGS; the declared NUMBERS,
+    the judged numeric stand-ins, the judged calendar placeholders, the
+    stand-ins inside affixed cores and the lone label row read by
+    subtraction all come after it. Measured with only the first pass
+    asked: a column of twenty numbers followed by eighty `-999` cells,
+    under `--missing-value=-999`, was counted as a hundred rows of
+    population and cleared the hundred-row floor, and the description
+    the run then wrote said `n_present: 20`. The census now asks
+    `present_spellings_after_the_rules`, which is `profile_column`'s own
+    reading of the column.
+
+    Guarantees: accepts a column's cells, the settings, the column's
+    name and the declarations in force; returns a mapping whose keys are
+    exactly the spellings that are PRESENT, each mapped to 1.
+    Determinism: a fixed function of the arguments. Raises nothing a
+    caller can provoke -- the one refusal of the reading, a value
+    declared both data and missing, is refused by the command before any
+    census runs. No I/O of any kind.
+    """
+    stated = declared if declared is not None else Declarations()
+    return present_spellings_after_the_rules(
+        cells,
+        settings,
+        forced_identifier=name in stated.identifiers,
+        forced_code=name in stated.codes,
+        forced_measurement=name in stated.measurements,
+        forced_decimal_comma=name in stated.decimal_commas,
+    )
 
 
 def repeating_identifiers(
@@ -2898,6 +2943,7 @@ def repeating_identifiers(
     columns: "list[list[str]]",
     declared: "list[str]",
     settings: Settings,
+    declarations: "Declarations | None" = None,
 ) -> "tuple[str, ...]":
     """The declared identifiers that name a PERSON, in rising order.
 
@@ -2926,11 +2972,20 @@ def repeating_identifiers(
 
     Guarantees:
 
+    WHICH CELLS ARE THERE IS THE FINISHED READING'S ANSWER (review of
+    stage 3, floor item 3). `declarations` carries what was declared
+    about every column, because a column read with a pass skipped or a
+    number read another way holds different cells -- and whether an
+    identifier repeats is a question about the cells that are there.
+
+    Guarantees:
+
     - Inputs: the table's column names, its columns as text in the same
-      order, the names declared with `--identifier`, and the settings
-      that say which spellings mean "no value".
-    - Determinism: a fixed function of the four. The answer rises and
-      holds each name once.
+      order, the names declared with `--identifier`, the settings that
+      say which spellings mean "no value", and the declarations in force
+      (none means nothing was declared).
+    - Determinism: a fixed function of the arguments. The answer rises
+      and holds each name once.
     - Errors raised: none. A declared name that is not a column of this
       table is skipped; the command refuses such a name before this
       runs.
@@ -2945,7 +3000,7 @@ def repeating_identifiers(
         cells = _column_named(name, column_names, columns)
         if cells is None:
             continue
-        standing = _present_spellings(cells, settings)
+        standing = _present_spellings(cells, settings, name, declarations)
         seen: "dict[str, int]" = {}
         repeats = False
         for value in cells:
@@ -2966,6 +3021,7 @@ def people_in(
     columns: "list[list[str]]",
     person_columns: "tuple[str, ...]",
     settings: Settings,
+    declarations: "Declarations | None" = None,
 ) -> int:
     """How many PEOPLE the rows of this table are about.
 
@@ -2975,10 +3031,14 @@ def people_in(
 
     A ROW THAT HOLDS NO VALUE AT ALL IS NOT ANYBODY (repair of landing
     3.2). The population is counted over the rows that hold a present
-    value in SOME column, and a row whose every cell is blank or one of
-    the spellings that mean "no value" is counted nowhere -- neither as
-    a row of the population where no identifier repeats, nor as part of
-    the one unknown person where one does. **Measured** before this
+    value in SOME column, and a row every cell of which the run reads as
+    "no value" is counted nowhere -- neither as a row of the population
+    where no identifier repeats, nor as part of the one unknown person
+    where one does. "READS AS NO VALUE" IS THE FINISHED READING'S
+    ANSWER and not the blank-and-spelling half of it (review of stage 3,
+    floor item 3): a declared number, a judged numeric stand-in, a
+    judged calendar placeholder and a stand-in inside an affixed core
+    are all cells this counts nowhere, and none of them was until then. **Measured** before this
     rule existed: twenty real records followed by eighty `,,` rows, or
     by eighty `NA,NA,NA` rows, read as a hundred-row table, cleared the
     population floor and were described -- and the description that
@@ -2998,10 +3058,22 @@ def people_in(
 
     Guarantees:
 
+    AND WHAT A ROW HOLDS IS THE FINISHED READING'S ANSWER (review of
+    stage 3, floor item 3). Eighty cells of `-999` declared missing
+    are eighty rows holding nothing, exactly as eighty blank cells are,
+    and the census asked only the pass that reads spellings until then:
+    the same twenty records padded to a hundred cleared the floor when
+    the padding was a declared or a judged stand-in rather than a blank.
+    `declarations` is what lets each column be read the way the run
+    reads it.
+
+    Guarantees:
+
     - Inputs: the column names, the columns as text in the same order,
-      the person columns (empty means the ROWS are the population), and
-      the settings that say which spellings mean "no value".
-    - Determinism: a fixed function of the four.
+      the person columns (empty means the ROWS are the population), the
+      settings that say which spellings mean "no value", and the
+      declarations in force (none means nothing was declared).
+    - Determinism: a fixed function of the arguments.
     - Errors raised: none.
     - Boundary: opens no file, prints nothing and publishes nothing.
       What it returns is one whole number.
@@ -3010,7 +3082,9 @@ def people_in(
     for held in columns:
         if len(held) > rows:
             rows = len(held)
-    holding = _rows_holding_a_value(columns, rows, settings)
+    holding = _rows_holding_a_value(
+        columns, rows, settings, column_names, declarations
+    )
     if not person_columns:
         count = 0
         for place in range(rows):
@@ -3037,7 +3111,7 @@ def people_in(
         cells = _column_named(name, column_names, columns)
         if cells is None:
             continue
-        standing = _present_spellings(cells, settings)
+        standing = _present_spellings(cells, settings, name, declarations)
         earliest: "dict[str, int]" = {}
         place = 0
         for value in cells:
@@ -3074,33 +3148,48 @@ def people_in(
 
 
 def _rows_holding_a_value(
-    columns: "list[list[str]]", rows: int, settings: Settings
+    columns: "list[list[str]]",
+    rows: int,
+    settings: Settings,
+    column_names: "list[str] | None" = None,
+    declarations: "Declarations | None" = None,
 ) -> "list[bool]":
     """Which rows hold a PRESENT value in some column (landing 3.2 repair).
 
     The same `_present_spellings` pass `people_in` already makes over
     the person columns, made over every column: a spelling's fate is
-    the same on every row that wears it, so each column costs one walk
-    over its vocabulary and one over its cells.
+    the same on every row that wears it, so each column costs one
+    reading of the column and one walk over its cells.
 
     THE WALK STOPS EARLY. Once every row is known to hold something --
     which one full column with no holes in it settles -- no further
-    column is read, so the ordinary table costs one column's pass
-    and not the whole table's.
+    column is read, so the ordinary table costs one column's reading
+    and not the whole table's. That is also what keeps the finished
+    reading affordable here (review of stage 3, floor item 3): it is
+    `profile_column`'s own reading of a column, and the common table
+    reads one column and no more.
 
     Guarantees: accepts the columns as text, how many rows the longest
-    of them has, and the settings that say which spellings mean "no
-    value"; returns one truth value per row, in row order. A fixed
-    function of the three. Raises nothing. No I/O of any kind.
+    of them has, the settings that say which spellings mean "no value",
+    the column names in the same order as the columns and the
+    declarations in force; returns one truth value per row, in row
+    order. A fixed function of the arguments. Raises nothing. No I/O of
+    any kind.
     """
+    named = column_names if column_names is not None else []
     holding: "list[bool]" = []
     for _place in range(rows):
         holding += [False]
     outstanding = rows
+    place_of_column = 0
     for held in columns:
+        name = ""
+        if place_of_column < len(named):
+            name = named[place_of_column]
+        place_of_column = place_of_column + 1
         if not outstanding:
             break
-        standing = _present_spellings(held, settings)
+        standing = _present_spellings(held, settings, name, declarations)
         if not standing:
             continue
         place = 0
@@ -18373,9 +18462,52 @@ def _publication_class_applied(
     return _counts_only(details), vocabulary, withheld, n_blank, n_withheld
 
 
-def profile_column(
-    name: str,
-    position: int,
+@dataclasses.dataclass(frozen=True)
+class _ColumnReading:
+    """One column read as far as the DECLARATIONS and the JUDGEMENTS take it.
+
+    WHAT IS PRESENT IN A COLUMN IS ONE ANSWER, AND THIS IS IT (review of
+    stage 3, floor item 3). Five passes decide it, in this order:
+    what the person declared by SPELLING (`split_missing`), what they
+    declared as a NUMBER (`_declared_numbers_removed`), the numeric
+    stand-ins this package judges (`_sentinel_verdicts`), the calendar
+    placeholders it judges (`_placeholder_verdicts`), the stand-ins
+    inside affixed cores (`_cores_judged`), and the lone label row a
+    reader could read by subtraction (`_levels_read_by_subtraction`).
+    Every one of them takes cells OUT, so an answer taken before the
+    last of them is an answer about a column that does not exist.
+
+    The command's population census asked the FIRST pass alone until the
+    review of stage 3 measured it: a column of twenty numbers followed
+    by eighty `-999` cells, with `--missing-value=-999`, cleared the
+    hundred-row floor as a hundred rows although the finished column
+    held twenty. `present_spellings_after_the_rules` is the census's
+    reading and this record is what both it and `profile_column` read,
+    so the two cannot answer differently.
+
+    A SPELLING'S FATE IS THE SAME ON EVERY ROW THAT WEARS IT. Each pass
+    above removes cells by their spelling, by the exact number they
+    denote, or by the canonical day they write -- all three are fixed
+    functions of the text -- so "which spellings survive" is well
+    defined for the whole column, and that is what the census needs. The
+    one exception is the level pass, which counts a cell out for the
+    VALUE it holds rather than for standing for no value; it too is a
+    function of the folded text.
+    """
+
+    cells: _Cells
+    present: "list[str]"
+    missing: "list[tuple[str, str]]"
+    verdicts: "dict[float, tuple[bool, str, int]]"
+    day_verdicts: "dict[str, tuple[bool, str, int]]"
+    judged_spellings: "dict[str, dict[str, int]]"
+    judged_over_days: bool
+    removed_by_cores: int
+    judged_over_cores: bool
+    judged_over_levels: bool
+
+
+def _read_the_column(
     values: list[str],
     n_rows: int,
     settings: Settings,
@@ -18386,70 +18518,26 @@ def profile_column(
     described_as_pair: bool = False,
     kept_placeholder_days: "tuple[str, ...]" = (),
     judged_candidates: "tuple[str, ...]" = (),
-) -> ColumnProfile:
-    """Describe one column: its role, its statistics, what was withheld.
+) -> _ColumnReading:
+    """Apply every declaration and every judgement, and stop there.
+
+    `profile_column`'s own first act, split out so that the command's
+    population census asks the same question of the same cells (review
+    of stage 3, floor item 3). Nothing here decides a role that is
+    published, computes a statistic or writes a sentence: it reads the
+    column to the end of the passes that decide WHICH CELLS ARE THERE,
+    and `_ColumnReading` says at length why that is one answer.
 
     Guarantees:
 
-    - Inputs: ``values`` is every cell of the column, as text, in row
-      order; ``position`` is the column's 1-based place in the source
-      file; ``n_rows`` is the table's row count, which must equal
-      ``len(values)``; ``forced_identifier`` records that the person
-      running the tool named this column as holding record numbers, in
-      which case no value of it is published whatever the rules would
-      otherwise have decided. It is also the ONLY way the returned role
-      can be `identifier`: with it false, no column of any shape is
-      given that role (review item P1-R6-F8).
-    - Determinism: the result depends only on the arguments. Nothing
-      here consults a clock, an environment variable, or a random
-      source, and every ordering that reaches the output is sorted.
-    - Declarations: what the person named with `--keep-value` and
-      `--missing-value` is applied HERE, before any role is decided and
-      before any value is removed for any other reason. A declaration
-      that reads as a number this format can hold is compared with the
-      NUMBER each cell holds, so `-999` covers a file that writes
-      `-999.00`; any other declaration is compared with the spelling,
-      after trimming and case folding (review item P1-R6-F9).
-    - ``described_as_pair`` is not a declaration and no person sets it:
-      the validator sets it on a column its description read as a
-      slashed pair of whole numbers from the values, so the checked
-      file is read the way the description was (plan P4-D40,
-      validation method V2.2-A2). `_decide` states what it moves.
-    - ``kept_placeholder_days`` is not a declaration either, and no person
-      sets it: the validator hands over the placeholder days the checked
-      description published as `kept_by_you` in this column, so the file
-      keeps them exactly as the description did (plan P4-D136).
-    - ``judged_candidates`` is the other side of the same hand-over, and
-      no person sets it either: the candidates -- stand-in numbers and
-      placeholder days alike -- the checked description published as
-      `read_as_missing` in this column. Each is read as missing here
-      without its outlier and share rules being asked again (plan
-      P4-D6.4, validation method V2.4-A8), because the twin writes those
-      cells as the source wrote them and its own values need not fire
-      the rules a second time. `synthtwin profile` never passes it.
-    - Errors raised: TypeError if a value is not text (an internal
-      invariant: both readers produce text), and ValueError when the
-      settings name one value BOTH as data and as "no value" -- there
-      is no reading of that pair that is not a guess, so it is refused
-      before anything is described (review item P1-R6-F9). No refusal
-      comes from the VALUES of a column: one that matches no rule is
-      described as free text rather than rejected.
-    - Boundary: no file is opened, and no value of a suppressed kind
-      (identifier, free text, a number no format can hold, or a label
-      below the small-cell floor) appears in the returned description,
-      and no pool of one level on one row is left for a reader to read a
-      count of one off -- the cells of such a level are counted as
-      missing, spelled as nothing, by the level pass (the owner's ruling
-      of 2026-09-17, item 5; plan P4-D231).
-      This is a property of the column's publication CLASS -- its role,
-      plus the declaration that beats every role -- applied to the WHOLE
-      block by `_publication_class_applied` once both are known, not of
-      the branch that built the block and not of any one field. A column
-      that publishes no values keeps its counts, its lengths and the
-      decisions it made -- including what it decided about each numeric
-      stand-in for "no value" and how many rows that accounted for, and,
-      on a declared identifier, how many different values cover one row,
-      two rows and so on -- and keeps not one spelling of a value.
+    - Inputs: `profile_column`'s own, minus the column's name and place,
+      which no pass here reads.
+    - Determinism: a fixed function of the arguments.
+    - Errors raised: ValueError where the settings name one value BOTH
+      as data and as "no value", which is `profile_column`'s own refusal
+      and is raised here because this is where the declarations are
+      applied.
+    - Boundary: opens no file and prints nothing.
     """
     clashes = contradictory_declarations(
         settings.kept_values,
@@ -18738,6 +18826,172 @@ def profile_column(
             )
             present = cells.present
             judged_over_levels = labels_alone
+    return _ColumnReading(
+        cells=cells,
+        present=present,
+        missing=missing,
+        verdicts=verdicts,
+        day_verdicts=day_verdicts,
+        judged_spellings=judged_spellings,
+        judged_over_days=judged_over_days,
+        removed_by_cores=removed_by_cores,
+        judged_over_cores=judged_over_cores,
+        judged_over_levels=judged_over_levels,
+    )
+
+
+def present_spellings_after_the_rules(
+    values: list[str],
+    settings: Settings,
+    forced_identifier: bool = False,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    forced_decimal_comma: bool = False,
+) -> "dict[str, int]":
+    """Which of a column's SPELLINGS survive every declaration and judgement.
+
+    THE POPULATION CENSUS'S READING (review of stage 3, floor item
+    3). The census used `split_missing` alone, which applies the half of
+    the declarations that reads SPELLINGS and no pass after it -- so a
+    column of twenty numbers followed by eighty `-999` cells passed the
+    hundred-row floor as a hundred rows, under `--missing-value=-999`,
+    under a numerically equal spelling such as `-999.0`, and under the
+    stand-in rule that judges `-999` with nothing declared at all. The
+    finished column held twenty present cells and eighty missing, and
+    the command published the hundred-row notice over it. This asks
+    `_read_the_column`, which is `profile_column`'s own reading, and
+    returns the spellings it leaves standing.
+
+    Guarantees:
+
+    - Inputs: the column's cells as text in row order, the settings in
+      force, and the declarations that reach this column -- each of
+      which changes what is present, which is why the census carries
+      them: a declared identifier skips the calendar, core and level
+      passes, and `--decimal-comma` decides what number a cell denotes
+      and so whether a declared or judged stand-in matches it.
+    - Determinism: a fixed function of the arguments. The keys are
+      exactly the spellings that are PRESENT, each mapped to 1, which is
+      the shape the census's membership tests want.
+    - Errors raised: ValueError where the settings name one value both
+      as data and as "no value", from `_read_the_column`.
+    - Boundary: opens no file, prints nothing and publishes nothing.
+    """
+    read = _read_the_column(
+        values,
+        len(values),
+        settings,
+        forced_identifier=forced_identifier,
+        forced_code=forced_code,
+        forced_measurement=forced_measurement,
+        forced_decimal_comma=forced_decimal_comma,
+    )
+    standing: "dict[str, int]" = {}
+    for value in read.present:
+        standing[value] = 1
+    return standing
+
+
+def profile_column(
+    name: str,
+    position: int,
+    values: list[str],
+    n_rows: int,
+    settings: Settings,
+    forced_identifier: bool = False,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    forced_decimal_comma: bool = False,
+    described_as_pair: bool = False,
+    kept_placeholder_days: "tuple[str, ...]" = (),
+    judged_candidates: "tuple[str, ...]" = (),
+) -> ColumnProfile:
+    """Describe one column: its role, its statistics, what was withheld.
+
+    Guarantees:
+
+    - Inputs: ``values`` is every cell of the column, as text, in row
+      order; ``position`` is the column's 1-based place in the source
+      file; ``n_rows`` is the table's row count, which must equal
+      ``len(values)``; ``forced_identifier`` records that the person
+      running the tool named this column as holding record numbers, in
+      which case no value of it is published whatever the rules would
+      otherwise have decided. It is also the ONLY way the returned role
+      can be `identifier`: with it false, no column of any shape is
+      given that role (review item P1-R6-F8).
+    - Determinism: the result depends only on the arguments. Nothing
+      here consults a clock, an environment variable, or a random
+      source, and every ordering that reaches the output is sorted.
+    - Declarations: what the person named with `--keep-value` and
+      `--missing-value` is applied HERE, before any role is decided and
+      before any value is removed for any other reason. A declaration
+      that reads as a number this format can hold is compared with the
+      NUMBER each cell holds, so `-999` covers a file that writes
+      `-999.00`; any other declaration is compared with the spelling,
+      after trimming and case folding (review item P1-R6-F9).
+    - ``described_as_pair`` is not a declaration and no person sets it:
+      the validator sets it on a column its description read as a
+      slashed pair of whole numbers from the values, so the checked
+      file is read the way the description was (plan P4-D40,
+      validation method V2.2-A2). `_decide` states what it moves.
+    - ``kept_placeholder_days`` is not a declaration either, and no person
+      sets it: the validator hands over the placeholder days the checked
+      description published as `kept_by_you` in this column, so the file
+      keeps them exactly as the description did (plan P4-D136).
+    - ``judged_candidates`` is the other side of the same hand-over, and
+      no person sets it either: the candidates -- stand-in numbers and
+      placeholder days alike -- the checked description published as
+      `read_as_missing` in this column. Each is read as missing here
+      without its outlier and share rules being asked again (plan
+      P4-D6.4, validation method V2.4-A8), because the twin writes those
+      cells as the source wrote them and its own values need not fire
+      the rules a second time. `synthtwin profile` never passes it.
+    - Errors raised: TypeError if a value is not text (an internal
+      invariant: both readers produce text), and ValueError when the
+      settings name one value BOTH as data and as "no value" -- there
+      is no reading of that pair that is not a guess, so it is refused
+      before anything is described (review item P1-R6-F9). No refusal
+      comes from the VALUES of a column: one that matches no rule is
+      described as free text rather than rejected.
+    - Boundary: no file is opened, and no value of a suppressed kind
+      (identifier, free text, a number no format can hold, or a label
+      below the small-cell floor) appears in the returned description,
+      and no pool of one level on one row is left for a reader to read a
+      count of one off -- the cells of such a level are counted as
+      missing, spelled as nothing, by the level pass (the owner's ruling
+      of 2026-09-17, item 5; plan P4-D231).
+      This is a property of the column's publication CLASS -- its role,
+      plus the declaration that beats every role -- applied to the WHOLE
+      block by `_publication_class_applied` once both are known, not of
+      the branch that built the block and not of any one field. A column
+      that publishes no values keeps its counts, its lengths and the
+      decisions it made -- including what it decided about each numeric
+      stand-in for "no value" and how many rows that accounted for, and,
+      on a declared identifier, how many different values cover one row,
+      two rows and so on -- and keeps not one spelling of a value.
+    """
+    read = _read_the_column(
+        values,
+        n_rows,
+        settings,
+        forced_identifier=forced_identifier,
+        forced_code=forced_code,
+        forced_measurement=forced_measurement,
+        forced_decimal_comma=forced_decimal_comma,
+        described_as_pair=described_as_pair,
+        kept_placeholder_days=kept_placeholder_days,
+        judged_candidates=judged_candidates,
+    )
+    cells = read.cells
+    present = read.present
+    missing = read.missing
+    verdicts = read.verdicts
+    day_verdicts = read.day_verdicts
+    judged_spellings = read.judged_spellings
+    judged_over_days = read.judged_over_days
+    removed_by_cores = read.removed_by_cores
+    judged_over_cores = read.judged_over_cores
+    judged_over_levels = read.judged_over_levels
     entries, unpublished = _published_verdicts(verdicts, settings)
     # THE DAY VERDICTS FOLLOW THE NUMBER VERDICTS, and the order is the
     # contract's own (invariant V4): every numeric candidate, ascending

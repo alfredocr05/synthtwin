@@ -66,10 +66,20 @@ READINGS = [f"{index}" for index in range(1, 200)]
 
 # HOW MANY ROWS EACH OF TWO NEIGHBOURING NUMBERS TAKES (plan P4-D341).
 # The reviewer's shape is twenty of each; the command refuses a table
-# under the population floor and writes nothing, so it is half the
-# floor of each, rounded up, and the two halves are what every count
-# below is derived from.
-EACH = -(-parsing.POPULATION_FLOOR // 2)
+# under the population floor and writes nothing, so each number takes a
+# WHOLE floor of rows and every count below is derived from that one
+# number.
+#
+# A WHOLE FLOOR AND NOT HALF OF ONE (review of stage 3, floor item 3).
+# It was half the floor each, so the file held a floor of lines -- and
+# the census counted them all, because it asked only the pass that reads
+# SPELLINGS and a number declared with `--missing-value` is removed by
+# the pass after it. The census reads the finished column now, so the
+# rows that survive the declaration are the population: half a floor of
+# them is under the floor, and the shape this file is about would be
+# refused before it was described. The number DECLARED may be any count
+# at all; it is the other one that has to clear the floor.
+EACH = parsing.POPULATION_FLOOR
 
 
 def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:

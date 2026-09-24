@@ -1203,9 +1203,18 @@ def _shape_of(
         different: "dict[str, int]" = {}
         for value in present:
             different[parsing.folded(value)] = 1
+        # ON AVERAGE, AND THE WORD IS LOAD-BEARING (review of stage 3,
+        # floor item 4). This said "so each one stands on more than
+        # one row", which was true of route two while route two demanded
+        # it of every value -- and one subject with a single visit
+        # silenced the whole question for exactly that reason. The rule
+        # is now the average on both routes, so a register of twelve
+        # subjects one of whom has one visit IS asked about, and the
+        # sentence that says what was seen may not claim of that column
+        # something the column does not do.
         return (
             f"{len(different)} different value(s) over {len(present)} "
-            f"cell(s), so each one stands on more than one row"
+            f"cell(s), so they stand on more than one row each on average"
         )
     if reason == BECAUSE_PADDED:
         padded = 0
@@ -1482,20 +1491,19 @@ def _names_people(
       `categorical_ceiling` already record in every description. That
       is the line, asked rather than restated.
 
-    ROUTE TWO -- A REGISTER OF CODES, EVERY ONE OF THEM REPEATING
-    (repair of landing 3.2). Route one's second condition is the exact
-    COMPLEMENT of the rule that makes a column `categorical`
-    (`_categorical_ceiling` over the same row count), so route one can
-    only ever fire on a column that publishes NO levels -- and the
-    column the plan was written about publishes every one of them. 12
-    subjects over 1,196 rows read as `categorical`, and `subject_id`
-    came back with all twelve identifiers beside their visit counts and
-    no question asked. So a column also clears the rule when
+    ROUTE TWO -- A REGISTER OF CODES (repair of landing 3.2). Route
+    one's second condition is the exact COMPLEMENT of the rule that
+    makes a column `categorical` (`_categorical_ceiling` over the same
+    row count), so route one can only ever fire on a column that
+    publishes NO levels -- and the column the plan was written about
+    publishes every one of them. 12 subjects over 1,196 rows read as
+    `categorical`, and `subject_id` came back with all twelve
+    identifiers beside their visit counts and no question asked. So a
+    column also clears the rule when
 
-    * EVERY different folded value stands on at least
-      `PERSON_ROWS_PER_VALUE` rows -- not two on average but two each,
-      which is stricter than route one's test and is what keeps a
-      register holding some value once out; and
+    * its present values REPEAT, which is route one's FIRST condition
+      unchanged: at least `PERSON_ROWS_PER_VALUE` rows per different
+      folded value, on average; and
     * every present cell is WRITTEN AS A CODE: inside the code alphabet
       (`parsing.is_code_text`, which is the positive evidence the
       identifier rule itself asks for) and carrying both a letter and a
@@ -1505,6 +1513,20 @@ def _names_people(
       `North`, `yes`/`no`. Measured: with the figure alone required, a
       0/1 column clears the rule; with both required, no column of the
       battery that is not a code does.
+
+    ROUTE TWO'S FIRST CONDITION WAS "EVERY VALUE ON TWO ROWS OR MORE",
+    AND ONE SINGLE-VISIT SUBJECT SILENCED IT (review of stage 3, floor
+    finding 4). The stricter form was recorded as a measured limit and
+    left standing; the review reproduced what the limit costs, which is
+    the whole question going unasked on a register of twelve subjects
+    where ONE of them has one visit -- a register of people, published
+    identifier by identifier, that one row decides. ONE ROW MAY NOT
+    SETTLE WHO THE TABLE IS ABOUT, so the condition is now route one's
+    average, counted and never divided. What it still keeps out is what
+    the stricter form was for: a per-row key holds as many different
+    values as it has cells, so `len(present) >= 2 x len(different)` is
+    false of `record`, `subject` and `visit_id` by a factor of two,
+    whether or not one value of them repeats.
 
     WHAT ROUTE TWO ALSO REACHES, AND IS ACCEPTED (ledger K-S3-02). A
     `ward-12`-shaped label column and a register of diagnosis-like
@@ -1519,12 +1541,6 @@ def _names_people(
     repair, which is why the docstring that said `ward` could not
     clear this rule was wrong when it was written.
 
-    THE LIMIT OF ROUTE TWO, MEASURED. "Every value on at least two
-    rows" means one subject with a single visit silences it: a register
-    of 12 subjects over 1,196 rows where one subject has one row is not
-    asked about by route two, and is not asked about by route one
-    either where the value count sits under the categorical ceiling.
-
     MEASURED ON THE BATTERIES THE RULE WAS CHOSEN ON. Over the four
     realistic families of `tests/kpi_shapes.py` (twelve columns, run
     with the declarations they ship and with every declaration removed)
@@ -1535,8 +1551,9 @@ def _names_people(
     (40 different values over 400 cells) and `note` (9 over 400) are
     sets of categories, fall at route one's second condition and are
     not written as codes; `record`, `subject` and `visit_id` are
-    different on every row and fall at both first conditions; `score`,
-    `weight`, `amount` and both date columns are excluded by role.
+    different on every row and fall at the first condition both routes
+    now share; `score`, `weight`, `amount` and both date columns are
+    excluded by role.
 
     Guarantees: accepts the present cells, the role the column holds,
     the table's rows and the settings; returns a truth value. A fixed
@@ -1557,31 +1574,35 @@ def _names_people(
     # COUNTED, never divided: `len(present) / len(different) >= 2` is
     # the same question as this one and asks a float to decide a
     # question about rows.
-    if len(present) >= PERSON_ROWS_PER_VALUE * len(different):
-        if len(different) > taxonomy.categories_ceiling(n_rows, settings):
-            return True
-    return _a_register_of_codes(present, different)
+    #
+    # AND IT IS THE CONDITION BOTH ROUTES SHARE (review of stage 3,
+    # floor item 4). Route two asked "every different value on two
+    # rows or more" until then, which one subject with a single visit
+    # made false -- so one row silenced the question on a register of
+    # twelve people. The two routes now differ in their SECOND condition
+    # alone: many values, or every cell a code.
+    if len(present) < PERSON_ROWS_PER_VALUE * len(different):
+        return False
+    if len(different) > taxonomy.categories_ceiling(n_rows, settings):
+        return True
+    return _a_register_of_codes(present)
 
 
-def _a_register_of_codes(
-    present: "list[str]", different: "dict[str, int]"
-) -> bool:
-    """Route two: every value on two rows or more, and every cell a code.
+def _a_register_of_codes(present: "list[str]") -> bool:
+    """Route two's second condition: every cell is written as a code.
 
     Split out so that each half of the rule can be mutated on its own
     and so that the loop over the cells stops at the first cell that is
-    not a code rather than folding the whole column first.
+    not a code rather than folding the whole column first. The half that
+    asks how often a value repeats is the caller's, because both routes
+    ask it and one question belongs in one place.
 
-    Guarantees: accepts the present cells and the tally of folded
-    values against how many cells wore each; returns a truth value. A
-    fixed function of the two. Raises nothing. No I/O, and no cell
-    reaches anything it returns.
+    Guarantees: accepts the present cells; returns a truth value. A
+    fixed function of them. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
     """
-    if not different:
+    if not present:
         return False
-    for key in different:
-        if different[key] < PERSON_ROWS_PER_VALUE:
-            return False
     for value in present:
         if not parsing.is_code_text(value):
             return False
@@ -1601,16 +1622,27 @@ def person_questions(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
-    declared_identifiers: "list[str]",
     already: "list[str]",
     asked: "list[Question]",
 ) -> "list[Question]":
     """The question about who the rows are, where nobody has said.
 
-    ASKED ONLY WHERE NO COLUMN AT ALL IS DECLARED as holding record
-    numbers. A person who named one has said who the rows are about,
-    and `taxonomy.repeating_identifiers` reads the answer off what they
-    named; asking again would say their answer had not been heard.
+    ASKED ONLY WHERE THE POPULATION IS COUNTED IN PEOPLE ALREADY, which
+    is `settings.person_columns` -- the declared identifiers that REPEAT
+    -- and NOT where any identifier at all is declared (review of stage
+    3, floor item 4). A DECLARATION IS NOT AN ANSWER TO THIS
+    QUESTION unless it settles who the rows are about, and one that is
+    different on every row settles nothing: it names a ROW.
+    `taxonomy.repeating_identifiers` says at length what that
+    distinction cost when it was measured, and the same distinction is
+    what this rule reads. Measured on the tree before this repair: 1,196
+    visits over twelve people with a unique-per-row `visit_id` declared
+    and nothing else left `person_columns` correctly EMPTY -- the
+    population was counted in rows -- while the declaration silenced the
+    question, so the run published the twelve subject codes, asked
+    nothing, and printed neither the population notice nor the notice
+    that it had counted rows. Declaring the subject column refuses the
+    same table as twelve people.
 
     ASKING IS PART OF THE PRODUCT (amendments A-P4-56 and A-P4-58), and
     this is the column class nothing else reaches. Until it existed a
@@ -1626,16 +1658,17 @@ def person_questions(
     Guarantees:
 
     - Inputs: the profile document, the table's columns as text in the
-      same order, the settings that produced it, the columns declared
-      with `--identifier`, the names already declared any way at all,
-      and the questions already asked so no column is asked twice.
+      same order, the settings that produced it -- whose
+      `person_columns` is what says whether anybody has settled who the
+      rows are about -- the names already declared any way at all, and
+      the questions already asked so no column is asked twice.
     - Determinism: a fixed function of the arguments, in the table's
       own column order.
     - Errors raised: none.
     - Boundary: opens no file, prints nothing, and no cell of any
       column appears in what it returns.
     """
-    if declared_identifiers:
+    if settings.person_columns:
         return []
     blocks = document["columns"]
     if not isinstance(blocks, list):

@@ -26,6 +26,7 @@ says which entry is missing. The test below named for that is what
 holds the corrected sentence true.
 """
 
+import dataclasses
 import json
 import pathlib
 import random
@@ -243,6 +244,128 @@ def test_a_table_of_whole_rows_still_clears_the_floor(
     folder.mkdir()
     table = _table(folder, parsing.POPULATION_FLOOR)
     assert main(["profile", f"{table}", "--out-dir", f"{folder}"]) == 0
+
+
+# -- the census reads the FINISHED column ------------------------------
+#
+# Review of stage 3, floor item 3. The census asked `split_missing`,
+# which applies the half of the declarations that reads SPELLINGS and
+# nothing after it -- so every OTHER way a cell comes to mean "no value"
+# was invisible to the floor while being perfectly visible to the
+# description the same run wrote. Five of them, one case each below, and
+# each is a `POPULATION_FLOOR`-line file holding `_REAL_RECORDS`
+# readings: a declared number written exactly as declared, the same
+# number written another way, a stand-in this package judges with nothing
+# declared at all, a calendar placeholder, and a stand-in inside an
+# affixed cell.
+
+
+def _one_column(
+    folder: pathlib.Path, name: str, real: "list[str]", padding: str
+) -> pathlib.Path:
+    """`real` readings then `padding` cells, `POPULATION_FLOOR` lines long."""
+    lines = [name]
+    for value in real:
+        lines += [value]
+    for _place in range(parsing.POPULATION_FLOOR - len(real)):
+        lines += [padding]
+    return fixtures.write(folder, "clinic.csv", "\n".join(lines) + "\n")
+
+
+_READINGS = [f"{20 + place}" for place in range(_REAL_RECORDS)]
+_DAYS = [f"2021-03-{1 + place:02d}" for place in range(_REAL_RECORDS)]
+_AMOUNTS = [f"{20 + place} mg" for place in range(_REAL_RECORDS)]
+
+# Each case: what the column is called, its real readings, the padding,
+# and the options the run is given. The last two are the reviewer's
+# "equivalent numeric spellings and automatically judged sentinels".
+_JUDGED_PADDINGS = [
+    ("declared", "reading", _READINGS, "-999",
+     ["--missing-value=-999", "--measurement", "reading"]),
+    ("spelled_another_way", "reading", _READINGS, "-999.0",
+     ["--missing-value=-999", "--measurement", "reading"]),
+    ("judged", "reading", _READINGS, "-999", ["--measurement", "reading"]),
+    ("placeholder_day", "seen", _DAYS, "9999-12-31", []),
+    ("inside_a_core", "dose", _AMOUNTS, "-999 mg", []),
+]
+
+
+@pytest.mark.parametrize(
+    "case,name,real,padding,options",
+    _JUDGED_PADDINGS,
+    ids=[one[0] for one in _JUDGED_PADDINGS],
+)
+def test_a_padding_the_run_reads_as_no_value_does_not_clear_the_floor(
+    tmp_path: pathlib.Path,
+    case: str,
+    name: str,
+    real: "list[str]",
+    padding: str,
+    options: "list[str]",
+) -> None:
+    """THE REVIEWER'S OWN REPRODUCTION (review of stage 3, floor item 3).
+
+    `_REAL_RECORDS` readings followed by padding, to exactly
+    `POPULATION_FLOOR` lines. Every one of these paddings is counted as
+    missing by the description the run would write, and every one of
+    them cleared the floor: the census asked the FIRST of the five
+    passes that decide what is present and stopped there. The file is
+    refused now and nothing is written.
+    """
+    folder = tmp_path / case
+    folder.mkdir()
+    table = _one_column(folder, name, real, padding)
+    assert main(
+        ["profile", f"{table}", "--out-dir", f"{folder}"] + options
+    ) == 1
+    assert _pages(folder) == ["clinic.csv"]
+
+
+def test_the_census_and_the_description_count_the_same_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One reading, asked twice, and the two answers are the same.
+
+    The defect was two readings of one column: the census's and the
+    description's. This asserts they agree -- the census's surviving
+    spellings against `n_present` of the block the producer writes -- on
+    the five paddings above, over a table large enough to be described,
+    so a future pass added to one reading and not the other turns this
+    red rather than reopening the floor.
+    """
+    from synthtwin import reading
+
+    for case, name, real, padding, options in _JUDGED_PADDINGS:
+        folder = tmp_path / f"agree-{case}"
+        folder.mkdir()
+        # Over the notice line, so the table is described rather than
+        # refused and the description exists to be compared with.
+        wide = list(real) * (parsing.POPULATION_NOTICE_LINE // len(real))
+        lines = [name] + wide + [padding] * len(wide)
+        table = fixtures.write(folder, "clinic.csv", "\n".join(lines) + "\n")
+        declared_missing = ("-999",) if "--missing-value=-999" in options else ()
+        measured = ["reading"] if "--measurement" in options else []
+        settings = taxonomy.Settings(declared_missing_values=declared_missing)
+        read = reading.read_table(
+            f"{table}", "auto", small_cell_floor=settings.small_cell_floor
+        )
+        standing = taxonomy.present_spellings_after_the_rules(
+            read.columns[0],
+            settings,
+            forced_measurement=name in measured,
+        )
+        held = 0
+        for value in read.columns[0]:
+            if value in standing:
+                held = held + 1
+        document = profile.build_document(read, settings, [], [], measured)
+        blocks = document["columns"]
+        assert isinstance(blocks, list)
+        assert held == blocks[0]["n_present"], (
+            f"the census and the description disagree about {case}: the "
+            f"census counted {held} present cells and the description "
+            f"published {blocks[0]['n_present']}"
+        )
 
 
 def test_the_note_states_the_population_the_counts_rest_on(
@@ -590,26 +713,48 @@ def test_validate_still_checks_a_fifty_row_file(
 
 
 def _asked_about(
-    folder: pathlib.Path, rows: "list[list[str]]", declared: "list[str]"
+    folder: pathlib.Path,
+    rows: "list[list[str]]",
+    declared: "list[str]",
+    header: "list[str] | None" = None,
 ) -> "list[str]":
+    """Which columns the person question is put about, as the command asks it.
+
+    THE SETTINGS ARE THE COMMAND'S OWN, `person_columns` INCLUDED
+    (review of stage 3, floor item 4). What settles the question is
+    not that some identifier was declared but that the population is
+    counted in PEOPLE, which is `settings.person_columns` -- the
+    declared identifiers that repeat. Building the settings any other
+    way here would test a rule the command does not run.
+    """
     from synthtwin import reading
 
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(
         folder,
         "ask.csv",
-        fixtures.rows_to_csv(["subject_id", "site", "score"], rows),
+        fixtures.rows_to_csv(
+            header if header else ["subject_id", "site", "score"], rows
+        ),
     )
     settings = taxonomy.Settings()
     read = reading.read_table(
         f"{table}", "auto", small_cell_floor=settings.small_cell_floor
     )
+    person_columns = taxonomy.repeating_identifiers(
+        read.column_names,
+        read.columns,
+        list(declared),
+        settings,
+        taxonomy.Declarations(identifiers=tuple(declared)),
+    )
+    settings = dataclasses.replace(settings, person_columns=person_columns)
     document = profile.build_document(read, settings, list(declared))
     asked = asking.questions_for(
         document, read.columns, settings, list(declared)
     )
     person = asking.person_questions(
-        document, read.columns, settings, list(declared), list(declared), asked
+        document, read.columns, settings, list(declared), asked
     )
     return [question.name for question in person]
 
@@ -712,25 +857,55 @@ def test_a_subject_column_of_codes_is_asked_about_whatever_it_is_called(
     document = profile.build_document(read, settings, [])
     asked = asking.questions_for(document, read.columns, settings, [])
     person = asking.person_questions(
-        document, read.columns, settings, [], [], asked
+        document, read.columns, settings, [], asked
     )
     assert [question.name for question in person] == ["c1"]
 
 
-def test_a_register_holding_one_value_once_is_not_asked_about(
+def test_a_register_holding_one_value_once_is_asked_about(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Route two's first condition: EVERY value on two rows or more.
+    """ONE ROW MAY NOT SETTLE WHO THE TABLE IS ABOUT.
 
-    One subject with a single visit silences route two, which is the
-    measured limit of the repair and is recorded here rather than left
-    to be discovered. Route one cannot reach the shape either, because
-    the subject count is under the categorical ceiling.
+    THE REVIEWER'S OWN REPRODUCTION (review of stage 3, floor item
+    4). Route two's first condition was "EVERY different value on two
+    rows or more", and this shape was recorded beside it as a measured
+    limit: the plan's own cited table -- twelve subjects over 1,196
+    visits, published identifier by identifier -- with ONE subject
+    holding a single visit, asked about by neither route. Route one
+    cannot reach it because the subject count is under the categorical
+    ceiling, and route two could not reach it because one row of 1,196
+    said so. The condition is now the average both routes share, so the
+    question is put.
     """
     folder = tmp_path / "once"
     folder.mkdir()
     rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
     rows[0][0] = "P99999"
+    assert _asked_about(folder, rows, []) == ["subject_id"]
+
+
+def test_a_key_with_a_row_each_is_not_a_register_however_it_is_written(
+    tmp_path: pathlib.Path,
+) -> None:
+    """What route two's first condition still keeps out, after the repair.
+
+    The condition that replaced "every value twice" is the average, and
+    a per-row key fails it by a factor of two whatever its cells look
+    like: as many different values as cells. Asserted with code-shaped
+    cells, which clear route two's second condition, so the first one is
+    the only thing keeping the column out -- and with one value repeated
+    twice, which is what the old condition would have been fooled by in
+    the other direction.
+    """
+    folder = tmp_path / "each"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row[0] = f"V{place:06d}"
+        place = place + 1
+    rows[1][0] = rows[0][0]
     assert _asked_about(folder, rows, []) == []
 
 
@@ -754,10 +929,15 @@ def test_a_column_of_bare_figures_is_not_a_register(
     assert _asked_about(folder, rows, []) == []
 
 
-def test_nothing_is_asked_once_an_identifier_is_declared(
+def test_nothing_is_asked_once_a_repeating_identifier_is_declared(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The person has answered; asking again says it was not heard."""
+    """The person has answered; asking again says it was not heard.
+
+    A declared identifier that REPEATS settles who the rows are about,
+    which is what puts it in `settings.person_columns` and what silences
+    this question (review of stage 3, floor item 4).
+    """
     folder = tmp_path / "declared"
     folder.mkdir()
     assert _asked_about(
@@ -765,16 +945,44 @@ def test_nothing_is_asked_once_an_identifier_is_declared(
     ) == []
 
 
+def test_a_row_identifier_declared_does_not_settle_the_person_question(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE REVIEWER'S OWN REPRODUCTION (review of stage 3, floor item 4).
+
+    1,196 visits over twelve people, with a unique-per-row `visit_id`
+    declared and nothing else. `person_columns` is correctly EMPTY --
+    an identifier different on every row names a ROW, so the population
+    is still counted in rows -- and the declaration silenced the
+    question all the same: the run published the twelve subject codes,
+    asked nothing, and printed neither the population notice nor the
+    notice that it had counted rows. A DECLARATION IS ONLY AN ANSWER TO
+    THIS QUESTION WHEN IT SETTLES WHO THE ROWS ARE ABOUT.
+    """
+    folder = tmp_path / "visits"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row += [f"V{place:06d}"]
+        place = place + 1
+    header = ["subject_id", "site", "score", "visit_id"]
+    assert _asked_about(folder, rows, ["visit_id"], header) == ["subject_id"]
+
+
 def test_another_column_declared_silences_the_question_too(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The rule is "NO identifier declared", not "not THIS one".
+    """The rule is "the count is in PEOPLE", not "THIS column is declared".
 
-    `site` is declared here and `subject_id` is not, so a rule that
-    only skipped the declared column would still ask about
-    `subject_id`. Somebody who has said which column holds their record
-    numbers has answered the question, and asking a second one says
-    their answer was not heard.
+    `site` is declared here and `subject_id` is not, so a rule that only
+    skipped the declared column would still ask about `subject_id`.
+    `site` REPEATS, so declaring it moves the population into people and
+    says who the rows are about, however odd a choice it is; somebody who
+    has said that has answered the question, and asking a second one says
+    their answer was not heard. The test beside this one is the other
+    half: a declared identifier that does NOT repeat leaves the count in
+    rows and settles nothing (review of stage 3, floor item 4).
     """
     folder = tmp_path / "other"
     folder.mkdir()
@@ -827,7 +1035,7 @@ def test_the_question_offers_the_identifier_declaration(
     )
     document = profile.build_document(read, settings, [])
     person = asking.person_questions(
-        document, read.columns, settings, [], [], []
+        document, read.columns, settings, [], []
     )
     assert len(person) == 1
     offered = [choice.answer for choice in person[0].choices]
@@ -891,6 +1099,113 @@ def test_the_question_reaches_the_questions_file_and_the_screen(
     asked = [entry["column"] for entry in written["asked"]]
     assert "subject_id" in asked
     assert "counted in ROWS" in screen.err + screen.out
+
+
+def test_the_terminal_notice_does_not_deny_the_declaration_either(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same sentence on the path where somebody is at the keyboard.
+
+    Two notices say the population was counted in rows: the one the
+    scripted path prints among its assumptions, and this one, printed
+    beside the question when there is somebody to ask. Both said
+    "Nothing was named with --identifier", and both are now reachable
+    with a declaration standing (review of stage 3, floor item 4), so
+    both are asserted rather than one.
+    """
+    from synthtwin import cli
+
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    answers = iter([""] * 9)
+    monkeypatch.setattr(
+        cli, "_read_one_answer", lambda standing: next(answers)
+    )
+    folder = tmp_path / "terminal"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row += [f"V{place:06d}"]
+        place = place + 1
+    table = fixtures.write(
+        folder,
+        "clinic.csv",
+        fixtures.rows_to_csv(
+            ["subject_id", "site", "score", "visit_id"], rows
+        ),
+    )
+    assert main(
+        ["profile", f"{table}", "--out-dir", f"{folder}", "--identifier",
+         "visit_id"]
+    ) == 0
+    said = capsys.readouterr()
+    screen = said.err + said.out
+    assert "counted in ROWS" in screen
+    assert "Nothing was named" not in screen, (
+        "the notice tells somebody who has just typed --identifier that "
+        "they did not"
+    )
+
+
+def test_a_visit_key_declared_leaves_the_question_and_the_notice_standing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """THE REVIEWER'S OWN REPRODUCTION, END TO END (floor item 4).
+
+    The plan's cited table -- 1,196 visits over twelve people -- with a
+    unique-per-row `visit_id` declared and nothing else. The population
+    is counted in ROWS, because no declared identifier repeats; the run
+    published the twelve subject codes with their visit counts, asked
+    NOTHING and said nothing about how it had counted. All three had one
+    cause: any identifier declared silenced the question.
+
+    The twelve codes are still published, which is the owner's ruling of
+    2026-09-23 (`K-S3-14`, the floor counts rows); what this test holds
+    is that the person is ASKED and TOLD, which is the whole of what the
+    question exists for.
+    """
+    folder = tmp_path / "visits"
+    folder.mkdir()
+    rows = _rows(_FEW_ROWS, subjects=_FEW_SUBJECTS)
+    place = 0
+    for row in rows:
+        row += [f"V{place:06d}"]
+        place = place + 1
+    table = fixtures.write(
+        folder,
+        "clinic.csv",
+        fixtures.rows_to_csv(
+            ["subject_id", "site", "score", "visit_id"], rows
+        ),
+    )
+    assert main(
+        ["profile", f"{table}", "--out-dir", f"{folder}", "--identifier",
+         "visit_id"]
+    ) == 0
+    screen = capsys.readouterr()
+    written = json.loads(
+        (folder / "clinic-questions.json").read_text(encoding="utf-8")
+    )
+    assert "subject_id" in [entry["column"] for entry in written["asked"]]
+    said = screen.err + screen.out
+    assert "counted in ROWS" in said
+    # AND THE NOTICE MAY NOT DENY WHAT THE PERSON TYPED. It said
+    # "Nothing was named with --identifier", which was true while any
+    # declaration silenced the question and is false here: `visit_id`
+    # was named, and the count stayed in rows because it names a ROW.
+    assert "Nothing was named" not in said, (
+        "the notice tells somebody who has just typed --identifier that "
+        "they did not"
+    )
+    document = json.loads(
+        (folder / "clinic-profile.json").read_text(encoding="utf-8")
+    )
+    assert document["settings"]["person_columns"] == [], (
+        "a key with a row each names a ROW, so the population stays in "
+        "rows: that is the premise of this test, not an incidental"
+    )
 
 
 # -- the gate after the on-screen answers ------------------------------

@@ -11332,6 +11332,10 @@ The owner's ruling of 2026-09-17, item 8: where a file's first row cannot be tol
 
 (6) **The questions file carries the seventh declaration** (`asking.FIRST_ROW_SUBJECT`): what was SEEN, in words that name a column by its POSITION and quote no cell, the reading that stands (`first-record`), and what the other answer would publish -- that row's text, in the description, the summary, the twin and the quality report. **And the answer is read back** (`asking.Answers.first_row`, applied in `cli._run_profile` before the table is opened, as the metadata-rows answer and the delimiter answer are): a person who writes `names` in the file gets the reading `--first-row names` gives them. Without that the file synthtwin itself wrote would have been refused for carrying an answer it offered.
 
+**BOTH ANSWERS ARE APPLIED, AND ONLY ONE WAS** (review of stage 3, floor item 2; this paragraph is the record of the amendment). `first-record` was called "the reading that already stands and leaves the option where it was", which it is only while nothing else moves. Answered BESIDE a delimiter correction it is the one answer holding the first row IN the table, and dropping it let the corrected reading take that row as the column names. **Measured:** a first record of `12,HEADER|LABEL` over 360 records of `i,code{i}|other{i}`, answered `first-record` and `vertical-bar` in one file, described 360 records and published `12,HEADER` and `LABEL` as two column names, where `--first-row data --delimiter '|'` keeps all 361 records and names the columns `column_1` and `column_2`. It is also what a person who changes their mind back towards the standing reading writes, so a typed `--first-row names` answered `first-record` now gives the record reading: the file is the newer statement in both directions, which is the rule this entry already states for `names`.
+
+**AND AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE THAT NAMES A COLUMN** (review of stage 3, floor item 1; `cli._answers_that_change_the_reading`, `errors.answers_change_the_reading_and_name_columns`). The column names in a questions file are the names of the reading that WROTE it, so an answer changing the reading gives those names to different columns and a declaration applied by name afterwards reaches a column the person was not looking at. **Measured:** a header of `column_2,column_1` over 360 records whose first field held twelve repeating subject codes and whose second field repeated the header's own value on eleven records — so the first row could not be told from a record and the columns were named `column_1`, `column_2`. Answering `names` for the first row and `identifier` for `column_1`, the FIRST field under the reading in force, put the declaration on the SECOND field: the run reached all three writers, counted 350 people and published the twelve real subject codes with counts of thirty, where declaring the field the person meant refuses the table as thirteen people. **Refused rather than mapped**, because `column_1` is a column name under BOTH readings of that file and nothing can tell which was meant: two of the three file questions move a column name — which row holds the names, and which character separates the columns, the second of which decides how many columns there are at all — and either of them beside a `code`, `identifier`, `measurement` or `decimal-comma` answer is refused with a message saying which question it was, which columns were named, and to do it in two runs. An answer that AGREES with the option typed changes nothing and is not a change: `--delimiter ','` answered `comma` is the reading already in force. The third file question, how many rows under the names describe the columns, takes ROWS out and leaves every column where it was, so it is not one of them.
+
 **Measured, before (2b3746b) and after.** The case the green pass flagged: `subject id` over `CASE-ZEBRA-471,amber,Northfield` and 239 more records published that record as the three column names, in the description, in the plain summary, in the twin's own header line and in the quality report, with the table 239 rows instead of 240. It now publishes `column_1`, `column_2`, `column_3`, describes 240 rows, writes no `written_names` in `source.dialect`, and asks; at a floor of eleven no character of `amber`, `Northfield` or `subject id` appears in any of the six files. The same shape in a workbook -- a title row of one cell over 40 records of three texts -- was read the same way and is now read the same way as the text file. The three refusal shapes (a row of numbers, a repeated label, a number among numbers, a date among dates) exit 0 instead of 1 and lose no record.
 
 **Costs, named.** (1) **A title over a header of pure labels loses its names.** Where no column of the file is numeric, nothing shows the row is names, so a titled export of label columns is described with placeholder names and its header row becomes a record. The questions file says so and `--first-row names` puts it back; a person who ignores both gets a twin with one extra row of their own header's words at the floor's discretion. (2) **The first row's values are the floor's business now, not the names rule's.** Read as a record, that row's values are published exactly as every other row's are: at the default floor of one a lone `amber` is a published label. That is the floor's decision, and the ruling's point is that the row is no longer published AS SCHEMA, which bypasses the floor entirely.
@@ -19432,26 +19436,66 @@ in it to `settings.forced_identifiers`. Its closed enumeration:
 settings section, the disposition registry and the settings
 completeness test.
 
-**Asking for the person.** Where NO column at all is declared as
-holding record numbers, a column is asked about when EITHER route
-holds. Route one:
+**Asking for the person.** Where the population is still counted in
+ROWS — where `person_columns` is EMPTY — a column is asked about when
+EITHER route holds. Both routes share their first condition:
 
 1. its present values REPEAT — at least two rows per different folded
-   value, counted and never divided; and
+   value, counted and never divided.
+
+Route one's second condition:
+
 2. it holds MORE DIFFERENT VALUES than a set of categories could have
    had in a table of this many rows — `taxonomy.categories_ceiling`,
    the line `categorical_share` and `categorical_ceiling` already
    record in every description, asked rather than restated.
 
-Route two (added by this landing's repair pass, because route one
-cannot reach the case below):
+Route two's second condition (route two was added by this landing's
+repair pass, because route one cannot reach the case below):
 
-1. EVERY different folded value stands on at least two rows — two
-   each, not two on average, which is stricter than route one's first
-   condition; and
 2. every present cell is WRITTEN AS A CODE: inside the code alphabet
    (`parsing.is_code_text`, the positive evidence the identifier rule
    itself asks for) and carrying both a letter and a figure.
+
+**AMENDED BY THE REVIEW OF STAGE 3 (floor item 4), and this entry is
+the record of it.** Two conditions above are the amendment, and each
+closed a route by which one thing settled who a whole table is about.
+
+*The gate was "NO column at all is declared as holding record
+numbers".* A declaration is only an answer to this question when it
+settles who the rows are about, and an identifier that is different on
+every row settles nothing: it names a ROW, which is the distinction
+`repeating_identifiers` was written for three paragraphs above.
+Measured: 1,196 visits over twelve people with a unique-per-row
+`visit_id` declared and nothing else left `person_columns` correctly
+EMPTY — the population was counted in rows — while the declaration
+silenced the question, so the run published the twelve subject codes,
+asked nothing, and printed neither the population notice nor the notice
+that it had counted rows. The gate is now `person_columns` itself, so
+the question is asked exactly where the count is still in rows.
+
+*Route two's first condition was "EVERY different folded value stands
+on at least two rows".* One subject with a single visit made that false,
+and the limit was recorded beside the rule rather than repaired: the
+cited table of twelve subjects over 1,196 visits, with ONE of them
+holding one visit, was asked about by neither route — route one because
+the subject count is under the categorical ceiling, route two because
+one row of 1,196 said so. ONE ROW MAY NOT SETTLE WHO A TABLE IS ABOUT,
+so the condition is route one's average on both routes. What the
+stricter form was for is still held by the average: a per-row key has as
+many different values as cells, so it fails "two rows per value" by a
+factor of two whether or not one value of it repeats.
+
+The sentence the questions file says was SEEN moves with the rule: it
+said "so each one stands on more than one row", which the average does
+not promise, and it now says "on average". **And so do both notices
+that say the population was counted in ROWS** — the one the scripted
+path prints among its assumptions and the one printed beside the
+question at a terminal. Each opened "Nothing was named with
+--identifier", which was true while any declaration silenced the
+question and is false the moment a unique-per-row key is declared and
+the count stays in rows; both now say "No column that names PEOPLE has
+been declared".
 
 Route two's second condition is what holds its cost down, and both
 halves of it were measured. Without the figure, every column of words
@@ -19472,7 +19516,8 @@ over 40 and over 22 subjects). The question is asked about the four
 `subject_id` columns and about NOTHING else: `dose` (40 different
 values over 400 cells) and `note` (9 over 400) are sets of categories
 and fall at condition 2, `record`, `subject` and `visit_id` are
-different on every row and fall at condition 1, and `score` (98 to 102
+different on every row and fall at the condition both routes share, and
+`score` (98 to 102
 different whole numbers repeating 3 to 28 times), `weight`, `amount`
 and both date columns are excluded by role. That last group is what
 makes the role test load-bearing rather than tidy: every bounded scale
@@ -19508,8 +19553,10 @@ alone read 2 — and route one's two were unmeasured until this pass,
 because the battery held neither shape. The cost of each is ONE
 question whose standing answer is `keep`; the cost of the miss it
 replaces was a description that published twelve people's identifiers.
-The measured limit of route two is recorded beside it: one subject
-with a single visit silences it.
+**The count did not move when the review's amendment loosened route
+two's first condition**: 4 of the same 33, the same four, because a
+per-row key fails the average by a factor of two whether or not one
+value of it repeats.
 
 The answer becomes the `--identifier` declaration by the route every
 other answer takes, and where nobody has said, the screen says the
@@ -19536,6 +19583,34 @@ now counted nowhere: neither as a row of the population, nor as part
 of the one unknown person where an identifier is declared. The notice
 below then states the honest number, because the number it states is
 this count.
+
+**AND "HOLDS A VALUE" IS THE FINISHED READING'S ANSWER** (review of
+stage 3, floor item 3; this paragraph is the record of the
+amendment). The census asked `taxonomy.split_missing`, which is the
+FIRST of the passes that decide what a column holds — the half of the
+person's declarations that reads SPELLINGS — and stopped there. Four
+passes come after it, and every one of them takes cells out: the
+declarations that name a NUMBER, the numeric stand-ins this package
+judges, the calendar placeholders it judges, and the stand-ins inside
+affixed cores. So exactly the same twenty records padded to a hundred
+cleared the floor whenever the padding was anything but a blank or a
+listed word — measured on five paddings, one per pass and one for the
+spelling half: `-999` declared with `--missing-value=-999`, `-999.0`
+declared the same way, `-999` with nothing declared at all,
+`9999-12-31` in a column of dates, and `-999 mg` in a column of amounts.
+Each was counted as a hundred rows of population, and each produced a
+description recording twenty present cells and eighty missing. **One
+reading, in one place:** `profile_column`'s own prologue is
+`taxonomy._read_the_column`, the census asks it through
+`taxonomy.present_spellings_after_the_rules`, and a test holds the
+census's surviving spellings equal to the description's `n_present` on
+all five paddings, so a sixth pass added to one reading and not the
+other turns the suite red rather than reopening the floor.
+`taxonomy.Declarations` is what carries the four column declarations
+down to it, because each of them changes what a column holds: an
+identifier skips three of the passes, a code or a measurement moves the
+role they are gated on, and `--decimal-comma` decides what number a
+cell denotes.
 
 **Where it lives, and what it may not touch.** `cli._run_profile` and
 nowhere else. `profile.build_document` describes a table of any size

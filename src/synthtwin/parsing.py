@@ -868,9 +868,11 @@ DEFAULT_SMALL_CELL_FLOOR = 11
 # on the screen and on every page the run writes. The population is
 # counted in ROWS THAT HOLD A VALUE where no declared identifier
 # repeats, and in PEOPLE where one does (`taxonomy.people_in`). A row
-# whose every cell is blank or means "no value" is counted nowhere:
+# every cell of which the run reads as "no value" is counted nowhere:
 # the rows a reader returns are a property of the file, and what a
 # description's counts are counts over is the rows that hold something.
+# WHAT THE RUN READS AS "no value" is every pass that decides it, not
+# the spellings alone (review of stage 3, floor item 3).
 #
 # THE TWO NUMBERS ARE A COMMAND'S RULE AND NOT A DOCUMENT'S. Nothing
 # in a description carries them, `build_document` never asks them, and
