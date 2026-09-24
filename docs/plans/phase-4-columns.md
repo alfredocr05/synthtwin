@@ -20824,3 +20824,95 @@ later pass does not have to rediscover it from the back-solve.
 entries `K-S3-11` and `K-S3-15`, and
 `tests/test_stage3_gate.py::reconstruction`, which carries every one of
 the review's reproductions as a case.
+
+## Amendment P4-D350 — the date and clock robustness items of stage 3's review round (2026-09-24)
+
+Stage 3's one adversarial round returned REJECT on all four passes. This
+amendment records the seven items of its DATES pass that are robustness
+rather than disclosure: inputs that used to work and now crash, lose
+values, or pass a check they should fail. **No rule of the format moves
+here**; what moves is where an existing clause reaches. Each item is
+repaired with the review's own reproduction as a case and a mutation
+that puts the old behaviour back
+(`tests/test_stage3_review_dates.py`, 31 cases).
+
+1. **The all-different obligation was abandoned in silence** (item 4,
+   HIGH). Method G7.3's count pass ran on `date` and `datetime` alone,
+   so a hundred unique months from `2000-01` at a floor of eleven came
+   back holding 74 different values at seed 4 -- no deviation reported,
+   no obligation missed -- and a hundred consecutive quarters the same.
+   A month and a quarter are ordinal units of one exactly as a day is.
+   The same clause asked for NO offset at all, which is stricter than
+   its own reason: one offset written after every moment leaves one
+   spelling per instant, so a 200-value column publishing
+   `{"+02:00": 200}` in full is inside the pass, where a file holding
+   29 of those values used to meet every obligation it states. And on a
+   column of CLOCK times, where G7A.4 makes the obligation EXACT, the
+   checker held the count to an envelope a file of 99 different times
+   against a published 100 passed: G11's own reading decides it now
+   (`contract.all_different_binds`, validation clause V6.1-A3).
+2. **Clock generation invented declared missing cells** (item 5). The
+   parsed clock values were never asked whether their spelling is one
+   the table calls absent -- only the stand-ins of G7A.5 were -- so with
+   `08:00` declared missing and eleven such cells, seeds 0, 3 and 7
+   wrote twelve, leaving 98 present against a published 99. G7A.4 steps
+   each BODY rank off such a spelling, inside the window it was built
+   in; a boundary or tail rank stands at an instant the description
+   names and does not move.
+3. **A sparse column lost its separator census** (item 6). G7.9's spend
+   kept the mark it INVENTS below the census line and never asked what
+   the mark it spends FROM was left holding: 22 dates in 2,000 rows
+   publish `{"upper_t": 11}` at a floor of eleven, seed 4 spent one of
+   the eleven, and ten beside one is a census no description may print.
+   The spend stops while that count is at the line.
+4. **A calendar edge produced a description its own loader rejects**
+   (item 7). Twelve `0001-01-01T01:00:00+14:00` convert to an instant
+   outside the years the canonical form can spell, and the LOCAL text
+   was left standing in the ordered sequence while the sort used the
+   instant: the low tail published a mean distance of MINUS 3,600 and a
+   listed value above its own boundary, and the strict loader refused it
+   under DT3 and told the person the file had been changed since it was
+   written. `parsing.utc_moment` publishes the nearest instant the form
+   can spell instead -- a non-decreasing function of the instant, so the
+   sequence stays ordered by construction -- and the checker reads the
+   same rule. **The cost is named rather than hidden:** on the review's
+   own shape the clamp puts 32 of the 100 cells on one instant, the two
+   tails cross, and the column falls to the made-up ramp of G7.3d, whose
+   twin holds 84 different values against a published 3. That is a LOUD
+   deviation on both pages where the shipped tool refused the
+   description outright, and G7.3d's ramp is the open cause.
+5. **Generation reported published offsets as withheld** (item 8). The
+   offsetless member is a published member of the census: a column
+   publishing `{"(none)": 50, "+01:00": 50}` was told every offset it
+   carried had been held back as too rare to publish, on a twin that
+   wrote both members exactly.
+6. **An exactly conforming clock twin got a false percentile failure**
+   (item 9). Every minute of a day, 1,440 rows: seeds 0 and 1 reproduce
+   the real column's whole multiset and the report marked p99 outside
+   its window -- published `23:44`, achieved `23:44`, allowed `23:41` to
+   `23:43`. Two rules were missing and both are written down: the window
+   carries G7A.4's all-different step in BOTH reports, and the twin's
+   own report takes the equality reading the quality report has taken
+   since plan amendment A-P3-40.
+7. **The loader accepted impossible tail moments** (item 10). Setting a
+   valid 100-date profile's tail distances to `1e308` loaded, and
+   generation then raised `ValueError: cannot convert float NaN to
+   integer`; a mean of `1` beside that root raised `OverflowError`.
+   Contract DT3 carries the feasible bounds and the moment relationship
+   the supported calendar and the clock domain allow, taken on the
+   WIDEST space any column can be written in so that nothing a narrower
+   member would allow is refused.
+
+**Two frozen cases were added** for the two new construction branches --
+`clock_declared_hole` for G7A.4's hole step and `mark_spend_at_the_line`
+for G7.9's refused spend -- and the existing `month_span` and `quarter`
+cases move seven cells each, which is the count pass reaching a
+resolution it never ran on.
+
+**Where it is stated:** this amendment,
+`docs/spec/generation-method-v1.md` (G7.3, G7.9, G7A.4, G12.1, G12.10,
+G14.3), `docs/spec/validation-method-v1.md` (the distinctness envelope
+and V6.1-A3), `docs/spec/profile-contract-v6.md` (D5 and DT3), and
+`tests/test_stage3_review_dates.py`, which carries every one of the
+review's reproductions as a case beside the mutation that withdraws its
+rule.

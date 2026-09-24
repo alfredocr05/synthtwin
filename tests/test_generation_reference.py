@@ -600,9 +600,14 @@ EIGHTH_BRANCH_CASES = (
 )
 
 # THE ELEVENTH FILE: the listed tail of G5.3e and the counts solved for
-# it, the sign rule of G5.5a on a derived end, and the moment ladder of a
-# block too thin for two tails.
+# it, the sign rule of G5.5a on a derived end, the moment ladder of a
+# block too thin for two tails, and -- added by the dates pass of the
+# stage-3 review, item 5 -- G7A.4's hole step, which no clock case
+# frozen before it reaches because none of them carries an absent
+# spelling at all.
 NINTH_BRANCH_CASES = (
+    "clock_declared_hole",
+    "mark_spend_at_the_line",
     "tail_listed_counts",
     "tail_moment_ladder",
     "tail_sign_clamped",
@@ -627,6 +632,10 @@ ALL_CASES = tuple(
 # and not in the oracle: the oracle is a pure function of the words, and
 # a seed inside it would be a random operation it is not allowed to hold.
 SEEDS = {
+    # The dates pass of the stage-3 review takes the next seed after the
+    # highest in use.
+    "clock_declared_hole": 306,
+    "mark_spend_at_the_line": 307,
     "date_only": 101,
     # The review of 158c811 takes the next seeds after the highest in use.
     "date_gap_places": 141,
@@ -1957,6 +1966,23 @@ def _only_when_saturated(total, bands, values):
     if not all(gen._band_holds(bands[place], grid[place]) for place in range(total)):
         return None
     return grid
+
+def _a_spend_that_never_looks_at_the_line(_wearing, _floor):
+    """G7.9 item 2's last clause withdrawn: the spend counts its budget
+    and never asks what the mark it spends from is left holding."""
+    return True
+
+
+def _no_spelling_reads_as_absent(_ordinal, _form, _absent):
+    """G7A.4's hole step withdrawn: no clock value reads as no value.
+
+    What this role did until the dates pass of the stage-3 review, item
+    5, exactly: G7A.5 stepped the STAND-INS past every spelling the
+    table calls absent and the parsed clock values were asked nothing at
+    all, so a body rank landing on one was written as a clock time the
+    twin's own reader counts as absent.
+    """
+    return False
 
 
 def _either_field_below_ten(column, day_number, word=""):
@@ -3657,6 +3683,32 @@ CASE_MUTANTS = {
         attribute="affixed_core_view",
         replacement=_the_cell_counts_as_if_they_were_the_cores,
         outcome="asks for 0 content words",
+    ),
+    "mark_spend_at_the_line": Mutant(
+        branch="G7.9 item 2's last clause, which stops the spend while "
+        "the mark it is taken FROM is at `census_floor(floor)`; the "
+        "mutant lets the spend run to the budget alone, which is what "
+        "it did until the dates pass of the stage-3 review, and this "
+        "column's census of eleven `T` marks -- the floor itself -- "
+        "comes back ten and one, a census no twin's own description "
+        "may print at all",
+        attribute="mark_spend_leaves_a_named_count",
+        replacement=_a_spend_that_never_looks_at_the_line,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_declared_hole": Mutant(
+        branch="G7A.4's HOLE STEP, which moves a body rank off a "
+        "spelling the table calls absent and onto the nearest unit of "
+        "its own window that is not one; the mutant answers that no "
+        "spelling reads as absent, which is what this role did until "
+        "the dates pass of the stage-3 review -- its stand-ins were "
+        "stepped past the absent spellings and its clock values were "
+        "checked against nothing -- and the column then writes "
+        "THIRTEEN `08:00` cells against the eleven its description "
+        "publishes absent",
+        attribute="_clock_reads_absent",
+        replacement=_no_spelling_reads_as_absent,
+        outcome=CHANGES_THE_CELLS,
     ),
     "clock_ladder": Mutant(
         branch="G7A.4's all-different repair, which steps a rank that "

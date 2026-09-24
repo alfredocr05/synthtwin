@@ -9106,6 +9106,29 @@ def _distinctness_checks(
             # reason the date role has one: the construction writes a
             # value per RANK, so a column publishing fewer different
             # times than it has rows is met by a twin holding more.
+            #
+            # ...EXCEPT WHERE G11 BINDS (`contract.all_different_binds`,
+            # the dates pass of the stage-3 review, item 4). A column
+            # publishing as many different times as it has present values
+            # owes ALL of them, exactly, and G7A.4's step-and-clamp meets
+            # that on every description a profiler wrote. The envelope
+            # stood here in the obligation's place, so a file holding 99
+            # of a published 100 passed with nothing said.
+            window = _clock_distinct_window(column, facts, floor)
+            if (
+                contract.all_different_binds(column, published)
+                and window[0] <= published <= window[1]
+            ):
+                checks += [
+                    _exact(
+                        name,
+                        fact,
+                        subcheck,
+                        _shown_count(published),
+                        None if measured is None else _shown_count(measured),
+                    )
+                ]
+                continue
             checks += [
                 _within(
                     name,
@@ -9113,7 +9136,7 @@ def _distinctness_checks(
                     subcheck,
                     _shown_count(published),
                     None if measured is None else float(measured),
-                    _clock_distinct_window(column, facts, floor),
+                    window,
                     ENVELOPE_CLOCK_DISTINCT,
                     float(published),
                 )
@@ -9132,6 +9155,14 @@ def _distinctness_checks(
             # 1077 was WITHIN-BOUND of a window from 11 to 1460 and passed
             # in silence. Inside the envelope the count is EXACT; outside
             # it, where the construction cannot reach, the window stands.
+            #
+            # ...AND THE CLAUSE READS ONE PUBLISHED OFFSET AS ONE WAY OF
+            # WRITING AN INSTANT since the dates pass of the stage-3
+            # review, item 4, which is what brings G11's all-different
+            # obligation back on such a column: 200 timestamps all
+            # different, with `{"+02:00": 200}` published in full, were
+            # met by a file holding 29 of those values while the
+            # envelope of G12.5 stood in the obligation's place.
             window = _datetime_distinct_window(
                 column, facts, floor, date_system
             )
@@ -15950,7 +15981,9 @@ def _tail_holes(
             facts.datetimes_read_at == "utc"
             and facts.resolution == taxonomy.RESOLUTION_DATETIME
         ):
-            shifted = parsing.utc_canonical(read[0], read[1])
+            # The producer's own clamp, for the reason `_tail_units_of`
+            # gives (`parsing.utc_moment`).
+            shifted = parsing.utc_moment(read[0], read[1])
             if shifted is None:
                 continue
             moment = shifted
@@ -16235,7 +16268,16 @@ def _tail_units_of(
             facts.datetimes_read_at == "utc"
             and facts.resolution == taxonomy.RESOLUTION_DATETIME
         ):
-            shifted = parsing.utc_canonical(canonical, worn)
+            # ...AND THE CLAMP THE PRODUCER PUBLISHES WITH
+            # (`parsing.utc_moment`, the dates pass of the stage-3
+            # review, item 7): a conversion the calendar cannot spell is
+            # read at the calendar's own edge on both sides of the wall,
+            # so a file holding such a cell is measured in the unit its
+            # own description published it under. Read with the plain
+            # conversion the cell counted for nothing here while the
+            # description counted it, and the source table missed both
+            # of its tail boundaries.
+            shifted = parsing.utc_moment(canonical, worn)
             if shifted is None:
                 found += [None]
                 continue
@@ -16852,6 +16894,23 @@ def _clock_rank_windows(
     at `P * c / 100` and the high boundary at `P -` the high tail's rows.
     A column with no tails is its ramp, every rank a point.
 
+    AND A COLUMN WHOSE VALUES WERE ALL DIFFERENT CARRIES ITS BODY RANKS
+    THROUGH THE STEP-AND-CLAMP (method G7A.4; the dates pass of the
+    stage-3 review, item 9). The construction leaves no body rank of such
+    a column on the instant the knots gave it: a rank on or below the one
+    before it steps to the next unit, and a rank reaching the high
+    boundary is held one unit below it. Both ends of a rank's window go
+    through that same walk, so the ends carried forward are
+
+        bound = min(high boundary - 1, max(own end, bound before + 1))
+
+    from the low boundary, which is where the walk starts. The window
+    here was the interpolation's alone, which is narrower than what the
+    construction reaches: measured on every minute of a day, 1,440 rows,
+    the twin's p99 stands at 23:44 where that window ends at 23:43, and
+    only the equality reading of V6.1-A1 kept a conforming twin from
+    being named as having missed the rung.
+
     Guarantees: accepts the column, its facts, how many of its cells read
     back as clock times and the floor; returns the two ends of every
     rank's window. Nothing measured is consulted. Determinism: a fixed
@@ -16890,6 +16949,18 @@ def _clock_rank_windows(
             ]
     knots += [(100 * (high_rank + 1) * word, high_at)]
     windows = _clock_tail_windows(column, facts, floor)
+    apart = column.n_distinct - facts.n_unparsed >= parsed
+    stepped: "dict[int, tuple[int, int]]" = {}
+    if apart:
+        least = low_at
+        most = low_at
+        ceiling = high_at - 1
+        for place in range(low_rank + 1, high_rank):
+            below = _clock_knot_at(knots, 100 * place * word) - 1
+            above = min(_clock_knot_at(knots, 100 * (place + 1) * word), high_at)
+            least = min(ceiling, max(below, least + 1))
+            most = min(ceiling, max(above, most + 1))
+            stepped[place] = (least, most)
     for rank in range(parsed):
         if rank < low_rank or rank > high_rank:
             low_side = rank < low_rank
@@ -16918,6 +16989,10 @@ def _clock_rank_windows(
         if rank == high_rank:
             lows += [step * high_at]
             highs += [step * high_at]
+            continue
+        if rank in stepped:
+            lows += [step * stepped[rank][0]]
+            highs += [step * stepped[rank][1]]
             continue
         lows += [step * _clock_knot_at(knots, 100 * rank * word) - step]
         highs += [

@@ -402,38 +402,46 @@ def _readings_missed(rule: typing.Callable[..., object]) -> "list[str]":
 # `n_unparsed` of nought, and adding a second would move committed bytes
 # (plan P4-D295). So the term is witnessed here, one call at a time.
 
-SHORTFALL_CELLS = ["2025-01-01 00:00:00"] * 6 + ["2025-01-02 00:00:00"] * 5
+# TWELVE CELLS AND NOT ELEVEN since the dates pass of the stage-3
+# review (item 6). Item 2's last clause stops the spend while the mark
+# it is taken from would be left below `census_floor(floor)`, so a
+# column of exactly eleven space-marked cells at a floor of eleven can
+# buy nothing at all -- and every row below would have answered "()"
+# for that one reason, parting none of the clauses each was written to
+# part. One more cell puts the census one above the line, and the last
+# row asks the new clause on its own.
+SHORTFALL_CELLS = ["2025-01-01 00:00:00"] * 7 + ["2025-01-02 00:00:00"] * 5
 SHORTFALL = (
     # (n_distinct_folded, n_unparsed, floor, census, member, holes, moved)
     # A shortfall of one, and one rank spent: the owner's own shape. It
     # is rank ONE and not rank nought, because the first rank is an end
     # the description publishes.
-    (3, 0, 11, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
+    (3, 0, 11, {"space": 12}, "iso-datetime", (), ((1, "T"),)),
     # THE SAME COLUMN WITH ONE STAND-IN. The stand-in is a folded
     # spelling of its own, so the cells in hand are one short of nothing
     # and the rule spends nothing.
-    (3, 1, 11, {"space": 11}, "iso-datetime", (), ()),
+    (3, 1, 11, {"space": 12}, "iso-datetime", (), ()),
     # A published four against two folded spellings and one stand-in:
     # a shortfall of one again, and one rank.
-    (4, 1, 11, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
-    (4, 2, 11, {"space": 11}, "iso-datetime", (), ()),
+    (4, 1, 11, {"space": 12}, "iso-datetime", (), ((1, "T"),)),
+    (4, 2, 11, {"space": 12}, "iso-datetime", (), ()),
     # THE BUDGET BINDING instead of the shortfall: a floor of three
     # gives two ranks, one per day, and the shortfall of ten is not
     # reached. A second rank of the first day would repeat a folded
     # spelling, and the last rank of the second is an end.
-    (12, 0, 3, {"space": 11}, "iso-datetime", (), ((1, "T"), (6, "T"))),
+    (12, 0, 3, {"space": 12}, "iso-datetime", (), ((1, "T"), (7, "T"))),
     # A floor of one still publishes a census line of two, so one rank.
-    (12, 0, 1, {"space": 11}, "iso-datetime", (), ((1, "T"),)),
+    (12, 0, 1, {"space": 12}, "iso-datetime", (), ((1, "T"),)),
     # A slashed stamp. Item 3 skips it BY MEMBER, and D12 permits it the
     # space alone, so the census leaves it no mark unnamed either way --
     # which is why this row parts no road on its own and the one below
     # it was added. (Until 2026-09-21 the comment here said 'character
     # eleven is a digit'; the frozen slashed_pool cell
     # '2024/06/20 13:37' holds the MARK at index ten.)
-    (3, 0, 11, {"space": 11}, "month-first-datetime", (), ()),
+    (3, 0, 11, {"space": 12}, "month-first-datetime", (), ()),
     # A census holding a withheld pool: already split over every
     # permitted mark, so it leaves none unnamed.
-    (3, 0, 11, {"(withheld)": 11}, "iso-datetime", (), ()),
+    (3, 0, 11, {"(withheld)": 12}, "iso-datetime", (), ()),
     # ---- THE FOUR ROWS OF THE ROUND-3 SKEPTIC (2026-09-21) ----
     # Each of the four moved cells under a one-clause mutant while
     # moving no committed byte and none of the eight rows above.
@@ -444,7 +452,7 @@ SHORTFALL = (
     # and longer, so only the member itself refuses the spend. Both
     # implementations answer nothing; a member test that admitted
     # anything but the two ISO datetime members would buy rank one.
-    (3, 0, 11, {"space": 11}, "iso-date", (), ()),
+    (3, 0, 11, {"space": 12}, "iso-date", (), ()),
     # ITEM 7'S TIE. Two names of one count: the commonest is the FIRST
     # IN SORTED ORDER, so 'space' and not 'upper_t', the cells wear the
     # mark wanted, and the one spare mark 'lower_t' is bought. Stated
@@ -456,13 +464,21 @@ SHORTFALL = (
     # commonest named mark and nothing is bought, though the shortfall
     # is one and two marks are spare. Without that clause rank one is
     # respelled with the lower `t`.
-    (3, 0, 11, {"upper_t": 11}, "iso-datetime", (), ()),
+    (3, 0, 11, {"upper_t": 12}, "iso-datetime", (), ()),
     # ITEM 2'S DECLARED-ABSENT SPELLING. The table declares the first
     # day's respelling absent, so the six ranks of that day are passed
     # over and the FIRST rank of the second day is bought instead.
     # Without that clause rank one is bought and the twin writes a
     # spelling its own description says the table does not hold.
-    (3, 0, 11, {"space": 11}, "iso-datetime", ("2025-01-01T00:00:00",), ((6, "T"),)),
+    (3, 0, 11, {"space": 12}, "iso-datetime", ("2025-01-01T00:00:00",), ((7, "T"),)),
+    # ITEM 2'S LAST CLAUSE (the dates pass of the stage-3 review,
+    # item 6): at a floor of twelve the census stands ON the line,
+    # so spending one of the twelve would leave eleven -- a count
+    # no census may print -- and nothing is bought, though the
+    # shortfall is one and two marks are spare. Without that clause
+    # rank one is respelled and the twin's own description pools
+    # the whole census.
+    (3, 0, 12, {"space": 12}, "iso-datetime", (), ()),
 )
 
 

@@ -238,6 +238,30 @@ def wide_runs_on_a_pooled_form(_column: str) -> Change:
     return change
 
 
+def standing_at_midnight_in_days(_column: str) -> Change:
+    """Say a column of stamps stands at midnight, in day units (D14).
+
+    D14 is the rule under test, so everything the SWITCH to days carries
+    with it moves too: `tail_unit` follows the standing (DT4), and each
+    tail's two distances are counted in the unit the block names, so
+    they are divided by the seconds in a day. Leaving either behind is
+    refused one rule earlier and D14 is never reached, which is the
+    whole reason this battery exists.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["all_at_midnight"] = True
+        block["tail_unit"] = "day"
+        for side in ("low_tail", "high_tail"):
+            tail = block.get(side)
+            if not isinstance(tail, dict):
+                continue
+            for key in ("mean_distance", "rms_distance"):
+                if isinstance(tail.get(key), (int, float)):
+                    tail[key] = float(tail[key]) / 86400.0
+    return change
+
+
 def counted_past_the_values(_column: str) -> Change:
     """Count more values at midnight than a column has (D15)."""
     def change(document: Document) -> None:
@@ -1331,12 +1355,16 @@ def battery() -> list[Mutation]:
             edit("recorded_on", all_at_midnight=True),
         ),
         Mutation(
-            # AND THE TAIL UNIT WITH IT (stage 3, DT4): a column standing
-            # at midnight counts its tails in days, so a mutation that
-            # says so without moving the unit is refused one rule earlier
-            # and D14 is never reached.
+            # AND THE TAIL UNIT WITH IT (stage 3, DT4), AND THE TWO
+            # DISTANCES THE UNIT IS COUNTED IN (DT3, the dates pass of
+            # the stage-3 review): a column standing at midnight counts
+            # its tails in DAYS, so a mutation that says so and leaves
+            # either the unit or the distances in seconds is refused one
+            # rule earlier and D14 is never reached. A distance of
+            # 693,204 counted in days passes the end of the supported
+            # calendar, which DT3 now refuses.
             "D14", "stamps on the shared clock said to stand at midnight",
-            edit("logged_at", all_at_midnight=True, tail_unit="day"),
+            standing_at_midnight_in_days("logged_at"),
         ),
         Mutation(
             "D15", "more values counted at midnight than the column holds",

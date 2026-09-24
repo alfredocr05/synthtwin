@@ -95,6 +95,74 @@ representable grid with spare points); `docs/spec/profile-contract-v6.md`
 Three vector files were rebuilt through the guard runner and one frozen
 case was added.
 
+### The date and clock repairs of stage 3's review round (2026-09-24)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and these are the seven items of its dates pass that are ROBUSTNESS
+rather than disclosure**: inputs that used to work and now crash, lose
+values, or pass a check they should fail. Each one is repaired with the
+review's own reproduction as a test and a mutation that puts the old
+behaviour back (`tests/test_stage3_review_dates.py`, 31 cases).
+
+- **The all-different obligation is no longer abandoned in silence**
+  (item 4). Method G7.3's count pass ran on `date` and `datetime` alone,
+  so 100 unique months from `2000-01` came back holding 74 different
+  values at seed 4 with nothing reported, and 100 consecutive quarters
+  the same; a month and a quarter are ordinal units of one like a day,
+  and the pass reaches them now -- 100 of 100 at seeds 0, 1 and 4. The
+  same clause asked for NO offset at all, which is stricter than its own
+  reason: one offset written after every moment leaves one spelling per
+  instant, so a 200-value column publishing `{"+02:00": 200}` in full is
+  inside the pass too, where a file holding 29 of those values used to
+  meet every obligation. And on a column of CLOCK times, where G7A.4
+  makes the obligation exact, validation held the count to an envelope
+  that a file of 99 different times against a published 100 passed:
+  G11's own reading now decides it (`contract.all_different_binds`,
+  validation clause V6.1-A3).
+- **Clock generation invents no declared missing cell** (item 5). The
+  parsed clock values were never asked whether their spelling is one the
+  table calls absent -- only the stand-ins were -- so with `08:00`
+  declared missing and eleven such cells, seeds 0, 3 and 7 wrote twelve,
+  leaving 98 present against a published 99. G7A.4 now steps each BODY
+  rank off such a spelling, inside the window it was built in.
+- **A sparse column keeps the separator census it publishes** (item 6).
+  G7.9's spend kept the mark it INVENTS below the census line and never
+  asked what the mark it spends FROM was left holding: 22 dates in 2,000
+  rows publish `{"upper_t": 11}` at a floor of eleven, seed 4 spent one
+  of the eleven, and ten beside one is a census no description may
+  print. The spend stops at the line.
+- **A calendar edge no longer produces a description its own loader
+  rejects** (item 7). Twelve `0001-01-01T01:00:00+14:00` convert to an
+  instant outside the years the canonical form can spell, and the LOCAL
+  text was left standing in the ordered sequence while the sort used the
+  instant: the low tail published a mean distance of **minus 3,600** and
+  a listed value above its own boundary, and the strict loader refused
+  it under DT3. `parsing.utc_moment` publishes the nearest instant the
+  form can spell instead, on both sides of the wall.
+- **Generation no longer reports published offsets as withheld**
+  (item 8). The offsetless member is a published member: a column
+  publishing `{"(none)": 50, "+01:00": 50}` was told every offset it
+  carried had been held back, on a twin that wrote both exactly.
+- **An exactly conforming clock twin gets no false percentile failure**
+  (item 9). Every minute of a day, 1,440 rows: seeds 0 and 1 reproduce
+  the whole multiset and the report marked p99 outside its window --
+  published `23:44`, achieved `23:44`, allowed `23:41` to `23:43`. The
+  window now carries G7A.4's all-different step, in both reports, and
+  the twin's report takes the same equality reading the quality report
+  has taken since plan amendment A-P3-40.
+- **The loader refuses tail moments no tail could hold** (item 10).
+  Setting a valid 100-date profile's distances to `1e308` loaded and
+  generation then raised `ValueError: cannot convert float NaN to
+  integer`; mean `1` beside that root raised `OverflowError`. DT3 now
+  carries the feasible bounds and the moment relationship the supported
+  calendar and the clock domain allow.
+
+**Two frozen cases were added** for the two new construction branches --
+`clock_declared_hole` for G7A.4's hole step and `mark_spend_at_the_line`
+for G7.9's refused spend -- and the existing `month_span` and `quarter`
+cases move seven cells each, which is the count pass reaching a
+resolution it never ran on.
+
 ### The tail that would be read back publishes neither distance (2026-09-23)
 
 **STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,

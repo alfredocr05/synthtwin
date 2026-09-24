@@ -8390,8 +8390,12 @@ def _datetime_facts(
                 f"in '{wanted_unit}'"
             ),
         )
-    low = _tail_object(mapping["low_tail"], "low_tail", where, resolution, "")
-    high = _tail_object(mapping["high_tail"], "high_tail", where, resolution, "")
+    low = _tail_object(
+        mapping["low_tail"], "low_tail", where, resolution, "", unit
+    )
+    high = _tail_object(
+        mapping["high_tail"], "high_tail", where, resolution, "", unit
+    )
     _tails_hold(
         where, floor, n_present - unparsed, low, high, ladder.rungs,
         "date_percentiles", "D11",
@@ -8751,19 +8755,85 @@ def midnight_withheld_for_its_size(facts: "DatetimeFacts") -> bool:
     return not (facts.datetimes_read_at != "local" and WITHHELD in facts.utc_offsets)
 
 
+def all_different_binds(column: "ColumnBlock", published: int) -> bool:
+    """Whether G11's all-different obligation binds on one published count.
+
+    THE ONE STATEMENT OF WHERE THE OBLIGATION IS EXACT ON A COLUMN OF
+    MOMENTS OR CLOCK TIMES (method G11; the dates pass of the stage-3
+    review, item 4). G11's rule is that a column publishing
+    `n_distinct == n_present` has all-different present values in the
+    twin, on every role, and it names four instances where it cannot
+    hold -- a declared identifier short of room, a label fold beneath the
+    floor, a datetime column whose OFFSETS ARE WITHHELD, and a joined
+    column whose pairing cannot reach the count. Only the third of them
+    is about these two roles, so the obligation binds on every other
+    description they can carry.
+
+    IT WAS NOT ASKED AT ALL, and the two cardinality envelopes stood in
+    its place. Measured at a floor of eleven: a clock column of 100
+    different times was met by a file holding 99, and a 200-value
+    datetime column with a fully published `+02:00` offset was met by a
+    file holding 29, with every obligation passing and nothing said. An
+    envelope is the right bar for a count the construction approximates
+    and the wrong one for a count G11 fixes exactly.
+
+    ASKED PER PUBLISHED FIELD, because the raw and the folded count are
+    two obligations: a column whose folded count stands below its raw
+    one has all-different spellings and not all-different identities,
+    and the folded field is then an approximated fact like any other.
+
+    Guarantees: accepts a loaded column block and one published count;
+    returns False for every role but the two, and for a column of no
+    present values. A function of the block and the count. Raises
+    nothing. No I/O of any kind.
+    """
+    if column.n_present < 1 or published != column.n_present:
+        return False
+    facts = column.facts
+    if isinstance(facts, (ClockFacts,)):
+        return True
+    if isinstance(facts, (DatetimeFacts,)):
+        return WITHHELD not in facts.utc_offsets
+    return False
+
+
 def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     """Whether method G7.3's count pass reaches a date column's distinct count.
 
     THE ONE STATEMENT OF WHERE THE CONSTRUCTION REACHES IT (plan
     P4-D192), asked by the generator's pass and report and by the
-    validator alike. The pass counts different written UNITS -- days, or
-    minutes or seconds at the column's precision -- so it reaches the
-    count of different cells only where one instant is written one way:
-    read on the column's own clock; at `date` or `datetime` resolution;
-    carrying no offset at all and no pooled offset; writing at most one
-    mark between day and clock and pooling none; each census of written
-    forms naming at most one form; writing no bare date beside moments;
-    and publishing the same count folded as raw.
+    validator alike. The pass counts different written UNITS -- a day, a
+    month or a quarter, or minutes or seconds at the column's precision
+    -- so it reaches the count of different cells only where one instant
+    is written one way: read on the column's own clock; at a resolution
+    whose unit the layout steps by one; publishing at most one offset
+    key and no pooled offset; writing at most one mark between day and
+    clock and pooling none; each census of written forms naming at most
+    one form; writing no bare date beside moments; and publishing the
+    same count folded as raw.
+
+    ONE PUBLISHED OFFSET IS ONE WAY OF WRITING AN INSTANT (the dates
+    pass of the stage-3 review, item 4). The clause asked for NO offset
+    at all, which is stricter than its own reason: a column every cell
+    of which wears `+02:00` writes that offset after every moment, so
+    one instant still has exactly one spelling and the unit count is the
+    cell count. Excluded, 200 timestamps seven minutes apart, all
+    different, with `{"+02:00": 200}` published in full, fell to the
+    envelope of G12.5 -- and a file holding 29 of those 200 different
+    values met every obligation the description states. What the clause
+    refuses is more than one KEY, and a pool, because then one instant
+    can be written more than one way.
+
+    MONTHS AND QUARTERS ARE INSIDE IT (the dates pass of the stage-3
+    review, item 4). They were excluded with no reason written down, and
+    the exclusion was not a silence: the count pass never ran on such a
+    column and the envelope of G12.5 then admitted whatever the draw
+    happened to hold, so 100 unique months from `2000-01` at a floor of
+    eleven came back as 74 different values at seed 4, with no deviation
+    reported and no obligation missed, and 100 consecutive quarters did
+    the same. A month and a quarter are ordinal units the layout steps
+    by one exactly as a day is, and the pass moves ranks inside their
+    gaps by the same arithmetic.
 
     Guarantees: accepts a loaded column block; returns False for any
     column not of dates. A function of the block. Raises nothing. No I/O
@@ -8774,11 +8844,10 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
         return False
     if facts.datetimes_read_at != "local":
         return False
-    if facts.resolution not in ("date", "datetime"):
+    if facts.resolution not in RESOLUTIONS:
         return False
-    for key in facts.utc_offsets:
-        if key != NO_OFFSET:
-            return False
+    if WITHHELD in facts.utc_offsets or len(facts.utc_offsets) > 1:
+        return False
     if WITHHELD in facts.datetime_separators or len(facts.datetime_separators) > 1:
         return False
     for census in (
@@ -8823,9 +8892,24 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
 def _units_between(low: str, high: str, facts: "DatetimeFacts") -> int:
     """How many different instants the two boundaries hold between them.
 
-    At the column's own precision, both ends included: days on a column
+    At the column's own precision, both ends included: months on a
+    column of months, quarters on a column of quarters, days on a column
     of dates, and minutes or seconds on a column of moments.
     """
+    if facts.resolution == "quarter":
+        return (
+            4 * (int(high[0:4]) - int(low[0:4]))
+            + int(high[6])
+            - int(low[6])
+            + 1
+        )
+    if facts.resolution == "month":
+        return (
+            12 * (int(high[0:4]) - int(low[0:4]))
+            + int(high[5:7])
+            - int(low[5:7])
+            + 1
+        )
     if facts.resolution == "date":
         return (
             parsing.days_from_civil(int(high[0:4]), int(high[5:7]), int(high[8:10]))
@@ -9377,6 +9461,7 @@ def _tail_object(
     where: str,
     resolution: str,
     form: str,
+    unit: str = "",
 ) -> "TailFacts | None":
     """DT1: one tail, or nothing at all.
 
@@ -9473,6 +9558,7 @@ def _tail_object(
                 f"the {key}'s root-mean-square distance is {root}",
                 "it is never below the mean distance, nor below one unit",
             )
+    _tail_moments_are_possible(key, where, boundary, unit, form, mean, root)
     return TailFacts(
         boundary=boundary,
         rows=rows,
@@ -9480,6 +9566,134 @@ def _tail_object(
         rms_distance=root,
         values=values,
     )
+
+
+def _tail_moments_are_possible(
+    key: str,
+    where: str,
+    boundary: str,
+    unit: str,
+    form: str,
+    mean: "float | None",
+    root: "float | None",
+) -> None:
+    """DT3: two distances a tail of this column could actually hold.
+
+    THE INVARIANT WAS ONLY THAT BOTH WERE FINITE (the dates pass of the
+    stage-3 review, item 10), and finite is a long way from possible.
+    Setting a valid 100-date profile's low tail to a mean and a
+    root-mean-square of `1e308` loaded, and `synthtwin generate` then
+    raised `ValueError: cannot convert float NaN to integer` out of the
+    shape fitting; a mean of `1` beside that root raised `OverflowError`.
+    A description the loader accepts is one the generator builds from, so
+    the two distances owe the same feasibility every other published
+    number owes.
+
+    THE TWO BOUNDS, BOTH FROM THE DOMAIN AND NOT FROM THE CODE. Each of
+    the tail's `n` distances is a whole number of units, at least one --
+    DT3 already -- and at most the number of units between the boundary
+    and the edge of what this column's space can write: the supported
+    calendar's own ends for a column of dates, counted in the tail's own
+    unit, and the day itself for a column of clock times. Call that
+    `span`. Then
+
+    1. NEITHER MOMENT PASSES THE EDGE. `mean <= span` and `root <= span`,
+       because both are averages over distances that cannot.
+    2. AND THE TWO AGREE WITH EACH OTHER. The sum of squares of numbers
+       none of which passes `span` is at most `span` times their sum, so
+       `root * root <= span * mean`. That is the relationship a mean of
+       one beside an enormous root breaks, and it is what tells a
+       description whose two moments cannot both be true of one tail
+       from one whose moments are merely large.
+
+    Both are read with `_TAIL_ROUNDING`'s relative allowance, for the
+    same reason the mean-against-root rule above carries it: each moment
+    is one binary64 rounding of an exact ratio.
+
+    Guarantees: accepts the tail's key, the block's place, its boundary,
+    the column's tail unit and clock form, and the two distances;
+    returns nothing and raises `ProfileError` where either rule breaks.
+    A null distance is nothing to check. Determinism: a fixed function
+    of the arguments. No I/O of any kind.
+    """
+    if mean is None or root is None:
+        return
+    span = float(_tail_span(key, boundary, unit, form))
+    reach = span * (1.0 + _TAIL_ROUNDING)
+    if mean > reach or root > reach:
+        raise _broken(
+            "DT3",
+            where,
+            f"the {key}'s distances are {mean} and {root}",
+            (
+                f"no cell of it lies more than {span} units beyond its "
+                f"boundary {boundary}, which is where this column's own "
+                "calendar ends"
+            ),
+        )
+    if root * root > span * mean * (1.0 + _TAIL_ROUNDING):
+        raise _broken(
+            "DT3",
+            where,
+            f"the {key}'s distances are {mean} and {root}",
+            (
+                "a root-mean-square distance of that size needs a mean "
+                f"distance of at least {root * root / max(span, 1.0)}, "
+                f"because no distance of it passes {span} units"
+            ),
+        )
+
+
+def _tail_span(key: str, boundary: str, unit: str, form: str) -> int:
+    """How many units lie between a tail's boundary and the edge of its space.
+
+    The supported calendar is the proleptic Gregorian years 0001 to
+    9999, which is what the canonical form of contract 6.6.2 can spell
+    and what `parsing.readable_days` gives the widest member; a column of
+    clock times has the day itself. The unit is the tail's own (DT4), and
+    a day is taken with one day's slack on either end, because a moment
+    on the shared clock is counted at the nearest midnight of that clock
+    and that rounding can reach a day past the last date.
+
+    This is the WIDEST space any column can be written in, on purpose: a
+    narrower member -- a two-figure year, a workbook date system -- can
+    write only inside it, so nothing this bound admits is refused for a
+    column whose own member would allow it, and every description the
+    producer writes passes.
+
+    Guarantees: accepts the tail's key, its boundary as the loader has
+    already read it, the tail unit and the clock form; returns a count of
+    nought or more. Whole-number arithmetic. Raises nothing. No I/O.
+    """
+    if form:
+        at = parsing.clock_ordinal(boundary, form)
+        capacity = parsing.CLOCK_CAPACITY[form]
+        if at is None:
+            return capacity - 1
+        return at if key == "low_tail" else capacity - 1 - at
+    year = int(boundary[0:4])
+    if unit == parsing.TAIL_UNIT_QUARTER:
+        at = 4 * (year - 1970) + int(boundary[6]) - 1
+        first = 4 * (1 - 1970)
+        last = 4 * (9999 - 1970) + 3
+    elif unit == parsing.TAIL_UNIT_MONTH:
+        at = 12 * (year - 1970) + int(boundary[5:7]) - 1
+        first = 12 * (1 - 1970)
+        last = 12 * (9999 - 1970) + 11
+    else:
+        days = parsing.days_from_civil(
+            year, int(boundary[5:7]), int(boundary[8:10])
+        )
+        first_day = parsing.days_from_civil(1, 1, 1) - 1
+        last_day = parsing.days_from_civil(9999, 12, 31) + 1
+        if unit == parsing.TAIL_UNIT_DAY:
+            at, first, last = days, first_day, last_day
+        else:
+            step = 60 if unit == parsing.TAIL_UNIT_MINUTE else 1
+            at = _seconds_of(boundary) // step
+            first = (first_day * 86400) // step
+            last = (last_day * 86400 + 86399) // step
+    return max(0, at - first if key == "low_tail" else last - at)
 
 
 # The relative allowance DT1 gives the root-mean-square distance against

@@ -1418,6 +1418,36 @@ envelope from 11 to 1460 and passed. Where the published count lies
 outside the envelope, or on a column the pass does not apply to, the
 window stands, WITHIN-BOUND as before.
 
+**Amended by the dates pass of the stage-3 review, item 4: the clause
+reaches months, quarters and one published offset.** The clause is
+method G7.3's and this document only asks it, so what moves here is
+which columns the exact bar reaches. `contract.datetime_counts_reachable`
+now answers yes for a column of months or of quarters, whose ordinal
+unit the layout steps by one exactly as a day's, and for a column
+publishing ONE offset key in full, where one instant still has exactly
+one spelling. Both were enveloped before, and an envelope in the place
+of a count the construction reaches is a check that cannot fail on the
+files it was written for: measured at a floor of eleven, 100 unique
+months from `2000-01` had a twin holding 74 different values and a
+description that missed nothing, and a 200-value column with
+`{"+02:00": 200}` published in full was met by a file holding 29.
+
+**V6.1-A3. A count G11 fixes exactly is not an envelope's to settle**
+(*the dates pass of the stage-3 review, item 4*). Method G11's rule is
+that a column publishing `n_distinct == n_present` has ALL-DIFFERENT
+present values in the twin, on every role, and it names the four
+instances where it cannot hold -- a declared identifier short of room,
+a label fold beneath the floor, a datetime column whose OFFSETS ARE
+WITHHELD, and a joined column whose pairing cannot reach the count.
+None of the four is a column of clock times, and G7A.4 states the
+obligation EXACT for that role, so a clock column publishing as many
+different times as it has present values is held to that count exactly
+(`distinct.n_distinct`, HELD or MISSED) wherever the published count
+lies inside the envelope of G12.11. The envelope stood in the
+obligation's place and could not fail on the file it was written for: a
+column of 100 different times was met by a file holding 99, and every
+obligation passed with nothing said.
+
 **Amended 2026-09-15 (landing 2b.3, rewritten by the repair pass of
 landing 2b.6): a judged spelling is not a declaration, and the
 description says which is which.** A `missing_by_source` key a column's
